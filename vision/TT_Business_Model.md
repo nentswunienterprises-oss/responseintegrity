@@ -6,7 +6,9 @@ Response Integrity is not a tutoring company.
 
 It is an academic performance-conditioning system.
 
-In the school-partnership layer, it also functions as an external academic leadership institution that helps high schools solve an upstream primary-school problem.
+In the current live model, it serves Grade 6-9 learners through a monthly subscription while the tutor layer runs a validation track.
+
+The future high-school leadership track and school-partnership expansion remain planned, but they are not the current public story.
 
 ## The problem the market keeps mislabeling
 
@@ -25,59 +27,46 @@ High schools inherit those patterns later, when the cost of correction is far hi
 
 ## The institutional move
 
-Response Integrity helps schools intervene before pressure hardens into identity.
+Response Integrity helps learners and families prepare before pressure hardens into identity.
 
-Instead of waiting until Grade 9-12 to treat symptoms, we build upstream conditioning capacity.
+The current live family model gives learners recurring cadence, direct attention, and structured repetition.
 
-High schools nominate top students into a disciplined leadership pathway.
+The tutor side currently validates matric-completed or young-adult candidates.
 
-Response Integrity trains those students as System Executors inside Response Integrity-OS.
-
-Those trained student leaders then support younger learners in a controlled one-to-one response-conditioning environment.
-
-Schools remain schools.
-
-Response Integrity supplies the conditioning layer.
+The primary-school referral pilot can run now, and the high-school leadership track will come later.
 
 ## How the collaboration works
 
-1. **High schools nominate top students**
-   Selection is based on academic strength, discipline, and leadership readiness.
+1. **Families enter the live model**
+   They join through the monthly family subscription or through pilot/invitation access where applicable.
 
-2. **Response Integrity trains them**
-   Selected students are trained in:
+2. **Tutor candidates are trained**
+   Current live candidates are conditioned through Response Integrity-OS before they serve in live delivery.
+   They are trained in:
    - calm execution under pressure
-   - topic-level response observation
    - clear academic communication
    - doctrine-based session delivery
+   - observation, correction, and escalation discipline
 
-3. **System Executors serve younger learners**
-   They work with referred learners in a structured online environment governed by Response Integrity.
+3. **Tutors serve younger learners**
+   They work with referred learners in a structured environment governed by Response Integrity.
 
 4. **Response Integrity holds the standards**
    We manage doctrine, safeguarding, reporting, platform control, and quality enforcement.
 
-## Why high schools say yes
-
-- **Leadership that carries real consequence**
-  Students are not collecting badges. They are carrying disciplined responsibility.
-
-- **Stronger incoming learners over time**
-  Younger learners exposed to response conditioning enter high school with fewer panic habits and better exam posture.
-
-- **Institutional reputation**
-  Schools can credibly say their students are being developed as academic leaders inside a real system.
-
-- **Low administrative burden**
-  Response Integrity carries the operating load.
-
-## Why primary schools and parents say yes
+## Why families and school partners say yes
 
 - early intervention before repeated academic collapse
 - measurable behavioural change, not just marks talk
 - calmer execution in tests and classwork
 - structured cadence rather than panic-service booking
 - a system that trains response, not just understanding
+
+## Future high-school leadership track
+
+- High schools will later be able to nominate top candidates into a separate leadership-development track.
+- Those candidates will be trained to support younger learners inside the Response Integrity system.
+- That track is expansion work, not the current live brand.
 
 ## What Response Integrity is actually selling
 
@@ -121,53 +110,41 @@ Key doctrine:
 
 ## Offer architecture
 
-### Standard - Response Stability Track
+### Live family offer
 
-Purpose:
-Repair unstable response patterns and build base structure.
+- Monthly subscription per student: `R1000`
+- Standard paid family offer: monthly `8-session` package
+- Default cadence: `2 sessions per week`
+- Parent-facing UI: **Premium plan** language
+- The old `standard / premium / pro` ladder is not the current live truth
 
-Typical shape:
+### Pod economics
 
-- one weekly one-to-one session
-- lower-pressure repetitions
-- emphasis on clarity and early structured execution
-
-### Premium - Response Conditioning Track
-
-Purpose:
-Make reliable execution more repeatable through tighter cadence.
-
-Typical shape:
-
-- two weekly one-to-one sessions
-- denser repetition on the same topic
-- tighter observation and progression control
-
-This is the centre of gravity for the model because cadence is where conditioning becomes durable.
-
-### Pro - Exam Response Conditioning Track
-
-Purpose:
-Train whether structure survives live exam pressure.
-
-Typical shape:
-
-- Premium cadence plus simulations
-- readiness checks
-- post-pressure breakdown analysis
+- `12 tutors`
+- `36 students`
+- `3 students per tutor`
+- `288 sessions per month`
+- `R36,000` monthly revenue collected
+- `R27,000` tutor payouts
+- `R9,000` platform revenue
+- `R864` workspace cost
+- `R8,136` net platform income before marketing and admin
 
 ## Tutor opportunity
 
 Response Integrity is not building a random tutor pool.
 
-It is building a disciplined System Executor pathway.
+It is building a disciplined tutor validation pathway.
 
-This opportunity is for candidates who:
+This opportunity is for current live candidates who:
 
 - are strong in mathematics
 - accept correction without ego
 - can follow doctrine precisely
 - want real capability development rather than casual side-income
+
+The current live path uses matric-completed or young-adult candidates.
+The future high-school leadership path comes later.
 
 This is not "teach your own way."
 
@@ -211,4 +188,4 @@ Avoid:
 
 ## The one-sentence positioning
 
-**Response Integrity enables high schools to develop academic leaders who prevent failure upstream before panic becomes identity.**
+**Response Integrity is a calm-performance academic support system for Grades 6-9 learners, delivered through a monthly family subscription and supported by a structured tutor validation track.**
