@@ -726,7 +726,7 @@ const tutorPhaseDefinitions: BattleTestPhaseDefinition[] = [
         section: "Skipping Diagnosis",
         prompt: "A tutor hears that a student struggles in algebra and immediately starts teaching the whole algebra topic again. What is wrong?",
         expectedAnswer:
-          "The tutor skipped Topic Conditioning. They must first narrow the struggle into a specific topic-state and identify where the response is breaking: Clarity, Structured Execution, Controlled Discomfort, or Time Pressure Stability.",
+          "The tutor skipped diagnosis. They must first narrow the struggle into a specific topic-state and identify where the response is breaking: Clarity, Structured Execution, Controlled Discomfort, or Time Pressure Stability.",
         failIndicators: ["They are being helpful", "teaching first is fine", "students need explanations"],
       },
       {

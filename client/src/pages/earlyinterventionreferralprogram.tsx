@@ -163,22 +163,19 @@ export default function EarlyInterventionReferralProgram() {
           </div>
 
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight mt-6" style={{ color: "#1A1A1A" }}>
-            The Real Problem Primary Schools Are Facing
+            The Real Problem Schools Are Seeing
             <div className="text-base sm:text-lg font-semibold mt-2" style={{ color: "#5A5A5A" }}>
-              (And Why It Shows Up Too Late)
+              Capable learners can understand the work and still lose structure under pressure.
             </div>
           </h1>
         </div>
 
         <Card className="p-4 sm:p-6 mb-6" style={{ backgroundColor: "white" }}>
           <p>
-            Primary schools do not primarily struggle with poor teaching, weak curriculum, or lack of resources.
+            Primary schools do not need another content layer.
           </p>
           <p className="mt-3">
-            They struggle with something quieter - and more dangerous.
-          </p>
-          <p className="mt-3">
-            Capable students who understand the work, but stop executing when pressure appears.
+            They need support for learners who understand the work but stop executing when pressure appears.
           </p>
           <p className="mt-3">
             This is not a content problem.
@@ -187,7 +184,7 @@ export default function EarlyInterventionReferralProgram() {
         </Card>
 
         <Card className="p-4 sm:p-6 mb-6" style={{ backgroundColor: "white" }}>
-          <h2 className="text-lg font-bold mb-3">What Schools Observe (But Can' Systematically Fix)</h2>
+          <h2 className="text-lg font-bold mb-3">What Schools Observe (But Cannot Systematically Fix)</h2>
           <p>
             By Grades 6-7, a familiar pattern emerges:
           </p>
@@ -289,7 +286,7 @@ export default function EarlyInterventionReferralProgram() {
             It is not remedial tutoring.
           </p>
 
-          <p className="mt-3">We provide a controlled response-conditioning program for capable students who underperform under pressure.</p>
+          <p className="mt-3">We provide a controlled response-conditioning program for learners who know the work but underperform under pressure.</p>
 
           <p className="mt-3"><strong>In simple terms:</strong></p>
           <p>We train how students respond when certainty disappears.</p>
@@ -300,11 +297,25 @@ export default function EarlyInterventionReferralProgram() {
         </Card>
 
         <Card className="p-4 sm:p-6 mb-6" style={{ backgroundColor: "white" }}>
+          <h2 className="text-lg font-bold mb-3">What Schools and Families Gain</h2>
+          <ul className="list-disc pl-5 mt-2 space-y-2">
+            <li>Direct attention on how the learner thinks, pauses, rushes, and loses structure</li>
+            <li>A private, judgment-free space where mistakes become training data</li>
+            <li>Good pressure through observation, not shame</li>
+            <li>Execution under difficulty</li>
+            <li>Preparation before pressure arrives</li>
+            <li>A system-led method rather than personality-led support</li>
+            <li>Confidence through evidence</li>
+            <li>Small structured cohorts that protect focus and consistency</li>
+          </ul>
+        </Card>
+
+        <Card className="p-4 sm:p-6 mb-6" style={{ backgroundColor: "white" }}>
           <h2 className="text-lg font-bold mb-3">What That Looks Like in Practice</h2>
           <ul className="list-disc pl-5 mt-2 space-y-2">
             <li>Structured exposure to uncertainty</li>
             <li>Timed problem environments</li>
-            <li>Controlled cognitive stress</li>
+            <li>Guided pressure practice</li>
             <li>Execution under pressure</li>
             <li>Calm decision-making habits</li>
           </ul>
@@ -347,7 +358,7 @@ export default function EarlyInterventionReferralProgram() {
               <div className="text-sm text-gray-600">Schools can confidently say: "We referred your child to a structured support program." This reframes the conversation without defensiveness.</div>
             </li>
             <li><strong>Long-Term Outcome Protection</strong>
-              <div className="text-sm text-gray-600">Students transition to high school without panic-based habits. That reflects positively on the primary school - years later.</div>
+              <div className="text-sm text-gray-600">Students transition to high school with fewer panic-based habits. That reflects positively on the primary school - years later.</div>
             </li>
           </ol>
         </Card>
@@ -397,7 +408,7 @@ export default function EarlyInterventionReferralProgram() {
         {showForm && !submitted && (
           <div ref={formRef} className="max-w-2xl mx-auto mt-8">
             <Card className="p-4 sm:p-6" style={{ backgroundColor: "white" }}>
-              <h3 className="text-lg font-bold mb-4">Request Early-Intervention Pilot Access</h3>
+              <h3 className="text-lg font-bold mb-4">Request Referral Pilot Access</h3>
               <form onSubmit={handleSubmit}>
                 <div className="mb-4">
                   <label className="block text-sm font-medium mb-1">School name</label>
@@ -444,7 +455,7 @@ export default function EarlyInterventionReferralProgram() {
             <Card className="p-4 sm:p-6" style={{ backgroundColor: "white" }}>
               <h3 className="text-lg font-bold mb-3">Submission Received</h3>
 
-              <p>Thank you for submitting your school's interest in the Response Integrity Early Intervention Pilot.</p>
+              <p>Thank you for submitting your school's interest in the Response Integrity referral pilot.</p>
 
               <p className="mt-3">Your request has been logged for internal review.</p>
 

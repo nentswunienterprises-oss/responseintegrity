@@ -64,7 +64,7 @@ Q6
 A tutor hears that a student struggles in algebra and immediately starts teaching the whole algebra topic again. What is wrong?
 
 Expected Answer
-The tutor skipped Topic Conditioning. They must first narrow the struggle into a specific topic-state and identify where the response is breaking: Clarity, Structured Execution, Controlled Discomfort, or Time Pressure Stability.
+The tutor skipped diagnosis. They must first narrow the struggle into a specific topic-state and identify where the response is breaking: Clarity, Structured Execution, Controlled Discomfort, or Time Pressure Stability.
 
 Fail Answer
 They are being helpful
