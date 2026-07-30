@@ -34,3 +34,12 @@ repo.bundle
 .env*.local
 google-calendar-token.json
 client_secret_*.json
+
+# Temporary publish snapshots
+.publish-brain-import-fix/
+.publish-local-diverged/
+.publish-proof-flow/
+.publish-td-deepdive/
+
+# Temporary preview asset
+client/public/.tmp-ri-symbol-preview.png
