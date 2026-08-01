@@ -11,6 +11,7 @@ import { useStudentWorkflowState, useMarkHandoverCompleted, useRespondToAssignme
 import { TutorIntroSessionActions } from "./TutorIntroSessionActions";
 import { useScheduledSession, useTrainingSessions } from "@/hooks/useScheduledSession";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -1294,6 +1295,8 @@ function IntroDiagnosticTopicSection({
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [diagnosticTopic, setDiagnosticTopic] = useState("");
+  const topicOptions = (reportedTopics && reportedTopics.length > 0) ? reportedTopics : [suggestedTopic];
+  const [selectedDiagnosticChoice, setSelectedDiagnosticChoice] = useState(topicOptions[0] || "");
   const [activationError, setActivationError] = useState("");
   const [activatedTopic, setActivatedTopic] = useState<string | null>(null);
   const directDrillLaunch = usesDirectDrillLaunch(operationalMode);
@@ -1309,14 +1312,15 @@ function IntroDiagnosticTopicSection({
 
   const handleActivate = () => {
     setActivationError("");
-    const nextTopic = diagnosticTopic.trim();
+    const nextTopic = (selectedDiagnosticChoice === "__other__") ? diagnosticTopic.trim() : String(selectedDiagnosticChoice || "").trim();
     if (!nextTopic) {
-      setActivationError("Please enter a topic name to continue.");
+      setActivationError("Please choose or enter a topic to continue.");
       return;
     }
     window.sessionStorage.setItem(storageKey, nextTopic);
     setActivatedTopic(nextTopic);
     setDiagnosticTopic("");
+    setSelectedDiagnosticChoice(topicOptions[0] || "");
     setDialogOpen(false);
   };
 
@@ -1341,14 +1345,34 @@ function IntroDiagnosticTopicSection({
             <DialogHeader>
               <DialogTitle>Add Diagnostic Topic</DialogTitle>
               <DialogDescription>
-                Enter the topic you will run the intro drill on. This is required before opening the intro session.
+                Choose a parent-reported topic or enter a custom topic to run the intro drill on. This is required before opening the intro session.
               </DialogDescription>
             </DialogHeader>
-            <Input
-              value={diagnosticTopic}
-              onChange={(e) => setDiagnosticTopic(e.target.value)}
-              placeholder="e.g. Linear equations"
-            />
+            <div className="space-y-2">
+              <Select value={selectedDiagnosticChoice} onValueChange={(v) => setSelectedDiagnosticChoice(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={topicOptions[0] || "Select topic"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {topicOptions.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                  <SelectItem key="__other__" value="__other__">Other (type manually)</SelectItem>
+                </SelectContent>
+              </Select>
+              {selectedDiagnosticChoice === "__other__" && (
+                <Input
+                  value={diagnosticTopic}
+                  onChange={(e) => setDiagnosticTopic(e.target.value)}
+                  placeholder="e.g. Linear equations"
+                />
+              )}
+            {activationError ? <p className="text-xs text-red-500 mt-1">{activationError}</p> : null}
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleActivate}>Use This Topic</Button>
+            </DialogFooter>
+            </div>
             {activationError ? <p className="text-xs text-red-500 mt-1">{activationError}</p> : null}
             <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
@@ -1424,16 +1448,31 @@ function IntroDiagnosticTopicSection({
               Update the intro-only diagnostic topic. This does not formally activate a training topic.
             </DialogDescription>
           </DialogHeader>
-          <Input
-            value={diagnosticTopic}
-            onChange={(e) => setDiagnosticTopic(e.target.value)}
-            placeholder="e.g. Linear equations"
-          />
-          {activationError ? <p className="text-xs text-red-500 mt-1">{activationError}</p> : null}
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleActivate}>Save Topic</Button>
-          </DialogFooter>
+          <div className="space-y-2">
+            <Select value={selectedDiagnosticChoice} onValueChange={(v) => setSelectedDiagnosticChoice(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={topicOptions[0] || "Select topic"} />
+              </SelectTrigger>
+              <SelectContent>
+                {topicOptions.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+                <SelectItem key="__other__" value="__other__">Other (type manually)</SelectItem>
+              </SelectContent>
+            </Select>
+            {selectedDiagnosticChoice === "__other__" && (
+              <Input
+                value={diagnosticTopic}
+                onChange={(e) => setDiagnosticTopic(e.target.value)}
+                placeholder="e.g. Linear equations"
+              />
+            )}
+            {activationError ? <p className="text-xs text-red-500 mt-1">{activationError}</p> : null}
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleActivate}>Save Topic</Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
       <p className="text-xs text-muted-foreground text-center">
