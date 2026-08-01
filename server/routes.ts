@@ -318,7 +318,7 @@ function buildCompactSandboxEmailPrefix(prefix: string, seed: string | null | un
 function buildCompactSandboxEmail(prefix: string, seed: string | null | undefined) {
   const compactSeed = buildCompactSandboxSeed(seed);
   const compactTime = Date.now().toString(36).slice(-8);
-  return `${prefix}-${compactSeed}-${compactTime}@territorialtutoring.com`;
+  return `${prefix}-${compactSeed}-${compactTime}+responseintegrity@gmail.com`;
 }
 
 function resolvePayfastEmailAddress(options: {
@@ -579,7 +579,7 @@ function isTutorScopedSandboxParentEmail(parentEmail: string | null | undefined,
   const normalizedEmail = String(parentEmail || "").trim().toLowerCase();
   return (
     normalizedEmail.startsWith(buildCompactSandboxEmailPrefix("sandbox-parent", tutorId)) &&
-    normalizedEmail.endsWith("@territorialtutoring.com")
+    normalizedEmail.endsWith("@gmail.com")
   );
 }
 
@@ -593,7 +593,7 @@ function isHeuristicSandboxEnrollment(enrollment: any, tutorId?: string) {
       (tutorId
         ? isTutorScopedSandboxParentEmail(parentEmail, tutorId)
         : parentEmail.startsWith("sandbox-parent-")) &&
-      parentEmail.endsWith("@territorialtutoring.com")
+      parentEmail.endsWith("@gmail.com")
     ) ||
     parentName.startsWith("sandbox ") ||
     studentName.startsWith("sandbox ")
@@ -609,7 +609,7 @@ function isHeuristicSandboxStudent(student: any, tutorId?: string) {
       (tutorId
         ? isTutorScopedSandboxParentEmail(parentContact, tutorId)
         : parentContact.startsWith("sandbox-parent-")) &&
-      parentContact.endsWith("@territorialtutoring.com")
+      parentContact.endsWith("@gmail.com")
     ) ||
     studentName.startsWith("sandbox ")
   );
@@ -12512,7 +12512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           const sandboxContextLikely =
             normalizedParentEmail.startsWith("sandbox-parent-") ||
-            normalizedParentEmail.endsWith("@territorialtutoring.com") ||
+            normalizedParentEmail.endsWith("@gmail.com") ||
             normalizedStudentName.startsWith("sandbox ");
 
           if (!parentEnrollment) {

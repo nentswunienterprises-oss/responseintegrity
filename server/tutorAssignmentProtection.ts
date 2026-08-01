@@ -46,7 +46,7 @@ function isHeuristicSandboxEnrollment(enrollment: any, tutorId?: string) {
     : "sandbox-parent-";
 
   return (
-    (parentEmail.startsWith(expectedEmailPrefix) && parentEmail.endsWith("@territorialtutoring.com")) ||
+    (parentEmail.startsWith(expectedEmailPrefix) && parentEmail.endsWith("@gmail.com")) ||
     parentName.startsWith("sandbox ") ||
     studentName.startsWith("sandbox ")
   );
