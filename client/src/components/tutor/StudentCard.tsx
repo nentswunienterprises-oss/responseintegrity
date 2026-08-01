@@ -1307,8 +1307,29 @@ function IntroDiagnosticTopicSection({
     const stored = window.sessionStorage.getItem(storageKey);
     if (stored) {
       setActivatedTopic(stored);
+      setSelectedDiagnosticChoice(stored);
     }
   }, [storageKey]);
+
+  const findTopicIntelligence = (topic: string | null) => {
+    if (!topic) return null;
+    const normalized = normalizeTopicKey(topic);
+    if (!normalized) return null;
+    return topicIntelligence.find((entry) => normalizeTopicKey(entry.topic) === normalized) || null;
+  };
+
+  const selectedTopicIntelligence = useMemo(
+    () => findTopicIntelligence(selectedDiagnosticChoice === "__other__" ? null : selectedDiagnosticChoice),
+    [selectedDiagnosticChoice, topicIntelligence],
+  );
+
+  const activatedTopicIntelligence = useMemo(
+    () => findTopicIntelligence(activatedTopic),
+    [activatedTopic, topicIntelligence],
+  );
+
+  const launchPhase = activatedTopicIntelligence?.recommendedStartingPhase || selectedTopicIntelligence?.recommendedStartingPhase || recommendedStartingPhase;
+  const launchTopic = activatedTopic || (selectedDiagnosticChoice === "__other__" ? diagnosticTopic.trim() : selectedDiagnosticChoice);
 
   const handleActivate = () => {
     setActivationError("");
@@ -1320,7 +1341,7 @@ function IntroDiagnosticTopicSection({
     window.sessionStorage.setItem(storageKey, nextTopic);
     setActivatedTopic(nextTopic);
     setDiagnosticTopic("");
-    setSelectedDiagnosticChoice(topicOptions[0] || "");
+    setSelectedDiagnosticChoice(nextTopic);
     setDialogOpen(false);
   };
 
@@ -1367,13 +1388,8 @@ function IntroDiagnosticTopicSection({
                   placeholder="e.g. Linear equations"
                 />
               )}
-            {activationError ? <p className="text-xs text-red-500 mt-1">{activationError}</p> : null}
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleActivate}>Use This Topic</Button>
-            </DialogFooter>
+              {activationError ? <p className="text-xs text-red-500 mt-1">{activationError}</p> : null}
             </div>
-            {activationError ? <p className="text-xs text-red-500 mt-1">{activationError}</p> : null}
             <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
               <Button onClick={handleActivate}>Use This Topic</Button>
@@ -1406,8 +1422,8 @@ function IntroDiagnosticTopicSection({
         variant="default"
         size="sm"
         onClick={() => {
-          const topicParam = encodeURIComponent(activatedTopic);
-          const phaseParam = `&phase=${encodeURIComponent(recommendedStartingPhase)}`;
+          const topicParam = encodeURIComponent(launchTopic || "");
+          const phaseParam = `&phase=${encodeURIComponent(launchPhase || recommendedStartingPhase)}`;
           const sessionParam =
             directDrillLaunch
               ? ""
