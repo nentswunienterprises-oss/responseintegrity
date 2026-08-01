@@ -423,6 +423,106 @@ export default function ParentGateway() {
     );
   })();
 
+  // Handlers moved above so they are initialized before being referenced in JSX
+  const handleAcceptProposal = async () => {
+    setIsProcessingProposal(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+      const response = await fetch(`${API_URL}/api/parent/proposal/accept`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to start Premium payment");
+      }
+
+      if (data?.paymentStatus === "PAID" || data?.paymentStatus === "FREE_ACCESS") {
+        if (data.parentCode) {
+          setParentCode(data.parentCode);
+        }
+
+        toast({
+          title: data?.paymentStatus === "FREE_ACCESS" ? "Pilot Access Active" : "Payment Confirmed",
+          description:
+            data?.paymentStatus === "FREE_ACCESS"
+              ? "Pilot onboarding is active and sessions are unlocked."
+              : "Premium payment is already confirmed and sessions are unlocked.",
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/parent/enrollment-status"] });
+        return;
+      }
+
+      if (!data?.checkoutUrl || !data?.formFields) {
+        throw new Error("PayFast checkout details were not returned.");
+      }
+
+      if (data?.merchantReference) {
+        window.sessionStorage.setItem(PAYFAST_MERCHANT_REFERENCE_STORAGE_KEY, String(data.merchantReference));
+      }
+
+      toast({
+        title: "Redirecting to PayFast",
+        description: "Complete the R1000 Premium payment to unlock sessions.",
+      });
+
+      submitExternalPaymentForm(data.checkoutUrl, data.formFields);
+    } catch (error) {
+      console.error("Error accepting proposal:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to start Premium payment. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingProposal(false);
+    }
+  };
+
+  const handleDeclineProposal = async () => {
+    setIsProcessingProposal(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+      const response = await fetch(`${API_URL}/api/parent/proposal/decline`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          reason: "Parent declined proposal",
+        }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ message: "Failed to decline proposal" }));
+        throw new Error(err.message || "Failed to decline proposal");
+      }
+
+      toast({
+        title: "Proposal Declined",
+        description: "We'll look for another tutor match.",
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["/api/parent/enrollment-status"] });
+    } catch (error) {
+      console.error("Error declining proposal:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to decline proposal. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingProposal(false);
+    }
+  };
+
   // Auto-set step based on enrollment status and intro session confirmation
   useEffect(() => {
     if (!enrollmentStatus) {
@@ -682,104 +782,6 @@ export default function ParentGateway() {
     }
   }
 
-  const handleAcceptProposal = async () => {
-    setIsProcessingProposal(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: HeadersInit = { "Content-Type": "application/json" };
-      if (session?.access_token) {
-        headers["Authorization"] = `Bearer ${session.access_token}`;
-      }
-      const response = await fetch(`${API_URL}/api/parent/proposal/accept`, {
-        method: "POST",
-        headers,
-        credentials: "include",
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(data?.message || "Failed to start Premium payment");
-      }
-
-      if (data?.paymentStatus === "PAID" || data?.paymentStatus === "FREE_ACCESS") {
-        if (data.parentCode) {
-          setParentCode(data.parentCode);
-        }
-
-        toast({
-          title: data?.paymentStatus === "FREE_ACCESS" ? "Pilot Access Active" : "Payment Confirmed",
-          description:
-            data?.paymentStatus === "FREE_ACCESS"
-              ? "Pilot onboarding is active and sessions are unlocked."
-              : "Premium payment is already confirmed and sessions are unlocked.",
-        });
-        queryClient.invalidateQueries({ queryKey: ["/api/parent/enrollment-status"] });
-        return;
-      }
-
-      if (!data?.checkoutUrl || !data?.formFields) {
-        throw new Error("PayFast checkout details were not returned.");
-      }
-
-      if (data?.merchantReference) {
-        window.sessionStorage.setItem(PAYFAST_MERCHANT_REFERENCE_STORAGE_KEY, String(data.merchantReference));
-      }
-
-      toast({
-        title: "Redirecting to PayFast",
-        description: "Complete the R1000 Premium payment to unlock sessions.",
-      });
-
-      submitExternalPaymentForm(data.checkoutUrl, data.formFields);
-    } catch (error) {
-      console.error("Error accepting proposal:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to start Premium payment. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessingProposal(false);
-    }
-  };
-
-  const handleDeclineProposal = async () => {
-    setIsProcessingProposal(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: HeadersInit = { "Content-Type": "application/json" };
-      if (session?.access_token) {
-        headers["Authorization"] = `Bearer ${session.access_token}`;
-      }
-      const response = await fetch(`${API_URL}/api/parent/proposal/decline`, {
-        method: "POST",
-        headers,
-        credentials: "include",
-        body: JSON.stringify({
-          reason: "Parent declined proposal", // Could add a dialog to collect reason
-        }),
-      });
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({ message: "Failed to decline proposal" }));
-        throw new Error(err.message || "Failed to decline proposal");
-      }
-
-      toast({
-        title: "Proposal Declined",
-        description: "We'll look for another tutor match.",
-      });
-
-      queryClient.invalidateQueries({ queryKey: ["/api/parent/enrollment-status"] });
-    } catch (error) {
-      console.error("Error declining proposal:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to decline proposal. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessingProposal(false);
-    }
-  };
 
   const handleProposeIntroSession = async () => {
     if (!proposedDate || !proposedTime) {
