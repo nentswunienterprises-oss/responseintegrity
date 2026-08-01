@@ -318,7 +318,7 @@ function buildCompactSandboxEmailPrefix(prefix: string, seed: string | null | un
 function buildCompactSandboxEmail(prefix: string, seed: string | null | undefined) {
   const compactSeed = buildCompactSandboxSeed(seed);
   const compactTime = Date.now().toString(36).slice(-8);
-  return `${prefix}-${compactSeed}-${compactTime}+responseintegrity@gmail.com`;
+  return `${prefix}-${compactSeed}-${compactTime}-responseintegrity@gmail.com`;
 }
 
 function resolvePayfastEmailAddress(options: {
