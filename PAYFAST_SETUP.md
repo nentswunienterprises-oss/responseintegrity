@@ -27,8 +27,13 @@
 - `PAYFAST_MERCHANT_KEY`
 - `PAYFAST_PASSPHRASE`
 - `PAYFAST_SANDBOX=true` for sandbox
+- `PAYFAST_SANDBOX_MERCHANT_ID` (optional)
+- `PAYFAST_SANDBOX_MERCHANT_KEY` (optional)
+- `PAYFAST_SANDBOX_PASSPHRASE` (optional)
 - `APP_BASE_URL=https://app.responseintegrity.co.za`
 - `API_PUBLIC_URL=https://api.responseintegrity.co.za`
+
+If sandbox uses different PayFast credentials than live, set the sandbox-specific vars. Otherwise the live credentials are reused in sandbox mode.
 
 `APP_BASE_URL` and `API_PUBLIC_URL` must be public web URLs. PayFast does not accept local `localhost` callback URLs for live ITN flow.
 

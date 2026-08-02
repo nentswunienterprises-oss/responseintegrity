@@ -52,6 +52,25 @@ interface IntroSessionConfirmation {
   sessionLabel?: string;
 }
 
+interface ParentFormData {
+  parentFullName: string;
+  parentPhone: string;
+  parentEmail: string;
+  parentCity: string;
+  studentFullName: string;
+  studentGrade: string;
+  studentGender: string;
+  schoolName: string;
+  stuckAreas: string[];
+  reportedTopics: string[];
+  topicResponseSymptoms: Record<string, string[]>;
+  previousTutoring: string;
+  internetAccess: string;
+  parentMotivation: string;
+  processAlignment: string;
+  agreedToTerms: boolean;
+}
+
 const NON_TOPIC_CONTEXT_LABELS = new Set([
   "word problems",
   "tests",
@@ -369,61 +388,7 @@ export default function ParentGateway() {
     enrollmentStatus?.status === "report_received" ||
     enrollmentStatus?.status === "confirmed";
 
-  const proposalPanel = (() => {
-    if (!showProposalPanel) return null;
-
-    if (proposalLoading) {
-      return (
-        <div className="bg-muted/30 rounded-lg p-4 text-center mb-4 sm:mb-6">
-          <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">
-            {showProposalActions ? "Loading your proposal..." : "Loading your diagnosis and training plan..."}
-          </p>
-        </div>
-      );
-    }
-
-    if (proposalError) {
-      return (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center mb-4 sm:mb-6">
-          <p className="text-sm text-red-600">Failed to load proposal. Please refresh the page.</p>
-          <p className="text-xs text-red-500 mt-2">{proposalError.message}</p>
-        </div>
-      );
-    }
-
-    if (proposal) {
-      return (
-        <div className="mb-4 sm:mb-6">
-          {!showProposalActions && (
-            <p className="text-sm text-muted-foreground mb-4">
-              Your diagnosis and training plan remain available below.
-            </p>
-          )}
-          <ProposalView
-            proposal={proposal}
-            forceDiagnosisView={true}
-            showActions={showProposalActions}
-            onAccept={showProposalActions ? handleAcceptProposal : undefined}
-            onDecline={showProposalActions ? handleDeclineProposal : undefined}
-            isProcessing={isProcessingProposal}
-          />
-        </div>
-      );
-    }
-
-    return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center mb-4 sm:mb-6">
-        <p className="text-sm text-yellow-600">
-          {showProposalActions
-            ? "Proposal is being prepared. Check back soon."
-            : "Diagnosis details are not available yet. Please refresh the page shortly."}
-        </p>
-      </div>
-    );
-  })();
-
-  // Handlers moved above so they are initialized before being referenced in JSX
+  // Handlers defined below are used by the proposal panel rendered later in the component.
   const handleAcceptProposal = async () => {
     setIsProcessingProposal(true);
     try {
@@ -523,6 +488,60 @@ export default function ParentGateway() {
     }
   };
 
+  const proposalPanel = (() => {
+    if (!showProposalPanel) return null;
+
+    if (proposalLoading) {
+      return (
+        <div className="bg-muted/30 rounded-lg p-4 text-center mb-4 sm:mb-6">
+          <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">
+            {showProposalActions ? "Loading your proposal..." : "Loading your diagnosis and training plan..."}
+          </p>
+        </div>
+      );
+    }
+
+    if (proposalError) {
+      return (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center mb-4 sm:mb-6">
+          <p className="text-sm text-red-600">Failed to load proposal. Please refresh the page.</p>
+          <p className="text-xs text-red-500 mt-2">{proposalError.message}</p>
+        </div>
+      );
+    }
+
+    if (proposal) {
+      return (
+        <div className="mb-4 sm:mb-6">
+          {!showProposalActions && (
+            <p className="text-sm text-muted-foreground mb-4">
+              Your diagnosis and training plan remain available below.
+            </p>
+          )}
+          <ProposalView
+            proposal={proposal}
+            forceDiagnosisView={true}
+            showActions={showProposalActions}
+            onAccept={showProposalActions ? handleAcceptProposal : undefined}
+            onDecline={showProposalActions ? handleDeclineProposal : undefined}
+            isProcessing={isProcessingProposal}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center mb-4 sm:mb-6">
+        <p className="text-sm text-yellow-600">
+          {showProposalActions
+            ? "Proposal is being prepared. Check back soon."
+            : "Diagnosis details are not available yet. Please refresh the page shortly."}
+        </p>
+      </div>
+    );
+  })();
+
   // Auto-set step based on enrollment status and intro session confirmation
   useEffect(() => {
     if (!enrollmentStatus) {
@@ -544,7 +563,7 @@ export default function ParentGateway() {
   }, [enrollmentStatus, navigate]);
 
   // Initialize form with user data
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ParentFormData>({
     parentFullName: "",
     parentPhone: "",
     parentEmail: "",
@@ -553,18 +572,25 @@ export default function ParentGateway() {
     studentGrade: "",
     studentGender: "",
     schoolName: "",
-    stuckAreas: [] as string[],
-    reportedTopics: [] as string[],
-    topicResponseSymptoms: {} as Record<string, string[]>,
+    stuckAreas: [],
+    reportedTopics: [],
+    topicResponseSymptoms: {},
     previousTutoring: "",
     internetAccess: "",
     parentMotivation: "",
     processAlignment: "",
     agreedToTerms: false,
   });
-  const selectedMathTopics = useMemo(
-    () => Array.from(new Set((Array.isArray((formData as any).reportedTopics) ? (formData as any).reportedTopics : []).map((topic) => String(topic || "").trim()).filter(Boolean))),
-    [(formData as any).reportedTopics]
+  const selectedMathTopics = useMemo<string[]>(
+    () =>
+      Array.from(
+        new Set(
+          (Array.isArray(formData.reportedTopics) ? formData.reportedTopics : [])
+            .map((topic) => String(topic || "").trim())
+            .filter(Boolean)
+        )
+      ),
+    [formData.reportedTopics]
   );
 
   // Auto-fill parent name and email from user data
@@ -618,7 +644,7 @@ export default function ParentGateway() {
     }
 
     const nextTopics = Array.from(
-      new Set([
+      new Set<string>([
         ...selectedMathTopics,
         ...parsedTopics,
       ])
@@ -670,7 +696,7 @@ export default function ParentGateway() {
 
   const handleSubmit = async () => {
     const submittedMathTopics = Array.from(
-      new Set([
+      new Set<string>([
         ...selectedMathTopics,
         ...parseMathTopicEntries(mathTopicDraft),
       ])
