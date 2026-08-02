@@ -58,6 +58,7 @@ export default function StudentLanding() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           email: signupData.email,
           password: signupData.password,
