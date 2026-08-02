@@ -185,7 +185,26 @@ function normalizeStabilityLabel(stability?: string | null): StabilityLabel | nu
   return null;
 }
 
-function studentCopyForState(phase?: string | null, stability?: string | null): StudentStateCopy {
+function mediumStatusForNewStudent(phase: PhaseLabel): string {
+  switch (phase) {
+    case "Clarity":
+      return "This topic is at medium clarity and is ready for guided practice.";
+    case "Structured Execution":
+      return "This topic is showing medium execution consistency and needs more practice.";
+    case "Controlled Discomfort":
+      return "This topic is showing medium control under challenge and needs more steady practice.";
+    case "Time Pressure Stability":
+      return "This topic is showing medium stability under time pressure and still needs training.";
+    default:
+      return "This topic is at medium stability and is ready for more practice.";
+  }
+}
+
+function studentCopyForState(
+  phase?: string | null,
+  stability?: string | null,
+  hasStartedTraining = true,
+): StudentStateCopy {
   const normalizedPhase = normalizePhaseLabel(phase);
   const normalizedStability = normalizeStabilityLabel(stability);
 
@@ -198,7 +217,16 @@ function studentCopyForState(phase?: string | null, stability?: string | null): 
     };
   }
 
-  return STUDENT_STATE_ENGINE[normalizedPhase][normalizedStability];
+  const baseCopy = STUDENT_STATE_ENGINE[normalizedPhase][normalizedStability];
+
+  if (!hasStartedTraining && normalizedStability === "Medium") {
+    return {
+      ...baseCopy,
+      status: mediumStatusForNewStudent(normalizedPhase),
+    };
+  }
+
+  return baseCopy;
 }
 
 function formatDateLabel(dateText?: string | null): string {
@@ -309,6 +337,8 @@ export default function StudentDashboard() {
     (stats?.bossBattlesCompleted || 0) === 0 &&
     (stats?.solutionsUnlocked || 0) === 0;
 
+  const hasStartedTraining = !allCoreMetricsZero;
+
   const updatedLabel = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleString() : "Pending sync";
 
   const quickActions = [
@@ -351,7 +381,7 @@ export default function StudentDashboard() {
           ) : (
             <div className="grid sm:grid-cols-2 gap-4">
               {topicCards.map((row) => {
-                const copy = studentCopyForState(row.phase, row.stability);
+                const copy = studentCopyForState(row.phase, row.stability, hasStartedTraining);
                 const hasProgressUpdate = row.movement === "improved";
 
                 return (
