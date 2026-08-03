@@ -97,7 +97,7 @@ export default function OperationalLanding() {
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-8 max-w-screen-xl mx-auto">
             {/* Tutor Role */}
             <Card 
               className="p-8 border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group flex flex-col h-full min-w-0"

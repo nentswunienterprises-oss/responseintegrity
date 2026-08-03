@@ -27,6 +27,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import ExecutiveCommandRhythmDashboard from "@/pages/executive/command-rhythm-dashboard";
 import {
   Select,
   SelectContent,
@@ -250,7 +251,7 @@ function readFileAsBase64(file: File) {
 export default function COOBrain() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [activeModule, setActiveModule] = useState("library");
+  const [activeTab, setActiveTab] = useState<"library" | "contribution">("library");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [readerOpen, setReaderOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -584,11 +585,15 @@ export default function COOBrain() {
           </div>
         </div>
 
-        <Tabs value={activeModule} onValueChange={setActiveModule} className="space-y-6">
-          <TabsList className="grid w-full max-w-sm grid-cols-1 rounded-xl border border-primary/15 bg-muted/20 p-1">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 rounded-xl border border-primary/15 bg-muted/20 p-1">
             <TabsTrigger value="library" className="gap-2">
               <BookOpen className="h-4 w-4" />
               Library
+            </TabsTrigger>
+            <TabsTrigger value="contribution" className="gap-2">
+              <Lightbulb className="h-4 w-4" />
+              Contribution
             </TabsTrigger>
           </TabsList>
 
@@ -721,6 +726,10 @@ export default function COOBrain() {
                 )}
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="contribution" className="space-y-6">
+            <ExecutiveCommandRhythmDashboard hideTabs />
           </TabsContent>
         </Tabs>
 

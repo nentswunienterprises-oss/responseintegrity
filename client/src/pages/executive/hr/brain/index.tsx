@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getQueryFn, apiRequest } from "@/lib/queryClient";
 import { ExecutivePortalGuard } from "@/lib/portalGuard";
+import ExecutiveCommandRhythmDashboard from "@/pages/executive/command-rhythm-dashboard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +40,8 @@ export default function BrainModule() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("people");
+  const [activeTab, setActiveTab] = useState<"registry" | "contribution">("registry");
+  const [activeRegistryTab, setActiveRegistryTab] = useState("people");
   
   // Modal states
   const [showPersonModal, setShowPersonModal] = useState(false);
@@ -176,31 +178,43 @@ export default function BrainModule() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="people" className="gap-2">
+          <TabsList className="grid w-full grid-cols-2 rounded-xl border border-primary/15 bg-muted/20 p-1">
+            <TabsTrigger value="registry" className="gap-2">
               <Users className="w-4 h-4" />
-              <span className="hidden sm:inline">People</span>
-              <Badge variant="secondary" className="ml-1">{people.length}</Badge>
+              Registry
             </TabsTrigger>
-            <TabsTrigger value="details" className="gap-2">
-              <ListTodo className="w-4 h-4" />
-              <span className="hidden sm:inline">Details</span>
-              <Badge variant="secondary" className="ml-1">{pendingDetails.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="projects" className="gap-2">
-              <Target className="w-4 h-4" />
-              <span className="hidden sm:inline">Projects</span>
-              <Badge variant="secondary" className="ml-1">{activeProjects.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="ideas" className="gap-2">
+            <TabsTrigger value="contribution" className="gap-2">
               <Lightbulb className="w-4 h-4" />
-              <span className="hidden sm:inline">Ideas</span>
-              <Badge variant="secondary" className="ml-1">{newIdeas.length}</Badge>
+              Contribution
             </TabsTrigger>
           </TabsList>
 
-          {/* People Registry Tab */}
-          <TabsContent value="people" className="space-y-4">
+          <TabsContent value="registry" className="space-y-6">
+            <Tabs value={activeRegistryTab} onValueChange={setActiveRegistryTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-4 rounded-xl border border-primary/15 bg-muted/20 p-1">
+                <TabsTrigger value="people" className="gap-2">
+                  <Users className="w-4 h-4" />
+                  <span className="hidden sm:inline">People</span>
+                  <Badge variant="secondary" className="ml-1">{people.length}</Badge>
+                </TabsTrigger>
+                <TabsTrigger value="details" className="gap-2">
+                  <ListTodo className="w-4 h-4" />
+                  <span className="hidden sm:inline">Details</span>
+                  <Badge variant="secondary" className="ml-1">{pendingDetails.length}</Badge>
+                </TabsTrigger>
+                <TabsTrigger value="projects" className="gap-2">
+                  <Target className="w-4 h-4" />
+                  <span className="hidden sm:inline">Projects</span>
+                  <Badge variant="secondary" className="ml-1">{activeProjects.length}</Badge>
+                </TabsTrigger>
+                <TabsTrigger value="ideas" className="gap-2">
+                  <Lightbulb className="w-4 h-4" />
+                  <span className="hidden sm:inline">Ideas</span>
+                  <Badge variant="secondary" className="ml-1">{newIdeas.length}</Badge>
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="people" className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-4 justify-between">
               <div className="flex gap-2 flex-1">
                 <div className="relative flex-1 max-w-sm">
@@ -398,6 +412,12 @@ export default function BrainModule() {
             )}
           </TabsContent>
         </Tabs>
+      </TabsContent>
+
+      <TabsContent value="contribution" className="space-y-6">
+        <ExecutiveCommandRhythmDashboard hideTabs />
+      </TabsContent>
+    </Tabs>
 
         {/* Add Person Modal */}
         <AddPersonModal

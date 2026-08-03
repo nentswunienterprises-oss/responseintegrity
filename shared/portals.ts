@@ -137,7 +137,6 @@ export const ROLE_NAVIGATION: Record<
 
   // Executive Portal - HR
   hr: [
-    { label: "Gateway", path: "/executive/gateway" },
     { label: "Dashboard", path: "/executive/hr/dashboard" },
     { label: "Brain", path: "/executive/hr/brain" },
     { label: "Disputes", path: "/executive/hr/disputes" },
@@ -146,8 +145,8 @@ export const ROLE_NAVIGATION: Record<
 
   // Executive Portal - CEO
   ceo: [
-    { label: "Board", path: "/executive/ceo/board" },
     { label: "Dashboard", path: "/executive/ceo/dashboard" },
+    { label: "Brain", path: "/executive/ceo/board" },
   ],
   cto: [
     { label: "Gateway", path: "/executive/gateway" },

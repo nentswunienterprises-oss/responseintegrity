@@ -68,7 +68,7 @@ export default function OperationalSignup() {
         <div className="h-16 sm:h-20" />
 
         <div className="flex-1 flex items-center justify-center px-6 py-12">
-          <div className="w-full max-w-3xl space-y-10">
+          <div className="w-full max-w-screen-xl space-y-10">
             <div className="text-center space-y-4">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full" style={{ backgroundColor: "#FFF0F0" }}>
                 <span className="text-sm font-medium" style={{ color: "#E63946" }}>

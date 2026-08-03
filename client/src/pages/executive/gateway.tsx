@@ -208,12 +208,12 @@ export default function ExecutiveGateway() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="rounded-2xl bg-[#FFF0F0] p-5 text-sm text-[#5A5A5A]">
-                  <p>Use the CEO board to appoint active seat holders for the Core 5.</p>
+                  <p>Use the CEO brain page to appoint active seat holders for the Core 5.</p>
                   <p className="mt-2">Gateway remains for identity and authority staging only.</p>
                 </div>
 
                 <Button className="w-full rounded-full" style={{ backgroundColor: "#E63946" }} onClick={() => navigate("/executive/ceo/board")}>
-                  Open CEO Appointment Board
+                  Open CEO Brain
                 </Button>
               </CardContent>
             </Card>
