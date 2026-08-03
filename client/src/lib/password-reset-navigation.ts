@@ -71,3 +71,16 @@ export function clearPasswordResetReturnTo() {
     // Ignore storage failures.
   }
 }
+
+export function hasStoredPasswordResetReturnTo() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  try {
+    const storedValue = localStorage.getItem(PASSWORD_RESET_RETURN_TO_KEY);
+    return isSafeInternalPath(storedValue);
+  } catch {
+    return false;
+  }
+}

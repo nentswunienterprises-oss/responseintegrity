@@ -3,6 +3,7 @@ import ExecutiveCOOTrackLeads from "@/pages/executive/coo/track-leads";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { queryClient, persister } from "./lib/queryClient";
@@ -17,6 +18,7 @@ import { TdGatewayGuard } from "@/lib/tdGatewayGuard";
 import { TutorGatewayGuard } from "@/lib/tutorGatewayGuard";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { DeepDiveDeterrent } from "@/components/responseconditioning/DeepDiveDeterrent";
+import { hasStoredPasswordResetReturnTo } from "@/lib/password-reset-navigation";
 
 // Clean up old localStorage cache on startup (we now use sessionStorage which is tab-specific)
 if (typeof window !== 'undefined') {
@@ -169,6 +171,36 @@ function ScrollToTop() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
+
+  return null;
+}
+
+function RecoveryCodeRedirect() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (location.pathname !== "/" && location.pathname !== "/portal-landing") {
+      return;
+    }
+
+    const searchParams = new URLSearchParams(location.search);
+    const hashParams = new URLSearchParams(location.hash.startsWith("#") ? location.hash.slice(1) : location.hash);
+    const hasRecoverySignal =
+      searchParams.get("type") === "recovery" ||
+      hashParams.get("type") === "recovery" ||
+      hashParams.has("access_token");
+
+    // Supabase PKCE links can arrive as /?code=... without type=recovery.
+    const hasRootAuthCode = searchParams.has("code");
+    const shouldTreatAsRecovery = hasRecoverySignal || (hasRootAuthCode && hasStoredPasswordResetReturnTo());
+
+    if (!shouldTreatAsRecovery) {
+      return;
+    }
+
+    navigate(`/reset-password${location.search}${location.hash}`, { replace: true });
+  }, [location.hash, location.pathname, location.search, navigate]);
 
   return null;
 }
@@ -541,6 +573,7 @@ export default function App() {
     >
       <TooltipProvider>
         <ScrollToTop />
+        <RecoveryCodeRedirect />
         <RouteSeoManager />
         <OfflineIndicator />
         <Toaster />
