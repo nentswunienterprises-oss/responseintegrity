@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ResponseIntegrityLogo } from "@/components/ResponseIntegrityLogo";
 import { Building2, Users, TrendingUp, Check, ArrowRight, ArrowLeft, Shield, Cpu, Megaphone } from "lucide-react";
 import { useEffect } from "react";
 
@@ -172,7 +173,7 @@ export default function ExecutiveLanding() {
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-4 sm:gap-8 max-w-screen-2xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-8 max-w-screen-2xl mx-auto">
             {roles.map((role) => {
               const Icon = role.icon;
               return (
@@ -208,7 +209,7 @@ export default function ExecutiveLanding() {
                   </ul>
                   
                   <Button 
-                    className="w-full px-4 sm:px-6 rounded-full py-2.5 sm:py-3.5 mt-auto font-semibold text-sm sm:text-base text-center box-border"
+                    className="w-full flex items-center justify-center gap-2 px-4 sm:px-6 rounded-full py-2.5 sm:py-3.5 mt-auto font-semibold text-sm sm:text-base text-center box-border"
                     style={{ backgroundColor: "#E63946", color: "white" }}
                   >
                     Continue as {role.shortTitle}
@@ -224,17 +225,17 @@ export default function ExecutiveLanding() {
       {/* Footer */}
       <footer className="py-8 sm:py-12" style={{ backgroundColor: "#FFF5ED" }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4 sm:gap-6">
-            <div className="flex items-center gap-2">
-              <span className="text-base sm:text-xl font-bold tracking-tight" style={{ color: "#1A1A1A" }}>
-                RESPONSE INTEGRITY
-              </span>
-              <span className="text-base sm:text-xl font-bold" style={{ color: "#E63946" }}>+</span>
+          <div className="flex flex-col md:flex-row md:justify-between items-center gap-4 sm:gap-6">
+            <div className="flex flex-col md:flex-row items-center gap-3 sm:gap-4">
+              <div>
+                <ResponseIntegrityLogo size="lg" variant="integrity" />
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-center md:text-right" style={{ color: "#5A5A5A" }}>
-              <Shield className="w-4 h-4 hidden sm:block" />
-              <span className="text-xs sm:text-sm">Executive command environment secured with role-based access control</span>
-            </div>
+            <p className="text-center md:text-right text-xs sm:text-sm" style={{ color: "#5A5A5A" }}>
+              © {new Date().getFullYear()} Response Integrity (Pty) Ltd
+              <br />
+              <span className="text-xs sm:text-sm">Math Pressure Response-Training.</span>
+            </p>
           </div>
         </div>
       </footer>
