@@ -398,10 +398,10 @@ export default function TutorGateway() {
                   <div className="bg-muted/30 rounded-lg p-3 sm:p-4 text-left">
                     <p className="text-xs sm:text-sm font-medium mb-2">What to expect:</p>
                     <ul className="text-xs sm:text-sm text-muted-foreground space-y-1 ml-4 list-disc">
-                      <li>You'll be assigned 2-4 students in your first pod</li>
-                      <li>Your Territory Director will introduce your students</li>
-                      <li>You'll get access to student profiles and identity sheets</li>
-                      <li>Sessions will be scheduled based on availability</li>
+                      <li>Complete training mode before entering sandbox mode</li>
+                      <li>Sandbox work happens before any student assignment</li>
+                      <li>Your Territory Director will guide your first live pod introduction</li>
+                      <li>Sessions are scheduled once you move out of sandbox and into an assigned pod</li>
                     </ul>
                   </div>
                 </>

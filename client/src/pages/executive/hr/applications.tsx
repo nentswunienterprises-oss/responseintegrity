@@ -12,6 +12,61 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import type { TutorApplication } from "@shared/schema";
 import { format } from "date-fns";
 
+const DOCUMENT_STEPS = 6;
+
+function getField(app: any, newCamel: string, newSnake: string, oldCamel?: string, oldSnake?: string) {
+  return app[newCamel] ?? (oldCamel ? app[oldCamel] : undefined) ?? app[newSnake] ?? (oldSnake ? app[oldSnake] : undefined);
+}
+
+function getDocumentsStatus(application: any) {
+  return {
+    "1": "not_started",
+    "2": "not_started",
+    "3": "not_started",
+    "4": "not_started",
+    "5": "not_started",
+    "6": "not_started",
+    ...(application?.documentsStatus || application?.documents_status || {}),
+  } as Record<string, string>;
+}
+
+function countDocumentStatus(application: any, status: string) {
+  const docs = getDocumentsStatus(application);
+  return Object.values(docs).filter((value) => String(value || "").toLowerCase() === status.toLowerCase()).length;
+}
+
+function getOnboardingStep(application: any) {
+  if (application?.onboardingCompletedAt || application?.onboarding_completed_at) {
+    return DOCUMENT_STEPS;
+  }
+  const docs = getDocumentsStatus(application);
+  for (let step = 1; step <= DOCUMENT_STEPS; step += 1) {
+    if (String(docs[String(step)] || "") !== "approved") {
+      return step;
+    }
+  }
+  return DOCUMENT_STEPS;
+}
+
+function getOnboardingStatus(application: any) {
+  if (application?.onboardingCompletedAt || application?.onboarding_completed_at) {
+    return "Completed";
+  }
+
+  const pendingReview = countDocumentStatus(application, "pending_review");
+  const pendingUpload = countDocumentStatus(application, "pending_upload");
+  const approved = countDocumentStatus(application, "approved");
+
+  if (pendingReview > 0) return `Pending review (${pendingReview})`;
+  if (pendingUpload > 0) return `Awaiting upload (${pendingUpload})`;
+  if (approved > 0) return `In progress (${approved}/${DOCUMENT_STEPS} approved)`;
+  return "Not started";
+}
+
+function getAssignedPodName(application: any) {
+  return getField(application, "assignedPodName", "assigned_pod_name", "podName", "pod_name");
+}
+
 export default function HRApplications() {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [selectedApplication, setSelectedApplication] = useState<TutorApplication | null>(null);
@@ -49,6 +104,13 @@ export default function HRApplications() {
     const city = app.city;
     const currentStatus = app.currentSituation || app.current_situation || app.currentStatus || app.current_status || "N/A";
     const gradesEquipped = app.grades_equipped || app.gradesEquipped || [];
+    const assignedPod = getAssignedPodName(app);
+    const approvedDocCount = countDocumentStatus(app, "approved");
+    const pendingUploadCount = countDocumentStatus(app, "pending_upload");
+    const pendingReviewCount = countDocumentStatus(app, "pending_review");
+    const onboardingStep = getOnboardingStep(app);
+    const onboardingStatus = getOnboardingStatus(app);
+    const uploadStatus = pendingUploadCount > 0 ? `${pendingUploadCount} pending upload` : pendingReviewCount > 0 ? `${pendingReviewCount} pending review` : "No pending uploads";
 
     return (
       <Card data-testid={`application-card-${application.id}`}>
@@ -74,12 +136,23 @@ export default function HRApplications() {
               <p className="font-medium">{city}</p>
             </div>
             <div>
-              <p className="text-muted-foreground">Status</p>
-              <p className="font-medium">{currentStatus.replace(/_/g, " ")}</p>
+              <p className="text-muted-foreground">Onboarding</p>
+              <p className="font-medium">Step {onboardingStep} / {DOCUMENT_STEPS}</p>
             </div>
             <div>
-              <p className="text-muted-foreground">Grades</p>
-              <p className="font-medium">{gradesEquipped.join(", ") || "N/A"}</p>
+              <p className="text-muted-foreground">Uploads</p>
+              <p className="font-medium">{uploadStatus}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-muted-foreground">Tutor onboarding</p>
+              <p className="font-medium">{onboardingStatus}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Pod assignment</p>
+              <p className="font-medium">{assignedPod || "Not assigned"}</p>
             </div>
           </div>
 
@@ -175,19 +248,21 @@ export default function HRApplications() {
         )}
 
         {/* Application Details Dialog */}
-        {selectedApplication && (
-          <Dialog open={!!selectedApplication} onOpenChange={() => setSelectedApplication(null)}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{(selectedApplication as any).fullName || (selectedApplication as any).full_name || (selectedApplication as any).full_names || selectedApplication.fullNames}</DialogTitle>
-                <DialogDescription>
-                  Submitted on {format(new Date((selectedApplication as any).created_at || selectedApplication.createdAt), "PPP")}
-                </DialogDescription>
-              </DialogHeader>
-              <ApplicationDetails application={selectedApplication} />
-            </DialogContent>
-          </Dialog>
-        )}
+        {selectedApplication && (() => {
+          const selectedName = getField(selectedApplication as any, "fullName", "full_name", "fullNames", "full_names");
+          const submittedAt = format(new Date((selectedApplication as any).created_at || selectedApplication.createdAt), "PPP");
+          return (
+            <Dialog open={!!selectedApplication} onOpenChange={() => setSelectedApplication(null)}>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>{selectedName}</DialogTitle>
+                  <DialogDescription>Submitted on {submittedAt}</DialogDescription>
+                </DialogHeader>
+                <ApplicationDetails application={selectedApplication} />
+              </DialogContent>
+            </Dialog>
+          );
+        })()}
       </div>
     </ExecutivePortalGuard>
   );
@@ -212,13 +287,73 @@ function InfoItem({ label, value }: { label: string; value: string | undefined |
   );
 }
 
+function getDocumentUploadRows(application: any) {
+  const docs = getDocumentsStatus(application);
+  return Array.from({ length: DOCUMENT_STEPS }, (_, index) => {
+    const step = index + 1;
+    const stepStatus = docs[String(step)] || "not_started";
+    const uploadUrl = getField(application, `doc${step}SubmissionUrl`, `doc_${step}_submission_url`);
+    const uploadedAt = getField(application, `doc${step}SubmissionUploadedAt`, `doc_${step}_submission_uploaded_at`);
+    const verified = getField(application, `doc${step}SubmissionVerified`, `doc_${step}_submission_verified`);
+    return {
+      step,
+      status: String(stepStatus),
+      uploadUrl,
+      uploadedAt,
+      verified,
+    };
+  });
+}
+
 function ApplicationDetails({ application }: { application: TutorApplication }) {
   const app = application as any;
   const getField = (newCamel: string, newSnake: string, oldCamel?: string, oldSnake?: string) =>
     app[newCamel] ?? (oldCamel ? app[oldCamel] : undefined) ?? app[newSnake] ?? (oldSnake ? app[oldSnake] : undefined);
 
+  const assignedPod = getAssignedPodName(app);
+  const approvedDocCount = countDocumentStatus(app, "approved");
+  const onboardingStep = getOnboardingStep(app);
+  const onboardingStatus = getOnboardingStatus(app);
+  const documentRows = getDocumentUploadRows(app);
+
   return (
     <div className="space-y-6">
+      <Section title="HR Visibility">
+        <InfoItem label="Assigned Pod" value={assignedPod || "Not assigned"} />
+        <InfoItem label="Onboarding Status" value={onboardingStatus} />
+        <InfoItem label="Document Progress" value={`${approvedDocCount} of ${DOCUMENT_STEPS} approved`} />
+        <InfoItem label="Current Step" value={`Step ${onboardingStep} / ${DOCUMENT_STEPS}`} />
+      </Section>
+
+      <Section title="Document Uploads">
+        {documentRows.map((doc) => (
+          <div key={doc.step} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold">Step {doc.step}</p>
+                <p className="text-xs text-muted-foreground">{doc.status.replace(/_/g, " ")}</p>
+              </div>
+              {doc.uploadUrl ? (
+                <a
+                  href={String(doc.uploadUrl)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm font-medium text-primary underline underline-offset-2"
+                >
+                  View uploaded file
+                </a>
+              ) : (
+                <span className="text-sm text-muted-foreground">No upload</span>
+              )}
+            </div>
+            <div className="mt-3 grid gap-1 text-sm text-muted-foreground">
+              {doc.uploadedAt ? <p>Uploaded {format(new Date(doc.uploadedAt), "MMM d, yyyy")}</p> : null}
+              {doc.verified != null ? <p>Verified: {doc.verified ? "Yes" : "No"}</p> : null}
+            </div>
+          </div>
+        ))}
+      </Section>
+
       <Section title="Section 1 - Basic Information">
         <InfoItem label="Full Name" value={getField("fullName", "full_name", "fullNames", "full_names")} />
         <InfoItem label="Age" value={String(app.age ?? "")} />
