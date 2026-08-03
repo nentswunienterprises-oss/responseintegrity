@@ -100,7 +100,7 @@ export default function OperationalLanding() {
           <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             {/* Tutor Role */}
             <Card 
-              className="p-8 border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group"
+              className="p-8 border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group flex flex-col h-full min-w-0"
               style={{ backgroundColor: "white" }}
               onClick={() => navigate("/operational/tutor/landing")}
             >
@@ -130,7 +130,7 @@ export default function OperationalLanding() {
               </ul>
               
               <Button 
-                className="w-full rounded-full py-6 font-semibold border-0"
+                className="w-full px-4 sm:px-6 rounded-full py-2.5 sm:py-3.5 mt-auto font-semibold border-0 text-center box-border"
                 style={{ backgroundColor: "#E63946", color: "white" }}
               >
                 Continue as Tutor
@@ -140,7 +140,7 @@ export default function OperationalLanding() {
 
             {/* Territory Director Role */}
             <Card 
-              className="p-8 border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group"
+              className="p-8 border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group flex flex-col h-full min-w-0"
               style={{ backgroundColor: "white" }}
               onClick={() => navigate("/operational/td/landing")}
             >
@@ -170,7 +170,7 @@ export default function OperationalLanding() {
               </ul>
               
               <Button 
-                className="w-full rounded-full py-6 font-semibold border-0"
+                className="w-full px-4 sm:px-6 rounded-full py-2.5 sm:py-3.5 mt-auto font-semibold border-0 text-center box-border"
                 style={{ backgroundColor: "#E63946", color: "white" }}
               >
                 Continue as Territory Director

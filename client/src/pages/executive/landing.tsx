@@ -172,13 +172,13 @@ export default function ExecutiveLanding() {
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-4 sm:gap-8 max-w-7xl mx-auto">
+          <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-4 sm:gap-8 max-w-screen-2xl mx-auto">
             {roles.map((role) => {
               const Icon = role.icon;
               return (
                 <Card 
                   key={role.id} 
-                  className="p-4 sm:p-8 border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group"
+                  className="p-4 sm:p-8 border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group flex flex-col h-full min-w-0"
                   style={{ backgroundColor: "white" }}
                   onClick={() => handleRoleSelect(role.id)}
                 >
@@ -208,7 +208,7 @@ export default function ExecutiveLanding() {
                   </ul>
                   
                   <Button 
-                    className="w-full rounded-full py-4 sm:py-6 font-semibold text-sm sm:text-base"
+                    className="w-full px-4 sm:px-6 rounded-full py-2.5 sm:py-3.5 mt-auto font-semibold text-sm sm:text-base text-center box-border"
                     style={{ backgroundColor: "#E63946", color: "white" }}
                   >
                     Continue as {role.shortTitle}

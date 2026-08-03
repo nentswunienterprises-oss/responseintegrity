@@ -85,7 +85,7 @@ export default function OperationalSignup() {
 
             <div className="grid md:grid-cols-2 gap-8">
               <Card
-                className="p-8 border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group"
+                className="p-8 border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group flex flex-col h-full min-w-0"
                 style={{ backgroundColor: "white" }}
                 onClick={() => setSelectedRole("tutor")}
               >
@@ -106,7 +106,7 @@ export default function OperationalSignup() {
                   ))}
                 </ul>
                 <Button
-                  className="w-full rounded-full py-6 font-semibold border-0"
+                  className="w-full px-4 sm:px-6 rounded-full py-2.5 sm:py-3.5 mt-auto font-semibold border-0 text-center box-border"
                   style={{ backgroundColor: "#E63946", color: "white" }}
                 >
                   Continue as Tutor
@@ -115,7 +115,7 @@ export default function OperationalSignup() {
               </Card>
 
               <Card
-                className="p-8 border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group"
+                className="p-8 border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group flex flex-col h-full min-w-0"
                 style={{ backgroundColor: "white" }}
                 onClick={() => setSelectedRole("td")}
               >
@@ -138,7 +138,7 @@ export default function OperationalSignup() {
                   ))}
                 </ul>
                 <Button
-                  className="w-full rounded-full py-6 font-semibold border-0"
+                  className="w-full px-4 sm:px-6 rounded-full py-2.5 sm:py-3.5 mt-auto font-semibold border-0 text-center box-border"
                   style={{ backgroundColor: "#E63946", color: "white" }}
                 >
                   Continue as Director
@@ -245,28 +245,29 @@ export default function OperationalSignup() {
           {lockedMode ? null : (
             <div className="flex gap-2 justify-center p-1 rounded-full" style={{ backgroundColor: "#FFF0F0" }}>
               <button
-                className={`flex-1 py-3 px-6 rounded-full font-semibold transition-all ${
-                  mode === "signup" ? "shadow-md" : ""
-                }`}
-                style={{
-                  backgroundColor: mode === "signup" ? "#E63946" : "transparent",
-                  color: mode === "signup" ? "white" : "#5A5A5A"
-                }}
-                onClick={() => setMode("signup")}
-              >
-                Sign Up
-              </button>
-              <button
-                className={`flex-1 py-3 px-6 rounded-full font-semibold transition-all ${
+                className={`flex-1 py-2 sm:py-3 px-4 sm:px-6 rounded-full font-semibold text-sm sm:text-base transition-all ${
                   mode === "login" ? "shadow-md" : ""
                 }`}
                 style={{
                   backgroundColor: mode === "login" ? "#E63946" : "transparent",
-                  color: mode === "login" ? "white" : "#5A5A5A"
+                  color: mode === "login" ? "white" : "#5A5A5A",
                 }}
                 onClick={() => setMode("login")}
               >
                 Login
+              </button>
+
+              <button
+                className={`flex-1 py-2 sm:py-3 px-4 sm:px-6 rounded-full font-semibold text-sm sm:text-base transition-all ${
+                  mode === "signup" ? "shadow-md" : ""
+                }`}
+                style={{
+                  backgroundColor: mode === "signup" ? "#E63946" : "transparent",
+                  color: mode === "signup" ? "white" : "#5A5A5A",
+                }}
+                onClick={() => setMode("signup")}
+              >
+                Sign Up
               </button>
             </div>
           )}

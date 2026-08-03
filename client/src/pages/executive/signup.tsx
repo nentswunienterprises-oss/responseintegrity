@@ -87,7 +87,7 @@ export default function ExecutiveSignup() {
 
         {/* Role Selection */}
         <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-6 sm:py-12">
-          <div className="w-full max-w-5xl space-y-6 sm:space-y-10">
+          <div className="w-full max-w-screen-2xl space-y-6 sm:space-y-10">
             <div className="text-center space-y-3 sm:space-y-4">
               <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full" style={{ backgroundColor: "#FFF0F0" }}>
                 <span className="text-xs sm:text-sm font-medium" style={{ color: "#E63946" }}>
@@ -109,7 +109,7 @@ export default function ExecutiveSignup() {
                 return (
                   <Card 
                     key={roleKey}
-                    className="p-4 sm:p-6 border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group"
+                    className="p-4 sm:p-6 border-0 shadow-lg hover:shadow-xl transition-all cursor-pointer group flex flex-col h-full min-w-0"
                     style={{ backgroundColor: "white" }}
                     onClick={() => setSelectedRole(roleKey)}
                   >
@@ -138,8 +138,8 @@ export default function ExecutiveSignup() {
                       ))}
                     </ul>
                     
-                    <Button 
-                      className="w-full rounded-full py-3 sm:py-5 font-semibold text-sm sm:text-base"
+                        <Button 
+                          className="w-full px-4 sm:px-6 rounded-full py-2.5 sm:py-3.5 mt-auto font-semibold text-sm sm:text-base text-center box-border"
                       style={{ backgroundColor: "#E63946", color: "white" }}
                     >
                       Continue as {role.shortTitle}
