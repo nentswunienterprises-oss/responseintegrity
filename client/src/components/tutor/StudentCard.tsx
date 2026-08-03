@@ -10,9 +10,10 @@ import { apiRequest } from "@/lib/queryClient";
 import { useStudentWorkflowState, useMarkHandoverCompleted, useRespondToAssignment } from "@/hooks/useStudentWorkflowState";
 import { TutorIntroSessionActions } from "./TutorIntroSessionActions";
 import { useScheduledSession, useTrainingSessions } from "@/hooks/useScheduledSession";
+import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   buildStartingPhaseRationale,
@@ -256,6 +257,7 @@ export function StudentCard({
     .slice(0, 2);
   const studentSchool = resolveStudentSchool(student);
 
+  const { toast } = useToast();
   const { data: workflow, isLoading: workflowLoading } = useStudentWorkflowState(student.id);
   const markHandoverCompleted = useMarkHandoverCompleted(student.id);
   const respondToAssignment = useRespondToAssignment(
@@ -649,7 +651,27 @@ export function StudentCard({
             {student.parentInfo && (
               <div className="mt-3 rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-sm">
                 <p className="text-muted-foreground">Parent: <span className="font-medium text-foreground">{student.parentInfo.parent_full_name}</span></p>
-                <p className="text-xs text-muted-foreground mt-0.5 break-all">{student.parentInfo.parent_email}</p>
+                <p className="mt-1 text-xs text-muted-foreground break-all">{student.parentInfo.parent_email}</p>
+                <div className="mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3"
+                    onClick={async () => {
+                      const email = String(student.parentInfo.parent_email || "");
+                      if (!email) return;
+                      try {
+                        await navigator.clipboard.writeText(email);
+                        toast({ title: "Email copied", description: "Parent email copied to clipboard." });
+                      } catch (error) {
+                        toast({ title: "Copy failed", description: "Unable to copy email to clipboard.", variant: "destructive" });
+                      }
+                    }}
+                  >
+                    <Copy className="mr-1 h-3 w-3" />
+                    Copy email
+                  </Button>
+                </div>
               </div>
             )}
           </div>

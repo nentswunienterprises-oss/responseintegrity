@@ -382,11 +382,7 @@ export default function ParentGateway() {
   const sessionCompletedLabel = isHandoverFlow ? "continuity check" : "introductory session";
   const isTrainingMode = effectiveIntroSessionConfirmation?.operationalMode === "training";
   const showProposalActions = enrollmentStatus?.status === "proposal_sent";
-  const showProposalPanel =
-    enrollmentStatus?.status === "proposal_sent" ||
-    enrollmentStatus?.status === "session_booked" ||
-    enrollmentStatus?.status === "report_received" ||
-    enrollmentStatus?.status === "confirmed";
+  const showProposalPanel = enrollmentStatus?.status === "proposal_sent";
 
   // Handlers defined below are used by the proposal panel rendered later in the component.
   const handleAcceptProposal = async () => {
