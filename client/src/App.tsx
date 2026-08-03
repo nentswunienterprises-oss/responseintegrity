@@ -18,7 +18,6 @@ import { TdGatewayGuard } from "@/lib/tdGatewayGuard";
 import { TutorGatewayGuard } from "@/lib/tutorGatewayGuard";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { DeepDiveDeterrent } from "@/components/responseconditioning/DeepDiveDeterrent";
-import { hasStoredPasswordResetReturnTo } from "@/lib/password-reset-navigation";
 
 // Clean up old localStorage cache on startup (we now use sessionStorage which is tab-specific)
 if (typeof window !== 'undefined') {
@@ -191,9 +190,9 @@ function RecoveryCodeRedirect() {
       hashParams.get("type") === "recovery" ||
       hashParams.has("access_token");
 
-    // Supabase PKCE links can arrive as /?code=... without type=recovery.
+    // Supabase PKCE recovery links can arrive as /?code=... without type=recovery.
     const hasRootAuthCode = searchParams.has("code");
-    const shouldTreatAsRecovery = hasRecoverySignal || (hasRootAuthCode && hasStoredPasswordResetReturnTo());
+    const shouldTreatAsRecovery = hasRecoverySignal || hasRootAuthCode;
 
     if (!shouldTreatAsRecovery) {
       return;
