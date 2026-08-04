@@ -35,6 +35,7 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [recoveringSession, setRecoveringSession] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -47,6 +48,37 @@ export default function ResetPasswordPage() {
     if (looksLikeRecoveryLink) {
       setIsRecovery(true);
     }
+
+    const ensureRecoverySession = async () => {
+      if (!looksLikeRecoveryLink) {
+        return;
+      }
+
+      setRecoveringSession(true);
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session?.access_token) {
+          return;
+        }
+
+        const code = searchParams.get("code");
+        if (!code) {
+          return;
+        }
+
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          console.warn("Password recovery code exchange failed:", error.message);
+        }
+      } finally {
+        setRecoveringSession(false);
+      }
+    };
+
+    void ensureRecoverySession();
 
     const {
       data: { subscription },
@@ -63,6 +95,14 @@ export default function ResetPasswordPage() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (recoveringSession) {
+      toast({
+        title: "Verifying reset link",
+        description: "Please wait a moment and try again.",
+      });
+      return;
+    }
 
     if (password.length < 6) {
       toast({
@@ -85,9 +125,18 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
+      let { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session?.access_token && searchParams.has("code")) {
+        const code = searchParams.get("code");
+        if (code) {
+          await supabase.auth.exchangeCodeForSession(code);
+          const nextSession = await supabase.auth.getSession();
+          sessionData = nextSession.data;
+        }
+      }
+
       if (!sessionData.session?.access_token) {
-        throw new Error("Recovery session not found. Please open the reset link from your email again.");
+        throw new Error("This reset link is invalid or expired. Please request a new password reset email.");
       }
 
       const { error } = await supabase.auth.updateUser({ password });
@@ -102,9 +151,14 @@ export default function ResetPasswordPage() {
         description: "Your password was reset successfully.",
       });
     } catch (err: any) {
+      const rawMessage = typeof err?.message === "string" ? err.message : "";
+      const isSessionError = /session not found|auth session missing|recovery session/i.test(rawMessage.toLowerCase());
+
       toast({
         title: "Unable to reset password",
-        description: err.message || "Please try again.",
+        description: isSessionError
+          ? "This reset link is invalid or expired. Please request a new password reset email."
+          : rawMessage || "Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -198,9 +252,9 @@ export default function ResetPasswordPage() {
                   type="submit"
                   className="w-full rounded-full font-semibold py-6 mt-6 border-0 shadow-lg hover:shadow-xl transition-all"
                   style={{ backgroundColor: "#E63946", color: "white" }}
-                  disabled={loading}
+                  disabled={loading || recoveringSession}
                 >
-                  {loading ? "Updating..." : "Update password"}
+                  {loading ? "Updating..." : recoveringSession ? "Verifying link..." : "Update password"}
                 </Button>
               </form>
             ) : (
