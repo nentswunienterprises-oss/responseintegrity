@@ -13,8 +13,9 @@ import { useScheduledSession, useTrainingSessions } from "@/hooks/useScheduledSe
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronDown, ChevronUp, Copy } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Compass } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { getSandboxGuideSteps } from "./sandboxGuide";
 import {
   buildStartingPhaseRationale,
   deriveResponseSignalScores,
@@ -210,6 +211,7 @@ export function StudentCard({
   // State for assignment modal
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
   const [preSessionIntelligenceCollapsed, setPreSessionIntelligenceCollapsed] = useState(true);
+  const [showSandboxGuide, setShowSandboxGuide] = useState(false);
 
   const PreSessionIntelligenceSection = () => (
     <div className="pt-4 border-t border-border/60 space-y-3">
@@ -256,6 +258,41 @@ export function StudentCard({
     .toUpperCase()
     .slice(0, 2);
   const studentSchool = resolveStudentSchool(student);
+  const sandboxGuideSteps = getSandboxGuideSteps(student.name || "this sandbox student");
+  const isSandboxStudent = String(student?.name || "").toLowerCase().includes("sandbox") || String(student?.parentContact || student?.parent_contact || "").toLowerCase().includes("sandbox") || String(operationalMode || "").toLowerCase() === "sandbox";
+
+  const handleSandboxGuideAction = (action?: string) => {
+    if (!student?.id) return;
+    setSelectedStudentId(String(student.id));
+    setSelectedStudentName(String(student.name || ""));
+
+    switch (action) {
+      case "assignment":
+        setAssignmentsDialogOpen(true);
+        break;
+      case "identity-sheet":
+        setIdentitySheetOpen(true);
+        break;
+      case "proposal":
+        setProposalOpen(true);
+        break;
+      case "topic-conditioning":
+        setTopicConditioningDialogOpen(true);
+        break;
+      case "reports":
+        setReportsDialogOpen(true);
+        break;
+      case "communications":
+        setCommunicationDialogOpen(true);
+        break;
+      case "intro-drill":
+        navigate(`/tutor/intro-session/${student.id}`);
+        break;
+      case "student-card":
+      default:
+        break;
+    }
+  };
 
   const { toast } = useToast();
   const { data: workflow, isLoading: workflowLoading } = useStudentWorkflowState(student.id);
@@ -679,6 +716,34 @@ export function StudentCard({
       </div>
 
       <div className="space-y-4 pt-5">
+        {isSandboxStudent ? (
+          <div className="rounded-xl border border-dashed border-primary/20 bg-primary/5 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Compass className="h-4 w-4 text-primary" />
+                <p className="text-sm font-semibold text-foreground">Sandbox guide</p>
+              </div>
+              <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => setShowSandboxGuide((prev) => !prev)}>
+                {showSandboxGuide ? "Hide steps" : "Show steps"}
+              </Button>
+            </div>
+            {showSandboxGuide ? (
+              <div className="mt-3 space-y-2">
+                {sandboxGuideSteps.map((step) => (
+                  <div key={step.id} className="rounded-lg border border-border/60 bg-background/90 p-2.5">
+                    <div className="flex items-start gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">{step.title}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{step.detail}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         {workflow?.proposalAccepted && (
           <div className="space-y-3">
             <div className="rounded-xl border border-primary/20 bg-muted/20 px-4 py-3">
@@ -1005,6 +1070,7 @@ function HandoverVerificationSection({
   isMarkingCompleted,
   completionError,
 }) {
+  const navigate = useNavigate();
   const sessionStatus = String(session?.status || "");
   const sessionConfirmed = ["confirmed", "ready", "live", "scheduled", "completed"].includes(sessionStatus);
   const sessionLabel = session?.type === "handover" ? "continuity check" : "handover verification";
