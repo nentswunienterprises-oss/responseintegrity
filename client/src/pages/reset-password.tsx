@@ -36,7 +36,52 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [recoveringSession, setRecoveringSession] = useState(false);
+  const [postResetLoginPath, setPostResetLoginPath] = useState(returnTo);
   const { toast } = useToast();
+
+  const mapRoleToLoginPath = (role: string | null | undefined) => {
+    switch (role) {
+      case "tutor":
+        return "/operational/signup?role=tutor&mode=login&lock=login&returnTo=/operational/tutor/intake";
+      case "td":
+        return "/operational/td/signup?mode=login&lock=login";
+      case "coo":
+      case "hr":
+      case "ceo":
+      case "cto":
+      case "cmo":
+        return "/executive/signup?mode=login&lock=login";
+      case "parent":
+      case "student":
+        return "/client/signup?mode=login&lock=login";
+      case "affiliate":
+      case "od":
+        return "/affiliate/signup?mode=login&lock=login";
+      default:
+        return returnTo;
+    }
+  };
+
+  const resolvePostResetLoginPath = async (session: any) => {
+    if (!returnTo.startsWith("/auth")) {
+      return returnTo;
+    }
+
+    let role: string | null | undefined =
+      session?.user?.user_metadata?.role || session?.user?.app_metadata?.role;
+
+    if (!role && session?.user?.id) {
+      const { data } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      role = (data as any)?.role;
+    }
+
+    return mapRoleToLoginPath(role);
+  };
 
   useEffect(() => {
     const looksLikeRecoveryLink =
@@ -144,6 +189,9 @@ export default function ResetPasswordPage() {
         throw error;
       }
 
+      const nextLoginPath = await resolvePostResetLoginPath(sessionData.session);
+      setPostResetLoginPath(nextLoginPath);
+
       clearPasswordResetReturnTo();
       setCompleted(true);
       toast({
@@ -213,7 +261,7 @@ export default function ResetPasswordPage() {
                 <Button
                   className="w-full rounded-full font-semibold py-6 mt-6 border-0 shadow-lg hover:shadow-xl transition-all"
                   style={{ backgroundColor: "#E63946", color: "white" }}
-                  onClick={() => navigate(returnTo)}
+                  onClick={() => navigate(postResetLoginPath)}
                 >
                   Return to Login
                 </Button>
