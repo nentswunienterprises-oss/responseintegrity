@@ -84,7 +84,7 @@ function getOperationalModeBadge(mode?: string | null) {
 function formatOperationalModeLabel(mode?: string | null) {
   const normalized = String(mode || "").toLowerCase();
   if (normalized === "certified_live") return "Certified Live";
-  if (normalized === "sandbox") return "Sandbox";
+  if (normalized === "sandbox") return "Sandbox Mode";
   if (normalized === "suspended") return "Suspended";
   if (normalized === "applicant") return "Applicant";
   return "Training";
@@ -101,8 +101,16 @@ function resolveTutorMode(assignmentMode?: string | null) {
   return "training";
 }
 
-function getTutorActualMode(assignment: any) {
-  return resolveTutorMode(assignment.operational_mode || assignment.operationalMode);
+function getTutorActualMode(
+  assignment: any,
+  preferredMode?: string | null
+) {
+  return resolveTutorMode(
+    preferredMode ||
+      assignment.operational_mode ||
+      assignment.operationalMode ||
+      assignment.mode
+  );
 }
 
 function isTutorEligibleForParentAssignment(mode?: string | null) {
@@ -1124,7 +1132,10 @@ export default function PodDetail() {
                           const tutorAudit = battleTestingSummary?.tutorSummaries.find(
                             (entry) => entry.assignmentId === assignment.id
                           );
-                          const operationalMode = getTutorActualMode(assignment);
+                          const operationalMode = getTutorActualMode(
+                            assignment,
+                            tutorAudit?.mode
+                          );
                           const isWatchlistState = tutorAudit?.state === "watchlist";
                           const transformationProgress = (assignment.module_progress || []).find(
                             (entry: any) => entry.moduleKey === "transformation_phases"

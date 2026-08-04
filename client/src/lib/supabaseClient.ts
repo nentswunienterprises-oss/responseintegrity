@@ -11,22 +11,24 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // Enable persisting sessions to localStorage for persistent login
     persistSession: true,
     detectSessionInUrl: true,
-    storage: undefined,
-    autoRefreshToken: false,
-    // OAuth flow configuration
+    storage: window?.localStorage ?? undefined,
+    autoRefreshToken: true,
     flowType: 'pkce',
   }
 });
 
-// Clear any legacy Supabase auth token that may exist in localStorage (fixes cross-tab mixing on upgrade)
+// Keep any existing Supabase session intact across reloads so auth state
+// does not get invalidated by the browser on startup.
 if (typeof window !== 'undefined') {
   try {
     const key = `sb-${supabaseUrl?.split('/').pop()}-auth-token`;
-    localStorage.removeItem(key);
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+      window.localStorage.removeItem(key);
+    }
   } catch (e) {
-    console.error("Error clearing legacy auth token:", e);
+    console.error("Error checking Supabase auth storage:", e);
   }
 }
