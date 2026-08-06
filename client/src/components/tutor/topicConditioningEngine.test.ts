@@ -16,6 +16,10 @@ describe("topicConditioningEngine", () => {
     assert.equal(trendFromHistory(["High", "Medium"]), "Regressing");
     assert.equal(trendFromHistory(["High", "High"]), "Stable");
     assert.equal(trendFromHistory(["Low"]), "Holding");
+    assert.equal(
+      trendFromHistory(["High Maintenance", "Low"], ["Clarity", "Structured Execution"]),
+      "Holding",
+    );
   });
 
   it("scores topic priority with stability and trend", () => {
@@ -26,7 +30,7 @@ describe("topicConditioningEngine", () => {
 
   it("returns next action from engine", () => {
     assert.equal(nextActionFor("Clarity", "Low"), "Run Clarity drill");
-    assert.equal(getNextActionData("Structured Execution", "High").advanceTo, "Controlled Discomfort");
+    assert.equal(getNextActionData("Structured Execution", "High Maintenance").advanceTo, "Controlled Discomfort");
   });
 
   it("recommends movement logic", () => {

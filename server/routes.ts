@@ -4674,10 +4674,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
 
             const breakdownPattern = topics.map(topic => {
-              const weakSignals = buildTopicWeakSignals(topicSnapshots[topic].allBehaviors);
+              const snapshot = topicSnapshots[topic];
+              const weakSignals = buildTopicWeakSignals(snapshot.allBehaviors);
+              const isInitialTopicBaseline = snapshot.drillCount <= 1;
               return formatTopicScopedLine(
                 topic,
-                weakSignals.length > 0 ? naturalJoin(weakSignals) : "no consistent breakdown pattern identified",
+                weakSignals.length > 0
+                  ? naturalJoin(weakSignals)
+                  : isInitialTopicBaseline
+                    ? "initial baseline established; no recurring breakdown pattern yet"
+                    : "no consistent breakdown pattern identified",
                 includeTopicLabels
               );
             });
@@ -4782,10 +4788,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .filter(Boolean);
 
             const breakdownPattern = topics.map(topic => {
-              const weakSignals = buildTopicWeakSignals(topicSnapshots[topic].allBehaviors);
+              const snapshot = topicSnapshots[topic];
+              const weakSignals = buildTopicWeakSignals(snapshot.allBehaviors);
+              const isInitialTopicBaseline = snapshot.drillCount <= 1;
               return formatTopicScopedLine(
                 topic,
-                weakSignals.length > 0 ? naturalJoin(weakSignals) : "no consistent breakdown pattern identified",
+                weakSignals.length > 0
+                  ? naturalJoin(weakSignals)
+                  : isInitialTopicBaseline
+                    ? "initial baseline established; no recurring breakdown pattern yet"
+                    : "no consistent breakdown pattern identified",
                 includeTopicLabels
               );
             });

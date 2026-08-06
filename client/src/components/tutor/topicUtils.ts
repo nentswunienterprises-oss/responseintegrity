@@ -122,7 +122,10 @@ export function buildTopics(
       hasObservedState: history.length > 0,
       lastUpdated: lastSessionDate || null,
       lastSession: formatLastUpdatedLabel(lastSessionDate),
-      trend: trendFromHistory(history.map((h) => h.stability)),
+      trend: trendFromHistory(
+        history.map((h) => h.stability),
+        history.map((h) => h.phase),
+      ),
       entryDiagnosis:
         history.length > 0
           ? `Entered based on observed response pattern in logged sessions for ${topic.toLowerCase()}.`

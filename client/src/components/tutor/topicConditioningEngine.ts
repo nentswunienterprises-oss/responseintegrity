@@ -228,12 +228,25 @@ function trendByStability(stability: StabilityLabel): TopicTrend {
   return "Holding";
 }
 
-export function trendFromHistory(history: StabilityLabel[]): TopicTrend {
+export function trendFromHistory(
+  history: StabilityLabel[],
+  phaseHistory?: PhaseLabel[],
+): TopicTrend {
   if (history.length < 2) return trendByStability(history[history.length - 1] || "Low");
+
+  const lastIndex = history.length - 1;
+  const latestPhase = phaseHistory?.[lastIndex];
+  const previousPhase = phaseHistory?.[lastIndex - 1];
+
+  // Do not mark cross-phase entry as regression on first observation in a new phase.
+  if (latestPhase && previousPhase && latestPhase !== previousPhase) {
+    return trendByStability(history[lastIndex] || "Low");
+  }
+
   const score = (s: StabilityLabel) =>
     s === "Low" ? 1 : s === "Medium" ? 2 : s === "High" ? 3 : 4;
-  const prev = score(history[history.length - 2]);
-  const curr = score(history[history.length - 1]);
+  const prev = score(history[lastIndex - 1]);
+  const curr = score(history[lastIndex]);
   if (curr > prev) return "Improving";
   if (curr < prev) return "Regressing";
   return curr >= 3 ? "Stable" : "Holding";

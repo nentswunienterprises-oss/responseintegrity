@@ -458,15 +458,32 @@ function scoreToStability(score: number): StabilityLabel {
   return "Low";
 }
 
-function deriveTransitionStatus(phase: PhaseLabel, stability: StabilityLabel, trend?: TopicTrend) {
+function deriveTransitionStatus(
+  phase: PhaseLabel,
+  stability: StabilityLabel,
+  trend?: TopicTrend,
+  options?: { suppressRegressed?: boolean },
+) {
   const advanceTo = getNextActionData(phase, stability).advanceTo;
-  if (trend === "Regressing") return "Regressed" as const;
+  if (trend === "Regressing" && !options?.suppressRegressed) return "Regressed" as const;
   if (phase === "Time Pressure Stability" && stability === "High Maintenance") return "Transfer Ready" as const;
   if (stability === "High Maintenance" && advanceTo) return "Advance Threshold Met" as const;
   if (stability === "High Maintenance") return "Maintain" as const;
   if (stability === "High") return "Maintenance Check" as const;
   if (stability === "Medium") return "Building" as const;
   return "Reinforce" as const;
+}
+
+function isFirstObservationInCurrentPhase(
+  phase: PhaseLabel,
+  timeline: TopicRow["timeline"] | undefined,
+): boolean {
+  const events = Array.isArray(timeline) ? timeline : [];
+  if (events.length === 0) return false;
+  const latest = events[events.length - 1];
+  if (latest.phase !== phase) return false;
+  const entriesInPhase = events.filter((event) => event.phase === phase).length;
+  return entriesInPhase === 1;
 }
 
 function enteredMaintenanceCheckpoint(
@@ -491,9 +508,10 @@ function interpretTopicState(
   phase: PhaseLabel,
   stability: StabilityLabel,
   trend?: TopicTrend,
-  options?: { enteredMaintenanceCheckpoint?: boolean },
+  options?: { enteredMaintenanceCheckpoint?: boolean; firstObservationInCurrentPhase?: boolean },
 ) {
   const enteredMaintenance = !!options?.enteredMaintenanceCheckpoint;
+  const firstObservationInCurrentPhase = !!options?.firstObservationInCurrentPhase;
   const requiresMaintenanceCheck = phase !== "Time Pressure Stability" && stability === "High Maintenance";
   const nextAction = requiresMaintenanceCheck ? nextActionFor(phase, "High") : nextActionFor(phase, stability);
   const rules = requiresMaintenanceCheck ? getNextActionData(phase, "High").rules : getNextActionData(phase, stability).rules;
@@ -536,7 +554,9 @@ function interpretTopicState(
   const transitionStatus =
     enteredMaintenance || requiresMaintenanceCheck
       ? ("Maintenance Check" as const)
-      : deriveTransitionStatus(phase, stability, trend);
+      : deriveTransitionStatus(phase, stability, trend, {
+          suppressRegressed: firstObservationInCurrentPhase,
+        });
 
   return {
     nextAction,
@@ -849,7 +869,10 @@ function buildTopics(
       hasObservedState,
       stateSource: hasObservedState ? "observed" : "seeded",
       lastSession: formatLastUpdatedLabel(lastSessionDate),
-      trend: trendFromHistory(history.map((h) => h.stability)),
+      trend: trendFromHistory(
+        history.map((h) => h.stability),
+        history.map((h) => h.phase),
+      ),
       entryDiagnosis:
         history.length > 0
           ? `Entered based on observed response pattern in logged sessions for ${topic.toLowerCase()}.`
@@ -1148,6 +1171,9 @@ export default function StudentTopicConditioningDialog({
   const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
   const [showFullSelectedTimeline, setShowFullSelectedTimeline] = useState(false);
   const [expandedPhaseDefinitions, setExpandedPhaseDefinitions] = useState<Set<PhaseLabel>>(new Set());
+  const [isStabilityTrackerCollapsed, setIsStabilityTrackerCollapsed] = useState(true);
+  const [isPhaseProgressionCollapsed, setIsPhaseProgressionCollapsed] = useState(true);
+  const [isPhaseDefinitionsCollapsed, setIsPhaseDefinitionsCollapsed] = useState(true);
   const [cancelTrainingSessionTarget, setCancelTrainingSessionTarget] = useState<{
     id: string;
     scheduledTimeLabel: string;
@@ -1174,6 +1200,9 @@ export default function StudentTopicConditioningDialog({
     setPhaseObservedField(topics[0]?.phase || normalizePhase(topicConditioning?.entry_phase));
     setStabilityObservedField(topics[0]?.stability || normalizeStability(topicConditioning?.stability));
     setExpandedPhaseDefinitions(new Set());
+    setIsStabilityTrackerCollapsed(true);
+    setIsPhaseProgressionCollapsed(true);
+    setIsPhaseDefinitionsCollapsed(true);
   }, [open]);
 
   // When selectedTopic changes (Map tab), sync phase and stability fields
@@ -1296,6 +1325,10 @@ export default function StudentTopicConditioningDialog({
         enteredMaintenanceCheckpoint: enteredMaintenanceCheckpoint(
           selectedRow.phase,
           selectedRow.stability,
+          selectedRow.timeline,
+        ),
+        firstObservationInCurrentPhase: isFirstObservationInCurrentPhase(
+          selectedRow.phase,
           selectedRow.timeline,
         ),
       })
@@ -1621,6 +1654,10 @@ export default function StudentTopicConditioningDialog({
                         row.stability,
                         row.timeline,
                       ),
+                      firstObservationInCurrentPhase: isFirstObservationInCurrentPhase(
+                        row.phase,
+                        row.timeline,
+                      ),
                     });
                     const rowPrepPlan = tutorPrepPlanFor(row.phase, row.stability, row.hasObservedState);
                     const isExpanded = expandedTopics.has(row.topic);
@@ -1814,187 +1851,6 @@ export default function StudentTopicConditioningDialog({
               </DialogContent>
             </Dialog>
 
-            {/* Removed Topics Tracked, Needs Stabilization, Ready To Advance cards as requested */}
-
-            <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
-              <Card className="rounded-2xl border border-primary/15 bg-background p-3 sm:p-4 md:p-5 shadow-sm space-y-4">
-                <h3 className="font-semibold">Stability Tracker</h3>
-                {selectedRow ? (
-                  <>
-                    {hasObservedSelection ? (
-                      <>
-                        <p className="text-sm text-muted-foreground">
-                          Stability: {selectedRow.stability}
-                        </p>
-                        <Progress value={stabilityPercent(selectedRow.stability)} />
-                        <div className="space-y-1.5">
-                          <p className="text-sm font-medium">Recent Logs (Last 3 Observations)</p>
-                          {(selectedRow.recentLogs || []).length === 0 ? (
-                            <p className="text-sm text-muted-foreground">No observations recorded yet for this topic.</p>
-                          ) : (
-                            <ul className="text-sm text-muted-foreground space-y-1">
-                              {(selectedRow.recentLogs || []).map((log) => (
-                                <li key={log}>{log}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                        <div className="grid sm:grid-cols-2 gap-4">
-                          <div className="rounded-md border p-3 bg-primary/5 border-primary/20">
-                            <p className="text-xs uppercase font-semibold text-primary mb-2">Do</p>
-                            <ul className="text-sm text-foreground space-y-1">
-                              {guidance.doItems.map((item) => (
-                                <li key={item}>{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div className="rounded-md border p-3 bg-muted/50 border-muted">
-                            <p className="text-xs uppercase font-semibold text-foreground/60 mb-2">Do Not</p>
-                            <ul className="text-sm text-muted-foreground space-y-1">
-                              {guidance.avoidItems.map((item) => (
-                                <li key={item}>{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                        Stability tracking unlocks after the first scored diagnosis or training drill. Until then, this topic remains unplaced.
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                    No active topics in Map yet. Stability tracking will appear after a topic is activated.
-                  </div>
-                )}
-              </Card>
-
-              <Card className="rounded-2xl border border-primary/15 bg-background p-3 sm:p-4 md:p-5 shadow-sm space-y-4">
-                <h3 className="font-semibold">Phase Progression</h3>
-                <p className="text-sm text-muted-foreground">Clarity to Structured Execution to Controlled Discomfort to Time Pressure Stability</p>
-                {hasObservedSelection ? (
-                  <div className="flex flex-wrap gap-2">
-                    {PHASES.map((phase, idx) => {
-                      const state = idx < phaseIx ? "completed" : idx === phaseIx ? "current" : "locked";
-                      return (
-                        <Badge
-                          key={phase}
-                          variant="outline"
-                          className={
-                            state === "completed"
-                              ? "bg-muted/60 border-muted text-foreground/50 text-[11px] sm:text-xs whitespace-normal"
-                              : state === "current"
-                              ? "bg-primary/10 border-primary/30 text-foreground font-medium text-[11px] sm:text-xs whitespace-normal"
-                              : "bg-muted/30 border-muted text-muted-foreground text-[11px] sm:text-xs whitespace-normal"
-                          }
-                        >
-                          {phase}
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                    Observed phase is Unknown for this topic. Progression tracking unlocks after first scored observation.
-                  </div>
-                )}
-
-                <div className="rounded-md border p-3 space-y-3">
-                  <p className="text-sm font-medium">NEXT ACTION</p>
-                  {selectedRow ? (
-                    <>
-                      {hasObservedSelection ? (
-                        <>
-                          <ul className="text-sm text-muted-foreground space-y-1">
-                            {getNextActionData(selectedRow.phase, selectedRow.stability).nextActions.map((a) => (
-                              <li key={a} className="flex items-start gap-1.5">
-                                <span className="mt-0.5 shrink-0 text-foreground/40">›</span>
-                                <span>{a}</span>
-                              </li>
-                            ))}
-                          </ul>
-                          <div>
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Rules</p>
-                            <ul className="text-xs text-muted-foreground space-y-0.5">
-                              {getNextActionData(selectedRow.phase, selectedRow.stability).rules.map((r) => (
-                                <li key={r} className="flex items-start gap-1.5">
-                                  <span className="shrink-0 text-foreground/40">-</span>
-                                  <span>{r}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">Run adaptive diagnosis first to generate deterministic next actions.</p>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Select a topic to see engine output.</p>
-                  )}
-                </div>
-              </Card>
-            </div>
-
-            <Card className="rounded-2xl border border-primary/15 bg-background p-3 sm:p-4 md:p-5 shadow-sm space-y-4">
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold">Phase Definitions</h3>
-                <AlertCircle className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="grid md:grid-cols-2 gap-3">
-                {PHASES.map((phase) => {
-                  // Split the definition into Description, Tool, Question
-                  const [desc, tool, question] = phaseDefinition[phase].split(/\n\n/);
-                  const phaseNumber = PHASES.indexOf(phase) + 1;
-                  const isPhaseExpanded = expandedPhaseDefinitions.has(phase);
-                  return (
-                    <div key={phase} className="rounded-md border p-3 flex flex-col items-start gap-2 bg-muted/10">
-                      <div className="w-full flex items-center justify-between gap-2">
-                        <p className="font-medium text-sm">{phaseNumber}. {phase}</p>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() =>
-                            setExpandedPhaseDefinitions((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(phase)) next.delete(phase);
-                              else next.add(phase);
-                              return next;
-                            })
-                          }
-                        >
-                          {isPhaseExpanded ? "Collapse" : "Expand"}
-                          <ChevronDown className={`w-3.5 h-3.5 ml-1 transition-transform ${isPhaseExpanded ? "rotate-180" : ""}`} />
-                        </Button>
-                      </div>
-                      <div className="w-full flex flex-col gap-2">
-                        {isPhaseExpanded && (
-                          <>
-                            <div className="bg-background rounded px-2 py-1 border border-primary/10">
-                              <span className="font-semibold text-foreground text-xs">Description:</span>
-                              <span className="ml-1 text-muted-foreground text-[11px]">{desc?.replace('Description: ', '')}</span>
-                            </div>
-                            <div className="bg-background rounded px-2 py-1 border border-primary/10">
-                              <span className="font-semibold text-foreground text-xs">Tool:</span>
-                              <span className="ml-1 text-muted-foreground text-[11px]">{tool?.replace('Tool: ', '')}</span>
-                            </div>
-                            <div className="bg-background rounded px-2 py-1 border border-primary/10">
-                              <span className="font-semibold text-foreground text-xs">Question:</span>
-                              <span className="ml-1 text-muted-foreground text-[11px]">{question?.replace('Question: ', '')}</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-
             {selectedRow && (
               <Card className="rounded-2xl border border-primary/15 bg-background p-3 sm:p-4 md:p-5 shadow-sm space-y-4">
                 <h3 className="font-semibold">Selected Topic Intelligence</h3>
@@ -2074,6 +1930,218 @@ export default function StudentTopicConditioningDialog({
                 </div>
               </Card>
             )}
+
+            {/* Removed Topics Tracked, Needs Stabilization, Ready To Advance cards as requested */}
+
+            <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
+              <Card className="rounded-2xl border border-primary/15 bg-background p-3 sm:p-4 md:p-5 shadow-sm space-y-4">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between text-left"
+                  onClick={() => setIsStabilityTrackerCollapsed((prev) => !prev)}
+                >
+                  <h3 className="font-semibold">Stability Tracker</h3>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isStabilityTrackerCollapsed ? "" : "rotate-180"}`} />
+                </button>
+                {!isStabilityTrackerCollapsed && (
+                  <>
+                    {selectedRow ? (
+                      <>
+                        {hasObservedSelection ? (
+                          <>
+                            <p className="text-sm text-muted-foreground">
+                              Stability: {selectedRow.stability}
+                            </p>
+                            <Progress value={stabilityPercent(selectedRow.stability)} />
+                            <div className="space-y-1.5">
+                              <p className="text-sm font-medium">Recent Logs (Last 3 Observations)</p>
+                              {(selectedRow.recentLogs || []).length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No observations recorded yet for this topic.</p>
+                              ) : (
+                                <ul className="text-sm text-muted-foreground space-y-1">
+                                  {(selectedRow.recentLogs || []).map((log) => (
+                                    <li key={log}>{log}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                            <div className="grid sm:grid-cols-2 gap-4">
+                              <div className="rounded-md border p-3 bg-primary/5 border-primary/20">
+                                <p className="text-xs uppercase font-semibold text-primary mb-2">Do</p>
+                                <ul className="text-sm text-foreground space-y-1">
+                                  {guidance.doItems.map((item) => (
+                                    <li key={item}>{item}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                              <div className="rounded-md border p-3 bg-muted/50 border-muted">
+                                <p className="text-xs uppercase font-semibold text-foreground/60 mb-2">Do Not</p>
+                                <ul className="text-sm text-muted-foreground space-y-1">
+                                  {guidance.avoidItems.map((item) => (
+                                    <li key={item}>{item}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                            Stability tracking unlocks after the first scored diagnosis or training drill. Until then, this topic remains unplaced.
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                        No active topics in Map yet. Stability tracking will appear after a topic is activated.
+                      </div>
+                    )}
+                  </>
+                )}
+              </Card>
+
+              <Card className="rounded-2xl border border-primary/15 bg-background p-3 sm:p-4 md:p-5 shadow-sm space-y-4">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between text-left"
+                  onClick={() => setIsPhaseProgressionCollapsed((prev) => !prev)}
+                >
+                  <h3 className="font-semibold">Phase Progression</h3>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isPhaseProgressionCollapsed ? "" : "rotate-180"}`} />
+                </button>
+                {!isPhaseProgressionCollapsed && (
+                  <>
+                    <p className="text-sm text-muted-foreground">Clarity to Structured Execution to Controlled Discomfort to Time Pressure Stability</p>
+                    {hasObservedSelection ? (
+                      <div className="flex flex-wrap gap-2">
+                        {PHASES.map((phase, idx) => {
+                          const state = idx < phaseIx ? "completed" : idx === phaseIx ? "current" : "locked";
+                          return (
+                            <Badge
+                              key={phase}
+                              variant="outline"
+                              className={
+                                state === "completed"
+                                  ? "bg-muted/60 border-muted text-foreground/50 text-[11px] sm:text-xs whitespace-normal"
+                                  : state === "current"
+                                  ? "bg-primary/10 border-primary/30 text-foreground font-medium text-[11px] sm:text-xs whitespace-normal"
+                                  : "bg-muted/30 border-muted text-muted-foreground text-[11px] sm:text-xs whitespace-normal"
+                              }
+                            >
+                              {phase}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                        Observed phase is Unknown for this topic. Progression tracking unlocks after first scored observation.
+                      </div>
+                    )}
+
+                    <div className="rounded-md border p-3 space-y-3">
+                      <p className="text-sm font-medium">NEXT ACTION</p>
+                      {selectedRow ? (
+                        <>
+                          {hasObservedSelection ? (
+                            <>
+                              <ul className="text-sm text-muted-foreground space-y-1">
+                                {getNextActionData(selectedRow.phase, selectedRow.stability).nextActions.map((a) => (
+                                  <li key={a} className="flex items-start gap-1.5">
+                                    <span className="mt-0.5 shrink-0 text-foreground/40">›</span>
+                                    <span>{a}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Rules</p>
+                                <ul className="text-xs text-muted-foreground space-y-0.5">
+                                  {getNextActionData(selectedRow.phase, selectedRow.stability).rules.map((r) => (
+                                    <li key={r} className="flex items-start gap-1.5">
+                                      <span className="shrink-0 text-foreground/40">-</span>
+                                      <span>{r}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Run adaptive diagnosis first to generate deterministic next actions.</p>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Select a topic to see engine output.</p>
+                      )}
+                    </div>
+                  </>
+                )}
+              </Card>
+            </div>
+
+            <Card className="rounded-2xl border border-primary/15 bg-background p-3 sm:p-4 md:p-5 shadow-sm space-y-4">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between text-left"
+                onClick={() => setIsPhaseDefinitionsCollapsed((prev) => !prev)}
+              >
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold">Phase Definitions</h3>
+                  <AlertCircle className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isPhaseDefinitionsCollapsed ? "" : "rotate-180"}`} />
+              </button>
+              {!isPhaseDefinitionsCollapsed && (
+                <div className="grid md:grid-cols-2 gap-3">
+                  {PHASES.map((phase) => {
+                    // Split the definition into Description, Tool, Question
+                    const [desc, tool, question] = phaseDefinition[phase].split(/\n\n/);
+                    const phaseNumber = PHASES.indexOf(phase) + 1;
+                    const isPhaseExpanded = expandedPhaseDefinitions.has(phase);
+                    return (
+                      <div key={phase} className="rounded-md border p-3 flex flex-col items-start gap-2 bg-muted/10">
+                        <div className="w-full flex items-center justify-between gap-2">
+                          <p className="font-medium text-sm">{phaseNumber}. {phase}</p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() =>
+                              setExpandedPhaseDefinitions((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(phase)) next.delete(phase);
+                                else next.add(phase);
+                                return next;
+                              })
+                            }
+                          >
+                            {isPhaseExpanded ? "Collapse" : "Expand"}
+                            <ChevronDown className={`w-3.5 h-3.5 ml-1 transition-transform ${isPhaseExpanded ? "rotate-180" : ""}`} />
+                          </Button>
+                        </div>
+                        <div className="w-full flex flex-col gap-2">
+                          {isPhaseExpanded && (
+                            <>
+                              <div className="bg-background rounded px-2 py-1 border border-primary/10">
+                                <span className="font-semibold text-foreground text-xs">Description:</span>
+                                <span className="ml-1 text-muted-foreground text-[11px]">{desc?.replace('Description: ', '')}</span>
+                              </div>
+                              <div className="bg-background rounded px-2 py-1 border border-primary/10">
+                                <span className="font-semibold text-foreground text-xs">Tool:</span>
+                                <span className="ml-1 text-muted-foreground text-[11px]">{tool?.replace('Tool: ', '')}</span>
+                              </div>
+                              <div className="bg-background rounded px-2 py-1 border border-primary/10">
+                                <span className="font-semibold text-foreground text-xs">Question:</span>
+                                <span className="ml-1 text-muted-foreground text-[11px]">{question?.replace('Question: ', '')}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
           </TabsContent>
 
           {showTopicManagement ? (
