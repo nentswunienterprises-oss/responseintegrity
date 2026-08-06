@@ -17,7 +17,7 @@ export default function OnlineTutorsWantedPlain() {
       {/* Header (portal-landing style) */}
       <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md" style={{ backgroundColor: "rgba(255, 245, 237, 0.95)" }}>
         <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-12 h-16 sm:h-20 flex items-center justify-between">
-          <RISymbolLogo size="xl" className="shrink-0" />
+          <RISymbolLogo size="xxl" className="shrink-0" />
           <div className="hidden md:block">
             <span className="text-2xl lg:text-4xl font-bold tracking-tight" style={{ color: "#1A1A1A" }}>
               RESPONSE-CONDITIONING
