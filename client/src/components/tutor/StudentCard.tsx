@@ -215,7 +215,7 @@ export function StudentCard({
 
   const PreSessionIntelligenceSection = () => (
     <div className="pt-4 border-t border-border/60 space-y-3">
-      <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+      <div className="rounded-xl border border-border/60 bg-background p-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
             Pre-Session Intelligence
@@ -717,7 +717,7 @@ export function StudentCard({
 
       <div className="space-y-4 pt-5">
         {isSandboxStudent ? (
-          <div className="rounded-xl border border-dashed border-primary/20 bg-primary/5 p-3">
+          <div className="rounded-xl border border-dashed border-primary/20 bg-background p-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Compass className="h-4 w-4 text-primary" />
@@ -735,6 +735,17 @@ export function StudentCard({
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground">{step.title}</p>
                         <p className="mt-1 text-xs text-muted-foreground">{step.detail}</p>
+                        {step.actionLabel ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 h-7 px-2 text-[11px]"
+                            onClick={() => handleSandboxGuideAction(step.action)}
+                          >
+                            {step.actionLabel}
+                          </Button>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -1235,7 +1246,7 @@ function PreSessionIntelligenceSummary({
   }
 
   return (
-    <div className="rounded-xl border border-primary/20 bg-muted/20 p-3 space-y-3">
+    <div className="rounded-xl border border-primary/20 bg-background p-3 space-y-3">
       <div className="flex items-center justify-between gap-3">
         <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Pre-Session Intelligence</p>
         {collapsible ? (
