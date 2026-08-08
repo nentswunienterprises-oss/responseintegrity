@@ -236,9 +236,12 @@ export default function TutorPod() {
   const schedulingEnabled = weeklyScheduleData?.sessionSchedulingEnabled ?? true;
   const todaySessions = useMemo(() => {
     const now = new Date();
+    const allowedStatuses = new Set(["confirmed", "completed"]);
     return (weeklyScheduleData?.sessions || [])
       .filter((session) => {
         const scheduled = new Date(session.scheduled_time);
+        const status = String(session.status || "").trim().toLowerCase();
+        if (!allowedStatuses.has(status)) return false;
         return (
           scheduled.getFullYear() === now.getFullYear() &&
           scheduled.getMonth() === now.getMonth() &&
