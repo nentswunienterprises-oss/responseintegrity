@@ -150,6 +150,11 @@ import RecruitmentPrivacy from "@/pages/executive/recruitment-privacy";
 import OperationalLanding from "@/pages/operational/landing";
 import AffiliateLandingPage from "@/pages/affiliate/landing";
 import AffiliateGateway from "@/pages/affiliate/gateway";
+import ContributorLanding from "@/pages/contributor/landing";
+import ContributorGateway from "@/pages/contributor/gateway";
+import ContributorHome from "@/pages/contributor/contributor/home";
+import ContributorTracking from "@/pages/contributor/contributor/tracking";
+import ContributorUpdates from "@/pages/contributor/contributor/updates";
 import ExecutiveLanding from "@/pages/executive/landing";
 
 // NEW: Portal Signup Pages
@@ -466,6 +471,8 @@ function Router() {
       {/* Affiliate Landing */}
       <Route path="/affiliate/landing" element={<AffiliateLandingPage />} />
       <Route path="/affiliate/gateway" element={<AffiliateGateway />} />
+      <Route path="/contributor/landing" element={<ContributorLanding />} />
+      <Route path="/contributor/gateway" element={<ContributorGateway />} />
       {/* Affiliate Signup */}
       <Route path="/affiliate/signup" element={<AffiliateSignup />} />
 
@@ -474,6 +481,9 @@ function Router() {
       <Route path="/affiliate/affiliate/discover-deliver" element={<AffiliateDiscoverDeliver />} />
       <Route path="/affiliate/affiliate/tracking" element={<AffiliateTracking />} />
       <Route path="/affiliate/affiliate/updates" element={<AffiliateUpdates />} />
+      <Route path="/contributor/contributor/home" element={<ContributorHome />} />
+      <Route path="/contributor/contributor/tracking" element={<ContributorTracking />} />
+      <Route path="/contributor/contributor/updates" element={<ContributorUpdates />} />
 
       {/* Outreach Director Routes */}
       <Route path="/affiliate/od/dashboard" element={<OutreachDirectorDashboard />} />
