@@ -233,6 +233,21 @@ export default function TutorPod() {
     return [...teamMembers].sort((a, b) => a.name.localeCompare(b.name));
   }, [teamMembers]);
 
+  const schedulingEnabled = weeklyScheduleData?.sessionSchedulingEnabled ?? true;
+  const todaySessions = useMemo(() => {
+    const now = new Date();
+    return (weeklyScheduleData?.sessions || [])
+      .filter((session) => {
+        const scheduled = new Date(session.scheduled_time);
+        return (
+          scheduled.getFullYear() === now.getFullYear() &&
+          scheduled.getMonth() === now.getMonth() &&
+          scheduled.getDate() === now.getDate()
+        );
+      })
+      .sort((a, b) => new Date(a.scheduled_time).getTime() - new Date(b.scheduled_time).getTime());
+  }, [weeklyScheduleData?.sessions]);
+
   const isCurrentTutor = (member: PodTeamMember | null) => {
     if (!member) return false;
     const userId = String((user as any)?.id || "").trim();
@@ -473,20 +488,6 @@ export default function TutorPod() {
 
   const firstName = user?.name?.split(" ")[0] || "Tutor";
   const selectedTeamMember = sortedTeamMembers.find((m) => m.id === selectedTeamMemberId) || null;
-  const schedulingEnabled = weeklyScheduleData?.sessionSchedulingEnabled ?? true;
-  const todaySessions = useMemo(() => {
-    const now = new Date();
-    return (weeklyScheduleData?.sessions || [])
-      .filter((session) => {
-        const scheduled = new Date(session.scheduled_time);
-        return (
-          scheduled.getFullYear() === now.getFullYear() &&
-          scheduled.getMonth() === now.getMonth() &&
-          scheduled.getDate() === now.getDate()
-        );
-      })
-      .sort((a, b) => new Date(a.scheduled_time).getTime() - new Date(b.scheduled_time).getTime());
-  }, [weeklyScheduleData?.sessions]);
 
   return (
     <DashboardLayout>
