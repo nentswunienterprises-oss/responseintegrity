@@ -43,12 +43,12 @@ const conditioningModes = [
     body: "You begin operating in a protected practice lane. It feels real because it is meant to sharpen you, but full trust is still being built.",
   },
   {
-    title: "Certified Live",
-    body: "You have shown stable alignment and can now carry real student and parent responsibility inside the live system.",
+    title: "Trial",
+    body: "You operate in a supervised validation lane where your consistency and outcomes are checked before full live deployment.",
   },
   {
-    title: "Watchlist or Reset",
-    body: "If your execution starts drifting, Response Integrity tightens the lane again. Trust expands only while your standard stays consistent.",
+    title: "Certified Live",
+    body: "You have shown stable alignment and can now carry real student and parent responsibility inside the live system.",
   },
 ] as const;
 
