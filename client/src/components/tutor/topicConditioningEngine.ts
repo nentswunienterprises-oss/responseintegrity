@@ -94,7 +94,7 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
         "Run independent execution reps with step-order correction",
         "Enforce step-by-step execution",
         "Correct every skipped step",
-        "Force student to start every problem",
+        "Require student to start every problem",
       ],
       rules: ["No time pressure", "No Boss Battles until Controlled Discomfort", "No over-explaining"],
     },

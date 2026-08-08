@@ -556,7 +556,7 @@ Per phase × stability, the engine provides:
 - Low:
   - Primary action: `Run Structured Execution drill`
   - Rules: `No time pressure`; `Boss Battles only if student can start`; `No over-explaining`
-  - Next actions: `Run strict Model -> Apply -> Guide loops`; `Enforce step-by-step execution`; `Correct every skipped step`; `Force student to start every problem`
+  - Next actions: `Run strict Model -> Apply -> Guide loops`; `Enforce step-by-step execution`; `Correct every skipped step`; `Require student to start every problem`
 - Medium:
   - Primary action: `Run Structured Execution drill`
   - Rules: `Do not rush to time pressure`; `Still reinforce structure every time`

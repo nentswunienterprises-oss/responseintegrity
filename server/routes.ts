@@ -8059,16 +8059,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         weekEnd.setDate(weekEnd.getDate() + 6);
         weekEnd.setHours(23, 59, 59, 999);
 
-        if (operationalMode === "training") {
-          return res.json({
-            weekStart: weekStart.toISOString(),
-            weekEnd: weekEnd.toISOString(),
-            sessions: [],
-            operationalMode,
-            sessionSchedulingEnabled: false,
-          });
-        }
-
         const { data: sessions, error } = await supabase
           .from("scheduled_sessions")
           .select("id, scheduled_time, scheduled_end, timezone, status, type, workflow_stage, parent_confirmed, tutor_confirmed, student_id, parent_id, google_meet_url, created_at, updated_at")
@@ -8107,7 +8097,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           weekStart: weekStart.toISOString(),
           weekEnd: weekEnd.toISOString(),
           operationalMode,
-          sessionSchedulingEnabled: true,
+          sessionSchedulingEnabled: operationalMode === "certified_live",
           sessions: (sessions || []).map((session: any) => ({
             ...session,
             student: studentsById.get(String(session.student_id || "")) || null,

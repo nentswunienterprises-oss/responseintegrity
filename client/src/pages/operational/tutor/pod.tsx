@@ -74,6 +74,25 @@ interface TutorAlignmentSummaryData {
   alignmentSummary: BattleTestingTutorSummary | null;
 }
 
+interface TutorPodSession {
+  id: string;
+  scheduled_time: string;
+  status: string;
+  type: string;
+  timezone?: string | null;
+  student?: {
+    id: string;
+    name: string;
+    grade?: string | null;
+  } | null;
+}
+
+interface TutorPodWeeklyScheduleResponse {
+  sessions: TutorPodSession[];
+  operationalMode?: "training" | "certified_live";
+  sessionSchedulingEnabled?: boolean;
+}
+
 function formatTutorAuditTimestamp(value: string | null | undefined) {
   if (!value) return "Not yet audited";
   return new Date(value).toLocaleString("en-US", {
@@ -112,6 +131,28 @@ function formatTutorMode(value: TutorAlignmentSummaryData["operationalMode"]) {
 function formatTutorGradeLabel(grade?: string | null) {
   const trimmed = String(grade || "").trim();
   return /^grade\b/i.test(trimmed) ? trimmed : trimmed ? `Grade ${trimmed}` : trimmed;
+}
+
+function formatSessionStatus(status?: string | null) {
+  const raw = String(status || "").trim().toLowerCase();
+  if (raw === "pending_parent_confirmation") return "Awaiting Parent";
+  if (raw === "pending_tutor_confirmation") return "Awaiting Tutor";
+  if (raw === "confirmed") return "Confirmed";
+  if (raw === "ready") return "Ready";
+  if (raw === "live") return "Live";
+  if (raw === "completed") return "Completed";
+  return raw ? raw.replace(/_/g, " ") : "Scheduled";
+}
+
+function formatSessionType(type?: string | null) {
+  return String(type || "").trim().toLowerCase() === "intro" ? "Intro Session" : "Training Session";
+}
+
+function formatSessionTime(value?: string | null) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
 export default function TutorPod() {
@@ -165,6 +206,12 @@ export default function TutorPod() {
   const { data: tutorAlignmentSummary } = useQuery<TutorAlignmentSummaryData>({
     queryKey: ["/api/tutor/pod-alignment-summary"],
     enabled: isAuthenticated && !authLoading,
+  });
+  const { data: weeklyScheduleData } = useQuery<TutorPodWeeklyScheduleResponse>({
+    queryKey: ["/api/tutor/weekly-schedule", "current-week"],
+    queryFn: async () => authorizedGetJson("/api/tutor/weekly-schedule"),
+    enabled: isAuthenticated && !authLoading,
+    refetchInterval: 15000,
   });
 
   const hasSubmittedApplication = applications && applications.length > 0;
@@ -426,6 +473,20 @@ export default function TutorPod() {
 
   const firstName = user?.name?.split(" ")[0] || "Tutor";
   const selectedTeamMember = sortedTeamMembers.find((m) => m.id === selectedTeamMemberId) || null;
+  const schedulingEnabled = weeklyScheduleData?.sessionSchedulingEnabled ?? true;
+  const todaySessions = useMemo(() => {
+    const now = new Date();
+    return (weeklyScheduleData?.sessions || [])
+      .filter((session) => {
+        const scheduled = new Date(session.scheduled_time);
+        return (
+          scheduled.getFullYear() === now.getFullYear() &&
+          scheduled.getMonth() === now.getMonth() &&
+          scheduled.getDate() === now.getDate()
+        );
+      })
+      .sort((a, b) => new Date(a.scheduled_time).getTime() - new Date(b.scheduled_time).getTime());
+  }, [weeklyScheduleData?.sessions]);
 
   return (
     <DashboardLayout>
@@ -694,13 +755,73 @@ export default function TutorPod() {
             </div>
             <div className="rounded-xl border border-primary/15 bg-muted/20 px-3 py-2 text-right">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Scheduled</p>
-              <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">0</p>
+              <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">{todaySessions.length}</p>
             </div>
           </div>
-          <div className="border-t border-border/60 px-5 py-10 text-center sm:px-6 sm:py-12">
-            <p className="text-base font-medium text-foreground">No sessions scheduled today.</p>
-            <p className="mt-2 text-sm text-muted-foreground">Use the time to review identity sheets, proposals, and topic conditioning before the next student block.</p>
-          </div>
+          {todaySessions.length > 0 ? (
+            <div className="border-t border-border/60 px-5 py-5 sm:px-6 sm:py-6">
+              {!schedulingEnabled ? (
+                <div className="mb-4 rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
+                  <p className="text-sm font-medium text-foreground">Training mode is active.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Scheduling is disabled for new bookings, but existing sessions for today are still listed below.
+                  </p>
+                </div>
+              ) : null}
+              <div className="space-y-3">
+                {todaySessions.map((session) => (
+                  <div key={session.id} className="rounded-xl border border-border/70 bg-background px-4 py-3">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {session.student?.name || "Unlinked student"} • {formatSessionType(session.type)}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {formatSessionTime(session.scheduled_time)}
+                          {session.student?.grade ? ` • ${formatTutorGradeLabel(session.student.grade)}` : ""}
+                          {session.timezone ? ` • ${session.timezone}` : ""}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {formatSessionStatus(session.status)}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : !schedulingEnabled ? (
+            <div className="border-t border-border/60 px-5 py-10 text-center sm:px-6 sm:py-12">
+              <p className="text-base font-medium text-foreground">Live session scheduling is currently disabled.</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                You are in training mode, so booked lesson windows are hidden until certified live mode is active.
+              </p>
+            </div>
+          ) : todaySessions.length === 0 ? (
+            <div className="border-t border-border/60 px-5 py-10 text-center sm:px-6 sm:py-12">
+              <p className="text-base font-medium text-foreground">No sessions scheduled today.</p>
+              <p className="mt-2 text-sm text-muted-foreground">Use the time to review identity sheets, proposals, and topic conditioning before the next student block.</p>
+            </div>
+          ) : (
+            <div className="border-t border-border/60 px-5 py-5 sm:px-6 sm:py-6">
+              <div className="space-y-3">
+                {todaySessions.map((session) => (
+                  <div key={session.id} className="flex flex-col gap-2 rounded-xl border border-primary/15 bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {session.student?.name || "Unlinked student"} - {formatSessionType(session.type)}
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {formatSessionTime(session.scheduled_time)}
+                        {session.student?.grade ? ` - ${formatTutorGradeLabel(session.student.grade)}` : ""}
+                      </p>
+                    </div>
+                    <Badge variant="outline">{formatSessionStatus(session.status)}</Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Students Cards */}

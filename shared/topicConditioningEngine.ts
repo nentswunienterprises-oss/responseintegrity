@@ -393,7 +393,7 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
         "Run strict Model -> Apply -> Guide loops",
         "Enforce step-by-step execution",
         "Correct every skipped step",
-        "Force student to start every problem",
+        "Require student to start every problem",
       ],
     },
     Medium: {

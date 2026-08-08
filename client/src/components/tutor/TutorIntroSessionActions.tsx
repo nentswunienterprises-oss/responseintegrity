@@ -3,7 +3,14 @@ import { useScheduledSession, useTutorRespondToSession } from "@/hooks/useSchedu
 import { useParentIntroSessionStatus } from "@/hooks/useParentIntroSessionStatus";
 import { useState } from "react";
 
-export function TutorIntroSessionActions({ studentId, parentId, tutorId, sessionLabelOverride }) {
+type TutorIntroSessionActionsProps = {
+  studentId?: number | string | null;
+  parentId?: number | string | null;
+  tutorId?: number | string | null;
+  sessionLabelOverride?: string;
+};
+
+export function TutorIntroSessionActions({ studentId, parentId, tutorId, sessionLabelOverride }: TutorIntroSessionActionsProps) {
   // Use parent/tutor-based hook if no studentId yet
   const { data, isLoading, error } = studentId
     ? useScheduledSession(studentId)

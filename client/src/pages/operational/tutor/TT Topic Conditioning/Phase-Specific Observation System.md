@@ -269,7 +269,7 @@ Interpretation:
 Student understands the topic but does not yet execute it reliably without help.
 
 Next Action:
-Run independent execution reps with step-order correction. Correct every skipped step. Force student to start every problem.
+Run independent execution reps with step-order correction. Correct every skipped step. Require student to start every problem.
 
 Constraint:
 No time pressure. No Boss Battles until Controlled Discomfort.
