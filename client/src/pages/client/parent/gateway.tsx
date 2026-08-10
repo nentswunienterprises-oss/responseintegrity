@@ -192,6 +192,7 @@ export default function ParentGateway() {
               queryClient.invalidateQueries({ queryKey: ["/api/parent/enrollment-status"] }),
               queryClient.invalidateQueries({ queryKey: ["/api/parent/proposal"] }),
               queryClient.invalidateQueries({ queryKey: ["/api/parent/intro-session-confirmation"] }),
+              queryClient.invalidateQueries({ queryKey: ["/api/parent/training-sessions"] }),
             ]);
           } else if (!cancelled) {
             toast({

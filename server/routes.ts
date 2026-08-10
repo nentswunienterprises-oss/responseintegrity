@@ -2036,7 +2036,7 @@ function classifyCancellationBillingImpact(options: {
 
 async function isSandboxPaymentTransaction(transaction: any) {
   const rawPayload =
-    transaction?.raw_payload && typeof transaction.raw_payload === "object"
+    transaction?.raw_payload && typeof transaction?.raw_payload === "object"
       ? (transaction.raw_payload as Record<string, unknown>)
       : {};
 
@@ -2057,6 +2057,80 @@ async function isSandboxPaymentTransaction(transaction: any) {
     .maybeSingle();
 
   return isSandboxPaymentEnrollment(linkedEnrollment);
+}
+
+function isRenewalPaymentTransaction(transaction: any) {
+  const rawPayload =
+    transaction?.raw_payload && typeof transaction?.raw_payload === "object"
+      ? (transaction.raw_payload as Record<string, unknown>)
+      : {};
+
+  return (
+    rawPayload.renewal === true ||
+    String(rawPayload.renewal || "").trim().toLowerCase() === "true"
+  );
+}
+
+async function applyRenewalTransactionToMembershipMonth(transaction: any) {
+  const rawPayload =
+    transaction?.raw_payload && typeof transaction.raw_payload === "object"
+      ? (transaction.raw_payload as Record<string, unknown>)
+      : {};
+
+  const renewal =
+    rawPayload.renewal === true ||
+    String(rawPayload.renewal || "").trim().toLowerCase() === "true";
+  const monthKey = String(rawPayload.month_key || "").trim();
+  const parentId = String(transaction?.parent_id || "").trim();
+  const studentId = String(transaction?.student_id || "").trim();
+
+  if (!renewal || !monthKey || !parentId || !studentId) {
+    return null;
+  }
+
+  const monthStartIso = toIsoDateTime(`${monthKey}T00:00:00.000Z`);
+  if (!monthStartIso) {
+    return null;
+  }
+
+  const isSandboxTransaction = await isSandboxPaymentTransaction(transaction);
+
+  const { data: existingMonth } = await supabase
+    .from("membership_months")
+    .select("*")
+    .eq("parent_id", parentId)
+    .eq("student_id", studentId)
+    .eq("month_key", monthKey)
+    .eq("is_sandbox", isSandboxTransaction)
+    .maybeSingle();
+
+  if (!existingMonth) {
+    return upsertMembershipMonth({
+      parentId,
+      studentId,
+      monthStartIso,
+      isSandbox: isSandboxTransaction,
+    });
+  }
+
+  const { data: updatedMonth, error: updateError } = await supabase
+    .from("membership_months")
+    .update({
+      sessions_used: 0,
+      sessions_remaining: MONTHLY_SESSION_QUOTA,
+      status: "active",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", existingMonth.id)
+    .select("*")
+    .maybeSingle();
+
+  if (updateError) {
+    console.error("Failed to apply renewal to membership month:", updateError);
+    return null;
+  }
+
+  return updatedMonth;
 }
 
 async function getParentBillingModel(parentId: string) {
@@ -21834,7 +21908,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (internalStatus === "paid") {
-        await finalizeAcceptedProposalFromPayment(updatedTransaction);
+        await applyRenewalTransactionToMembershipMonth(updatedTransaction);
+        if (!isRenewalPaymentTransaction(updatedTransaction)) {
+          await finalizeAcceptedProposalFromPayment(updatedTransaction);
+        }
       }
 
       return res.status(200).send("OK");
@@ -21903,12 +21980,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (transaction.payment_status === "paid") {
-        const finalized = await finalizeAcceptedProposalFromPayment(transaction);
+        await applyRenewalTransactionToMembershipMonth(transaction);
+        if (!isRenewalPaymentTransaction(transaction)) {
+          const finalized = await finalizeAcceptedProposalFromPayment(transaction);
+          return res.json({
+            message: "Sandbox PayFast payment already confirmed.",
+            paymentStatus: "PAID",
+            status: finalized.status,
+            parentCode: finalized.parentCode,
+            sandbox: true,
+          });
+        }
+
         return res.json({
           message: "Sandbox PayFast payment already confirmed.",
           paymentStatus: "PAID",
-          status: finalized.status,
-          parentCode: finalized.parentCode,
           sandbox: true,
         });
       }
@@ -21952,13 +22038,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to confirm sandbox payment" });
       }
 
-      const finalized = await finalizeAcceptedProposalFromPayment(updatedTransaction);
+      await applyRenewalTransactionToMembershipMonth(updatedTransaction);
+      if (!isRenewalPaymentTransaction(updatedTransaction)) {
+        const finalized = await finalizeAcceptedProposalFromPayment(updatedTransaction);
+        return res.json({
+          message: "Sandbox PayFast payment confirmed.",
+          paymentStatus: "PAID",
+          status: finalized.status,
+          parentCode: finalized.parentCode,
+          sandbox: true,
+        });
+      }
 
       return res.json({
         message: "Sandbox PayFast payment confirmed.",
         paymentStatus: "PAID",
-        status: finalized.status,
-        parentCode: finalized.parentCode,
         sandbox: true,
       });
     } catch (error) {
