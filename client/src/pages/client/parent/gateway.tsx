@@ -128,6 +128,7 @@ export default function ParentGateway() {
   const [step, setStep] = useState<"enrollment" | "submitted" | "loading" | "awaiting_tutor_acceptance">("loading");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessingProposal, setIsProcessingProposal] = useState(false);
+  const [isRenewing, setIsRenewing] = useState(false);
   const [parentCode, setParentCode] = useState<string | null>(null);
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [proposedDate, setProposedDate] = useState<Date | undefined>(undefined);
@@ -382,7 +383,11 @@ export default function ParentGateway() {
   const sessionCompletedLabel = isHandoverFlow ? "continuity check" : "introductory session";
   const isTrainingMode = effectiveIntroSessionConfirmation?.operationalMode === "training";
   const showProposalActions = enrollmentStatus?.status === "proposal_sent";
-  const showProposalPanel = enrollmentStatus?.status === "proposal_sent";
+  const showProposalPanel =
+    enrollmentStatus?.status === "proposal_sent" ||
+    enrollmentStatus?.status === "session_booked" ||
+    enrollmentStatus?.status === "report_received" ||
+    enrollmentStatus?.status === "confirmed";
 
   // Handlers defined below are used by the proposal panel rendered later in the component.
   const handleAcceptProposal = async () => {
@@ -442,6 +447,45 @@ export default function ParentGateway() {
       });
     } finally {
       setIsProcessingProposal(false);
+    }
+  };
+
+  const handleRenewSubscription = async () => {
+    setIsRenewing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+      const response = await fetch(`${API_URL}/api/parent/payments/renew`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to start renewal payment");
+      }
+      if (!data?.checkoutUrl || !data?.formFields) {
+        throw new Error("PayFast checkout details were not returned.");
+      }
+      if (data?.merchantReference) {
+        window.sessionStorage.setItem(PAYFAST_MERCHANT_REFERENCE_STORAGE_KEY, String(data.merchantReference));
+      }
+      toast({
+        title: "Redirecting to PayFast",
+        description: "Complete the R1000 monthly renewal payment to unlock this month's sessions.",
+      });
+      submitExternalPaymentForm(data.checkoutUrl, data.formFields);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to start renewal. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRenewing(false);
     }
   };
 
@@ -1877,6 +1921,24 @@ export default function ParentGateway() {
                       <p className="text-sm text-yellow-600">Student access code is being generated. Please refresh the page if it doesn't appear.</p>
                     </div>
                   )}
+                  <Card className="border border-primary/20 mt-4 sm:mt-6">
+                    <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
+                      <CardTitle className="text-base sm:text-lg" style={{ color: "#1A1A1A" }}>Monthly Subscription</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">
+                        Renew your R1000 monthly plan to unlock the next 8 sessions.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+                      <Button
+                        onClick={handleRenewSubscription}
+                        disabled={isRenewing}
+                        className="w-full"
+                        size="lg"
+                      >
+                        {isRenewing ? "Preparing payment…" : "Renew This Month — R1000"}
+                      </Button>
+                    </CardContent>
+                  </Card>
                 </>
               )}
             </CardContent>

@@ -214,6 +214,15 @@ export default function ParentSessions() {
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
+        if (response.status === 402) {
+          toast({
+            title: "Monthly Payment Required",
+            description: payload?.message || "A new monthly payment is required to schedule more sessions.",
+            variant: "destructive",
+          });
+          navigate("/client/parent/gateway");
+          return;
+        }
         throw new Error(payload?.message || "Failed to schedule this week's sessions");
       }
 

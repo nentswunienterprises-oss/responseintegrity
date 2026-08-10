@@ -9588,6 +9588,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         studentId: String(studentId),
       });
       if (monthlyQuota && Number(monthlyQuota.sessions_remaining || 0) <= 0) {
+        const currentMonthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
+        const { data: latestPayment } = await getLatestPaidPaymentForParent(userId, String(studentId));
+        const paymentMonthKey = latestPayment?.paid_at ? toMonthKey(getMonthStartIso(latestPayment.paid_at)!) : null;
+        if (!latestPayment || paymentMonthKey !== currentMonthKey) {
+          return res.status(402).json({
+            message: "This month's sessions require a new monthly payment. Please renew your subscription to schedule more sessions.",
+            monthlyQuota,
+          });
+        }
         return res.status(409).json({
           message: "This month's 8-session quota is exhausted. New scheduling opens next month or by COO adjustment.",
           monthlyQuota,
@@ -22127,6 +22136,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error declining proposal:", error);
       res.status(500).json({ message: "Failed to decline proposal" });
+    }
+  });
+
+  // Monthly subscription renewal — creates a new PayFast checkout for the current month
+  app.post("/api/parent/payments/renew", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+    try {
+      const parentId = (req as any).dbUser.id;
+
+      const { data: enrollment, error: enrollmentError } = await supabase
+        .from("parent_enrollments")
+        .select("id, status, student_full_name, assigned_tutor_id, parent_email, is_sandbox_account, assigned_student_id, current_step")
+        .eq("user_id", parentId)
+        .eq("status", "confirmed")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (enrollmentError || !enrollment) {
+        return res.status(404).json({ message: "No active enrollment found for renewal." });
+      }
+
+      const useSandbox = isSandboxPaymentEnrollment(enrollment);
+      if (!isPremiumPlanPaymentReady(useSandbox)) {
+        return res.status(500).json({ message: "PayFast is not configured on this deployment." });
+      }
+
+      const monthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
+
+      // Reject if parent has already paid for the current month
+      const { data: existingMonthPayment } = await supabase
+        .from("payment_transactions")
+        .select("id, paid_at, payment_status")
+        .eq("parent_id", parentId)
+        .eq("provider", PAYMENT_PROVIDER_PAYFAST)
+        .eq("payment_status", "paid")
+        .gte("paid_at", getMonthStartIso(new Date().toISOString())!)
+        .order("paid_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingMonthPayment) {
+        return res.status(409).json({ message: "This month's payment has already been made." });
+      }
+
+      const merchantReference = `response-integrity-renewal-${monthKey}-${uuidv4()}`;
+      const payfastConfig = getPayfastConfig(useSandbox);
+      const nowIso = new Date().toISOString();
+
+      const { data: savedPayment, error: paymentSaveError } = await supabase
+        .from("payment_transactions")
+        .insert({
+          parent_id: parentId,
+          enrollment_id: enrollment.id,
+          student_id: enrollment.assigned_student_id || null,
+          provider: PAYMENT_PROVIDER_PAYFAST,
+          payment_status: "pending",
+          plan: PREMIUM_PLAN_NAME,
+          amount: PREMIUM_PLAN_AMOUNT,
+          currency: "ZAR",
+          tutor_share: PREMIUM_TUTOR_SHARE,
+          platform_share: PREMIUM_PLATFORM_SHARE,
+          merchant_reference: merchantReference,
+          item_name: `${PREMIUM_PLAN_NAME} Monthly Renewal`,
+          item_description: buildPremiumPaymentDescription(enrollment.student_full_name),
+          raw_payload: { payfast_mode: useSandbox ? "sandbox" : "live", renewal: true, month_key: monthKey },
+          created_at: nowIso,
+          updated_at: nowIso,
+        })
+        .select("*")
+        .single();
+
+      if (paymentSaveError || !savedPayment) {
+        console.error("Error saving renewal payment transaction:", paymentSaveError);
+        return res.status(500).json({ message: "Failed to prepare renewal payment." });
+      }
+
+      const payfastFields = withPayfastSignature(
+        {
+          merchant_id: payfastConfig.merchantId,
+          merchant_key: payfastConfig.merchantKey,
+          return_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}&renewal=true`,
+          cancel_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}&renewal=true`,
+          notify_url: `${getApiPublicUrl()}/api/payments/payfast/notify`,
+          name_first: String((req as any).dbUser?.firstName || "").trim(),
+          name_last: String((req as any).dbUser?.lastName || "").trim(),
+          email_address: resolvePayfastEmailAddress({
+            dbUserEmail: (req as any).dbUser?.email,
+            enrollmentEmail: enrollment.parent_email,
+            parentId,
+            useSandbox,
+          }),
+          m_payment_id: merchantReference,
+          amount: PREMIUM_PLAN_AMOUNT,
+          item_name: `${PREMIUM_PLAN_NAME} Monthly Renewal`,
+          item_description: buildPremiumPaymentDescription(enrollment.student_full_name),
+          custom_str1: String(enrollment.id),
+          custom_str5: PREMIUM_PLAN_NAME,
+        },
+        payfastConfig.passphrase,
+      );
+
+      return res.json({
+        message: "Renewal payment prepared.",
+        merchantReference,
+        checkoutUrl: payfastConfig.processUrl,
+        sandbox: useSandbox,
+        formFields: payfastFields,
+      });
+    } catch (error) {
+      console.error("Error preparing renewal payment:", error);
+      res.status(500).json({ message: "Failed to prepare renewal payment." });
     }
   });
 
