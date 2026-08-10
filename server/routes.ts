@@ -22144,16 +22144,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const parentId = (req as any).dbUser.id;
 
-      const { data: enrollment, error: enrollmentError } = await supabase
-        .from("parent_enrollments")
-        .select("id, status, student_full_name, assigned_tutor_id, parent_email, is_sandbox_account, assigned_student_id, current_step")
-        .eq("user_id", parentId)
-        .in("status", ["confirmed", "session_booked", "report_received"])
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data: enrollment, error: enrollmentError } = await selectLatestParentEnrollment({
+        parentId,
+        primarySelect: "id, status, student_full_name, assigned_tutor_id, parent_email, is_sandbox_account, assigned_student_id, current_step",
+        fallbackSelect: "id, status, student_full_name, assigned_tutor_id, parent_email, is_sandbox_account, current_step",
+      });
 
-      if (enrollmentError || !enrollment) {
+      const activeStatuses = ["confirmed", "session_booked", "report_received"];
+      if (enrollmentError || !enrollment || !activeStatuses.includes(enrollment.status)) {
         return res.status(404).json({ message: "No active enrollment found for renewal." });
       }
 
