@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
 import { useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Calendar, MessageSquare, Send, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -89,6 +89,7 @@ export default function ParentProgress() {
   useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [selectedReport, setSelectedReport] = useState<ParentReport | null>(null);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
@@ -432,6 +433,20 @@ export default function ParentProgress() {
                   </CardContent>
                 </Card>
               </div>
+              {Number(monthlyQuota.sessions_remaining || 0) <= 0 && (
+                <Card className="border border-rose-200 bg-rose-50">
+                  <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <p className="text-sm text-rose-700">All 8 sessions for this month are used up. Renew to unlock the next 8.</p>
+                    <Button
+                      size="sm"
+                      className="bg-rose-600 hover:bg-rose-700 text-white shrink-0"
+                      onClick={() => navigate("/client/parent/gateway")}
+                    >
+                      Renew — R1000
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             )}
           </div>
         </TabsContent>

@@ -580,6 +580,9 @@ export default function ParentDashboard() {
     refetchInterval: 10000,
   });
 
+  const { data: trainingSessionsData } = useQuery<{ monthlyQuota?: { sessions_remaining?: number; session_quota?: number } | null }>({ queryKey: ["/api/parent/training-sessions"], queryFn: getQueryFn({ on401: "returnNull" }), refetchInterval: 15000 });
+  const sessionsRemaining = trainingSessionsData?.monthlyQuota != null ? Number(trainingSessionsData.monthlyQuota.sessions_remaining ?? 0) : null;
+
   const { data: topicStatesData } = useQuery<ParentTopicState[]>({
     queryKey: ["/api/parent/topic-conditioning-states"],
     queryFn: getQueryFn({ on401: "returnNull" }),
@@ -785,6 +788,30 @@ export default function ParentDashboard() {
         title="Enable out-of-app alerts"
         description="Turn on browser notifications so Response Integrity can alert you when reports are sent or when a tutor action needs your response."
       />
+
+      {sessionsRemaining !== null && sessionsRemaining <= 2 && (
+        <div
+          className={`rounded-xl border px-4 py-3 text-sm flex items-center justify-between gap-3 ${
+            sessionsRemaining <= 0
+              ? "border-rose-200 bg-rose-50 text-rose-700"
+              : "border-amber-200 bg-amber-50 text-amber-800"
+          }`}
+        >
+          <span>
+            {sessionsRemaining <= 0
+              ? "This month's session quota is exhausted. Renew to schedule more sessions."
+              : `${sessionsRemaining} session${sessionsRemaining === 1 ? "" : "s"} remaining this month before renewal is needed.`}
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className={sessionsRemaining <= 0 ? "border-rose-300 text-rose-700 hover:bg-rose-100" : "border-amber-300 text-amber-800 hover:bg-amber-100"}
+            onClick={() => navigate("/client/parent/gateway")}
+          >
+            {sessionsRemaining <= 0 ? "Renew Now" : "View Renewal"}
+          </Button>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
         <Card className="lg:col-span-2 border-primary/20 shadow-sm">
