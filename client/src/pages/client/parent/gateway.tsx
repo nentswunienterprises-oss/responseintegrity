@@ -1843,7 +1843,6 @@ export default function ParentGateway() {
               )}
               {(enrollmentStatus.status === "session_booked" || enrollmentStatus.status === "report_received" || enrollmentStatus.status === "confirmed") && (
                 <>
-                  {proposalPanel}
                   {proposalLoading && !proposal && !effectiveParentCode ? (
                     <div className="bg-muted/30 rounded-lg p-4 text-center mb-4 sm:mb-6">
                       <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-3" />
