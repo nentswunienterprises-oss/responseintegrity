@@ -408,7 +408,8 @@ export default function ParentProgress() {
                 <CardContent className="p-4 text-sm text-muted-foreground">No analytics available yet - schedule a session or confirm enrollment to see quota data.</CardContent>
               </Card>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-3">
                 <Card>
                   <CardContent className="p-3">
                     <p className="text-[10px] sm:text-xs text-muted-foreground">Monthly Quota</p>
@@ -447,6 +448,7 @@ export default function ParentProgress() {
                   </CardContent>
                 </Card>
               )}
+              </div>
             )}
           </div>
         </TabsContent>
