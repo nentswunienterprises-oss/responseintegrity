@@ -22148,7 +22148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from("parent_enrollments")
         .select("id, status, student_full_name, assigned_tutor_id, parent_email, is_sandbox_account, assigned_student_id, current_step")
         .eq("user_id", parentId)
-        .eq("status", "confirmed")
+        .in("status", ["confirmed", "session_booked", "report_received"])
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
