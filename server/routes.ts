@@ -22161,21 +22161,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const monthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
+      const studentId = enrollment.assigned_student_id || null;
 
-      // Reject if parent has already paid for the current month
-      const { data: existingMonthPayment } = await supabase
+      let monthlyQuota = null;
+      if (studentId) {
+        monthlyQuota = await getMonthlySessionQuotaSnapshot({
+          parentId,
+          studentId: String(studentId),
+        });
+      }
+
+      if (monthlyQuota && Number(monthlyQuota.sessions_remaining || 0) > 0) {
+        return res.status(409).json({ message: "Your current monthly session quota is not exhausted yet. Renew only after all 8 sessions are used." });
+      }
+
+      const { data: existingRenewalPayment } = await supabase
         .from("payment_transactions")
         .select("id, paid_at, payment_status")
         .eq("parent_id", parentId)
         .eq("provider", PAYMENT_PROVIDER_PAYFAST)
         .eq("payment_status", "paid")
-        .gte("paid_at", getMonthStartIso(new Date().toISOString())!)
-        .order("paid_at", { ascending: false })
+        .contains("raw_payload", { renewal: true, month_key: monthKey })
         .limit(1)
         .maybeSingle();
 
-      if (existingMonthPayment) {
-        return res.status(409).json({ message: "This month's payment has already been made." });
+      if (existingRenewalPayment) {
+        return res.status(409).json({ message: "This month's renewal payment has already been made." });
       }
 
       const merchantReference = `response-integrity-renewal-${monthKey}-${uuidv4()}`;
