@@ -2229,7 +2229,27 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
     return null;
   }
 
-  const isSandboxTransaction = await isSandboxPaymentTransaction(transaction);
+  let isSandboxTransaction = false;
+  try {
+    if (enrollmentId) {
+      const { data: linkedEnrollment } = await supabase
+        .from("parent_enrollments")
+        .select("id, current_step, assigned_tutor_id, parent_email, is_sandbox_account, student_full_name")
+        .eq("id", enrollmentId)
+        .maybeSingle();
+
+      if (linkedEnrollment) {
+        isSandboxTransaction = isSandboxPaymentEnrollment(linkedEnrollment);
+      } else {
+        isSandboxTransaction = await isSandboxPaymentTransaction(transaction);
+      }
+    } else {
+      isSandboxTransaction = await isSandboxPaymentTransaction(transaction);
+    }
+  } catch (error) {
+    console.error("Failed to resolve sandbox context for renewal application:", error);
+    isSandboxTransaction = await isSandboxPaymentTransaction(transaction);
+  }
 
   const { data: existingMonth } = await supabase
     .from("membership_months")
