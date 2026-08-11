@@ -2202,7 +2202,27 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
       },
       effectiveAtIso: String(transaction?.paid_at || new Date().toISOString()),
     });
-    return month;
+
+    const { data: resetMonth, error: resetError } = await supabase
+      .from("membership_months")
+      .update({
+        sessions_used: 0,
+        sessions_remaining: MONTHLY_SESSION_QUOTA,
+        status: "active",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("parent_id", parentId)
+      .eq("student_id", studentId)
+      .eq("month_key", monthKey)
+      .eq("is_sandbox", isSandboxTransaction)
+      .select("*")
+      .maybeSingle();
+
+    if (resetError) {
+      console.error("Failed to reset membership month after renewal upsert:", resetError);
+    }
+
+    return resetMonth || month;
   }
 
   const renewedMonth = await recordSessionBillingEvent({
