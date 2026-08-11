@@ -16237,7 +16237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           kind: "rich_text",
           content: parsed.content,
           createdBy: userId,
-        });
+        } as any);
         res.json(item);
       } catch (error: any) {
         console.error("Error creating COO brain rich text item:", error);
@@ -16308,7 +16308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           pdfUrl: urlData.publicUrl,
           pdfFileName: parsed.fileName,
           createdBy: userId,
-        });
+        } as any);
 
         res.json(item);
       } catch (error: any) {
