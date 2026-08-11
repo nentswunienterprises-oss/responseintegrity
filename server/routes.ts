@@ -1741,8 +1741,8 @@ async function recalculateMembershipMonthUsage(options: {
       .order("effective_at", { ascending: false })
       .limit(1);
 
-    if (Array.isArray(latestRenewalEvents?.data) && latestRenewalEvents.data.length > 0) {
-      const effectiveAt = String(latestRenewalEvents.data[0]?.effective_at || "").trim();
+    if (Array.isArray(latestRenewalEvents) && latestRenewalEvents.length > 0) {
+      const effectiveAt = String(latestRenewalEvents[0]?.effective_at || "").trim();
       if (effectiveAt) {
         usageWindowStart = effectiveAt;
       }
