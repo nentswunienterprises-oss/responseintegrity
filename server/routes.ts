@@ -1723,10 +1723,7 @@ async function recalculateMembershipMonthUsage(options: {
   isSandbox?: boolean;
 }) {
   const monthStart = options.monthStartIso.slice(0, 10);
-  const nextMonthDate = new Date(options.monthStartIso);
-  nextMonthDate.setUTCMonth(nextMonthDate.getUTCMonth() + 1);
-  const nextMonth = nextMonthDate.toISOString().slice(0, 10);
-  const monthKey = toMonthKey(options.monthStartIso);
+  const nowIso = new Date().toISOString();
   let usageWindowStart = `${monthStart}T00:00:00.000Z`;
 
   try {
@@ -1738,13 +1735,12 @@ async function recalculateMembershipMonthUsage(options: {
       .eq("event_type", "renewal_payment")
       .eq("billing_impact", "restore")
       .eq("is_sandbox", !!options.isSandbox)
-      .contains("metadata", { monthKey })
       .order("effective_at", { ascending: false })
       .limit(1);
 
     if (Array.isArray(metadataRestoreEvents) && metadataRestoreEvents.length > 0) {
       const effectiveAt = String(metadataRestoreEvents[0]?.effective_at || "").trim();
-      if (effectiveAt && effectiveAt >= usageWindowStart && effectiveAt < `${nextMonth}T00:00:00.000Z`) {
+      if (effectiveAt && effectiveAt >= usageWindowStart) {
         usageWindowStart = effectiveAt;
       }
     }
@@ -1760,7 +1756,7 @@ async function recalculateMembershipMonthUsage(options: {
     .eq("type", "training")
     .eq("status", "completed")
     .gte("scheduled_time", usageWindowStart)
-    .lt("scheduled_time", `${nextMonth}T00:00:00.000Z`);
+    .lt("scheduled_time", nowIso);
 
   const completedSessionKeys = new Set<string>();
   // Filter sessions by sandbox flag (resolve enrollment per session)
@@ -1796,7 +1792,7 @@ async function recalculateMembershipMonthUsage(options: {
     .eq("student_id", options.studentId)
     .in("status", ["submitted", "completed"])
     .gte("submitted_at", usageWindowStart)
-    .lt("submitted_at", `${nextMonth}T00:00:00.000Z`);
+    .lt("submitted_at", nowIso);
 
   for (const row of (trainingRuns || [])) {
     const scheduledId = String(row?.scheduled_session_id || "").trim();
@@ -1812,7 +1808,7 @@ async function recalculateMembershipMonthUsage(options: {
     .select("id, scheduled_session_id, training_session_run_id, drill")
     .eq("student_id", options.studentId)
     .gte("submitted_at", usageWindowStart)
-    .lt("submitted_at", `${nextMonth}T00:00:00.000Z`);
+    .lt("submitted_at", nowIso);
 
   for (const row of (drills || [])) {
     if (!isTrainingDrillRecord(row)) continue;
@@ -1837,7 +1833,7 @@ async function recalculateMembershipMonthUsage(options: {
     .eq("parent_id", options.parentId)
     .eq("student_id", options.studentId)
     .gte("effective_at", usageWindowStart)
-    .lt("effective_at", `${nextMonth}T00:00:00.000Z`)
+    .lt("effective_at", nowIso)
     .eq("is_sandbox", !!options.isSandbox);
 
   const eventUsed = (eventRows || []).reduce((sum: number, row: any) => {
@@ -1890,15 +1886,6 @@ async function recordSessionBillingEvent(options: {
   const effectiveAtIso = options.effectiveAtIso || new Date().toISOString();
   let monthStartIso = getMonthStartIso(effectiveAtIso);
   if (!monthStartIso) return null;
-
-  // For renewal payments, enforce the targeted month from metadata if provided.
-  const renewalMonthKey = String(options.metadata?.monthKey || "").trim();
-  if (options.eventType === "renewal_payment" && renewalMonthKey) {
-    const explicitRenewalMonth = toIsoDateTime(`${renewalMonthKey}T00:00:00.000Z`);
-    if (explicitRenewalMonth) {
-      monthStartIso = explicitRenewalMonth;
-    }
-  }
 
   // detect whether this event should be marked as sandbox
   let isSandboxEvent = false;
