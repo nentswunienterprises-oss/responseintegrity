@@ -2153,9 +2153,74 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
     String(rawPayload.renewal || "").trim().toLowerCase() === "true";
   const monthKey = String(rawPayload.month_key || "").trim();
   const parentId = String(transaction?.parent_id || "").trim();
-  const studentId = String(transaction?.student_id || "").trim();
+  let studentId = String(transaction?.student_id || "").trim();
 
-  if (!renewal || !monthKey || !parentId || !studentId) {
+  if (!renewal || !monthKey || !parentId) {
+    return null;
+  }
+
+  const enrollmentId = String(transaction?.enrollment_id || "").trim();
+  if (enrollmentId) {
+    try {
+      const { data: enrollment } = await supabase
+        .from("parent_enrollments")
+        .select("id, user_id, assigned_tutor_id, assigned_student_id, student_full_name, student_grade, parent_email, is_sandbox_account, current_step")
+        .eq("id", enrollmentId)
+        .maybeSingle();
+
+      if (enrollment) {
+        let canonicalStudentId = "";
+
+        if (enrollment.assigned_student_id) {
+          const { data: assignedStudent } = await supabase
+            .from("students")
+            .select("id")
+            .eq("id", enrollment.assigned_student_id)
+            .maybeSingle();
+
+          canonicalStudentId = String(assignedStudent?.id || "").trim();
+        }
+
+        if (!canonicalStudentId && enrollment.id) {
+          const { data: byEnrollmentId } = await supabase
+            .from("students")
+            .select("id, parent_enrollment_id, updated_at")
+            .eq("parent_enrollment_id", enrollment.id)
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          canonicalStudentId = String(byEnrollmentId?.id || "").trim();
+        }
+
+        if (!canonicalStudentId && enrollment.assigned_tutor_id && enrollment.user_id && enrollment.student_full_name) {
+          const { data: byParentAndName } = await supabase
+            .from("students")
+            .select("id")
+            .eq("parent_id", enrollment.user_id)
+            .eq("tutor_id", enrollment.assigned_tutor_id)
+            .eq("name", enrollment.student_full_name)
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          canonicalStudentId = String(byParentAndName?.id || "").trim();
+        }
+
+        if (!canonicalStudentId) {
+          canonicalStudentId = String(enrollment.assigned_student_id || "").trim();
+        }
+
+        if (canonicalStudentId) {
+          studentId = canonicalStudentId;
+        }
+      }
+    } catch (error) {
+      console.error("Failed to resolve canonical student for renewal application:", error);
+    }
+  }
+
+  if (!studentId) {
     return null;
   }
 
@@ -2187,7 +2252,7 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
       sessionId: `renewal-${monthKey}-${parentId}-${studentId}`,
       parentId,
       studentId,
-      enrollmentId: String(transaction?.enrollment_id || null),
+      enrollmentId: enrollmentId || null,
       eventType: "renewal_payment",
       actorRole: "system",
       actorId: "system",
@@ -2229,7 +2294,7 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
     sessionId: `renewal-${monthKey}-${parentId}-${studentId}`,
     parentId,
     studentId,
-    enrollmentId: String(transaction?.enrollment_id || null),
+    enrollmentId: enrollmentId || null,
     eventType: "renewal_payment",
     actorRole: "system",
     actorId: "system",
@@ -22391,7 +22456,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const monthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
-      const studentId = enrollment.assigned_student_id || null;
+      const canonicalStudent = await resolveCanonicalStudentForEnrollment(enrollment);
+      const studentId = canonicalStudent?.id || enrollment.assigned_student_id || null;
 
       let monthlyQuota = null;
       if (studentId) {
@@ -22405,13 +22471,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({ message: "Your current monthly session quota is not exhausted yet. Renew only after all 8 sessions are used." });
       }
 
-      const { data: existingRenewalPayment } = await supabase
+      let existingRenewalPaymentQuery = supabase
         .from("payment_transactions")
         .select("*")
         .eq("parent_id", parentId)
         .eq("provider", PAYMENT_PROVIDER_PAYFAST)
         .eq("payment_status", "paid")
-        .contains("raw_payload", { renewal: true, month_key: monthKey })
+        .eq("enrollment_id", enrollment.id)
+        .contains("raw_payload", { renewal: true, month_key: monthKey });
+
+      const { data: existingRenewalPayment } = await existingRenewalPaymentQuery
         .limit(1)
         .maybeSingle();
 
@@ -22433,7 +22502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .insert({
           parent_id: parentId,
           enrollment_id: enrollment.id,
-          student_id: enrollment.assigned_student_id || null,
+          student_id: studentId,
           provider: PAYMENT_PROVIDER_PAYFAST,
           payment_status: "pending",
           plan: PREMIUM_PLAN_NAME,
