@@ -22280,6 +22280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .maybeSingle();
 
       if (existingRenewalPayment) {
+        await applyRenewalTransactionToMembershipMonth(existingRenewalPayment);
         return res.status(409).json({ message: "This month's renewal payment has already been made." });
       }
 
