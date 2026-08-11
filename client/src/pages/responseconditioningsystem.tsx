@@ -151,8 +151,7 @@ export default function ResponseConditioningSystem() {
                     The Response Conditioning System
                   </h1>
                   <p className="text-base md:text-lg text-muted-foreground max-w-3xl">
-                    This is the internal operating map. Open the deep dives, learn the session logic,
-                    and execute the system clearly.
+                    This is the internal operating map for building specialists who can move students from confusion to calm, structured execution. Read the deep dives in sequence and use them as a real delivery framework.
                   </p>
                 </div>
               </div>
@@ -174,6 +173,21 @@ export default function ResponseConditioningSystem() {
                   the map, not as a shortcut summary.
                 </p>
               </div>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="border-primary/20 bg-card shadow-sm">
+          <div className="p-6 space-y-4">
+            <h2 className="font-bold text-lg">Start here</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              If you are entering the system for the first time, begin with Topic Conditioning, Clarity, How to Model, and Session Flow Control. Together they show how Response Integrity identifies the breakpoint, builds the response, and keeps the session structured.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">Topic Conditioning</span>
+              <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">Clarity</span>
+              <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">How to Model</span>
+              <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">Session Flow Control</span>
             </div>
           </div>
         </Card>

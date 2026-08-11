@@ -1726,6 +1726,30 @@ async function recalculateMembershipMonthUsage(options: {
   const nextMonthDate = new Date(options.monthStartIso);
   nextMonthDate.setUTCMonth(nextMonthDate.getUTCMonth() + 1);
   const nextMonth = nextMonthDate.toISOString().slice(0, 10);
+  let usageWindowStart = `${monthStart}T00:00:00.000Z`;
+
+  try {
+    const { data: latestRenewalEvents } = await supabase
+      .from("session_billing_events")
+      .select("effective_at")
+      .eq("parent_id", options.parentId)
+      .eq("student_id", options.studentId)
+      .eq("event_type", "renewal_payment")
+      .gte("effective_at", usageWindowStart)
+      .lt("effective_at", `${nextMonth}T00:00:00.000Z`)
+      .eq("is_sandbox", !!options.isSandbox)
+      .order("effective_at", { ascending: false })
+      .limit(1);
+
+    if (Array.isArray(latestRenewalEvents?.data) && latestRenewalEvents.data.length > 0) {
+      const effectiveAt = String(latestRenewalEvents.data[0]?.effective_at || "").trim();
+      if (effectiveAt) {
+        usageWindowStart = effectiveAt;
+      }
+    }
+  } catch (err) {
+    console.error("Failed to determine renewal window start:", err);
+  }
 
   const { data: completedSessions } = await supabase
     .from("scheduled_sessions")
@@ -1734,7 +1758,7 @@ async function recalculateMembershipMonthUsage(options: {
     .eq("student_id", options.studentId)
     .eq("type", "training")
     .eq("status", "completed")
-    .gte("scheduled_time", `${monthStart}T00:00:00.000Z`)
+    .gte("scheduled_time", usageWindowStart)
     .lt("scheduled_time", `${nextMonth}T00:00:00.000Z`);
 
   const completedSessionKeys = new Set<string>();
@@ -1770,7 +1794,7 @@ async function recalculateMembershipMonthUsage(options: {
     .select("id, scheduled_session_id")
     .eq("student_id", options.studentId)
     .in("status", ["submitted", "completed"])
-    .gte("submitted_at", `${monthStart}T00:00:00.000Z`)
+    .gte("submitted_at", usageWindowStart)
     .lt("submitted_at", `${nextMonth}T00:00:00.000Z`);
 
   for (const row of (trainingRuns || [])) {
@@ -1786,7 +1810,7 @@ async function recalculateMembershipMonthUsage(options: {
     .from("intro_session_drills")
     .select("id, scheduled_session_id, training_session_run_id, drill")
     .eq("student_id", options.studentId)
-    .gte("submitted_at", `${monthStart}T00:00:00.000Z`)
+    .gte("submitted_at", usageWindowStart)
     .lt("submitted_at", `${nextMonth}T00:00:00.000Z`);
 
   for (const row of (drills || [])) {
@@ -1808,16 +1832,23 @@ async function recalculateMembershipMonthUsage(options: {
 
   const { data: eventRows } = await supabase
     .from("session_billing_events")
-    .select("credits_delta")
+    .select("credits_delta, billing_impact")
     .eq("parent_id", options.parentId)
     .eq("student_id", options.studentId)
-    .gte("effective_at", `${monthStart}T00:00:00.000Z`)
+    .gte("effective_at", usageWindowStart)
     .lt("effective_at", `${nextMonth}T00:00:00.000Z`)
     .eq("is_sandbox", !!options.isSandbox);
 
   const eventUsed = (eventRows || []).reduce((sum: number, row: any) => {
     const delta = Number(row?.credits_delta || 0);
-    return sum + (delta > 0 ? delta : 0);
+    const impact = String(row?.billing_impact || "").trim().toLowerCase();
+    if (impact === "restore") {
+      return sum - delta;
+    }
+    if (impact === "consume") {
+      return sum + delta;
+    }
+    return sum;
   }, 0);
 
   const used = Math.max(0, Math.min(MONTHLY_SESSION_QUOTA, completedUsed + eventUsed));
@@ -2129,7 +2160,7 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
         renewal: true,
         transactionId: String(transaction?.id || ""),
       },
-      effectiveAtIso: monthStartIso,
+      effectiveAtIso: String(transaction?.paid_at || new Date().toISOString()),
     });
     return month;
   }
@@ -2151,7 +2182,7 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
       renewal: true,
       transactionId: String(transaction?.id || ""),
     },
-    effectiveAtIso: monthStartIso,
+    effectiveAtIso: String(transaction?.paid_at || new Date().toISOString()),
   });
 
   if (renewedMonth) {

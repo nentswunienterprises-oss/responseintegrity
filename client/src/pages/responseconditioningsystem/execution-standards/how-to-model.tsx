@@ -39,13 +39,11 @@ export default function ResponseConditioningHowToModel() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
 
         {/* What Modeling Is */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What Modeling Is</h2>
-          <p className="text-muted-foreground">Modeling is when you:</p>
-          <p className="font-medium">demonstrate a problem in a way that can be copied exactly</p>
-          <p className="text-muted-foreground">The goal is not understanding.</p>
-          <p className="text-muted-foreground">The goal is:</p>
-          <p className="font-medium text-lg">replication</p>
+        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
+          <h2 className="text-2xl font-bold">Why modeling matters</h2>
+          <p className="text-muted-foreground">Modeling is not just showing a worked example. It is the disciplined act of making the correct response pattern visible, repeatable, and copyable.</p>
+          <p className="font-medium">The goal is not casual explanation. The goal is replication.</p>
+          <p className="text-muted-foreground">If the student cannot copy the pattern, the model has not done its job.</p>
         </Card>
 
         {/* What You Are Creating */}

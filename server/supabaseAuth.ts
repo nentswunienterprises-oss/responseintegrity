@@ -754,15 +754,20 @@ export async function setupAuth(app: Express) {
           
           if (supabaseError || !supabaseUser) {
             console.log("❌ Supabase token invalid:", supabaseError?.message);
-            return res.status(401).json({ message: "Invalid token" });
+            // Fall back to session cookie auth if available
+            userId = (req.session as any).userId;
+            authSource = "session";
+            console.log("🔍 Falling back to session auth, userId from session:", userId);
+          } else {
+            console.log("✅ Supabase token valid, user ID:", supabaseUser.id);
+            userId = supabaseUser.id;
+            authSource = "jwt";
           }
-          
-          console.log("✅ Supabase token valid, user ID:", supabaseUser.id);
-          userId = supabaseUser.id;
-          authSource = "jwt";
         } catch (tokenError) {
           console.log("❌ Error verifying token:", tokenError);
-          return res.status(401).json({ message: "Unauthorized" });
+          userId = (req.session as any).userId;
+          authSource = "session";
+          console.log("🔍 Falling back to session auth after token verification error, userId from session:", userId);
         }
       } else {
         userId = (req.session as any).userId;

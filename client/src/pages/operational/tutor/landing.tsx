@@ -157,17 +157,17 @@ export default function TutorLanding() {
                 </h1>
                 <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_240px] lg:items-start">
                   <div className="max-w-2xl space-y-3 text-base leading-7 text-[#534A43] sm:text-[17px]">
-                    <p>Response Integrity is looking for disciplined young people who are strong in math, coachable under pressure, and serious about building real skill.</p>
-                    <p>Tutor entry happens through two certification cycles tied to the student intake rhythm. Existing tutors use the login path directly. New tutors first check the current tutor window.</p>
+                    <p>Response Integrity is not recruiting tutors as casual explainers. It is training Response Conditioning Specialists who can help students move from knowing to executing under pressure.</p>
+                    <p>This path is for people who want to learn the craft: diagnose response, structure practice, hold standard, and build calm execution when the problem becomes unfamiliar or time-bound.</p>
                   </div>
                   <div className="rounded-[24px] border border-[#E0CCBE] bg-white/58 p-4">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8A4B35]">Role core</p>
                     <p className="mt-3 text-base font-semibold leading-7 text-[#171311]">
-                      Learn fast.
+                      Learn the craft.
                       <br />
-                      Stay structured.
+                      Build execution.
                       <br />
-                      Hold standard.
+                      Hold the standard.
                     </p>
                   </div>
                 </div>
@@ -262,7 +262,7 @@ export default function TutorLanding() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8A4B35]">Conditioning path</p>
               <h2 className="mt-1 text-3xl font-bold tracking-tight text-[#171311]">How Response Integrity grows a tutor into trust</h2>
               <p className="mt-3 text-sm leading-7 text-[#4F4742] sm:text-base">
-                You do not have to arrive fully formed. You do have to be coachable, disciplined, and able to keep improving. Response Integrity opens more trust as your standard gets stronger.
+                You do not have to arrive fully formed. You do have to be willing to learn the craft, stay coachable, and keep improving. Response Integrity opens more trust as your standard gets stronger.
               </p>
             </div>
 
@@ -326,7 +326,7 @@ export default function TutorLanding() {
           <div className="rounded-[32px] border border-[#E5D3C5] bg-white/82 px-6 py-10 text-center shadow-sm sm:px-10 sm:py-12">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8A4B35]">Entry point</p>
             <h2 className="mt-4 text-3xl font-bold leading-tight text-[#171311] sm:text-4xl">
-              Want to become a response-training specialist?
+              Want to become a Response Conditioning Specialist?
               <span className="block text-[#E63946]">Check the current tutor window first.</span>
             </h2>
             <p className="mx-auto mt-6 max-w-3xl text-base leading-8 text-[#57504B] sm:text-lg">

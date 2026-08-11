@@ -443,7 +443,7 @@ export default function ParentProgress() {
                       className="bg-rose-600 hover:bg-rose-700 text-white shrink-0"
                       onClick={() => navigate("/client/parent/gateway")}
                     >
-                      Renew — R1000
+                      Renew - R1000
                     </Button>
                   </CardContent>
                 </Card>
