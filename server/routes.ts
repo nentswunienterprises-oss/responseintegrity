@@ -2105,12 +2105,57 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
     .maybeSingle();
 
   if (!existingMonth) {
-    return upsertMembershipMonth({
+    const month = await upsertMembershipMonth({
       parentId,
       studentId,
       monthStartIso,
       isSandbox: isSandboxTransaction,
     });
+    if (!month) return null;
+    await recordSessionBillingEvent({
+      sessionId: `renewal-${monthKey}-${parentId}-${studentId}`,
+      parentId,
+      studentId,
+      enrollmentId: String(transaction?.enrollment_id || null),
+      eventType: "renewal_payment",
+      actorRole: "system",
+      actorId: "system",
+      billingImpact: "restore",
+      creditsDelta: MONTHLY_SESSION_QUOTA,
+      reasonCodes: ["renewal"],
+      reasonNote: "Monthly renewal payment applied",
+      metadata: {
+        monthKey,
+        renewal: true,
+        transactionId: String(transaction?.id || ""),
+      },
+      effectiveAtIso: monthStartIso,
+    });
+    return month;
+  }
+
+  const renewedMonth = await recordSessionBillingEvent({
+    sessionId: `renewal-${monthKey}-${parentId}-${studentId}`,
+    parentId,
+    studentId,
+    enrollmentId: String(transaction?.enrollment_id || null),
+    eventType: "renewal_payment",
+    actorRole: "system",
+    actorId: "system",
+    billingImpact: "restore",
+    creditsDelta: MONTHLY_SESSION_QUOTA,
+    reasonCodes: ["renewal"],
+    reasonNote: "Monthly renewal payment applied",
+    metadata: {
+      monthKey,
+      renewal: true,
+      transactionId: String(transaction?.id || ""),
+    },
+    effectiveAtIso: monthStartIso,
+  });
+
+  if (renewedMonth) {
+    return renewedMonth;
   }
 
   const { data: updatedMonth, error: updateError } = await supabase
