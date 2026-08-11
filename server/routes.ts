@@ -22407,7 +22407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { data: existingRenewalPayment } = await supabase
         .from("payment_transactions")
-        .select("id, paid_at, payment_status")
+        .select("*")
         .eq("parent_id", parentId)
         .eq("provider", PAYMENT_PROVIDER_PAYFAST)
         .eq("payment_status", "paid")
