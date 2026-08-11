@@ -472,6 +472,19 @@ export default function ParentGateway() {
       if (!response.ok) {
         throw new Error(data?.message || "Failed to start renewal payment");
       }
+      if (data?.alreadyPaid || data?.paymentStatus === "PAID") {
+        toast({
+          title: "Renewal already completed",
+          description: "This month's renewal is already paid. Refreshing quota and booking state.",
+        });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["/api/parent/enrollment-status"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/parent/proposal"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/parent/intro-session-confirmation"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/parent/training-sessions"] }),
+        ]);
+        return;
+      }
       if (!data?.checkoutUrl || !data?.formFields) {
         throw new Error("PayFast checkout details were not returned.");
       }
@@ -1940,7 +1953,7 @@ export default function ParentGateway() {
                           className="w-full bg-rose-600 hover:bg-rose-700 text-white"
                           size="lg"
                         >
-                          {isRenewing ? "Preparing payment…" : "Renew This Month — R1000"}
+                          {isRenewing ? "Preparing payment…" : "Renew This Month - R1000"}
                         </Button>
                       </CardContent>
                     </Card>

@@ -22281,7 +22281,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (existingRenewalPayment) {
         await applyRenewalTransactionToMembershipMonth(existingRenewalPayment);
-        return res.status(409).json({ message: "This month's renewal payment has already been made." });
+        return res.json({
+          message: "This month's renewal payment has already been made.",
+          paymentStatus: "PAID",
+          alreadyPaid: true,
+        });
       }
 
       const merchantReference = `response-integrity-renewal-${monthKey}-${uuidv4()}`;
