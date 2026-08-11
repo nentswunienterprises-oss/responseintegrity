@@ -483,6 +483,7 @@ export default function ParentGateway() {
           queryClient.invalidateQueries({ queryKey: ["/api/parent/intro-session-confirmation"] }),
           queryClient.invalidateQueries({ queryKey: ["/api/parent/training-sessions"] }),
         ]);
+        await queryClient.refetchQueries({ queryKey: ["/api/parent/training-sessions"], active: true });
         return;
       }
       if (!data?.checkoutUrl || !data?.formFields) {

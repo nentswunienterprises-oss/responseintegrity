@@ -1726,24 +1726,25 @@ async function recalculateMembershipMonthUsage(options: {
   const nextMonthDate = new Date(options.monthStartIso);
   nextMonthDate.setUTCMonth(nextMonthDate.getUTCMonth() + 1);
   const nextMonth = nextMonthDate.toISOString().slice(0, 10);
+  const monthKey = toMonthKey(options.monthStartIso);
   let usageWindowStart = `${monthStart}T00:00:00.000Z`;
 
   try {
-    const { data: latestRenewalEvents } = await supabase
+    const { data: metadataRestoreEvents } = await supabase
       .from("session_billing_events")
       .select("effective_at")
       .eq("parent_id", options.parentId)
       .eq("student_id", options.studentId)
       .eq("event_type", "renewal_payment")
-      .gte("effective_at", usageWindowStart)
-      .lt("effective_at", `${nextMonth}T00:00:00.000Z`)
+      .eq("billing_impact", "restore")
       .eq("is_sandbox", !!options.isSandbox)
+      .contains("metadata", { monthKey })
       .order("effective_at", { ascending: false })
       .limit(1);
 
-    if (Array.isArray(latestRenewalEvents) && latestRenewalEvents.length > 0) {
-      const effectiveAt = String(latestRenewalEvents[0]?.effective_at || "").trim();
-      if (effectiveAt) {
+    if (Array.isArray(metadataRestoreEvents) && metadataRestoreEvents.length > 0) {
+      const effectiveAt = String(metadataRestoreEvents[0]?.effective_at || "").trim();
+      if (effectiveAt && effectiveAt >= usageWindowStart && effectiveAt < `${nextMonth}T00:00:00.000Z`) {
         usageWindowStart = effectiveAt;
       }
     }
@@ -1887,8 +1888,17 @@ async function recordSessionBillingEvent(options: {
   effectiveAtIso?: string | null;
 }) {
   const effectiveAtIso = options.effectiveAtIso || new Date().toISOString();
-  const monthStartIso = getMonthStartIso(effectiveAtIso);
+  let monthStartIso = getMonthStartIso(effectiveAtIso);
   if (!monthStartIso) return null;
+
+  // For renewal payments, enforce the targeted month from metadata if provided.
+  const renewalMonthKey = String(options.metadata?.monthKey || "").trim();
+  if (options.eventType === "renewal_payment" && renewalMonthKey) {
+    const explicitRenewalMonth = toIsoDateTime(`${renewalMonthKey}T00:00:00.000Z`);
+    if (explicitRenewalMonth) {
+      monthStartIso = explicitRenewalMonth;
+    }
+  }
 
   // detect whether this event should be marked as sandbox
   let isSandboxEvent = false;
@@ -1926,6 +1936,21 @@ async function recordSessionBillingEvent(options: {
     isSandbox: isSandboxEvent,
   });
 
+  const { data: existingEvents } = await supabase
+    .from("session_billing_events")
+    .select("id")
+    .eq("session_id", options.sessionId)
+    .limit(1);
+
+  if (Array.isArray(existingEvents) && existingEvents.length > 0) {
+    return recalculateMembershipMonthUsage({
+      parentId: options.parentId,
+      studentId: options.studentId,
+      monthStartIso,
+      isSandbox: isSandboxEvent,
+    });
+  }
+
   const { error } = await supabase.from("session_billing_events").insert({
     session_id: options.sessionId,
     parent_id: options.parentId,
@@ -1949,12 +1974,27 @@ async function recordSessionBillingEvent(options: {
     return null;
   }
 
-  return recalculateMembershipMonthUsage({
+  const recalculated = await recalculateMembershipMonthUsage({
     parentId: options.parentId,
     studentId: options.studentId,
     monthStartIso,
     isSandbox: isSandboxEvent,
   });
+
+  if (recalculated) {
+    return recalculated;
+  }
+
+  const { data: fallbackRow } = await supabase
+    .from("membership_months")
+    .select("*")
+    .eq("parent_id", options.parentId)
+    .eq("student_id", options.studentId)
+    .eq("month_key", toMonthKey(monthStartIso))
+    .eq("is_sandbox", isSandboxEvent)
+    .maybeSingle();
+
+  return fallbackRow;
 }
 
 async function getMonthlySessionQuotaSnapshot(options: { parentId: string; studentId: string; referenceIso?: string | null }) {
