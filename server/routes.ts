@@ -2541,13 +2541,26 @@ async function ensurePremiumAccessForParent(parentId: string, studentId?: string
     }
   }
 
-  const { data, error } = await getLatestPaidPaymentForParent(parentId, studentId);
+  let { data, error } = await getLatestPaidPaymentForParent(parentId, studentId);
   if (error) {
     return {
       allowed: false,
       status: 500,
       message: "Failed to verify payment status.",
     };
+  }
+
+  if (!data && studentId) {
+    const fallbackResult = await getLatestPaidPaymentForParent(parentId);
+    if (fallbackResult.error) {
+      return {
+        allowed: false,
+        status: 500,
+        message: "Failed to verify payment status.",
+      };
+    }
+
+    data = fallbackResult.data;
   }
 
   if (!data) {
@@ -9769,7 +9782,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ sessions: [] });
       }
 
-      const premiumAccess = await ensurePremiumAccessForParent(userId, enrollment.assigned_student_id || null);
+      const studentRecord = await resolveCanonicalStudentForEnrollment(enrollment);
+      const studentId = studentRecord?.id || enrollment.assigned_student_id || null;
+      const isSandboxContext = isSandboxPaymentEnrollment(enrollment);
+      const premiumAccess = await ensurePremiumAccessForParent(userId, studentId ? String(studentId) : null);
       if (!premiumAccess.allowed) {
         return res.json({
           operationalMode,
@@ -9780,9 +9796,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const studentRecord = await resolveCanonicalStudentForEnrollment(enrollment);
-      const studentId = studentRecord?.id || enrollment.assigned_student_id || null;
-      const isSandboxContext = isSandboxPaymentEnrollment(enrollment);
       const monthlyQuota =
         studentId
           ? await getMonthlySessionQuotaSnapshot({
