@@ -477,6 +477,15 @@ export default function ParentGateway() {
           title: "Renewal already completed",
           description: "This month's renewal is already paid. Refreshing quota and booking state.",
         });
+        queryClient.setQueryData<{ monthlyQuota?: { sessions_remaining?: number; session_quota?: number; sessions_used?: number } | null }>(["/api/parent/training-sessions"], (current) => ({
+          ...(current || {}),
+          monthlyQuota: {
+            ...(current?.monthlyQuota || {}),
+            session_quota: current?.monthlyQuota?.session_quota ?? 8,
+            sessions_used: 0,
+            sessions_remaining: 8,
+          },
+        }));
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["/api/parent/enrollment-status"] }),
           queryClient.invalidateQueries({ queryKey: ["/api/parent/proposal"] }),

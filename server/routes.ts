@@ -1727,6 +1727,26 @@ async function recalculateMembershipMonthUsage(options: {
   let usageWindowStart = `${monthStart}T00:00:00.000Z`;
 
   try {
+    let renewalPaymentQuery = supabase
+      .from("payment_transactions")
+      .select("paid_at")
+      .eq("parent_id", options.parentId)
+      .eq("provider", PAYMENT_PROVIDER_PAYFAST)
+      .eq("payment_status", "paid")
+      .contains("raw_payload", { renewal: true })
+      .order("paid_at", { ascending: false })
+      .limit(1);
+
+    if (options.studentId) {
+      renewalPaymentQuery = renewalPaymentQuery.eq("student_id", options.studentId);
+    }
+
+    const { data: renewalPayments } = await renewalPaymentQuery;
+    const latestRenewalPaidAt = String(renewalPayments?.[0]?.paid_at || "").trim();
+    if (latestRenewalPaidAt && latestRenewalPaidAt >= usageWindowStart) {
+      usageWindowStart = latestRenewalPaidAt;
+    }
+
     const { data: metadataRestoreEvents } = await supabase
       .from("session_billing_events")
       .select("effective_at")
