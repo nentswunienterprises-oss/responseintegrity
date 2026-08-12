@@ -1870,6 +1870,14 @@ async function recalculateMembershipMonthUsage(options: {
 
   const used = Math.max(0, Math.min(MONTHLY_SESSION_QUOTA, completedUsed + eventUsed));
   const remaining = Math.max(0, MONTHLY_SESSION_QUOTA - used);
+  const snapshot = {
+    ...(row || {}),
+    session_quota: MONTHLY_SESSION_QUOTA,
+    sessions_used: used,
+    sessions_remaining: remaining,
+    status: "active",
+    updated_at: new Date().toISOString(),
+  };
 
   const { data: updated } = await supabase
     .from("membership_months")
@@ -1885,7 +1893,14 @@ async function recalculateMembershipMonthUsage(options: {
     .select("*")
     .maybeSingle();
 
-  return updated;
+  return {
+    ...snapshot,
+    ...(updated || {}),
+    session_quota: MONTHLY_SESSION_QUOTA,
+    sessions_used: used,
+    sessions_remaining: remaining,
+    status: "active",
+  };
 }
 
 async function recordSessionBillingEvent(options: {
