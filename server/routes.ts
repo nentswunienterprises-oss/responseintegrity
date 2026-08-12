@@ -2244,22 +2244,12 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
     try {
       const { data: enrollment } = await supabase
         .from("parent_enrollments")
-        .select("id, user_id, assigned_tutor_id, assigned_student_id, student_full_name, student_grade, parent_email, is_sandbox_account, current_step")
+        .select("id, user_id, assigned_tutor_id, student_full_name, student_grade, parent_email, is_sandbox_account, current_step")
         .eq("id", enrollmentId)
         .maybeSingle();
 
       if (enrollment) {
         let canonicalStudentId = "";
-
-        if (enrollment.assigned_student_id) {
-          const { data: assignedStudent } = await supabase
-            .from("students")
-            .select("id")
-            .eq("id", enrollment.assigned_student_id)
-            .maybeSingle();
-
-          canonicalStudentId = String(assignedStudent?.id || "").trim();
-        }
 
         if (!canonicalStudentId && enrollment.id) {
           const { data: byEnrollmentId } = await supabase
@@ -2287,8 +2277,30 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
           canonicalStudentId = String(byParentAndName?.id || "").trim();
         }
 
-        if (!canonicalStudentId) {
-          canonicalStudentId = String(enrollment.assigned_student_id || "").trim();
+        if (!canonicalStudentId && enrollment.assigned_tutor_id && enrollment.parent_email && enrollment.student_full_name) {
+          const { data: byParentContact } = await supabase
+            .from("students")
+            .select("id")
+            .eq("parent_contact", enrollment.parent_email)
+            .eq("tutor_id", enrollment.assigned_tutor_id)
+            .eq("name", enrollment.student_full_name)
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          canonicalStudentId = String(byParentContact?.id || "").trim();
+        }
+
+        if (!canonicalStudentId && enrollment.user_id) {
+          const { data: byParent } = await supabase
+            .from("students")
+            .select("id")
+            .eq("parent_id", enrollment.user_id)
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          canonicalStudentId = String(byParent?.id || "").trim();
         }
 
         if (canonicalStudentId) {
@@ -9870,6 +9882,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         } catch (error) {
           console.error("Failed to load parent training quota snapshot:", error);
+        }
+      }
+
+      if (!monthlyQuota) {
+        try {
+          const { data: fallbackMembership } = await supabase
+            .from("membership_months")
+            .select("student_id, month_start, is_sandbox")
+            .eq("parent_id", userId)
+            .eq("is_sandbox", isSandboxContext)
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          const fallbackStudentId = String(fallbackMembership?.student_id || "").trim();
+          if (fallbackStudentId) {
+            monthlyQuota = await getMonthlySessionQuotaSnapshot({
+              parentId: userId,
+              studentId: fallbackStudentId,
+              isSandboxContext,
+            });
+          }
+        } catch (error) {
+          console.error("Failed to load fallback parent training quota snapshot:", error);
         }
       }
 
