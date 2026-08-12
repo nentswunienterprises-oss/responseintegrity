@@ -2004,20 +2004,28 @@ async function recordSessionBillingEvent(options: {
   return fallbackRow;
 }
 
-async function getMonthlySessionQuotaSnapshot(options: { parentId: string; studentId: string; referenceIso?: string | null }) {
+async function getMonthlySessionQuotaSnapshot(options: {
+  parentId: string;
+  studentId: string;
+  referenceIso?: string | null;
+  isSandboxContext?: boolean | null;
+}) {
   const monthStartIso = getMonthStartIso(options.referenceIso || new Date().toISOString());
   if (!monthStartIso) return null;
   const monthKey = toMonthKey(monthStartIso);
 
   // detect whether this parent/student should use sandbox membership row
-  let isSandboxContext = false;
-  try {
-    isSandboxContext = await resolveSandboxContextForParentStudent({
-      parentId: options.parentId,
-      studentId: options.studentId,
-    });
-  } catch (err) {
-    console.error("Failed to resolve enrollment for sandbox context:", err);
+  let isSandboxContext = options.isSandboxContext;
+  if (typeof isSandboxContext !== "boolean") {
+    try {
+      isSandboxContext = await resolveSandboxContextForParentStudent({
+        parentId: options.parentId,
+        studentId: options.studentId,
+      });
+    } catch (err) {
+      console.error("Failed to resolve enrollment for sandbox context:", err);
+      isSandboxContext = false;
+    }
   }
 
   let { data: row } = await supabase
@@ -9759,11 +9767,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const studentRecord = await resolveCanonicalStudentForEnrollment(enrollment);
       const studentId = studentRecord?.id || enrollment.assigned_student_id || null;
+      const isSandboxContext = isSandboxPaymentEnrollment(enrollment);
       const monthlyQuota =
         studentId
           ? await getMonthlySessionQuotaSnapshot({
               parentId: userId,
               studentId: String(studentId),
+              isSandboxContext,
             })
           : null;
 
@@ -9875,6 +9885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const studentRecord = await resolveCanonicalStudentForEnrollment(enrollment);
       const studentId = studentRecord?.id || enrollment.assigned_student_id || null;
+      const isSandboxContext = isSandboxPaymentEnrollment(enrollment);
 
       const premiumAccess = await ensurePremiumAccessForParent(userId, studentId);
       if (!premiumAccess.allowed) {
@@ -9888,6 +9899,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const monthlyQuota = await getMonthlySessionQuotaSnapshot({
         parentId: userId,
         studentId: String(studentId),
+        isSandboxContext,
       });
       if (monthlyQuota && Number(monthlyQuota.sessions_remaining || 0) <= 0) {
         const currentMonthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
@@ -22485,12 +22497,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const monthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
       const canonicalStudent = await resolveCanonicalStudentForEnrollment(enrollment);
       const studentId = canonicalStudent?.id || enrollment.assigned_student_id || null;
+      const isSandboxContext = isSandboxPaymentEnrollment(enrollment);
 
       let monthlyQuota = null;
       if (studentId) {
         monthlyQuota = await getMonthlySessionQuotaSnapshot({
           parentId,
           studentId: String(studentId),
+          isSandboxContext,
         });
       }
 
