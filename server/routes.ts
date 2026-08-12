@@ -1643,7 +1643,22 @@ async function getLatestPaidPaymentForParent(parentId: string, studentId?: strin
     query = query.eq("student_id", studentId);
   }
 
-  return query.maybeSingle();
+  const result = await query.maybeSingle();
+  if (result.data || !studentId) {
+    return result;
+  }
+
+  const fallbackResult = await supabase
+    .from("payment_transactions")
+    .select("*")
+    .eq("parent_id", parentId)
+    .eq("provider", PAYMENT_PROVIDER_PAYFAST)
+    .eq("payment_status", "paid")
+    .order("paid_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return fallbackResult;
 }
 
 const MONTHLY_SESSION_QUOTA = 8;
@@ -1741,7 +1756,19 @@ async function recalculateMembershipMonthUsage(options: {
       renewalPaymentQuery = renewalPaymentQuery.eq("student_id", options.studentId);
     }
 
-    const { data: renewalPayments } = await renewalPaymentQuery;
+    let { data: renewalPayments } = await renewalPaymentQuery;
+    if ((!renewalPayments || renewalPayments.length === 0) && options.studentId) {
+      const fallbackRenewalPayments = await supabase
+        .from("payment_transactions")
+        .select("paid_at")
+        .eq("parent_id", options.parentId)
+        .eq("provider", PAYMENT_PROVIDER_PAYFAST)
+        .eq("payment_status", "paid")
+        .contains("raw_payload", { renewal: true })
+        .order("paid_at", { ascending: false })
+        .limit(1);
+      renewalPayments = fallbackRenewalPayments.data;
+    }
     const latestRenewalPaidAt = String(renewalPayments?.[0]?.paid_at || "").trim();
     if (latestRenewalPaidAt && latestRenewalPaidAt >= usageWindowStart) {
       usageWindowStart = latestRenewalPaidAt;
@@ -2019,6 +2046,11 @@ async function recordSessionBillingEvent(options: {
   return fallbackRow;
 }
 
+function isMissingAssignedStudentIdError(error: any) {
+  const message = String(error?.message || "").toLowerCase();
+  return message.includes("assigned_student_id") || String(error?.code || "").trim() === "42703";
+}
+
 async function getMonthlySessionQuotaSnapshot(options: {
   parentId: string;
   studentId: string;
@@ -2089,8 +2121,26 @@ async function resolveEnrollmentIdForSession(session: any) {
   if (tutorId) enrollmentQuery = enrollmentQuery.eq("assigned_tutor_id", tutorId);
   if (studentId) enrollmentQuery = enrollmentQuery.eq("assigned_student_id", studentId);
 
-  const { data } = await enrollmentQuery.maybeSingle();
-  return data?.id || null;
+  const { data, error } = await enrollmentQuery.maybeSingle();
+  if (data?.id) return data.id;
+
+  if (studentId && error && isMissingAssignedStudentIdError(error)) {
+    let fallbackQuery = supabase
+      .from("parent_enrollments")
+      .select("id")
+      .eq("user_id", parentId)
+      .order("updated_at", { ascending: false })
+      .limit(1);
+
+    if (tutorId) {
+      fallbackQuery = fallbackQuery.eq("assigned_tutor_id", tutorId);
+    }
+
+    const { data: fallbackData } = await fallbackQuery.maybeSingle();
+    return fallbackData?.id || null;
+  }
+
+  return null;
 }
 
 function classifyCancellationBillingImpact(options: {
@@ -2912,10 +2962,19 @@ async function syncMeetForScheduledSession(session: any, options?: { studentName
 }
 
 async function reconcileArtifactsForScheduledSession(session: any) {
-  const artifactResult = await reconcileGoogleMeetArtifacts({
-    googleMeetSpaceName: session?.google_meet_space_name || null,
-    googleMeetCode: session?.google_meet_code || null,
-  });
+  let artifactResult;
+  try {
+    artifactResult = await reconcileGoogleMeetArtifacts({
+      googleMeetSpaceName: session?.google_meet_space_name || null,
+      googleMeetCode: session?.google_meet_code || null,
+    });
+  } catch (error) {
+    console.error("Failed to reconcile Google Meet artifacts:", error);
+    artifactResult = {
+      provider: "error",
+      reason: error instanceof Error ? error.message : String(error),
+    };
+  }
 
   if (artifactResult.provider === "google_meet_artifacts") {
     const recordingStatus = artifactResult.recordingFileId
@@ -9782,7 +9841,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ sessions: [] });
       }
 
-      const studentRecord = await resolveCanonicalStudentForEnrollment(enrollment);
+      let studentRecord = null;
+      try {
+        studentRecord = await resolveCanonicalStudentForEnrollment(enrollment);
+      } catch (error) {
+        console.error("Failed to resolve canonical parent training student:", error);
+      }
       const studentId = studentRecord?.id || enrollment.assigned_student_id || null;
       const isSandboxContext = isSandboxPaymentEnrollment(enrollment);
       const premiumAccess = await ensurePremiumAccessForParent(userId, studentId ? String(studentId) : null);
@@ -9796,14 +9860,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const monthlyQuota =
-        studentId
-          ? await getMonthlySessionQuotaSnapshot({
-              parentId: userId,
-              studentId: String(studentId),
-              isSandboxContext,
-            })
-          : null;
+      let monthlyQuota = null;
+      if (studentId) {
+        try {
+          monthlyQuota = await getMonthlySessionQuotaSnapshot({
+            parentId: userId,
+            studentId: String(studentId),
+            isSandboxContext,
+          });
+        } catch (error) {
+          console.error("Failed to load parent training quota snapshot:", error);
+        }
+      }
 
       let query = supabase
         .from("scheduled_sessions")
@@ -9827,13 +9895,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sessionsWithArtifacts = await Promise.all(
         (data || []).map(async (session: any) => {
           if (shouldReconcileSessionArtifacts(session)) {
-            await reconcileArtifactsForScheduledSession(session);
-            const { data: refreshedSession } = await supabase
-              .from("scheduled_sessions")
-              .select(SCHEDULED_SESSION_SELECT)
-              .eq("id", session.id)
-              .maybeSingle();
-            return refreshedSession || session;
+            try {
+              await reconcileArtifactsForScheduledSession(session);
+              const { data: refreshedSession } = await supabase
+                .from("scheduled_sessions")
+                .select(SCHEDULED_SESSION_SELECT)
+                .eq("id", session.id)
+                .maybeSingle();
+              return refreshedSession || session;
+            } catch (error) {
+              console.error("Failed to reconcile parent training session artifacts:", error);
+              return session;
+            }
           }
           return session;
         })
