@@ -261,9 +261,15 @@ export default function ParentGateway() {
     refetchInterval: 10000,
   });
 
-  const { data: trainingSessionsData } = useQuery<{ monthlyQuota?: { sessions_remaining?: number; session_quota?: number } | null }>({queryKey: ["/api/parent/training-sessions"], queryFn: getQueryFn({ on401: "returnNull" }), enabled: !!user && !authLoading && (enrollmentStatus?.status === "session_booked" || enrollmentStatus?.status === "report_received" || enrollmentStatus?.status === "confirmed"), refetchInterval: 15000 });
+  const { data: trainingSessionsData } = useQuery<{
+    monthlyQuota?: { sessions_remaining?: number; session_quota?: number } | null;
+    paymentRequired?: boolean;
+    paymentStatus?: string | null;
+  }>({queryKey: ["/api/parent/training-sessions"], queryFn: getQueryFn({ on401: "returnNull" }), enabled: !!user && !authLoading && (enrollmentStatus?.status === "session_booked" || enrollmentStatus?.status === "report_received" || enrollmentStatus?.status === "confirmed"), refetchInterval: 15000 });
   const quotaRemaining = Number(trainingSessionsData?.monthlyQuota?.sessions_remaining ?? -1);
   const quotaExhausted = trainingSessionsData?.monthlyQuota != null && quotaRemaining <= 0;
+  const paymentRequired = trainingSessionsData?.paymentRequired === true;
+  const renewalBlocked = paymentRequired || quotaExhausted;
 
   // Fetch intro session confirmation if status is assigned, awaiting assignment, or awaiting tutor acceptance
   const {
@@ -477,8 +483,10 @@ export default function ParentGateway() {
           title: "Renewal already completed",
           description: "This month's renewal is already paid. Refreshing quota and booking state.",
         });
-        queryClient.setQueryData<{ monthlyQuota?: { sessions_remaining?: number; session_quota?: number; sessions_used?: number } | null }>(["/api/parent/training-sessions"], (current) => ({
+        queryClient.setQueryData<{ monthlyQuota?: { sessions_remaining?: number; session_quota?: number; sessions_used?: number } | null; paymentRequired?: boolean; paymentStatus?: string | null }>(["/api/parent/training-sessions"], (current) => ({
           ...(current || {}),
+          paymentRequired: false,
+          paymentStatus: "PAID",
           monthlyQuota: {
             ...(current?.monthlyQuota || {}),
             session_quota: current?.monthlyQuota?.session_quota ?? 8,
@@ -1948,12 +1956,16 @@ export default function ParentGateway() {
                       <p className="text-sm text-yellow-600">Student access code is being generated. Please refresh the page if it doesn't appear.</p>
                     </div>
                   )}
-                  {quotaExhausted && (
+                  {renewalBlocked && (
                     <Card className="border border-rose-200 bg-rose-50 mt-4 sm:mt-6">
                       <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
-                        <CardTitle className="text-base sm:text-lg text-rose-700">Monthly Quota Exhausted</CardTitle>
+                        <CardTitle className="text-base sm:text-lg text-rose-700">
+                          {paymentRequired ? "Monthly Payment Required" : "Monthly Quota Exhausted"}
+                        </CardTitle>
                         <CardDescription className="text-xs sm:text-sm text-rose-600">
-                          All 8 sessions for this month have been used. Renew now to unlock the next 8.
+                          {paymentRequired
+                            ? "Training bookings are disabled until the monthly renewal is completed."
+                            : "All 8 sessions for this month have been used. Renew now to unlock the next 8."}
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
@@ -1963,7 +1975,7 @@ export default function ParentGateway() {
                           className="w-full bg-rose-600 hover:bg-rose-700 text-white"
                           size="lg"
                         >
-                          {isRenewing ? "Preparing payment…" : "Renew This Month - R1000"}
+                          {isRenewing ? "Preparing payment..." : "Renew This Month - R1000"}
                         </Button>
                       </CardContent>
                     </Card>

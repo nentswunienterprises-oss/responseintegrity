@@ -32,6 +32,12 @@ type ParentTrainingSessionsResponse = {
   sessions: ParentTrainingSession[];
   operationalMode?: "training" | "certified_live";
   sessionSchedulingEnabled?: boolean;
+  paymentRequired?: boolean;
+  paymentStatus?: string;
+  monthlyQuota?: {
+    sessions_remaining?: number;
+    session_quota?: number;
+  } | null;
 };
 
 export default function ParentSessions() {
@@ -431,6 +437,10 @@ export default function ParentSessions() {
 
   const sessions = data?.sessions || [];
   const schedulingEnabled = data?.sessionSchedulingEnabled ?? true;
+  const paymentRequired = data?.paymentRequired === true;
+  const quotaRemaining = Number(data?.monthlyQuota?.sessions_remaining ?? -1);
+  const quotaExhausted = data?.monthlyQuota != null && quotaRemaining <= 0;
+  const renewalBlocked = paymentRequired || quotaExhausted;
   const trainingModeScheduling = data?.operationalMode === "training";
   const scheduleWeekDescription = trainingModeScheduling
     ? "Choose two Monday-to-Saturday training session times in the same week. Your tutor must confirm both dates before Response Integrity locks the sessions into the training flow."
@@ -438,7 +448,7 @@ export default function ParentSessions() {
   const actionableSessions = sessions.filter(
     (session) => !["completed", "cancelled", "flagged"].includes(String(session.status || "")),
   );
-  const canScheduleNewWeek = schedulingEnabled && actionableSessions.length === 0;
+  const canScheduleNewWeek = schedulingEnabled && actionableSessions.length === 0 && !renewalBlocked;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -456,6 +466,27 @@ export default function ParentSessions() {
       ) : null}
 
       <div className="grid gap-4 sm:gap-6">
+        {renewalBlocked ? (
+          <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 sm:p-6 space-y-3">
+            <div>
+              <h2 className="text-base sm:text-xl font-semibold text-rose-700">
+                {paymentRequired ? "Monthly Payment Required" : "Monthly Quota Exhausted"}
+              </h2>
+              <p className="text-sm text-rose-600 mt-1">
+                {paymentRequired
+                  ? "Training session booking is disabled until the monthly renewal is completed."
+                  : "All 8 sessions for this month have been used. Renew now to unlock the next 8."}
+              </p>
+            </div>
+            <Button
+              onClick={() => navigate("/client/parent/gateway")}
+              className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              Go to Renewal
+            </Button>
+          </div>
+        ) : null}
+
         {canScheduleNewWeek ? (
           <div className="rounded-lg border border-border bg-card p-4 sm:p-6 space-y-4">
             <div>
@@ -520,7 +551,7 @@ export default function ParentSessions() {
               {isSubmitting ? "Scheduling..." : "Schedule Week"}
             </Button>
           </div>
-        ) : schedulingEnabled ? (
+        ) : renewalBlocked ? null : schedulingEnabled ? (
           <div className="rounded-lg border border-border bg-card p-4 sm:p-6 space-y-3">
             <div>
               <h2 className="text-base sm:text-xl font-semibold">Schedule This Week</h2>
