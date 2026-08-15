@@ -2094,15 +2094,13 @@ async function getMonthlySessionQuotaSnapshot(options: {
   }
 
   if (!row) return null;
-
-  const updated = await recalculateMembershipMonthUsage({
-    parentId: options.parentId,
-    studentId: options.studentId,
-    monthStartIso,
-    isSandbox: isSandboxContext,
-  });
-
-  return updated || row;
+  return {
+    ...row,
+    session_quota: Number(row.session_quota ?? MONTHLY_SESSION_QUOTA),
+    sessions_used: Number(row.sessions_used ?? 0),
+    sessions_remaining: Number(row.sessions_remaining ?? 0),
+    status: String(row.status || "active"),
+  };
 }
 
 async function resolveEnrollmentIdForSession(session: any) {
