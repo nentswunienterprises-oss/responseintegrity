@@ -244,13 +244,18 @@ export function StudentCard({
     </div>
   );
 
-  const completedSessions = Math.max(0, Number(student.sessionProgress || 0));
+  const quotaSnapshot = student.parentInfo?.monthlyQuota || student.monthlyQuota || null;
   const progressLabel = 'Program Progress';
-  const progressTotal = 8;
-  const sessionProgress =
-    completedSessions > 0 ? (((completedSessions - 1) % progressTotal) + 1) : 0;
-  const sessionsRemaining =
-    sessionProgress === 0 ? progressTotal : Math.max(0, progressTotal - sessionProgress);
+  const progressTotal = Math.max(1, Number(quotaSnapshot?.session_quota ?? 8));
+  const sessionProgress = quotaSnapshot
+    ? Math.max(0, Number(quotaSnapshot.sessions_used ?? 0))
+    : (() => {
+        const completedSessions = Math.max(0, Number(student.sessionProgress || 0));
+        return completedSessions > 0 ? (((completedSessions - 1) % progressTotal) + 1) : 0;
+      })();
+  const sessionsRemaining = quotaSnapshot
+    ? Math.max(0, Number(quotaSnapshot.sessions_remaining ?? progressTotal))
+    : (sessionProgress === 0 ? progressTotal : Math.max(0, progressTotal - sessionProgress));
   const initials = student.name
     .split(" ")
     .map((n) => n[0])

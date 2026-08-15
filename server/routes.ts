@@ -8181,6 +8181,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 proposalAcceptedAt = proposal?.accepted_at || null;
               }
 
+              let monthlyQuota = null;
+              if (parentEnrollment?.user_id && student?.id) {
+                try {
+                  monthlyQuota = await getMonthlySessionQuotaSnapshot({
+                    parentId: String(parentEnrollment.user_id),
+                    studentId: String(student.id),
+                    isSandboxContext: isSandboxPaymentEnrollment(parentEnrollment),
+                  });
+                } catch (quotaError) {
+                  console.error("Failed to load tutor pod monthly quota snapshot:", quotaError);
+                }
+              }
+
               // Alternative: check if enrollment status is beyond proposal_sent (session_booked or later)
               const isApproved = parentEnrollment &&
                 (proposalAcceptedAt ||
@@ -8202,8 +8215,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       parent_full_name: sandboxDisplayParentName,
                       student_full_name: sandboxDisplayStudentName,
                       ...buildIntakeSignals(parentEnrollment),
+                      monthlyQuota,
                     }
                   : null,
+                monthlyQuota,
                 topicConditioning: buildTopicConditioningMap(proposalSnapshot),
                 proposalSentAt: parentEnrollment?.proposal_sent_at || null,
                 parentApprovedAt: isApproved ? (proposalAcceptedAt || parentEnrollment?.updated_at) : null,
