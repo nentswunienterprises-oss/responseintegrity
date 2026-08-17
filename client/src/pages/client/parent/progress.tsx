@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Calendar, MessageSquare, Send, FileText } from "lucide-react";
+import { Calendar, MessageSquare, Send, FileText, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -66,6 +66,42 @@ interface ParentTrainingSessionsResponse {
   sessionSchedulingEnabled?: boolean;
 }
 
+interface ParentPayment {
+  id: string;
+  provider?: string;
+  reference?: string;
+  plan?: string;
+  amount: number;
+  currency?: string;
+  status: string;
+  type: string;
+  paymentDate?: string | null;
+  createdAt?: string | null;
+}
+
+interface ParentPaymentHistoryResponse {
+  payments: ParentPayment[];
+}
+
+function formatPaymentDate(value?: string | null) {
+  if (!value) return "Date unavailable";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatPaymentAmount(payment: ParentPayment) {
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: payment.currency || "ZAR",
+    maximumFractionDigits: 2,
+  }).format(Number(payment.amount || 0));
+}
+
 function ReportSection({ title, items }: { title: string; items?: string[] }) {
   return (
     <div>
@@ -104,7 +140,13 @@ export default function ParentProgress() {
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
+  const { data: paymentHistoryData, isLoading: paymentHistoryLoading, isError: paymentHistoryError } = useQuery<ParentPaymentHistoryResponse>({
+    queryKey: ["/api/parent/payment-history"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+  });
+
   const monthlyQuota = trainingData?.monthlyQuota;
+  const paymentHistory = paymentHistoryData?.payments || [];
 
   const location = useLocation();
   const topDefault = new URLSearchParams(location.search).get("tab") === "analytics" || location.hash === "#analytics"
@@ -450,6 +492,56 @@ export default function ParentProgress() {
               )}
               </div>
             )}
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
+                  Payment History
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Your Premium access and monthly renewal payments.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {paymentHistoryLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading payment history...</p>
+                ) : paymentHistoryError ? (
+                  <p className="text-sm text-muted-foreground">Payment history is temporarily unavailable.</p>
+                ) : paymentHistory.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No payments have been recorded yet.</p>
+                ) : (
+                  <div className="divide-y rounded-lg border">
+                    {paymentHistory.map((payment) => {
+                      const normalizedStatus = payment.status.toUpperCase();
+                      const statusClass = normalizedStatus === "PAID"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : normalizedStatus === "FAILED" || normalizedStatus === "CANCELLED"
+                          ? "border-rose-200 bg-rose-50 text-rose-700"
+                          : "border-amber-200 bg-amber-50 text-amber-700";
+
+                      return (
+                        <div key={payment.id} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium">{payment.type}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatPaymentDate(payment.paymentDate)}
+                              {payment.reference ? ` | ${payment.reference}` : ""}
+                            </p>
+                          </div>
+                          <div className="flex items-center justify-between gap-3 sm:justify-end">
+                            <p className="text-sm font-semibold">{formatPaymentAmount(payment)}</p>
+                            <Badge variant="outline" className={statusClass}>
+                              {normalizedStatus}
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
       </Tabs>

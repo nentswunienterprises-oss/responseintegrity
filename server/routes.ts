@@ -22675,6 +22675,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Monthly subscription renewal — creates a new PayFast checkout for the current month
+  app.get("/api/parent/payment-history", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+    try {
+      const parentId = String((req as any).dbUser.id || "").trim();
+      const { data, error } = await supabase
+        .from("payment_transactions")
+        .select("id, provider, merchant_reference, plan, amount, currency, payment_status, payment_date, paid_at, created_at, raw_payload")
+        .eq("parent_id", parentId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error("Error fetching parent payment history:", error);
+        return res.status(500).json({ message: "Failed to fetch payment history" });
+      }
+
+      res.json({
+        payments: (data || []).map((payment: any) => {
+          const rawPayload = payment?.raw_payload && typeof payment.raw_payload === "object"
+            ? payment.raw_payload
+            : {};
+
+          return {
+            id: payment.id,
+            provider: payment.provider,
+            reference: payment.merchant_reference,
+            plan: payment.plan,
+            amount: Number(payment.amount || 0),
+            currency: payment.currency,
+            status: String(payment.payment_status || "pending").toUpperCase(),
+            type: rawPayload.renewal ? "Monthly renewal" : "Premium access",
+            paymentDate: payment.payment_date || payment.paid_at || payment.created_at,
+            createdAt: payment.created_at,
+          };
+        }),
+      });
+    } catch (error) {
+      console.error("Exception fetching parent payment history:", error);
+      res.status(500).json({ message: "Failed to fetch payment history" });
+    }
+  });
+
   app.post("/api/parent/payments/renew", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
     try {
       const parentId = (req as any).dbUser.id;
