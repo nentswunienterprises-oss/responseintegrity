@@ -170,6 +170,31 @@ function usesDirectDrillLaunch(operationalMode?: string | null) {
   return String(operationalMode || "").trim().toLowerCase() !== "certified_live";
 }
 
+const SANDBOX_CARD_THEMES = [
+  { accent: "#D95D39", background: "#FFF1EC", border: "#F0B5A5" },
+  { accent: "#B7791F", background: "#FFF8E7", border: "#E8C982" },
+  { accent: "#2F855A", background: "#ECFDF3", border: "#A7D8B8" },
+  { accent: "#2B6CB0", background: "#EDF6FF", border: "#A9C9EA" },
+  { accent: "#805AD5", background: "#F4F0FF", border: "#CBBBF0" },
+  { accent: "#B83280", background: "#FFF0F7", border: "#E8B1CF" },
+];
+
+function getSandboxCardTheme(student: any) {
+  const name = String(student?.name || "");
+  const ordinalMatch = name.match(/sandbox student\s+(\d+)/i);
+  const parsedOrdinal = Number(ordinalMatch?.[1] || 0);
+  const fallbackHash = Array.from(String(student?.id || name)).reduce(
+    (sum, character) => sum + character.charCodeAt(0),
+    0,
+  );
+  const ordinal = parsedOrdinal > 0 ? parsedOrdinal : (fallbackHash % SANDBOX_CARD_THEMES.length) + 1;
+
+  return {
+    ordinal,
+    ...SANDBOX_CARD_THEMES[(ordinal - 1) % SANDBOX_CARD_THEMES.length],
+  };
+}
+
 function inferReportedSymptoms({ struggleAreas, parentMotivation }) {
   const combined = `${struggleAreas || ""} ${parentMotivation || ""}`.toLowerCase();
   const symptoms = [];
@@ -657,15 +682,36 @@ export function StudentCard({
     effectiveWorkflow?.handoverVerificationRequired && !effectiveWorkflow?.handoverCompleted
   );
   const workflowLabel = getWorkflowLabel(effectiveWorkflow);
+  const sandboxCardTheme = isSandboxStudent ? getSandboxCardTheme(student) : null;
 
   return (
-    <div className="relative rounded-2xl border border-black/25 bg-background p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6 tutor-pod-student-card">
+    <div
+      className="relative rounded-2xl border border-black/25 bg-background p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6 tutor-pod-student-card"
+      style={sandboxCardTheme ? { borderColor: sandboxCardTheme.border } : undefined}
+    >
       <div className="pointer-events-none absolute inset-0">
         <span className="absolute left-3 top-3 h-3 w-3 border-l border-t border-black/55" />
         <span className="absolute right-3 top-3 h-3 w-3 border-r border-t border-black/55" />
         <span className="absolute bottom-3 left-3 h-3 w-3 border-b border-l border-black/55" />
         <span className="absolute bottom-3 right-3 h-3 w-3 border-b border-r border-black/55" />
       </div>
+      {sandboxCardTheme && (
+        <div
+          className="mb-4 flex items-center justify-between gap-3 rounded-xl border px-3 py-2"
+          style={{ backgroundColor: sandboxCardTheme.background, borderColor: sandboxCardTheme.border }}
+        >
+          <div className="flex items-center gap-2">
+            <span
+              className="h-3 w-3 rounded-full ring-2 ring-white/80"
+              style={{ backgroundColor: sandboxCardTheme.accent }}
+            />
+            <span className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: sandboxCardTheme.accent }}>
+              Sandbox {sandboxCardTheme.ordinal}
+            </span>
+          </div>
+          <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Practice account</span>
+        </div>
+      )}
       <div className="tutor-pod-student-card-header pb-5 border-b border-border/60">
         <div className="flex items-start gap-3 min-w-0 w-full">
           <Avatar className="w-14 h-14 border border-primary/15 flex-shrink-0">
