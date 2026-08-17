@@ -732,6 +732,58 @@ async function loadTutorAssignedEnrollments(
   return { data: data || [], error };
 }
 
+async function normalizeSandboxIdentitiesForTutor(tutorId: string, enrollments: any[]) {
+  const orderedEnrollments = [...(enrollments || [])].sort((left, right) => {
+    const leftCreatedAt = new Date(String(left?.created_at || "")).getTime();
+    const rightCreatedAt = new Date(String(right?.created_at || "")).getTime();
+    const safeLeftCreatedAt = Number.isNaN(leftCreatedAt) ? Number.MAX_SAFE_INTEGER : leftCreatedAt;
+    const safeRightCreatedAt = Number.isNaN(rightCreatedAt) ? Number.MAX_SAFE_INTEGER : rightCreatedAt;
+
+    return safeLeftCreatedAt - safeRightCreatedAt || String(left?.id || "").localeCompare(String(right?.id || ""));
+  });
+
+  const normalizedEnrollments: any[] = [];
+  for (let index = 0; index < orderedEnrollments.length; index += 1) {
+    const enrollment = orderedEnrollments[index];
+    const studentName = `Sandbox Student ${index + 1}`;
+    const parentName = `Sandbox Parent ${index + 1}`;
+    const identityUpdate: Record<string, string> = {};
+
+    if (String(enrollment?.student_full_name || "").trim() !== studentName) {
+      identityUpdate.student_full_name = studentName;
+    }
+    if (String(enrollment?.parent_full_name || "").trim() !== parentName) {
+      identityUpdate.parent_full_name = parentName;
+    }
+
+    let normalizedEnrollment = { ...enrollment, ...identityUpdate };
+    if (enrollment?.id && Object.keys(identityUpdate).length > 0) {
+      const { data: updatedEnrollment, error: updateError } = await supabase
+        .from("parent_enrollments")
+        .update(identityUpdate)
+        .eq("id", enrollment.id)
+        .select("*")
+        .maybeSingle();
+
+      if (updateError) {
+        console.error("Failed to normalize sandbox enrollment identity:", enrollment.id, updateError);
+      } else if (updatedEnrollment) {
+        normalizedEnrollment = updatedEnrollment;
+      }
+    }
+
+    try {
+      await ensureStudentForEnrollment(normalizedEnrollment, tutorId);
+    } catch (error) {
+      console.error("Failed to sync sandbox student identity:", normalizedEnrollment?.id, error);
+    }
+
+    normalizedEnrollments.push(normalizedEnrollment);
+  }
+
+  return normalizedEnrollments;
+}
+
 async function loadDetachedSandboxEnrollmentsForTutor(tutorId: string) {
   let { data, error } = await supabase
     .from("parent_enrollments")
@@ -8026,7 +8078,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const certificationMode = await getTutorCertificationMode(tutorId);
-        const { data: assignedEnrollments, error: assignedEnrollmentsError } =
+        let { data: assignedEnrollments, error: assignedEnrollmentsError } =
           await loadTutorAssignedEnrollments(tutorId, {
             sandboxOnly: certificationMode === "sandbox",
             ordered: true,
@@ -8035,6 +8087,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (assignedEnrollmentsError) {
           console.error("Error loading assigned enrollments for pod:", assignedEnrollmentsError);
           return res.status(500).json({ message: "Failed to load assigned enrollments" });
+        }
+
+        if (certificationMode === "sandbox") {
+          assignedEnrollments = await normalizeSandboxIdentitiesForTutor(tutorId, assignedEnrollments || []);
         }
 
         let students = await hydrateStudentsWithSessionProgress(tutorId, await storage.getStudentsByTutor(tutorId));
