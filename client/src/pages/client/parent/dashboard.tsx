@@ -806,7 +806,7 @@ export default function ParentDashboard() {
             size="sm"
             variant="outline"
             className={sessionsRemaining <= 0 ? "border-rose-300 text-rose-700 hover:bg-rose-100" : "border-amber-300 text-amber-800 hover:bg-amber-100"}
-            onClick={() => navigate("/client/parent/gateway")}
+            onClick={() => navigate(sessionsRemaining <= 0 ? "/client/parent/gateway" : "/client/parent/progress?tab=analytics")}
           >
             {sessionsRemaining <= 0 ? "Renew Now" : "View Renewal"}
           </Button>
