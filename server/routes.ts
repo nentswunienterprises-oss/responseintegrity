@@ -8169,10 +8169,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               let parentEnrollment = enrollment;
               const sandboxDisplayOrdinal = certificationMode === "sandbox" ? index + 1 : null;
               const sandboxDisplayStudentName = sandboxDisplayOrdinal
-                ? `Sandbox Student ${sandboxDisplayOrdinal}`
+                ? String(parentEnrollment?.student_full_name || student?.name || `Sandbox Student ${sandboxDisplayOrdinal}`).trim()
                 : student.name;
               const sandboxDisplayParentName = sandboxDisplayOrdinal
-                ? `Sandbox Parent ${sandboxDisplayOrdinal}`
+                ? String(parentEnrollment?.parent_full_name || "Sandbox Parent").trim()
                 : parentEnrollment?.parent_full_name || null;
 
               const missingCanonicalResponseSignals = !!(
