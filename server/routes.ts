@@ -1881,24 +1881,28 @@ async function recalculateMembershipMonthUsage(options: {
     .eq("student_id", options.studentId)
     .gte("effective_at", usageWindowStart)
     .lt("effective_at", nowIso)
+    .eq("billing_impact", "consume")
     .eq("is_sandbox", !!options.isSandbox);
 
   const eventUsed = (eventRows || []).reduce((sum: number, row: any) => {
     const delta = Number(row?.credits_delta || 0);
-    const impact = String(row?.billing_impact || "").trim().toLowerCase();
-    if (impact === "restore") {
-      return sum - delta;
-    }
-    if (impact === "consume") {
-      return sum + delta;
-    }
-    return sum;
+    return sum + Math.max(0, delta);
   }, 0);
 
   const used = Math.max(0, Math.min(MONTHLY_SESSION_QUOTA, completedUsed + eventUsed));
   const remaining = Math.max(0, MONTHLY_SESSION_QUOTA - used);
+
+  const { data: membershipMonth } = await supabase
+    .from("membership_months")
+    .select("*")
+    .eq("parent_id", options.parentId)
+    .eq("student_id", options.studentId)
+    .eq("month_key", toMonthKey(options.monthStartIso))
+    .eq("is_sandbox", !!options.isSandbox)
+    .maybeSingle();
+
   const snapshot = {
-    ...(row || {}),
+    ...(membershipMonth || {}),
     session_quota: MONTHLY_SESSION_QUOTA,
     sessions_used: used,
     sessions_remaining: remaining,
@@ -2094,6 +2098,28 @@ async function getMonthlySessionQuotaSnapshot(options: {
   }
 
   if (!row) return null;
+
+  try {
+    const recalculated = await recalculateMembershipMonthUsage({
+      parentId: options.parentId,
+      studentId: options.studentId,
+      monthStartIso,
+      isSandbox: isSandboxContext,
+    });
+
+    if (recalculated) {
+      return {
+        ...recalculated,
+        session_quota: Number(recalculated.session_quota ?? MONTHLY_SESSION_QUOTA),
+        sessions_used: Number(recalculated.sessions_used ?? 0),
+        sessions_remaining: Number(recalculated.sessions_remaining ?? 0),
+        status: String(recalculated.status || "active"),
+      };
+    }
+  } catch (error) {
+    console.error("Failed to reconcile monthly session quota snapshot:", error);
+  }
+
   return {
     ...row,
     session_quota: Number(row.session_quota ?? MONTHLY_SESSION_QUOTA),
@@ -6331,12 +6357,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 })
                 .eq("id", trainingRun?.id || sessionId);
 
+              let parentId = String(
+                scheduledSession?.parent_id ||
+                  (student as any)?.parentId ||
+                  (student as any)?.parent_id ||
+                  "",
+              ).trim();
+              if (!parentId) {
+                const { data: linkedStudent } = await supabase
+                  .from("students")
+                  .select("parent_id")
+                  .eq("id", studentId)
+                  .maybeSingle();
+                parentId = String(linkedStudent?.parent_id || "").trim();
+              }
+
+              let monthlyQuota = null;
+              if (parentId) {
+                monthlyQuota = await getMonthlySessionQuotaSnapshot({
+                  parentId,
+                  studentId: String(studentId),
+                  referenceIso: new Date().toISOString(),
+                });
+              }
+
               res.json({
                 success: true,
                 sessionId,
                 scheduledSessionId: scheduledSessionRecordId,
                 sessionDuration,
                 topicsTouched,
+                monthlyQuota,
                 drillResults,
                 scoring,
               });
