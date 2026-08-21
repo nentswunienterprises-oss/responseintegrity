@@ -196,7 +196,7 @@ export default function ResponseConditioningTopicConditioning() {
               <li>reducing guessing</li>
               <li>repeating the method reliably</li>
             </ul>
-            <p className="text-muted-foreground">Tools: independent execution reps, step-order correction, and 3-Layer Lens checks. Model only if a Clarity gap appears.</p>
+            <p className="text-muted-foreground">Tools: independent execution reps, step-order correction, and 3-Layer Lens checks.</p>
             <p className="font-medium">Question: Can the student act reliably in this topic without being carried?</p>
             <p className="text-muted-foreground">If no, this topic sits in Structured Execution.</p>
           </div>

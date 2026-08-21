@@ -900,7 +900,7 @@ const phaseDefinition: Record<PhaseLabel, string> = {
   "Structured Execution":
     [
       "Description: The student must now execute inside the topic. This means: starting without delay, following steps in order, reducing guessing, repeating the method reliably.",
-      "Tool: Independent execution reps, step-order correction, and 3-Layer Lens checks. Model only if a Clarity gap appears.",
+      "Tool: Independent execution reps, step-order correction, and 3-Layer Lens checks.",
       "Question: Can the student act reliably in this topic without being carried? If no, this topic sits in Structured Execution."
     ].join("\n\n"),
   "Controlled Discomfort":
