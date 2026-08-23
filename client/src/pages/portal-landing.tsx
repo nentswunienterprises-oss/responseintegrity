@@ -350,15 +350,7 @@ function PortalLanding() {
               </div>
 
               <div className="mt-8 rounded-[30px] border border-[#E8D2C3] bg-[#FFF8F3] p-6 sm:p-7 md:p-8 shadow-sm">
-                <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:items-center">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em]" style={{ color: "#E63946" }}>
-                      What Makes Response Integrity Different
-                    </p>
-                    <h3 className="mt-3 text-2xl sm:text-3xl md:text-[2.1rem] font-bold tracking-tight leading-tight" style={{ color: "#1A1A1A" }}>
-                      A system built to observe the response, not just explain the topic.
-                    </h3>
-                  </div>
+                <div className="grid gap-5">
                   <p className="text-sm sm:text-base leading-7" style={{ color: "#5A5A5A" }}>
                     The learner is watched closely enough, challenged carefully enough, and repeated consistently
                     enough for stability to become trainable.
