@@ -298,6 +298,13 @@ function PortalLanding() {
                       Response Integrity gives the learner a private, one-on-one online training environment where their individual response can be observed,
                       corrected, repeated, and strengthened.
                     </p>
+                    <img
+                      src="/images/student-online-school-homeschool-laptop-classes-1.webp"
+                      alt="Student learning online with a laptop"
+                      className="mt-4 w-full rounded-2xl border border-[#3A2C26] object-cover shadow-md"
+                      style={{ aspectRatio: "16 / 10" }}
+                      loading="lazy"
+                    />
                   </div>
                 </div>
 
