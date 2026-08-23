@@ -314,19 +314,16 @@ function PortalLanding() {
                 <div className="grid gap-4 sm:gap-5">
                   <Card className="rounded-[28px] border-[#E5C6B6] bg-[#FFF4EC] p-5 sm:p-6 md:p-7 shadow-none">
                     <div className="space-y-4">
-                      <div className="inline-flex rounded-full border border-[#E9CFC2] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "#A04736" }}>
-                        Response Patterns
-                      </div>
                       <h3 className="text-lg sm:text-xl font-bold" style={{ color: "#1A1A1A" }}>
                         Common learner reactions under difficulty
                       </h3>
                       <div className="grid gap-3">
                         {whyWeExistResponsePatterns.map((item) => (
-                          <div key={item} className="flex gap-3 sm:gap-4 rounded-2xl border border-[#ECD9CE] bg-white/90 px-4 py-3">
-                            <div className="mt-0.5 h-7 w-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "#FFF0F0" }}>
+                          <div key={item} className="flex gap-3 sm:gap-4 rounded-2xl border border-[#4A3A33] bg-[#241B18] px-4 py-3">
+                            <div className="mt-0.5 h-7 w-7 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "#F7E7E2" }}>
                               <Check className="w-3.5 h-3.5" style={{ color: "#E63946" }} />
                             </div>
-                            <p className="text-sm sm:text-base leading-6" style={{ color: "#4E4E4E" }}>
+                            <p className="text-sm sm:text-base leading-6" style={{ color: "#F3DDD1" }}>
                               {item}
                             </p>
                           </div>
