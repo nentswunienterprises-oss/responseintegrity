@@ -301,7 +301,7 @@ function PortalLanding() {
                     <img
                       src="/images/student-online-school-homeschool-laptop-classes-1.webp"
                       alt="Student learning online with a laptop"
-                      className="mt-4 w-full rounded-2xl border border-[#3A2C26] object-cover shadow-md"
+                      className="mt-4 w-full rounded-2xl border border-[#3A2C26] bg-[#1A1412] object-contain p-2 shadow-md"
                       style={{ aspectRatio: "16 / 10" }}
                       loading="lazy"
                     />
