@@ -302,7 +302,7 @@ function PortalLanding() {
                       <img
                         src="/images/student-online-school-homeschool-laptop-classes-1.webp"
                         alt="Student learning online with a laptop"
-                        className="w-full max-w-[320px] rounded-2xl border border-[#3A2C26] shadow-md"
+                        className="w-full max-w-[420px] rounded-2xl border border-[#3A2C26] shadow-md"
                         style={{ height: "auto" }}
                         loading="lazy"
                       />
