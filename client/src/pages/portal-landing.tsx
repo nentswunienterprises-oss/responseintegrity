@@ -343,10 +343,17 @@ function PortalLanding() {
                       </p>
                     </div>
                   </Card>
+
+                  <div className="hidden lg:block max-w-[26rem] pl-1 pt-8">
+                    <p className="text-sm sm:text-base leading-7" style={{ color: "#D9C8BD" }}>
+                      The learner is watched closely enough, challenged carefully enough, and repeated consistently enough for stability to become
+                      trainable.
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="mt-8 rounded-[30px] border border-[#E8D2C3] bg-[#FFF8F3] p-6 sm:p-7 md:p-8 shadow-sm">
+              <div className="mt-8 rounded-[30px] border border-[#E8D2C3] bg-[#FFF8F3] p-6 sm:p-7 md:p-8 shadow-sm lg:hidden">
                 <div className="grid gap-5">
                   <p className="text-sm sm:text-base leading-7" style={{ color: "#5A5A5A" }}>
                     The learner is watched closely enough, challenged carefully enough, and repeated consistently
