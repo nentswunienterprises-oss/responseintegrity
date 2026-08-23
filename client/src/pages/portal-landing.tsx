@@ -304,7 +304,7 @@ function PortalLanding() {
                     <img
                       src="/images/student-online-school-homeschool-laptop-classes-1.webp"
                       alt="Student learning online with a laptop"
-                      className="w-full max-w-[460px] rounded-2xl border border-[#D9C8BD] shadow-md"
+                      className="w-full max-w-[460px] border border-[#D9C8BD] shadow-md"
                       style={{ height: "auto" }}
                       loading="lazy"
                     />
@@ -339,9 +339,6 @@ function PortalLanding() {
                     <div className="space-y-4">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "#FFD8DB" }}>
                         The Actual Difference
-                      </p>
-                      <p className="text-lg sm:text-xl font-semibold leading-8" style={{ color: "white" }}>
-                        We do not exist to replace the classroom.
                       </p>
                       <p className="text-sm sm:text-base leading-7" style={{ color: "#FFE9EB" }}>
                         We exist to train what the classroom cannot always slow down long enough to condition: the individual learner's response under
