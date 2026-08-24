@@ -344,12 +344,6 @@ function PortalLanding() {
                     </div>
                   </Card>
 
-                  <div className="hidden lg:block max-w-[26rem] pl-1 pt-8">
-                    <p className="text-sm sm:text-base leading-7" style={{ color: "#D9C8BD" }}>
-                      The learner is watched closely enough, challenged carefully enough, and repeated consistently enough for stability to become
-                      trainable.
-                    </p>
-                  </div>
                 </div>
               </div>
 
