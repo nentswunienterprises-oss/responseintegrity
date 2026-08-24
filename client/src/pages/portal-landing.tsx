@@ -334,15 +334,19 @@ function PortalLanding() {
 
                   <Card className="rounded-[28px] border-[#44201F] bg-[#A8323B] p-5 sm:p-6 md:p-7 shadow-none">
                     <div className="space-y-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "#FFD8DB" }}>
-                        The Actual Difference
-                      </p>
                       <p className="text-sm sm:text-base leading-7" style={{ color: "#FFE9EB" }}>
                         We exist to train what the classroom cannot always slow down long enough to condition: the individual learner's response under
                         difficulty.
                       </p>
                     </div>
                   </Card>
+
+                  <div className="hidden lg:block max-w-[26rem] pl-1 pt-8">
+                    <p className="text-sm sm:text-base leading-7" style={{ color: "#D9C8BD" }}>
+                      The learner is watched closely enough, challenged carefully enough, and repeated consistently enough for stability to become
+                      trainable.
+                    </p>
+                  </div>
 
                 </div>
               </div>
