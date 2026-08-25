@@ -44,7 +44,7 @@ export function ResponseIntegrityLogo({
               style={{
                 fontSize: text,
                 fontWeight: 600,
-                color: "#222",
+                color: "var(--ri-charcoal)",
                 letterSpacing: "0.02em",
                 textTransform: "uppercase",
                 whiteSpace: "nowrap",
@@ -56,7 +56,7 @@ export function ResponseIntegrityLogo({
               style={{
                 fontSize: text,
                 fontWeight: 700,
-                color: "#E63946",
+                color: "var(--ri-red)",
                 letterSpacing: "normal",
                 textTransform: "uppercase",
                 whiteSpace: "nowrap",
@@ -68,7 +68,7 @@ export function ResponseIntegrityLogo({
               style={{
                 fontSize: text,
                 fontWeight: 600,
-                color: "#222",
+                color: "var(--ri-charcoal)",
                 letterSpacing: "0.02em",
                 textTransform: "uppercase",
                 whiteSpace: "nowrap",
@@ -83,7 +83,7 @@ export function ResponseIntegrityLogo({
               style={{
                 fontSize: integrityResponseText,
                 fontWeight: 700,
-                color: "#E63946",
+                color: "var(--ri-red)",
                 letterSpacing: "0.03em",
                 textTransform: "uppercase",
                 whiteSpace: "nowrap",
@@ -97,7 +97,7 @@ export function ResponseIntegrityLogo({
               style={{
                 fontSize: integritySublineText,
                 fontWeight: 700,
-                color: "#222",
+                color: "var(--ri-charcoal)",
                 letterSpacing: "0.05em",
                 textTransform: "uppercase",
                 whiteSpace: "nowrap",

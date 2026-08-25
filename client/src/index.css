@@ -4,7 +4,21 @@
 
 /* LIGHT MODE - Warm Earth Tones for Confidence Building */
 :root {
-  --button-outline: rgba(61, 46, 31, .10);
+  /* Response Integrity brand anchors and shared supporting roles. */
+  --ri-red: #E63946;
+  --ri-charcoal: #1A1A1A;
+  --ri-charcoal-rgb: 26, 26, 26;
+  --ri-cream: #FFF5ED;
+  --ri-cream-rgb: 255, 245, 237;
+  --ri-blush: #FFF0F0;
+  --ri-white: #FFFFFF;
+  --ri-muted: #5A5A5A;
+  --ri-dark-surface: #241B18;
+  --ri-dark-border: #4A3A33;
+  --ri-warm-border: #E5D3C5;
+  --ri-dark-copy: #D9C8BD;
+
+  --button-outline: rgba(var(--ri-charcoal-rgb), .10);
   --badge-outline: rgba(230, 126, 34, .15);
 
   /* Automatic computation of border around primary / danger buttons */
@@ -12,32 +26,32 @@
 
   /* Backgrounds applied on top of other backgrounds when hovered/active */
   /* Using warm brown tints instead of black */
-  --elevate-1: rgba(61, 46, 31, .03);
-  --elevate-2: rgba(61, 46, 31, .08);
+  --elevate-1: rgba(var(--ri-charcoal-rgb), .03);
+  --elevate-2: rgba(var(--ri-charcoal-rgb), .08);
 
   /* Warm cream background - main canvas */
-  --background: 45 100% 96.86%;  /* #FAF7F2 */
+  --background: 23.33 100% 96.47%;  /* var(--ri-cream) */
 
   /* Deep brown text - primary content */
-  --foreground: 38.18 53.23% 24.31%;  /* #3D2E1F */
+  --foreground: 0 0% 10.2%;  /* var(--ri-charcoal) */
 
   /* Soft tan border - gentle separators */
-  --border: 44.21 26.76% 86.08%;  /* #E8E0D5 */
+  --border: 24.71 39.13% 85.88%;  /* var(--ri-warm-border) */
 
   /* Light beige - elevated surfaces (cards) */
-  --card: 47.14 87.5% 96.86%;  /* #F5F1EC */
+  --card: 23.33 100% 96.47%;  /* var(--ri-cream) */
 
-  --card-foreground: 210 25% 7.8431%;  /* #3D2E1F */
+  --card-foreground: 0 0% 10.2%;  /* var(--ri-charcoal) */
 
   /* Card border - slightly darker than main border */
-  --card-border: 32 25% 90%;  /* #EDE7DD */
+  --card-border: 24.71 39.13% 85.88%;  /* var(--ri-warm-border) */
 
   /* Sidebar - same as card for cohesion */
-  --sidebar: 180 6.6667% 97.0588%;  /* #F5F1EC */
+  --sidebar: 23.33 100% 96.47%;  /* var(--ri-cream) */
 
-  --sidebar-foreground: 210 25% 7.8431%;  /* #3D2E1F */
+  --sidebar-foreground: 0 0% 10.2%;  /* var(--ri-charcoal) */
 
-  --sidebar-border: 205.0000 25.0000% 90.5882%;  /* #E8E0D5 */
+  --sidebar-border: 24.71 39.13% 85.88%;  /* var(--ri-warm-border) */
 
   /* Warm red - primary accent (Confidence Red) */
   --sidebar-primary: 355.38 79.08% 56.27%;  /* #E63946 */
@@ -72,10 +86,10 @@
   --muted: 38.4 60.98% 91.96%;
 
   /* Medium brown - secondary text */
-  --muted-foreground: 38.18 53.23% 24.31%;  /* #6B5A47 */
+  --muted-foreground: 0 0% 35.29%;  /* var(--ri-muted) */
 
   /* Accent - pale pink for highlights */
-  --accent: 0 100% 97%;  /* #FFF0F0 */
+  --accent: 0 100% 96.86%;  /* var(--ri-blush) */
 
   --accent-foreground: 355.38 79.08% 56.27%;
 
