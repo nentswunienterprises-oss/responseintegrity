@@ -88,6 +88,12 @@ const responseIntegrityDifferentiators = [
   },
 ];
 
+const khanyaParentTestimonial = {
+  quote:
+    "It is probably rare for a parent to share feedback before getting a report from school, but I can see the change already. Khanya has always been a child who did not like maths and school in general. Ever since she started with the sessions, her confidence has improved. She likes school now and enjoys Mathematics unlike before. Before, she never cared what mark she got for maths, but now she pushes harder because she believes she has the potential to get a level 7.",
+  attribution: "Khanya's mom | Kempton Park, South Africa",
+};
+
 function PortalLanding() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -337,6 +343,20 @@ function PortalLanding() {
                       <p className="text-sm sm:text-base leading-7" style={{ color: "#FFE9EB" }}>
                         We exist to train what the classroom cannot always slow down long enough to condition: the individual learner's response under
                         difficulty.
+                      </p>
+                    </div>
+                  </Card>
+
+                  <Card className="rounded-[28px] border-[#59433A] bg-[#241B18] p-5 sm:p-6 md:p-7 shadow-none">
+                    <div className="space-y-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: "#F3B39D" }}>
+                        Parent feedback
+                      </p>
+                      <blockquote className="text-sm sm:text-base leading-7" style={{ color: "#FFF7F1" }}>
+                        &ldquo;{khanyaParentTestimonial.quote}&rdquo;
+                      </blockquote>
+                      <p className="text-sm font-semibold" style={{ color: "#F3B39D" }}>
+                        {khanyaParentTestimonial.attribution}
                       </p>
                     </div>
                   </Card>
