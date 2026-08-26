@@ -386,16 +386,16 @@ function PortalLanding() {
                   const isRose = index === 1 || index === 4;
 
                   const cardStyle = isDark
-                    ? { borderColor: "var(--ri-dark-border)", backgroundColor: "var(--ri-dark-surface)" }
+                    ? { borderColor: "transparent", backgroundColor: "var(--ri-charcoal)" }
                     : isRose
                       ? { borderColor: "var(--ri-warm-border)", backgroundColor: "var(--ri-blush)" }
                       : { borderColor: "var(--ri-warm-border)", backgroundColor: "var(--ri-cream)" };
 
-                  const labelStyle = isDark
-                    ? { borderColor: "var(--ri-dark-border)", backgroundColor: "rgba(255,255,255,0.06)", color: "var(--ri-cream)" }
-                    : isRose
-                      ? { borderColor: "var(--ri-warm-border)", backgroundColor: "rgba(255,255,255,0.56)", color: "var(--ri-charcoal)" }
-                      : { borderColor: "var(--ri-warm-border)", backgroundColor: "var(--ri-blush)", color: "var(--ri-charcoal)" };
+                  const labelStyle = {
+                    borderColor: "var(--ri-warm-border)",
+                    backgroundColor: "var(--ri-blush)",
+                    color: "var(--ri-charcoal)",
+                  };
 
                   const headingColor = isDark ? "var(--ri-cream)" : "var(--ri-charcoal)";
                   const bodyColor = isDark ? "var(--ri-dark-copy)" : "var(--ri-muted)";
