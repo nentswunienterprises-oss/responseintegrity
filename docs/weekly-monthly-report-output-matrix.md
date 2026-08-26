@@ -37,7 +37,7 @@ Primary code paths:
 
 ### Weekly
 
-Weekly reports are generated from pairs of completed session groups.
+Two-session conditioning updates are generated from pairs of completed session groups.
 
 Window rule:
 
@@ -51,13 +51,15 @@ Generated after:
 
 ### Monthly
 
-Monthly reports are generated from sets of eight completed session groups.
+Eight-session conditioning reports are generated from sets of eight completed session groups.
 
 Window rule:
 
 - Session groups are sorted by earliest date.
 - The system creates windows using indexes `[0..7]`, `[8..15]`, etc.
 - Fewer than eight pending session groups do not generate a monthly report yet.
+
+These are evidence thresholds rather than calendar promises. The stored report types remain `weekly` and `monthly` for compatibility, while parent and tutor interfaces should describe the thresholds directly.
 
 Generated after:
 
@@ -783,13 +785,10 @@ Generated fields:
 - `weekEndDate`
 - `sessionsCompletedThisWeek`
 - `topicsWorkedOn`
-- `conditioningProgress`
-- `whatImproved`
-- `responsePattern`
-- `mainBreakdown`
-- `systemMovement`
+- `whatChanged`
+- `breakdownPattern`
 - `whatThisMeans`
-- `nextFocus`
+- `nextMove`
 - `internalWeeklyTutorNote`
 - `drillCount`
 - `sourceSessionIds`
@@ -801,13 +800,10 @@ Parent card sections:
 - sent metadata
 - `Sessions Completed`
 - `Topics Worked On`
-- `What Improved`
+- `What Changed`
 - `What This Means`
-- `Response Pattern`
-- `Challenges`
-- `System Movement`
-- `Conditioning Progress`
-- `Next Focus`
+- `Breakdown Pattern`
+- `Next Move`
 
 ## Weekly field assembly
 
@@ -858,7 +854,7 @@ Fallback:
 
 - `{topic}: no mapped observation signal detected`
 
-`Challenges` / `mainBreakdown`:
+`Breakdown Pattern`:
 
 - `{topic}: {top 2 weak labels}`
 
@@ -903,32 +899,31 @@ Generated fields:
 - `monthEndDate`
 - `totalSessionsCompletedThisMonth`
 - `topicsConditioned`
-- `topicProgression`
+- `systemMovement`
 - `whatBecameStronger`
-- `responseTrend`
-- `recurringChallenge`
-- `systemOutcome`
+- `breakdownPattern`
+- `currentPosition`
 - `whatThisMeans`
-- `currentStateSnapshot`
-- `nextMonthFocus`
+- `whatThisMeans`
+- `nextMonthMove`
+- `nextMonthMove`
 - `drillCount`
 - `monthRange`
 - `sourceSessionIds`
 
 Parent card sections:
 
-- `{monthName} Report`
+- `Eight-Session Report`
 - date range
 - sent metadata
 - feedback button
 - `Total Sessions Completed`
 - `Topics Conditioned`
 - `What Became Stronger`
-- `Recurring Challenge`
-- `System Outcome`
-- `Topic Progression`
-- `Next Month Focus`
-- `Current Conditioning State`
+- `Breakdown Pattern`
+- `System Movement`
+- `Current Position`
+- `Next Eight-Session Move`
 - `What This Means`
 - `Your Feedback` if feedback exists
 
@@ -1302,19 +1297,19 @@ If a parent-facing field is empty:
 
 Parent weekly empty state:
 
-- `No weekly reports yet. Your tutor will send reports after each week of sessions.`
+- `No two-session updates yet. Your tutor will send one after two completed session groups.`
 
 Parent monthly empty state:
 
-- `No monthly reports yet. Your tutor will send comprehensive monthly summaries.`
+- `No eight-session reports yet. Your tutor will send one after eight completed session groups.`
 
 Tutor weekly empty state:
 
-- `No weekly reports created yet.`
+- `No two-session reports created yet. Two completed session groups are required.`
 
 Tutor monthly empty state:
 
-- `No monthly reports created yet.`
+- `No eight-session reports created yet. Eight completed session groups are required.`
 
 ## Storage fields
 
@@ -1325,10 +1320,10 @@ Weekly insert:
 - `month_name`: `null`
 - `summary`: JSON string of structured weekly data
 - `topics_learned`: `topicsWorkedOn.join(", ")`
-- `strengths`: `whatImproved.join(" | ")`
-- `areas_for_growth`: `mainBreakdown.join(" | ")`
+- `strengths`: `whatChanged.join(" | ")`
+- `areas_for_growth`: `breakdownPattern.join(" | ")`
 - `solutions_unlocked`: `sessionsCompletedThisWeek`
-- `next_steps`: `nextFocus.join(" | ")`
+- `next_steps`: `nextMove.join(" | ")`
 - `sent_at`: current timestamp
 
 Monthly insert:
@@ -1339,9 +1334,9 @@ Monthly insert:
 - `summary`: JSON string of structured monthly data
 - `topics_learned`: `topicsConditioned.join(", ")`
 - `strengths`: `whatBecameStronger.join(" | ")`
-- `areas_for_growth`: `recurringChallenge.join(" | ")`
+- `areas_for_growth`: `breakdownPattern.join(" | ")`
 - `solutions_unlocked`: `totalSessionsCompletedThisMonth`
-- `next_steps`: `nextMonthFocus.join(" | ")`
+- `next_steps`: `nextMonthMove.join(" | ")`
 - `sent_at`: current timestamp
 
 ## Parent feedback

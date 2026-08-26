@@ -253,25 +253,25 @@ export default function ParentProgress() {
           <Tabs defaultValue={defaultTab} className="space-y-4 sm:space-y-6">
             <TabsList className="grid w-full grid-cols-2 h-auto rounded-xl bg-muted/60 p-1">
               <TabsTrigger value="weekly" className="flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs sm:text-sm">
-                <span>Weekly</span>
+                <span>2-Session</span>
                 <Badge variant="secondary" className="text-[10px] sm:text-xs">{weeklyReports.length}</Badge>
               </TabsTrigger>
               <TabsTrigger value="monthly" className="flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs sm:text-sm">
-                <span>Monthly</span>
+                <span>8-Session</span>
                 <Badge variant="secondary" className="text-[10px] sm:text-xs">{monthlyReports.length}</Badge>
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="weekly" className="mt-0 space-y-4">
               <div>
-                <h2 className="text-lg sm:text-2xl font-bold">Weekly Updates</h2>
-                <p className="text-xs sm:text-sm text-muted-foreground">Review week-by-week progress without scrolling through monthly summaries.</p>
+                <h2 className="text-lg sm:text-2xl font-bold">Two-Session Conditioning Updates</h2>
+                <p className="text-xs sm:text-sm text-muted-foreground">Each update covers the next two completed session groups.</p>
               </div>
 
               {weeklyReports.length === 0 ? (
                 <Card>
                   <CardContent className="p-4 sm:pt-6 text-center text-sm sm:text-base text-muted-foreground">
-                    No weekly updates yet. Your tutor will send an update after each week of sessions.
+                    No two-session updates yet. Your tutor will send one after two completed session groups.
                   </CardContent>
                 </Card>
               ) : (
@@ -283,7 +283,7 @@ export default function ParentProgress() {
                           <div>
                             <CardTitle className="flex flex-wrap items-center gap-2 text-sm sm:text-base">
                               <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
-                              Weekly Update
+                              Two-Session Update
                               {isLegacyWeeklyReport(report) && (
                                 <Badge variant="outline" className="text-xs">
                                   Legacy format
@@ -329,14 +329,14 @@ export default function ParentProgress() {
 
             <TabsContent value="monthly" className="mt-0 space-y-4">
               <div>
-                <h2 className="text-lg sm:text-2xl font-bold">Monthly Reports</h2>
-                <p className="text-xs sm:text-sm text-muted-foreground">Open monthly summaries directly without scrolling through weekly entries first.</p>
+                <h2 className="text-lg sm:text-2xl font-bold">Eight-Session Conditioning Reports</h2>
+                <p className="text-xs sm:text-sm text-muted-foreground">Each report covers the next eight completed session groups.</p>
               </div>
 
               {monthlyReports.length === 0 ? (
                 <Card>
                   <CardContent className="p-4 sm:pt-6 text-center text-sm sm:text-base text-muted-foreground">
-                    No monthly reports yet. Your tutor will send comprehensive monthly summaries.
+                    No eight-session reports yet. Your tutor will send one after eight completed session groups.
                   </CardContent>
                 </Card>
               ) : (
@@ -348,7 +348,7 @@ export default function ParentProgress() {
                           <div>
                             <CardTitle className="flex flex-wrap items-center gap-2 text-sm sm:text-base">
                               <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
-                              {report.monthName || "Monthly"} Report
+                              Eight-Session Report
                               {isLegacyMonthlyReport(report) && (
                                 <Badge variant="outline" className="text-xs">
                                   Legacy format

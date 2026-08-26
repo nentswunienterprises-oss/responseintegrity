@@ -4113,7 +4113,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           const aggregateDeterministicSessions = (drillRows: any[]) => {
             const mappedSessions = (drillRows || [])
-              .map(mapDrillRowToDeterministicSession)
+              .map((row: any) => {
+                const mappedSession = mapDrillRowToDeterministicSession(row);
+                if (!mappedSession?.deterministicLog) return null;
+
+                const reportDate = resolveReportAnchorDate(row, mappedSession);
+                return {
+                  ...mappedSession,
+                  date: reportDate || mappedSession.date,
+                  sessionGroupId: String(
+                    row?.report_scheduled_session_id ||
+                      resolveScheduledSessionIdFromDrillRow(row) ||
+                      mappedSession.sessionGroupId ||
+                      mappedSession.id,
+                  ),
+                };
+              })
               .filter(Boolean) as any[];
 
             const groupedSessions = mappedSessions.reduce((acc: Record<string, any[]>, session: any) => {
@@ -4139,6 +4154,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
                 const topics = Array.from(new Set(sortedEntries.map((entry) => String(entry.topic || "").trim()).filter(Boolean)));
                 const topicCount = topics.length;
+                const sessionTypes = Array.from(new Set(sortedEntries.map((entry) => String(entry.drillType || "").trim()).filter(Boolean)));
+                const containsDiagnosis = sessionTypes.includes("diagnosis");
+                const containsTraining = sessionTypes.includes("training");
                 const behaviorLines = sortedEntries.map((entry) => {
                   const behaviors = Array.isArray(entry.behaviorPatterns) && entry.behaviorPatterns.length > 0
                     ? naturalJoin(entry.behaviorPatterns)
@@ -4167,17 +4185,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   date: sortedEntries[0].date,
                   duration: 0,
                   topic: topics[0] || "Unknown topic",
-                  drillType: "training",
+                  drillType: sessionTypes.length === 1 ? sessionTypes[0] : "mixed",
+                  sessionTypes,
+                  containsDiagnosis,
+                  containsTraining,
                   deterministicLog: {
                     topicFocus: `This session covered: ${naturalJoin(topics)}.`,
-                    whatWasTrained: `Drills were run to train:\n- ${trainedLines.join("\n- ")}`,
+                    whatWasTrained: containsDiagnosis && !containsTraining
+                      ? `Diagnosis evidence was collected for:\n- ${trainedLines.join("\n- ")}`
+                      : containsDiagnosis
+                        ? `Diagnosis and training evidence were recorded for:\n- ${trainedLines.join("\n- ")}`
+                        : `Drills were run to train:\n- ${trainedLines.join("\n- ")}`,
                     behaviorSummary: `Across ${topicCount} ${topicCount === 1 ? "topic" : "topics"}:\n- ${behaviorLines.join("\n- ")}`,
                     performanceResult: `Performance by topic:\n- ${performanceLines.join("\n- ")}`,
                     stateMovement: `State movement by topic:\n- ${stateMovementLines.join("\n- ")}`,
                     whatThisMeans: `Interpretation by topic:\n- ${meaningLines.join("\n- ")}`,
                     nextMove: `Next moves:\n- ${nextMoveLines.join("\n- ")}`,
                     summaryText: `This session covered ${naturalJoin(topics)} across ${sortedEntries.length} drills.`,
-                    drillLabel: `Training Session (${topicCount} ${topicCount === 1 ? "topic" : "topics"})`,
+                    drillLabel: `${containsDiagnosis && containsTraining ? "Mixed Conditioning Session" : containsDiagnosis ? "Diagnosis Session" : "Training Session"} (${topicCount} ${topicCount === 1 ? "topic" : "topics"})`,
                     score: Math.round(
                       sortedEntries.reduce((sum, entry) => sum + Number(entry.score || 0), 0) / Math.max(sortedEntries.length, 1)
                     ),
@@ -4271,7 +4296,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const groupedSessions = (drillRows || []).reduce((acc: Record<string, { date: string; rows: any[] }>, row: any) => {
               const mappedSession = mapDrillRowToDeterministicSession(row);
               if (!mappedSession?.deterministicLog) return acc;
-              if (mappedSession.drillType !== "training") return acc;
 
               const key = String(
                 row?.report_scheduled_session_id ||
@@ -4317,7 +4341,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const groupedSessions = (drillRows || []).reduce((acc: Record<string, { date: string; rows: any[] }>, row: any) => {
               const mappedSession = mapDrillRowToDeterministicSession(row);
               if (!mappedSession?.deterministicLog) return acc;
-              if (mappedSession.drillType !== "training") return acc;
 
               const key = String(
                 row?.report_scheduled_session_id ||
@@ -4819,13 +4842,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lastDrillState,
             transitionReasons,
             drillBehaviors,
+            hasTrainingEvidence,
           }: {
             topic: string;
             firstDrillState: { phase: string; stability: string };
             lastDrillState: { phase: string; stability: string };
             transitionReasons: TransitionReason[];
             drillBehaviors: string[][];
+            hasTrainingEvidence: boolean;
           }) => {
+            if (!hasTrainingEvidence) {
+              return `${topic} baseline established at ${formatStateLabel(lastDrillState)}; no training movement claimed yet.`;
+            }
+
             const latestTransitionReason = transitionReasons[transitionReasons.length - 1] || "remain";
             const midpoint = Math.max(1, Math.floor(drillBehaviors.length / 2));
             const earlyBehaviors = drillBehaviors.slice(0, midpoint).flat();
@@ -4859,12 +4888,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             firstDrillState,
             lastDrillState,
             transitionReasons,
+            hasTrainingEvidence,
           }: {
             topic: string;
             firstDrillState: { phase: string; stability: string };
             lastDrillState: { phase: string; stability: string };
             transitionReasons: TransitionReason[];
+            hasTrainingEvidence: boolean;
           }) => {
+            if (!hasTrainingEvidence) {
+              return `${topic} baseline established at ${lastDrillState.phase} (${lastDrillState.stability}); no training movement claimed yet.`;
+            }
+
             const latestTransitionReason = transitionReasons[transitionReasons.length - 1] || "remain";
 
             if (
@@ -4996,6 +5031,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               latestNextAction: string;
               drillBehaviors: string[][];
               allBehaviors: string[];
+              hasTrainingEvidence: boolean;
             }>
           ) =>
             [...topics].sort((a, b) => {
@@ -5042,9 +5078,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   lastDrillState: state,
                   drillCount: 1,
                   transitionReasons: [transitionReason],
-                  latestNextAction: nextAction,
-                  drillBehaviors: [behaviors],
-                  allBehaviors: [...behaviors],
+                    latestNextAction: nextAction,
+                    drillBehaviors: [behaviors],
+                    allBehaviors: [...behaviors],
+                    hasTrainingEvidence: session?.drillType === "training" || session?.containsTraining === true,
                 };
                 return;
               }
@@ -5060,6 +5097,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               snapshots[topic].transitionReasons.push(transitionReason);
               snapshots[topic].drillBehaviors.push(behaviors);
               snapshots[topic].allBehaviors.push(...behaviors);
+              if (session?.drillType === "training" || session?.containsTraining === true) {
+                snapshots[topic].hasTrainingEvidence = true;
+              }
               if (nextAction) snapshots[topic].latestNextAction = nextAction;
             });
 
@@ -5154,6 +5194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 lastDrillState: snapshot.lastDrillState,
                 transitionReasons: snapshot.transitionReasons,
                 drillBehaviors: snapshot.drillBehaviors,
+                hasTrainingEvidence: snapshot.hasTrainingEvidence,
               });
               return includeTopicLabels ? line : formatSingleTopicMovementLine(line);
             });
@@ -5261,13 +5302,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 firstDrillState: snapshot.firstDrillState,
                 lastDrillState: snapshot.lastDrillState,
                 transitionReasons: snapshot.transitionReasons,
+                hasTrainingEvidence: snapshot.hasTrainingEvidence,
               });
               return includeTopicLabels ? line : formatSingleTopicMovementLine(line);
             });
 
             const whatBecameStronger = topics
               .map(topic => {
-                const strongSignals = buildTopicStrongSignals(topicSnapshots[topic].allBehaviors);
+                const snapshot = topicSnapshots[topic];
+                if (!snapshot.hasTrainingEvidence) {
+                  return formatTopicScopedLine(
+                    topic,
+                    "baseline established; no training strength claim made yet",
+                    includeTopicLabels,
+                  );
+                }
+                const strongSignals = buildTopicStrongSignals(snapshot.allBehaviors);
                 return buildMonthlyStrengthLine(topic, strongSignals, includeTopicLabels);
               })
               .filter(Boolean);
@@ -5347,6 +5397,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
 
 
+          const resolveReportSessionGroupId = (row: any) => {
+            const mappedSession = mapDrillRowToDeterministicSession(row);
+            return String(
+              row?.report_scheduled_session_id ||
+                resolveScheduledSessionIdFromDrillRow(row) ||
+                mappedSession?.sessionGroupId ||
+                mappedSession?.id ||
+                row?.id ||
+                "",
+            ).trim();
+          };
+
+          const buildDeterministicReportWindowKey = (reportType: "weekly" | "monthly", structuredData: any) => {
+            const sourceSessionIds = Array.from(
+              new Set(
+                (Array.isArray(structuredData?.sourceSessionIds) ? structuredData.sourceSessionIds : [])
+                  .map((id: unknown) => String(id || "").trim())
+                  .filter(Boolean),
+              ),
+            ).sort();
+
+            if (sourceSessionIds.length === 0) return null;
+            return `${reportType}:${sourceSessionIds.join("|")}`;
+          };
+
+          const insertDeterministicParentReport = async (payload: Record<string, any>, reportWindowKey: string | null) => {
+            const insertPayload = reportWindowKey
+              ? { ...payload, report_window_key: reportWindowKey }
+              : payload;
+
+            const { data, error } = await supabase
+              .from("parent_reports")
+              .insert(insertPayload)
+              .select("id")
+              .single();
+
+            if (!error) return { ...data, created: true };
+
+            // A concurrent trigger may have inserted the same deterministic window.
+            if (error.code === "23505" && reportWindowKey) {
+              const { data: existing, error: existingError } = await supabase
+                .from("parent_reports")
+                .select("id")
+                .eq("tutor_id", payload.tutor_id)
+                .eq("student_id", payload.student_id)
+                .eq("report_type", payload.report_type)
+                .eq("report_window_key", reportWindowKey)
+                .maybeSingle();
+
+              if (!existingError && existing) return { ...existing, created: false };
+            }
+
+            throw error;
+          };
+
           const insertWeeklyReport = async ({
             tutorId,
             studentId,
@@ -5359,10 +5464,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             structuredData: any;
           }) => {
             const weekNumber = getIsoWeekNumber(new Date(structuredData.weekStartDate));
+            const reportWindowKey = buildDeterministicReportWindowKey("weekly", structuredData);
 
-            const { data, error } = await supabase
-              .from("parent_reports")
-              .insert({
+            return insertDeterministicParentReport({
                 tutor_id: tutorId,
                 student_id: studentId,
                 parent_id: parentId,
@@ -5378,12 +5482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 confidence_growth: null,
                 next_steps: Array.isArray(structuredData.nextMove) ? structuredData.nextMove.join(" | ") : "",
                 sent_at: new Date().toISOString(),
-              })
-              .select("id")
-              .single();
-
-            if (error) throw error;
-            return data;
+              }, reportWindowKey);
           };
 
           const insertMonthlyReport = async ({
@@ -5398,10 +5497,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             structuredData: any;
           }) => {
             const monthName = formatMonthName(new Date(structuredData.monthStartDate));
+            const reportWindowKey = buildDeterministicReportWindowKey("monthly", structuredData);
 
-            const { data, error } = await supabase
-              .from("parent_reports")
-              .insert({
+            return insertDeterministicParentReport({
                 tutor_id: tutorId,
                 student_id: studentId,
                 parent_id: parentId,
@@ -5417,12 +5515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 confidence_growth: null,
                 next_steps: Array.isArray(structuredData.nextMonthMove) ? structuredData.nextMonthMove.join(" | ") : "",
                 sent_at: new Date().toISOString(),
-              })
-              .select("id")
-              .single();
-
-            if (error) throw error;
-            return data;
+              }, reportWindowKey);
           };
 
           const maybeAutoSendDeterministicReports = async (studentId: string, tutorId: string) => {
@@ -5442,74 +5535,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (drillRowsError || !drillRows || drillRows.length === 0) return;
             const anchoredDrillRows = await attachReportAnchorTimes(drillRows || []);
 
-            const { data: latestWeekly } = await supabase
+            const { data: existingWeeklyReports } = await supabase
               .from("parent_reports")
-              .select("sent_at")
+              .select("summary, report_window_key")
               .eq("student_id", studentId)
               .eq("tutor_id", tutorId)
               .eq("report_type", "weekly")
-              .order("sent_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
+              .limit(1000);
 
-            const { data: latestMonthly } = await supabase
+            const { data: existingMonthlyReports } = await supabase
               .from("parent_reports")
-              .select("sent_at")
+              .select("summary, report_window_key")
               .eq("student_id", studentId)
               .eq("tutor_id", tutorId)
               .eq("report_type", "monthly")
-              .order("sent_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
+              .limit(1000);
 
-            const weeklyBaseline = latestWeekly?.sent_at ? new Date(latestWeekly.sent_at).getTime() : 0;
-            const monthlyBaseline = latestMonthly?.sent_at ? new Date(latestMonthly.sent_at).getTime() : 0;
+            const coveredSessionIds = (reports: any[] | null | undefined) => new Set(
+              (reports || []).flatMap((report: any) => {
+                let summary: any = {};
+                try {
+                  summary = typeof report?.summary === "string"
+                    ? JSON.parse(report.summary)
+                    : report?.summary || {};
+                } catch {
+                  summary = {};
+                }
+                return Array.isArray(summary?.sourceSessionIds)
+                  ? summary.sourceSessionIds.map((id: unknown) => String(id || "").trim()).filter(Boolean)
+                  : [];
+              }),
+            );
 
+            const weeklyCoveredSessionIds = coveredSessionIds(existingWeeklyReports);
+            const monthlyCoveredSessionIds = coveredSessionIds(existingMonthlyReports);
             const weeklyPending = anchoredDrillRows.filter(
-              (row: any) => new Date(row.submitted_at).getTime() > weeklyBaseline
+              (row: any) => !weeklyCoveredSessionIds.has(resolveReportSessionGroupId(row))
             );
             const monthlyPending = anchoredDrillRows.filter(
-              (row: any) => new Date(row.submitted_at).getTime() > monthlyBaseline
+              (row: any) => !monthlyCoveredSessionIds.has(resolveReportSessionGroupId(row))
             );
 
             const weeklyWindows = buildSessionAwareWeeklyWindows(weeklyPending);
+            let weeklyReportsCreated = 0;
             if (weeklyWindows.length > 0) {
               for (const weeklyWindow of weeklyWindows) {
                 const structuredData = createWeeklyStructuredDataFromDrills(weeklyWindow);
                 if (structuredData) {
                   const weeklyReport = await insertWeeklyReport({ tutorId, studentId, parentId, structuredData });
-                  await safeSendPush(
-                    parentId,
-                    {
-                      title: "Weekly report sent",
-                      body: "A new weekly report is available for your child. Open Response Integrity to review it.",
-                      url: "/client/parent/progress",
-                      tag: `parent-weekly-report-${weeklyReport.id}`,
-                    },
-                    "parent weekly report sent",
-                  );
+                  if (weeklyReport.created !== false) {
+                    weeklyReportsCreated += 1;
+                  }
                 }
               }
             }
 
+            if (weeklyReportsCreated > 0) {
+              await safeSendPush(
+                parentId,
+                {
+                  title: weeklyReportsCreated === 1 ? "Conditioning update available" : "Conditioning updates available",
+                  body: weeklyReportsCreated === 1
+                    ? "A new two-session conditioning update is available for your child."
+                    : `${weeklyReportsCreated} two-session conditioning updates are available for your child.`,
+                  url: "/client/parent/progress",
+                  tag: "parent-weekly-report-catch-up",
+                },
+                "parent weekly report catch-up",
+              );
+            }
+
             const monthlyWindows = buildSessionAwareMonthlyWindows(monthlyPending);
+            let monthlyReportsCreated = 0;
             if (monthlyWindows.length > 0) {
               for (const monthlyWindow of monthlyWindows) {
                 const structuredData = createMonthlyStructuredDataFromDrills(monthlyWindow);
                 if (structuredData) {
                   const monthlyReport = await insertMonthlyReport({ tutorId, studentId, parentId, structuredData });
-                  await safeSendPush(
-                    parentId,
-                    {
-                      title: "Monthly report sent",
-                      body: "A new monthly report is available for your child. Open Response Integrity to review it.",
-                      url: "/client/parent/progress",
-                      tag: `parent-monthly-report-${monthlyReport.id}`,
-                    },
-                    "parent monthly report sent",
-                  );
+                  if (monthlyReport.created !== false) {
+                    monthlyReportsCreated += 1;
+                  }
                 }
               }
+            }
+
+            if (monthlyReportsCreated > 0) {
+              await safeSendPush(
+                parentId,
+                {
+                  title: monthlyReportsCreated === 1 ? "Eight-session report available" : "Eight-session reports available",
+                  body: monthlyReportsCreated === 1
+                    ? "A new eight-session conditioning report is available for your child."
+                    : `${monthlyReportsCreated} eight-session conditioning reports are available for your child.`,
+                  url: "/client/parent/progress",
+                  tag: "parent-monthly-report-catch-up",
+                },
+                "parent monthly report catch-up",
+              );
             }
           };
 

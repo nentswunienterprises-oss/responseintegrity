@@ -244,8 +244,8 @@ export default function ViewTrackingSystemsDialog({
               <Tabs defaultValue="session-logs" className="w-full space-y-4">
                 <TabsList className="grid w-full grid-cols-3 h-auto rounded-xl border border-primary/15 bg-muted/20 p-1 gap-1">
                   <TabsTrigger value="session-logs" className="text-xs sm:text-sm py-2 px-2">Session Logs</TabsTrigger>
-                  <TabsTrigger value="weekly" className="text-xs sm:text-sm py-2 px-2">Weekly Reports</TabsTrigger>
-                  <TabsTrigger value="monthly" className="text-xs sm:text-sm py-2 px-2">Monthly Reports</TabsTrigger>
+                  <TabsTrigger value="weekly" className="text-xs sm:text-sm py-2 px-2">2-Session Reports</TabsTrigger>
+                  <TabsTrigger value="monthly" className="text-xs sm:text-sm py-2 px-2">8-Session Reports</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="session-logs" className="mt-0">
@@ -294,11 +294,11 @@ export default function ViewTrackingSystemsDialog({
                 <TabsContent value="weekly" className="mt-0">
                   <Card className="rounded-2xl border border-primary/15 bg-background p-4 md:p-5 shadow-sm space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-semibold">Weekly Reports</h3>
+                      <h3 className="font-semibold">2-Session Reports</h3>
                       <Badge variant="outline">{weeklyReports.length}</Badge>
                     </div>
                     {!weeklyReports.length ? (
-                      <p className="text-sm text-muted-foreground">No weekly reports created yet.</p>
+                      <p className="text-sm text-muted-foreground">No two-session reports created yet. Two completed session groups are required.</p>
                     ) : (
                       <Accordion type="multiple" className="w-full">
                         {weeklyReports.map((report) => {
@@ -342,11 +342,11 @@ export default function ViewTrackingSystemsDialog({
                 <TabsContent value="monthly" className="mt-0">
                   <Card className="rounded-2xl border border-primary/15 bg-background p-4 md:p-5 shadow-sm space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-semibold">Monthly Reports</h3>
+                      <h3 className="font-semibold">8-Session Reports</h3>
                       <Badge variant="outline">{monthlyReports.length}</Badge>
                     </div>
                     {!monthlyReports.length ? (
-                      <p className="text-sm text-muted-foreground">No monthly reports created yet.</p>
+                      <p className="text-sm text-muted-foreground">No eight-session reports created yet. Eight completed session groups are required.</p>
                     ) : (
                       <Accordion type="multiple" className="w-full">
                         {monthlyReports.map((report) => {
@@ -355,18 +355,22 @@ export default function ViewTrackingSystemsDialog({
                             <AccordionItem key={report.id} value={`monthly-${report.id}`}>
                               <AccordionTrigger className="text-left">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <span>{report.monthName || "Monthly report"}</span>
+                                  <span>
+                                    {structured.monthStartDate && structured.monthEndDate
+                                      ? `${formatDate(structured.monthStartDate, false)} - ${formatDate(structured.monthEndDate, true)}`
+                                      : "Eight-session report"}
+                                  </span>
                                   <Badge variant="secondary">Sent {formatDate(report.sentAt, false)}</Badge>
                                 </div>
                               </AccordionTrigger>
                               <AccordionContent className="space-y-3">
-                                <FieldRow label="Topics Conditioned" value={formatReportValue(structured.topicsConditioned || structured.mainAreasCoveredThisMonth || report.topicsLearned)} />
-                                <FieldRow label="Topic Progression" value={formatReportValue(structured.topicProgression || structured.bossBattleTrendThisMonth)} />
-                                <FieldRow label="What Became Stronger" value={formatReportValue(structured.whatBecameStronger || structured.strongerSkillsThisMonth || report.strengths)} />
-                                <FieldRow label="Response Trend" value={formatReportValue(structured.responseTrend || structured.responsePatternTrendThisMonth)} />
-                                <FieldRow label="Recurring Challenge" value={formatReportValue(structured.recurringChallenge || structured.recurringChallengeThisMonth || report.areasForGrowth)} />
-                                <FieldRow label="System Outcome" value={formatReportValue(structured.systemOutcome || structured.mostEffectiveInterventionThisMonth)} />
-                                <FieldRow label="Next Month Focus" value={formatReportValue(structured.nextMonthFocus || structured.nextMonthPriority || report.nextSteps)} />
+                                <FieldRow label="Topics Conditioned" value={formatReportValue(structured.topicsConditioned || report.topicsLearned)} />
+                                <FieldRow label="System Movement" value={formatReportValue(structured.systemMovement || report.strengths)} />
+                                <FieldRow label="What Became Stronger" value={formatReportValue(structured.whatBecameStronger || report.strengths)} />
+                                <FieldRow label="Breakdown Pattern" value={formatReportValue(structured.breakdownPattern || report.areasForGrowth)} />
+                                <FieldRow label="Current Position" value={formatReportValue(structured.currentPosition)} />
+                                <FieldRow label="What This Means" value={formatReportValue(structured.whatThisMeans)} />
+                                <FieldRow label="Next Eight-Session Move" value={formatReportValue(structured.nextMonthMove || report.nextSteps)} />
                                 <FieldRow label="Parent Feedback" value={formatReportValue(report.parentFeedback)} />
                               </AccordionContent>
                             </AccordionItem>

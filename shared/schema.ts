@@ -1540,6 +1540,7 @@ export const parentReports = pgTable("parent_reports", {
   reportType: reportTypeEnum("report_type").notNull(),
   weekNumber: integer("week_number"), // For weekly reports
   monthName: varchar("month_name"), // For monthly reports
+  reportWindowKey: varchar("report_window_key"), // Stable source-window identity for deterministic reports
   
   // Report content
   summary: text("summary").notNull(),

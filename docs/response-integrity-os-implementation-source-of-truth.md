@@ -1979,6 +1979,17 @@ Supporting data reference:
 11. It is inserted into `parent_reports.summary`.
 12. Parent UI later renders the stored structure.
 
+Automatic report reliability rules:
+
+- Each generated report carries the exact source session-group IDs in `sourceSessionIds`.
+- A deterministic `report_window_key` identifies the report type and source session window.
+- Automatic generation excludes source session groups already covered by a report of the same type.
+- The database prevents two reports for the same tutor, student, report type, and source window.
+- `sent_at` is delivery metadata only; it is not the source-coverage cursor.
+- The parent-facing labels describe the thresholds: two-session conditioning update and eight-session conditioning report.
+- Catch-up generation may create every missed deterministic window, but sends one consolidated notification per report type.
+- Parent and tutor views are intentionally distinct; both must use the same stored deterministic evidence while presenting different context.
+
 ### Trigger windows
 
 Weekly:

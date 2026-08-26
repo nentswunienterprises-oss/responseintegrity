@@ -242,7 +242,7 @@ export default function StudentReportsDialog({
               {studentName} Reports
             </DialogTitle>
             <DialogDescription className="mt-1">
-              Review all session logs, weekly reports, and monthly reports for this student.
+              Review all session logs, two-session updates, and eight-session reports for this student.
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -258,8 +258,8 @@ export default function StudentReportsDialog({
             <Tabs defaultValue="session-logs" className="w-full space-y-4">
               <TabsList className="grid w-full grid-cols-3 h-auto rounded-xl border border-primary/15 bg-muted/20 p-1 gap-1">
                 <TabsTrigger value="session-logs" className="text-xs sm:text-sm py-2 px-2">Session Logs</TabsTrigger>
-                <TabsTrigger value="weekly" className="text-xs sm:text-sm py-2 px-2">Weekly Reports</TabsTrigger>
-                <TabsTrigger value="monthly" className="text-xs sm:text-sm py-2 px-2">Monthly</TabsTrigger>
+                  <TabsTrigger value="weekly" className="text-xs sm:text-sm py-2 px-2">2-Session Reports</TabsTrigger>
+                  <TabsTrigger value="monthly" className="text-xs sm:text-sm py-2 px-2">8-Session Reports</TabsTrigger>
               </TabsList>
 
               <TabsContent value="session-logs" className="mt-0">
@@ -298,11 +298,11 @@ export default function StudentReportsDialog({
               <TabsContent value="weekly" className="mt-0">
                 <Card className="rounded-2xl border border-primary/15 bg-background p-4 md:p-5 shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">Weekly Reports</h3>
+                    <h3 className="font-semibold">2-Session Reports</h3>
                     <Badge variant="outline">{weeklyReports.length}</Badge>
                   </div>
                   {!weeklyReports.length ? (
-                    <p className="text-sm text-muted-foreground">No weekly reports created yet.</p>
+                    <p className="text-sm text-muted-foreground">No two-session reports created yet. Two completed session groups are required.</p>
                   ) : (
                     <Accordion type="multiple" className="w-full">
                       {weeklyReports.map((report) => {
@@ -346,11 +346,11 @@ export default function StudentReportsDialog({
               <TabsContent value="monthly" className="mt-0">
                 <Card className="rounded-2xl border border-primary/15 bg-background p-4 md:p-5 shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">Monthly Reports</h3>
+                    <h3 className="font-semibold">8-Session Reports</h3>
                     <Badge variant="outline">{monthlyReports.length}</Badge>
                   </div>
                   {!monthlyReports.length ? (
-                    <p className="text-sm text-muted-foreground">No monthly reports created yet.</p>
+                    <p className="text-sm text-muted-foreground">No eight-session reports created yet. Eight completed session groups are required.</p>
                   ) : (
                     <Accordion type="multiple" className="w-full">
                       {monthlyReports.map((report) => {
@@ -359,7 +359,11 @@ export default function StudentReportsDialog({
                           <AccordionItem key={report.id} value={`monthly-${report.id}`}>
                             <AccordionTrigger className="text-left">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span>{report.monthName || "Monthly report"}</span>
+                                <span>
+                                  {structured.monthStartDate && structured.monthEndDate
+                                    ? `${format(new Date(structured.monthStartDate), "MMM d")} - ${format(new Date(structured.monthEndDate), "MMM d, yyyy")}`
+                                    : "Eight-session report"}
+                                </span>
                                 <Badge variant="secondary">Sent {format(new Date(report.sentAt), "MMM d")}</Badge>
                               </div>
                             </AccordionTrigger>
