@@ -963,7 +963,7 @@ export function reconcileTutorTrainingMode({
   }
 
   if (
-    (persistedMode === "watchlist" || persistedMode === "training") &&
+    (persistedMode === "watchlist" || persistedMode === "training" || persistedMode === "sandbox") &&
     (computedMode === "sandbox" || computedMode === "trial")
   ) {
     return computedMode;

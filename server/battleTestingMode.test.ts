@@ -73,6 +73,36 @@ test("reconcileTutorTrainingMode moves a preparation-complete tutor into Trial",
   );
 });
 
+test("reconcileTutorTrainingMode promotes persisted Sandbox into Trial when preparation is complete", () => {
+  const moduleProgress: TutorBattleTestModuleProgress[] = [
+    {
+      moduleKey: "transformation_phases",
+      title: "Transformation Phases",
+      completedCount: 5,
+      totalCount: 5,
+      completed: true,
+    },
+    {
+      moduleKey: "session_infrastructure",
+      title: "Session Infrastructure",
+      completedCount: 6,
+      totalCount: 6,
+      completed: true,
+    },
+  ];
+
+  assert.equal(
+    reconcileTutorTrainingMode({
+      persistedMode: "sandbox",
+      moduleProgress,
+      deepDiveProgress: [],
+      currentState: "locked",
+      docsComplete: true,
+    }),
+    "trial",
+  );
+});
+
 test("reconcileTutorTrainingMode preserves a grandfathered Certified Live decision", () => {
   const moduleProgress: TutorBattleTestModuleProgress[] = [
     {
