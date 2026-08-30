@@ -48,8 +48,13 @@ export const certificationStatusEnum = pgEnum("certification_status", [
   "failed",
 ]);
 export const tutorOperationalModeEnum = pgEnum("tutor_operational_mode", [
+  "applicant",
   "training",
+  "sandbox",
+  "trial",
   "certified_live",
+  "watchlist",
+  "suspended",
 ]);
 export const verificationStatusEnum = pgEnum("verification_status", [
   "pending",
@@ -83,6 +88,7 @@ export const tutorCertificationModeEnum = pgEnum("tutor_certification_mode", [
   "applicant",
   "training",
   "sandbox",
+  "trial",
   "certified_live",
   "watchlist",
   "suspended",
@@ -1058,6 +1064,9 @@ export const affiliateCodes = pgTable("affiliate_codes", {
   personName: varchar("person_name", { length: 128 }),
   entityName: varchar("entity_name", { length: 128 }),
   schoolType: varchar("school_type", { length: 16 }), // 'primary' or 'high'
+  pipelineType: varchar("pipeline_type", { length: 16 }).notNull().default("demand"),
+  campaignName: varchar("campaign_name", { length: 128 }),
+  status: varchar("status", { length: 16 }).notNull().default("active"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -1128,6 +1137,7 @@ export const leads = pgTable("leads", {
   affiliateId: varchar("affiliate_id")
     .notNull()
     .references(() => users.id),
+  productionLinkCode: varchar("production_link_code", { length: 20 }),
   userId: varchar("user_id")
     .notNull()
     .references(() => users.id)
@@ -1306,6 +1316,7 @@ export const parentEnrollments = pgTable("parent_enrollments", {
   assignedStudentId: varchar("assigned_student_id").references(() => students.id),
   proposalId: varchar("proposal_id"),
   assignedAt: timestamp("assigned_at"),
+  assignmentLane: varchar("assignment_lane", { length: 16 }).notNull().default("commercial"),
   proposalSentAt: timestamp("proposal_sent_at"),
   confirmedAt: timestamp("confirmed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1320,6 +1331,73 @@ export const insertParentEnrollmentSchema = createInsertSchema(parentEnrollments
   createdAt: true,
   updatedAt: true,
 });
+
+// ============================================
+// TUTOR TRIAL CERTIFICATION TABLES
+// ============================================
+
+export const tutorTrialCases = pgTable("tutor_trial_cases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tutorId: varchar("tutor_id").notNull().references(() => users.id),
+  tutorAssignmentId: varchar("tutor_assignment_id").notNull().references(() => tutorAssignments.id),
+  status: varchar("status", { length: 32 }).notNull().default("active"),
+  riskState: varchar("risk_state", { length: 24 }).notNull().default("clear"),
+  riskNote: text("risk_note"),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  reviewableAt: timestamp("reviewable_at"),
+  closedAt: timestamp("closed_at"),
+  createdByUserId: varchar("created_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const tutorTrialPlacements = pgTable("tutor_trial_placements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  caseId: varchar("case_id").notNull().references(() => tutorTrialCases.id),
+  enrollmentId: varchar("enrollment_id").notNull().references(() => parentEnrollments.id),
+  parentId: varchar("parent_id").notNull(),
+  studentId: varchar("student_id").notNull().references(() => students.id),
+  familyKey: varchar("family_key").notNull(),
+  status: varchar("status", { length: 24 }).notNull().default("active"),
+  requiredSessionCount: integer("required_session_count").notNull().default(9),
+  feedbackState: varchar("feedback_state", { length: 24 }).notNull().default("pending"),
+  feedbackNote: text("feedback_note"),
+  feedbackRecordedAt: timestamp("feedback_recorded_at"),
+  testimonialPermission: varchar("testimonial_permission", { length: 24 }).notNull().default("not_requested"),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  endedAt: timestamp("ended_at"),
+  createdByUserId: varchar("created_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const tutorTrialReviews = pgTable("tutor_trial_reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  placementId: varchar("placement_id").notNull().references(() => tutorTrialPlacements.id),
+  outcomeClassification: varchar("outcome_classification", { length: 24 }).notNull(),
+  decision: varchar("decision", { length: 32 }).notNull(),
+  evidenceNote: text("evidence_note").notNull(),
+  reviewedByUserId: varchar("reviewed_by_user_id").notNull().references(() => users.id),
+  reviewedAt: timestamp("reviewed_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const tutorCertificationDecisions = pgTable("tutor_certification_decisions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  caseId: varchar("case_id").notNull().references(() => tutorTrialCases.id),
+  decision: varchar("decision", { length: 32 }).notNull(),
+  rationale: text("rationale").notNull(),
+  idempotencyKey: varchar("idempotency_key").notNull(),
+  decidedByUserId: varchar("decided_by_user_id").notNull().references(() => users.id),
+  decidedAt: timestamp("decided_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type TutorTrialCase = typeof tutorTrialCases.$inferSelect;
+export type TutorTrialPlacement = typeof tutorTrialPlacements.$inferSelect;
+export type TutorTrialReview = typeof tutorTrialReviews.$inferSelect;
+export type TutorCertificationDecision = typeof tutorCertificationDecisions.$inferSelect;
 
 // ============================================
 // ONBOARDING PROPOSALS TABLE

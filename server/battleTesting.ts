@@ -448,7 +448,6 @@ async function syncTutorCertificationState(
   const phaseScores = Array.from(latestPhaseScoreMap.values());
   const deepDiveProgress = buildTutorDeepDiveProgress(phaseScores, runs);
   const moduleProgress = buildTutorModuleProgress(deepDiveProgress);
-  const mode = deriveTutorTrainingMode(moduleProgress, deepDiveProgress, currentState, docsComplete);
   const nextBattleTests = buildTutorNextBattleTests(deepDiveProgress);
   const syncedAt = new Date().toISOString();
 
@@ -499,6 +498,14 @@ async function syncTutorCertificationState(
     .limit(1)
     .maybeSingle();
 
+  const mode = reconcileTutorTrainingMode({
+    persistedMode: previousStatus?.mode as TutorTrainingMode | "suspended" | null,
+    moduleProgress,
+    deepDiveProgress,
+    currentState,
+    docsComplete,
+  });
+
   if (previousStatus?.mode === "certified_live" && mode === "training") {
     const driftTriggers = deepDiveProgress.filter(entry => entry.consecutiveDriftCount >= LIVE_RESTRICTION_DRIFT_THRESHOLD);
     recoveryNote = `Moved back to training due to drift in: ${driftTriggers.map(d => d.title).join(", ")}. Must pass all deep dives 3x consecutively to recertify.`;
@@ -525,10 +532,9 @@ async function syncTutorCertificationState(
     recovery_required_until: recoveryRequiredUntil,
   });
 
-  const effectiveOperationalMode = mode === "certified_live" ? "certified_live" : "training";
   const { error: assignmentModeError } = await supabase
     .from("tutor_assignments")
-    .update({ operational_mode: effectiveOperationalMode })
+    .update({ operational_mode: mode })
     .eq("id", tutorAssignmentId);
   if (assignmentModeError) {
     throw new Error(`Failed to sync tutor assignment operational mode: ${assignmentModeError.message}`);
@@ -700,10 +706,9 @@ export async function hydrateTutorAssignmentFromPortableSnapshot(tutorAssignment
     updated_at: syncedAt,
   });
 
-  const effectiveOperationalMode = mode === "certified_live" ? "certified_live" : "training";
   const { error: assignmentModeError } = await supabase
     .from("tutor_assignments")
-    .update({ operational_mode: effectiveOperationalMode })
+    .update({ operational_mode: mode })
     .eq("id", tutorAssignmentId);
 
   if (assignmentModeError) {
@@ -888,7 +893,7 @@ function deriveTutorTrainingMode(
     return "watchlist";
   }
 
-  if (transformationComplete && sessionComplete) return "certified_live";
+  if (transformationComplete && sessionComplete) return "trial";
   if (transformationComplete) return "sandbox";
   return "training";
 }
@@ -951,10 +956,24 @@ export function reconcileTutorTrainingMode({
   }
 
   if (
-    (persistedMode === "watchlist" || persistedMode === "training") &&
-    (computedMode === "sandbox" || computedMode === "certified_live")
+    (persistedMode === "trial" || persistedMode === "certified_live") &&
+    (computedMode === "watchlist" || computedMode === "training" || computedMode === "suspended")
   ) {
     return computedMode;
+  }
+
+  if (
+    (persistedMode === "watchlist" || persistedMode === "training") &&
+    (computedMode === "sandbox" || computedMode === "trial")
+  ) {
+    return computedMode;
+  }
+
+  // Preparation reconciliation cannot issue or revoke a final certification.
+  // Existing Certified Live tutors are grandfathered unless a health rule
+  // explicitly moves them into recovery, watchlist, or suspension.
+  if (persistedMode === "certified_live" && computedMode === "trial") {
+    return "certified_live";
   }
 
   return persistedMode === "suspended" ? "suspended" : persistedMode;

@@ -85,60 +85,50 @@ Operational shorthand:
 | Watchlist | Drift or critical fail signal detected | Restricted and recovery-focused |
 | Suspended | Repeated drift beyond threshold | Removed from active responsibility |
 
-### Where Trial Is Accommodated (Explicit)
+### Where Trial Is Implemented
 
-Trial is inside the Validation Engine and sits before Certified Live in the target architecture.
-
-It is represented as a validation lane and gate sequence, not as a replacement for lifecycle mode governance.
+Trial is a first-class tutor lifecycle mode between Sandbox and Certified Live.
 
 Current implementation progression:
 
-Applicant -> Training -> Sandbox -> Certified Live
-
-Target architecture progression (explicit trial layer):
-
-Applicant -> Training -> Sandbox -> Trial Ready -> Trial Mode -> Certified Live -> Pod Ready
+Applicant -> Training -> Sandbox -> Trial -> Certified Live
 
 Definitions:
 
-- Trial Ready: tutor has met pre-trial readiness gates and may be placed into trial assignments
-- Trial Mode: tutor is actively running trial assignments under validation constraints
+- Trial: tutor is actively running exactly two governed live family placements under validation constraints
+- Certified Live: COO has explicitly approved the tutor after the Trial certification gate
 - Pod Ready: operator-level and pod-level gates are both satisfied for scale participation
 
 Graduation rule:
 
-Trial Mode -> Certified Live is determined by the Specialist Academy Validation Gate.
-That gate is the formal graduation decision point.
+Trial -> Certified Live is determined by the Specialist Academy Validation Gate and an explicit COO decision record.
+Training, sandbox, and Battle Testing completion can open Trial; they cannot certify a new tutor automatically.
 
 Operational interpretation:
 
-- trial family or student status = workflow and commercial lane
+- trial family or student status = assignment lane for the two governed Trial families
 - tutor mode = operating permission lane
-
-This keeps trial in Validation, between Sandbox and Certified Live, with explicit gates.
 
 Target architecture note:
 
-- operating mode should be lifecycle only (applicant, training, sandbox, trial_ready, trial_mode, certified_live, suspended)
+- operating mode should be lifecycle only (applicant, training, sandbox, trial, certified_live, suspended)
 - risk should be tracked separately as health state (locked, watchlist, fail)
 
 ### Implemented gate logic behind mode progression
 
 1. If documentation is incomplete, mode is forced to Applicant.
 2. If Transformation Phases module is complete, tutor can move to SB.
-3. If Transformation Phases plus Session Infrastructure are complete, tutor can move to CL.
+3. If Transformation Phases plus Session Infrastructure are complete, tutor can move to Trial.
 4. If drift or critical fail appears, mode shifts into watchlist behavior.
 5. If repeated drift reaches threshold, mode moves to retraining or suspension based on severity.
 
-Trial gate overlay (target architecture):
+Trial gate overlay:
 
-1. Sandbox -> Trial Ready gate:
-	docs complete, transformation complete, no active fail health, readiness thresholds met.
-2. Trial Ready -> Trial Mode gate:
-	trial slot available, assignment constraints valid, trial policy active for intake window.
-3. Trial Mode -> Certified Live gate:
-	minimum validated trial outcomes achieved, parent trust signals acceptable, no active fail health, and Specialist Academy Validation Gate pass.
-4. Certified Live -> Pod Ready gate:
+1. Sandbox -> Trial gate:
+	docs complete, transformation complete, session infrastructure complete, readiness thresholds met, no active fail health.
+2. Trial -> Certified Live gate:
+	exactly two distinct Trial families, nine qualifying sessions per family, required logs and reports, feedback received or declined, positive COO outcome reviews, no active Trial risk, and explicit COO approval.
+3. Certified Live -> Pod Ready gate:
 	certified_live operator conditions plus pod-level composition and quality gates pass.
 
 Meaning: trust expands only when evidence is present.
@@ -151,17 +141,13 @@ Meaning: trust expands only when evidence is present.
 - Pilot onboarding can bypass immediate payment and run a pilot block before standard paid conversion.
 - Current operating decision: pilot block remains 9 free sessions.
 
-### Proposed architecture variant discussed
-
-- Proposed trial size was 4 sessions before conversion.
-
 ### Current decision in this model
 
 - Keep 9 free pilot sessions for now.
 - Treat 9-session pilot as a Validation asset, not a discount mechanic.
 - Conversion to commercial must pass trial-to-live evidence gates.
 
-### Billing and conversion gates for Trial Mode
+### Billing and conversion gates for Trial
 
 1. Trial entry gate:
 	family is marked pilot, trial capacity available, and intake or validation policy allows entry.
@@ -174,7 +160,7 @@ Meaning: trust expands only when evidence is present.
 
 ## Sandbox Criteria Framework (6 Sandbox Accounts)
 
-This is the practical readiness pack before Trial Ready.
+This is the practical readiness pack before Trial.
 
 Total sandbox accounts allocated per specialist: 6
 
@@ -187,7 +173,7 @@ Required evidence from each account:
 
 Interpretation:
 
-- report content must match actual drill and session logs
+- report content must match actual drill logic from the OS
 
 ### Lane B: Conditioning Execution (2 active accounts)
 
@@ -199,7 +185,7 @@ Required evidence:
 Interpretation:
 
 - end-to-end means phase progression with valid transition evidence
-- concurrency means quality must hold while load increases
+- concurrency means quality must hold while load increases at the same time
 
 ### Lane C: Control Buffer (1 untouched account)
 
@@ -212,9 +198,9 @@ Purpose:
 - preserves a controlled account for late-stage corrections and stress tests
 - provides contingency for remediation or verification without contaminating completed evidence
 
-### Sandbox -> Trial Ready Gate Decision
+### Sandbox -> Trial Gate Decision
 
-A specialist moves from Sandbox to Trial Ready only when all are true:
+A specialist moves from Sandbox to Trial only when all are true:
 
 1. Lane A thresholds are met and triggered.
 2. Lane B thresholds are met and evidenced.
@@ -223,6 +209,8 @@ A specialist moves from Sandbox to Trial Ready only when all are true:
 5. Specialist Academy Validation Gate signs off readiness.
 
 If any condition fails, the system returns a deterministic failure reason and assigns remediation work before retest.
+
+There should be a progress bar regarding this so the user knows
 
 ## Capacity -> Validation -> Pod Economy
 
@@ -279,9 +267,8 @@ Academy owns the truth of "capacity readiness" and therefore controls the first 
 
 - Applicant -> Training
 - Training -> SB
-- SB -> Trial Ready eligibility
-- Trial Ready -> Trial Mode readiness
-- Trial Mode -> CL graduation (via Specialist Academy Validation Gate)
+- SB -> Trial eligibility
+- Trial -> CL graduation (via Specialist Academy Validation Gate plus explicit COO decision)
 
 Validation and operations then control the next gates:
 
@@ -316,7 +303,7 @@ Output:
 
 Clarification:
 
-- Specialist Academy Validation Gate governs tutor graduation (including Trial Mode -> Certified Live).
+- Specialist Academy Validation Gate governs tutor graduation (including Trial -> Certified Live).
 - Stage 2 Validation Gate governs system-scale permission (whether scaling should open or remain constrained).
 
 ## Validation Gate (Before Scale)
@@ -345,10 +332,10 @@ After validation is stable, the system shifts from proving to repeating.
 
 Pod unit target:
 
-- 12 specialists
+- 12 certified response conditioning specialists
 - 36 students
 - 3 students per specialist
-- 9-month conditioning arc
+- 9-month conditioning arc (well, depending on intake window)
 
 Pods are the operating unit, not just a reporting artifact.
 
@@ -493,8 +480,7 @@ Keep operating mode as:
 - applicant
 - training
 - sandbox
-- trial_ready
-- trial_mode
+- trial
 - certified_live
 - suspended
 
@@ -517,9 +503,8 @@ For each major transition, define required conditions and machine-readable failu
 Examples:
 
 - Training -> Sandbox requires: docs complete, transformation module complete, no critical fail lock
-- Sandbox -> Trial Ready requires: transformation complete, session infrastructure complete, readiness threshold met, no active fail health
-- Trial Ready -> Trial Mode requires: trial capacity and assignment policy checks pass
-- Trial Mode -> Certified Live requires: validated trial outcomes, parent trust checks, no active fail health
+- Sandbox -> Trial requires: transformation complete, session infrastructure complete, readiness threshold met, no active fail health
+- Trial -> Certified Live requires: exactly two distinct Trial families, nine qualifying sessions per family, required logs and reports, feedback received or declined, positive COO outcome reviews, no active Trial risk, and explicit COO approval
 - Certified Live -> Pod Assignment requires: mode is certified_live, health not fail, assignment-cap rules satisfied
 
 ### Tweak 3: Introduce a single Validation Gate object

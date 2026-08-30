@@ -15,6 +15,12 @@ Every Demand Contributor owns a Production Link.
 
 Every opportunity entering through that Production Link is traced from origin to subscription.
 
+New links use `?production=CODE&pipeline=demand` or
+`?production=CODE&pipeline=capacity`. Legacy `?affiliate=CODE` links remain
+accepted and resolve to the demand pipeline. The production code is retained
+on the lead or specialist application; UTM values are supplementary reporting
+labels, not the source of attribution truth.
+
 Production Rewards are only unlocked after a verified subscription following a completed trial.
 
 ### Demand Production Flow
@@ -116,6 +122,11 @@ If multiple contributors own the Production Link, rewards follow the predefined 
 
 If organic, no reward is released and the platform retains full production allocation.
 
+For the MVP, an eligible demand contributor receives **R100 per verified
+converted student**. Verification requires a completed trial followed by a
+paid subscription. This demand reward is separate from the specialist's R750
+monthly service share and the platform's R250 production share.
+
 ### Success Metric
 Demand Production does not optimize for leads.
 
@@ -147,7 +158,7 @@ Training
     ↓
 Sandbox
     ↓
-Trial-Ready
+Trial
     ↓
 Certified Live Specialist
     ↓
@@ -215,19 +226,21 @@ Output:
 
 Sandbox specialist.
 
-#### 5. Trial-Ready
-The specialist has demonstrated operational readiness.
+#### 5. Trial
+The specialist has demonstrated operational readiness and enters supervised live validation.
 
-They may participate in supervised validation activities.
+They may carry exactly two governed Trial families.
+
+Each family requires nine qualifying sessions, required deterministic logs and reports, feedback received or declined, and a positive COO outcome review.
 
 Output:
 
-Trial-ready specialist.
+Trial specialist.
 
 #### 6. Certified Live Specialist
-The specialist satisfies all Academy standards.
+The specialist satisfies all Academy standards and the full Trial validation gate.
 
-Certification is issued.
+Certification is issued only after explicit COO approval. Testimonials remain optional.
 
 Output:
 

@@ -27,8 +27,12 @@ const pathwayStages = [
     body: "You move through protected practice pressure where execution is checked before live student responsibility opens.",
   },
   {
+    title: "Trial",
+    body: "You carry exactly two governed Trial families and complete nine qualifying sessions per family before certification can be reviewed.",
+  },
+  {
     title: "Certified Live",
-    body: "Only evidence-backed tutors become deployable into the live student pool.",
+    body: "Only tutors with complete Trial evidence and explicit COO approval become deployable into the live student pool.",
   },
 ] as const;
 
@@ -257,7 +261,7 @@ export default function TutorIntakeEntry() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8A4B35]">How trust opens</p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-[#171311]">The intake window creates entry. Evidence creates trust.</h2>
             <p className="mt-4 text-sm leading-7 text-[#534B45] sm:text-base">
-              Response Integrity does not hire tutors casually. The application window gets you into the system. What happens after that is earned through applicant mode, training pressure, sandbox readiness, and live certification.
+              Response Integrity does not hire tutors casually. The application window gets you into the system. What happens after that is earned through applicant mode, training pressure, sandbox readiness, governed Trial validation, and explicit live certification.
             </p>
           </div>
 

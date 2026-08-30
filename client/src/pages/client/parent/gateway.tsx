@@ -6,12 +6,15 @@ import { CheckCircle2, Circle, ArrowLeft, Check, Plus, X } from "lucide-react";
 import { ResponseIntegrityLogo } from "@/components/ResponseIntegrityLogo";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
 import ProposalView from "@/components/parent/ProposalView";
 import { PushOptInCard } from "@/components/push/PushOptInCard";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "@/lib/config";
+import { Textarea } from "@/components/ui/textarea";
+import { TrialProgressCard } from "@/components/trial/TrialProgressCard";
+import type { TrialCaseOverview, TrialTestimonialPermission } from "@shared/trialCertification";
 import {
   Dialog,
   DialogContent,
@@ -44,7 +47,7 @@ interface EnrollmentStatus {
 
 interface IntroSessionConfirmation {
   status?: string;
-  operationalMode?: "training" | "certified_live";
+  operationalMode?: "training" | "trial" | "certified_live";
   scheduled_time?: string;
   id?: string;
   introCompleted?: boolean;
@@ -297,6 +300,65 @@ export default function ParentGateway() {
     refetchInterval: 5000, // Poll every 5s for status updates
   });
 
+  const {
+    data: trialCasePayload,
+    isLoading: trialCaseLoading,
+  } = useQuery<{ case: TrialCaseOverview | null }>({
+    queryKey: ["/api/parent/trial-case"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: !!user && !authLoading,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchInterval: 10000,
+  });
+
+  const [trialFeedbackNote, setTrialFeedbackNote] = useState("");
+  const [trialTestimonialPermission, setTrialTestimonialPermission] =
+    useState<TrialTestimonialPermission>("not_requested");
+  const trialCase = trialCasePayload?.case || null;
+  const trialPlacement = trialCase?.placements?.[0] || null;
+  const trialFeedbackMutation = useMutation({
+    mutationFn: async ({ feedbackState }: { feedbackState: "received" | "declined" }) => {
+      if (!trialPlacement) throw new Error("Trial placement is not loaded.");
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+      const response = await fetch(`${API_URL}/api/parent/trial-placements/${trialPlacement.id}/feedback`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          feedbackState,
+          feedbackNote: feedbackState === "received" ? trialFeedbackNote : "Family formally declined feedback.",
+          testimonialPermission: feedbackState === "received" ? trialTestimonialPermission : "declined",
+        }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to record Trial feedback.");
+      }
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/parent/trial-case"] });
+      toast({
+        title: "Trial feedback recorded",
+        description: "Your feedback was received. Final certification remains a COO review decision.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Feedback not saved",
+        description: error?.message || "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Fetch proposal if available
   const { data: proposal, isLoading: proposalLoading, error: proposalError } = useQuery<any>({
     queryKey: ["/api/parent/proposal"],
@@ -500,7 +562,7 @@ export default function ParentGateway() {
           queryClient.invalidateQueries({ queryKey: ["/api/parent/intro-session-confirmation"] }),
           queryClient.invalidateQueries({ queryKey: ["/api/parent/training-sessions"] }),
         ]);
-        await queryClient.refetchQueries({ queryKey: ["/api/parent/training-sessions"], active: true });
+        await queryClient.refetchQueries({ queryKey: ["/api/parent/training-sessions"], type: "active" });
         return;
       }
       if (!data?.checkoutUrl || !data?.formFields) {
@@ -1670,6 +1732,73 @@ export default function ParentGateway() {
                       </div>
                     </div>
                   )}
+
+                  {trialCaseLoading ? (
+                    <div className="mt-6 rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+                      Loading Trial validation status...
+                    </div>
+                  ) : trialCase ? (
+                    <div className="mt-6 space-y-4">
+                      <TrialProgressCard trialCase={trialCase} mode="trial" audience="family" />
+                      {trialPlacement?.feedbackState === "pending" && trialPlacement.progress.evidenceComplete ? (
+                        <Card className="border-amber-200 bg-amber-50/30">
+                          <CardHeader className="p-4 sm:p-6 pb-2">
+                            <CardTitle className="text-base sm:text-lg">Trial Family Feedback</CardTitle>
+                            <CardDescription className="text-xs sm:text-sm">
+                              Your specialist has reached the Trial review boundary for your family. Feedback is required or may be formally declined; testimonials are optional.
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-4 p-4 sm:p-6 pt-2">
+                            <Textarea
+                              value={trialFeedbackNote}
+                              onChange={(event) => setTrialFeedbackNote(event.target.value)}
+                              placeholder="Share what changed, what did not change, and anything the COO should consider."
+                              className="min-h-[110px]"
+                            />
+                            <div className="rounded-lg border bg-background/80 p-3">
+                              <p className="text-sm font-medium">Optional testimonial permission</p>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                This does not affect the tutor's certification decision.
+                              </p>
+                              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                                {[
+                                  ["not_requested", "Not now"],
+                                  ["granted", "Permission granted"],
+                                  ["declined", "No permission"],
+                                ].map(([value, label]) => (
+                                  <Button
+                                    key={value}
+                                    type="button"
+                                    variant={trialTestimonialPermission === value ? "default" : "outline"}
+                                    onClick={() => setTrialTestimonialPermission(value as TrialTestimonialPermission)}
+                                  >
+                                    {label}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <Button
+                                type="button"
+                                disabled={trialFeedbackMutation.isPending || !trialFeedbackNote.trim()}
+                                onClick={() => trialFeedbackMutation.mutate({ feedbackState: "received" })}
+                              >
+                                {trialFeedbackMutation.isPending ? "Saving..." : "Submit feedback"}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                disabled={trialFeedbackMutation.isPending}
+                                onClick={() => trialFeedbackMutation.mutate({ feedbackState: "declined" })}
+                              >
+                                Decline feedback
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ) : null}
+                    </div>
+                  ) : null}
 
                   {!isTrainingMode && (effectiveIntroSessionConfirmation?.status === "not_scheduled" || !effectiveIntroSessionConfirmation?.status) && (
                     <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">

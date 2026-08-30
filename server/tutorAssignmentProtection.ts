@@ -325,6 +325,38 @@ export async function cleanupLegacyLiveEnrollmentsForNonLiveTutor(
     return { detachedCount: 0, detachedEnrollments: [] as any[] };
   }
 
+  let protectedTrialEnrollmentIds = new Set<string>();
+  if (certificationMode === "trial") {
+    const { data: trialCases, error: trialCaseError } = await supabase
+      .from("tutor_trial_cases")
+      .select("id")
+      .eq("tutor_id", tutorId)
+      .in("status", ["active", "reviewable", "remediation_required"]);
+
+    if (trialCaseError) {
+      console.error("Failed to verify governed Trial placements during assignment cleanup:", trialCaseError);
+      return { detachedCount: 0, detachedEnrollments: [] as any[] };
+    }
+
+    const trialCaseIds = (trialCases || []).map((trialCase: any) => String(trialCase.id));
+    if (trialCaseIds.length > 0) {
+      const { data: trialPlacements, error: trialPlacementError } = await supabase
+        .from("tutor_trial_placements")
+        .select("enrollment_id")
+        .in("case_id", trialCaseIds)
+        .in("status", ["active", "completed"]);
+
+      if (trialPlacementError) {
+        console.error("Failed to verify governed Trial placements during assignment cleanup:", trialPlacementError);
+        return { detachedCount: 0, detachedEnrollments: [] as any[] };
+      }
+
+      protectedTrialEnrollmentIds = new Set(
+        (trialPlacements || []).map((placement: any) => String(placement.enrollment_id)),
+      );
+    }
+  }
+
   let liveEnrollments: any[] | null = null;
   let liveEnrollmentsError: any = null;
   {
@@ -366,6 +398,9 @@ export async function cleanupLegacyLiveEnrollmentsForNonLiveTutor(
 
   const detachedEnrollments: any[] = [];
   for (const enrollment of liveEnrollments || []) {
+    if (certificationMode === "trial" && protectedTrialEnrollmentIds.has(String(enrollment.id))) {
+      continue;
+    }
     await safelyUnassignEnrollmentFromTutor(enrollment, tutorId);
     detachedEnrollments.push(enrollment);
   }

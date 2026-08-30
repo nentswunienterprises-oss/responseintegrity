@@ -24,6 +24,7 @@ import {
   weeklyCheckIns,
 } from "@shared/schema";
 import { isAllowedOdEmail, normalizeEmail } from "@shared/odAccess";
+import type { TutorTrainingMode } from "@shared/battleTesting";
 
 // Initialize Supabase client with service role key to bypass RLS
 const supabaseUrl = process.env.SUPABASE_URL!;
@@ -32,21 +33,23 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABAS
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Create affiliate code (used by routes.ts)
-export async function createAffiliateCode({ affiliateId, code, type, personName, entityName, schoolType }: {
+export async function createAffiliateCode({ affiliateId, code, type, personName, entityName, schoolType, pipelineType = "demand", campaignName }: {
   affiliateId: string;
   code: string;
   type?: string;
   personName?: string;
   entityName?: string;
   schoolType?: string;
+  pipelineType?: string;
+  campaignName?: string;
 }) {
   const text = `
     INSERT INTO affiliate_codes
-      (affiliate_id, code, type, person_name, entity_name, school_type, created_at)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
+      (affiliate_id, code, type, person_name, entity_name, school_type, pipeline_type, campaign_name, created_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     RETURNING *;
   `;
-  const values = [affiliateId, code, type, personName, entityName, schoolType, new Date()];
+  const values = [affiliateId, code, type, personName, entityName, schoolType, pipelineType, campaignName || null, new Date()];
   const result = await (await import('./db')).pool.query(text, values);
   return result.rows[0];
 }
@@ -294,7 +297,7 @@ export interface IStorage {
   getTutorAssignment(tutorId: string): Promise<(TutorAssignment & { pod: Pod }) | undefined>;
   getTutorAssignmentsByPod(podId: string): Promise<TutorAssignment[]>;
   updateCertificationStatus(id: string, status: string): Promise<void>;
-  updateTutorOperationalMode(id: string, operationalMode: "training" | "certified_live"): Promise<void>;
+  updateTutorOperationalMode(id: string, operationalMode: TutorTrainingMode): Promise<void>;
   deleteTutorAssignment(id: string): Promise<void>;
 
   createStudent(student: InsertStudent): Promise<Student>;
@@ -839,7 +842,7 @@ export class SupabaseStorage implements IStorage {
     await supabase.from("tutor_assignments").update({ certification_status: status }).eq("id", id);
   }
 
-  async updateTutorOperationalMode(id: string, operationalMode: "training" | "certified_live"): Promise<void> {
+  async updateTutorOperationalMode(id: string, operationalMode: TutorTrainingMode): Promise<void> {
     await supabase.from("tutor_assignments").update({ operational_mode: operationalMode }).eq("id", id);
   }
 
@@ -2379,7 +2382,7 @@ export class SupabaseStorage implements IStorage {
   async getAffiliateByCode(code: string): Promise<any | null> {
     const { data } = await supabase
       .from("affiliate_codes")
-      .select("affiliate_id, type, person_name, entity_name")
+      .select("affiliate_id, code, type, person_name, entity_name, pipeline_type, campaign_name, status")
       .eq("code", code)
       .maybeSingle();
     if (!data) return null;
@@ -2389,6 +2392,10 @@ export class SupabaseStorage implements IStorage {
       affiliate_id: data.affiliate_id,
       affiliate_type: data.type || null,
       affiliate_name,
+      production_link_code: data.code,
+      pipeline_type: data.pipeline_type || "demand",
+      campaign_name: data.campaign_name || null,
+      status: data.status || "active",
     };
   }
 
@@ -2448,7 +2455,7 @@ export class SupabaseStorage implements IStorage {
     affiliateId: string,
     parentId: string,
     encounterId?: string,
-    trackingData?: { trackingSource?: string; trackingCampaign?: string; leadType?: string; affiliateType?: string; affiliateName?: string }
+    trackingData?: { trackingSource?: string; trackingCampaign?: string; leadType?: string; affiliateType?: string; affiliateName?: string; productionLinkCode?: string }
   ): Promise<any> {
     // Use null for organic leads (no affiliate)
     let query = supabase
@@ -2480,6 +2487,7 @@ export class SupabaseStorage implements IStorage {
       encounter_id: encounterId || null,
       tracking_source: trackingData?.trackingSource || 'affiliate',
       tracking_campaign: trackingData?.trackingCampaign || null,
+      production_link_code: trackingData?.productionLinkCode || null,
       onboarding_type: trackingData?.onboardingType || 'pilot',
       full_name: trackingData?.fullName || '',
     };
@@ -2564,6 +2572,44 @@ export class SupabaseStorage implements IStorage {
     if (!lead) {
       throw new Error("Lead not found");
     }
+
+    const { data: existingClose } = await supabase
+      .from("closes")
+      .select("id")
+      .eq("affiliate_id", affiliateId)
+      .eq("lead_id", lead.id)
+      .eq("parent_id", parentId)
+      .eq("student_id", studentId)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingClose) {
+      throw new Error("A production reward has already been recorded for this conversion");
+    }
+
+    const { data: trialEvidence } = await supabase
+      .from("intro_session_drills")
+      .select("id")
+      .eq("student_id", studentId)
+      .limit(1)
+      .maybeSingle();
+
+    if (!trialEvidence) {
+      throw new Error("A completed trial is required before a production reward can be recorded");
+    }
+
+    const { data: paidSubscription } = await supabase
+      .from("payment_transactions")
+      .select("id")
+      .eq("parent_id", parentId)
+      .eq("student_id", studentId)
+      .eq("payment_status", "paid")
+      .limit(1)
+      .maybeSingle();
+
+    if (!paidSubscription) {
+      throw new Error("A verified paid subscription is required before a production reward can be recorded");
+    }
     
     const { data, error } = await supabase
       .from("closes")
@@ -2573,6 +2619,9 @@ export class SupabaseStorage implements IStorage {
         lead_id: lead.id,
         student_id: studentId,
         pod_id: podId || null,
+        commission_amount: "100.00",
+        commission_status: "pending",
+        closed_at: new Date().toISOString(),
       })
       .select()
       .single();

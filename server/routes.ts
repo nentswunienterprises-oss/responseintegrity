@@ -49,6 +49,13 @@ import {
   type AdaptiveDiagnosisBand,
 } from "@shared/adaptiveDiagnosis";
 import {
+  getDrillSchemaDefinition,
+  hasSemanticEvidenceContract,
+  validateAndNormalizeSemanticEvidenceSet,
+  type EvidenceDrillMode,
+} from "@shared/responseIntegrityDrillRegistry";
+import type { EvidenceLedgerProjectionInput } from "@shared/responseIntegrityEvidenceLedger";
+import {
   buildStartingPhaseRationale,
   getResponseSymptomLabels,
   normalizeResponseSymptoms,
@@ -96,6 +103,19 @@ import {
   safelyUnassignEnrollmentFromTutor,
 } from "./tutorAssignmentProtection";
 import { registerExecutiveCommandRhythmRoutes } from "./routes/executiveCommandRhythm";
+import { normalizeProductionPipeline } from "@shared/productionLinks";
+import { persistResponseIntegrityEvidenceLedgerShadow } from "./responseIntegrityEvidenceLedger";
+import {
+  createTrialCase,
+  createTrialPlacement,
+  decideTrialCase,
+  getOpenTrialCaseForTutor,
+  getParentTrialCase,
+  getTrialCaseById,
+  recordTrialFeedback,
+  recordTrialReview,
+  removeTrialPlacementCreatedDuringFailedAssignment,
+} from "./trialCertification";
 
 const PREMIUM_PLAN_NAME = "Premium";
 const PREMIUM_PLAN_AMOUNT = "1000.00";
@@ -389,9 +409,12 @@ const requireRole = (roles: string[]) => {
   };
 };
 
-async function getTutorOperationalMode(tutorId: string): Promise<"training" | "certified_live"> {
-  const mode = await getTutorCertificationMode(tutorId);
-  return mode === "certified_live" ? "certified_live" : "training";
+async function getTutorOperationalMode(tutorId: string): Promise<TutorTrainingMode> {
+  return getTutorCertificationMode(tutorId);
+}
+
+function isLiveSchedulingMode(mode: TutorTrainingMode) {
+  return mode === "trial" || mode === "certified_live";
 }
 
 async function getTutorCertificationMode(tutorId: string): Promise<TutorTrainingMode> {
@@ -459,9 +482,7 @@ async function getTutorCertificationMode(tutorId: string): Promise<TutorTraining
     return portableSnapshot.mode as TutorTrainingMode;
   }
 
-  return (assignment?.operationalMode as "training" | "certified_live" | undefined) === "certified_live"
-    ? "certified_live"
-    : "training";
+  return (assignment?.operationalMode as TutorTrainingMode | undefined) || "training";
 }
 
 async function createPortableTutorAssignment(tutorId: string, podId: string) {
@@ -510,7 +531,7 @@ async function rollbackPortableTutorAssignments(assignments: Array<{ id: string 
   }
 }
 
-async function getParentAssignedTutorOperationalMode(parentId: string): Promise<"training" | "certified_live"> {
+async function getParentAssignedTutorOperationalMode(parentId: string): Promise<TutorTrainingMode> {
   let assignedTutorId: string | null = null;
 
   const directEnrollmentResult = await supabase
@@ -569,7 +590,7 @@ async function getParentAssignedTutorOperationalMode(parentId: string): Promise<
   return getTutorOperationalMode(assignedTutorId);
 }
 
-async function getStudentOperationalMode(studentId: string): Promise<"training" | "certified_live"> {
+async function getStudentOperationalMode(studentId: string): Promise<TutorTrainingMode> {
   const student = await storage.getStudent(studentId);
   if (!student?.tutorId) return "training";
   return getTutorOperationalMode(student.tutorId);
@@ -577,7 +598,7 @@ async function getStudentOperationalMode(studentId: string): Promise<"training" 
 
 function isMissingSandboxAccountColumnError(error: any) {
   const message = String(error?.message || "").toLowerCase();
-  return message.includes("is_sandbox_account") || message.includes("student_gender");
+  return message.includes("is_sandbox_account") || message.includes("student_gender") || message.includes("assignment_lane");
 }
 
 function isTutorScopedSandboxParentEmail(parentEmail: string | null | undefined, tutorId?: string) {
@@ -1392,7 +1413,7 @@ async function loadTutorAssignmentLoadStats(tutorId: string) {
   {
     const initial = await supabase
       .from("parent_enrollments")
-      .select("id, status, current_step, is_sandbox_account, parent_full_name, parent_email, student_full_name")
+      .select("id, status, current_step, is_sandbox_account, assignment_lane, parent_full_name, parent_email, student_full_name")
       .eq("assigned_tutor_id", tutorId)
       .in("status", [...ACTIVE_PARENT_ENROLLMENT_STATUSES, "awaiting_tutor_acceptance"]);
 
@@ -1418,13 +1439,19 @@ async function loadTutorAssignmentLoadStats(tutorId: string) {
   const sandboxEnrollments = enrollments.filter((enrollment: any) =>
     isSandboxEnrollmentForTutor(enrollment, tutorId)
   );
+  const trialEnrollments = enrollments.filter(
+    (enrollment: any) => String(enrollment.assignment_lane || "").trim().toLowerCase() === "trial"
+  );
   const liveEnrollments = enrollments.filter(
-    (enrollment: any) => !isSandboxEnrollmentForTutor(enrollment, tutorId)
+    (enrollment: any) =>
+      !isSandboxEnrollmentForTutor(enrollment, tutorId) &&
+      String(enrollment.assignment_lane || "commercial").trim().toLowerCase() !== "trial"
   );
 
   return {
     activeAssignmentCount: enrollments.length,
     sandboxParentCount: sandboxEnrollments.length,
+    trialParentCount: trialEnrollments.length,
     liveParentCount: liveEnrollments.length,
     awaitingTutorAcceptanceCount: enrollments.filter(
       (enrollment: any) => String(enrollment.status || "").trim().toLowerCase() === "awaiting_tutor_acceptance"
@@ -1436,12 +1463,14 @@ function derivePodOperatingState(modeCounts: Record<string, number>, totalTutors
   const applicant = modeCounts.applicant || 0;
   const training = modeCounts.training || 0;
   const sandbox = modeCounts.sandbox || 0;
+  const trial = modeCounts.trial || 0;
   const certifiedLive = modeCounts.certified_live || 0;
   const watchlist = modeCounts.watchlist || 0;
   const suspended = modeCounts.suspended || 0;
   const trainingSideCount = applicant + training + watchlist + suspended;
   const activeStateBuckets = [
     certifiedLive > 0 ? "certified_live" : null,
+    trial > 0 ? "trial_validation" : null,
     sandbox > 0 ? "sandbox" : null,
     trainingSideCount > 0 ? "training_side" : null,
   ].filter(Boolean);
@@ -1459,6 +1488,14 @@ function derivePodOperatingState(modeCounts: Record<string, number>, totalTutors
       key: "certified_live",
       label: "Certified Live Pod",
       description: "Every tutor in this pod is certified for live parent responsibility.",
+    };
+  }
+
+  if (trial === totalTutors) {
+    return {
+      key: "trial_validation",
+      label: "Trial Validation Pod",
+      description: "Every tutor in this pod is carrying exactly bounded live Trial responsibility before certification.",
     };
   }
 
@@ -1534,6 +1571,7 @@ async function buildPodOperatingOverview(pod: any) {
       applicant: modeCounts.applicant || 0,
       training: modeCounts.training || 0,
       sandbox: modeCounts.sandbox || 0,
+      trial: modeCounts.trial || 0,
       certified_live: modeCounts.certified_live || 0,
       watchlist: modeCounts.watchlist || 0,
       suspended: modeCounts.suspended || 0,
@@ -1541,11 +1579,12 @@ async function buildPodOperatingOverview(pod: any) {
     assignmentCounts: tutorLoadStats.reduce(
       (acc, stats) => {
         acc.liveParents += stats.liveParentCount;
+        acc.trialParents += stats.trialParentCount;
         acc.sandboxParents += stats.sandboxParentCount;
         acc.awaitingTutorAcceptance += stats.awaitingTutorAcceptanceCount;
         return acc;
       },
-      { liveParents: 0, sandboxParents: 0, awaitingTutorAcceptance: 0 }
+      { liveParents: 0, trialParents: 0, sandboxParents: 0, awaitingTutorAcceptance: 0 }
     ),
     operatingState,
   };
@@ -3184,20 +3223,71 @@ async function getPendingTrainingConfirmationSession(tutorId: string, studentId:
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+          const persistEvidenceLedgerShadow = async (input: EvidenceLedgerProjectionInput) => {
+            const result = await persistResponseIntegrityEvidenceLedgerShadow(supabase as any, input);
+            const logContext = {
+              sourceDrillId: input.sourceDrillId,
+              drillType: input.drillType,
+              status: result.status,
+              entryCount: result.entryCount,
+              errorCode: result.errorCode || null,
+              issues: result.issues || [],
+            };
+            if (result.status === "projection_invalid" || result.status === "persistence_failed") {
+              console.warn("[RI_EVIDENCE_LEDGER_SHADOW] projection not persisted", logContext);
+            } else {
+              console.info("[RI_EVIDENCE_LEDGER_SHADOW] projection complete", logContext);
+            }
+            return result;
+          };
+
+          type NormalizedEvidenceSet = {
+            setName: string;
+            setId?: string;
+            setOrder?: number;
+            drillSchemaId?: string;
+            drillSchemaVersion?: number;
+            drillDefinitionHash?: string;
+            constraintProfile?: Record<string, unknown> | null;
+            observations: Array<Record<string, string>>;
+          };
+
           const parseAuthoritativePhase = (value: unknown): TopicPhase | null => {
             return tryParsePhase(value);
           };
 
-          const normalizeIntroDrillSets = (raw: any): Array<{ setName: string; observations: Array<Record<string, string>> }> => {
+          const normalizeIntroDrillSets = (raw: any): NormalizedEvidenceSet[] => {
             if (Array.isArray(raw)) {
               return raw.map((set: any) => ({
                 setName: String(set?.setName || "Set"),
+                setId: String(set?.setId || "").trim() || undefined,
+                setOrder: Number.isInteger(Number(set?.setOrder)) ? Number(set.setOrder) : undefined,
+                drillSchemaId: String(set?.drillSchemaId || "").trim() || undefined,
+                drillSchemaVersion: Number.isInteger(Number(set?.drillSchemaVersion))
+                  ? Number(set.drillSchemaVersion)
+                  : undefined,
+                drillDefinitionHash: String(set?.drillDefinitionHash || "").trim() || undefined,
+                constraintProfile:
+                  set?.constraintProfile && typeof set.constraintProfile === "object"
+                    ? set.constraintProfile
+                    : null,
                 observations: Array.isArray(set?.observations) ? set.observations : [],
               }));
             }
             if (raw && Array.isArray(raw.sets)) {
               return raw.sets.map((set: any) => ({
                 setName: String(set?.setName || "Set"),
+                setId: String(set?.setId || "").trim() || undefined,
+                setOrder: Number.isInteger(Number(set?.setOrder)) ? Number(set.setOrder) : undefined,
+                drillSchemaId: String(set?.drillSchemaId || "").trim() || undefined,
+                drillSchemaVersion: Number.isInteger(Number(set?.drillSchemaVersion))
+                  ? Number(set.drillSchemaVersion)
+                  : undefined,
+                drillDefinitionHash: String(set?.drillDefinitionHash || "").trim() || undefined,
+                constraintProfile:
+                  set?.constraintProfile && typeof set.constraintProfile === "object"
+                    ? set.constraintProfile
+                    : null,
                 observations: Array.isArray(set?.observations) ? set.observations : [],
               }));
             }
@@ -3209,6 +3299,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ): Array<{
             phase: TopicPhase;
             setName: string;
+            setId?: string;
+            setOrder?: number;
+            drillSchemaId?: string;
+            drillSchemaVersion?: number;
+            drillDefinitionHash?: string;
+            constraintProfile?: Record<string, unknown> | null;
             observations: Array<Record<string, string>>;
           }> => {
             if (!Array.isArray(raw)) return [];
@@ -3220,12 +3316,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return {
                   phase,
                   setName: String(block?.setName || "Verification Block"),
+                  setId: String(block?.setId || "").trim() || undefined,
+                  setOrder: Number.isInteger(Number(block?.setOrder)) ? Number(block.setOrder) : undefined,
+                  drillSchemaId: String(block?.drillSchemaId || "").trim() || undefined,
+                  drillSchemaVersion: Number.isInteger(Number(block?.drillSchemaVersion))
+                    ? Number(block.drillSchemaVersion)
+                    : undefined,
+                  drillDefinitionHash: String(block?.drillDefinitionHash || "").trim() || undefined,
+                  constraintProfile:
+                    block?.constraintProfile && typeof block.constraintProfile === "object"
+                      ? block.constraintProfile
+                      : null,
                   observations: Array.isArray(block?.observations) ? block.observations : [],
                 };
               })
               .filter(Boolean) as Array<{
               phase: TopicPhase;
               setName: string;
+              setId?: string;
+              setOrder?: number;
+              drillSchemaId?: string;
+              drillSchemaVersion?: number;
+              drillDefinitionHash?: string;
+              constraintProfile?: Record<string, unknown> | null;
               observations: Array<Record<string, string>>;
             }>;
           };
@@ -3236,54 +3349,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
               "Clarity" | "Structured Execution" | "Controlled Discomfort" | "Time Pressure Stability",
               Array<{ setName: string; reps: number; modelingOnly?: boolean }>
             >
-          > = {
-            diagnosis: {
-              Clarity: [
-                { setName: "Recognition Probe", reps: 3 },
-                { setName: "Light Apply Probe", reps: 3 },
-              ],
-              "Structured Execution": [
-                { setName: "Start + Structure", reps: 3 },
-                { setName: "Repeatability", reps: 3 },
-              ],
-              "Controlled Discomfort": [
-                { setName: "First Contact", reps: 3 },
-                { setName: "Pressure Hold", reps: 3 },
-              ],
-              "Time Pressure Stability": [
-                { setName: "Light Timer", reps: 3 },
-                { setName: "Consistency", reps: 3 },
-              ],
-            },
-            training: {
-              Clarity: [
-                { setName: "Modeling", reps: 1, modelingOnly: true },
-                { setName: "Identification", reps: 3 },
-                { setName: "Light Apply", reps: 3 },
-              ],
-              "Structured Execution": [
-                { setName: "Required Structure", reps: 3 },
-                { setName: "Independent Execution", reps: 3 },
-                { setName: "Variation Control", reps: 3 },
-              ],
-              "Controlled Discomfort": [
-                { setName: "Controlled Entry", reps: 3 },
-                { setName: "No Rescue", reps: 3 },
-                { setName: "Repeat Exposure", reps: 3 },
-              ],
-              "Time Pressure Stability": [
-                { setName: "Structure Under Timer", reps: 3 },
-                { setName: "Repeated Timed Execution", reps: 3 },
-                { setName: "Full Constraint", reps: 3 },
-              ],
-            },
-          };
+          > = Object.fromEntries(
+            (["diagnosis", "training"] as const).map((mode) => [
+              mode,
+              Object.fromEntries(
+                PHASES.map((phase) => [
+                  phase,
+                  getDrillSchemaDefinition(mode, phase).sets.map((definition) => ({
+                    setName: definition.setName,
+                    reps: definition.reps,
+                    modelingOnly: definition.modelingOnly,
+                  })),
+                ]),
+              ),
+            ]),
+          ) as any;
 
-          const ADAPTIVE_DIAGNOSIS_SET_LIBRARY: Record<TopicPhase, { setName: string; reps: number }> = {
-            Clarity: { setName: "Recognition Probe", reps: 3 },
-            "Structured Execution": { setName: "Start + Structure", reps: 3 },
-            "Controlled Discomfort": { setName: "First Contact", reps: 3 },
-            "Time Pressure Stability": { setName: "Light Timer", reps: 3 },
+          const ADAPTIVE_DIAGNOSIS_SET_LIBRARY: Record<TopicPhase, { setName: string; reps: number }> =
+            Object.fromEntries(
+              PHASES.map((phase) => {
+                const definition = getDrillSchemaDefinition("diagnosis", phase).sets[0];
+                return [phase, { setName: definition.setName, reps: definition.reps }];
+              }),
+            ) as Record<TopicPhase, { setName: string; reps: number }>;
+
+          const validateSemanticEvidenceSets = (
+            mode: EvidenceDrillMode,
+            phase: TopicPhase,
+            sets: NormalizedEvidenceSet[],
+          ): string | null => {
+            const semanticSetCount = sets.filter(hasSemanticEvidenceContract).length;
+            if (semanticSetCount === 0) return null;
+            if (semanticSetCount !== sets.length) {
+              return "Drill evidence cannot mix legacy and versioned set contracts";
+            }
+
+            for (let setIndex = 0; setIndex < sets.length; setIndex += 1) {
+              const result = validateAndNormalizeSemanticEvidenceSet({
+                mode,
+                phase,
+                setIndex,
+                submittedSet: sets[setIndex],
+              });
+              if ("error" in result) return result.error;
+              sets[setIndex] = result.normalizedSet;
+            }
+
+            return null;
           };
 
           const validateDrillStructure = (
@@ -3296,6 +3408,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (sets.length !== expectedSetCount) {
               return `${mode} drill must include exactly ${expectedSetCount} sets`;
             }
+
+            const semanticValidationError = validateSemanticEvidenceSets(mode, phase, sets);
+            if (semanticValidationError) return semanticValidationError;
 
             const phaseFields = INTRO_PHASE_WEIGHTS[phase] || [];
             for (let setIndex = 0; setIndex < sets.length; setIndex += 1) {
@@ -3346,15 +3461,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
             blocks: Array<{
               phase: TopicPhase;
               setName: string;
+              setId?: string;
+              setOrder?: number;
+              drillSchemaId?: string;
+              drillSchemaVersion?: number;
+              drillDefinitionHash?: string;
+              constraintProfile?: Record<string, unknown> | null;
               observations: Array<Record<string, string>>;
-            }>
+            }>,
+            evidenceMode: Extract<EvidenceDrillMode, "diagnosis" | "verification"> = "diagnosis",
           ): string | null => {
             if (!blocks.length) {
               return "Adaptive diagnosis must include at least one phase verification block";
             }
 
+            const semanticBlockCount = blocks.filter(hasSemanticEvidenceContract).length;
+            if (semanticBlockCount > 0 && semanticBlockCount !== blocks.length) {
+              return "Adaptive evidence cannot mix legacy and versioned block contracts";
+            }
+
             for (let blockIndex = 0; blockIndex < blocks.length; blockIndex += 1) {
-              const block = blocks[blockIndex];
+              let block = blocks[blockIndex];
+              if (semanticBlockCount > 0) {
+                const result = validateAndNormalizeSemanticEvidenceSet({
+                  mode: evidenceMode,
+                  phase: block.phase,
+                  setIndex: 0,
+                  submittedSet: block,
+                });
+                if ("error" in result) return `Adaptive diagnosis block ${blockIndex + 1}: ${result.error}`;
+                block = { phase: block.phase, ...result.normalizedSet };
+                blocks[blockIndex] = block;
+              }
               const expectedSet = ADAPTIVE_DIAGNOSIS_SET_LIBRARY[block.phase];
               const observations = Array.isArray(block.observations) ? block.observations : [];
               const phaseFields = INTRO_PHASE_WEIGHTS[block.phase] || [];
@@ -5053,6 +5191,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               latestNextAction: string;
               drillBehaviors: string[][];
               allBehaviors: string[];
+              hasTrainingEvidence: boolean;
             }> = {};
 
             sessions.forEach((session) => {
@@ -5730,7 +5869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
 
               if (!scheduledSession) {
-                if (operationalMode !== "training") {
+                if (isLiveSchedulingMode(operationalMode)) {
                   const { session: resolvedIntroSession, error: scheduledSessionError } = await resolveTutorScheduledSession(
                     tutorId,
                     studentId,
@@ -5805,6 +5944,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 console.error("Error inserting intro session drill:", error);
                 return res.status(500).json({ message: "Failed to store drill results" });
               }
+
+              await persistEvidenceLedgerShadow({
+                sourceDrillId: String(inserted?.id || id),
+                studentId: String(studentId),
+                tutorId: String(tutorId),
+                topic: normalizedIntroTopic,
+                scheduledSessionId: diagnosisScheduledSessionId,
+                trainingSessionRunId: null,
+                sessionGroupId: diagnosisScheduledSessionId || String(inserted?.id || id),
+                sessionContext: diagnosisSessionKind === "intro" ? "intro" : "active_training",
+                drillType: "diagnosis",
+                observedPhase: isAdaptiveDiagnosis ? startingPhase! : drillPhase!,
+                statePhaseBefore: null,
+                stabilityBefore: null,
+                statePhaseAfter: diagnosisSummary.phase,
+                stabilityAfter: normalizeStability(diagnosisSummary.stability),
+                transitionReason: "remain",
+                observedAt: String(inserted?.submitted_at || new Date().toISOString()),
+                sets: (isAdaptiveDiagnosis ? adaptiveBlocks : drillSets) as any,
+              });
 
               // Mark intro completed on the first successful diagnosis submission.
               // Sandbox/training-mode intros can run without a scheduled intro shell, so this
@@ -5977,9 +6136,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const handoverBlocks = normalizeAdaptiveDiagnosisBlocks(
                 Array.isArray(drill)
                   ? drill.map((set: any) => ({
+                      ...set,
                       phase: rawPhase,
-                      setName: set?.setName,
-                      observations: set?.observations,
                     }))
                   : []
               );
@@ -6008,8 +6166,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
 
               const verificationValidationError = isTargetedRediagnosis
-                ? validateAdaptiveDiagnosisBlocks(verificationBlocks)
-                : validateAdaptiveDiagnosisBlocks(verificationBlocks);
+                ? validateAdaptiveDiagnosisBlocks(verificationBlocks, "diagnosis")
+                : validateAdaptiveDiagnosisBlocks(verificationBlocks, "verification");
               if (verificationValidationError) {
                 return res.status(400).json({ message: verificationValidationError });
               }
@@ -6125,6 +6283,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 console.error("Error inserting handover verification drill:", error);
                 return res.status(500).json({ message: "Failed to store handover verification results" });
               }
+
+              await persistEvidenceLedgerShadow({
+                sourceDrillId: String(inserted?.id || id),
+                studentId: String(studentId),
+                tutorId: String(tutorId),
+                topic: normalizedTopic,
+                scheduledSessionId: String(scheduledSession.id),
+                trainingSessionRunId: null,
+                sessionGroupId: String(scheduledSession.id),
+                sessionContext: "handover_verification",
+                drillType: isTargetedRediagnosis ? "diagnosis" : "verification",
+                observedPhase: startingPhase!,
+                statePhaseBefore: verificationPhase,
+                stabilityBefore: previousStability,
+                statePhaseAfter: handoverSummary.resultingPhase,
+                stabilityAfter: handoverSummary.resultingStability,
+                transitionReason: String(handoverSummary.verificationOutcome),
+                observedAt: String(inserted?.submitted_at || new Date().toISOString()),
+                sets: verificationBlocks as any,
+              });
 
               const conceptMastery: any =
                 student.conceptMastery && typeof student.conceptMastery === "object"
@@ -6257,7 +6435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const operationalMode = await getTutorOperationalMode(tutorId);
               let scheduledSession: any = null;
 
-              if (operationalMode === "certified_live" || operationalMode === "training") {
+              if (isLiveSchedulingMode(operationalMode) || operationalMode === "training") {
                 const { session: resolvedScheduledSession, error: scheduledSessionError } = await resolveTutorScheduledSession(
                   tutorId,
                   studentId,
@@ -6411,6 +6589,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   console.error("Error inserting training session drill:", error);
                   return res.status(500).json({ message: `Failed to store drill for ${normalizedTopic}` });
                 }
+
+                await persistEvidenceLedgerShadow({
+                  sourceDrillId: String(inserted?.id || drillId),
+                  studentId: String(studentId),
+                  tutorId: String(tutorId),
+                  topic: normalizedTopic,
+                  scheduledSessionId: scheduledSessionRecordId,
+                  trainingSessionRunId: String(trainingRun?.id || sessionId),
+                  sessionGroupId: String(scheduledSessionRecordId || trainingRun?.id || sessionId),
+                  sessionContext: "active_training",
+                  drillType: "training",
+                  observedPhase: effectivePhase,
+                  statePhaseBefore: effectivePhase,
+                  stabilityBefore: previousStability,
+                  statePhaseAfter: trainingSummary.phase,
+                  stabilityAfter: trainingSummary.stability,
+                  transitionReason: trainingSummary.transitionReason,
+                  observedAt: String(inserted?.submitted_at || sessionStartTime),
+                  sets: drillSets as any,
+                });
 
                 // Update topic state
                 const nowIso = new Date().toISOString();
@@ -6918,7 +7116,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/coo/create-affiliate-code", isAuthenticated, requireRole(["coo"]), async (req: Request, res: Response) => {
     console.log("[DEBUG] Session on POST /api/coo/create-affiliate-code:", req.session);
     try {
-      const { type, personName, entityName, schoolType } = req.body;
+      const { type, personName, entityName, schoolType, campaignName } = req.body;
+      const pipelineType = normalizeProductionPipeline(req.body?.pipelineType);
       // Generate unique code (simple example)
       const code = "AFIX" + Math.random().toString(36).substring(2, 8).toUpperCase();
       // Insert into DB
@@ -6929,8 +7128,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         personName,
         entityName,
         schoolType,
+        pipelineType,
+        campaignName: campaignName ? String(campaignName).trim() : null,
       });
-      res.json({ code });
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      res.json({ code, pipelineType, campaignName: campaignName || null, link: `${baseUrl}/?production=${encodeURIComponent(code)}&pipeline=${pipelineType}` });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to create affiliate code" });
     }
@@ -8748,7 +8950,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           weekStart: weekStart.toISOString(),
           weekEnd: weekEnd.toISOString(),
           operationalMode,
-          sessionSchedulingEnabled: operationalMode === "certified_live",
+          sessionSchedulingEnabled: isLiveSchedulingMode(operationalMode),
           sessions: (sessions || []).map((session: any) => ({
             ...session,
             student: studentsById.get(String(session.student_id || "")) || null,
@@ -9381,15 +9583,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const operationalMode = await getTutorOperationalMode(tutorId);
-        const meetSync =
-          operationalMode === "training"
-            ? null
-            : await syncMeetForScheduledSession(updatedSession, { studentName: normalizedStudent.name });
+        const meetSync = isLiveSchedulingMode(operationalMode)
+          ? await syncMeetForScheduledSession(updatedSession, { studentName: normalizedStudent.name })
+          : null;
 
         res.json({
           success: true,
           session: updatedSession,
-          googleMeetConfigured: operationalMode === "training" ? false : isGoogleMeetIntegrationAvailable(),
+          googleMeetConfigured: isLiveSchedulingMode(operationalMode) ? isGoogleMeetIntegrationAvailable() : false,
           ...getMeetSyncResponsePayload(meetSync),
         });
       } catch (error) {
@@ -9751,7 +9952,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
         }
 
-        if (operationalMode === "training" && kind === "training") {
+        if (!isLiveSchedulingMode(operationalMode) && kind === "training") {
           const { session, error } = await resolveTutorScheduledSession(tutorId, studentId, kind, sessionId);
           if (error) {
             return res.status(500).json({ message: "Failed to resolve scheduled session" });
@@ -9799,7 +10000,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        if (operationalMode === "training") {
+        if (!isLiveSchedulingMode(operationalMode)) {
           return res.json({
             canLaunch: true,
             operationalMode,
@@ -9836,7 +10037,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (error) {
           return res.status(500).json({ message: "Failed to resolve scheduled session" });
         }
-        if (studentOperationalMode === "training" && (kind === "intro" || kind === "handover")) {
+        if (!isLiveSchedulingMode(studentOperationalMode) && (kind === "intro" || kind === "handover")) {
           return res.json({
             canLaunch: true,
             session: session
@@ -9908,9 +10109,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const tutorId = (req as any).dbUser.id;
         const operationalMode = await getTutorOperationalMode(tutorId);
 
-        if (operationalMode === "training") {
+        if (!isLiveSchedulingMode(operationalMode)) {
           return res.status(400).json({
-            message: "Meet sync is disabled while this tutor is in training mode.",
+            message: "Meet sync is available only during governed Trial or Certified Live delivery.",
           });
         }
 
@@ -10192,7 +10393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         operationalMode,
-        sessionSchedulingEnabled: true,
+        sessionSchedulingEnabled: isLiveSchedulingMode(operationalMode),
         monthlyQuota,
         sessions: sessionsWithArtifacts.map((session: any) => ({
           ...session,
@@ -10711,12 +10912,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const assignedStudent = updatedSession.student_id ? await storage.getStudent(updatedSession.student_id) : null;
-      const meetSync =
-        operationalMode === "training"
-          ? null
-          : await syncMeetForScheduledSession(updatedSession, {
-              studentName: assignedStudent?.name || null,
-            });
+      const meetSync = isLiveSchedulingMode(operationalMode)
+        ? await syncMeetForScheduledSession(updatedSession, {
+            studentName: assignedStudent?.name || null,
+          })
+        : null;
       const monthlyQuota =
         updatedSession.parent_id && updatedSession.student_id
           ? await getMonthlySessionQuotaSnapshot({
@@ -10730,7 +10930,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "confirmed",
         session: updatedSession,
         monthlyQuota,
-        googleMeetConfigured: operationalMode === "training" ? false : isGoogleMeetIntegrationAvailable(),
+        googleMeetConfigured: isLiveSchedulingMode(operationalMode) ? isGoogleMeetIntegrationAvailable() : false,
         ...getMeetSyncResponsePayload(meetSync),
       });
     } catch (error) {
@@ -14064,12 +14264,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await cleanupLegacyLiveEnrollmentsForNonLiveTutor(tutorId, certificationMode);
         let assignedEnrollmentsQuery = supabase
           .from("parent_enrollments")
-          .select("id, user_id, student_full_name, assigned_student_id, status, current_step, parent_full_name, parent_email, is_sandbox_account")
+          .select("id, user_id, student_full_name, assigned_student_id, status, current_step, parent_full_name, parent_email, is_sandbox_account, assignment_lane")
           .eq("assigned_tutor_id", tutorId)
           .in("status", [...ACTIVE_PARENT_ENROLLMENT_STATUSES, "awaiting_tutor_acceptance"]);
 
         if (certificationMode === "sandbox") {
           assignedEnrollmentsQuery = assignedEnrollmentsQuery.eq("is_sandbox_account", true);
+        } else if (certificationMode === "trial") {
+          assignedEnrollmentsQuery = assignedEnrollmentsQuery.eq("assignment_lane", "trial");
         }
 
         let { data: assignedEnrollments } = await assignedEnrollmentsQuery;
@@ -15974,6 +16176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   : tutorSummary?.mode) ||
                 "training",
               sandbox_parent_count: loadStats.sandboxParentCount,
+              trial_parent_count: loadStats.trialParentCount,
               live_parent_count: loadStats.liveParentCount,
               awaiting_tutor_acceptance_count: loadStats.awaitingTutorAcceptanceCount,
               module_progress: tutorSummary?.moduleProgress || [],
@@ -16083,12 +16286,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await cleanupLegacyLiveEnrollmentsForNonLiveTutor(tutorId, certificationMode);
         let assignedEnrollmentsQuery = supabase
           .from("parent_enrollments")
-          .select("id, user_id, student_full_name, assigned_student_id, status, current_step, parent_full_name, parent_email, is_sandbox_account")
+          .select("id, user_id, student_full_name, assigned_student_id, status, current_step, parent_full_name, parent_email, is_sandbox_account, assignment_lane")
           .eq("assigned_tutor_id", tutorId)
           .in("status", [...ACTIVE_PARENT_ENROLLMENT_STATUSES, "awaiting_tutor_acceptance"]);
 
         if (certificationMode === "sandbox") {
           assignedEnrollmentsQuery = assignedEnrollmentsQuery.eq("is_sandbox_account", true);
+        } else if (certificationMode === "trial") {
+          assignedEnrollmentsQuery = assignedEnrollmentsQuery.eq("assignment_lane", "trial");
         }
 
         let { data: assignedEnrollments } = await assignedEnrollmentsQuery;
@@ -16097,11 +16302,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!assignedEnrollments) {
           let fallbackQuery = supabase
             .from("parent_enrollments")
-            .select("id, user_id, student_full_name, status, current_step, parent_full_name, parent_email")
+            .select("id, user_id, student_full_name, status, current_step, parent_full_name, parent_email, assignment_lane")
             .eq("assigned_tutor_id", tutorId)
             .in("status", [...ACTIVE_PARENT_ENROLLMENT_STATUSES, "awaiting_tutor_acceptance"]);
           if (certificationMode === "sandbox") {
             fallbackQuery = fallbackQuery.eq("is_sandbox_account", true);
+          } else if (certificationMode === "trial") {
+            fallbackQuery = fallbackQuery.eq("assignment_lane", "trial");
           }
           const fallback = await fallbackQuery;
           assignedEnrollments = fallback.data as any;
@@ -16173,6 +16380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             enrollmentStatus: linkedEnrollment?.status || null,
             enrollmentCurrentStep: linkedEnrollment?.current_step || null,
             isSandboxAssignment: linkedEnrollment ? isSandboxEnrollmentForTutor(linkedEnrollment, tutorId) : false,
+            isTrialAssignment: String(linkedEnrollment?.assignment_lane || "").trim().toLowerCase() === "trial",
             isReassignmentPreserved: Boolean(
               linkedEnrollment?.current_step &&
                 String(linkedEnrollment.current_step).trim().toLowerCase().startsWith(REASSIGNMENT_RESUME_PREFIX)
@@ -18595,8 +18803,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
+        const productionLinkCode = String((req.body?.productionLinkCode || (req.session as any)?.productionLinkCode || "")).trim().toUpperCase() || null;
         const payload = {
           user_id: userId,
+          production_link_code: productionLinkCode,
           full_name: String(req.body?.fullName || "").trim(),
           id_number: String(req.body?.idNumber || "").trim(),
           phone: String(req.body?.phone || "").trim(),
@@ -19582,7 +19792,316 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  // Assign tutor to parent enrollment (COO-controlled)
+  app.get(
+    "/api/tutor/trial-case",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = (req as any).dbUser.id;
+        const [mode, trialCase] = await Promise.all([
+          getTutorCertificationMode(tutorId),
+          getOpenTrialCaseForTutor(tutorId),
+        ]);
+        res.json({ mode, case: trialCase });
+      } catch (error) {
+        console.error("Error loading tutor Trial case:", error);
+        res.status(500).json({ message: "Failed to load Trial validation progress" });
+      }
+    },
+  );
+
+  app.get(
+    "/api/coo/tutors/:tutorId/trial-case",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = String(req.params.tutorId || "").trim();
+        const [mode, trialCase] = await Promise.all([
+          getTutorCertificationMode(tutorId),
+          getOpenTrialCaseForTutor(tutorId),
+        ]);
+        res.json({ mode, case: trialCase });
+      } catch (error) {
+        console.error("Error loading COO tutor Trial case:", error);
+        res.status(500).json({ message: "Failed to load Trial validation progress" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/coo/tutors/:tutorId/trial-case",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = String(req.params.tutorId || "").trim();
+        const mode = await getTutorCertificationMode(tutorId);
+        if (mode !== "trial") {
+          return res.status(409).json({
+            message: `A Trial case can open only after preparation is complete. Current lifecycle: ${mode}.`,
+          });
+        }
+
+        const tutorAssignment = await storage.getTutorAssignment(tutorId);
+        if (!tutorAssignment?.id) {
+          return res.status(409).json({ message: "Tutor must have an active pod assignment before Trial opens" });
+        }
+
+        const trialCase = await createTrialCase({
+          tutorId,
+          tutorAssignmentId: tutorAssignment.id,
+          createdByUserId: (req as any).dbUser.id,
+        });
+        res.status(201).json({ mode, case: trialCase });
+      } catch (error) {
+        console.error("Error opening tutor Trial case:", error);
+        res.status(400).json({ message: error instanceof Error ? error.message : "Failed to open Trial case" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/coo/trial-placements/:placementId/review",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const outcomeClassification = String(req.body?.outcomeClassification || "").trim();
+        const decision = String(req.body?.decision || "").trim();
+        const evidenceNote = String(req.body?.evidenceNote || "").trim();
+        if (!["positive", "mixed", "negative"].includes(outcomeClassification)) {
+          return res.status(400).json({ message: "A valid family outcome classification is required" });
+        }
+        if (!["positive", "remediation_required", "unsuccessful"].includes(decision)) {
+          return res.status(400).json({ message: "A valid operational review decision is required" });
+        }
+        if (!evidenceNote) {
+          return res.status(400).json({ message: "An evidence note is required for the family outcome review" });
+        }
+
+        const trialCase = await recordTrialReview({
+          placementId: String(req.params.placementId),
+          outcomeClassification: outcomeClassification as any,
+          decision: decision as any,
+          evidenceNote,
+          reviewedByUserId: (req as any).dbUser.id,
+        });
+        res.json({ case: trialCase });
+      } catch (error) {
+        console.error("Error recording Trial outcome review:", error);
+        res.status(409).json({ message: error instanceof Error ? error.message : "Failed to record Trial review" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/coo/trial-cases/:caseId/decision",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const decision = String(req.body?.decision || "").trim();
+        const rationale = String(req.body?.rationale || "").trim();
+        const idempotencyKey = String(req.body?.idempotencyKey || "").trim();
+        if (!["certified", "remediation_required", "unsuccessful"].includes(decision)) {
+          return res.status(400).json({ message: "A valid certification decision is required" });
+        }
+        if (!rationale) {
+          return res.status(400).json({ message: "A certification rationale is required" });
+        }
+        if (!idempotencyKey) {
+          return res.status(400).json({ message: "An idempotency key is required" });
+        }
+
+        const result = await decideTrialCase({
+          caseId: String(req.params.caseId),
+          decision: decision as any,
+          rationale,
+          idempotencyKey,
+          decidedByUserId: (req as any).dbUser.id,
+        });
+        res.json(result);
+      } catch (error) {
+        console.error("Error deciding tutor Trial case:", error);
+        res.status(409).json({ message: error instanceof Error ? error.message : "Failed to decide Trial case" });
+      }
+    },
+  );
+
+  app.get(
+    "/api/parent/trial-case",
+    isAuthenticated,
+    requireRole(["parent"]),
+    async (req: Request, res: Response) => {
+      try {
+        const trialCase = await getParentTrialCase((req as any).dbUser.id);
+        res.json({ case: trialCase });
+      } catch (error) {
+        console.error("Error loading family Trial case:", error);
+        res.status(500).json({ message: "Failed to load family Trial progress" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/parent/trial-placements/:placementId/feedback",
+    isAuthenticated,
+    requireRole(["parent"]),
+    async (req: Request, res: Response) => {
+      try {
+        const feedbackState = String(req.body?.feedbackState || "").trim();
+        const testimonialPermission = String(req.body?.testimonialPermission || "not_requested").trim();
+        if (!["received", "declined"].includes(feedbackState)) {
+          return res.status(400).json({ message: "Feedback must be submitted or formally declined" });
+        }
+        if (!["not_requested", "granted", "declined"].includes(testimonialPermission)) {
+          return res.status(400).json({ message: "Invalid testimonial permission" });
+        }
+
+        const trialCase = await recordTrialFeedback({
+          placementId: String(req.params.placementId),
+          parentId: (req as any).dbUser.id,
+          feedbackState: feedbackState as "received" | "declined",
+          feedbackNote: String(req.body?.feedbackNote || "").trim() || null,
+          testimonialPermission: testimonialPermission as any,
+        });
+        res.json({ case: trialCase });
+      } catch (error) {
+        console.error("Error recording family Trial feedback:", error);
+        res.status(409).json({ message: error instanceof Error ? error.message : "Failed to record Trial feedback" });
+      }
+    },
+  );
+
+  // Assign one of exactly two governed Trial families (COO-controlled).
+  app.post(
+    "/api/hr/enrollments/:enrollmentId/assign-trial-tutor",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      const enrollmentId = String(req.params.enrollmentId || "").trim();
+      const tutorId = String(req.body?.tutorId || "").trim();
+      let createdCaseId: string | null = null;
+      let placementCreated = false;
+      let assignmentCommitted = false;
+
+      try {
+        if (!tutorId) return res.status(400).json({ message: "Tutor ID is required" });
+
+        const tutorAssignment = await storage.getTutorAssignment(tutorId);
+        if (!tutorAssignment) {
+          return res.status(409).json({ message: "Tutor must be assigned to a pod before receiving Trial families" });
+        }
+        if (req.body?.podId && tutorAssignment.podId !== req.body.podId) {
+          return res.status(409).json({ message: "Tutor is not assigned to the selected pod" });
+        }
+
+        const mode = await getTutorCertificationMode(tutorId);
+        if (mode !== "trial") {
+          return res.status(409).json({
+            message: `Trial family assignment requires Trial lifecycle. Current lifecycle: ${mode}.`,
+          });
+        }
+
+        const { data: enrollment, error: enrollmentError } = await supabase
+          .from("parent_enrollments")
+          .select("*")
+          .eq("id", enrollmentId)
+          .maybeSingle();
+        if (enrollmentError || !enrollment) {
+          return res.status(404).json({ message: "Enrollment not found" });
+        }
+        if (isSandboxEnrollmentForTutor(enrollment, tutorId)) {
+          return res.status(409).json({ message: "A sandbox account cannot be used as Trial evidence" });
+        }
+        if (enrollment.assigned_tutor_id && String(enrollment.assigned_tutor_id) !== tutorId) {
+          return res.status(409).json({ message: "Enrollment is already assigned to another tutor" });
+        }
+
+        const student = await ensureStudentForEnrollment(enrollment, tutorId);
+        if (!student?.id) {
+          throw new Error("A canonical student record is required for the Trial placement");
+        }
+
+        const trialCase = await createTrialCase({
+          tutorId,
+          tutorAssignmentId: tutorAssignment.id,
+          createdByUserId: (req as any).dbUser.id,
+        });
+        createdCaseId = trialCase.id;
+        const placementResult = await createTrialPlacement({
+          caseId: trialCase.id,
+          enrollmentId,
+          parentId: String(enrollment.user_id),
+          studentId: String(student.id),
+          familyKey: String(enrollment.user_id || enrollment.parent_email).trim().toLowerCase(),
+          createdByUserId: (req as any).dbUser.id,
+        });
+        placementCreated = placementResult.created;
+
+        const { data: updatedEnrollment, error: updateError } = await supabase
+          .from("parent_enrollments")
+          .update({
+            assigned_tutor_id: tutorId,
+            assigned_student_id: student.id,
+            assignment_lane: "trial",
+            status: "awaiting_tutor_acceptance",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", enrollmentId)
+          .select()
+          .single();
+        if (updateError || !updatedEnrollment) {
+          await removeTrialPlacementCreatedDuringFailedAssignment(trialCase.id, enrollmentId);
+          placementCreated = false;
+          throw new Error(`Failed to assign Trial family: ${updateError?.message || "Enrollment update failed"}`);
+        }
+        assignmentCommitted = true;
+
+        try {
+          await cleanupLegacyLiveEnrollmentsForNonLiveTutor(tutorId, "trial");
+        } catch (cleanupError) {
+          console.error("Failed to clean non-Trial assignments after governed Trial placement:", cleanupError);
+        }
+        await safeSendPush(
+          String(enrollment.user_id),
+          {
+            title: "Trial specialist assigned",
+            body: "A supervised Response Integrity Trial specialist has been assigned for the nine-session validation phase.",
+            url: "/client/parent/gateway",
+            tag: `parent-trial-tutor-assigned-${enrollmentId}`,
+          },
+          "parent Trial tutor assigned",
+        );
+        await safeSendPush(
+          tutorId,
+          {
+            title: "Trial family placement",
+            body: "A governed Trial family is waiting for your acceptance. This placement counts toward your two-family validation case.",
+            url: "/operational/tutor/pod",
+            tag: `tutor-trial-assignment-${enrollmentId}`,
+          },
+          "tutor Trial family assigned",
+        );
+
+        res.json({
+          message: "Trial family assigned successfully",
+          enrollment: updatedEnrollment,
+          case: await getTrialCaseById(trialCase.id),
+        });
+      } catch (error) {
+        if (placementCreated && createdCaseId && !assignmentCommitted) {
+          await removeTrialPlacementCreatedDuringFailedAssignment(createdCaseId, enrollmentId);
+        }
+        console.error("Error assigning Trial family:", error);
+        res.status(409).json({ message: error instanceof Error ? error.message : "Failed to assign Trial family" });
+      }
+    },
+  );
+
+  // Assign tutor to an ordinary commercial parent enrollment (COO-controlled).
   app.post(
     "/api/hr/enrollments/:enrollmentId/assign-tutor",
     isAuthenticated,
@@ -19605,7 +20124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Tutor is not assigned to the selected pod" });
         }
 
-        // Check tutor certification status - only certified_live tutors can receive real assignments
+        // Commercial responsibility is separate from governed Trial placement.
         const { data: tutorStatus, error: statusError } = await supabase
           .from("tutor_battle_test_statuses")
           .select("mode")
@@ -19618,7 +20137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (tutorStatus.mode !== "certified_live") {
           return res.status(400).json({
-            message: `Tutor is not certified for live assignments. Current status: ${tutorStatus.mode}. Must complete all modules and pass battle tests.`
+            message: `Commercial assignments require Certified Live status. Current lifecycle: ${tutorStatus.mode}. Use the Trial placement action for Trial tutors.`
           });
         }
 
@@ -19654,6 +20173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .from("parent_enrollments")
           .update({
             assigned_tutor_id: tutorId,
+            assignment_lane: "commercial",
             status: "awaiting_tutor_acceptance",
             updated_at: new Date().toISOString(),
           })
@@ -20623,10 +21143,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("✅ Got code record:", codeRecord);
         
         // Return just the code field to match frontend expectations
-        res.json({ code: codeRecord.code });
+        res.json({
+          code: codeRecord.code,
+          pipelineType: codeRecord.pipeline_type || "demand",
+          campaignName: codeRecord.campaign_name || null,
+          link: `${req.protocol}://${req.get("host")}/?production=${encodeURIComponent(codeRecord.code)}&pipeline=${codeRecord.pipeline_type || "demand"}`,
+        });
       } catch (error) {
         console.error("Error getting affiliate code:", error);
         res.status(500).json({ message: "Failed to get affiliate code" });
+      }
+    }
+  );
+
+  app.get(
+    "/api/affiliate/production-links",
+    isAuthenticated,
+    requireRole(["affiliate"]),
+    async (req: Request, res: Response) => {
+      try {
+        const affiliateId = (req.session as any).userId;
+        const { data, error } = await supabase
+          .from("affiliate_codes")
+          .select("code, pipeline_type, campaign_name, status, created_at")
+          .eq("affiliate_id", affiliateId)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        res.json((data || []).map((link: any) => ({
+          ...link,
+          link: `${req.protocol}://${req.get("host")}/?production=${encodeURIComponent(link.code)}&pipeline=${link.pipeline_type || "demand"}`,
+        })));
+      } catch (error) {
+        console.error("Error getting production links:", error);
+        res.status(500).json({ message: "Failed to get production links" });
       }
     }
   );
@@ -20813,7 +21362,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const { data: lead } = await supabase
           .from("leads")
           .select("affiliate_id")
-          .eq("parent_id", parentId)
+          .eq("user_id", parentId)
           .maybeSingle();
 
         if (!lead) {
@@ -20825,7 +21374,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(close);
       } catch (error) {
         console.error("Error recording close:", error);
-        res.status(500).json({ message: "Failed to record close" });
+        const message = error instanceof Error ? error.message : "Failed to record close";
+        const isVerificationFailure = /required before|already been recorded/i.test(message);
+        res.status(isVerificationFailure ? 409 : 500).json({ message });
       }
     }
   );
@@ -20968,7 +21519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (
-        operationalMode === "certified_live" &&
+        isLiveSchedulingMode(operationalMode) &&
         enrollmentData.assigned_tutor_id &&
         ["proposal_sent", "session_booked", "report_received", "confirmed"].includes(String(status))
       ) {
@@ -23408,7 +23959,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const operationalMode = await getStudentOperationalMode(studentUser.student_id);
-      if (operationalMode === "training") {
+      if (!isLiveSchedulingMode(operationalMode)) {
         return res.json({
           sessions: [],
           operationalMode,

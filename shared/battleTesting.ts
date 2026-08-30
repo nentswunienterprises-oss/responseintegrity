@@ -10,7 +10,7 @@ export type BattleTestSubjectType = "tutor" | "td";
 export type TutorBattleTestModuleKey = "transformation_phases" | "session_infrastructure";
 export type TutorBattleTestHistoricalState = "in_progress" | "completed";
 export type TutorBattleTestHealthState = "locked" | "watchlist" | "drift";
-export type TutorTrainingMode = "applicant" | "training" | "sandbox" | "certified_live" | "watchlist" | "suspended";
+export type TutorTrainingMode = "applicant" | "training" | "sandbox" | "trial" | "certified_live" | "watchlist" | "suspended";
 export type TutorBattleTestPhaseKey =
   | "clarity"
   | "structured_execution"

@@ -41,7 +41,7 @@ test("reconcileTutorTrainingMode keeps applicant when documentation is incomplet
   );
 });
 
-test("reconcileTutorTrainingMode clears stale applicant mode once documentation is complete", () => {
+test("reconcileTutorTrainingMode moves a preparation-complete tutor into Trial", () => {
   const moduleProgress: TutorBattleTestModuleProgress[] = [
     {
       moduleKey: "transformation_phases",
@@ -69,7 +69,37 @@ test("reconcileTutorTrainingMode clears stale applicant mode once documentation 
       currentState: "locked",
       docsComplete: true,
     }),
-    "certified_live"
+    "trial"
+  );
+});
+
+test("reconcileTutorTrainingMode preserves a grandfathered Certified Live decision", () => {
+  const moduleProgress: TutorBattleTestModuleProgress[] = [
+    {
+      moduleKey: "transformation_phases",
+      title: "Transformation Phases",
+      completedCount: 5,
+      totalCount: 5,
+      completed: true,
+    },
+    {
+      moduleKey: "session_infrastructure",
+      title: "Session Infrastructure",
+      completedCount: 6,
+      totalCount: 6,
+      completed: true,
+    },
+  ];
+
+  assert.equal(
+    reconcileTutorTrainingMode({
+      persistedMode: "certified_live",
+      moduleProgress,
+      deepDiveProgress: [],
+      currentState: "locked",
+      docsComplete: true,
+    }),
+    "certified_live",
   );
 });
 

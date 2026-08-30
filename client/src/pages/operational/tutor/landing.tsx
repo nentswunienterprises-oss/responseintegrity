@@ -44,11 +44,11 @@ const conditioningModes = [
   },
   {
     title: "Trial",
-    body: "You operate in a supervised validation lane where your consistency and outcomes are checked before full live deployment.",
+    body: "You operate with exactly two governed Trial families. Each family requires nine qualifying sessions, evidence logs, reports, feedback, and review.",
   },
   {
     title: "Certified Live",
-    body: "You have shown stable alignment and can now carry real student and parent responsibility inside the live system.",
+    body: "You have complete Trial evidence and explicit COO approval to carry normal student and parent responsibility inside the live system.",
   },
 ] as const;
 
@@ -157,7 +157,7 @@ export default function TutorLanding() {
                 </h1>
                 <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_240px] lg:items-start">
                   <div className="max-w-2xl space-y-3 text-base leading-7 text-[#534A43] sm:text-[17px]">
-                    <p>Response Integrity is not recruiting tutors as casual explainers. It is training Response Conditioning Specialists who can help students move from knowing to executing under pressure.</p>
+                    <p>Response Integrity is training Response Conditioning Specialists who can help students move from knowing to executing under pressure.</p>
                     <p>This path is for people who want to learn the craft: diagnose response, structure practice, hold standard, and build calm execution when the problem becomes unfamiliar or time-bound.</p>
                   </div>
                   <div className="rounded-[24px] border border-[#E0CCBE] bg-white/58 p-4">
@@ -227,7 +227,7 @@ export default function TutorLanding() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8A4B35]">Tutor windows</p>
               <h2 className="mt-1 text-3xl font-bold tracking-tight text-[#171311]">Two certification cycles. Two deployment moments.</h2>
               <p className="mt-3 text-sm leading-7 text-[#4F4742] sm:text-base">
-                Tutor intake follows the same disciplined rhythm as student entry. Applications open inside defined windows, conditioning happens by deadline, and only certified live tutors become deployable.
+                Tutor intake follows the same disciplined rhythm as student entry. Applications open inside defined windows, conditioning happens by deadline, Trial validates live responsibility, and only certified live tutors become deployable.
               </p>
             </div>
 

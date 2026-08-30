@@ -27,8 +27,10 @@ import StudentReportsDialog from "@/components/tutor/StudentReportsDialog";
 import StudentTopicConditioningDialog from "@/components/tutor/StudentTopicConditioningDialog";
 import StudentCommunicationDialog from "@/components/communications/StudentCommunicationDialog";
 import { PushOptInCard } from "@/components/push/PushOptInCard";
+import { TrialProgressCard } from "@/components/trial/TrialProgressCard";
 import type { Student, TutorAssignment, Pod } from "@shared/schema";
 import type { BattleTestingTutorSummary, TutorTrainingMode } from "@shared/battleTesting";
+import type { TrialCaseOverview } from "@shared/trialCertification";
 
 interface PodData {
   assignment: TutorAssignment & { pod: Pod };
@@ -47,7 +49,7 @@ interface PodTeamMember {
   bio: string | null;
   profileImageUrl: string | null;
   certificationStatus: string;
-  operationalMode?: "training" | "certified_live";
+  operationalMode?: "training" | "trial" | "certified_live";
 }
 
 interface PodTeamData {
@@ -70,7 +72,7 @@ interface TutorAlignmentSummaryData {
   podId: string | null;
   podName: string | null;
   assignmentId: string | null;
-  operationalMode: TutorTrainingMode | "training" | "certified_live";
+  operationalMode: TutorTrainingMode;
   alignmentSummary: BattleTestingTutorSummary | null;
 }
 
@@ -89,7 +91,7 @@ interface TutorPodSession {
 
 interface TutorPodWeeklyScheduleResponse {
   sessions: TutorPodSession[];
-  operationalMode?: "training" | "certified_live";
+  operationalMode?: "training" | "trial" | "certified_live";
   sessionSchedulingEnabled?: boolean;
 }
 
@@ -122,6 +124,7 @@ function formatTutorAlignmentStatus(value: string | null | undefined) {
 
 function formatTutorMode(value: TutorAlignmentSummaryData["operationalMode"]) {
   if (value === "certified_live") return "Certified Live";
+  if (value === "trial") return "Trial";
   if (value === "sandbox") return "Sandbox Mode";
   if (value === "suspended") return "Suspended";
   if (value === "applicant") return "Applicant";
@@ -206,6 +209,12 @@ export default function TutorPod() {
   const { data: tutorAlignmentSummary } = useQuery<TutorAlignmentSummaryData>({
     queryKey: ["/api/tutor/pod-alignment-summary"],
     enabled: isAuthenticated && !authLoading,
+  });
+  const { data: trialCaseData } = useQuery<{ mode: TutorTrainingMode; case: TrialCaseOverview | null }>({
+    queryKey: ["/api/tutor/trial-case"],
+    queryFn: async () => authorizedGetJson("/api/tutor/trial-case"),
+    enabled: isAuthenticated && !authLoading,
+    refetchInterval: 15000,
   });
   const { data: weeklyScheduleData } = useQuery<TutorPodWeeklyScheduleResponse>({
     queryKey: ["/api/tutor/weekly-schedule", "current-week"],
@@ -531,6 +540,11 @@ export default function TutorPod() {
           enabled
           title="Enable out-of-app alerts"
           description="Turn on browser notifications so Response Integrity can alert you when parents respond to proposals or sessions, or when new assignments arrive."
+        />
+
+        <TrialProgressCard
+          mode={trialCaseData?.mode || tutorAlignmentSummary?.operationalMode || "training"}
+          trialCase={trialCaseData?.case || null}
         />
 
         <div className="tutor-pod-stats grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">

@@ -34,9 +34,8 @@ Academy owns the first gating layer:
 
 - Applicant -> Training
 - Training -> SB
-- SB -> Trial Ready eligibility
-- Trial Ready -> Trial Mode readiness
-- Trial Mode -> CL graduation (Specialist Academy Validation Gate)
+- SB -> Trial eligibility
+- Trial -> CL graduation (Specialist Academy Validation Gate plus explicit COO decision)
 
 Validation and Operations own the next gates:
 
@@ -75,25 +74,27 @@ Operational shorthand:
 - Applicant
 - Training
 - SB (Sandbox)
+- Trial
 - CL (Certified Live)
 
 Mode progression is evidence-gated:
 
 - Docs incomplete -> applicant
 - Transformation Phases complete -> sandbox eligibility
-- Transformation + Session Infrastructure complete -> certified_live eligibility
+- Transformation + Session Infrastructure complete -> trial eligibility
+- Trial certification case complete -> certified_live eligibility after explicit COO approval
 - Drift or critical fail -> watchlist/recovery behavior
 - Repeated drift threshold breach -> retraining or suspension
 
 Trial accommodation:
 
-Trial is a validation and access lane, not a separate tutor mode.
-It intersects mode permissions:
+Trial is now a first-class tutor lifecycle mode between Sandbox and Certified Live.
 
-- Current implementation path: Applicant -> Training -> Sandbox -> Certified Live
-- Target architecture path: Applicant -> Training -> Sandbox -> Trial Ready -> Trial Mode -> Certified Live -> Pod Ready
-- Trial sits inside Validation between Sandbox and Certified Live
-- Trial Mode -> Certified Live is decided by the Specialist Academy Validation Gate.
+- Current implementation path: Applicant -> Training -> Sandbox -> Trial -> Certified Live
+- Battle Testing and preparation readiness open Trial; they do not certify new tutors.
+- Trial carries exactly two governed live families.
+- Each family requires nine qualifying sessions, deterministic logs, required reports, feedback received or declined, and a positive COO outcome review.
+- Certified Live requires an explicit COO final decision. Testimonials remain optional.
 
 Target architecture cleanup:
 
@@ -106,13 +107,13 @@ Target architecture cleanup:
 - Operating rule: keep 9 for now, but require trial-to-live evidence gates before paid commercial conversion
 
 ## Sandbox Criteria (6 Accounts)
-Before Trial Ready, each specialist must complete the sandbox readiness pack across 6 accounts:
+Before Trial, each specialist must complete the sandbox readiness pack across 6 accounts:
 
 - Lane A, Reporting Proficiency (3 accounts): from each account, 4 weekly reports triggered and 1 monthly report triggered; report content must match drill/session logs.
 - Lane B, Conditioning Execution (2 active accounts): one account must complete 1 topic end-to-end across all phases; the other account must demonstrate parallel handling of 3 active topics for 4 weeks across active Lane B accounts.
 - Lane C, Control Buffer (1 untouched account): one account remains intentionally untouched for late-stage corrections, stress tests, and remediation contingency.
 
-Sandbox -> Trial Ready gate passes only when:
+Sandbox -> Trial gate passes only when:
 
 - Lane A thresholds are met and triggered
 - Lane B thresholds are met and evidenced

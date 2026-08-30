@@ -31,7 +31,7 @@ type TutorWeeklyScheduleSession = {
 type TutorWeeklyScheduleResponse = {
   weekStart: string;
   weekEnd: string;
-  operationalMode?: "training" | "certified_live";
+  operationalMode?: "training" | "trial" | "certified_live";
   sessionSchedulingEnabled?: boolean;
   sessions: TutorWeeklyScheduleSession[];
 };
@@ -139,7 +139,7 @@ export default function TutorSessions() {
   }, [data?.sessions]);
 
   const operationalMode = data?.operationalMode || podData?.assignment?.operationalMode || "training";
-  const schedulingEnabled = data?.sessionSchedulingEnabled ?? operationalMode === "certified_live";
+  const schedulingEnabled = data?.sessionSchedulingEnabled ?? ["trial", "certified_live"].includes(operationalMode);
 
   const { data: sessionLog, isLoading: sessionLogLoading } = useQuery<SessionLogResponse>({
     queryKey: ["/api/tutor/scheduled-sessions/log", selectedLogSession?.id],
@@ -158,7 +158,9 @@ export default function TutorSessions() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Sessions</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {operationalMode === "training"
+              {operationalMode === "trial"
+                ? "Trial is live validation. Your schedule remains active for your two governed family placements."
+                : operationalMode === "training"
                 ? "Training mode is active. Live scheduling and Google Meet lesson windows are hidden for you."
                 : "Weekly tutor schedule from the live Response Integrity planning table."}
             </p>
@@ -180,7 +182,7 @@ export default function TutorSessions() {
           <Card className="p-5 sm:p-6 border">
             <p className="text-sm font-medium text-foreground">Live session scheduling is disabled</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              You are currently in training mode. Run intro and training drills from the student workflow surfaces instead of using booked Google Meet lesson windows.
+              Your current preparation state does not carry live family scheduling responsibility. Run drills from the protected training or sandbox workflow.
             </p>
           </Card>
         ) : null}

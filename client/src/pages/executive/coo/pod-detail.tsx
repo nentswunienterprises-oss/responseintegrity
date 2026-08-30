@@ -13,7 +13,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { TrialProgressCard } from "@/components/trial/TrialProgressCard";
+import type {
+  TrialCaseOverview,
+  TrialOutcomeClassification,
+  TrialReviewDecision,
+  TrialCertificationDecision,
+} from "@shared/trialCertification";
 import {
   Activity,
   ArrowLeft,
@@ -77,6 +92,7 @@ function getBattleTestStateBadgeClass(state: string | null | undefined) {
 function getOperationalModeBadge(mode?: string | null) {
   const normalized = String(mode || "").toLowerCase();
   if (normalized === "certified_live") return "default";
+  if (normalized === "trial") return "secondary";
   if (normalized === "suspended") return "destructive";
   return "secondary";
 }
@@ -84,6 +100,7 @@ function getOperationalModeBadge(mode?: string | null) {
 function formatOperationalModeLabel(mode?: string | null) {
   const normalized = String(mode || "").toLowerCase();
   if (normalized === "certified_live") return "Certified Live";
+  if (normalized === "trial") return "Trial";
   if (normalized === "sandbox") return "Sandbox Mode";
   if (normalized === "suspended") return "Suspended";
   if (normalized === "applicant") return "Applicant";
@@ -93,6 +110,7 @@ function formatOperationalModeLabel(mode?: string | null) {
 function resolveTutorMode(assignmentMode?: string | null) {
   const normalizedAssignment = String(assignmentMode || "").toLowerCase();
   if (normalizedAssignment === "certified_live") return "certified_live";
+  if (normalizedAssignment === "trial") return "trial";
   if (normalizedAssignment === "sandbox") return "sandbox";
   if (normalizedAssignment === "applicant") return "applicant";
   if (normalizedAssignment === "suspended") return "suspended";
@@ -115,11 +133,12 @@ function getTutorActualMode(
 
 function isTutorEligibleForParentAssignment(mode?: string | null) {
   const normalized = String(mode || "").toLowerCase();
-  return normalized === "certified_live" || normalized === "sandbox";
+  return normalized === "certified_live" || normalized === "trial";
 }
 
 function getOperatingStateBadgeClass(stateKey?: string | null) {
   if (stateKey === "certified_live") return "bg-emerald-100 text-emerald-800 border-emerald-200";
+  if (stateKey === "trial_validation") return "bg-amber-100 text-amber-900 border-amber-200";
   if (stateKey === "sandbox_training") return "bg-sky-100 text-sky-800 border-sky-200";
   if (stateKey === "training_plant") return "bg-slate-100 text-slate-800 border-slate-200";
   if (stateKey === "misaligned") return "bg-rose-100 text-rose-800 border-rose-200";
@@ -129,6 +148,7 @@ function getOperatingStateBadgeClass(stateKey?: string | null) {
 function formatModeCapability(mode?: string | null) {
   const normalized = String(mode || "").toLowerCase();
   if (normalized === "certified_live") return "Live parents allowed";
+  if (normalized === "trial") return "Exactly two governed Trial families";
   if (normalized === "sandbox") return "Sandbox-only parents";
   if (normalized === "suspended") return "Removed from active responsibility";
   if (normalized === "applicant") return "Onboarding not complete";
@@ -139,12 +159,14 @@ function getTutorResponsibilityView(
   mode: string | null | undefined,
   counts: {
     sandboxParentCount?: number | null;
+    trialParentCount?: number | null;
     liveParentCount?: number | null;
     awaitingTutorAcceptanceCount?: number | null;
   }
 ) {
   const normalized = String(mode || "").toLowerCase();
   const sandboxCount = counts.sandboxParentCount || 0;
+  const trialCount = counts.trialParentCount || 0;
   const liveCount = counts.liveParentCount || 0;
   const awaitingCount = counts.awaitingTutorAcceptanceCount || 0;
 
@@ -154,6 +176,15 @@ function getTutorResponsibilityView(
       primary: `${liveCount} live parent${liveCount === 1 ? "" : "s"}`,
       secondary: sandboxCount > 0 ? `${sandboxCount} sandbox assignment${sandboxCount === 1 ? "" : "s"} should be reviewed` : "Sandbox lane inactive",
       toneClass: "border-emerald-200/70 bg-emerald-50/40",
+    };
+  }
+
+  if (normalized === "trial") {
+    return {
+      title: "Current Trial Responsibility",
+      primary: `${trialCount}/2 trial famil${trialCount === 1 ? "y" : "ies"}`,
+      secondary: liveCount > 0 ? `${liveCount} commercial assignment${liveCount === 1 ? "" : "s"} must be removed` : "Commercial assignments remain blocked",
+      toneClass: "border-amber-200/70 bg-amber-50/40",
     };
   }
 
@@ -601,8 +632,9 @@ export default function PodDetail() {
   });
 
   const assignAwaitingEnrollmentMutation = useMutation({
-    mutationFn: async ({ enrollmentId, tutorId }: { enrollmentId: string; tutorId: string }) => {
-      await apiRequest("POST", `/api/hr/enrollments/${enrollmentId}/assign-tutor`, {
+    mutationFn: async ({ enrollmentId, tutorId, assignmentLane }: { enrollmentId: string; tutorId: string; assignmentLane: "trial" | "commercial" }) => {
+      const assignmentPath = assignmentLane === "trial" ? "assign-trial-tutor" : "assign-tutor";
+      await apiRequest("POST", `/api/hr/enrollments/${enrollmentId}/${assignmentPath}`, {
         tutorId,
         podId,
       });
@@ -614,8 +646,10 @@ export default function PodDetail() {
       queryClient.invalidateQueries({ queryKey: [`/api/coo/tutors/${variables.tutorId}/students`] });
       queryClient.invalidateQueries({ queryKey: ["/api/coo/pods"] });
       toast({
-        title: "Parent assigned",
-        description: "The parent was assigned to the tutor from this pod view.",
+        title: variables.assignmentLane === "trial" ? "Trial family placed" : "Parent assigned",
+        description: variables.assignmentLane === "trial"
+          ? "The family was bound to the tutor's governed Trial case."
+          : "The parent was assigned as an ordinary commercial family.",
       });
     },
     onError: (error: any) => {
@@ -963,7 +997,7 @@ export default function PodDetail() {
                     <div className="rounded-lg border bg-muted/20 p-3">
                       <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Tutor Mix</p>
                       <p className="mt-1 text-sm font-medium">
-                        Live {operatingOverview.tutorModeCounts?.certified_live || 0} • Sandbox {operatingOverview.tutorModeCounts?.sandbox || 0}
+                        Live {operatingOverview.tutorModeCounts?.certified_live || 0} • Trial {operatingOverview.tutorModeCounts?.trial || 0} • Sandbox {operatingOverview.tutorModeCounts?.sandbox || 0}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         Training {((operatingOverview.tutorModeCounts?.training || 0) + (operatingOverview.tutorModeCounts?.applicant || 0) + (operatingOverview.tutorModeCounts?.watchlist || 0) + (operatingOverview.tutorModeCounts?.suspended || 0))}
@@ -972,7 +1006,7 @@ export default function PodDetail() {
                     <div className="rounded-lg border bg-muted/20 p-3">
                       <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Assignment Split</p>
                       <p className="mt-1 text-sm font-medium">
-                        Live {operatingOverview.assignmentCounts?.liveParents || 0} • Sandbox {operatingOverview.assignmentCounts?.sandboxParents || 0}
+                        Commercial {operatingOverview.assignmentCounts?.liveParents || 0} • Trial {operatingOverview.assignmentCounts?.trialParents || 0} • Sandbox {operatingOverview.assignmentCounts?.sandboxParents || 0}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         Awaiting acceptance {operatingOverview.assignmentCounts?.awaitingTutorAcceptance || 0}
@@ -1145,6 +1179,7 @@ export default function PodDetail() {
                           );
                           const responsibilityView = getTutorResponsibilityView(operationalMode, {
                             sandboxParentCount: assignment.sandbox_parent_count,
+                            trialParentCount: assignment.trial_parent_count,
                             liveParentCount: assignment.live_parent_count,
                             awaitingTutorAcceptanceCount: assignment.awaiting_tutor_acceptance_count,
                           });
@@ -1694,6 +1729,299 @@ export default function PodDetail() {
   );
 }
 
+function TrialCertificationPanel({
+  tutorId,
+  tutorName,
+  operationalMode,
+}: {
+  tutorId: string;
+  tutorName: string;
+  operationalMode?: string | null;
+}) {
+  const { toast } = useToast();
+  const [reviewDrafts, setReviewDrafts] = useState<Record<string, {
+    outcomeClassification: TrialOutcomeClassification;
+    decision: TrialReviewDecision;
+    evidenceNote: string;
+  }>>({});
+  const [finalDecision, setFinalDecision] = useState<TrialCertificationDecision>("certified");
+  const [finalRationale, setFinalRationale] = useState("");
+  const isTrialMode = String(operationalMode || "").toLowerCase() === "trial";
+  const trialQueryKey = [`/api/coo/tutors/${tutorId}/trial-case`];
+
+  const { data: trialPayload, isLoading: trialLoading } = useQuery<{
+    mode: string;
+    case: TrialCaseOverview | null;
+  }>({
+    queryKey: trialQueryKey,
+    enabled: !!tutorId && isTrialMode,
+    refetchInterval: 10000,
+    refetchOnWindowFocus: true,
+  });
+
+  const startCaseMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", `/api/coo/tutors/${tutorId}/trial-case`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: trialQueryKey });
+      toast({
+        title: "Trial case opened",
+        description: `${tutorName} can now receive governed Trial family placements.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Trial case failed",
+        description: error?.message || "Failed to open Trial case.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: async ({ placementId, draft }: {
+      placementId: string;
+      draft: {
+        outcomeClassification: TrialOutcomeClassification;
+        decision: TrialReviewDecision;
+        evidenceNote: string;
+      };
+    }) => {
+      await apiRequest("POST", `/api/coo/trial-placements/${placementId}/review`, draft);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: trialQueryKey });
+      queryClient.invalidateQueries({ queryKey: ["/api/coo/pods/operating-overview"] });
+      toast({
+        title: "Trial review recorded",
+        description: "The family outcome review was saved against the governed case.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Review blocked",
+        description: error?.message || "The Trial placement is not ready for review.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const decisionMutation = useMutation({
+    mutationFn: async () => {
+      const trialCase = trialPayload?.case;
+      if (!trialCase) throw new Error("Trial case is not loaded.");
+      await apiRequest("POST", `/api/coo/trial-cases/${trialCase.id}/decision`, {
+        decision: finalDecision,
+        rationale: finalRationale,
+        idempotencyKey: crypto.randomUUID(),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: trialQueryKey });
+      queryClient.invalidateQueries({ queryKey: [`/api/coo/tutors/${tutorId}/students`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/coo/pods/operating-overview"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/coo/pods"] });
+      setFinalRationale("");
+      toast({
+        title: finalDecision === "certified" ? "Certified Live approved" : "Trial decision recorded",
+        description: finalDecision === "certified"
+          ? "The tutor was promoted only after explicit COO approval."
+          : "The Trial case was closed without live certification.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Decision blocked",
+        description: error?.message || "Failed to record the Trial decision.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  if (!isTrialMode) return null;
+
+  const trialCase = trialPayload?.case || null;
+
+  return (
+    <div className="space-y-4">
+      {trialLoading ? (
+        <Card className="border-amber-200 bg-amber-50/30 p-4">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="mt-3 h-20 w-full" />
+        </Card>
+      ) : (
+        <TrialProgressCard trialCase={trialCase} mode="trial" audience="coo" />
+      )}
+
+      {!trialLoading && !trialCase ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={startCaseMutation.isPending}
+          onClick={() => startCaseMutation.mutate()}
+          className="border-amber-300 text-amber-900"
+        >
+          {startCaseMutation.isPending ? "Opening Trial case..." : "Open Trial case"}
+        </Button>
+      ) : null}
+
+      {trialCase ? (
+        <div className="space-y-3">
+          {trialCase.placements.map((placement) => {
+            const draft = reviewDrafts[placement.id] || {
+              outcomeClassification: placement.review?.outcomeClassification || "positive",
+              decision: placement.review?.decision || "positive",
+              evidenceNote: placement.review?.evidenceNote || "",
+            };
+            const reviewBlocked = !placement.progress.evidenceComplete || placement.feedbackState === "pending";
+
+            return (
+              <Card key={placement.id} className="border-amber-200 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{placement.studentName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {placement.progress.qualifyingSessionCount}/{placement.progress.requiredSessionCount} qualifying sessions,
+                      feedback {placement.feedbackState.replace("_", " ")}
+                    </p>
+                  </div>
+                  <Badge variant={placement.review?.decision === "positive" ? "default" : "outline"}>
+                    {placement.review ? placement.review.decision.replace("_", " ") : "Review pending"}
+                  </Badge>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label>Outcome classification</Label>
+                    <Select
+                      value={draft.outcomeClassification}
+                      onValueChange={(value) =>
+                        setReviewDrafts((current) => ({
+                          ...current,
+                          [placement.id]: { ...draft, outcomeClassification: value as TrialOutcomeClassification },
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="positive">Positive</SelectItem>
+                        <SelectItem value="mixed">Mixed</SelectItem>
+                        <SelectItem value="negative">Negative</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Review decision</Label>
+                    <Select
+                      value={draft.decision}
+                      onValueChange={(value) =>
+                        setReviewDrafts((current) => ({
+                          ...current,
+                          [placement.id]: { ...draft, decision: value as TrialReviewDecision },
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="positive">Positive</SelectItem>
+                        <SelectItem value="remediation_required">Remediation required</SelectItem>
+                        <SelectItem value="unsuccessful">Unsuccessful</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <Label>Evidence note</Label>
+                  <Textarea
+                    value={draft.evidenceNote}
+                    onChange={(event) =>
+                      setReviewDrafts((current) => ({
+                        ...current,
+                        [placement.id]: { ...draft, evidenceNote: event.target.value },
+                      }))
+                    }
+                    className="mt-1"
+                    placeholder="Name the evidence behind this outcome review."
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-3"
+                  disabled={reviewBlocked || reviewMutation.isPending || !draft.evidenceNote.trim()}
+                  onClick={() => reviewMutation.mutate({ placementId: placement.id, draft })}
+                >
+                  {reviewMutation.isPending ? "Saving review..." : "Save outcome review"}
+                </Button>
+                {reviewBlocked ? (
+                  <p className="mt-2 text-xs text-amber-900">
+                    Review opens only after nine qualifying sessions, required reports, and family feedback received or declined.
+                  </p>
+                ) : null}
+              </Card>
+            );
+          })}
+
+          <Card className="border-emerald-200 p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Final COO decision</p>
+                <p className="text-xs text-muted-foreground">
+                  Certification requires this explicit approval even when all deterministic Trial gates are complete.
+                </p>
+              </div>
+              <Badge variant={trialCase.gate.reviewable ? "default" : "outline"}>
+                {trialCase.gate.reviewable ? "Gate open" : "Gate blocked"}
+              </Badge>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-[220px_1fr]">
+              <div>
+                <Label>Decision</Label>
+                <Select value={finalDecision} onValueChange={(value) => setFinalDecision(value as TrialCertificationDecision)}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="certified">Certified Live</SelectItem>
+                    <SelectItem value="remediation_required">Remediation required</SelectItem>
+                    <SelectItem value="unsuccessful">Unsuccessful</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Rationale</Label>
+                <Textarea
+                  value={finalRationale}
+                  onChange={(event) => setFinalRationale(event.target.value)}
+                  className="mt-1"
+                  placeholder="Record the COO decision rationale."
+                />
+              </div>
+            </div>
+            <Button
+              type="button"
+              className="mt-3"
+              disabled={
+                decisionMutation.isPending ||
+                !finalRationale.trim() ||
+                (finalDecision === "certified" && !trialCase.gate.reviewable)
+              }
+              onClick={() => decisionMutation.mutate()}
+            >
+              {decisionMutation.isPending ? "Recording decision..." : "Record COO decision"}
+            </Button>
+          </Card>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 // Component to display tutor's students in expanded section
 interface TutorStudentsSectionProps {
   assignmentId: string;
@@ -1748,6 +2076,12 @@ function TutorStudentsSection({
         <Badge variant="outline">{activeStudentCount}/{maxStudentsPerTutor}</Badge>
       </div>
 
+      <TrialCertificationPanel
+        tutorId={tutorId}
+        tutorName={tutorName}
+        operationalMode={operationalMode}
+      />
+
       {/* Students List */}
       <div>
         {isLoading ? (
@@ -1793,10 +2127,16 @@ function TutorStudentsSection({
                           className={
                             student.isSandboxAssignment
                               ? "bg-sky-100 text-sky-800 border-sky-200"
+                              : student.isTrialAssignment
+                                ? "bg-amber-100 text-amber-900 border-amber-200"
                               : "bg-emerald-100 text-emerald-800 border-emerald-200"
                           }
                         >
-                          {student.isSandboxAssignment ? "Sandbox Parent" : "Live Parent"}
+                          {student.isSandboxAssignment
+                            ? "Sandbox Parent"
+                            : student.isTrialAssignment
+                              ? "Trial Family"
+                              : "Commercial Family"}
                         </Badge>
                         {student.isReassignmentPreserved ? (
                           <Badge className="bg-amber-100 text-amber-900 border-amber-200">
@@ -2140,6 +2480,7 @@ function TutorStudentsSection({
                                       await assignAwaitingEnrollmentMutation.mutateAsync({
                                         enrollmentId: enrollment.id,
                                         tutorId,
+                                        assignmentLane: operationalMode === "trial" ? "trial" : "commercial",
                                       });
                                       setAssignDialogOpen(false);
                                     } catch {
@@ -2147,7 +2488,11 @@ function TutorStudentsSection({
                                     }
                                   }}
                                 >
-                                  {isAssigningThisEnrollment ? "Assigning..." : `Assign to ${tutorName}`}
+                                  {isAssigningThisEnrollment
+                                    ? "Assigning..."
+                                    : operationalMode === "trial"
+                                      ? `Place as Trial family`
+                                      : `Assign to ${tutorName}`}
                                   {!isAssigningThisEnrollment ? <ArrowRight className="ml-2 h-4 w-4" /> : null}
                                 </Button>
                               </div>
@@ -2163,7 +2508,7 @@ function TutorStudentsSection({
             </Dialog>
             {!canAssignParents ? (
               <p className="mt-2 text-xs text-rose-900 break-words sm:text-right">
-                Parent assignment is blocked until this tutor is in Sandbox or Certified Live mode.
+                Parent assignment is blocked until this tutor enters Trial or Certified Live. Sandbox accepts synthetic accounts only.
               </p>
             ) : null}
           </div>

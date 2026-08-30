@@ -1,6 +1,6 @@
 # Response Integrity-OS Live Implementation Source of Truth
 
-Last updated: 2026-05-17
+Last updated: 2026-08-30
 Status: Canonical implementation spec
 
 ## Purpose
@@ -137,9 +137,12 @@ The live implementation is primarily distributed across these files:
 - `shared/adaptiveDiagnosis.ts`
 - `shared/responseSymptomMapping.ts`
 - `shared/observationScoring.ts`
+- `shared/responseIntegrityDrillRegistry.ts`
+- `shared/responseIntegrityEvidenceLedger.ts`
 - `shared/battleTesting.ts`
 - `server/battleTesting.ts`
 - `server/routes.ts`
+- `server/responseIntegrityEvidenceLedger.ts`
 - `client/src/components/tutor/IntroSessionDrillRunner.tsx`
 
 The main live endpoints involved in the engine are:
@@ -156,6 +159,9 @@ Core test coverage for the shared algorithm layer currently exists in:
 - `shared/topicConditioningEngine.test.ts`
 - `shared/adaptiveDiagnosis.test.ts`
 - `shared/observationScoring.test.ts`
+- `shared/responseIntegrityDrillRegistry.test.ts`
+- `shared/responseIntegrityEvidenceLedger.test.ts`
+- `server/responseIntegrityEvidenceLedger.test.ts`
 
 ## Product Domain Model
 
@@ -533,6 +539,84 @@ If the tutor still has to invent the session, the product is incomplete.
 Implementation:
 
 - `shared/observationScoring.ts`
+- `shared/responseIntegrityDrillRegistry.ts`
+
+### Versioned evidence-capture contract
+
+The live tutor runner now resolves reportable option semantics through the shared drill registry.
+
+For new diagnosis, training, and verification submissions, the captured set contract includes:
+
+- drill schema ID, schema version, and definition hash
+- stable set ID and one-based set order
+- the registered constraint profile
+- stable rep-purpose ID and one-based rep number
+- stable observation-dimension ID
+- stable selected-option ID
+- selected raw option label
+- normalized `weak` / `partial` / `clear` level
+
+The registry owns the live raw-option ordering and level mapping. `IntroSessionDrillRunner` uses those registered options when rendering and serializing evidence. The server validates the raw option, option ID, dimension, rep identity, set identity, mode, phase, schema version, and definition hash as one contract. It then writes the registry-derived level and constraint profile into the normalized stored payload; it does not accept a contradictory client-supplied level.
+
+Published definitions are retained in `RESPONSE_INTEGRITY_DRILL_REGISTRY_HISTORY` and can be resolved by version. A wording, option, ordering, purpose, constraint, or level change must publish a new definition instead of mutating an already captured version.
+
+A payload may be wholly legacy or wholly versioned. Mixing legacy and versioned sets or blocks in one drill is rejected. Legacy payload validation remains available so existing records and in-flight older clients are not silently reinterpreted or broken.
+
+The normalized versioned evidence remains persisted inside the existing `intro_session_drills.drill` JSON payload as the live drill record. It now also feeds the shadow ledger described below. The ledger is not yet a claim-authorization engine or reporting-path replacement, and current progression and parent-report calculations remain unchanged.
+
+### Shadow phase-aware evidence ledger
+
+Implementation:
+
+- `shared/responseIntegrityEvidenceLedger.ts`
+- `server/responseIntegrityEvidenceLedger.ts`
+- `scripts/backfill-response-integrity-evidence-ledger.ts`
+- `migrations/2026-08-29_response_integrity_evidence_ledger.sql`
+
+After a versioned diagnosis, training, or handover drill row is stored, the server deterministically projects every scored rep dimension into `response_integrity_evidence_ledger`.
+
+Each projected entry retains:
+
+- deterministic evidence ID and projection version
+- source drill ID
+- student and tutor identity
+- scheduled-session, training-run, and session-group identity
+- session context and drill type
+- topic and the phase in which the observation occurred
+- state phase and stability before and after the drill, where a prior state exists
+- transition or verification reason
+- schema ID, schema version, and definition hash
+- drill-block order, set ID, and registry set order
+- rep-purpose ID and rep number
+- dimension ID, dimension order, and field key
+- selected option ID and raw option
+- normalized observation level
+- rep-level weighted score contribution and maximum
+- registered constraint profile
+- observation time
+
+Set-purpose and rep-purpose prose are not copied into every row. Their stable IDs plus the retained registry version resolve the historical meaning.
+
+Evidence identity is the deterministic tuple of source drill, drill-block order, set, rep, and dimension. Block order keeps adaptive phase paths auditable and prevents a repeated block from collapsing into an earlier one. Persistence uses `ON CONFLICT DO NOTHING`, so replaying projection for the same stored drill does not duplicate or rewrite evidence. The table rejects updates, is protected by RLS without direct client policies, and is indexed for student/topic timelines, scheduled-session lineage, training-run lineage, source-drill traceability, and later claim scans. Authorized source-drill deletion cascades to ledger rows so evidence retention cannot block a protected student-data deletion workflow. `scheduled_session_id` and `training_session_run_id` are stored as lineage strings rather than hard foreign keys because historical environments disagree on UUID versus varchar ID types for those tables.
+
+This ledger is shadow infrastructure:
+
+- current scoring and topic movement still use the validated drill payload
+- current parent reports still use the existing deterministic report path
+- ledger persistence failure is logged with structured status but does not fail an already stored drill
+- fully legacy submissions remain usable by current engines but are marked `legacy_unprojected` rather than being silently assigned semantics they never captured
+- no historical backfill runs automatically
+- the migration must be applied before shadow rows can persist, and the server service role is required because direct client access is intentionally denied
+
+The score contribution on a ledger entry describes that observation's weighted contribution inside a rep. It is not claim strength, a recurrence decision, or separate permission to progress.
+
+Backfill and audit command:
+
+- audit only: `npm run backfill:ri-evidence-ledger`
+- scoped audit: `npm run backfill:ri-evidence-ledger -- --student-id <id>` or `--source-drill-id <id>`
+- write mode: `npm run backfill:ri-evidence-ledger -- --write`
+
+The backfill command reads stored `intro_session_drills`, builds the same projection input used by the live server path, projects only versioned evidence, reports legacy and invalid rows, checks existing ledger counts for projected source drills, and writes only when `--write` is present.
 
 ### Normalized levels
 
@@ -1968,16 +2052,17 @@ Supporting data reference:
 
 1. A tutor submits diagnosis, training, or handover-related drill data.
 2. The drill row is stored.
-3. `maybeAutoSendDeterministicReports(studentId, tutorId)` runs after drill submission.
-4. The system fetches all drill rows for that student and tutor.
-5. Each drill row is normalized into a deterministic session-like object.
-6. Handover verification rows are excluded from weekly and monthly parent reports.
-7. The normalized rows are grouped by session group id.
-8. Weekly windows are built from every 2 completed session groups.
-9. Monthly windows are built from every 8 completed session groups.
-10. Structured report JSON is generated.
-11. It is inserted into `parent_reports.summary`.
-12. Parent UI later renders the stored structure.
+3. Versioned observations are projected into the shadow evidence ledger; reports do not read it yet.
+4. `maybeAutoSendDeterministicReports(studentId, tutorId)` runs after drill submission.
+5. The system fetches all drill rows for that student and tutor.
+6. Each drill row is normalized into a deterministic session-like object.
+7. Handover verification rows are excluded from weekly and monthly parent reports.
+8. The normalized rows are grouped by session group id.
+9. Weekly windows are built from every 2 completed session groups.
+10. Monthly windows are built from every 8 completed session groups.
+11. Structured report JSON is generated.
+12. It is inserted into `parent_reports.summary`.
+13. Parent UI later renders the stored structure.
 
 Automatic report reliability rules:
 
@@ -2629,6 +2714,39 @@ Without this layer:
 - parent trust can be harmed before leadership notices
 - the reporting layer can look cleaner than real delivery
 - scale becomes more expensive because drift has to be corrected manually
+
+## Tutor Certification Lifecycle
+
+The implemented tutor lifecycle is:
+
+```text
+applicant -> training -> sandbox -> trial -> certified_live
+```
+
+`watchlist` and `suspended` are operational risk states and enforcement states. They do not replace the evidence-gated graduation path.
+
+Battle Testing and readiness checks may move a tutor into `trial` after training, sandbox, and preparation evidence is complete. They must not issue new `certified_live` status on their own.
+
+### Trial validation gate
+
+Trial is the first live validation state before Certified Live.
+
+A tutor may reach the COO certification decision point only when all of the following are true:
+
+- exactly two distinct Trial families are attached to the open Trial case
+- each family has nine qualifying completed sessions
+- each qualifying session has the required deterministic session log
+- each family has the required weekly and monthly parent reports covering those sessions
+- family feedback is received or formally declined for each family
+- each family has a positive COO outcome review
+- the Trial case has no active risk, remediation, or suspension state
+- the COO records an explicit final decision
+
+The gate is deterministic up to reviewability. Certified Live is never automatic: a reviewable Trial case still requires an explicit COO approval record.
+
+Testimonials are optional and are not part of the certification gate.
+
+Tutors who already held valid Certified Live status before the Trial lifecycle was introduced are treated as grandfathered Certified Live unless a later health/risk state removes that permission.
 
 ## Resolved Drift And Contradiction Rules
 

@@ -203,8 +203,6 @@ This is the proving chamber.
 Sandbox requirements:
 - completion of core doctrine training
 - demonstrated understanding of the operating model
-- reliable execution inside supervised conditions
-- ability to work with feedback without losing structure
 
 Sandbox benefits:
 - protected practice
@@ -212,20 +210,19 @@ Sandbox benefits:
 - early evidence of readiness
 - preparation for live responsibility
 
-### Phase 4: Trial Ready
-The entrant becomes Trial Ready.
+### Phase 4: Trial
+The entrant becomes a Trial specialist.
 
 This is the first major identity shift.
 They are no longer merely learning the system.
 They are now being prepared to carry more responsibility.
 
-Trial Ready requirements:
+Trial entry requirements:
 - strong execution in sandbox work
-- no active fail state
 - evidence of consistency and coachability
+- completed preparation evidence
 - readiness for validation outside training conditions
 
-### Phase 5: Trial Mode
 This is where the specialist begins to operate under validation conditions, including limited family or student exposure under supervision.
 The work is more serious.
 The stakes are higher.
@@ -234,14 +231,16 @@ The evidence must be stronger.
 This is the point where the system asks:
 Can you hold standard outside the classroom of training?
 
-Trial Mode requirements:
-- valid trial placement
-- reliable session execution
-- accurate reporting and logging
-- maintained structure under pressure
-- evidence of parent/student trust signals
+Trial requirements:
+- exactly two distinct governed Trial families
+- nine qualifying sessions per family
+- required deterministic session logs
+- required weekly and monthly parent reports
+- feedback received or formally declined by each family
+- positive COO outcome review for each family
+- no active risk or remediation state
 
-Trial Mode benefits:
+Trial benefits:
 - real-world exposure
 - higher responsibility
 - stronger professional identity
@@ -252,10 +251,13 @@ This is the graduation into real responsibility.
 The specialist is now trusted with paid student and parent responsibility inside the live system.
 
 Certified Live requirements:
-- successful trial evidence
+- successful Trial evidence
 - demonstrated consistency
 - no active risk or remediation state
-- readiness to carry responsibility without founder-level oversight
+- readiness to carry responsibility without oversight
+- explicit COO approval
+
+Testimonials are optional and do not control certification.
 
 Certified Live benefits:
 - live student responsibility
@@ -287,26 +289,18 @@ This program should feel like a challenge, a culture, and a professional identit
 It should not feel like a course.
 It should feel like a proving movement.
 
-### The movement has five cultural pillars
 
-1. The Craft
-   - Learn the discipline of developing execution.
+in application mode you are providing evidence that you qualify
 
-2. The Operator
-   - Operate with structure, discipline, and responsibility.
+training mode you are providing evidence that you understand how transformation works
 
-3. The Development Year
-   - Do not waste your year after matric.
-   - Build capability.
+sandbox mode you are providing evidence that you know how our tools and systems work
 
-4. The Execution Gap
-   - Understanding is not the finish line.
-   - The real work is helping a learner move from knowing to doing.
+trial mode you are providing evidence that you know how to execute the the process on a real family and achieve the desired outcome
 
-5. The Standard
-   - Responsibility is earned through evidence.
-   - You are not certified by attendance.
-   - You are certified by readiness.
+certified live mode you are trusted with real responsibility and can handle paid clients
+
+journey takes anywhere between 76 - 91 days 
 
 ## The Program Should Feel Like This
 
@@ -331,8 +325,7 @@ A specialist moves through the system:
 - Applicant
 - Training
 - Sandbox
-- Trial Ready
-- Trial Mode
+- Trial
 - Certified Live
 - Pod Ready
 
@@ -356,8 +349,9 @@ That is the sweet spot.
 
 ### Time and completion windows
 The specialist pathway is built around cycles, not endless open enrollment.
+(Between 76-91 days...)
 
-Current operating rhythm:
+Annual rhythm:
 - Annual application window: 1 October to 31 October
 - Annual conditioning window: 1 November to 15 January
 - Annual deployment begins: 1 February
@@ -398,7 +392,9 @@ Progression requires evidence.
 A candidate must show:
 - understanding of the operating model
 - reliable execution inside the system
-- consistent reporting and session discipline
+- consistent conduct-]
+
+ and session discipline
 - ability to absorb feedback and improve
 - no active fail state
 - readiness for larger responsibility
