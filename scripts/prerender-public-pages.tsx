@@ -29,6 +29,7 @@ const COMPONENT_BY_PATH = {
   "/about/how-we-operate": HowWeOperate,
   "/about/how-we-teach": HowWeTeach,
   "/about/team": TeamPage,
+  "/operational/specialist/landing": TutorLanding,
   "/operational/tutor/landing": TutorLanding,
   "/operational/td/landing": TdLanding,
   "/affiliate/landing": AffiliateLanding,
