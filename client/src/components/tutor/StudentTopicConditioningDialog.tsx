@@ -1692,7 +1692,7 @@ export default function StudentTopicConditioningDialog({
                               toggleTopicExpanded(row.topic);
                             }}
                           >
-                            <span className="text-xs mr-1">{isExpanded ? "Hide" : "Expand"}</span>
+                            <span className="text-xs mr-1">{isExpanded ? "Hide" : "See Details"}</span>
                             <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                           </Button>
                         </div>
@@ -1761,7 +1761,7 @@ export default function StudentTopicConditioningDialog({
                         </p>
 
                         <div className="rounded-md border border-primary/20 bg-primary/5 p-2.5 space-y-1.5">
-                          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Tutor Prep For Next Session</p>
+                          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Prep For Next Session</p>
                           <p className="text-xs text-foreground/80">{rowPrepPlan.drillType}</p>
                           <div className="space-y-1">
                             {rowPrepPlan.setPlans.map((setPlan) => (
@@ -1868,7 +1868,7 @@ export default function StudentTopicConditioningDialog({
                     <p><span className="font-medium">Entry Diagnosis:</span> {selectedRow.entryDiagnosis}</p>
                   </div>
                   <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-3">
-                    <p className="text-sm font-medium">Tutor Prep For Next Session</p>
+                    <p className="text-sm font-medium">Specialist Prep For Next Session</p>
                     {prepPlan && (
                       <>
                         <p className="text-xs text-muted-foreground">Drill type: {prepPlan.drillType}</p>
