@@ -332,6 +332,108 @@ export const formatSnapshotRepResult = (rep: Pick<ResponseSnapshotRep, "repPurpo
   return formatSnapshotResultText(rep.resultText);
 };
 
+const OBSERVED_RESPONSE_CLEAR_LABELS: Record<string, string> = {
+  Vocabulary: "recognition",
+  Method: "method recall",
+  Reason: "reason awareness",
+  "First response": "active first response",
+  Start: "controlled start",
+  "Step execution": "step execution",
+  Repeatability: "repeatability",
+  Independence: "independent execution",
+  "Initial response": "controlled entry",
+  "First-step control": "first-step control",
+  "Discomfort tolerance": "difficulty tolerance",
+  "Rescue behavior": "low-rescue execution",
+  "Start under time": "timed start",
+  "Structure under time": "timed structure",
+  "Pace control": "pace control",
+  Completion: "completion",
+};
+
+const summarizeClearEvidence = (snapshot: Pick<ResponseSnapshotV1, "sets" | "source">) => {
+  const clearDimensions = new Set<string>();
+  snapshot.sets.forEach((set) => {
+    set.reps.forEach((rep) => {
+      rep.evidence.forEach((item) => {
+        if (item.normalizedLevel === "clear") {
+          clearDimensions.add(item.dimensionLabel);
+        }
+      });
+    });
+  });
+
+  if (snapshot.source.observedPhase === "Clarity") {
+    const hasVocabulary = clearDimensions.has("Vocabulary");
+    const hasMethod = clearDimensions.has("Method");
+    const hasReason = clearDimensions.has("Reason");
+    const clauses: string[] = [];
+    if (hasVocabulary && hasMethod) {
+      clauses.push("clear recognition and method recall");
+    } else if (hasVocabulary) {
+      clauses.push("clear recognition");
+    } else if (hasMethod) {
+      clauses.push("clear method recall");
+    }
+    if (hasReason) clauses.push("clear reason awareness");
+    return naturalJoin(clauses);
+  }
+
+  const clauses = Array.from(clearDimensions)
+    .map((dimension) => OBSERVED_RESPONSE_CLEAR_LABELS[dimension])
+    .filter(Boolean)
+    .slice(0, 3);
+
+  return naturalJoin(clauses);
+};
+
+const limitationPhraseForEvidence = (evidence: ResponseSnapshotEvidence) => {
+  const raw = evidence.selectedRawOption.toLowerCase();
+  if (evidence.dimensionLabel === "Reason" && raw === "weak") return "weak reason awareness";
+  if (evidence.dimensionLabel === "Reason" && raw === "none") return "missing reason awareness";
+  if (evidence.dimensionLabel === "Reason" && raw === "partial") return "partial reason awareness";
+  return cleanEvidenceClause(evidence.humanClause);
+};
+
+export const summarizeSnapshotObservedResponse = (snapshot?: ResponseSnapshotV1 | null) => {
+  if (!snapshot || !Array.isArray(snapshot.sets)) return null;
+
+  const limitationCounts = new Map<string, number>();
+  snapshot.sets.forEach((set) => {
+    set.reps.forEach((rep) => {
+      rep.evidence
+        .filter((item) => item.normalizedLevel === "weak" || item.normalizedLevel === "partial")
+        .forEach((item) => {
+          const phrase = limitationPhraseForEvidence(item);
+          if (phrase) {
+            limitationCounts.set(phrase, (limitationCounts.get(phrase) || 0) + 1);
+          }
+        });
+    });
+  });
+
+  const clearSummary = summarizeClearEvidence(snapshot);
+  const limitationClauses = Array.from(limitationCounts.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 2)
+    .map(([phrase, count]) =>
+      count > 1
+        ? `${phrase} was still logged across the reps`
+        : `${phrase} was still logged on one rep`
+    );
+
+  if (clearSummary && limitationClauses.length > 0) {
+    return `The student showed ${clearSummary} during the drill, while ${naturalJoin(limitationClauses)}.`;
+  }
+  if (clearSummary) {
+    return `The student showed ${clearSummary} during the drill.`;
+  }
+  if (limitationClauses.length > 0) {
+    return `The drill logged ${naturalJoin(limitationClauses)}.`;
+  }
+  return null;
+};
+
 const patternCharForLevel = (level: ResponseSnapshotDisplayLevel) =>
   level === "strong" ? "S" : level === "partial" ? "P" : level === "weak" ? "W" : "N";
 

@@ -54,7 +54,7 @@ import {
   validateAndNormalizeSemanticEvidenceSet,
   type EvidenceDrillMode,
 } from "@shared/responseIntegrityDrillRegistry";
-import { buildResponseSnapshotV1 } from "@shared/responseSnapshot";
+import { buildResponseSnapshotV1, summarizeSnapshotObservedResponse } from "@shared/responseSnapshot";
 import type { EvidenceLedgerProjectionInput } from "@shared/responseIntegrityEvidenceLedger";
 import {
   buildStartingPhaseRationale,
@@ -4120,6 +4120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 ""
               ).trim() || null;
               const observationSignals = extractObservationSignalsFromDrill(parsed);
+              const snapshotBehaviorSummary = summarizeSnapshotObservedResponse(parsed.responseSnapshot);
               const transitionReason: TransitionReason = "remain";
 
               return {
@@ -4141,7 +4142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 deterministicLog: {
                   topicFocus: `This session focused on ${topic}, targeting baseline diagnosis in ${diagnosisPhase}.`,
                   whatWasTrained: `A diagnosis drill was used to identify ${DRILL_PURPOSE_BY_PHASE[diagnosisPhase] || "phase-specific response patterns"}.`,
-                  behaviorSummary: buildBehaviorSummary(observationSignals, "diagnosis", stability),
+                  behaviorSummary: snapshotBehaviorSummary || buildBehaviorSummary(observationSignals, "diagnosis", stability),
                   performanceResult: describePerformanceResult({
                     phaseBefore: diagnosisPhase,
                     phaseAfter: trainingEntryPhase,
@@ -4198,6 +4199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ""
             ).trim() || null;
             const observationSignals = extractObservationSignalsFromDrill(parsed);
+            const snapshotBehaviorSummary = summarizeSnapshotObservedResponse(parsed.responseSnapshot);
 
               return {
                 id: row.id,
@@ -4218,7 +4220,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 deterministicLog: {
                 topicFocus: `This session focused on ${topic}, targeting ${observedPhase} phase skills.`,
                   whatWasTrained: `A training drill was used to train ${DRILL_PURPOSE_BY_PHASE[observedPhase] || "phase-specific behavior"}.`,
-                  behaviorSummary: buildBehaviorSummary(observationSignals, "the drill", stability),
+                  behaviorSummary: snapshotBehaviorSummary || buildBehaviorSummary(observationSignals, "the drill", stability),
                   performanceResult: describePerformanceResult({
                     phaseBefore: observedPhase,
                     phaseAfter: resultingPhase,
@@ -4299,9 +4301,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const containsDiagnosis = sessionTypes.includes("diagnosis");
                 const containsTraining = sessionTypes.includes("training");
                 const behaviorLines = sortedEntries.map((entry) => {
-                  const behaviors = Array.isArray(entry.behaviorPatterns) && entry.behaviorPatterns.length > 0
-                    ? naturalJoin(entry.behaviorPatterns)
-                    : "no mapped observation pattern detected";
+                  const snapshotSummary = String(entry.deterministicLog?.behaviorSummary || "").trim();
+                  const behaviors = snapshotSummary
+                    || (Array.isArray(entry.behaviorPatterns) && entry.behaviorPatterns.length > 0
+                      ? naturalJoin(entry.behaviorPatterns)
+                      : "no mapped observation pattern detected");
                   return `${entry.topic}: ${behaviors}`;
                 });
                 const performanceLines = sortedEntries.map((entry) =>

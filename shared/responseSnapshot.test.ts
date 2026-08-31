@@ -12,6 +12,7 @@ import {
   formatSnapshotPurposeText,
   formatSnapshotRepResult,
   formatSnapshotResultText,
+  summarizeSnapshotObservedResponse,
 } from "./responseSnapshot";
 import type { TopicPhase } from "./topicConditioningEngine";
 
@@ -217,6 +218,49 @@ test("clarity identification rep text changes by rep purpose", () => {
   assert.match(repTexts[1], /recognition and method recall held on the second example/);
   assert.match(repTexts[2], /recognition and method recall repeated again before active solving/);
   assert.equal(new Set(repTexts).size, 3);
+});
+
+test("observed response summary preserves limiting evidence from strong clarity reps", () => {
+  const submittedSet = buildSubmittedSet({
+    mode: "training",
+    phase: "Clarity",
+    setName: "Light Apply",
+    rawByRep: [
+      {
+        vocabulary: "correct",
+        method: "structured",
+        reason: "weak",
+        immediateApply: "immediate",
+      },
+      {
+        vocabulary: "correct",
+        method: "structured",
+        reason: "weak",
+        immediateApply: "immediate",
+      },
+      {
+        vocabulary: "correct",
+        method: "structured",
+        reason: "weak",
+        immediateApply: "immediate",
+      },
+    ],
+  });
+
+  const snapshot = buildResponseSnapshotV1({
+    sourceDrillId: "drill-4",
+    topic: "Fractions",
+    mode: "training",
+    phase: "Clarity",
+    sets: [submittedSet],
+    drillScore: 92,
+    setScores: [92],
+  });
+
+  assert.equal(
+    summarizeSnapshotObservedResponse(snapshot),
+    "The student showed clear recognition and method recall during the drill, while weak reason awareness was still logged across the reps.",
+  );
 });
 
 test("rep formatter strips labels from stored evidence clauses", () => {

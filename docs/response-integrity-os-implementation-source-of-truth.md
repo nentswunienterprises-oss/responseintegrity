@@ -539,7 +539,9 @@ These bands mirror the result-screen colors and must not be confused with adapti
 
 Snapshot prose is generated from the validated evidence payload and registered drill semantics. It must not be tutor-authored, LLM-generated, or used as a new progression gate. A weak or partial observation remains visible even when the overall rep, set, or drill displays as Strong.
 
-The stored drill JSON now includes `responseSnapshot` for new diagnosis, training, and handover verification submissions. Tracking Systems renders the stored snapshot beside each Session Log, after `What Was Trained` and before the broader `Observed Response`. Later reports may use the structured lineage fields, but they must not mine the generated prose as a source of claims.
+The stored drill JSON now includes `responseSnapshot` for new diagnosis, training, and handover verification submissions. Tracking Systems renders the stored snapshot beside each Session Log, after `What Was Trained` and before `Observed Response`.
+
+When a stored snapshot exists, `Observed Response` must be projected from the snapshot evidence rather than from the older broad behavior mapper. The field should summarize the strong response evidence and keep any weak or partial dimensions visible, including limiting evidence inside an otherwise strong rep. Later reports may use the structured lineage fields, but they must not mine the generated prose as a source of claims.
 
 ## Map And Tutor Control View
 

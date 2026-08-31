@@ -9,6 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  summarizeSnapshotObservedResponse,
+  type ResponseSnapshotV1,
+} from "@shared/responseSnapshot";
 
 type TutorWeeklyScheduleSession = {
   id: string;
@@ -54,6 +58,8 @@ type SessionLogResponse = {
   sessionLogs: Array<{
     id: string;
     date: string;
+    responseSnapshot?: ResponseSnapshotV1 | null;
+    responseSnapshots?: ResponseSnapshotV1[];
     deterministicLog?: {
       topicFocus?: string | null;
       whatWasTrained?: string | null;
@@ -74,6 +80,27 @@ function FieldRow({ label, value }: { label: string; value?: string | null }) {
       <p className="text-muted-foreground whitespace-pre-wrap">{String(value || "").trim() || "Not recorded"}</p>
     </div>
   );
+}
+
+function getResponseSnapshots(log: SessionLogResponse["sessionLogs"][number]) {
+  return [
+    ...(Array.isArray(log.responseSnapshots) ? log.responseSnapshots : []),
+    ...(log.responseSnapshot ? [log.responseSnapshot] : []),
+  ];
+}
+
+function getObservedResponseDisplay(log: SessionLogResponse["sessionLogs"][number]) {
+  const snapshots = getResponseSnapshots(log);
+  const snapshotSummaries = snapshots
+    .map((snapshot) => {
+      const summary = summarizeSnapshotObservedResponse(snapshot);
+      return summary && snapshots.length > 1 ? `${snapshot.source.topic}: ${summary}` : summary;
+    })
+    .filter(Boolean);
+
+  return snapshotSummaries.length > 0
+    ? snapshotSummaries.join("\n")
+    : log.deterministicLog?.behaviorSummary;
 }
 
 function statusLabel(status?: string | null) {
@@ -342,7 +369,7 @@ export default function TutorSessions() {
 
                       <FieldRow label="Session Summary" value={log.deterministicLog?.summaryText || log.deterministicLog?.topicFocus} />
                       <FieldRow label="What Was Trained" value={log.deterministicLog?.whatWasTrained} />
-                      <FieldRow label="Observed Response" value={log.deterministicLog?.behaviorSummary} />
+                      <FieldRow label="Observed Response" value={getObservedResponseDisplay(log)} />
                       <FieldRow label="Performance Result" value={log.deterministicLog?.performanceResult} />
                       <FieldRow label="State Update" value={log.deterministicLog?.stateMovement} />
                       <FieldRow label="What This Means" value={log.deterministicLog?.whatThisMeans} />

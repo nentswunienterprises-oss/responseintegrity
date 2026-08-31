@@ -20,6 +20,10 @@ import {
 } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, FileText } from "lucide-react";
+import {
+  summarizeSnapshotObservedResponse,
+  type ResponseSnapshotV1,
+} from "@shared/responseSnapshot";
 
 function getSessionDayLabel(value: string): string {
   const sessionDate = new Date(value);
@@ -97,6 +101,8 @@ interface SessionRecord {
     constraint?: string | null;
     practiceAssigned?: string | null;
   } | null;
+  responseSnapshot?: ResponseSnapshotV1 | null;
+  responseSnapshots?: ResponseSnapshotV1[];
   notes?: string | null;
   vocabularyNotes?: string | null;
   methodNotes?: string | null;
@@ -155,6 +161,27 @@ function getTopicFocusDisplay(log: NonNullable<SessionRecord["deterministicLog"]
   return log.topicFocus;
 }
 
+function getResponseSnapshots(session: SessionRecord) {
+  return [
+    ...(Array.isArray(session.responseSnapshots) ? session.responseSnapshots : []),
+    ...(session.responseSnapshot ? [session.responseSnapshot] : []),
+  ];
+}
+
+function getObservedResponseDisplay(session: SessionRecord) {
+  const snapshots = getResponseSnapshots(session);
+  const snapshotSummaries = snapshots
+    .map((snapshot) => {
+      const summary = summarizeSnapshotObservedResponse(snapshot);
+      return summary && snapshots.length > 1 ? `${snapshot.source.topic}: ${summary}` : summary;
+    })
+    .filter(Boolean);
+
+  return snapshotSummaries.length > 0
+    ? snapshotSummaries.join("\n")
+    : session.deterministicLog?.behaviorSummary;
+}
+
 function DeterministicSessionLog({ session }: { session: SessionRecord }) {
   const log = session.deterministicLog;
   if (!log) return null;
@@ -179,7 +206,7 @@ function DeterministicSessionLog({ session }: { session: SessionRecord }) {
       <div className="space-y-3 rounded-xl border border-primary/15 bg-background p-4">
         <FieldRow label="Session Summary" value={getTopicFocusDisplay(log)} />
         <FieldRow label="What Was Trained" value={log.whatWasTrained} />
-        <FieldRow label="Observed Response" value={log.behaviorSummary} />
+        <FieldRow label="Observed Response" value={getObservedResponseDisplay(session)} />
         <FieldRow label="Performance Result" value={log.performanceResult} />
         <FieldRow label="State Update" value={log.stateMovement} />
         <FieldRow label="What This Means" value={log.whatThisMeans} />
@@ -193,7 +220,7 @@ function DeterministicSessionLog({ session }: { session: SessionRecord }) {
 function getSessionPreview(session: SessionRecord) {
   if (session.deterministicLog) {
     const log = session.deterministicLog;
-    return [log.whatWasTrained, log.behaviorSummary, log.performanceResult].filter(Boolean).join(" ");
+    return [log.whatWasTrained, getObservedResponseDisplay(session), log.performanceResult].filter(Boolean).join(" ");
   }
   return "";
 }

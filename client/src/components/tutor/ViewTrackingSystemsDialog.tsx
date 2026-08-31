@@ -22,6 +22,7 @@ import { Calendar, FileText } from "lucide-react";
 import {
   formatSnapshotRepResult,
   formatSnapshotResultText,
+  summarizeSnapshotObservedResponse,
   type ResponseSnapshotV1,
 } from "@shared/responseSnapshot";
 
@@ -215,9 +216,31 @@ function ResponseSnapshotPanel({ snapshot }: { snapshot: ResponseSnapshotV1 }) {
 function getSessionPreview(session: SessionRecord) {
   if (session.deterministicLog) {
     const log = session.deterministicLog;
-    return [log.whatWasTrained, log.behaviorSummary, log.performanceResult].filter(Boolean).join(" ");
+    const snapshots = getResponseSnapshots(session);
+    const observedResponse = getObservedResponseDisplay(session, snapshots);
+    return [log.whatWasTrained, observedResponse, log.performanceResult].filter(Boolean).join(" ");
   }
   return "";
+}
+
+function getResponseSnapshots(session: SessionRecord) {
+  return [
+    ...(Array.isArray(session.responseSnapshots) ? session.responseSnapshots : []),
+    ...(session.responseSnapshot ? [session.responseSnapshot] : []),
+  ];
+}
+
+function getObservedResponseDisplay(session: SessionRecord, snapshots = getResponseSnapshots(session)) {
+  const snapshotSummaries = snapshots
+    .map((snapshot) => {
+      const summary = summarizeSnapshotObservedResponse(snapshot);
+      return summary && snapshots.length > 1 ? `${snapshot.source.topic}: ${summary}` : summary;
+    })
+    .filter(Boolean);
+
+  return snapshotSummaries.length > 0
+    ? snapshotSummaries.join("\n")
+    : session.deterministicLog?.behaviorSummary;
 }
 
 export default function ViewTrackingSystemsDialog({
@@ -312,10 +335,8 @@ export default function ViewTrackingSystemsDialog({
                     ) : (
                       <Accordion type="multiple" className="w-full">
                         {reportsCenter.sessions.map((session) => {
-                          const snapshots = [
-                            ...(Array.isArray(session.responseSnapshots) ? session.responseSnapshots : []),
-                            ...(session.responseSnapshot ? [session.responseSnapshot] : []),
-                          ];
+                          const snapshots = getResponseSnapshots(session);
+                          const observedResponse = getObservedResponseDisplay(session, snapshots);
                           return (
                           <AccordionItem key={session.id} value={`session-${session.id}`}>
                             <AccordionTrigger className="text-left">
@@ -345,7 +366,7 @@ export default function ViewTrackingSystemsDialog({
                                       ))}
                                     </div>
                                   ) : null}
-                                  <FieldRow label="Observed Response" value={session.deterministicLog.behaviorSummary} />
+                                  <FieldRow label="Observed Response" value={observedResponse} />
                                   <FieldRow label="Performance Result" value={session.deterministicLog.performanceResult} />
                                   <FieldRow label="State Update" value={session.deterministicLog.stateMovement} />
                                   <FieldRow label="What This Means" value={session.deterministicLog.whatThisMeans} />
