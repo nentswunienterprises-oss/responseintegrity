@@ -510,11 +510,9 @@ function interpretTopicState(
   trend?: TopicTrend,
   options?: { enteredMaintenanceCheckpoint?: boolean; firstObservationInCurrentPhase?: boolean },
 ) {
-  const enteredMaintenance = !!options?.enteredMaintenanceCheckpoint;
   const firstObservationInCurrentPhase = !!options?.firstObservationInCurrentPhase;
-  const requiresMaintenanceCheck = phase !== "Time Pressure Stability" && stability === "High Maintenance";
-  const nextAction = requiresMaintenanceCheck ? nextActionFor(phase, "High") : nextActionFor(phase, stability);
-  const rules = requiresMaintenanceCheck ? getNextActionData(phase, "High").rules : getNextActionData(phase, stability).rules;
+  const nextAction = nextActionFor(phase, stability);
+  const rules = getNextActionData(phase, stability).rules;
 
   const tutorMeaningByPhase: Record<PhaseLabel, Record<StabilityLabel, string>> = {
     Clarity: {
@@ -552,11 +550,9 @@ function interpretTopicState(
   };
 
   const transitionStatus =
-    enteredMaintenance || requiresMaintenanceCheck
-      ? ("Maintenance Check" as const)
-      : deriveTransitionStatus(phase, stability, trend, {
-          suppressRegressed: firstObservationInCurrentPhase,
-        });
+    deriveTransitionStatus(phase, stability, trend, {
+      suppressRegressed: firstObservationInCurrentPhase,
+    });
 
   return {
     nextAction,
@@ -566,6 +562,10 @@ function interpretTopicState(
     parentMeaning: parentMeaningByPhase[phase],
     direction: `${nextAction}`,
   };
+}
+
+function nextPrepPhaseFor(phase: PhaseLabel, stability: StabilityLabel): PhaseLabel {
+  return getNextActionData(phase, stability).advanceTo || phase;
 }
 
 function actionGuidanceFor(phase: PhaseLabel, stability: StabilityLabel): { doItems: string[]; avoidItems: string[] } {
@@ -583,7 +583,6 @@ function tutorPrepPlanFor(
   prepNotes: string[];
 } {
   const baseDifficulty = "Simple/Normal";
-  const drillType = `${phase} Drill`;
 
   if (!hasObservedState) {
     return {
@@ -602,9 +601,12 @@ function tutorPrepPlanFor(
     };
   }
 
-  if (phase === "Clarity") {
+  const prepPhase = nextPrepPhaseFor(phase, stability);
+  const prepStability = prepPhase === phase ? stability : "Low";
+
+  if (prepPhase === "Clarity") {
     return {
-      drillType,
+      drillType: `${prepPhase} Drill`,
       setPlans: [
         { label: "Set 1: Modeling", problems: 2, difficulty: baseDifficulty },
         { label: "Set 2: Identification", problems: 3, difficulty: baseDifficulty },
@@ -619,9 +621,9 @@ function tutorPrepPlanFor(
     };
   }
 
-  if (phase === "Structured Execution") {
+  if (prepPhase === "Structured Execution") {
     return {
-      drillType,
+      drillType: `${prepPhase} Drill`,
       setPlans: [
         { label: "Set 1", problems: 3, difficulty: baseDifficulty },
         { label: "Set 2", problems: 3, difficulty: baseDifficulty },
@@ -635,11 +637,11 @@ function tutorPrepPlanFor(
     };
   }
 
-  if (phase === "Controlled Discomfort") {
+  if (prepPhase === "Controlled Discomfort") {
     const highIntensity =
-      stability === "Medium" || stability === "High" || stability === "High Maintenance";
+      prepStability === "Medium" || prepStability === "High" || prepStability === "High Maintenance";
     return {
-      drillType,
+      drillType: `${prepPhase} Drill`,
       setPlans: [
         { label: "Set 1", problems: 3, difficulty: highIntensity ? "Hard" : baseDifficulty },
         { label: "Set 2", problems: 3, difficulty: highIntensity ? "Challenging (but solvable)" : baseDifficulty },
@@ -652,9 +654,9 @@ function tutorPrepPlanFor(
     };
   }
 
-  const timedIntensity = stability === "High" || stability === "High Maintenance";
+  const timedIntensity = prepStability === "High" || prepStability === "High Maintenance";
   return {
-    drillType,
+    drillType: `${prepPhase} Drill`,
     setPlans: [
       { label: "Set 1", problems: 3, difficulty: timedIntensity ? "Hard" : baseDifficulty },
       {
