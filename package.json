@@ -11,6 +11,7 @@
     "generate:sitemap": "tsx scripts/generate-sitemap.ts",
     "generate:site-static": "npm run generate:legal-static && npm run generate:sitemap",
     "prerender:public": "tsx scripts/prerender-public-pages.tsx",
+    "backfill:ri-evidence-ledger": "tsx scripts/backfill-response-integrity-evidence-ledger.ts",
     "build": "npm run generate:site-static && vite build && npm run prerender:public",
     "build:full": "npm run generate:site-static && vite build && npm run prerender:public && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "build:frontend": "npm run generate:site-static && vite build && npm run prerender:public",

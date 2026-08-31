@@ -54,6 +54,7 @@ import {
   validateAndNormalizeSemanticEvidenceSet,
   type EvidenceDrillMode,
 } from "@shared/responseIntegrityDrillRegistry";
+import { buildResponseSnapshotV1 } from "@shared/responseSnapshot";
 import type { EvidenceLedgerProjectionInput } from "@shared/responseIntegrityEvidenceLedger";
 import {
   buildStartingPhaseRationale,
@@ -4128,6 +4129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 sessionGroupId: String(parsed.sessionId || row.id),
                 topic,
                 drillType: "diagnosis",
+                responseSnapshot: parsed.responseSnapshot || null,
                 behaviorPatterns: rawBehaviorPatterns(observationSignals),
                 score: diagnosisScore,
                 phaseBefore: diagnosisPhase,
@@ -4197,13 +4199,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ).trim() || null;
             const observationSignals = extractObservationSignalsFromDrill(parsed);
 
-            return {
-              id: row.id,
-              date: row.submitted_at,
-              duration: 0,
-              sessionGroupId: String(parsed.sessionId || row.id),
-              topic,
-              drillType: "training",
+              return {
+                id: row.id,
+                date: row.submitted_at,
+                duration: 0,
+                sessionGroupId: String(parsed.sessionId || row.id),
+                topic,
+                drillType: "training",
+                responseSnapshot: parsed.responseSnapshot || null,
                 behaviorPatterns: rawBehaviorPatterns(observationSignals),
                 score: sessionScore,
                 phaseBefore: observedPhase,
@@ -4324,6 +4327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   duration: 0,
                   topic: topics[0] || "Unknown topic",
                   drillType: sessionTypes.length === 1 ? sessionTypes[0] : "mixed",
+                  responseSnapshots: sortedEntries.map((entry) => entry.responseSnapshot).filter(Boolean),
                   sessionTypes,
                   containsDiagnosis,
                   containsTraining,
@@ -5915,9 +5919,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
 
               const diagnosisScheduledSessionId = scheduledSession?.id ? String(scheduledSession.id) : null;
+              const id = uuidv4();
+              const responseSnapshot = buildResponseSnapshotV1({
+                sourceDrillId: id,
+                topic: normalizedIntroTopic,
+                mode: "diagnosis",
+                phase: isAdaptiveDiagnosis ? startingPhase! : drillPhase!,
+                sets: (isAdaptiveDiagnosis ? adaptiveBlocks : drillSets) as any,
+                drillScore: Number((diagnosisSummary as any).diagnosisScore ?? 0),
+                setScores: isAdaptiveDiagnosis
+                  ? adaptiveDiagnosisSummary!.phaseChecks.map((check: any) => Number(check.phaseScore || 0))
+                  : introDiagnosisSummary!.setScores,
+                engineOutcomeRef: {
+                  phaseBefore: null,
+                  stabilityBefore: null,
+                  phaseAfter: diagnosisSummary.phase,
+                  stabilityAfter: normalizeStability(diagnosisSummary.stability),
+                  transitionReason: "remain",
+                },
+              });
 
               // Store drill results in intro_session_drills table
-              const id = uuidv4();
               const { data: inserted, error } = await supabase
                 .from("intro_session_drills")
                 .insert({
@@ -5934,6 +5956,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     sessionContextKind: diagnosisSessionKind,
                     sets: isAdaptiveDiagnosis ? adaptiveBlocks : drillSets,
                     summary: diagnosisSummary,
+                    responseSnapshot,
                   }),
                   scheduled_session_id: diagnosisScheduledSessionId,
                   submitted_at: new Date().toISOString(),
@@ -6112,6 +6135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 introTopic: normalizedIntroTopic,
                 scoring: scoringResults,
                 summary: diagnosisSummary,
+                responseSnapshot,
               });
             } catch (err) {
               console.error("Exception in intro session drill submission:", err);
@@ -6257,6 +6281,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
 
               const id = uuidv4();
+              const responseSnapshot = buildResponseSnapshotV1({
+                sourceDrillId: id,
+                topic: normalizedTopic,
+                mode: isTargetedRediagnosis ? "handover_rediagnosis" : "handover_verification",
+                phase: isTargetedRediagnosis ? startingPhase! : verificationPhase!,
+                sets: verificationBlocks as any,
+                drillScore: Number(handoverSummary.verificationScore || 0),
+                setScores: [Number(handoverSummary.verificationScore || 0)],
+                engineOutcomeRef: {
+                  phaseBefore: verificationPhase,
+                  stabilityBefore: previousStability,
+                  phaseAfter: handoverSummary.resultingPhase,
+                  stabilityAfter: handoverSummary.resultingStability,
+                  transitionReason: String(handoverSummary.verificationOutcome),
+                },
+              });
               const { data: inserted, error } = await supabase
                 .from("intro_session_drills")
                 .insert({
@@ -6273,6 +6313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     scheduledSessionId: scheduledSession.id,
                     sets: verificationBlocks,
                     summary: handoverSummary,
+                    responseSnapshot,
                   }),
                   scheduled_session_id: scheduledSession.id,
                   submitted_at: new Date().toISOString(),
@@ -6406,6 +6447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 handoverTopic: normalizedTopic,
                 scoring,
                 summary: handoverSummary,
+                responseSnapshot,
               });
             } catch (err) {
               console.error("Exception in handover verification submission:", err);
@@ -6562,6 +6604,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 );
 
                 const drillId = uuidv4();
+                const responseSnapshot = buildResponseSnapshotV1({
+                  sourceDrillId: drillId,
+                  topic: normalizedTopic,
+                  mode: "training",
+                  phase: effectivePhase,
+                  sets: drillSets as any,
+                  drillScore: trainingSummary.sessionScore,
+                  setScores: trainingSummary.setScores,
+                  engineOutcomeRef: {
+                    phaseBefore: effectivePhase,
+                    stabilityBefore: previousStability,
+                    phaseAfter: trainingSummary.phase,
+                    stabilityAfter: trainingSummary.stability,
+                    transitionReason: trainingSummary.transitionReason,
+                  },
+                });
                 const { data: inserted, error } = await supabase
                   .from("intro_session_drills")
                   .insert({
@@ -6575,6 +6633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       drillType: "training",
                       sets: drillSets,
                       summary: trainingSummary,
+                      responseSnapshot,
                       sessionId: sessionId,
                       scheduledSessionId: scheduledSessionRecordId,
                     }),
@@ -6655,6 +6714,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 drillResults.push({
                   drillId: inserted.id,
                   topic: normalizedTopic,
+                  responseSnapshot,
                   scoring: trainingSummary.repRows.map((row) => {
                     const setIndex = trainingSummary.repRows.findIndex(
                       (candidate) => candidate.set === row.set && candidate.rep === row.rep

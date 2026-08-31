@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -9,6 +9,18 @@ import {
   computeAdaptiveDiagnosisPhaseSummary,
   getAdjacentDiagnosisPhase,
 } from "@shared/adaptiveDiagnosis";
+import {
+  getDrillSchemaDefinition,
+  getEvidenceSelectionIdentity,
+  getFieldDefinitionForRep,
+  type EvidenceDrillMode,
+} from "@shared/responseIntegrityDrillRegistry";
+import {
+  formatSnapshotPurposeText,
+  formatSnapshotRepResult,
+  formatSnapshotResultText,
+  type ResponseSnapshotV1,
+} from "@shared/responseSnapshot";
 import { useStudentWorkflowState } from "@/hooks/useStudentWorkflowState";
 import { supabase } from "@/lib/supabaseClient";
 import { API_URL } from "@/lib/config";
@@ -51,6 +63,11 @@ type AdaptiveTransitionState = {
   currentBlock: {
     phase: PhaseLabel;
     setName: string;
+    setId?: string;
+    setOrder?: number;
+    drillSchemaId?: string;
+    drillSchemaVersion?: number;
+    drillDefinitionHash?: string;
     observations: Array<Record<string, string>>;
   };
 };
@@ -707,10 +724,68 @@ function observationLevelForField(field: ObservationField, optionIndex: number, 
   return observationLevelFromOptionIndex(optionIndex, field.options.length);
 }
 
+function responseSnapshotColor(level: string) {
+  if (level === "strong") return "text-green-700";
+  if (level === "partial") return "text-yellow-700";
+  if (level === "weak") return "text-red-700";
+  return "text-muted-foreground";
+}
+
+function ResponseSnapshotCard({ snapshot }: { snapshot: ResponseSnapshotV1 }) {
+  return (
+    <div className="rounded-xl border border-primary/15 bg-background overflow-hidden">
+      <div className="bg-primary/5 px-4 py-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <span className="font-semibold text-sm">Response Snapshot{snapshot.source.topic ? ` - ${snapshot.source.topic}` : ""}</span>
+        <span className={`text-sm font-semibold ${responseSnapshotColor(snapshot.drill.responseLevel)}`}>
+          {snapshot.drill.responseLabel} - {snapshot.drill.score ?? "Not scored"}/100
+        </span>
+      </div>
+      <div className="px-4 py-3 space-y-3 text-sm">
+        <div>
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">What This Drill Tested</p>
+          <p className="text-foreground">{formatSnapshotPurposeText(snapshot.drill.purposeText)}</p>
+        </div>
+        <div>
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Drill Response</p>
+          <p className="text-muted-foreground">{formatSnapshotResultText(snapshot.drill.resultText)}</p>
+        </div>
+        <div className="space-y-2 pt-1 border-t">
+          {snapshot.sets.map((set) => (
+            <div key={set.setId} className="rounded-md border border-primary/10 bg-primary/5 px-3 py-2">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <p className="font-semibold text-foreground">{set.setName}</p>
+                <p className={`text-xs font-semibold ${responseSnapshotColor(set.responseLevel)}`}>
+                  {set.responseLabel} - {set.score ?? "Not scored"}/100
+                </p>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{formatSnapshotPurposeText(set.purposeText)}</p>
+              <p className="mt-1 text-xs text-foreground">{formatSnapshotResultText(set.resultText, set.purposeText)}</p>
+              <div className="mt-2 space-y-1.5">
+                {set.reps.map((rep) => (
+                  <div key={`${set.setId}-${rep.repNumber}`} className="rounded border border-primary/10 bg-background px-2 py-2">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-xs font-semibold text-foreground">Rep {rep.repNumber}</p>
+                      <p className={`text-xs font-semibold ${responseSnapshotColor(rep.responseLevel)}`}>
+                        {rep.responseLabel} - {rep.score ?? "Not scored"}/100
+                      </p>
+                    </div>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{formatSnapshotRepResult(rep)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function IntroSessionDrillRunner() {
   const { studentId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const resultTopRef = useRef<HTMLDivElement | null>(null);
   const [currentSet, setCurrentSet] = useState(0);
   const [currentRep, setCurrentRep] = useState(0);
   const [observations, setObservations] = useState<any>({});
@@ -718,6 +793,7 @@ export default function IntroSessionDrillRunner() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [scoring, setScoring] = useState<any[] | null>(null);
+  const [responseSnapshots, setResponseSnapshots] = useState<ResponseSnapshotV1[]>([]);
   const [sessionTopicIndex, setSessionTopicIndex] = useState(0);
   const [sessionResults, setSessionResults] = useState<any[]>([]);
   const [prepReady, setPrepReady] = useState(false);
@@ -744,6 +820,11 @@ export default function IntroSessionDrillRunner() {
   const [adaptiveDiagnosisBlocks, setAdaptiveDiagnosisBlocks] = useState<Array<{
     phase: PhaseLabel;
     setName: string;
+    setId?: string;
+    setOrder?: number;
+    drillSchemaId?: string;
+    drillSchemaVersion?: number;
+    drillDefinitionHash?: string;
     observations: Array<Record<string, string>>;
   }>>([]);
   const [adaptiveDiagnosisMessage, setAdaptiveDiagnosisMessage] = useState<string | null>(null);
@@ -819,6 +900,12 @@ export default function IntroSessionDrillRunner() {
   const isAdaptiveDiagnosisMode = modeToUse === "diagnosis";
   const isHandoverMode = modeToUse === "handover";
   const isAdaptiveVerificationFlow = isAdaptiveDiagnosisMode || (isHandoverMode && handoverReDiagnosisMode);
+  const evidenceModeForSubmission: EvidenceDrillMode =
+    isHandoverMode && !handoverReDiagnosisMode
+      ? "verification"
+      : modeToUse === "training"
+        ? "training"
+        : "diagnosis";
   const drillStructure = useMemo(() => {
     if (isSessionMode && topicDataLoading) return null;
     if (isAdaptiveVerificationFlow) {
@@ -831,6 +918,28 @@ export default function IntroSessionDrillRunner() {
   const displayPhase: PhaseLabel = isAdaptiveVerificationFlow
     ? activeDiagnosisPhase
     : ((isSessionMode ? currentTopicPhase : phase) as PhaseLabel);
+  const getLiveObservationBlockForRep = (setConfig: DrillSetConfig, repIndex: number): ObservationField[] => {
+    const configuredFields = getObservationBlockForRep(setConfig, repIndex);
+    const registeredSet = getDrillSchemaDefinition(evidenceModeForSubmission, displayPhase).sets.find(
+      (candidate) => candidate.setName === setConfig.setName,
+    );
+    if (!registeredSet) return configuredFields;
+
+    return configuredFields.map((configuredField) => {
+      const registeredField = getFieldDefinitionForRep(registeredSet, repIndex, configuredField.key);
+      if (!registeredField?.optionLabels?.length) return configuredField;
+      return {
+        ...configuredField,
+        options: [...registeredField.optionLabels],
+        optionLevels: Object.fromEntries(
+          registeredField.optionLabels.map((label, optionIndex) => [
+            label,
+            registeredField.optionLevels[optionIndex],
+          ]),
+        ),
+      };
+    });
+  };
   const verificationPrepSpec = useMemo(
     () =>
       buildVerificationPrepSpec(
@@ -901,17 +1010,24 @@ export default function IntroSessionDrillRunner() {
     setAdaptiveTransition(null);
   }, [drillMode, handoverReDiagnosisMode, phase, introTopic, sessionTopicIndex]);
 
+  useEffect(() => {
+    if (!submitSuccess) return;
+    window.requestAnimationFrame(() => {
+      resultTopRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+  }, [submitSuccess]);
+
   const handleExitToPod = () => {
-    navigate("/tutor/pod");
+    navigate("/specialist/pod");
   };
 
   const handleContinueToProposal = () => {
     if (!studentId) {
-      navigate("/tutor/pod");
+      navigate("/specialist/pod");
       return;
     }
 
-    navigate(`/tutor/pod?openProposal=1&studentId=${encodeURIComponent(studentId)}`);
+    navigate(`/specialist/pod?openProposal=1&studentId=${encodeURIComponent(studentId)}`);
   };
 
   const handleBackStep = () => {
@@ -989,7 +1105,7 @@ export default function IntroSessionDrillRunner() {
 
   const getMissingFieldsForRep = (setIndex: number, repIndex: number) => {
     const repSet = drillStructure[setIndex];
-    const observationBlock = getObservationBlockForRep(repSet, repIndex);
+    const observationBlock = getLiveObservationBlockForRep(repSet, repIndex);
     return observationBlock.filter(
       (field) => !String(observations[`set${setIndex}_rep${repIndex}_${field.key}`] || "").trim()
     );
@@ -1017,7 +1133,7 @@ export default function IntroSessionDrillRunner() {
     const nextObservations: Record<string, string> = {};
     const reps = Array.isArray(serializedSet?.observations) ? serializedSet.observations : [];
     reps.forEach((repObs, repIdx) => {
-      const observationBlock = getObservationBlockForRep(setConfig, repIdx);
+      const observationBlock = getLiveObservationBlockForRep(setConfig, repIdx);
       observationBlock.forEach((field) => {
         const selectedLabel = String(repObs?.[field.key] || "").trim();
         if (selectedLabel) {
@@ -1030,8 +1146,20 @@ export default function IntroSessionDrillRunner() {
 
   const serializeSetForSubmission = (setConfig: DrillSetConfig, setIndex: number) => {
     const repCount = getSubmissionRepCount(setConfig);
+    const schema = getDrillSchemaDefinition(evidenceModeForSubmission, displayPhase);
+    const registrySet = schema.sets.find((candidate) => candidate.setName === setConfig.setName) || null;
+    const semanticSetFields = {
+      setId: registrySet?.setId || "",
+      setOrder: setIndex + 1,
+      drillSchemaId: schema.schemaId,
+      drillSchemaVersion: schema.schemaVersion,
+      drillDefinitionHash: schema.definitionHash,
+      constraintProfile: registrySet?.constraints || null,
+    };
+
     if (setConfig.isModelingSet) {
       return {
+        ...semanticSetFields,
         setName: setConfig.setName,
         reps: repCount,
         observations: [],
@@ -1039,17 +1167,34 @@ export default function IntroSessionDrillRunner() {
     }
 
     return {
+      ...semanticSetFields,
       setName: setConfig.setName,
       reps: repCount,
       observations: Array.from({ length: repCount }).map((_, repIdx) => {
         const obs: Record<string, string> = {};
-        const observationBlock = getObservationBlockForRep(setConfig, repIdx);
+        if (registrySet) {
+          obs._rep_id = registrySet.repPurposeIds[repIdx] || `${registrySet.setId}.opportunity_${repIdx + 1}`;
+          obs._rep_number = String(repIdx + 1);
+        }
+        const observationBlock = getLiveObservationBlockForRep(setConfig, repIdx);
         observationBlock.forEach((block) => {
           const selectedLabel = observations[`set${setIndex}_rep${repIdx}_${block.key}`] || "";
           const optionIndex = block.options.findIndex((option) => option === selectedLabel);
-          const selectedLevel = observationLevelForField(block, optionIndex, selectedLabel);
+          const semanticIdentity = getEvidenceSelectionIdentity({
+            mode: evidenceModeForSubmission,
+            phase: displayPhase,
+            setName: setConfig.setName,
+            repIndex: repIdx,
+            fieldKey: block.key,
+            optionIndex,
+          });
+          const selectedLevel = semanticIdentity?.level || observationLevelForField(block, optionIndex, selectedLabel);
           obs[block.key] = selectedLabel;
           obs[`${block.key}_level`] = selectedLevel;
+          if (semanticIdentity) {
+            obs[`${block.key}_option_id`] = semanticIdentity.optionId;
+            obs[`${block.key}_dimension_id`] = semanticIdentity.dimensionId;
+          }
         });
         return obs;
       }),
@@ -1095,8 +1240,7 @@ export default function IntroSessionDrillRunner() {
       const phaseSummary = computeAdaptiveDiagnosisPhaseSummary(activeDiagnosisPhase, serializedSet.observations);
       const currentBlock = {
         phase: activeDiagnosisPhase,
-        setName: set.setName,
-        observations: serializedSet.observations,
+        ...serializedSet,
       };
       const nextPhase =
         phaseSummary.band === "de-escalate"
@@ -1124,6 +1268,7 @@ export default function IntroSessionDrillRunner() {
       setSubmitError(null);
       setSubmitSuccess(false);
       setScoring(null);
+      setResponseSnapshots([]);
       try {
         const payload = isHandoverMode
           ? {
@@ -1198,6 +1343,7 @@ export default function IntroSessionDrillRunner() {
         );
         setSubmitSuccess(true);
         setScoring(res.data?.scoring || null);
+        setResponseSnapshots(res.data?.responseSnapshot ? [res.data.responseSnapshot] : []);
       } catch (err: any) {
         console.error("Adaptive intro diagnosis submission error:", err);
         const errorMessage = err?.response?.data?.message || err?.message || "Submission failed. Please try again.";
@@ -1230,6 +1376,7 @@ export default function IntroSessionDrillRunner() {
       setSubmitError(null);
       setSubmitSuccess(false);
       setScoring(null);
+      setResponseSnapshots([]);
       try {
         const firstMissing = getFirstMissingRep();
         if (firstMissing) {
@@ -1257,31 +1404,21 @@ export default function IntroSessionDrillRunner() {
           ? [...sessionResults.map(d => ({ ...d, trainingTopic: d.trainingTopic || d.topic })), currentDrill]
           : [currentDrill];
 
-        const isDiagnosisMode = modeToUse === "diagnosis";
-        const endpoint = isDiagnosisMode
-          ? "/api/tutor/intro-session-drill"
-          : isHandoverMode
-            ? "/api/tutor/handover-verification-drill"
-            : "/api/tutor/training-session-drill";
-        const payload = isDiagnosisMode
+        // Diagnosis submits from the adaptive branch above. Reaching this branch means the
+        // completed payload is either a handover verification or a training session.
+        const endpoint = isHandoverMode
+          ? "/api/tutor/handover-verification-drill"
+          : "/api/tutor/training-session-drill";
+        const payload = isHandoverMode
           ? {
-              studentId,
-              drill: currentDrill.drill,
-              introTopic: currentDrill.trainingTopic,
-              phase: currentDrill.phase,
-              scheduledSessionId,
-              sessionContextKind: diagnosisSessionKind,
-            }
-          : isHandoverMode
-            ? {
                 studentId,
                 drill: currentDrill.drill,
                 handoverTopic: currentDrill.trainingTopic,
                 phase: currentDrill.phase,
                 stability: currentDrill.previousStability,
                 scheduledSessionId,
-              }
-            : {
+            }
+          : {
               studentId,
               sessionDrills: allDrills,
               scheduledSessionId,
@@ -1333,6 +1470,11 @@ export default function IntroSessionDrillRunner() {
         
         setSubmitSuccess(true);
         const drillResults = res.data?.drillResults;
+        const returnedSnapshots = res.data?.responseSnapshot
+          ? [res.data.responseSnapshot]
+          : Array.isArray(drillResults)
+            ? drillResults.map((result: any) => result.responseSnapshot).filter(Boolean)
+            : [];
         const scoringRows = res.data?.scoring || (Array.isArray(drillResults)
           ? drillResults.flatMap((result: any) =>
               Array.isArray(result.scoring)
@@ -1341,6 +1483,7 @@ export default function IntroSessionDrillRunner() {
             )
           : null);
         setScoring(scoringRows || null);
+        setResponseSnapshots(returnedSnapshots);
       } catch (err: any) {
         console.error("Intro session drill submission error:", err);
         const errorMessage = err?.response?.data?.message || err?.message || "Submission failed. Please try again.";
@@ -1418,6 +1561,7 @@ export default function IntroSessionDrillRunner() {
       )}
       {!drillSessionAccessLoading && canUseScheduledSession && !((drillMode === "training" || isSessionMode) && !workflowLoading && !assignmentAccepted) && (
       <>
+      <div ref={resultTopRef} />
       {(!drillStructure || (isSessionMode && topicDataLoading)) && (
         <div className="mb-4 p-3 rounded-md border border-primary/20 bg-primary/5">
           <p className="text-sm">Loading drill structure...</p>
@@ -1528,6 +1672,13 @@ export default function IntroSessionDrillRunner() {
               Drill submitted. Scoring complete.
             </div>
 
+            {responseSnapshots.map((snapshot) => (
+              <ResponseSnapshotCard
+                key={snapshot.source.sourceDrillId || `${snapshot.source.topic}-${snapshot.source.observedPhase}`}
+                snapshot={snapshot}
+              />
+            ))}
+
             {/* Per-set scoring */}
             {setNames.map((setName) => {
               const rows = setGroups[setName];
@@ -1561,7 +1712,7 @@ export default function IntroSessionDrillRunner() {
             {/* Session total */}
             <div className="rounded-xl border border-primary/15 bg-background px-4 py-3 flex justify-between items-center">
               <span className="font-semibold">
-                {topicSummaries.length > 1 ? "Overall Session Average" : "Session Total"}
+                {topicSummaries.length > 1 ? "Overall Session Average" : "Drill Total"}
               </span>
               <span className={`text-lg font-bold ${
                 overallSessionScore >= 70 ? "text-green-700" : overallSessionScore >= 45 ? "text-yellow-700" : "text-red-700"
@@ -1920,12 +2071,12 @@ export default function IntroSessionDrillRunner() {
       </div>
 
       <form className="space-y-4">
-        {getObservationBlockForRep(set, currentRep).length === 0 && (
+        {getLiveObservationBlockForRep(set, currentRep).length === 0 && (
           <div className="p-3 rounded-md border border-primary/20 bg-primary/5 text-sm">
             No observations are captured for this step. Continue when pre-drill teaching is complete.
           </div>
         )}
-        {getObservationBlockForRep(set, currentRep).map((obs) => (
+        {getLiveObservationBlockForRep(set, currentRep).map((obs) => (
           <div key={obs.key}>
             <label className="block font-medium mb-2 text-sm sm:text-base">{obs.label}</label>
             <div className="flex flex-wrap gap-1 sm:gap-2">

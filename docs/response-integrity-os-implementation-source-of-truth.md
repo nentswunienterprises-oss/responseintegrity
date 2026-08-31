@@ -496,12 +496,50 @@ The result layer conceptually shows:
 
 - rep totals
 - grouped drill totals
+- Response Snapshot
 - phase total
 - system output
 - reason
 - tutor meaning
 - next action
 - current phase rule or drill constraint
+
+### Response Snapshot V1
+
+Implementation:
+
+- `shared/responseSnapshot.ts`
+- `client/src/components/tutor/IntroSessionDrillRunner.tsx`
+- `client/src/components/tutor/ViewTrackingSystemsDialog.tsx`
+
+Response Snapshot is the deterministic evidence-translation layer between drill scoring and System Direction.
+
+It explains what the student actually demonstrated during the submitted drill without changing scoring, phase movement, stability movement, handover outcomes, session summaries, or parent report algorithms.
+
+For every submitted topic drill, V1 stores and renders:
+
+- drill purpose, drill score, response label, and short drill response
+- set purpose, set score, response label, ordered rep pattern, and set response
+- rep purpose, rep score, response label, and exact weak/partial/clear evidence translation
+- evidence lineage fields for later reporting work
+
+The internal observation vocabulary remains:
+
+- `weak`
+- `partial`
+- `clear`
+
+The human-facing Response Snapshot bands are display-only:
+
+- `0-44` -> `Weak response`
+- `45-69` -> `Partial response`
+- `70-100` -> `Strong response`
+
+These bands mirror the result-screen colors and must not be confused with adaptive diagnosis thresholds, handover verification thresholds, or training transition thresholds.
+
+Snapshot prose is generated from the validated evidence payload and registered drill semantics. It must not be tutor-authored, LLM-generated, or used as a new progression gate. A weak or partial observation remains visible even when the overall rep, set, or drill displays as Strong.
+
+The stored drill JSON now includes `responseSnapshot` for new diagnosis, training, and handover verification submissions. Tracking Systems renders the stored snapshot beside each Session Log, after `What Was Trained` and before the broader `Observed Response`. Later reports may use the structured lineage fields, but they must not mine the generated prose as a source of claims.
 
 ## Map And Tutor Control View
 
