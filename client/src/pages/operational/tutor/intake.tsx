@@ -41,7 +41,7 @@ export default function TutorIntakeEntry() {
   const location = useLocation();
   const status = getTutorIntakeStatus();
   const cycleDefinitions = getTutorCycleDefinitions();
-  const backTarget = resolveTrackedBackTarget(location.search, "/operational/tutor/landing");
+  const backTarget = resolveTrackedBackTarget(location.search, "/operational/specialist/landing");
   const intakeReturnTo = buildTrackedReturnTo(location.pathname, location.search);
   const fastTrackEnabled = isFastTrackAccessEnabled(location.search);
   const fastTrackBadge = getFastTrackBadgeLabel(location.search);
@@ -123,10 +123,10 @@ export default function TutorIntakeEntry() {
           <div className="overflow-hidden rounded-[34px] border border-[#E7CEC4] bg-[#FFF1E8] shadow-sm">
             <div className="p-6 sm:p-8 lg:p-10">
               <div className="inline-flex rounded-full border border-[#E9CFC2] bg-[#FFF4EE]/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#8A3024] shadow-sm">
-                Tutor intake gateway
+                Specialist intake gateway
               </div>
               <h1 className="mt-5 max-w-4xl text-4xl font-bold leading-[0.95] tracking-[-0.05em] text-[#171311] sm:text-5xl lg:text-[4.15rem]">
-                {status.isOpen ? "Check the current tutor window." : "Tutor entry is protected by window."}
+                {status.isOpen ? "Check the current specialist window." : "Specialist entry is protected by window."}
               </h1>
               <div className="mt-6 max-w-3xl space-y-3 text-base leading-7 text-[#534A43] sm:text-[17px]">
                 <p className="font-semibold text-[#E63946]">{status.heading}</p>
@@ -142,7 +142,7 @@ export default function TutorIntakeEntry() {
                     style={{ backgroundColor: "#E63946" }}
                     onClick={() => navigate(signupPath)}
                   >
-                    Continue to Tutor Application
+                    Continue to Specialist Application
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 ) : (
@@ -152,7 +152,7 @@ export default function TutorIntakeEntry() {
                     style={{ backgroundColor: "#171311", color: "white" }}
                     onClick={() => navigate(backTarget)}
                   >
-                    Return to Tutor Landing
+                    Return to Specialist Landing
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 )}
@@ -170,7 +170,7 @@ export default function TutorIntakeEntry() {
 
           <div className="grid gap-4 xl:content-start">
             <Card className="rounded-[28px] border border-[#2A211D] bg-[#1F1814] p-5 text-white shadow-[0_18px_50px_rgba(25,19,16,0.18)]">
-              <p className="text-sm font-bold uppercase tracking-tight text-[#E63946]">Today In The Tutor Rhythm</p>
+              <p className="text-sm font-bold uppercase tracking-tight text-[#E63946]">Today In The Specialist Rhythm</p>
               <div className="mt-6 space-y-4 text-sm text-white/82">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.18em] text-white/55">Date</p>
@@ -195,7 +195,7 @@ export default function TutorIntakeEntry() {
                   <br />
                   Evidence before trust.
                   <br />
-                  No casual tutor entry.
+                  No casual specialist entry.
                 </p>
               </div>
             </Card>
@@ -249,7 +249,7 @@ export default function TutorIntakeEntry() {
                 </div>
 
                 <p className="mt-6 text-sm leading-7 text-[#564E48]">
-                  Deployment lock-in runs {cycle.deploymentLockInLabel}. The window determines when a tutor can become deployable, even though evidence determines whether they certify.
+                  Deployment lock-in runs {cycle.deploymentLockInLabel}. The window determines when a specialist can become deployable, even though evidence determines whether they certify.
                 </p>
               </Card>
             );
@@ -285,7 +285,7 @@ export default function TutorIntakeEntry() {
                 style={{ backgroundColor: "#E63946" }}
                 onClick={() => navigate(signupPath)}
               >
-                Continue to Tutor Application
+                Continue to Specialist Application
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             ) : null}
@@ -306,7 +306,7 @@ export default function TutorIntakeEntry() {
                 onClick={() => navigate(backTarget)}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Tutor Landing
+                Back to Specialist Landing
               </Button>
             ) : null}
           </div>
@@ -318,7 +318,7 @@ export default function TutorIntakeEntry() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8A4B35]">
                 {fastTrackBadge}
               </p>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight text-[#171311]">Direct tutor signup is temporarily unlocked.</h2>
+              <h2 className="mt-2 text-3xl font-bold tracking-tight text-[#171311]">Private specialist access is available.</h2>
               <p className="mt-4 text-sm leading-7 text-[#534B45] sm:text-base">{fastTrackDescription}</p>
             </div>
 
@@ -334,7 +334,7 @@ export default function TutorIntakeEntry() {
                   ...fastTrackParams,
                 }))}
               >
-                Enter Direct Tutor Signup
+                Enter Private Specialist Access
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>

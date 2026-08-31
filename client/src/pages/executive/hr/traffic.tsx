@@ -214,7 +214,7 @@ export default function ExecutiveHRTraffic() {
     refetchIntervalInBackground: true,
   });
 
-  // Fetch tutor applications
+  // Fetch specialist applications
   const { data: applications = [], isLoading: applicationsLoading } = useQuery<TutorApplication[]>({
     queryKey: ["/api/coo/tutor-applications"],
     queryFn: getQueryFn({ on401: "returnNull" }),
@@ -233,7 +233,7 @@ export default function ExecutiveHRTraffic() {
   const activeInPods = enrollments.filter((e: ParentEnrollment) => !!e.active_in_pod);
   const confirmed = enrollments.filter((e: ParentEnrollment) => normalize(e.status) === "confirmed");
 
-  // Filter tutor applications by status
+  // Filter specialist applications by status
   const pendingApplications = applications.filter((app: any) => app.status === "pending");
   const approvedApplications = applications.filter((app: any) => app.status === "approved");
   const rejectedApplications = applications.filter((app: any) => app.status === "rejected");
@@ -332,7 +332,7 @@ export default function ExecutiveHRTraffic() {
     onSuccess: () => {
       toast({
         title: "Application approved",
-        description: "The tutor application has been approved successfully.",
+        description: "The specialist application has been approved successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/coo/tutor-applications"] });
       queryClient.invalidateQueries({ queryKey: ["/api/hr/stats"] });
@@ -354,7 +354,7 @@ export default function ExecutiveHRTraffic() {
     onSuccess: () => {
       toast({
         title: "Application rejected",
-        description: "The tutor application has been rejected.",
+        description: "The specialist application has been rejected.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/coo/tutor-applications"] });
       queryClient.invalidateQueries({ queryKey: ["/api/hr/stats"] });
@@ -801,13 +801,13 @@ export default function ExecutiveHRTraffic() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Traffic</h1>
-        <p className="text-muted-foreground">Manage tutor applications and parent enrollments</p>
+        <p className="text-muted-foreground">Manage specialist applications and parent enrollments</p>
       </div>
 
       {/* Stats Bar */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <Card className="p-4">
-          <p className="text-xs text-muted-foreground mb-2">Tutor Applications</p>
+          <p className="text-xs text-muted-foreground mb-2">Specialist Applications</p>
           <div className="flex items-center gap-3">
             <div className="text-center flex-1">
               <p className="text-2xl font-bold">{statsLoading ? "-" : stats?.totalApplications ?? 0}</p>
@@ -821,7 +821,7 @@ export default function ExecutiveHRTraffic() {
           </div>
         </Card>
         <Card className="p-4">
-          <p className="text-xs text-muted-foreground mb-2">Approved Tutors</p>
+          <p className="text-xs text-muted-foreground mb-2">Approved Specialists</p>
           <div className="flex items-center gap-3">
             <div className="text-center flex-1">
               <p className="text-2xl font-bold">{statsLoading ? "-" : stats?.approvedTutors ?? 0}</p>
@@ -855,7 +855,7 @@ export default function ExecutiveHRTraffic() {
         <TabsList className="grid h-auto w-full grid-cols-1 gap-1 rounded-xl border border-primary/15 bg-muted/20 p-1 sm:grid-cols-2 lg:grid-cols-4">
           <TabsTrigger value="tutor-applications" className="min-h-[3rem] gap-2 whitespace-normal px-3 py-2 text-left sm:text-center">
             <GraduationCap className="w-4 h-4" />
-            <span className="flex-1 leading-tight">Tutor Applications</span>
+            <span className="flex-1 leading-tight">Specialist Applications</span>
             {tutorTrafficActionCount > 0 ? (
               <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1.5 text-[10px]">
                 {tutorTrafficActionCount > 99 ? "99+" : tutorTrafficActionCount}
@@ -876,7 +876,7 @@ export default function ExecutiveHRTraffic() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Tutor Applications Tab */}
+        {/* Specialist Applications Tab */}
         <TabsContent value="tutor-applications" className="space-y-4">
           {applicationsLoading ? (
             <Card className="p-12 text-center">
@@ -1176,7 +1176,7 @@ export default function ExecutiveHRTraffic() {
         </TabsContent>
       </Tabs>
 
-      {/* Tutor Application Details Dialog */}
+      {/* Specialist Application Details Dialog */}
       {selectedApplication && !showRejectDialog && (
         <Dialog open={!!selectedApplication} onOpenChange={() => setSelectedApplication(null)}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -1253,7 +1253,7 @@ export default function ExecutiveHRTraffic() {
   );
 }
 
-// Tutor Application Card Component
+// Specialist Application Card Component
 function TutorApplicationCard({
   application,
   onViewDetails,

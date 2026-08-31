@@ -147,7 +147,7 @@ export default function TutorGateway() {
         await new Promise((r) => setTimeout(r, 600));
         tries++;
       }
-      navigate("/tutor/pod", { replace: true });
+      navigate("/specialist/pod", { replace: true });
     } catch (err: any) {
       setIsContinuing(false);
       toast({ title: "Error", description: err.message || "Failed to continue", variant: "destructive" });
@@ -258,7 +258,7 @@ export default function TutorGateway() {
               {/* Introduction */}
               <div className="rounded-xl p-4 sm:p-5 space-y-2 sm:space-y-3" style={{ backgroundColor: "#FFF0F0" }}>
                 <p className="text-xs sm:text-sm" style={{ color: "#5A5A5A" }}>
-                  This application is for the Response Integrity Founding Tutor Cohort.
+                  This application is for the Response Integrity Founding Specialist Cohort.
                 </p>
                 <p className="text-xs sm:text-sm" style={{ color: "#5A5A5A" }}>
                   We are selecting a small group of individuals who will be trained to guide how students respond when math becomes difficult.
@@ -337,7 +337,7 @@ export default function TutorGateway() {
                   <PushOptInCard
                     enabled
                     title="Enable out-of-app alerts"
-                    description="Turn on browser notifications now so Response Integrity can alert you immediately when your tutor application is approved or rejected, even if this tab is closed."
+                    description="Turn on browser notifications now so Response Integrity can alert you immediately when your specialist application is approved or rejected, even if this tab is closed."
                   />
                   <p className="text-sm sm:text-base text-muted-foreground">
                     Application received. Under review.

@@ -27,14 +27,14 @@ export default function OperationalSignup() {
 
   const [selectedRole, setSelectedRole] = useState<"tutor" | "td" | null>(initialRole);
   const [mode, setMode] = useState<"signup" | "login">(initialMode);
-  const termsHref = selectedRole === "td" ? "/td-terms-of-use" : "/tutor-terms-of-use";
+  const termsHref = selectedRole === "td" ? "/td-terms-of-use" : "/specialist-terms-of-use";
   const cycleLabel = getTutorCycleLabel(urlParams.get("cycle"));
   const fastTrackEnabled = isFastTrackAccessEnabled(location.search);
   const fastTrackBadge = getFastTrackBadgeLabel(location.search);
   const fastTrackDescription = getFastTrackDescription(location.search);
   const backTarget = resolveTrackedBackTarget(
     location.search,
-    initialRole === "tutor" ? "/operational/tutor/landing" : "/operational/landing",
+    initialRole === "tutor" ? "/operational/specialist/landing" : "/operational/landing",
   );
 
   useEffect(() => {
@@ -79,7 +79,7 @@ export default function OperationalSignup() {
                 How Would You Like to <span style={{ color: "#E63946" }}>Make an Impact?</span>
               </h2>
               <p style={{ color: "#5A5A5A" }}>
-                Select whether you&apos;re joining as a Tutor or Territory Director
+                Select whether you&apos;re joining as a Specialist or Territory Director
               </p>
             </div>
 
@@ -93,7 +93,7 @@ export default function OperationalSignup() {
                   className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform"
                   style={{ backgroundColor: "#FFF0F0" }}
                 />
-                <h3 className="text-2xl font-bold mb-3" style={{ color: "#1A1A1A" }}>Tutor</h3>
+                <h3 className="text-2xl font-bold mb-3" style={{ color: "#1A1A1A" }}>Specialist</h3>
                 <p className="mb-6" style={{ color: "#5A5A5A" }}>
                   Lead student Response Pods and train execution
                 </p>
@@ -109,7 +109,7 @@ export default function OperationalSignup() {
                   className="w-full px-4 sm:px-6 rounded-full py-2.5 sm:py-3.5 mt-auto font-semibold border-0 text-center box-border"
                   style={{ backgroundColor: "#E63946", color: "white" }}
                 >
-                  Continue as Tutor
+                  Continue as Specialist
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Card>
@@ -155,36 +155,36 @@ export default function OperationalSignup() {
   const isTutorRole = selectedRole === "tutor";
   const title = isTutorRole
     ? lockedMode === "login"
-      ? "Continue to Tutor Login"
+      ? "Continue to Specialist Login"
       : lockedMode === "signup"
         ? fastTrackEnabled && !urlParams.get("cycle")
-          ? "Continue to Direct Tutor Signup"
-          : "Continue to Tutor Application"
+          ? "Continue to Private Specialist Access"
+          : "Continue to Specialist Application"
         : fastTrackEnabled
-          ? "Direct Tutor Signup"
-        : "Join as a Tutor"
+          ? "Private Specialist Access"
+        : "Join as a Specialist"
     : "Join as Territory Director";
   const description = isTutorRole
     ? lockedMode === "login"
       ? "Existing tutors continue here. This route is reserved for login only."
       : lockedMode === "signup"
         ? fastTrackEnabled && !urlParams.get("cycle")
-          ? fastTrackDescription ?? "Direct tutor signup is temporarily unlocked outside the standard tutor window."
+          ? fastTrackDescription ?? "This private specialist access path is available by invitation while the public intake gate remains unchanged."
           : `${cycleLabel} entry continues here. This route is reserved for application only.`
         : fastTrackEnabled
-          ? fastTrackDescription ?? "Direct tutor signup is temporarily unlocked outside the standard tutor window."
+          ? fastTrackDescription ?? "This private specialist access path is available by invitation while the public intake gate remains unchanged."
         : "Help transform students and condition reliable responses to math pressure."
     : "Lead a territory and oversee multiple pods and tutors.";
   const badgeText = isTutorRole
     ? lockedMode === "login"
-      ? "Existing Tutor Access"
+      ? "Existing Specialist Access"
       : lockedMode === "signup"
         ? fastTrackEnabled && !urlParams.get("cycle")
           ? fastTrackBadge ?? cycleLabel
           : cycleLabel
         : fastTrackEnabled
-          ? fastTrackBadge ?? "Tutor Access"
-        : "Tutor Access"
+          ? fastTrackBadge ?? "Specialist Access"
+        : "Specialist Access"
     : "Territory Director Access";
 
   return (
@@ -209,7 +209,7 @@ export default function OperationalSignup() {
           </Button>
 
           <span className="text-xl lg:text-2xl font-bold tracking-tight" style={{ color: "#1A1A1A" }}>
-            {selectedRole === "tutor" ? "TUTOR" : "TERRITORY DIRECTOR"}
+            {selectedRole === "tutor" ? "SPECIALIST" : "TERRITORY DIRECTOR"}
           </span>
 
           <div className="w-28" />

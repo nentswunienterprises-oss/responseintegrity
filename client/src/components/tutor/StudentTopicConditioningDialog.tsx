@@ -354,7 +354,7 @@ interface StudentTopicConditioningDialogProps {
   studentId: string;
   studentName: string;
   studentGrade?: string | null;
-  operationalMode?: "training" | "certified_live";
+  operationalMode?: "training" | "trial" | "certified_live";
   readOnly?: boolean;
   mapOnly?: boolean;
   apiBasePath?: string;
@@ -1058,17 +1058,17 @@ export default function StudentTopicConditioningDialog({
       const sessionParam = sessionId ? `&scheduledSessionId=${encodeURIComponent(sessionId)}` : "";
       setSessionTopicsModalOpen(false);
       if (!topicState.hasObservedState) {
-        navigate(`/tutor/intro-session/${studentId}?topic=${topicParam}&phase=${phaseParam}&stability=${stabilityParam}&context=training${sessionParam}`);
+        navigate(`/specialist/intro-session/${studentId}?topic=${topicParam}&phase=${phaseParam}&stability=${stabilityParam}&context=training${sessionParam}`);
         return;
       }
-      navigate(`/tutor/intro-session/${studentId}?mode=training&topic=${topicParam}&phase=${phaseParam}&stability=${stabilityParam}${sessionParam}`);
+      navigate(`/specialist/intro-session/${studentId}?mode=training&topic=${topicParam}&phase=${phaseParam}&stability=${stabilityParam}${sessionParam}`);
       return;
     }
 
     const topicsParam = selectedTopics.map((t) => encodeURIComponent(t)).join(',');
     const sessionParam = sessionId ? `&scheduledSessionId=${encodeURIComponent(sessionId)}` : "";
     setSessionTopicsModalOpen(false);
-    navigate(`/tutor/intro-session/${studentId}?mode=session&topics=${topicsParam}${sessionParam}`);
+    navigate(`/specialist/intro-session/${studentId}?mode=session&topics=${topicsParam}${sessionParam}`);
   };
 
   const handleStartTrainingSession = () => {

@@ -54,8 +54,6 @@ export function createAffiliateCode(_a) {
     });
 }
 import { createClient } from "@supabase/supabase-js";
-from;
-"../shared/schema.js";
 import { db } from "./db";
 import { weeklyCheckIns } from "@shared/schema";
 // Initialize Supabase client with service role key to bypass RLS
@@ -1995,16 +1993,54 @@ var SupabaseStorage = /** @class */ (function () {
                         }
                         return [4 /*yield*/, supabase
                                 .from("closes")
+                                .select("id")
+                                .eq("affiliate_id", affiliateId)
+                                .eq("lead_id", lead.id)
+                                .eq("parent_id", parentId)
+                                .eq("student_id", studentId)
+                                .limit(1)
+                                .maybeSingle()];
+                    case 2:
+                        if ((_b.sent()).data) {
+                            throw new Error("A production reward has already been recorded for this conversion");
+                        }
+                        return [4 /*yield*/, supabase
+                                .from("intro_session_drills")
+                                .select("id")
+                                .eq("student_id", studentId)
+                                .limit(1)
+                                .maybeSingle()];
+                    case 3:
+                        if (!((_b.sent()).data)) {
+                            throw new Error("A completed trial is required before a production reward can be recorded");
+                        }
+                        return [4 /*yield*/, supabase
+                                .from("payment_transactions")
+                                .select("id")
+                                .eq("parent_id", parentId)
+                                .eq("student_id", studentId)
+                                .eq("payment_status", "paid")
+                                .limit(1)
+                                .maybeSingle()];
+                    case 4:
+                        if (!((_b.sent()).data)) {
+                            throw new Error("A verified paid subscription is required before a production reward can be recorded");
+                        }
+                        return [4 /*yield*/, supabase
+                                .from("closes")
                                 .insert({
                                 affiliate_id: affiliateId,
                                 parent_id: parentId,
                                 lead_id: lead.id,
                                 student_id: studentId,
                                 pod_id: podId || null,
+                                commission_amount: "100.00",
+                                commission_status: "pending",
+                                closed_at: new Date().toISOString(),
                             })
                                 .select()
                                 .single()];
-                    case 2:
+                    case 5:
                         _a = _b.sent(), data = _a.data, error = _a.error;
                         if (error)
                             throw error;

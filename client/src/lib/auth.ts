@@ -7,7 +7,7 @@ function navigateToAuthPath(path: string) {
 
 function getLogoutRedirect(user) {
   const pathname = window.location.pathname || "";
-  const tutorLoginPath = "/operational/signup?role=tutor&mode=login&lock=login&returnTo=/operational/tutor/intake";
+  const tutorLoginPath = "/operational/signup?role=tutor&mode=login&lock=login&returnTo=/operational/specialist/intake";
 
   if (user?.role === "tutor") {
     return tutorLoginPath;
@@ -34,7 +34,12 @@ function getLogoutRedirect(user) {
   }
 
   // If role is missing/stale, infer the portal from the current route.
-  if (pathname.startsWith("/operational/tutor") || pathname.startsWith("/tutor")) {
+  if (
+    pathname.startsWith("/operational/specialist") ||
+    pathname.startsWith("/specialist") ||
+    pathname.startsWith("/operational/tutor") ||
+    pathname.startsWith("/tutor")
+  ) {
     return tutorLoginPath;
   }
 

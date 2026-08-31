@@ -59,14 +59,14 @@ export default function HRDashboard() {
       <div className="p-8 space-y-8">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Head of Human Resources</h1>
-          <p className="text-muted-foreground">Tutor Management & Student Enrollment</p>
+          <p className="text-muted-foreground">Specialist Management & Student Enrollment</p>
         </div>
 
         {/* Traffic Metrics */}
         <div className="grid md:grid-cols-3 gap-4 md:gap-6">
-          {/* Tutor Applications - Split Card */}
+          {/* Specialist Applications - Split Card */}
           <Card className="p-4 md:p-6">
-            <p className="text-sm text-muted-foreground mb-3">Tutor Applications</p>
+            <p className="text-sm text-muted-foreground mb-3">Specialist Applications</p>
             <div className="flex items-center justify-between">
               <div className="text-center flex-1">
                 <p className="text-3xl font-bold">{statsLoading ? "-" : stats?.totalApplications ?? 0}</p>
@@ -80,9 +80,9 @@ export default function HRDashboard() {
             </div>
           </Card>
 
-          {/* Approved Tutors - Split Card */}
+          {/* Approved Specialists - Split Card */}
           <Card className="p-4 md:p-6">
-            <p className="text-sm text-muted-foreground mb-3">Approved Tutors</p>
+            <p className="text-sm text-muted-foreground mb-3">Approved Specialists</p>
             <div className="flex items-center justify-between">
               <div className="text-center flex-1">
                 <p className="text-3xl font-bold">{statsLoading ? "-" : stats?.approvedTutors ?? 0}</p>
@@ -118,7 +118,7 @@ export default function HRDashboard() {
           <Card className="p-6">
             <h2 className="text-lg font-semibold mb-4">Applications</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Review tutor applications and HR operational updates
+              Review specialist applications and HR operational updates
             </p>
             <Button className="w-full" onClick={() => navigate("/executive/hr/applications")}>View Applications</Button>
           </Card>

@@ -71,7 +71,7 @@ export default function HRApplications() {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [selectedApplication, setSelectedApplication] = useState<TutorApplication | null>(null);
 
-  // Fetch tutor applications - use the same endpoint as COO
+  // Fetch specialist applications - use the same endpoint as COO
   const { data: applications, isLoading: applicationsLoading } = useQuery<TutorApplication[]>({
     queryKey: ["/api/coo/tutor-applications"],
     queryFn: getQueryFn({ on401: "returnNull" }),
@@ -147,7 +147,7 @@ export default function HRApplications() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="text-muted-foreground">Tutor onboarding</p>
+              <p className="text-muted-foreground">Specialist onboarding</p>
               <p className="font-medium">{onboardingStatus}</p>
             </div>
             <div>
@@ -171,8 +171,8 @@ export default function HRApplications() {
     <ExecutivePortalGuard role={userRole}>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Tutor Applications</h1>
-          <p className="text-muted-foreground">Review tutor applications (read-only)</p>
+          <h1 className="text-3xl font-bold tracking-tight">Specialist Applications</h1>
+          <p className="text-muted-foreground">Review specialist applications (read-only)</p>
         </div>
 
         {applicationsLoading ? (

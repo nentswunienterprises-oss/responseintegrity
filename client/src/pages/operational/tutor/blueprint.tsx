@@ -48,7 +48,7 @@ export default function TutorBlueprint() {
       {/* Back to Pod Button */}
       <Button 
         variant="outline" 
-        onClick={() => navigate("/tutor/pod")}
+        onClick={() => navigate("/specialist/pod")}
         className="gap-2"
       >
         <ArrowLeft className="w-4 h-4" />

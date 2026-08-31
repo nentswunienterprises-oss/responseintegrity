@@ -38,9 +38,11 @@ export default function ResponseConditioningTopicConditioning() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
         <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">Why this deep dive matters</h2>
+          <h2 className="text-2xl font-bold">Topic Conditioning in Response Integrity</h2>
+          <h3 className="text-xl font-semibold">What it is</h3>
           <p className="text-muted-foreground">
-            Topic Conditioning is where school content becomes the arena for response conditioning. A topic is not just a chapter or a syllabus item. It is the place where a student&apos;s response breaks, stalls, or collapses.
+            Topic Conditioning is how Response Integrity uses the student's real school topics to train a stable
+            response under pressure.
           </p>
           <p className="text-muted-foreground">Response Integrity does not ask only, "Do they know the topic?" It asks, "Where does their response break inside that topic, and what must happen next?"</p>
           <p className="font-semibold">This is the bridge between schoolwork and specialist execution.</p>
@@ -196,7 +198,7 @@ export default function ResponseConditioningTopicConditioning() {
               <li>reducing guessing</li>
               <li>repeating the method reliably</li>
             </ul>
-            <p className="text-muted-foreground">Tools: independent execution reps, step-order correction, and 3-Layer Lens checks.</p>
+            <p className="text-muted-foreground">Tools: independent execution reps, step-order correction, and 3-Layer Lens checks. Model only if a Clarity gap appears.</p>
             <p className="font-medium">Question: Can the student act reliably in this topic without being carried?</p>
             <p className="text-muted-foreground">If no, this topic sits in Structured Execution.</p>
           </div>

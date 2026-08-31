@@ -830,7 +830,7 @@ export function TutorDocumentReview({ application, onReview }: TutorDocumentRevi
                 <FileCheck className="h-4 w-4 text-slate-600" />
                 <div>
                   <p className="font-medium">Application view</p>
-                  <p className="text-sm text-muted-foreground">Original tutor application details and written responses.</p>
+                  <p className="text-sm text-muted-foreground">Original specialist application details and written responses.</p>
                 </div>
               </div>
               <Button type="button" variant="outline" onClick={() => setApplicationViewOpen(true)}>
@@ -878,7 +878,7 @@ export function TutorDocumentReview({ application, onReview }: TutorDocumentRevi
         <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{fullName}</DialogTitle>
-            <DialogDescription>Original tutor application details and written responses.</DialogDescription>
+            <DialogDescription>Original specialist application details and written responses.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">

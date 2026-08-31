@@ -307,10 +307,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   const tutorNav: NavItem[] = [
-    { label: "My Pod", path: "/tutor/pod", icon: <FolderKanban className="w-5 h-5" /> },
-    { label: "Growth", path: "/tutor/growth", icon: <TrendingUp className="w-5 h-5" /> },
-    { label: "Sessions", path: "/tutor/sessions", icon: <Calendar className="w-5 h-5" /> },
-    { label: "Updates", path: "/tutor/updates", icon: <Bell className="w-5 h-5" /> },
+    { label: "My Pod", path: "/specialist/pod", icon: <FolderKanban className="w-5 h-5" /> },
+    { label: "Growth", path: "/specialist/growth", icon: <TrendingUp className="w-5 h-5" /> },
+    { label: "Sessions", path: "/specialist/sessions", icon: <Calendar className="w-5 h-5" /> },
+    { label: "Updates", path: "/specialist/updates", icon: <Bell className="w-5 h-5" /> },
   ];
 
   const tdNav: NavItem[] = [
@@ -601,7 +601,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   </Badge>
                   {isTutor(effectiveUser) && (
                     <DropdownMenuItem asChild className="p-0">
-                      <Link to="/tutor/profile" className="text-xs font-semibold text-primary hover:text-primary/80 cursor-pointer">
+                      <Link to="/specialist/profile" className="text-xs font-semibold text-primary hover:text-primary/80 cursor-pointer">
                         View Profile
                       </Link>
                     </DropdownMenuItem>

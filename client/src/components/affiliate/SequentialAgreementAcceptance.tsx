@@ -200,28 +200,21 @@ function buildAgreementBody(document: DocumentDefinition, formData: EgpFormData)
             <p>No employer-employee relationship is created.</p>
           </AgreementSection>
 
-          <AgreementSection title="4. Commission Structure (Phase 1 - Pod Activation)">
-            <AgreementSubsection title="4.1 Activation Payment">
-              <AgreementList items={[<><strong>R1,500</strong> is paid upon successful contribution to a fully filled pod</>]} />
+          <AgreementSection title="4. Production Reward Structure (MVP)">
+            <p>The EGP participates as a demand contributor in the Response Integrity Production Economy. The EGP is not paid for a lead, inquiry, incomplete enrollment, or capacity contribution.</p>
+            <AgreementSubsection title="4.1 Verified Conversion Reward">
+              <AgreementList items={[<><strong>R100</strong> is payable for each verified converted student attributed to the contributor's valid Production Link.</>]} />
+              <p>The reward unlocks only after a completed trial and paid subscription have been verified.</p>
             </AgreementSubsection>
-            <AgreementSubsection title="4.2 Retention Payment">
-              <AgreementList items={[<><strong>R750</strong> is paid only if the student remains active for <strong>30 days</strong></>]} />
-            </AgreementSubsection>
-            <AgreementSubsection title="4.3 Payment Conditions">
-              <p>Commission is earned only when:</p>
-              <AgreementList items={[
-                "The student is accepted by Response Integrity",
-                "The parent completes payment",
-                "The student remains active (for retention payout)",
-              ]} />
-              <p>No payment is made for:</p>
-              <AgreementList items={["Leads", "Inquiries", "Incomplete enrollments"]} />
+            <AgreementSubsection title="4.2 Attribution And Payment Conditions">
+              <p>The platform records the contributor, campaign, source, ownership, timestamp, and Production Link. Predefined ownership splits apply where contributors share a link.</p>
+              <p>No reward is earned for leads, inquiries, incomplete enrollments, unpaid subscriptions, subscriptions without a completed trial, or unattributed organic conversions.</p>
             </AgreementSubsection>
           </AgreementSection>
 
-          <AgreementSection title="5. Pod-Based Incentive Structure">
-            <p>Commission is tied to fully activated pods, not individual student activity.</p>
-            <p>Partial contribution does not guarantee full payout.</p>
+          <AgreementSection title="5. Production Economy Boundary">
+            <p>The reward is tied to verified demand production, not Pod completion or student retention. Pod formation requires separate demand, capacity, and readiness gates.</p>
+            <p>The EGP has no claim to the specialist's <strong>R750 monthly service share</strong> or the platform's <strong>R250 production share</strong>. Those allocations are separate from the R100 Production Reward.</p>
           </AgreementSection>
 
           <AgreementSection title="6. No Entitlement">

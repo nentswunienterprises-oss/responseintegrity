@@ -10,7 +10,7 @@ export default function OnlineTutorsWantedPlain() {
   const navigate = useNavigate();
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, []);
 
-  const tutorLandingPath = "/operational/tutor/landing";
+  const tutorLandingPath = "/operational/specialist/landing";
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#FFF5ED" }}>

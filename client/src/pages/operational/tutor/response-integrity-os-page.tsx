@@ -15,7 +15,7 @@ export default function ResponseIntegrityOS() {
           <Button 
             variant="ghost" 
             className="mb-4 -ml-2"
-            onClick={() => navigate("/tutor/pod")}
+            onClick={() => navigate("/specialist/pod")}
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Pod

@@ -10,8 +10,8 @@ self.addEventListener("push", (event) => {
     icon: payload.icon || "/tt-logo.png",
     image: payload.image,
     data: {
-      url: payload.url || "/operational/tutor/gateway",
-      primaryActionUrl: payload.primaryActionUrl || payload.url || "/operational/tutor/gateway",
+      url: payload.url || "/operational/specialist/gateway",
+      primaryActionUrl: payload.primaryActionUrl || payload.url || "/operational/specialist/gateway",
     },
     tag: payload.tag || "ri-update",
     renotify: true,
@@ -38,8 +38,8 @@ self.addEventListener("notificationclick", (event) => {
   }
 
   const destination = event.action === "open"
-    ? event.notification.data?.primaryActionUrl || event.notification.data?.url || "/operational/tutor/gateway"
-    : event.notification.data?.url || "/operational/tutor/gateway";
+    ? event.notification.data?.primaryActionUrl || event.notification.data?.url || "/operational/specialist/gateway"
+    : event.notification.data?.url || "/operational/specialist/gateway";
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {

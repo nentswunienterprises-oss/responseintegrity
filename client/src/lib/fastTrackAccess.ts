@@ -48,11 +48,11 @@ export function getFastTrackBadgeLabel(search: string) {
   const mode = getFastTrackAccessMode(search);
 
   if (mode === "exec") {
-    return "Executive Fast-Track";
+    return "Private Access";
   }
 
   if (mode) {
-    return "Dev Fast-Track";
+    return "Private Access";
   }
 
   return null;
@@ -62,11 +62,11 @@ export function getFastTrackDescription(search: string) {
   const mode = getFastTrackAccessMode(search);
 
   if (mode === "exec") {
-    return "Direct signup is intentionally unlocked for executive access while the public intake gate remains unchanged.";
+    return "This private specialist access path is available by invitation while the public intake gate remains unchanged.";
   }
 
   if (mode) {
-    return "Direct signup is intentionally unlocked for fast testing and iteration while the public intake gate remains unchanged.";
+    return "This private specialist access path is available by invitation while the public intake gate remains unchanged.";
   }
 
   return null;

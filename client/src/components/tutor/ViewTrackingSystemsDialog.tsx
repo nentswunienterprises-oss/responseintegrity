@@ -19,6 +19,11 @@ import {
 } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, FileText } from "lucide-react";
+import {
+  formatSnapshotRepResult,
+  formatSnapshotResultText,
+  type ResponseSnapshotV1,
+} from "@shared/responseSnapshot";
 
 interface Assignment {
   id: string;
@@ -47,6 +52,8 @@ interface SessionRecord {
     nextMove: string;
     summaryText: string;
   } | null;
+  responseSnapshot?: ResponseSnapshotV1 | null;
+  responseSnapshots?: ResponseSnapshotV1[];
   notes?: string | null;
   vocabularyNotes?: string | null;
   methodNotes?: string | null;
@@ -159,6 +166,52 @@ function FieldRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
+function responseSnapshotColor(level: string) {
+  if (level === "strong") return "text-green-700";
+  if (level === "partial") return "text-yellow-700";
+  if (level === "weak") return "text-red-700";
+  return "text-muted-foreground";
+}
+
+function ResponseSnapshotPanel({ snapshot }: { snapshot: ResponseSnapshotV1 }) {
+  return (
+    <div className="rounded-xl border border-primary/15 bg-primary/5 p-3">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm font-semibold">Response Snapshot{snapshot.source.topic ? ` - ${snapshot.source.topic}` : ""}</p>
+        <p className={`text-xs font-semibold ${responseSnapshotColor(snapshot.drill.responseLevel)}`}>
+          {snapshot.drill.responseLabel} - {snapshot.drill.score ?? "Not scored"}/100
+        </p>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">{formatSnapshotResultText(snapshot.drill.resultText)}</p>
+      <Accordion type="multiple" className="mt-2">
+        {snapshot.sets.map((set) => (
+          <AccordionItem key={set.setId} value={`${snapshot.source.sourceDrillId || snapshot.source.topic}-${set.setId}`}>
+            <AccordionTrigger className="text-left text-sm">
+              <span>
+                {set.setName} <span className={responseSnapshotColor(set.responseLevel)}>{set.responseLabel}</span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-2">
+              <p className="text-xs text-muted-foreground">{formatSnapshotResultText(set.resultText, set.purposeText)}</p>
+              {set.reps.map((rep) => (
+                <div key={`${set.setId}-${rep.repNumber}`} className="rounded-md border border-primary/10 bg-background px-3 py-2">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs font-semibold">Rep {rep.repNumber}</p>
+                    <p className={`text-xs font-semibold ${responseSnapshotColor(rep.responseLevel)}`}>
+                      {rep.responseLabel} - {rep.score ?? "Not scored"}/100
+                    </p>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{formatSnapshotRepResult(rep)}</p>
+                </div>
+              ))}
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    </div>
+  );
+}
+
 function getSessionPreview(session: SessionRecord) {
   if (session.deterministicLog) {
     const log = session.deterministicLog;
@@ -258,7 +311,12 @@ export default function ViewTrackingSystemsDialog({
                       <p className="text-sm text-muted-foreground">No session logs found for this student.</p>
                     ) : (
                       <Accordion type="multiple" className="w-full">
-                        {reportsCenter.sessions.map((session) => (
+                        {reportsCenter.sessions.map((session) => {
+                          const snapshots = [
+                            ...(Array.isArray(session.responseSnapshots) ? session.responseSnapshots : []),
+                            ...(session.responseSnapshot ? [session.responseSnapshot] : []),
+                          ];
+                          return (
                           <AccordionItem key={session.id} value={`session-${session.id}`}>
                             <AccordionTrigger className="text-left">
                               <div className="flex flex-col gap-1 min-w-0">
@@ -276,6 +334,17 @@ export default function ViewTrackingSystemsDialog({
                                 <div className="space-y-3 rounded-xl border border-primary/15 bg-background p-4">
                                   <FieldRow label="Session Summary" value={session.deterministicLog.summaryText || session.deterministicLog.topicFocus} />
                                   <FieldRow label="What Was Trained" value={session.deterministicLog.whatWasTrained} />
+                                  {snapshots.length > 0 ? (
+                                    <div className="space-y-2">
+                                      <p className="text-sm font-medium text-foreground">Response Snapshots</p>
+                                      {snapshots.map((snapshot, index) => (
+                                        <ResponseSnapshotPanel
+                                          key={snapshot.source.sourceDrillId || `${snapshot.source.topic}-${index}`}
+                                          snapshot={snapshot}
+                                        />
+                                      ))}
+                                    </div>
+                                  ) : null}
                                   <FieldRow label="Observed Response" value={session.deterministicLog.behaviorSummary} />
                                   <FieldRow label="Performance Result" value={session.deterministicLog.performanceResult} />
                                   <FieldRow label="State Update" value={session.deterministicLog.stateMovement} />
@@ -285,7 +354,8 @@ export default function ViewTrackingSystemsDialog({
                               ) : null}
                             </AccordionContent>
                           </AccordionItem>
-                        ))}
+                          );
+                        })}
                       </Accordion>
                     )}
                   </Card>

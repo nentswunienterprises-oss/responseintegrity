@@ -87,8 +87,10 @@ export async function setupAuth(app: Express) {
       console.log("[SESSION] Before signup: req.sessionID:", req.sessionID);
       console.log("[SESSION] Before signup: req.session:", req.session);
       // Store affiliate_code in session for later use (e.g., enrollment)
-      if (req.body.affiliate_code) {
-        req.session.affiliateCode = req.body.affiliate_code;
+      const incomingProductionCode = req.body.production_link_code || req.body.affiliate_code;
+      if (incomingProductionCode) {
+        req.session.affiliateCode = incomingProductionCode;
+        (req.session as any).productionLinkCode = incomingProductionCode;
         console.log("[SIGNUP] affiliate_code stored in session as affiliateCode:", req.session.affiliateCode);
       } else {
         console.log("[SIGNUP] No affiliate_code in signup body; session.affiliateCode not set.");
@@ -280,14 +282,15 @@ export async function setupAuth(app: Express) {
       }
 
       // If parent signed up with affiliate code, create a lead
-      if (user && user.role === "parent" && affiliate_code) {
+      const effectiveAffiliateCode = affiliate_code || req.session.affiliateCode || null;
+      if (user && user.role === "parent" && effectiveAffiliateCode) {
         try {
-          console.log("📝 Processing affiliate code:", affiliate_code);
+          console.log("📝 Processing production link:", effectiveAffiliateCode);
           console.log("📧 Parent signup email:", email);
           const onboardingType = 'pilot';
           const fullName = `${first_name} ${last_name}`.trim() || email.split("@")[0];
           // Get affiliate info from code
-          const affiliateInfo = await storage.getAffiliateByCode(affiliate_code.toUpperCase());
+          const affiliateInfo = await storage.getAffiliateByCode(effectiveAffiliateCode.toUpperCase());
           if (affiliateInfo && affiliateInfo.affiliate_id) {
             console.log("✅ Found affiliate for code:", affiliateInfo.affiliate_id);
             // Find the encounter by email (since parent_email matches the signup email)
@@ -306,6 +309,7 @@ export async function setupAuth(app: Express) {
               fullName,
               affiliateType: affiliateInfo.affiliate_type,
               affiliateName: affiliateInfo.affiliate_name,
+              productionLinkCode: affiliateInfo.production_link_code,
             };
             if (encounter) {
               console.log("✅ Found encounter for parent email:", email, "encounter_id:", encounter.id);
@@ -319,7 +323,7 @@ export async function setupAuth(app: Express) {
               console.log("✅ Lead created (new signup) for affiliate:", affiliateInfo.affiliate_id, "user_id:", user.id);
             }
           } else {
-            console.warn("⚠️  Affiliate code not found:", affiliate_code);
+            console.warn("⚠️  Production link not found:", effectiveAffiliateCode);
           }
         } catch (error) {
           console.error("❌ Error processing affiliate code:", error);
@@ -328,7 +332,7 @@ export async function setupAuth(app: Express) {
       }
 
       // If no affiliate code (organic signup), still create a lead to track them
-      if (!affiliate_code) {
+      if (!effectiveAffiliateCode) {
         try {
           console.log("📊 Organic signup - creating organic lead");
           const onboardingType = 'commercial';
@@ -629,7 +633,12 @@ export async function setupAuth(app: Express) {
       console.log("Request body:", JSON.stringify(req.body));
       console.log("═══════════════════════════════════════");
 
-      const { user_id, email, role, first_name = "", last_name = "", affiliate_code = null } = req.body;
+      const { user_id, email, role, first_name = "", last_name = "", affiliate_code = null, production_link_code = null } = req.body;
+      const effectiveAffiliateCode = production_link_code || affiliate_code || (req.session as any).affiliateCode || null;
+      if (effectiveAffiliateCode) {
+        req.session.affiliateCode = effectiveAffiliateCode;
+        (req.session as any).productionLinkCode = effectiveAffiliateCode;
+      }
       const normalizedEmail = normalizeEmail(email);
 
       if (!user_id || !email || !role) {
@@ -679,18 +688,18 @@ export async function setupAuth(app: Express) {
       console.log("✅ User profile created successfully");
 
       // Handle affiliate code for parents
-      if (role === "parent" && affiliate_code) {
+      if (role === "parent" && effectiveAffiliateCode) {
         try {
-          const { data: affiliate } = await supabase
-            .from("users")
-            .select("id")
-            .eq("affiliate_code", affiliate_code)
-            .eq("role", "affiliate")
-            .maybeSingle();
+          const affiliateInfo = await storage.getAffiliateByCode(effectiveAffiliateCode.toUpperCase());
 
-          if (affiliate) {
-            console.log("🔗 Creating lead for parent with affiliate code:", affiliate_code);
-            await storage.createLead(affiliate.id, user_id, null, { leadType: 'parent' });
+          if (affiliateInfo?.affiliate_id) {
+            console.log("🔗 Creating lead for parent with production link:", effectiveAffiliateCode);
+            await storage.createLead(affiliateInfo.affiliate_id, user_id, null, {
+              leadType: "parent",
+              productionLinkCode: affiliateInfo.production_link_code,
+              affiliateType: affiliateInfo.affiliate_type,
+              affiliateName: affiliateInfo.affiliate_name,
+            });
           } else {
             console.warn("⚠️  Affiliate code not found:", affiliate_code);
           }

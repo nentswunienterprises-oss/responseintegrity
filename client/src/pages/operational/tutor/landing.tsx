@@ -14,14 +14,14 @@ import { buildTrackedPath, buildTrackedReturnTo } from "@/lib/publicTracking";
 
 const operatorCycles = [
   {
-    title: "Annual Tutor Certification Cycle",
+    title: "Annual Specialist Certification Cycle",
     support: "Supports the Full-Year Conditioning Intake",
     applicationWindow: "1 October - 31 October",
     conditioningWindow: "1 November - 15 January",
     deploymentBegins: "1 February",
   },
   {
-    title: "Mid-Year Tutor Certification Cycle",
+    title: "Mid-Year Specialist Certification Cycle",
     support: "Supports the Mid-Year Conditioning Intake",
     applicationWindow: "1 April - 30 April",
     conditioningWindow: "1 May - 20 May",
@@ -32,7 +32,7 @@ const operatorCycles = [
 const conditioningModes = [
   {
     title: "Applicant",
-    body: "You are stepping into the system. Response Integrity checks your fit, your readiness, and whether you are ready for tutor responsibility.",
+    body: "You are stepping into the system. Response Integrity checks your fit, your readiness, and whether you are ready for specialist responsibility.",
   },
   {
     title: "Training",
@@ -69,7 +69,7 @@ const nonFitSignals = [
 const roleBlocks = [
   {
     title: "What this role is",
-    body: "A Response Integrity tutor helps students become clearer, steadier, and more reliable under pressure. The role is centered on structure, consistency, and real change.",
+    body: "A Response Integrity specialist helps students become clearer, steadier, and more reliable under pressure. The role is centered on structure, consistency, and real change.",
   },
   {
     title: "What this role is not",
@@ -81,7 +81,7 @@ const roleBlocks = [
   },
   {
     title: "What ongoing users should expect",
-    body: "If you already have an account, use the login entry point below. It opens directly on the tutor login side with no signup detour.",
+    body: "If you already have an account, use the login entry point below. It opens directly on the specialist login side with no signup detour.",
   },
 ] as const;
 
@@ -94,7 +94,7 @@ export default function TutorLanding() {
   const fastTrackDescription = getFastTrackDescription(location.search);
   const fastTrackParams = getFastTrackExtraParams(location.search);
 
-  const intakeEntryPath = buildTrackedPath("/operational/tutor/intake", location.search, {
+  const intakeEntryPath = buildTrackedPath("/operational/specialist/intake", location.search, {
     returnTo: landingReturnTo,
     ...fastTrackParams,
   });
@@ -151,7 +151,7 @@ export default function TutorLanding() {
             <div className="overflow-hidden rounded-[34px] border border-[#E7CEC4] bg-[#FFF1E8] shadow-sm">
               <div className="p-6 sm:p-7 lg:p-9 xl:p-10">
                 <h1 className="mt-5 max-w-4xl text-4xl font-bold leading-[0.95] tracking-[-0.05em] text-[#171311] sm:text-5xl lg:text-[4.1rem] xl:text-[4.55rem]">
-                  Become the kind of tutor
+                  Become the kind of specialist
                   <span className="mt-2 block max-w-3xl text-[#E63946]">who stays calm, clear,</span>
                   <span className="mt-2 block max-w-3xl text-[#E63946]">and sharp when pressure rises.</span>
                 </h1>
@@ -179,7 +179,7 @@ export default function TutorLanding() {
                     style={{ backgroundColor: "#E63946" }}
                     onClick={() => navigate(intakeEntryPath)}
                   >
-                    Check Current Tutor Window
+                    Check Current Specialist Window
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                   <Button
@@ -188,7 +188,7 @@ export default function TutorLanding() {
                     className="rounded-full border-[#D7C0AF] bg-white/70 px-8 text-[#171311] hover:bg-white"
                     onClick={() => navigate(loginEntryPath)}
                   >
-                    Existing Tutor Login
+                    Existing Specialist Login
                   </Button>
                 </div>
               </div>
@@ -224,10 +224,10 @@ export default function TutorLanding() {
         <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 md:px-12">
           <div className="rounded-[30px] border border-[#E5D3C5] bg-white/86 p-7 shadow-sm sm:p-8">
             <div className="max-w-3xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8A4B35]">Tutor windows</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8A4B35]">Specialist windows</p>
               <h2 className="mt-1 text-3xl font-bold tracking-tight text-[#171311]">Two certification cycles. Two deployment moments.</h2>
               <p className="mt-3 text-sm leading-7 text-[#4F4742] sm:text-base">
-                Tutor intake follows the same disciplined rhythm as student entry. Applications open inside defined windows, conditioning happens by deadline, Trial validates live responsibility, and only certified live tutors become deployable.
+                Specialist intake follows the same disciplined rhythm as student entry. Applications open inside defined windows, conditioning happens by deadline, Trial validates live responsibility, and only certified live specialists become deployable.
               </p>
             </div>
 
@@ -260,7 +260,7 @@ export default function TutorLanding() {
           <div className="rounded-[30px] border border-[#E5D3C5] bg-white/86 p-7 shadow-sm sm:p-8">
             <div className="max-w-3xl">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8A4B35]">Conditioning path</p>
-              <h2 className="mt-1 text-3xl font-bold tracking-tight text-[#171311]">How Response Integrity grows a tutor into trust</h2>
+              <h2 className="mt-1 text-3xl font-bold tracking-tight text-[#171311]">How Response Integrity grows a specialist into trust</h2>
               <p className="mt-3 text-sm leading-7 text-[#4F4742] sm:text-base">
                 You do not have to arrive fully formed. You do have to be willing to learn the craft, stay coachable, and keep improving. Response Integrity opens more trust as your standard gets stronger.
               </p>
@@ -327,10 +327,10 @@ export default function TutorLanding() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8A4B35]">Entry point</p>
             <h2 className="mt-4 text-3xl font-bold leading-tight text-[#171311] sm:text-4xl">
               Want to become a Response Conditioning Specialist?
-              <span className="block text-[#E63946]">Check the current tutor window first.</span>
+              <span className="block text-[#E63946]">Check the current specialist window first.</span>
             </h2>
             <p className="mx-auto mt-6 max-w-3xl text-base leading-8 text-[#57504B] sm:text-lg">
-                New applicants begin through the intake-aware tutor gate. Existing tutors use the login button to open directly on the tutor login side.
+                New applicants begin through the intake-aware specialist gate. Existing specialists use the login button to open directly on the specialist login side.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Button
@@ -339,7 +339,7 @@ export default function TutorLanding() {
                 style={{ backgroundColor: "#E63946" }}
                 onClick={() => navigate(intakeEntryPath)}
               >
-                Check Current Tutor Window
+                Check Current Specialist Window
               </Button>
               <Button
                 size="lg"
@@ -347,7 +347,7 @@ export default function TutorLanding() {
                 className="rounded-full border-[#D7C0AF] bg-white/70 px-8 text-[#171311] hover:bg-white"
                 onClick={() => navigate(loginEntryPath)}
               >
-                Existing Tutor Login
+                Existing Specialist Login
               </Button>
             </div>
           </div>
@@ -358,7 +358,7 @@ export default function TutorLanding() {
             <div className="rounded-[32px] border border-dashed border-[#D9B8AA] bg-[#FFF8F4] px-6 py-10 shadow-sm sm:px-10 sm:py-12">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8A4B35]">{fastTrackBadge}</p>
               <h2 className="mt-4 text-3xl font-bold leading-tight text-[#171311] sm:text-4xl">
-                Direct tutor signup is unlocked.
+                Private specialist access is available.
               </h2>
               <p className="mt-6 max-w-3xl text-base leading-8 text-[#57504B] sm:text-lg">
                 {fastTrackDescription}
@@ -370,7 +370,7 @@ export default function TutorLanding() {
                   style={{ backgroundColor: "#171311", color: "white" }}
                   onClick={() => navigate(directSignupPath)}
                 >
-                  Direct Tutor Signup
+                  Private Specialist Access
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
@@ -385,7 +385,7 @@ export default function TutorLanding() {
           <p className="text-center text-xs text-[#5A5A5A] md:text-right">
             Copyright {new Date().getFullYear()} Response Integrity (Pty) Ltd
             <br />
-            Tutor Gateway
+            Specialist Gateway
           </p>
         </div>
       </footer>

@@ -167,7 +167,7 @@ function getWorkflowLabel(workflow) {
 }
 
 function usesDirectDrillLaunch(operationalMode?: string | null) {
-  return String(operationalMode || "").trim().toLowerCase() !== "certified_live";
+  return !["trial", "certified_live"].includes(String(operationalMode || "").trim().toLowerCase());
 }
 
 const SANDBOX_CARD_THEMES = [
@@ -316,7 +316,7 @@ export function StudentCard({
         setCommunicationDialogOpen(true);
         break;
       case "intro-drill":
-        navigate(`/tutor/intro-session/${student.id}`);
+        navigate(`/specialist/intro-session/${student.id}`);
         break;
       case "student-card":
       default:
@@ -1231,7 +1231,7 @@ function HandoverVerificationSection({
               const sessionParam = session?.id
                 ? `&scheduledSessionId=${encodeURIComponent(session.id)}`
                 : "";
-              navigate(`/tutor/intro-session/${studentId}?mode=handover&topic=${topicParam}${phaseParam}${stabilityParam}${sessionParam}`);
+              navigate(`/specialist/intro-session/${studentId}?mode=handover&topic=${topicParam}${phaseParam}${stabilityParam}${sessionParam}`);
             }}
             disabled={!session?.id}
           >
@@ -1249,7 +1249,7 @@ function HandoverVerificationSection({
                 const sessionParam = session?.id
                   ? `&scheduledSessionId=${encodeURIComponent(session.id)}`
                   : "";
-                navigate(`/tutor/intro-session/${studentId}?mode=handover&rediagnosis=1&topic=${topicParam}${phaseParam}${stabilityParam}${sessionParam}`);
+                navigate(`/specialist/intro-session/${studentId}?mode=handover&rediagnosis=1&topic=${topicParam}${phaseParam}${stabilityParam}${sessionParam}`);
               }}
               disabled={!session?.id}
             >
@@ -1580,7 +1580,7 @@ function IntroDiagnosticTopicSection({
               : introSession?.id
                 ? `&scheduledSessionId=${encodeURIComponent(introSession.id)}`
                 : "";
-          navigate(`/tutor/intro-session/${student.id}?topic=${topicParam}${phaseParam}${sessionParam}`);
+          navigate(`/specialist/intro-session/${student.id}?topic=${topicParam}${phaseParam}${sessionParam}`);
         }}
         disabled={
           directDrillLaunch

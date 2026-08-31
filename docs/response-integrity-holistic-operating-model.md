@@ -6,87 +6,34 @@ It keeps the public-facing positioning separate from the internal operating real
 
 ## 1. Brand
 
-Response Integrity is publicly positioned as a calm-performance academic support brand.
+Response Integrity is publicly presented as a calm, structured academic support system that helps learners stay clear and steady when work becomes difficult.
 
-The public story is simple: we help learners build structured execution before pressure arrives.
-The brand should feel steady, reassuring, and serious, not noisy, rushed, or generic.
-It should feel like calm-performance culture: preparation before panic, structure before stress, and evidence before confidence.
-
-### Public-facing positioning
-
-The clearest public lines are:
-
-- We Train Calm Execution. Under Pressure.
-- Math is the training arena.
-- Calm First. Confidence follows.
-- School introduces. Response Integrity conditions.
-
-Those lines should carry the outward brand voice. Families should understand that Response Integrity prepares learners before stress appears, instead of trying to patch panic after it has already started.
-
-### Brand essence
-
-The public story is that Response Integrity helps learners:
-
-- think more clearly
-- stay structured when difficulty appears
-- build confidence through evidence
-- stay calm when the work gets hard
-- develop repeatable execution instead of one-off performance
-- move through pressure with less panic and more control
-
-That is the brand promise at its cleanest level.
-
-### What families should feel
-
-When a parent reads or hears about Response Integrity, they should feel:
-
-- this is serious, but not scary
-- this is structured, but not cold
-- this is disciplined, but still supportive
-- my child is being prepared, not judged
-- this is about real change, not temporary encouragement
-- this is calm-performance support, not panic response
+The public brand should sound human, reassuring, and direct. It should not sound like internal code or dashboard jargon.
 
 ### Public-facing promise
 
-The public-facing promise is not just that the learner will receive sessions. It is that the learner will receive consistent attention, structured repetition, and good pressure in a safe environment.
-
-- individual attention at the learner's pace
+- individual attention at the learner’s pace
 - a safe space to make mistakes
 - good pressure through observation, not shame
 - execution under difficulty
 - preparation before pressure arrives
 - a system-led method rather than personality-led tutoring
 
-### Public-facing themes
-
-The public-facing language should keep returning to a few stable themes:
-
-- the learner gets direct attention
-- the learner is seen clearly
-- mistakes are part of training
-- structure matters more than hype
-- pressure is prepared for early
-- calm execution is the goal
-- confidence comes from evidence
-- small structured pods protect focus and consistency
-
 ### Public-facing tone
 
-The public voice should sound:
+The public voice should keep returning to a few simple ideas:
 
-- human, clear, and grounded
-- reassuring without being vague
-- disciplined without being harsh
-- confident without hype
-- parent-safe and easy to understand
-- direct without sounding cold
+- learners get direct attention
+- mistakes are part of training
+- structure matters
+- pressure is prepared for early
+- steady execution is the goal
 
 ### Current public audience
 
-The visible family-facing brand is currently centered on Grades 6-9.
+The visible family-facing brand is currently centered on Grades 6–9.
 
-That does not mean the operating logic cannot expand later, but the public story stays simple and parent-safe.
+That does not mean the operational logic cannot expand later, but the public story stays simple and parent-safe.
 
 ### What the brand is not
 
@@ -97,15 +44,8 @@ Response Integrity is not framed as:
 - a loose chat-based study service
 - a personality-led teaching business
 - last-minute panic support
-- a noisy cram service
-- a vague confidence-booster
-- a one-size-fits-all lesson factory
 
 Instead, the public story is that Response Integrity trains calm execution under pressure.
-
-### The public narrative in one sentence
-
-Response Integrity is a calm-performance system for Grades 6-9 learners, built to train structured execution before pressure arrives.
 
 ## 2. Business model
 
@@ -364,7 +304,7 @@ When the tutor is in training mode:
 
 When the tutor is certified live:
 
-- live scheduling is available
+- live scheduling is available through Google Meet
 - the pod assignment opens the live operating layer for students, onboarding, conditioning, and reports
 
 ## 7. Tutor tools
@@ -757,7 +697,7 @@ This is what life looks like in the operating system over time.
 6. tutor opens the topic map and student cards
 7. tutor runs the correct drill in the correct phase
 8. tutor logs the actual student response
-9. tutor updates reports and movement markers
+9. reports and movement markers update based on what tutor logged
 10. TD oversight checks compliance and drift
 
 ### Rhythm principle
@@ -821,7 +761,7 @@ The current live model is real, but it is also the first stage of a larger struc
 
 ### Scale caution
 
-The larger scale model exists in the vision docs, but the live operating truth right now is still the 12-tutor / 36-student pod.
+The larger scale model exists in the vision, but the live operating truth right now is still the 12-tutor / 36-student pod.
 
 ## 17. Canonical summary
 

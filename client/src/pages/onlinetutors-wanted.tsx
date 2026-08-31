@@ -8,7 +8,7 @@ import { ArrowRight, Check } from "lucide-react";
 export default function OnlineTutorsWanted() {
   const navigate = useNavigate();
 
-  const tutorLandingPath = "/operational/tutor/landing";
+  const tutorLandingPath = "/operational/specialist/landing";
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#FFF5ED" }}>

@@ -30,7 +30,7 @@ type ParentTrainingSession = {
 
 type ParentTrainingSessionsResponse = {
   sessions: ParentTrainingSession[];
-  operationalMode?: "training" | "certified_live";
+  operationalMode?: "training" | "trial" | "certified_live";
   sessionSchedulingEnabled?: boolean;
   paymentRequired?: boolean;
   paymentStatus?: string;

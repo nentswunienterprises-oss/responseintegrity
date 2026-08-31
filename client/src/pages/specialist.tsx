@@ -1,0 +1,350 @@
+import { useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { ArrowRight, Check, ChevronDown, LockKeyhole, ShieldCheck, Target, TimerReset } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ResponseIntegrityLogo } from "@/components/ResponseIntegrityLogo";
+import { buildTrackedPath, buildTrackedReturnTo } from "@/lib/publicTracking";
+
+const pathway = [
+  {
+    stage: "Application",
+    proof: "Prove eligibility",
+    detail:
+      "We look for completed matric, strong mathematical capability, discipline, communication ability, and evidence that you can learn quickly.",
+  },
+  {
+    stage: "Training",
+    proof: "Prove understanding",
+    detail:
+      "You study the Response Integrity method, the student response problem, session execution, observation, documentation, and specialist standards.",
+  },
+  {
+    stage: "Sandbox",
+    proof: "Prove system competence",
+    detail:
+      "You practise the platform and session structure in a controlled environment before any real family responsibility opens.",
+  },
+  {
+    stage: "Trials",
+    proof: "Prove real-world execution",
+    detail:
+      "Trial-ready specialists work with two families, each receiving approximately nine Response Integrity sessions during the certification phase.",
+  },
+  {
+    stage: "Certification",
+    proof: "Prove readiness",
+    detail:
+      "Certification is earned through evidence across student experience, specialist execution, parent experience, process integrity, and outcomes.",
+  },
+] as const;
+
+const proofQuestions = [
+  "Can the methodology be transferred reliably?",
+  "Can another person operate the system without losing process integrity?",
+  "Can it create observable change across different students?",
+  "Can the technology support delivery reliably?",
+  "Can this become a repeatable economic opportunity for capable young people?",
+] as const;
+
+const fitSignals = [
+  "You have completed matric and can reason confidently through mathematics.",
+  "You can follow a system precisely without needing to improvise to feel useful.",
+  "You stay composed when a student freezes, rushes, guesses, or becomes uncertain.",
+  "You can accept correction, tighten execution, and take responsibility for your standard.",
+] as const;
+
+const evaluationAreas = [
+  "Student experience",
+  "Specialist execution",
+  "Parent experience",
+  "Process integrity",
+  "Outcomes",
+] as const;
+
+export default function SpecialistLanding() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [selectedStage, setSelectedStage] = useState(0);
+  const [openQuestion, setOpenQuestion] = useState(0);
+
+  const returnTo = buildTrackedReturnTo(location.pathname, location.search);
+  const applyPath = useMemo(
+    () =>
+      buildTrackedPath("/operational/specialist/intake", location.search, {
+        returnTo,
+      }),
+    [location.search, returnTo],
+  );
+  const loginPath = useMemo(
+    () =>
+      buildTrackedPath("/operational/signup", location.search, {
+        role: "tutor",
+        mode: "login",
+        lock: "login",
+        returnTo,
+      }),
+    [location.search, returnTo],
+  );
+
+  return (
+    <div className="min-h-screen overflow-x-hidden bg-[var(--ri-cream)] text-[var(--ri-charcoal)]">
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-[var(--ri-warm-border)] bg-[rgba(var(--ri-cream-rgb),0.94)] backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:h-20 sm:px-6 md:px-12">
+          <ResponseIntegrityLogo size="lg" variant="integrity" />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              className="hidden text-sm font-semibold text-[var(--ri-charcoal)] hover:bg-transparent sm:inline-flex"
+              onClick={() => navigate(loginPath)}
+            >
+              Log In
+            </Button>
+            <Button
+              className="rounded-full bg-[var(--ri-red)] px-5 text-sm font-semibold text-white hover:bg-[var(--ri-red)]"
+              onClick={() => navigate(applyPath)}
+            >
+              Apply
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="pt-16 sm:pt-20">
+        <section className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 sm:py-14 md:px-12 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-center">
+          <div className="max-w-4xl">
+            <p className="inline-flex rounded-full border border-[var(--ri-warm-border)] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ri-red)]">
+              12 places available
+            </p>
+            <h1 className="mt-6 text-4xl font-bold leading-[1.02] tracking-normal text-[var(--ri-charcoal)] sm:text-5xl lg:text-6xl">
+              Become a Response Integrity Specialist.
+            </h1>
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-[var(--ri-muted)]">
+              Learn the system. Prove you can execute it. Earn certification through evidence, real trials, and disciplined delivery with students.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Button
+                size="lg"
+                className="rounded-full bg-[var(--ri-red)] px-8 text-white hover:bg-[var(--ri-red)]"
+                onClick={() => navigate(applyPath)}
+              >
+                Apply for the Cohort
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="rounded-full border-[var(--ri-warm-border)] bg-white px-8 text-[var(--ri-charcoal)] hover:bg-white"
+                onClick={() => document.getElementById("pathway")?.scrollIntoView({ behavior: "smooth" })}
+              >
+                See the Pathway
+              </Button>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-[var(--ri-warm-border)] bg-white shadow-sm">
+            <img
+              src="/images/founding-tutors-hero.webp"
+              alt="Response Integrity specialist candidate preparing for online student delivery"
+              className="h-60 w-full object-cover sm:h-72"
+            />
+            <div className="grid grid-cols-3 divide-x divide-[var(--ri-warm-border)]">
+              <div className="p-4">
+                <p className="text-2xl font-bold text-[var(--ri-red)]">76-91</p>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ri-muted)]">days</p>
+              </div>
+              <div className="p-4">
+                <p className="text-2xl font-bold text-[var(--ri-red)]">18</p>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ri-muted)]">trial sessions</p>
+              </div>
+              <div className="p-4">
+                <p className="text-2xl font-bold text-[var(--ri-red)]">2</p>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ri-muted)]">families</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-[var(--ri-dark-border)] bg-[var(--ri-charcoal)] py-12 text-white sm:py-16">
+          <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 md:px-12 lg:grid-cols-[0.9fr_1.1fr]">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--ri-dark-copy)]">Not a tutoring job</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-normal sm:text-4xl">
+                You are applying to learn a system for changing response under difficulty.
+              </h2>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {[
+                { icon: Target, text: "Math is the arena. Response is the skill." },
+                { icon: ShieldCheck, text: "Trust opens only after evidence." },
+                { icon: TimerReset, text: "Pressure is trained deliberately." },
+                { icon: LockKeyhole, text: "Process integrity matters." },
+              ].map(({ icon: Icon, text }) => (
+                <div key={text} className="rounded-lg border border-white/10 bg-white/5 p-5">
+                  <Icon className="h-5 w-5 text-[var(--ri-red)]" />
+                  <p className="mt-4 text-sm leading-6 text-white/82">{text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="pathway" className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 md:px-12">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--ri-red)]">The path to certification</p>
+            <h2 className="mt-3 text-3xl font-bold tracking-normal sm:text-4xl">Progression is earned stage by stage.</h2>
+            <p className="mt-4 text-base leading-7 text-[var(--ri-muted)]">
+              Application does not guarantee training. Training does not guarantee sandbox. Sandbox does not guarantee access to families. Trials do not automatically guarantee certification.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
+            <div className="grid gap-2">
+              {pathway.map((item, index) => (
+                <button
+                  key={item.stage}
+                  type="button"
+                  className={`rounded-lg border p-4 text-left transition ${
+                    selectedStage === index
+                      ? "border-[var(--ri-red)] bg-white shadow-sm"
+                      : "border-[var(--ri-warm-border)] bg-white/60 hover:bg-white"
+                  }`}
+                  onClick={() => setSelectedStage(index)}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ri-red)]">
+                    {String(index + 1).padStart(2, "0")}
+                  </p>
+                  <p className="mt-2 font-bold text-[var(--ri-charcoal)]">{item.stage}</p>
+                </button>
+              ))}
+            </div>
+
+            <div className="rounded-lg border border-[var(--ri-warm-border)] bg-white p-6 shadow-sm sm:p-8">
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[var(--ri-red)]">
+                {pathway[selectedStage].proof}
+              </p>
+              <h3 className="mt-3 text-3xl font-bold tracking-normal text-[var(--ri-charcoal)]">
+                {pathway[selectedStage].stage}
+              </h3>
+              <p className="mt-4 text-base leading-8 text-[var(--ri-muted)]">{pathway[selectedStage].detail}</p>
+              <div className="mt-8 rounded-lg border border-[var(--ri-warm-border)] bg-[var(--ri-blush)] p-5">
+                <p className="text-sm font-semibold text-[var(--ri-charcoal)]">Evidence before responsibility.</p>
+                <p className="mt-2 text-sm leading-6 text-[var(--ri-muted)]">
+                  Each stage asks whether you are ready for the next level of student and family trust.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-white py-12 sm:py-16">
+          <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 md:px-12 lg:grid-cols-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--ri-red)]">Who should apply</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-normal sm:text-4xl">Built for capable young people with real discipline.</h2>
+              <div className="mt-7 grid gap-3">
+                {fitSignals.map((signal) => (
+                  <div key={signal} className="flex gap-3 rounded-lg border border-[var(--ri-warm-border)] bg-[var(--ri-cream)] p-4">
+                    <Check className="mt-1 h-4 w-4 flex-shrink-0 text-[var(--ri-red)]" />
+                    <p className="text-sm leading-6 text-[var(--ri-muted)]">{signal}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-[var(--ri-warm-border)] bg-[var(--ri-cream)] p-6 sm:p-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--ri-red)]">What we evaluate</p>
+              <div className="mt-5 grid gap-3">
+                {evaluationAreas.map((area) => (
+                  <div key={area} className="flex items-center justify-between rounded-lg bg-white px-4 py-3">
+                    <span className="text-sm font-semibold text-[var(--ri-charcoal)]">{area}</span>
+                    <Check className="h-4 w-4 text-[var(--ri-red)]" />
+                  </div>
+                ))}
+              </div>
+              <p className="mt-6 text-sm leading-7 text-[var(--ri-muted)]">
+                Positive outcomes across both families form part of the evidence considered for certification.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 md:px-12">
+          <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--ri-red)]">Why the first cohort matters</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-normal sm:text-4xl">You are helping prove the system.</h2>
+              <p className="mt-4 text-base leading-8 text-[var(--ri-muted)]">
+                The first cohort enters while transferability, delivery, technology, and economics are still being validated. That carries responsibility, and it makes the work unusually meaningful.
+              </p>
+            </div>
+
+            <div className="divide-y divide-[var(--ri-warm-border)] rounded-lg border border-[var(--ri-warm-border)] bg-white shadow-sm">
+              {proofQuestions.map((question, index) => {
+                const isOpen = openQuestion === index;
+
+                return (
+                  <button
+                    key={question}
+                    type="button"
+                    className="block w-full p-5 text-left"
+                    onClick={() => setOpenQuestion(isOpen ? -1 : index)}
+                  >
+                    <span className="flex items-center justify-between gap-4">
+                      <span className="text-sm font-semibold leading-6 text-[var(--ri-charcoal)]">{question}</span>
+                      <ChevronDown className={`h-4 w-4 flex-shrink-0 text-[var(--ri-red)] transition ${isOpen ? "rotate-180" : ""}`} />
+                    </span>
+                    {isOpen ? (
+                      <span className="mt-3 block text-sm leading-7 text-[var(--ri-muted)]">
+                        This pilot exists to answer that question through observed delivery, documented execution, and real student and parent evidence.
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-[var(--ri-charcoal)] py-12 text-white sm:py-16">
+          <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 md:px-12">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--ri-dark-copy)]">Temporary pilot cohort</p>
+            <h2 className="mt-3 text-3xl font-bold tracking-normal sm:text-4xl">Certification phase is unpaid. Deployment creates earning eligibility.</h2>
+            <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-white/72">
+              Successful certification may lead to deployment into Response Integrity Pods and paid service delivery. This is not guaranteed employment or guaranteed income.
+            </p>
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+              <Button
+                size="lg"
+                className="rounded-full bg-[var(--ri-red)] px-8 text-white hover:bg-[var(--ri-red)]"
+                onClick={() => navigate(applyPath)}
+              >
+                Apply to Become a Specialist
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="rounded-full border-white/20 bg-transparent px-8 text-white hover:bg-white/10 hover:text-white"
+                onClick={() => navigate(loginPath)}
+              >
+                Existing Specialist Login
+              </Button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-[var(--ri-warm-border)] bg-[var(--ri-cream)] py-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:px-6 md:flex-row md:px-12">
+          <ResponseIntegrityLogo size="md" variant="integrity" />
+          <p className="text-center text-xs leading-5 text-[var(--ri-muted)] md:text-right">
+            Completed matric required.
+            <br />
+            Evidence before responsibility.
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}

@@ -21,7 +21,9 @@ interface AuthFormProps {
 export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: AuthFormProps) {
   // Read all tracking parameters from URL (silent tracking)
   const urlParams = new URLSearchParams(window.location.search);
-  const urlAffiliateCode = urlParams.get('affiliate') || '';
+  const urlProductionCode = urlParams.get('production') || '';
+  const urlAffiliateCode = urlParams.get('affiliate') || urlProductionCode;
+  const urlPipeline = urlParams.get('pipeline') || '';
   const urlTrackingSource = urlParams.get('utm_source') || '';
   const urlTrackingCampaign = urlParams.get('utm_campaign') || '';
   
@@ -56,8 +58,12 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
       // Store the intended role and mode in sessionStorage so callback knows what to do
       sessionStorage.setItem('oauth_role', role);
       sessionStorage.setItem('oauth_mode', mode);
-      if (code && defaultRole === 'parent') {
+      if (code) {
         sessionStorage.setItem('oauth_affiliate_code', code);
+        sessionStorage.setItem('oauth_production_link_code', code);
+      }
+      if (urlPipeline) {
+        sessionStorage.setItem('oauth_production_pipeline', urlPipeline);
       }
       if (urlTrackingSource) {
         sessionStorage.setItem('oauth_tracking_source', urlTrackingSource);
@@ -145,6 +151,8 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
           first_name: firstName,
           last_name: lastName,
           affiliate_code: code || null,
+          production_link_code: code || null,
+          production_pipeline: urlPipeline || null,
           tracking_source: trackingSource,
           tracking_campaign: urlTrackingCampaign || null,
         };

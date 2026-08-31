@@ -29,7 +29,7 @@ export const EGP_ONBOARDING_DOCUMENTS: EgpOnboardingDocumentDefinition[] = [
     code: "Response Integrity-EGP-001",
     title: "Education Growth Partner Agreement",
     fileName: "001.md",
-    version: "1",
+    version: "2",
     requiresAcceptance: true,
     requiresUpload: false,
     mandatoryClauses: [

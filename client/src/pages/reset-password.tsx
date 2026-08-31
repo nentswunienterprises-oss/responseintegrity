@@ -42,7 +42,7 @@ export default function ResetPasswordPage() {
   const mapRoleToLoginPath = (role: string | null | undefined) => {
     switch (role) {
       case "tutor":
-        return "/operational/signup?role=tutor&mode=login&lock=login&returnTo=/operational/tutor/intake";
+        return "/operational/signup?role=tutor&mode=login&lock=login&returnTo=/operational/specialist/intake";
       case "td":
         return "/operational/td/signup?mode=login&lock=login";
       case "coo":

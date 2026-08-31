@@ -135,7 +135,7 @@ export default function ResponseConditioningSystem() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
           <div className="rounded-3xl border border-primary/15 bg-background p-6 shadow-sm">
             <Button variant="ghost" className="mb-6 -ml-2" asChild>
-              <Link to="/tutor/pod">
+              <Link to="/specialist/pod">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Pod
               </Link>
@@ -173,21 +173,6 @@ export default function ResponseConditioningSystem() {
                   the map, not as a shortcut summary.
                 </p>
               </div>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="border-primary/20 bg-card shadow-sm">
-          <div className="p-6 space-y-4">
-            <h2 className="font-bold text-lg">Start here</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              If you are entering the system for the first time, begin with Topic Conditioning, Clarity, How to Model, and Session Flow Control. Together they show how Response Integrity identifies the breakpoint, builds the response, and keeps the session structured.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">Topic Conditioning</span>
-              <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">Clarity</span>
-              <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">How to Model</span>
-              <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">Session Flow Control</span>
             </div>
           </div>
         </Card>

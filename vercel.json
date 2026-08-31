@@ -125,7 +125,19 @@
       ]
     },
     {
+      "source": "/operational/specialist/intake",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+      ]
+    },
+    {
       "source": "/operational/tutor/gateway",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+      ]
+    },
+    {
+      "source": "/operational/specialist/gateway",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
       ]
@@ -186,12 +198,27 @@
     },
     {
       "source": "/foundingtutorswanted",
-      "destination": "/operational/tutor/landing",
+      "destination": "/operational/specialist/landing",
       "permanent": true
     },
     {
       "source": "/tutor/landing",
-      "destination": "/operational/tutor/landing",
+      "destination": "/operational/specialist/landing",
+      "permanent": true
+    },
+    {
+      "source": "/operational/tutor/landing",
+      "destination": "/operational/specialist/landing",
+      "permanent": true
+    },
+    {
+      "source": "/operational/tutor/intake",
+      "destination": "/operational/specialist/intake",
+      "permanent": true
+    },
+    {
+      "source": "/operational/tutor/gateway",
+      "destination": "/operational/specialist/gateway",
       "permanent": true
     },
     {
@@ -241,6 +268,10 @@
     {
       "source": "/about/how-we-teach",
       "destination": "/about/how-we-teach/index.html"
+    },
+    {
+      "source": "/operational/specialist/landing",
+      "destination": "/operational/tutor/landing/index.html"
     },
     {
       "source": "/operational/tutor/landing",

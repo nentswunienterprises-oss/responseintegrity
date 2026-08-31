@@ -677,7 +677,7 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
               <CardTitle>Section 9 - Final Filter</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Label htmlFor="finalReason">This is not a casual tutoring role. It requires training, discipline, and adherence to a structured system.<br />Why should you be considered for the Founding Tutor Cohort?</Label>
+              <Label htmlFor="finalReason">This is not a casual specialist role. It requires training, discipline, and adherence to a structured system.<br />Why should you be considered for the Founding Specialist Cohort?</Label>
               <Textarea id="finalReason" {...form.register("finalReason")} />
             </CardContent>
           </Card>

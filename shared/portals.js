@@ -19,8 +19,8 @@ export var PORTAL_CONFIG = {
     operational: {
         roles: ["tutor", "td"],
         isPublic: true,
-        description: "Operational Portal - Tutor & Territory Director Interface",
-        dashboardRoute: "/tutor/pod",
+        description: "Operational Portal - Specialist & Territory Director Interface",
+        dashboardRoute: "/operational/specialist/gateway",
     },
     executive: {
         roles: ["coo", "hr", "ceo", "cto", "cmo"],
@@ -75,13 +75,13 @@ export var ROLE_NAVIGATION = {
         { label: "Affiliates", path: "/affiliate/od/affiliates" },
         { label: "Updates", path: "/affiliate/od/updates" },
     ],
-    // Operational Portal - Tutor
+    // Operational Portal - Specialist
     tutor: [
-        { label: "My Pod", path: "/operational/tutor/my-pod" },
-        { label: "Growth", path: "/operational/tutor/growth" },
-        { label: "Academic Tracker", path: "/operational/tutor/academic-tracker" },
-        { label: "Sessions", path: "/operational/tutor/sessions" },
-        { label: "Updates", path: "/operational/tutor/updates" },
+        { label: "My Pod", path: "/operational/specialist/my-pod" },
+        { label: "Growth", path: "/operational/specialist/growth" },
+        { label: "Academic Tracker", path: "/operational/specialist/academic-tracker" },
+        { label: "Sessions", path: "/operational/specialist/sessions" },
+        { label: "Updates", path: "/operational/specialist/updates" },
     ],
     // Operational Portal - Territory Director
     td: [
@@ -155,8 +155,8 @@ export function isPortalPublic(portal) {
  */
 export function getDefaultDashboardRoute(role) {
     if (!role) {
-        console.warn("⚠️  No role provided to getDefaultDashboardRoute, defaulting to tutor");
-        return "/operational/tutor/gateway";
+        console.warn("⚠️  No role provided to getDefaultDashboardRoute, defaulting to specialist");
+        return "/operational/specialist/gateway";
     }
     // Role-specific routes
     var roleSpecificRoutes = {
@@ -164,7 +164,7 @@ export function getDefaultDashboardRoute(role) {
         student: "/client/student/dashboard",
     affiliate: "/affiliate/gateway",
     od: "/affiliate/od/dashboard",
-    tutor: "/operational/tutor/gateway", // Tutors go to gateway first
+    tutor: "/operational/specialist/gateway", // Specialists go to gateway first
     td: "/operational/td/gateway",
     coo: "/executive/gateway",
     hr: "/executive/gateway",
@@ -174,8 +174,8 @@ export function getDefaultDashboardRoute(role) {
     };
     var route = roleSpecificRoutes[role];
     if (!route) {
-        console.warn("⚠️  Unknown role:", role, "- defaulting to tutor");
-        return "/operational/tutor/gateway";
+        console.warn("⚠️  Unknown role:", role, "- defaulting to specialist");
+        return "/operational/specialist/gateway";
     }
     return route;
 }

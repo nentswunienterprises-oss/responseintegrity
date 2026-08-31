@@ -45,6 +45,8 @@ function getOperatingStateBadgeClass(stateKey?: string) {
       return "bg-emerald-100 text-emerald-800 border-emerald-200";
     case "sandbox_training":
       return "bg-sky-100 text-sky-800 border-sky-200";
+    case "trial_validation":
+      return "bg-amber-100 text-amber-900 border-amber-200";
     case "training_plant":
       return "bg-slate-100 text-slate-800 border-slate-200";
     case "misaligned":
@@ -64,6 +66,11 @@ const OPERATING_POD_SECTIONS = [
     key: "sandbox_training",
     title: "Sandbox Training Pods",
     description: "Pods containing only sandbox tutors training on sandbox parents.",
+  },
+  {
+    key: "trial_validation",
+    title: "Trial Validation Pods",
+    description: "Pods containing tutors delivering bounded live validation to exactly two Trial families.",
   },
   {
     key: "certified_live",
@@ -730,7 +737,7 @@ export default function COODashboard() {
                                     <div className="flex justify-between">
                                       <span className="font-medium">Tutor Mix:</span>
                                       <span className="text-right text-muted-foreground">
-                                        Live {operatingOverview.tutorModeCounts?.certified_live || 0} • Sandbox {operatingOverview.tutorModeCounts?.sandbox || 0} • Training {((operatingOverview.tutorModeCounts?.training || 0) + (operatingOverview.tutorModeCounts?.applicant || 0) + (operatingOverview.tutorModeCounts?.watchlist || 0) + (operatingOverview.tutorModeCounts?.suspended || 0))}
+                                        Live {operatingOverview.tutorModeCounts?.certified_live || 0} • Trial {operatingOverview.tutorModeCounts?.trial || 0} • Sandbox {operatingOverview.tutorModeCounts?.sandbox || 0} • Training {((operatingOverview.tutorModeCounts?.training || 0) + (operatingOverview.tutorModeCounts?.applicant || 0) + (operatingOverview.tutorModeCounts?.watchlist || 0) + (operatingOverview.tutorModeCounts?.suspended || 0))}
                                       </span>
                                     </div>
                                     <div className="flex justify-between">
@@ -818,7 +825,7 @@ export default function COODashboard() {
                               <div className="flex justify-between">
                                 <span className="font-medium">Tutor Mix:</span>
                                 <span className="text-right text-muted-foreground">
-                                  Live {operatingOverview.tutorModeCounts?.certified_live || 0} • Sandbox {operatingOverview.tutorModeCounts?.sandbox || 0} • Training {((operatingOverview.tutorModeCounts?.training || 0) + (operatingOverview.tutorModeCounts?.applicant || 0) + (operatingOverview.tutorModeCounts?.watchlist || 0) + (operatingOverview.tutorModeCounts?.suspended || 0))}
+                                  Live {operatingOverview.tutorModeCounts?.certified_live || 0} • Trial {operatingOverview.tutorModeCounts?.trial || 0} • Sandbox {operatingOverview.tutorModeCounts?.sandbox || 0} • Training {((operatingOverview.tutorModeCounts?.training || 0) + (operatingOverview.tutorModeCounts?.applicant || 0) + (operatingOverview.tutorModeCounts?.watchlist || 0) + (operatingOverview.tutorModeCounts?.suspended || 0))}
                                 </span>
                               </div>
                               <div className="flex justify-between">

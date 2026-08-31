@@ -43,7 +43,7 @@ function navigateToAuthPath(path) {
 
 function getLogoutRedirect(user) {
     var pathname = window.location.pathname || "";
-    var tutorLoginPath = "/operational/signup?role=tutor&mode=login&lock=login&returnTo=/operational/tutor/intake";
+    var tutorLoginPath = "/operational/signup?role=tutor&mode=login&lock=login&returnTo=/operational/specialist/intake";
     if ((user === null || user === void 0 ? void 0 : user.role) === "tutor") {
         return tutorLoginPath;
     }
@@ -62,7 +62,7 @@ function getLogoutRedirect(user) {
     if ((user === null || user === void 0 ? void 0 : user.role) === "affiliate" || (user === null || user === void 0 ? void 0 : user.role) === "od") {
         return "/";
     }
-    if (pathname.startsWith("/operational/tutor") || pathname.startsWith("/tutor")) {
+    if (pathname.startsWith("/operational/specialist") || pathname.startsWith("/specialist") || pathname.startsWith("/operational/tutor") || pathname.startsWith("/tutor")) {
         return tutorLoginPath;
     }
     if (pathname.startsWith("/operational/td") || pathname.startsWith("/td")) {

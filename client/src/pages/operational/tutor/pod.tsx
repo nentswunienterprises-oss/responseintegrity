@@ -287,7 +287,7 @@ export default function TutorPod() {
     if (!authLoading && !isLoading && !applicationsLoading && !applicationsFetching && isAuthenticated) {
       // If onboarding not completed and there is no qualifying application or no pod assignment, return to gateway.
       if (!onboardingCompleted && (!hasQualifiedApplication || !podData?.assignment)) {
-        navigate("/operational/tutor/gateway");
+        navigate("/operational/specialist/gateway");
       }
     }
   }, [
@@ -1046,7 +1046,7 @@ export default function TutorPod() {
                           <Badge variant="outline" className="h-5 px-1.5 text-[10px] leading-none">You</Badge>
                         ) : null}
                       </div>
-                      <p className="text-xs text-muted-foreground">Tutor</p>
+                      <p className="text-xs text-muted-foreground">Specialist</p>
                     </button>
                   ))
                 )}

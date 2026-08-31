@@ -4919,7 +4919,7 @@ export function registerRoutes(app) {
                                     return [4 /*yield*/, supabase
                                             .from("leads")
                                             .select("affiliate_id")
-                                            .eq("parent_id", parentId)
+                                .eq("user_id", parentId)
                                             .maybeSingle()];
                                 case 1:
                                     lead = (_b.sent()).data;
@@ -4934,7 +4934,9 @@ export function registerRoutes(app) {
                                 case 3:
                                     error_124 = _b.sent();
                                     console.error("Error recording close:", error_124);
-                                    res.status(500).json({ message: "Failed to record close" });
+                                    var message = error_124 instanceof Error ? error_124.message : "Failed to record close";
+                                    var isVerificationFailure = /required before|already been recorded/i.test(message);
+                                    res.status(isVerificationFailure ? 409 : 500).json({ message: message });
                                     return [3 /*break*/, 4];
                                 case 4: return [2 /*return*/];
                             }

@@ -221,7 +221,7 @@ const tutorPhases: TutorPhase[] = [
     applicationsOpen: true,
     cycleKey: "annual",
     description:
-      "New tutors can apply, submit documents, and enter applicant mode for the February deployment pool.",
+      "New specialists can apply, submit documents, and enter applicant mode for the February deployment pool.",
   },
   {
     key: "annual_conditioning",
@@ -254,7 +254,7 @@ const tutorPhases: TutorPhase[] = [
     applicationsOpen: false,
     cycleKey: "annual",
     description:
-      "Certified operators are already deployed with active students. New tutor entry is paused until the next application window.",
+      "Certified operators are already deployed with active students. New specialist entry is paused until the next application window.",
   },
   {
     key: "mid_year_application",
@@ -263,7 +263,7 @@ const tutorPhases: TutorPhase[] = [
     applicationsOpen: true,
     cycleKey: "mid_year",
     description:
-      "New tutors can apply for the June deployment pool and begin the mid-year certification cycle.",
+      "New specialists can apply for the June deployment pool and begin the mid-year certification cycle.",
   },
   {
     key: "mid_year_conditioning",
@@ -290,7 +290,7 @@ const tutorPhases: TutorPhase[] = [
     applicationsOpen: false,
     cycleKey: "mid_year",
     description:
-      "Certified operators are already carrying live student responsibility. New tutor entry is paused until the annual cycle opens.",
+      "Certified operators are already carrying live student responsibility. New specialist entry is paused until the annual cycle opens.",
   },
 ];
 
@@ -307,7 +307,7 @@ export function getParentIntakeLabel(key: string | null | undefined) {
 }
 
 export function getTutorCycleLabel(key: string | null | undefined) {
-  return tutorCycleDefinitions.find((definition) => definition.key === key)?.label ?? "Tutor Entry";
+  return tutorCycleDefinitions.find((definition) => definition.key === key)?.label ?? "Specialist Entry";
 }
 
 export function getParentIntakeStatus(date = new Date()) {
@@ -404,9 +404,9 @@ export function getTutorIntakeStatus(date = new Date()) {
       isOpen: true,
       phase,
       activeCycle: cycle,
-      badge: "Tutor applications open",
+      badge: "Specialist applications open",
       heading: `${phase.label} is open now.`,
-      summary: `New tutor applications are open through ${closingLabel}.`,
+      summary: `New specialist applications are open through ${closingLabel}.`,
       detail:
         "Entry starts in applicant mode. Only candidates who move through training, sandbox readiness, and certification by deadline become deployable operators.",
       closingLabel,
@@ -426,9 +426,9 @@ export function getTutorIntakeStatus(date = new Date()) {
     activeCycle: phase.cycleKey
       ? tutorCycleDefinitions.find((definition) => definition.key === phase.cycleKey) ?? null
       : null,
-    badge: "Tutor applications closed",
+    badge: "Specialist applications closed",
     heading: `${phase.label} is active right now.`,
-    summary: `The next tutor application window opens ${formatAbsoluteDate(
+    summary: `The next specialist application window opens ${formatAbsoluteDate(
       nextCycle.nextStart.getUTCFullYear(),
       nextCycle.nextStart.getUTCMonth() + 1,
       nextCycle.nextStart.getUTCDate(),

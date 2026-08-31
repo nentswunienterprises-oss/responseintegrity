@@ -18,7 +18,7 @@ export default function Home() {
 
     // Redirect based on role
     if (isTutor(user)) {
-      setLocation("/tutor/pod");
+      setLocation("/specialist/pod");
     } else if (isTD(user)) {
       setLocation("/td/overview");
     } else if (isCOO(user)) {

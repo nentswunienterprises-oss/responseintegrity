@@ -19,7 +19,7 @@ export function isParent(user) {
 export function getRoleName(role) {
     switch (role) {
         case "tutor":
-            return "Tutor";
+            return "Specialist";
         case "td":
             return "Territory Director";
         case "coo":
@@ -39,7 +39,7 @@ export function getRoleName(role) {
 export function getRoleNameShort(role) {
     switch (role) {
         case "tutor":
-            return "Tutor";
+            return "Specialist";
         case "td":
             return "TD";
         case "coo":

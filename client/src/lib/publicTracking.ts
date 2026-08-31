@@ -1,4 +1,4 @@
-const TRACKING_PARAM_KEYS = ["affiliate", "utm_source", "utm_campaign"] as const;
+const TRACKING_PARAM_KEYS = ["affiliate", "production", "pipeline", "utm_source", "utm_campaign"] as const;
 
 function readParams(search: string) {
   return new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);

@@ -23,7 +23,7 @@ export default function ContributorHome() {
   }, [gatewaySession]);
 
   // Compatibility note: contributor template still uses affiliate endpoints in MVP.
-  const { data: codeData } = useQuery<{ code: string }>({
+  const { data: codeData } = useQuery<{ code: string; link?: string; pipelineType?: string }>({
     queryKey: ["/api", "affiliate", "code"],
   });
 
@@ -43,7 +43,7 @@ export default function ContributorHome() {
 
   const handleCopyLink = () => {
     if (codeData?.code) {
-      const productionLink = `https://responseintegrity.co.za?affiliate=${codeData.code}`;
+      const productionLink = codeData.link || `${window.location.origin}/?production=${encodeURIComponent(codeData.code)}&pipeline=${codeData.pipelineType || "demand"}`;
       navigator.clipboard.writeText(productionLink);
       toast({
         title: "Link Copied.",
@@ -91,7 +91,7 @@ export default function ContributorHome() {
             </div>
             <div className="flex gap-2 flex-col sm:flex-row">
               <div className="flex-1 bg-background border rounded-lg p-3 sm:p-4 text-left font-mono text-xs sm:text-sm break-all">
-                {codeData?.code ? `responseintegrity.co.za?affiliate=${codeData.code}` : "Loading..."}
+                {codeData?.code ? (codeData.link || `${window.location.origin}/?production=${encodeURIComponent(codeData.code)}&pipeline=${codeData.pipelineType || "demand"}`) : "Loading..."}
               </div>
               <Button onClick={handleCopyLink} variant="default" size="default" className="gap-2 px-3 sm:px-4 whitespace-nowrap">
                 <Copy className="w-4 h-4" />
