@@ -395,9 +395,9 @@ export default function TutorPod() {
         <div className="space-y-8">
           <div className="rounded-2xl border border-primary/15 bg-background p-5 shadow-sm sm:p-7">
             <div className="space-y-2">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Tutor Pod</p>
+              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Pod</p>
               <h1 className="text-3xl font-semibold tracking-[-0.01em] md:text-4xl">
-                Welcome back, {user?.name?.split(" ")[0] || "Tutor"}.
+                Welcome back, {user?.name?.split(" ")[0] || "Specialist"}.
               </h1>
               <p className="text-sm text-muted-foreground sm:text-base">
                 Your pod assignment will unlock the live operating layer for students, onboarding, conditioning, and reports.
@@ -509,7 +509,7 @@ export default function TutorPod() {
   const studentsImpacted = students.filter((s: any) => sessionsUsedForStudent(s) > 0).length;
   const selectedStudent = (students as any[]).find((s: any) => s.id === selectedStudentId) || null;
 
-  const firstName = user?.name?.split(" ")[0] || "Tutor";
+  const firstName = user?.name?.split(" ")[0] || "Specialist";
   const selectedTeamMember = sortedTeamMembers.find((m) => m.id === selectedTeamMemberId) || null;
 
   return (
@@ -518,7 +518,7 @@ export default function TutorPod() {
         <div className="rounded-2xl border border-primary/15 bg-background p-5 shadow-sm sm:p-7">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Tutor Pod</p>
+              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Pod</p>
               <h1 className="mt-2 text-3xl font-semibold tracking-[-0.01em] md:text-4xl">
                 Welcome back, {firstName}.
               </h1>
@@ -580,7 +580,7 @@ export default function TutorPod() {
           <div className="space-y-4 p-5 sm:p-6">
             <div className="flex flex-col gap-3">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Tutor Alignment</p>
+                <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Alignment</p>
                 <h2 className="mt-1 text-xl font-semibold tracking-[-0.01em]">Your standing in the system</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   This shows your latest audited alignment state and the battle-test modules already completed.

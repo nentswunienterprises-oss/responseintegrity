@@ -803,7 +803,7 @@ export default function TDOverview() {
                                     </div>
                                       <div className="flex flex-col gap-3">
                                         <div className="flex items-center justify-between gap-3">
-                                          <p className="text-sm font-medium text-muted-foreground">Tutor Alignment</p>
+                                          <p className="text-sm font-medium text-muted-foreground">Specialist Alignment</p>
                                           <Button
                                             variant="ghost"
                                             size="sm"
@@ -1082,8 +1082,8 @@ export default function TDOverview() {
         }
         description={
           activeTutorRun
-            ? `Run the Response Integrity Tutor Alignment Engine for ${activeTutorRun.tutorName} inside ${activeTutorRun.podName}. The system has auto-selected the highest priority deep dives for this session.`
-            : "Run the Response Integrity Tutor Alignment Engine."
+            ? `Run the Response Integrity Specialist Alignment Engine for ${activeTutorRun.tutorName} inside ${activeTutorRun.podName}. The system has auto-selected the highest priority deep dives for this session.`
+            : "Run the Response Integrity Specialist Alignment Engine."
         }
         phaseOptions={activePhaseOptions}
         preSelectedPhaseKeys={activeTutorRun?.autoSelectedPhases?.length === 1 ? activeTutorRun.autoSelectedPhases : undefined}

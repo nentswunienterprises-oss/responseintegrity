@@ -1262,7 +1262,7 @@ export default function PodDetail() {
                                 </div>
 
                                 <div className="flex items-center justify-between gap-3">
-                                  <p className="text-sm font-medium text-muted-foreground">Tutor Alignment</p>
+                                  <p className="text-sm font-medium text-muted-foreground">Specialist Alignment</p>
                                   <Button
                                     variant="ghost"
                                     size="sm"
