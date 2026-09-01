@@ -34,7 +34,7 @@ const pathway = [
     stage: "Certification",
     proof: "Prove readiness",
     detail:
-      "Certification is earned through evidence across student experience, specialist execution, parent experience, process integrity, and outcomes.",
+      "Certification is earned only when the required evidence gates are satisfied. Day 75 does not certify anyone by itself.",
   },
 ] as const;
 
@@ -117,7 +117,7 @@ export default function SpecialistLanding() {
               12 places available
             </p>
             <h1 className="mt-6 text-4xl font-bold leading-[1.02] tracking-normal text-[var(--ri-charcoal)] sm:text-5xl lg:text-6xl">
-              Become a Response Integrity Specialist.
+              Become A Response Conditioning Specialist.
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-[var(--ri-muted)]">
               Learn the system. Prove you can execute it. Earn certification through evidence, real trials, and disciplined delivery with students.
@@ -150,7 +150,7 @@ export default function SpecialistLanding() {
             />
             <div className="grid grid-cols-3 divide-x divide-[var(--ri-warm-border)]">
               <div className="p-4">
-                <p className="text-2xl font-bold text-[var(--ri-red)]">76-91</p>
+                <p className="text-2xl font-bold text-[var(--ri-red)]">75</p>
                 <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ri-muted)]">days</p>
               </div>
               <div className="p-4">
@@ -192,9 +192,9 @@ export default function SpecialistLanding() {
         <section id="pathway" className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 md:px-12">
           <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--ri-red)]">The path to certification</p>
-            <h2 className="mt-3 text-3xl font-bold tracking-normal sm:text-4xl">Progression is earned stage by stage.</h2>
+            <h2 className="mt-3 text-3xl font-bold tracking-normal sm:text-4xl">75 days is the window. Evidence is the gate.</h2>
             <p className="mt-4 text-base leading-7 text-[var(--ri-muted)]">
-              Application does not guarantee training. Training does not guarantee sandbox. Sandbox does not guarantee access to families. Trials do not automatically guarantee certification.
+              Day 1 to Day 75 is the opportunity to complete the required training, sandbox competency, Trial delivery, evidence requirements, and review standard. Certification happens only when those gates are satisfied.
             </p>
           </div>
 
@@ -230,7 +230,7 @@ export default function SpecialistLanding() {
               <div className="mt-8 rounded-lg border border-[var(--ri-warm-border)] bg-[var(--ri-blush)] p-5">
                 <p className="text-sm font-semibold text-[var(--ri-charcoal)]">Evidence before responsibility.</p>
                 <p className="mt-2 text-sm leading-6 text-[var(--ri-muted)]">
-                  Each stage asks whether you are ready for the next level of student and family trust.
+                  Each stage asks whether you are ready for the next level of student and family trust. Time creates structure; evidence creates permission.
                 </p>
               </div>
             </div>
@@ -319,7 +319,7 @@ export default function SpecialistLanding() {
                 className="rounded-full bg-[var(--ri-red)] px-8 text-white hover:bg-[var(--ri-red)]"
                 onClick={() => navigate(applyPath)}
               >
-                Apply to Become a Specialist
+                Become A Response Conditioning Specialist
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
               <Button
