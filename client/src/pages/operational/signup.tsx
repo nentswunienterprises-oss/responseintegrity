@@ -158,10 +158,10 @@ export default function OperationalSignup() {
       ? "Continue to Specialist Login"
       : lockedMode === "signup"
         ? fastTrackEnabled && !urlParams.get("cycle")
-          ? "Continue to Private Specialist Access"
+          ? "Continue to Specialist Access"
           : "Continue to Specialist Application"
         : fastTrackEnabled
-          ? "Private Specialist Access"
+          ? "Specialist Access"
         : "Join as a Specialist"
     : "Join as Territory Director";
   const description = isTutorRole
@@ -169,10 +169,10 @@ export default function OperationalSignup() {
       ? "Existing tutors continue here. This route is reserved for login only."
       : lockedMode === "signup"
         ? fastTrackEnabled && !urlParams.get("cycle")
-          ? fastTrackDescription ?? "This private specialist access path is available by invitation while the public intake gate remains unchanged."
+          ? fastTrackDescription ?? "This path is available by invitation while the public intake gate remains unchanged."
           : `${cycleLabel} entry continues here. This route is reserved for application only.`
         : fastTrackEnabled
-          ? fastTrackDescription ?? "This private specialist access path is available by invitation while the public intake gate remains unchanged."
+          ? fastTrackDescription ?? "This path is available by invitation while the public intake gate remains unchanged."
         : "Help transform students and condition reliable responses to math pressure."
     : "Lead a territory and oversee multiple pods and tutors.";
   const badgeText = isTutorRole

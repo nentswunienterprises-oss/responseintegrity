@@ -62,11 +62,11 @@ export function getFastTrackDescription(search: string) {
   const mode = getFastTrackAccessMode(search);
 
   if (mode === "exec") {
-    return "This private specialist access path is available by invitation while the public intake gate remains unchanged.";
+    return "This path is available by invitation while the public intake gate remains unchanged.";
   }
 
   if (mode) {
-    return "This private specialist access path is available by invitation while the public intake gate remains unchanged.";
+    return "This path is available by invitation while the public intake gate remains unchanged.";
   }
 
   return null;
