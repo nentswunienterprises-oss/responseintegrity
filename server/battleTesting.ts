@@ -1240,6 +1240,9 @@ export async function persistBattleTestRun(input: PersistBattleTestRunInput) {
   if (!phases.length) {
     throw new Error("At least one battle-testing phase is required.");
   }
+  if (subjectType === "tutor" && phases.length !== 1) {
+    throw new Error("A Specialist Battle Test must contain exactly one deep dive audit.");
+  }
 
   const expectedQuestionKeys = new Set(
     phases.flatMap((phase) => phase.questions.map((question) => `${phase.key}:${question.key}`))

@@ -1010,7 +1010,9 @@ export default function TDOverview() {
                                                       assignmentId: tutor.assignment.id,
                                                       tutorId: tutor.id,
                                                       tutorName,
-                                                      autoSelectedPhases: tutorAudit?.nextBattleTests?.map((test) => test.phaseKey) || [],
+                                                      autoSelectedPhases: tutorAudit?.nextBattleTests?.[0]?.phaseKey
+                                                        ? [tutorAudit.nextBattleTests[0].phaseKey]
+                                                        : [],
                                                       attemptsByPhase: Object.fromEntries(
                                                         (tutorAudit?.deepDiveProgress || []).map((entry) => [
                                                           entry.phaseKey,
@@ -1102,7 +1104,7 @@ export default function TDOverview() {
         }
         description={
           activeTutorRun
-            ? `Run the Response Integrity Specialist Alignment Engine for ${activeTutorRun.tutorName} inside ${activeTutorRun.podName}. The system has auto-selected the highest priority deep dives for this session; each assigned deep dive keeps its own 15-question audit bank.`
+            ? `Run the Response Integrity Specialist Alignment Engine for ${activeTutorRun.tutorName} inside ${activeTutorRun.podName}. Complete one 15-question Battle Test, save it, then run the next assigned deep dive separately.`
             : "Run the Response Integrity Specialist Alignment Engine."
         }
         phaseOptions={activePhaseOptions}

@@ -63,7 +63,7 @@ Every scored question must include:
 
 The question bank shown to an assessor must never depend on a three-question fallback. Every one of the eleven deep dives must resolve to its own complete canonical bank of fifteen questions.
 
-The fifteen-question unit is the individual deep dive audit. It is not a shared fifteen-question audit spread across all eleven deep dives.
+The fifteen-question unit is the individual Battle Test. One Specialist Battle Test audits one deep dive, then the TD saves the run before starting another deep dive.
 
 ## 5. Answer evidence contract
 
@@ -181,12 +181,12 @@ The system-selected next Battle Tests are the run assignment.
 
 When the TD opens a Training Mode audit:
 
-- all highest-priority recommended deep dives are preselected;
-- manual substitution is disabled for that assigned run;
+- the single highest-priority recommended deep dive is preselected;
+- manual substitution is disabled for that Battle Test;
 - the correct form is materialised from each deep dive's prior-attempt count; and
-- all fifteen questions in every assigned deep dive must be answered before submission.
+- all fifteen questions in that deep dive must be answered before submission.
 
-Training Mode may assign more than one deep dive in a sitting, but each assigned deep dive remains a separate fifteen-question audit bank inside that run. For example, two assigned deep dives produce thirty questions; three assigned deep dives produce forty-five questions.
+Training Mode may recommend several next deep dives, but it must run them as separate saved Battle Tests. A single saved Specialist Battle Test must not contain multiple deep dives.
 
 Manual bank selection remains available only when no system assignment exists or when an authorised non-training audit explicitly calls for it.
 
@@ -210,7 +210,7 @@ The upgrade is complete only when automated checks prove that:
 6. Forms A, B, and C differ while retaining stable competency keys;
 7. the server rejects missing answer evidence, duplicate answers, unknown questions, and a stale or invalid form;
 8. stored rep logs include answer evidence, scoring guidance, form key, and critical-fail reason;
-9. the Training Mode runner opens all system-assigned deep dives in fixed mode;
+9. the Training Mode runner opens only the next system-assigned deep dive in fixed mode;
 10. history review displays the answer evidence needed to audit the assessor's score;
 11. a critical fail overrides the numeric outcome;
 12. the fifteen-question point resolution can produce Locked, Watchlist, and Fail outcomes; and

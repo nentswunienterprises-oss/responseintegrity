@@ -138,16 +138,15 @@ test("exact phase lookup materializes assigned form variants", () => {
   assert.notEqual(phase.questions.map((question) => question.prompt).join("\n"), getExactPhase("clarity").questions.map((question) => question.prompt).join("\n"));
 });
 
-test("multi-deep-dive runs preserve 15 questions per assigned deep dive", () => {
-  const phases = getTutorBattleTestPhaseDefinitionsExact(["clarity", "logging_system"]);
+test("single deep-dive battle-test lookup materializes exactly 15 questions", () => {
+  const phases = getTutorBattleTestPhaseDefinitionsExact(["clarity"]);
 
-  assert.equal(phases.length, 2);
+  assert.equal(phases.length, 1);
   assert.equal(phases[0].questions.length, 15);
-  assert.equal(phases[1].questions.length, 15);
   assert.equal(
     phases.reduce((total, phase) => total + phase.questions.length, 0),
-    30,
-    "two assigned deep dives should produce two 15-question audits, not one shared 15-question audit"
+    15,
+    "one Battle Test should produce exactly one 15-question deep dive audit"
   );
 });
 

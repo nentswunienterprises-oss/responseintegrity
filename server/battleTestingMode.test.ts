@@ -5,8 +5,10 @@ import {
   buildTutorDeepDiveProgress,
   choosePreferredDeepDiveProgress,
   hasCompleteTutorDocumentation,
+  persistBattleTestRun,
   reconcileTutorTrainingMode,
 } from "./battleTesting";
+import { getTutorBattleTestPhaseDefinitionsExact } from "./battleTestingBanks";
 import type { TutorBattleTestDeepDiveProgress, TutorBattleTestModuleProgress } from "@shared/battleTesting";
 
 test("reconcileTutorTrainingMode keeps applicant when documentation is incomplete", () => {
@@ -255,4 +257,23 @@ test("choosePreferredDeepDiveProgress favors recomputed progress when persisted 
   ];
 
   assert.deepEqual(choosePreferredDeepDiveProgress(computed, persisted), computed);
+});
+
+test("persistBattleTestRun rejects multi-deep-dive Specialist Battle Tests", async () => {
+  const phases = getTutorBattleTestPhaseDefinitionsExact(["clarity", "logging_system"]);
+
+  await assert.rejects(
+    () =>
+      persistBattleTestRun({
+        podId: "pod-1",
+        subjectType: "tutor",
+        subjectUserId: "specialist-1",
+        tutorAssignmentId: "assignment-1",
+        createdByUserId: "td-1",
+        templateKey: "tutor_alignment_engine",
+        phases,
+        responses: [],
+      }),
+    /exactly one deep dive audit/
+  );
 });

@@ -169,12 +169,12 @@ export default function BattleTestRunnerDialog({
   const fixedMode = selectionMode === "fixed";
   const initialPhaseKeys = useMemo(() => {
     if (fixedMode && hasPreSelectedPhaseKeys) {
-      return normalizedPreSelectedPhaseKeys;
+      return normalizedPreSelectedPhaseKeys.slice(0, 1);
     }
     if (!fixedMode && normalizedPreSelectedPhaseKeys.length === 1) {
       return normalizedPreSelectedPhaseKeys;
     }
-    return fixedMode ? phaseOptions.map((phase) => phase.key) : [];
+    return fixedMode ? phaseOptions.slice(0, 1).map((phase) => phase.key) : [];
   }, [phaseOptions, fixedMode, hasPreSelectedPhaseKeys, normalizedPreSelectedPhaseKeys]);
 
   const [selectedPhaseKeys, setSelectedPhaseKeys] = useState<string[]>(initialPhaseKeys);
@@ -462,7 +462,7 @@ export default function BattleTestRunnerDialog({
                       <div className="rounded-2xl border border-[#E7D5C8] bg-[#FFF5ED] p-4 text-[#1A1A1A] sm:p-5">
                         <p className="text-sm font-medium text-foreground">Choose an audit module family</p>
                         <p className="mt-1 text-sm text-[#6B5B52]">
-                          TD first chooses the audit module family, then opens a specific 15-question deep-dive battle-test bank.
+                          TD first chooses the audit module family, then opens one 15-question Battle Test.
                         </p>
                       </div>
                       <div className="grid gap-4 md:grid-cols-2">
@@ -497,7 +497,7 @@ export default function BattleTestRunnerDialog({
                         <div>
                           <p className="text-sm font-medium text-foreground">{activeGroup?.title || "Audit Modules"}</p>
                           <p className="mt-1 text-sm text-[#6B5B52]">
-                            Click a module to open its 15-question deep-dive battle-test bank.
+                            Click one deep dive to open its 15-question Battle Test. Save before starting the next deep dive.
                           </p>
                         </div>
                         <Button variant="outline" size="sm" onClick={handleReturnToGroupList} disabled={auditLocked}>
@@ -729,7 +729,7 @@ export default function BattleTestRunnerDialog({
                       <p className="text-3xl font-semibold text-foreground">
                         {answeredCount}/{questions.length}
                       </p>
-                      <p className="text-sm text-muted-foreground">Answers scored across assigned deep dive audits</p>
+                      <p className="text-sm text-muted-foreground">Answers scored in this Battle Test</p>
                     </div>
 
                     <Card className="border border-border/70 p-4">
