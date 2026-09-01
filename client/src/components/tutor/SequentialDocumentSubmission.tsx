@@ -87,7 +87,7 @@ const DOCUMENT_RENDER_RULES: Record<string, DocumentRenderRules> = {
       /^Once verified and accepted, the Contractor's continued participation is governed by:$/i,
       /^The following are not accepted:$/i,
       /^By accepting this form, the Contractor confirms all of the following:$/i,
-      /^I understand that once my entry qualification is verified and accepted, my continued participation in the Response Integrity Leadership Programme is governed by:$/i,
+      /^I understand that once my entry qualification is verified and accepted, my continued participation in the Response Integrity (Leadership Programme|Specialist Development Pathway) is governed by:$/i,
       /^By accepting this form in the Response Integrity platform, the Contractor confirms:$/i,
     ],
     listItemLines: [/^[A-Za-z0-9][A-Za-z0-9'()\-/,.\s]+$/],
@@ -103,7 +103,7 @@ const DOCUMENT_RENDER_RULES: Record<string, DocumentRenderRules> = {
     numberedListIntroLines: [/^\d+\.\d+\s+.+:$/],
     plainListIntroLines: [
       /^All conduct must prioritize:$/i,
-      /^All tutor conduct must remain:$/i,
+      /^All (tutor|Specialist) conduct must remain:$/i,
       /^Tutors are not:$/i,
       /^The following are strictly prohibited:$/i,
       /^The following are not permitted:$/i,
@@ -661,13 +661,13 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
             </div>
           </TutorAgreementSection>
 
-          <TutorAgreementSection title="Programme Definition And Role">
+          <TutorAgreementSection title="Specialist Development Pathway And Role">
             <p>By accepting this form, the Contractor acknowledges and accepts the following:</p>
             <TutorAgreementList items={[
               "Response Integrity is not a tutoring service.",
               "It is a response-conditioning system delivered through mathematics.",
               "The purpose of every session is to build reliable learner response under difficulty through phase-appropriate instruction, practice, correction, and pressure progression.",
-              "The Contractor operates as a response-conditioning operator, responsible for stabilizing learner execution under pressure.",
+              "The Contractor operates as a Response Integrity Specialist: a response-conditioning operator responsible for stabilizing learner execution under pressure.",
             ]} />
             <p>Every session is executed strictly under the Response Integrity Operating System (Response Integrity-OS). The required structure depends on the learner&apos;s diagnosed phase, assigned drill, and current stability state.</p>
             <TutorAgreementList items={[
@@ -676,19 +676,23 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
               <><strong>Non-negotiable restraint:</strong> Do not over-model, over-guide, rescue, or turn conditioning sessions into ordinary lessons</>,
             ]} />
             <p>The Contractor does not fix answers. The Contractor fixes how the learner behaves when answers are unclear.</p>
+            <p>Specialist progression is structured through application, onboarding, training, Battle Tests, Sandbox, Trial, and Certified Live operation. Certification is not automatic and requires demonstrated execution integrity before live responsibility.</p>
           </TutorAgreementSection>
 
           <TutorAgreementSection title="Session Structure And Delivery">
             <p>The Contractor agrees to the following operational requirements:</p>
             <TutorAgreementList items={[
-              "Deliver 1-on-1 online sessions to assigned learners (Grades 6-9)",
-              "Deliver 8 sessions per learner per month unless otherwise instructed by Response Integrity",
+              "Deliver 1-on-1 online sessions to assigned learners",
+              "Deliver assigned sessions under Response Integrity family packages unless otherwise instructed by Response Integrity",
               "Conduct all sessions through the Response Integrity platform only",
             ]} />
             <p>Maintain required setup:</p>
             <TutorAgreementList items={[
-              "Top-down camera (gooseneck)",
+              "Smartphone or camera capable of showing a clear top-down view of written work",
+              "Mini ring light or equivalent lighting",
+              "Earphones or headset suitable for clear online instruction",
               "Clear, step-by-step visual execution",
+              "Gooseneck or stable top-down stand recommended where needed to preserve visibility",
             ]} />
             <p>Execute structured drill-based sessions aligned with:</p>
             <TutorAgreementList items={["Conditioning phases", "Stability states", "Response Integrity drill system"]} />
@@ -706,8 +710,10 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
               "Feeding answers",
               "Advancing learners without required stability",
             ]} />
-            <p>Phase progression is controlled by demonstrated stability, not tutor judgment alone.</p>
-            <p>All session data, drill execution, and observations must be accurate, honest, and complete. Any deviation from the Response Integrity-OS is considered non-compliance.</p>
+            <p>Phase progression is controlled by demonstrated stability, not Specialist judgment alone.</p>
+            <p>All session data, drill execution, and observations must be accurate, honest, complete, and evidence-based.</p>
+            <p>The Contractor must record observable facts rather than invented psychological interpretations, and may not falsify, soften, exaggerate, or manufacture observations.</p>
+            <p>The Contractor must preserve drill conditions so learner evidence remains valid for progression, reporting, audit, and parent-facing claims. Any deviation from the Response Integrity-OS is considered non-compliance.</p>
           </TutorAgreementSection>
 
           <TutorAgreementSection title="Platform And Communication Control">
@@ -717,7 +723,7 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
               "No private communication with learners or parents outside approved platform channels is permitted",
               "No acceptance of payment outside the platform is permitted",
             ]} />
-            <p>All sessions are recorded and stored for compliance, quality control, and system integrity.</p>
+            <p>Sessions may be recorded and stored where required for compliance, quality control, and system integrity.</p>
           </TutorAgreementSection>
 
           <TutorAgreementSection title="Contractor Status And Payment">
@@ -726,9 +732,9 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
               "They are engaged as an independent contractor, not an employee",
               "No employment relationship, benefits, or protections apply",
             ]} />
-            <p>Payment is per completed session package only and subject to Response Integrity&apos;s current rate structure.</p>
-            <p>There is no guaranteed income or minimum earnings, and incomplete or non-compliant sessions may not be eligible for payment.</p>
-            <p>Payment may be adjusted or withheld in cases of non-compliance, platform violations, or session integrity issues.</p>
+            <p>Payment is earned per eligible completed session and is calculated and released on the relevant package completion payout schedule, subject to Response Integrity&apos;s current rate structure.</p>
+            <p>There is no guaranteed income, minimum earnings, or guaranteed session volume, and incomplete or non-compliant sessions may not be eligible for payment.</p>
+            <p>Payment may be adjusted or withheld in cases of non-compliance, platform violations, session integrity issues, or evidence integrity breaches.</p>
           </TutorAgreementSection>
 
           <TutorAgreementSection title="Performance, Suspension, And Termination">
@@ -774,7 +780,8 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
         <>
           <TutorAgreementSection title="Purpose Of This Form">
             <p>This in-app agreement is completed once at onboarding to verify that the Contractor meets Response Integrity&apos;s minimum entry qualification requirement through submission of an official Matric certificate.</p>
-            <p>This verification is an entry threshold only. It confirms eligibility to enter the Leadership Programme and does not qualify the Contractor to operate independently of the training, operating system, or session standards.</p>
+            <p>Matric completion is required for entry into Specialist onboarding. Applicants must be 18 years or older unless they completed Matric early and can submit the required certified certificate.</p>
+            <p>This verification is an entry threshold only. It confirms eligibility to enter the Specialist Development Pathway and does not qualify the Contractor to operate independently of the training, operating system, or session standards.</p>
             <p>Once verified and accepted, continued participation is governed by conduct, session execution, Response Integrity-OS compliance, and operational performance within the platform.</p>
           </TutorAgreementSection>
 
@@ -801,10 +808,12 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
           <TutorAgreementSection title="Entry Qualification And Onboarding Acknowledgements">
             <p>By accepting this form, the Contractor confirms all of the following:</p>
             <TutorAgreementList items={[
+              "The Contractor has completed Matric.",
+              "Applicants must be 18 years or older unless they completed Matric early and can submit the required certified certificate.",
               "The Matric certificate submitted is an official, complete, and accurate National Senior Certificate issued by the Department of Basic Education.",
-              "This verification confirms entry eligibility only and does not by itself qualify the Contractor to operate as a tutor without compliance with the training system and session standards.",
-              "Tutor performance is defined by execution within Response Integrity-OS, not by academic credentials alone.",
-              "Once entry qualification is verified and accepted, continued participation in the Leadership Programme is governed by conduct, session execution, adherence to Response Integrity-OS, and operational performance within the platform.",
+              "This verification confirms entry eligibility only and does not by itself qualify the Contractor to operate as a Specialist without compliance with the training system and session standards.",
+              "Specialist performance is defined by execution within Response Integrity-OS, not by academic credentials alone.",
+              "Once entry qualification is verified and accepted, continued participation in the Specialist Development Pathway is governed by conduct, session execution, adherence to Response Integrity-OS, and operational performance within the platform.",
               "No further academic submissions or qualification reviews will be required after this verification.",
               "Submission of a falsified, altered, or misrepresented Matric certificate constitutes a material breach of the Independent Contractor Agreement (Response Integrity-ICA-003) and may result in immediate termination.",
               "All personal and contact details submitted to Response Integrity are accurate and correct.",
@@ -837,7 +846,7 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
           </TutorAgreementSection>
           <TutorAgreementSection title="Business Model Acknowledgement">
             <p>The Contractor acknowledges that Response Integrity is not a tutoring company; it is a response-conditioning system delivered through mathematics.</p>
-            <p>The Contractor&apos;s role is to execute structured response-conditioning sessions, train learner behavior under difficulty, and operate within Response Integrity&apos;s system rather than personal teaching style.</p>
+            <p>The Contractor&apos;s role is to execute structured response-conditioning sessions, train learner behavior under difficulty, preserve valid drill conditions, record evidence with integrity, and operate within Response Integrity&apos;s system rather than personal teaching style.</p>
             <p>Response Integrity-OS governs all sessions, defines how they are executed, and treats deviation from the operating system as a compliance issue.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Scope Of Services">
@@ -846,7 +855,7 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
               "Deliver 1-on-1 online sessions to assigned learners",
               "Execute all sessions in accordance with Response Integrity-OS",
               "Record accurate session observations",
-              "Maintain required technical setup",
+              "Maintain required technical setup, including a clear top-down view of written work, suitable lighting, and clear audio",
             ]} />
             <p>The Contractor may not:</p>
             <TutorAgreementList items={[
@@ -861,23 +870,30 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
             <p>Response Integrity may assign or remove learners, adjust schedules, and manage platform access based on operational requirements.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Payment Structure">
-            <p>Payment is made per completed session package.</p>
+            <p>The Contractor earns per eligible completed session.</p>
             <p>Payment structure is defined by Response Integrity and may be updated at any time with notice.</p>
-            <p>Payment is conditional on session package completion, Response Integrity-OS compliance, and accurate reporting.</p>
-            <p>Response Integrity may adjust or withhold payment where sessions are non-compliant, reporting is inaccurate, or platform rules are violated.</p>
+            <p>Payment is calculated and released according to the relevant package completion payout schedule.</p>
+            <p>Payment is conditional on eligible completed sessions, package completion payout timing, Response Integrity-OS compliance, accurate reporting, and evidence integrity.</p>
+            <p>Response Integrity may adjust or withhold payment where sessions are non-compliant, reporting is inaccurate, evidence is falsified, softened, exaggerated, or manufactured, or platform rules are violated.</p>
             <p>There are no guarantees regarding income, student allocation, or session volume.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Performance And Compliance">
-            <p>The Contractor must follow Response Integrity-OS strictly, maintain session integrity, and comply with platform rules.</p>
+            <p>The Contractor must follow Response Integrity-OS strictly, maintain session integrity, comply with platform rules, record observable evidence truthfully, distinguish observed behaviour from interpretation, and preserve phase, drill, set, and repetition conditions.</p>
             <p>The following constitute breaches:</p>
             <TutorAgreementList items={[
               "Rescuing learners",
               "Skipping structure",
               "Misreporting observations",
+              "Falsifying, softening, exaggerating, or manufacturing evidence",
               "Advancing learners incorrectly",
               "Operating outside approved platform channels",
             ]} />
-            <p>Response Integrity may audit sessions, review recordings, and evaluate performance.</p>
+            <p>Response Integrity may audit sessions, review recordings where required, evaluate performance, and use recorded evidence for progression, reporting, audit, and parent-facing claims.</p>
+          </TutorAgreementSection>
+          <TutorAgreementSection title="Evidence Integrity">
+            <p>Session observations are not casual notes. Evidence captured by the Contractor may feed learner progression, internal audit, operational decisions, and reports to parents or guardians.</p>
+            <p>The Contractor must record what occurred, not what they assume occurred. The Contractor may not invent psychological explanations, alter the record to make a session appear stronger, or report a learner response that did not happen.</p>
+            <p>Breach of evidence integrity is a material breach of this Agreement.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Intellectual Property">
             <p>All Response Integrity materials are proprietary, including:</p>
@@ -926,12 +942,12 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
       return (
         <>
           <TutorAgreementSection title="Purpose">
-            <p>This policy defines the safeguarding standards, conduct rules, and interaction boundaries required of all tutors operating within the Response Integrity platform.</p>
+            <p>This policy defines the safeguarding standards, conduct rules, and interaction boundaries required of all Specialists operating within the Response Integrity platform.</p>
             <p>Response Integrity operates with minor learners in a controlled online environment. This policy applies as a condition of platform access.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Core Principle">
-            <p>All tutor conduct must remain professional, structured, and bounded to the session environment.</p>
-            <p>Tutors are operators within a controlled system, not friends, mentors outside scope, or personal contacts.</p>
+            <p>All Specialist conduct must remain professional, structured, and bounded to the session environment.</p>
+            <p>Specialists are operators within a controlled system, not friends, mentors outside scope, or personal contacts.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Platform-Only Interaction">
             <p>All interaction must occur within the Response Integrity platform.</p>
@@ -941,12 +957,12 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
               "Contact via WhatsApp, Instagram, SMS, or any external platform",
               "Direct communication with parents outside approved channels",
             ]} />
-            <p>Tutors may not exchange personal contact details, accept contact requests, or initiate communication outside the platform.</p>
+            <p>Specialists may not exchange personal contact details, accept contact requests, or initiate communication outside the platform.</p>
             <p>Any attempt by a learner or parent to move communication outside the platform must be declined immediately and reported to Response Integrity.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Session Environment Requirements">
             <p>All sessions must be conducted through approved systems, be recorded in full where required, and follow Response Integrity-OS structure.</p>
-            <p>Tutors must maintain a clear visual setup, an appropriate environment, and a distraction-free session setting.</p>
+            <p>Specialists must maintain a clear visual setup, an appropriate environment, and a distraction-free session setting.</p>
             <p>The following are prohibited during sessions:</p>
             <TutorAgreementList items={[
               "Inappropriate background environments",
@@ -955,8 +971,8 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
             ]} />
           </TutorAgreementSection>
           <TutorAgreementSection title="Professional Conduct With Learners">
-            <p>Tutors must communicate clearly and respectfully, maintain emotional neutrality, and enforce structure during sessions.</p>
-            <p>Tutors may not engage in casual or personal conversations unrelated to the session, discuss personal life or sensitive topics, or form emotional dependency or familiarity with learners.</p>
+            <p>Specialists must communicate clearly and respectfully, maintain emotional neutrality, and enforce structure during sessions.</p>
+            <p>Specialists may not engage in casual or personal conversations unrelated to the session, discuss personal life or sensitive topics, or form emotional dependency or familiarity with learners.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Serious Conduct Violations">
             <p>The following result in immediate suspension or termination:</p>
@@ -970,20 +986,20 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
             <p>Serious breaches may lead to immediate action, including suspension or termination.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Boundary Enforcement">
-            <p>Tutors must maintain strict boundaries at all times.</p>
+            <p>Specialists must maintain strict boundaries at all times.</p>
             <TutorAgreementList items={[
               "No personal favors",
               "No gifts",
               "No off-platform assistance",
               "No extended communication beyond scheduled sessions",
             ]} />
-            <p>Tutors must not position themselves as a personal support system, provide advice outside academic scope, or engage in private tutoring outside the platform.</p>
+            <p>Specialists must not position themselves as a personal support system, provide advice outside academic scope, or engage in private tutoring outside the platform.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Session Recording And Monitoring">
-            <p>All sessions are recorded and may be reviewed at any time for safeguarding, compliance, and quality control.</p>
+            <p>Sessions may be recorded where required and may be reviewed for safeguarding, compliance, and quality control.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Reporting Obligations">
-            <p>Tutors must report immediately:</p>
+            <p>Specialists must report immediately:</p>
             <TutorAgreementList items={[
               "Boundary violations",
               "Inappropriate learner behavior",
@@ -993,10 +1009,10 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
             <p>Failure to report may be treated as non-compliance.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Data And Confidentiality">
-            <p>Tutors must protect learner data, not store or share recordings externally, and not disclose learner information. All learner data remains company property.</p>
+            <p>Specialists must protect learner data, not store or share recordings externally, and not disclose learner information. All learner data remains company property.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Digital Conduct And Presence">
-            <p>Tutors must present professionally on camera and use appropriate language at all times.</p>
+            <p>Specialists must present professionally on camera and use appropriate language at all times.</p>
             <p>The following are prohibited:</p>
             <TutorAgreementList items={["Offensive language", "Inappropriate attire", "Disruptive or unprofessional behavior"]} />
           </TutorAgreementSection>
@@ -1019,7 +1035,7 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
         <>
           <TutorAgreementSection title="Purpose">
             <p>This agreement records consent for the collection, processing, storage, and use of personal and performance data within the Response Integrity platform.</p>
-            <p>Response Integrity operates a recorded, data-driven response-conditioning system. Data is required for the system to function.</p>
+            <p>Response Integrity operates a data-driven response-conditioning system. Recording may be required where it is part of the active programme flow. Data is required for the system to function.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Types Of Data Collected">
             <TutorAgreementSubsection title="2.1 Personal Information">
@@ -1029,7 +1045,7 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
               <TutorAgreementList items={["Academic performance data", "Session results and progression", "Stability states and phase tracking"]} />
             </TutorAgreementSubsection>
             <TutorAgreementSubsection title="2.3 Session Data">
-              <TutorAgreementList items={["Full video and audio recordings of all sessions", "Tutor observations and reports", "Interaction logs within the platform"]} />
+              <TutorAgreementList items={["Video and audio recordings where required", "Specialist observations and reports", "Interaction logs within the platform"]} />
             </TutorAgreementSubsection>
             <TutorAgreementSubsection title="2.4 Technical Data">
               <TutorAgreementList items={["Device and access information", "Platform usage data"]} />
@@ -1041,7 +1057,7 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
               "Deliver Response Integrity's response-conditioning system",
               "Track learner progression through phases and stability states",
               "Maintain session integrity and auditability",
-              "Monitor tutor compliance with Response Integrity-OS",
+              "Monitor Specialist compliance with Response Integrity-OS",
               "Generate reports for parents or guardians",
               "Ensure safeguarding and platform security",
               "Comply with POPIA, tax legislation, and any mandatory reporting requirements",
@@ -1049,9 +1065,9 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
             <p>Data is not collected for unrelated purposes.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Session Recording Consent">
-            <p>All sessions are recorded in full and stored securely within platform systems.</p>
+            <p>Sessions may be recorded in full where required and stored securely within platform systems.</p>
             <p>Recordings are used for quality control, safeguarding, compliance audits, and performance verification.</p>
-            <p>By participating, the user consents to being recorded during all sessions, and to storage and review of those recordings. Participation is not possible without recording consent.</p>
+            <p>By participating, the user consents to being recorded during required sessions, and to storage and review of those recordings. Participation may not be possible without recording consent where recording is part of the active programme flow.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Data Storage And Security">
             <p>Response Integrity implements reasonable technical and organisational measures to protect data against loss, prevent unauthorized access, and ensure data integrity.</p>
@@ -1189,7 +1205,7 @@ function buildAcceptedCopyHtml(params: {
   <main class="page">
     <div class="eyebrow">Response Integrity Accepted Agreement Copy</div>
     <h1>${escapeHtml(document.title)}</h1>
-    <p class="subhead">${escapeHtml(document.code)} | Version ${escapeHtml(documentVersion)} | Accepted in-app against the tutor's authenticated Response Integrity account</p>
+    <p class="subhead">${escapeHtml(document.code)} | Version ${escapeHtml(documentVersion)} | Accepted in-app against the Specialist's authenticated Response Integrity account</p>
 
     <section class="summary">
       <div class="summary-label">Acceptance record</div>
@@ -1209,7 +1225,7 @@ function buildAcceptedCopyHtml(params: {
       </table>
     </section>
 
-    ${tutorDetailsRows ? `<section class="section"><h2 class="section-title">Tutor Details Captured At Acceptance</h2><table>${tutorDetailsRows}</table></section>` : ""}
+    ${tutorDetailsRows ? `<section class="section"><h2 class="section-title">Specialist Details Captured At Acceptance</h2><table>${tutorDetailsRows}</table></section>` : ""}
     ${clauseRows ? `<section class="section"><h2 class="section-title">Acknowledged Clauses</h2><ul class="clauses">${clauseRows}</ul></section>` : ""}
 
     <section class="section">
@@ -1218,7 +1234,7 @@ function buildAcceptedCopyHtml(params: {
     </section>
 
     <section class="signature">
-      <div class="signature-box">Tutor acceptance name: ${escapeHtml(acceptedName)}</div>
+      <div class="signature-box">Specialist acceptance name: ${escapeHtml(acceptedName)}</div>
       <div class="signature-box">Accepted timestamp: ${escapeHtml(formatAcceptedAt(acceptedAt))}</div>
     </section>
 
@@ -2014,7 +2030,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
                   <div className="mt-6 rounded-2xl border border-[#E7D5C8] bg-[#FFF5ED] p-4 sm:p-5">
                     <div className="mb-4 space-y-1">
                       <p className="text-sm font-semibold text-[#1A1A1A]">Document fields</p>
-                      <p className="text-sm text-[#6B5B52]">Complete the tutor details that belong to this document here. Response Integrity account fields are prefilled automatically.</p>
+                      <p className="text-sm text-[#6B5B52]">Complete the Specialist details that belong to this document here. Response Integrity account fields are prefilled automatically.</p>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       {currentFormFields.map((field) => (

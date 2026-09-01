@@ -21,7 +21,7 @@ const ageSchema = z
   .refine((value) => {
     const age = Number(value);
     return Number.isInteger(age) && age >= 16 && age <= 100;
-  }, "Age must be between 16 and 100");
+  }, "Age must be between 16 and 100. Applicants under 18 must have completed Matric early.");
 
 // Per-section schemas for step validation
 const sectionSchemas = [
@@ -75,7 +75,7 @@ const sectionSchemas = [
 ];
 
 // Full schema for submit
-const applicationSchema = z.object({
+const applicationBaseSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
   age: ageSchema,
   phone: z.string().min(10, "Valid phone number required"),
@@ -103,6 +103,42 @@ const applicationSchema = z.object({
   availableAfternoon: z.enum(["yes", "no", "sometimes"]),
   finalReason: z.string().min(10, "Please share your reason"),
   commitment: z.enum(["yes", "no"]),
+});
+
+const applicationSchema = applicationBaseSchema.superRefine((values, ctx) => {
+  const age = Number(values.age);
+
+  if (values.completedMatric !== "yes") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["completedMatric"],
+      message: "Matric is required before Specialist onboarding can continue.",
+    });
+  }
+
+  if (Number.isInteger(age) && age < 18 && values.completedMatric !== "yes") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["age"],
+      message: "Applicants under 18 may only continue if they completed Matric early.",
+    });
+  }
+
+  if (values.completedMatric === "yes" && !String(values.matricYear || "").trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["matricYear"],
+      message: "Matric year is required.",
+    });
+  }
+
+  if (values.completedMatric === "yes" && !String(values.mathResult || "").trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["mathResult"],
+      message: "Final mathematics result is required.",
+    });
+  }
 });
 
 type ApplicationFormData = {
@@ -238,7 +274,7 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
     if (resumeDraft) {
       try {
         const parsed = JSON.parse(resumeDraft);
-        const safeDraft = applicationSchema.partial().safeParse(parsed);
+          const safeDraft = applicationBaseSchema.partial().safeParse(parsed);
         if (safeDraft.success) {
           form.reset({ ...form.getValues(), ...safeDraft.data });
         } else if (typeof window !== "undefined" && window.localStorage) {
@@ -315,6 +351,12 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
       if (!Number.isInteger(parsedAge)) {
         throw new Error("Age must be a valid whole number.");
       }
+      if (data.completedMatric !== "yes") {
+        throw new Error("Matric is required before Specialist onboarding can continue.");
+      }
+      if (parsedAge < 18 && data.completedMatric !== "yes") {
+        throw new Error("Applicants under 18 may only continue if they completed Matric early.");
+      }
 
       await apiRequest("POST", "/api/tutor/application", { ...data, age: parsedAge });
 
@@ -360,9 +402,8 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
     const result = schema.safeParse(values);
     // Special logic for conditional fields:
     if (currentStep === 2) {
-      if (values.completedMatric === "yes") {
-        if (!values.matricYear || !values.mathResult) return false;
-      }
+      if (values.completedMatric !== "yes") return false;
+      if (!values.matricYear || !values.mathResult) return false;
     }
     if (currentStep === 3) {
       if (values.currentSituation === "other" && !values.currentSituationOther) return false;
@@ -442,7 +483,10 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
               <CardTitle>Section 2 - Academic Background</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Label>Did you complete matric?</Label>
+              <Label>Have you completed Matric? (Required)</Label>
+              <p className="text-sm text-gray-600">
+                Matric is required for Specialist onboarding. Applicants must be 18 or older unless they completed Matric early.
+              </p>
               <RadioGroup
                 value={completedMatric}
                 onValueChange={(v) => form.setValue("completedMatric", v as ApplicationFormData["completedMatric"])}
@@ -454,11 +498,11 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
                   </div>
                   <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
                     <RadioGroupItem value="currently" id="matric_currently" />
-                    <Label htmlFor="matric_currently" className="font-medium">Currently completing</Label>
+                    <Label htmlFor="matric_currently" className="font-medium">Currently completing - not yet eligible</Label>
                   </div>
                   <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
                     <RadioGroupItem value="no" id="matric_no" />
-                    <Label htmlFor="matric_no" className="font-medium">No</Label>
+                    <Label htmlFor="matric_no" className="font-medium">No - not yet eligible</Label>
                   </div>
                 </div>
               </RadioGroup>
@@ -479,14 +523,17 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
                   </div>
                 </div>
               </RadioGroup>
-              {(completedMatric === "yes" || completedMatric === "currently") && (
+              {completedMatric !== "yes" && (
+                <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  You can return once Matric is completed and you can provide a certified certificate.
+                </p>
+              )}
+              {completedMatric === "yes" && (
                 <>
                   <Label htmlFor="matricYear">Year of matric completion</Label>
                   <Input
                     id="matricYear"
                     {...form.register("matricYear")}
-                    disabled={completedMatric === "currently"}
-                    placeholder={completedMatric === "currently" ? "Not applicable" : ""}
                   />
                   <Label htmlFor="mathResult">Final Mathematics Result (%)</Label>
                   <Input id="mathResult" {...form.register("mathResult")} />
@@ -690,8 +737,9 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
             <CardContent className="space-y-4">
               <Label>If selected, are you willing to:</Label>
               <ul className="pl-4 list-disc text-sm">
-                <li>Complete structured Response Integrity training before tutoring</li>
-                <li>Follow Response Integrity session protocols</li>
+                <li>Complete structured Response Integrity training before Specialist work</li>
+                <li>Pass Battle Tests, Sandbox, and Trial before Certified Live responsibility</li>
+                <li>Follow Response Integrity session protocols and evidence integrity standards</li>
                 <li>Be evaluated before working with students</li>
               </ul>
               <RadioGroup

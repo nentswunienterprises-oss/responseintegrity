@@ -30,10 +30,10 @@ type DocumentStatus =
   | "rejected";
 
 const AGREEMENT_STEPS = [
-  { step: 1, code: "Response Integrity-TCF-001", title: "Tutor Consent Form" },
+  { step: 1, code: "Response Integrity-TCF-001", title: "Specialist Consent Form" },
   { step: 2, code: "Response Integrity-EQV-002", title: "Entry Qualification Verification" },
-  { step: 3, code: "Response Integrity-ICA-003", title: "Independent Contractor Agreement" },
-  { step: 4, code: "Response Integrity-SCP-004", title: "Safeguarding and Conduct Policy" },
+  { step: 3, code: "Response Integrity-ICA-003", title: "Specialist Independent Contractor Agreement" },
+  { step: 4, code: "Response Integrity-SCP-004", title: "Specialist Safeguarding and Conduct Policy" },
   { step: 5, code: "Response Integrity-DPC-005", title: "Data Protection / POPIA Consent" },
 ] as const;
 
@@ -143,16 +143,25 @@ function buildTutorAgreementBody(code: string, formData: Record<string, string>)
               <div className="tt-inline-detail-span"><span>Current Status</span><strong>{formData.currentStatus || "Not captured"}</strong></div>
             </div>
           </TutorAgreementSection>
-          <TutorAgreementSection title="Programme Definition And Role">
+          <TutorAgreementSection title="Specialist Development Pathway And Role">
             <p>Response Integrity is not a tutoring service. It is a response-conditioning system delivered through mathematics.</p>
             <p>The purpose of every session is to build reliable learner response under difficulty through phase-appropriate instruction, practice, correction, and pressure progression.</p>
-            <p>The Contractor operates as a response-conditioning operator, responsible for stabilizing learner execution under pressure.</p>
+            <p>The Contractor operates as a Response Integrity Specialist: a response-conditioning operator responsible for stabilizing learner execution under pressure.</p>
             <p>Every session is executed strictly under Response Integrity-OS. The required structure depends on the learner&apos;s diagnosed phase, assigned drill, and current stability state.</p>
             <TutorAgreementList items={[
               <><strong>Clarity and concept-entry work:</strong> Use Model -&gt; Apply -&gt; Guide to build recognition, method understanding, and first-step execution</>,
               <><strong>Later conditioning phases:</strong> Prioritize independent execution, controlled friction, pressure exposure, stability checks, and accurate logging</>,
               <><strong>Non-negotiable restraint:</strong> Do not over-model, over-guide, rescue, or turn conditioning sessions into ordinary lessons</>,
             ]} />
+            <p>Specialist progression is structured through application, onboarding, training, Battle Tests, Sandbox, Trial, and Certified Live operation. Certification is not automatic and requires demonstrated execution integrity before live responsibility.</p>
+          </TutorAgreementSection>
+          <TutorAgreementSection title="Evidence Integrity">
+            <p>The Contractor must record observable facts rather than invented psychological interpretations, and may not falsify, soften, exaggerate, or manufacture observations.</p>
+            <p>Evidence must remain valid for progression, reporting, audit, and parent-facing claims.</p>
+          </TutorAgreementSection>
+          <TutorAgreementSection title="Payment And Recording">
+            <p>Payment is earned per eligible completed session and calculated and released on the relevant package completion payout schedule.</p>
+            <p>Sessions may be recorded and stored where required for compliance, quality control, and system integrity.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Acceptance">
             <TutorAgreementList tone="check" items={[
@@ -184,6 +193,8 @@ function buildTutorAgreementBody(code: string, formData: Record<string, string>)
           </TutorAgreementSection>
           <TutorAgreementSection title="Entry Qualification And Onboarding Acknowledgements">
             <TutorAgreementList items={[
+              "Matric completion is required for entry into Specialist onboarding.",
+              "Applicants must be 18 years or older unless they completed Matric early and can submit the required certified certificate.",
               "This verification confirms entry eligibility only.",
               "Continued participation is governed by conduct, session execution, adherence to the Response Integrity-OS, and operational performance within the platform.",
               "No further academic submissions or qualification reviews are required after this verification.",
@@ -201,7 +212,12 @@ function buildTutorAgreementBody(code: string, formData: Record<string, string>)
             <p>Response Integrity is a response-conditioning system delivered through mathematics. The Contractor operates within the system, not personal teaching style.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Payment Structure">
-            <p>Payment is made per completed session package and is conditional on Response Integrity-OS compliance and accurate reporting.</p>
+            <p>The Contractor earns per eligible completed session. Payment is calculated and released according to the relevant package completion payout schedule.</p>
+            <p>Payment is conditional on package completion payout timing, Response Integrity-OS compliance, accurate reporting, and evidence integrity.</p>
+          </TutorAgreementSection>
+          <TutorAgreementSection title="Evidence Integrity">
+            <p>Session observations are not casual notes. They may feed learner progression, internal audit, operational decisions, and reports to parents or guardians.</p>
+            <p>The Contractor must record what occurred, not what they assume occurred, and may not falsify, soften, exaggerate, or manufacture evidence.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Acceptance">
             <TutorAgreementList tone="check" items={[
@@ -216,7 +232,10 @@ function buildTutorAgreementBody(code: string, formData: Record<string, string>)
       return (
         <>
           <TutorAgreementSection title="Core Principle">
-            <p>All tutor conduct must remain professional, structured, and bounded to the session environment.</p>
+            <p>All Specialist conduct must remain professional, structured, and bounded to the session environment.</p>
+          </TutorAgreementSection>
+          <TutorAgreementSection title="Recording">
+            <p>Sessions may be recorded where required and reviewed for safeguarding, compliance, and quality control.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Platform-Only Interaction">
             <TutorAgreementList items={[
@@ -246,7 +265,7 @@ function buildTutorAgreementBody(code: string, formData: Record<string, string>)
               <TutorAgreementList items={["Full name", "Contact details", "Identification details", "Bank account details for payment processing only", "Signed consent and contractual documentation"]} />
             </TutorAgreementSubsection>
             <TutorAgreementSubsection title="Session Data">
-              <TutorAgreementList items={["Full video and audio recordings of all sessions", "Tutor observations and reports", "Interaction logs within the platform"]} />
+              <TutorAgreementList items={["Video and audio recordings where required", "Specialist observations and reports", "Interaction logs within the platform"]} />
             </TutorAgreementSubsection>
           </TutorAgreementSection>
           <TutorAgreementSection title="Consent Acknowledgement">
@@ -446,32 +465,32 @@ function getCurrentActionSummary(documentsStatus: Record<string, DocumentStatus>
 
   if (!acceptanceMap["1"]) {
     return {
-      queueLabel: "Waiting on tutor",
+      queueLabel: "Waiting on Specialist",
       stageTitle: "Agreement 1 not yet accepted",
-      stageDescription: "The tutor still needs to begin the in-app onboarding agreements.",
+      stageDescription: "The Specialist still needs to begin the in-app onboarding agreements.",
     };
   }
 
   if (hasDoc2Acceptance && matricStatus === "pending_upload") {
     return {
-      queueLabel: "Waiting on tutor",
+      queueLabel: "Waiting on Specialist",
       stageTitle: "Waiting for certified Matric certificate",
-      stageDescription: "The tutor accepted Response Integrity-EQV-002 but has not uploaded the certified Matric certificate yet.",
+      stageDescription: "The Specialist accepted Response Integrity-EQV-002 but has not uploaded the certified Matric certificate yet.",
     };
   }
 
   if (["1", "2", "3", "4", "5"].every((step) => documentsStatus[step] === "approved") && idStatus === "pending_upload") {
     return {
-      queueLabel: "Waiting on tutor",
+      queueLabel: "Waiting on Specialist",
       stageTitle: "Waiting for certified ID copy",
       stageDescription: "All agreements and Matric verification are done. The final certified ID upload is still outstanding.",
     };
   }
 
   return {
-    queueLabel: "Waiting on tutor",
+      queueLabel: "Waiting on Specialist",
     stageTitle: "Agreement flow in progress",
-    stageDescription: "The tutor is still working through the in-app onboarding steps.",
+      stageDescription: "The Specialist is still working through the in-app onboarding steps.",
   };
 }
 
@@ -500,7 +519,7 @@ export function TutorDocumentReview({ application, onReview }: TutorDocumentRevi
   };
 
   const acceptanceMap = application?.onboardingAcceptanceMap || {};
-  const fullName = application?.fullName || application?.full_name || "Unknown Tutor";
+  const fullName = application?.fullName || application?.full_name || "Unknown Specialist";
   const email = application?.email || "No email";
   const acceptedCount = ["1", "3", "4", "5"].filter((step) => documentsStatus[step] === "approved").length;
   const matricStatus = documentsStatus["2"];
@@ -845,7 +864,7 @@ export function TutorDocumentReview({ application, onReview }: TutorDocumentRevi
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{reviewStep === 2 ? "Reject Matric Certificate" : "Reject Certified ID Copy"}</DialogTitle>
-            <DialogDescription>Explain exactly what the tutor must correct before uploading again.</DialogDescription>
+            <DialogDescription>Explain exactly what the Specialist must correct before uploading again.</DialogDescription>
           </DialogHeader>
           <Textarea
             value={rejectionReason}
@@ -867,7 +886,7 @@ export function TutorDocumentReview({ application, onReview }: TutorDocumentRevi
                   Sending...
                 </>
               ) : (
-                "Send Back to Tutor"
+                "Send Back to Specialist"
               )}
             </Button>
           </DialogFooter>

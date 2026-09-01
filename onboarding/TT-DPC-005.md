@@ -21,7 +21,7 @@ session results and progression
 stability states and phase tracking
 2.3 Session Data
 video and audio recordings where required
-tutor observations and reports
+Specialist observations and reports
 interaction logs within the platform
 2.4 Technical Data
 device and access information
@@ -32,7 +32,7 @@ Data is collected and used strictly to:
 deliver Response Integrity's response-conditioning system
 track learner progression through phases and stability states
 maintain session integrity and auditability
-monitor tutor compliance with Response Integrity-OS
+monitor Specialist compliance with Response Integrity-OS
 generate reports for parents or guardians
 ensure safeguarding and platform security
 comply with POPIA, tax legislation, and mandatory reporting requirements
