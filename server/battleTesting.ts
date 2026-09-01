@@ -6,7 +6,10 @@ import {
   BATTLE_TEST_SCORE_POINTS,
   TUTOR_BATTLE_TEST_PHASE_ORDER,
   computeBattleTestOutcome,
+  getBattleTestScoringGuide,
+  getBattleTestVariantKey,
   getBattleTestStateLabel,
+  validateBattleTestResponses,
   type BattleTestOutcome,
   type BattleTestPhaseDefinition,
   type BattleTestPhaseScore,
@@ -18,6 +21,8 @@ import {
   type BattleTestingTutorSummary,
   type BattleTestState,
   type BattleTestSubjectType,
+  type BattleTestScoringGuide,
+  type BattleTestVariantKey,
   type PodBattleTestingSummary,
   type TutorBattleTestDeepDiveProgress,
   type TutorBattleTestModuleKey,
@@ -81,12 +86,16 @@ interface BattleTestRepLogRow {
   section: string;
   question_order: number;
   prompt: string;
+  variant_key: BattleTestVariantKey | null;
+  answer_evidence: string;
   expected_answer: string;
   fail_indicators: string[];
+  scoring_guide: BattleTestScoringGuide;
   score: "clear" | "partial" | "fail";
   points_awarded: number;
   note: string | null;
   is_critical_fail: boolean;
+  critical_fail_reason: string | null;
 }
 
 interface TutorBattleTestStatusRow {
@@ -560,6 +569,32 @@ export async function clearTutorAssignmentCertificationState(tutorAssignmentId: 
   if (deleteStatusError) {
     throw new Error(`Failed to clear tutor certification status: ${deleteStatusError.message}`);
   }
+}
+
+export async function getTutorBattleTestAssignedVariants(
+  tutorAssignmentId: string,
+  phaseKeys: string[],
+): Promise<Record<string, BattleTestVariantKey>> {
+  const uniquePhaseKeys = Array.from(new Set(phaseKeys.map((phaseKey) => String(phaseKey || "").trim()).filter(Boolean)));
+  if (!uniquePhaseKeys.length) return {};
+
+  const { data: rows, error } = await supabase
+    .from("tutor_battle_test_deep_dive_progress")
+    .select("phase_key, attempts_count")
+    .eq("tutor_assignment_id", tutorAssignmentId)
+    .in("phase_key", uniquePhaseKeys);
+
+  if (error) {
+    throw new Error(`Failed to load tutor battle-test attempts: ${error.message}`);
+  }
+
+  const attemptsByPhase = new Map(
+    (rows || []).map((row: any) => [String(row.phase_key), Number(row.attempts_count || 0)] as const)
+  );
+
+  return Object.fromEntries(
+    uniquePhaseKeys.map((phaseKey) => [phaseKey, getBattleTestVariantKey(attemptsByPhase.get(phaseKey) || 0)])
+  ) as Record<string, BattleTestVariantKey>;
 }
 
 export async function upsertTutorPortableCertificationSnapshot(
@@ -1151,6 +1186,9 @@ function mapRunRow(rawRow: any): BattleTestRunRow {
 }
 
 function mapRepLogRow(rawRow: any): BattleTestRepLogRow {
+  const rawScoringGuide = rawRow.scoring_guide && typeof rawRow.scoring_guide === "object"
+    ? rawRow.scoring_guide
+    : {};
   return {
     run_id: String(rawRow.run_id),
     phase_key: String(rawRow.phase_key),
@@ -1158,12 +1196,26 @@ function mapRepLogRow(rawRow: any): BattleTestRepLogRow {
     section: String(rawRow.section),
     question_order: Number(rawRow.question_order || 0),
     prompt: String(rawRow.prompt),
+    variant_key: rawRow.variant_key ? rawRow.variant_key as BattleTestVariantKey : null,
+    answer_evidence: String(rawRow.answer_evidence || ""),
     expected_answer: String(rawRow.expected_answer),
     fail_indicators: normalizeStringArray(rawRow.fail_indicators),
+    scoring_guide: {
+      clear: String(rawScoringGuide.clear || rawRow.expected_answer || ""),
+      partial: String(
+        rawScoringGuide.partial ||
+        "Directionally correct but missing a material purpose, constraint, evidence distinction, or authority boundary."
+      ),
+      fail: String(
+        rawScoringGuide.fail ||
+        "Contradicts the required operating decision or cannot identify the governing boundary."
+      ),
+    },
     score: rawRow.score as "clear" | "partial" | "fail",
     points_awarded: Number(rawRow.points_awarded || 0),
     note: rawRow.note ? String(rawRow.note) : null,
     is_critical_fail: !!rawRow.is_critical_fail,
+    critical_fail_reason: rawRow.critical_fail_reason ? String(rawRow.critical_fail_reason) : null,
   };
 }
 
@@ -1205,6 +1257,9 @@ export async function persistBattleTestRun(input: PersistBattleTestRunInput) {
   }
 
   for (const response of responseMap.values()) {
+    if (!String(response.answerEvidence || "").trim()) {
+      throw new Error("Every battle-testing response requires the Specialist's answer evidence.");
+    }
     if ((response.score === "partial" || response.score === "fail") && !String(response.note || "").trim()) {
       throw new Error("Partial and fail scores require a note.");
     }
@@ -1250,6 +1305,8 @@ export async function persistBattleTestRun(input: PersistBattleTestRunInput) {
         if (!response) {
           throw new Error(`Missing battle-testing response: ${phase.key}:${question.key}`);
         }
+        const isCriticalFail =
+          !!response.isCriticalFail || (!!question.autoCriticalOnFail && response.score === "fail");
         return {
           id: uuidv4(),
           run_id: runRow.id,
@@ -1258,13 +1315,18 @@ export async function persistBattleTestRun(input: PersistBattleTestRunInput) {
           section: question.section,
           question_order: index,
           prompt: question.prompt,
+          variant_key: phase.variantKey || "form_a",
+          answer_evidence: response.answerEvidence.trim(),
           expected_answer: question.expectedAnswer,
           fail_indicators: question.failIndicators,
+          scoring_guide: getBattleTestScoringGuide(question),
           score: response.score,
           points_awarded: BATTLE_TEST_SCORE_POINTS[response.score],
           note: response.note?.trim() || null,
-          is_critical_fail:
-            !!response.isCriticalFail || (!!question.autoCriticalOnFail && response.score === "fail"),
+          is_critical_fail: isCriticalFail,
+          critical_fail_reason: isCriticalFail
+            ? question.criticalFailReason || response.note?.trim() || question.prompt
+            : null,
         };
       })
     );
@@ -1626,12 +1688,16 @@ export async function getBattleTestRunDetail(
       section: rep.section,
       questionOrder: rep.question_order,
       prompt: rep.prompt,
+      variantKey: rep.variant_key,
+      answerEvidence: rep.answer_evidence,
       expectedAnswer: rep.expected_answer,
       failIndicators: rep.fail_indicators,
+      scoringGuide: rep.scoring_guide,
       score: rep.score,
       pointsAwarded: rep.points_awarded,
       note: rep.note,
       isCriticalFail: rep.is_critical_fail,
+      criticalFailReason: rep.critical_fail_reason,
     } satisfies BattleTestRepLogDetail;
   }).sort((left, right) => {
     const leftPhaseIndex = phaseOrder.get(left.phaseKey) ?? Number.MAX_SAFE_INTEGER;
@@ -1672,41 +1738,4 @@ export function buildBattleTestSuccessPayload(runId: string, outcome: BattleTest
     actionRequired: outcome.actionRequired,
     phaseScores: outcome.phaseScores,
   };
-}
-
-export function validateBattleTestResponses(
-  subjectType: BattleTestSubjectType,
-  phases: BattleTestPhaseDefinition[],
-  responses: BattleTestResponseInput[],
-) {
-  const responseMap = new Map<string, BattleTestResponseInput>();
-
-  // Create a map of all valid question keys from the provided phases
-  const validQuestionKeys = new Set<string>();
-  for (const phase of phases) {
-    for (const question of phase.questions) {
-      validQuestionKeys.add(`${phase.key}:${question.key}`);
-    }
-  }
-
-  for (const response of responses) {
-    const responseKey = `${response.phaseKey}:${response.questionKey}`;
-    if (!validQuestionKeys.has(responseKey)) {
-      throw new Error(`Unknown battle-testing question: ${responseKey}`);
-    }
-
-    if (responseMap.has(responseKey)) {
-      throw new Error(`Duplicate battle-testing response: ${responseKey}`);
-    }
-    responseMap.set(responseKey, response);
-  }
-
-  if (
-    subjectType === "td" &&
-    phases.some((phase) => phase.key !== "td_system_integrity")
-  ) {
-    throw new Error("Invalid TD battle-testing phase.");
-  }
-
-  return responseMap;
 }

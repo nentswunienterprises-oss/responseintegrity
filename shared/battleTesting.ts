@@ -24,6 +24,15 @@ export type TutorBattleTestPhaseKey =
   | "handover_verification"
   | "tools_required";
 
+export const BATTLE_TEST_VARIANT_KEYS = ["form_a", "form_b", "form_c"] as const;
+export type BattleTestVariantKey = (typeof BATTLE_TEST_VARIANT_KEYS)[number];
+
+export interface BattleTestScoringGuide {
+  clear: string;
+  partial: string;
+  fail: string;
+}
+
 const TUTOR_BATTLE_TEST_KEYS: TutorBattleTestPhaseKey[] = [
   "clarity",
   "structured_execution",
@@ -42,15 +51,19 @@ export interface BattleTestQuestionDefinition {
   key: string;
   section: string;
   prompt: string;
+  promptVariants?: Partial<Record<BattleTestVariantKey, string>>;
   expectedAnswer: string;
   failIndicators: string[];
+  scoringGuide?: BattleTestScoringGuide;
   autoCriticalOnFail?: boolean;
+  criticalFailReason?: string;
 }
 
 export interface BattleTestPhaseDefinition {
   key: string;
   title: string;
   description: string;
+  variantKey?: BattleTestVariantKey;
   questions: BattleTestQuestionDefinition[];
 }
 
@@ -58,6 +71,7 @@ export interface BattleTestResponseInput {
   phaseKey: string;
   questionKey: string;
   score: BattleTestScore;
+  answerEvidence: string;
   note?: string;
   isCriticalFail?: boolean;
 }
@@ -171,12 +185,16 @@ export interface BattleTestRepLogDetail {
   section: string;
   questionOrder: number;
   prompt: string;
+  variantKey: BattleTestVariantKey | null;
+  answerEvidence: string;
   expectedAnswer: string;
   failIndicators: string[];
+  scoringGuide: BattleTestScoringGuide;
   score: BattleTestScore;
   pointsAwarded: number;
   note: string | null;
   isCriticalFail: boolean;
+  criticalFailReason: string | null;
 }
 
 export interface BattleTestRunDetail extends BattleTestRunHistoryItem {
@@ -1119,6 +1137,46 @@ export const TUTOR_BATTLE_TEST_PHASES = tutorPhaseDefinitions;
 export const TD_BATTLE_TEST_PHASE = tdSystemIntegrityDefinition;
 export const TUTOR_BATTLE_TEST_PHASE_ORDER = TUTOR_BATTLE_TEST_KEYS;
 
+export function getBattleTestScoringGuide(
+  question: BattleTestQuestionDefinition,
+): BattleTestScoringGuide {
+  if (question.scoringGuide) return question.scoringGuide;
+
+  const failSummary = question.failIndicators.length
+    ? `Gives or endorses one of these responses: ${question.failIndicators.join("; ")}.`
+    : "Contradicts the required operating decision or cannot identify the governing boundary.";
+
+  return {
+    clear: question.expectedAnswer,
+    partial:
+      `Reaches the correct direction but omits or blurs a material purpose, constraint, ` +
+      `evidence distinction, or authority boundary from this standard: ${question.expectedAnswer}`,
+    fail: failSummary,
+  };
+}
+
+export function getBattleTestVariantKey(attemptsCount: number): BattleTestVariantKey {
+  const normalizedAttempts = Number.isFinite(attemptsCount)
+    ? Math.max(0, Math.floor(attemptsCount))
+    : 0;
+  return BATTLE_TEST_VARIANT_KEYS[normalizedAttempts % BATTLE_TEST_VARIANT_KEYS.length];
+}
+
+export function materializeBattleTestPhaseVariant(
+  phase: BattleTestPhaseDefinition,
+  variantKey: BattleTestVariantKey,
+): BattleTestPhaseDefinition {
+  return {
+    ...phase,
+    variantKey,
+    questions: phase.questions.map((question) => ({
+      ...question,
+      prompt: question.promptVariants?.[variantKey] || question.prompt,
+      scoringGuide: getBattleTestScoringGuide(question),
+    })),
+  };
+}
+
 export function getTutorBattleTestPhaseDefinition(phaseKey: string) {
   return tutorPhaseDefinitions.find((phase) => phase.key === phaseKey) || null;
 }
@@ -1151,12 +1209,51 @@ function getPhaseState(percent: number): BattleTestState {
 
 function getActionRequired(state: BattleTestState, hasCriticalFail: boolean) {
   if (hasCriticalFail || state === "fail") {
-    return "Remove from live responsibility and recondition before returning.";
+    return "Block progression or pause live responsibility as applicable; recondition before the next operating step.";
   }
   if (state === "watchlist") {
-    return "Correct immediately and retest in the next cycle.";
+    return "Correct the identified drift and retest before this deep dive is treated as locked.";
   }
-  return "Continue. Eligible for greater responsibility if other operating criteria hold.";
+  return "Locked for this attempt. Continue only if the remaining training and operating gates are satisfied.";
+}
+
+export function validateBattleTestResponses(
+  subjectType: BattleTestSubjectType,
+  phases: BattleTestPhaseDefinition[],
+  responses: BattleTestResponseInput[],
+) {
+  const responseMap = new Map<string, BattleTestResponseInput>();
+  const validQuestionKeys = new Set<string>();
+
+  for (const phase of phases) {
+    for (const question of phase.questions) {
+      validQuestionKeys.add(`${phase.key}:${question.key}`);
+    }
+  }
+
+  for (const response of responses) {
+    const responseKey = `${response.phaseKey}:${response.questionKey}`;
+    if (!validQuestionKeys.has(responseKey)) {
+      throw new Error(`Unknown battle-testing question: ${responseKey}`);
+    }
+    if (!String(response.answerEvidence || "").trim()) {
+      throw new Error("Every battle-testing response requires the Specialist's answer evidence.");
+    }
+    if ((response.score === "partial" || response.score === "fail") && !String(response.note || "").trim()) {
+      throw new Error("Partial and fail scores require a note.");
+    }
+    if (responseMap.has(responseKey)) {
+      throw new Error(`Duplicate battle-testing response: ${responseKey}`);
+    }
+
+    responseMap.set(responseKey, response);
+  }
+
+  if (subjectType === "td" && phases.some((phase) => phase.key !== "td_system_integrity")) {
+    throw new Error("Invalid TD battle-testing phase.");
+  }
+
+  return responseMap;
 }
 
 export function computeBattleTestOutcome(subjectType: BattleTestSubjectType, phases: BattleTestPhaseDefinition[], responses: BattleTestResponseInput[]): BattleTestOutcome {
@@ -1184,7 +1281,9 @@ export function computeBattleTestOutcome(subjectType: BattleTestSubjectType, pha
       totalPoints += points;
 
       if (response.isCriticalFail || (question.autoCriticalOnFail && response.score === "fail")) {
-        criticalFailReasons.add(`${phase.title}: ${question.prompt}`);
+        criticalFailReasons.add(
+          `${phase.title}: ${question.criticalFailReason || question.prompt}`,
+        );
       }
     }
 

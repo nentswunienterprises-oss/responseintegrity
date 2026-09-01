@@ -151,11 +151,32 @@ export default function BattleTestHistoryDialog({
                         >
                           {rep.score.toUpperCase()}
                         </Badge>
+                        <Badge variant="outline" className="text-xs sm:text-sm">
+                          {(rep.variantKey || "form_a").replace("_", " ").toUpperCase()}
+                        </Badge>
                         {rep.isCriticalFail ? <Badge className="bg-rose-700 text-white text-xs sm:text-sm">Critical Fail</Badge> : null}
                       </div>
                       <p className="mt-2 sm:mt-3 font-medium text-sm sm:text-base text-foreground">
                         {stripWhatThisDoesSection(rep.prompt)}
                       </p>
+                      <div className="mt-2 sm:mt-3 rounded-xl border bg-background p-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                          Specialist Answer / Evidence Heard
+                        </p>
+                        <p className="mt-2 whitespace-pre-wrap text-xs sm:text-sm text-foreground">
+                          {rep.answerEvidence || "No answer evidence captured."}
+                        </p>
+                      </div>
+                      {rep.scoringGuide ? (
+                        <div className="mt-2 sm:mt-3 rounded-xl border bg-muted/20 p-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                            Scoring Anchor Used
+                          </p>
+                          <p className="mt-2 text-xs sm:text-sm text-foreground">
+                            {rep.scoringGuide[rep.score]}
+                          </p>
+                        </div>
+                      ) : null}
                       <div className="mt-2 sm:mt-3 rounded-xl border bg-muted/20 p-3">
                         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                           Expected Answer
@@ -170,6 +191,14 @@ export default function BattleTestHistoryDialog({
                             TD Note
                           </p>
                           <p className="mt-2 text-xs sm:text-sm text-foreground">{rep.note}</p>
+                        </div>
+                      ) : null}
+                      {rep.criticalFailReason ? (
+                        <div className="mt-2 sm:mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-rose-900">
+                            Critical Fail Reason
+                          </p>
+                          <p className="mt-2 text-xs sm:text-sm text-rose-950">{rep.criticalFailReason}</p>
                         </div>
                       ) : null}
                     </Card>

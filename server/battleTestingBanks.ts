@@ -1,6 +1,13 @@
 import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
-import { TUTOR_BATTLE_TEST_PHASES, type BattleTestPhaseDefinition, type BattleTestQuestionDefinition } from "@shared/battleTesting";
+import {
+  TUTOR_BATTLE_TEST_PHASES,
+  getBattleTestScoringGuide,
+  materializeBattleTestPhaseVariant,
+  type BattleTestPhaseDefinition,
+  type BattleTestQuestionDefinition,
+  type BattleTestVariantKey,
+} from "@shared/battleTesting";
 
 type ParsedQuestion = BattleTestQuestionDefinition & { sourceLabel: string };
 
@@ -98,31 +105,118 @@ const TD_SOURCE_FILE = {
   path: optionalExistingPath(resolve(ROOT, "TD Battle-Testing", "TD System Integrity Drilling.txt")),
 } as const;
 
-const AUTO_CRITICAL_BY_PHASE: Record<string, Set<string>> = {
-  clarity: new Set(["Q15"]),
-  structured_execution: new Set(["Q15"]),
-  controlled_discomfort: new Set(["Q15"]),
-  time_pressure_stability: new Set(["Q15"]),
-  topic_conditioning: new Set(["Q15"]),
-  intro_session_structure: new Set(["Q7", "Scenario 1", "Scenario 2", "Scenario 3", "FINAL QUESTION"]),
-  logging_system: new Set(["Q7", "Scenario 1", "Scenario 3", "Scenario 4", "FINAL QUESTION"]),
-  session_flow_control: new Set(["Q9", "Scenario 1", "Scenario 2", "Scenario 4", "FINAL QUESTION"]),
-  drill_library: new Set(["Q10", "Scenario 1", "Scenario 2", "Scenario 4", "FINAL QUESTION"]),
-  handover_verification: new Set(["Q10", "Scenario 1", "Scenario 2", "Scenario 4", "FINAL QUESTION"]),
-  tools_required: new Set(["Q6", "Scenario 1", "Scenario 2", "Scenario 4", "FINAL QUESTION"]),
-  td_system_integrity: new Set([
-    "Q4",
-    "Q5",
-    "Q6",
-    "Q8",
-    "Q9",
-    "Q11",
-    "Q12",
-    "Scenario 1",
-    "Scenario 2",
-    "Scenario 3",
-    "FINAL QUESTION",
-  ]),
+const AUTO_CRITICAL_REASON_BY_PHASE: Record<string, Record<string, string>> = {
+  clarity: {
+    Q8: "Treats Specialist-led Modeling as independent student evidence.",
+    Q9: "Allows solving to replace the no-solving Identification condition.",
+    Q13: "Advances a topic despite material weak evidence instead of following the system result.",
+  },
+  structured_execution: {
+    Q7: "Treats repeatedly prompted performance as independent execution.",
+    Q11: "Breaks the no-support Independent Execution condition and still accepts the rep.",
+    Q14: "Disguises material Specialist assistance as independent evidence.",
+  },
+  controlled_discomfort: {
+    Q11: "Uses full rescue inside the first-step-only No Rescue condition.",
+    Q12: "Adds support to the no-support Repeat Exposure condition.",
+    Q13: "Removes the assigned difficulty condition to avoid student discomfort.",
+    Q14: "Overrides repeated evidence and system movement with an invented psychological conclusion.",
+  },
+  time_pressure_stability: {
+    Q11: "Treats speed with broken structure or guessing as stable timed evidence.",
+    Q12: "Adds panic coaching to a no-support timed condition.",
+    Q14: "Treats a rescued timed rep as independent stability evidence.",
+  },
+  topic_conditioning: {
+    Q7: "Assigns phase or stability movement to the Specialist rather than the deterministic system.",
+    Q15: "Manually overrides evidence-based topic movement.",
+  },
+  intro_session_structure: {
+    "Scenario 2": "Converts Intro into teaching and scores assisted performance as placement evidence.",
+    "Scenario 3": "Bypasses adjacent score-driven placement with Specialist instinct.",
+    "Scenario 4": "Allows parent preference to override scored topic placement.",
+  },
+  logging_system: {
+    Q4: "Selects a preferred observation instead of the behaviour that occurred.",
+    Q8: "Records assisted performance as independent evidence.",
+    Q9: "Invents unobserved behaviour in the evidence record.",
+    "Scenario 2": "Retrospectively manufactures missing rep evidence.",
+    "Scenario 3": "Changes the evidence claim to override a deterministic hold result.",
+  },
+  session_flow_control: {
+    Q9: "Replaces the system-selected drill with Specialist preference.",
+    "Scenario 3": "Erases inherited state and bypasses the Handover Verification context.",
+  },
+  drill_library: {
+    "Scenario 1": "Accepts solving as evidence from a recognition-only Identification set.",
+    "Scenario 2": "Adds support to the no-support Variation Control condition.",
+    "Scenario 3": "Rescues inside the no-support Repeat Exposure condition.",
+    "Scenario 4": "Treats speed with collapsed structure as Full Constraint success.",
+  },
+  handover_verification: {
+    Q9: "Assigns inherited-state movement to the replacement Specialist rather than verification evidence.",
+    "Scenario 1": "Erases inherited topic-state and replaces continuity verification with personal re-placement.",
+    "Scenario 2": "Manually changes phase from one rep before the authorised verification result.",
+    "Scenario 3": "Continues normal training despite an unresolved continuity mismatch.",
+  },
+  tools_required: {
+    "Scenario 1": "Runs and scores a live drill when the written method is not observable.",
+    "Scenario 2": "Scores spoken evidence that could not be heard reliably.",
+  },
+  td_system_integrity: Object.fromEntries(
+    ["Q4", "Q5", "Q6", "Q8", "Q9", "Q11", "Q12", "Scenario 1", "Scenario 2", "Scenario 3", "FINAL QUESTION"]
+      .map((label) => [label, "Violates a non-negotiable TD system-integrity boundary."]),
+  ),
+};
+
+const QUESTION_PROMPT_VARIANTS: Record<
+  string,
+  Partial<Record<BattleTestVariantKey, string>>
+> = {
+  "clarity:Q11": {
+    form_b: "In Light Apply, the student answers correctly after the Specialist points to the operation and states the opening step. What does the evidence show?",
+    form_c: "A student completes a Light Apply item only after the Specialist supplies the method name and asks a leading first-step question. May the rep be scored as clear Clarity?",
+  },
+  "structured_execution:Q11": {
+    form_b: "In Independent Execution, the Specialist asks, 'What do we always do first?' and the student then completes the problem. Can the rep prove an independent start?",
+    form_c: "The student will not begin an Independent Execution rep until the Specialist confirms the operation. How must that rep be interpreted?",
+  },
+  "controlled_discomfort:Q11": {
+    form_b: "In No Rescue, the student stalls and the Specialist demonstrates two steps to settle them. What happened to the evidence condition?",
+    form_c: "A student asks for rescue during No Rescue, and the Specialist talks them through the full method. Can the completed answer count as recovery evidence?",
+  },
+  "time_pressure_stability:Q11": {
+    form_b: "A timed rep beats the target, but the student omits working and guesses two answers. What evidence does the result provide?",
+    form_c: "The student finishes Full Constraint early by abandoning the trained sequence. Should speed make this a clear rep?",
+  },
+  "topic_conditioning:Q15": {
+    form_b: "A Specialist says, 'The score held the topic, but I advanced it because today's work looked better.' What is the integrity judgment?",
+    form_c: "A parent asks for the next phase and the Specialist changes the topic-state without qualifying system evidence. Is that within operator authority?",
+  },
+  "intro_session_structure:Scenario 2": {
+    form_b: "During Intro, the Specialist teaches the method before every response and then uses those responses to place the topic. Is the placement evidence valid?",
+    form_c: "An Intro becomes a mini lesson, and the Specialist scores the student's post-explanation answers as independent Diagnosis evidence. What failed?",
+  },
+  "logging_system:Scenario 2": {
+    form_b: "Three rep options were never captured. At session end, the Specialist fills them in from the overall impression so submission can proceed. Is that valid?",
+    form_c: "The Specialist notices an incomplete set the next morning and reconstructs the missing observations from memory. What must happen instead?",
+  },
+  "session_flow_control:Scenario 3": {
+    form_b: "A replacement Specialist ignores the continuity workflow and launches a fresh Intro because they have not met the student before. What boundary was crossed?",
+    form_c: "The student changes tutors. The new Specialist discards the inherited phase and begins new placement. Which session-context error occurred?",
+  },
+  "drill_library:Scenario 2": {
+    form_b: "In Variation Control, the Specialist names the first operation on all three changed-form reps. What can the set still prove about transfer?",
+    form_c: "The student completes changed-form questions only after opening cues from the Specialist. May Variation Control be logged as independent?",
+  },
+  "handover_verification:Scenario 1": {
+    form_b: "The replacement Specialist resets every inherited topic to Clarity before running any continuity check. What failed?",
+    form_c: "A new Specialist refuses to use the previous topic-state and performs fresh placement from scratch. Is that Handover Verification?",
+  },
+  "tools_required:Scenario 1": {
+    form_b: "The camera angle hides the student's working area, but the Specialist completes the drill from spoken final answers. Can those reps be used?",
+    form_c: "Only the top edge of the page is visible during a live set. The Specialist plans to infer the missing working from the student's explanations. Is the condition valid?",
+  },
 };
 
 function normalizeLines(raw: string) {
@@ -306,14 +400,22 @@ function parseBattleTestDocument(phaseKey: string, title: string, description: s
             return `${phaseKey}_${toQuestionKey(sourceLabel)}`;
           })();
 
-    questions.push({
+    const criticalFailReason = AUTO_CRITICAL_REASON_BY_PHASE[phaseKey]?.[sourceLabel];
+    const questionDefinition: BattleTestQuestionDefinition = {
       key: questionKey,
-      sourceLabel,
       section: currentSection,
       prompt: promptLines.join("\n").trim(),
+      promptVariants: QUESTION_PROMPT_VARIANTS[`${phaseKey}:${sourceLabel}`],
       expectedAnswer: expectedAnswerLines.join("\n").trim(),
       failIndicators: failIndicators.map((entry) => entry.trim()).filter(Boolean),
-      autoCriticalOnFail: AUTO_CRITICAL_BY_PHASE[phaseKey]?.has(sourceLabel) || false,
+      autoCriticalOnFail: !!criticalFailReason,
+      criticalFailReason,
+    };
+
+    questions.push({
+      ...questionDefinition,
+      sourceLabel,
+      scoringGuide: getBattleTestScoringGuide(questionDefinition),
     });
   }
 
@@ -355,14 +457,20 @@ export const TD_BATTLE_TEST_PHASE_EXACT: BattleTestPhaseDefinition = TD_SOURCE_F
       questions: [],
     };
 
-export function getTutorBattleTestPhaseDefinitionsExact(phaseKeys: string[]) {
+export function getTutorBattleTestPhaseDefinitionsExact(
+  phaseKeys: string[],
+  variantKeysByPhase: Partial<Record<string, BattleTestVariantKey>> = {},
+) {
   return phaseKeys
     .map((phaseKey) => {
       const exactPhase = TUTOR_BATTLE_TEST_PHASES_EXACT.find((phase) => phase.key === phaseKey) || null;
-      if (exactPhase && exactPhase.questions.length) {
-        return exactPhase;
-      }
-      return TUTOR_BATTLE_TEST_PHASES.find((phase) => phase.key === phaseKey) || null;
+      const phase = exactPhase?.questions.length
+        ? exactPhase
+        : TUTOR_BATTLE_TEST_PHASES.find((entry) => entry.key === phaseKey) || null;
+      const variantKey = variantKeysByPhase[phaseKey];
+      return phase && variantKey
+        ? materializeBattleTestPhaseVariant(phase, variantKey)
+        : phase;
     })
     .filter((phase): phase is BattleTestPhaseDefinition => Boolean(phase));
 }

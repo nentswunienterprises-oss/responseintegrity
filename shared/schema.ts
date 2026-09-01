@@ -264,12 +264,16 @@ export const battleTestRepLogs = pgTable("battle_test_rep_logs", {
   section: varchar("section").notNull(),
   questionOrder: integer("question_order").notNull(),
   prompt: text("prompt").notNull(),
+  variantKey: varchar("variant_key").notNull().default("form_a"),
+  answerEvidence: text("answer_evidence").notNull().default(""),
   expectedAnswer: text("expected_answer").notNull(),
   failIndicators: jsonb("fail_indicators").notNull().default(sql`'[]'::jsonb`),
+  scoringGuide: jsonb("scoring_guide").notNull().default(sql`'{}'::jsonb`),
   score: battleTestScoreEnum("score").notNull(),
   pointsAwarded: real("points_awarded").notNull().default(0),
   note: text("note"),
   isCriticalFail: boolean("is_critical_fail").notNull().default(false),
+  criticalFailReason: text("critical_fail_reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

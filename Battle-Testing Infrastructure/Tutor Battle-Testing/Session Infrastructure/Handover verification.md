@@ -1,179 +1,174 @@
-Tutor Conditioning & Training Pathway to Certification
-System-Driven Progression Engine
-1. OBJECTIVE
+Response Integrity-OS BATTLE TEST: HANDOVER VERIFICATION
 
-Build a fully systemized tutor development engine where tutor progression is determined by measured alignment, not time served or manual judgment.
+SECTION 1: CONTINUITY PURPOSE
 
-The system must condition tutors through doctrine + operations until certification standards are earned.
+Q1
+When is a Handover Verification session required?
 
-This mirrors Response Integrity-OS student progression:
+Expected Answer
+When an already active student moves to a replacement tutor and the inherited topic-state must be verified before normal training continues.
 
-👉 proof-based advancement
-👉 repeated performance
-👉 no subjective progression
+Fail Answer
+At the end of every session
+Whenever a student needs independence
+Only when the parent requests it
 
-2. CORE MODES
-A. Applicant Mode
+Q2
+What state must the replacement Specialist inherit and review?
 
-Status after signup + documentation completion.
+Expected Answer
+The student's active topic, current phase, current stability, prior evidence or history, and assigned next action.
 
-Access:
+Fail Answer
+Only the topic name
+Only the latest mark
+Nothing; the new tutor starts fresh
 
-onboarding docs
-agreements
-profile setup
+Q3
+What is the central purpose of Handover Verification?
 
-No Response Integrity-OS access yet.
+Expected Answer
+To test whether the inherited topic-state still holds so continuity can be defended without erasing history or pretending the student is new.
 
-B. Training Mode
+Fail Answer
+To onboard the new tutor by teaching the student
+To place the student from scratch
+To run a normal training session
 
-Access granted after documentation completion.
+Q4
+Why is Handover not a new Intro session?
 
-Purpose:
-Tutor studies Response Integrity-OS modules and undergoes weekly battle tests.
+Expected Answer
+The student already has a placed topic-state and evidence history. Handover verifies that state; Intro establishes entry placement where none exists.
 
-Substates:
+Fail Answer
+They are equivalent because the tutor is new
+Every tutor needs their own diagnosis
+The old state is not trustworthy
 
-B1. Module 1 Training
+SECTION 2: VERIFICATION FLOW
 
-Transformation Phases
+Q5
+What should happen before the live verification block begins?
 
-B2. Module 2 Training
+Expected Answer
+Review the inherited state, confirm the continuity-check booking, prepare the short phase-matched verification problems and constraints, and understand the possible system outcomes.
 
-Session Infrastructure
+Fail Answer
+Prepare a full training lesson
+Ask the student where they think they belong
+Choose a new phase from the parent report
 
-C. Sandbox Mode
+Q6
+What does the replacement Specialist run during Handover?
 
-Unlocked after Module 1 completion.
+Expected Answer
+A short Verification block on the inherited active topic-state, not full Intro diagnosis and not the full normal training sequence.
 
-Tutor gets fake parent/student accounts to learn live system operations.
+Fail Answer
+All phase blocks from Clarity upward
+A full training drill before checking state
+Any questions that feel diagnostic
 
-Used concurrently with Module 2 training.
+Q7
+What are the permitted outcome families after verification?
 
-D. Certified Live Mode
+Expected Answer
+The inherited state holds and training continues; the state needs tightening or adjustment; or a clear mismatch triggers more targeted verification before training resumes.
 
-Unlocked after all required modules complete.
+Fail Answer
+The tutor chooses keep or restart
+The student automatically returns to Clarity
+Only pass or fail
 
-Tutor eligible for real paid assignments/ real parents and students.
+Q8
+When may normal training systems reopen after a tutor change?
 
-E. Watchlist Mode
+Expected Answer
+Only after the continuity verification is complete and the result clears continuation from the confirmed or adjusted state.
 
-Tutor active but flagged due to declining alignment.
+Fail Answer
+Immediately after the new tutor is assigned
+After one warm-up question
+Whenever the tutor feels comfortable
 
-Restrictions configurable.
+Q9
+Who decides whether the inherited state holds or changes?
 
-F. Suspended Mode
+Expected Answer
+The system uses the verification evidence. The Specialist runs the block, logs accurately, and follows the result rather than selecting a preferred state.
 
-Training or live access frozen.
+Fail Answer
+The replacement tutor
+The previous tutor
+The parent and tutor together
 
-(Modes no more dependent on coo control)
+Q10
+What must the Handover evidence record preserve?
 
-3. MODULE STRUCTURE
-Module 1 — Transformation Phases
+Expected Answer
+The inherited topic, phase and stability, the exact verification condition, rep-level observations, the resulting score or decision, and the authorised continuation or follow-up action.
 
-Deep dives:
+Fail Answer
+Only that handover was completed
+A narrative about how the student felt
+The new tutor's opinion of prior training
 
-Topic Conditioning
-Clarity
-Structured Execution
-Controlled Discomfort
-Time Pressure Stability
-Module 2 — Session Infrastructure
+SECTION 3: PRESSURE SCENARIOS
 
-Deep dives:
+Scenario 1
+The new Specialist ignores the inherited Structured Execution state and starts the student at Clarity because "I need to see for myself." What failed?
 
-Intro Session Structure
-Logging System
-Session Context & Drill Flow
-Drill Library
-Handover Verification
-Tools Required
-4. CERTIFICATION MODEL
+Expected Answer
+They erased continuity and replaced the Verification protocol with personal re-placement. The inherited state must be tested through the assigned verification block, not discarded by instinct.
 
-Each deep dive has two states:
+Fail Answer
+Nothing; a new tutor should always restart
+Clarity is the safest place
+Personal assessment is more reliable
 
-A. Historical Certification State
-In Progress
-Completed
+Scenario 2
+The inherited state appears weak on one verification rep, so the Specialist manually lowers the phase and starts training there. Is that valid?
 
-Completed when:
+Expected Answer
+No. Record the rep and complete the authorised verification flow. Only the system result may hold, tighten, adjust, or call for targeted verification.
 
-👉 3 consecutive battle test scores of 96+
+Fail Answer
+Yes, immediate adaptation protects the student
+Yes, one rep is enough
+The tutor can change stability but not phase
 
-B. Current Health State
+Scenario 3
+The verification result shows a clear mismatch. What should the Specialist do next?
 
-Based on latest score:
+Expected Answer
+Keep normal training closed and run the targeted follow-up verification directed by the system until a defensible continuation state is established.
 
-Locked = 96–100
-Watchlist = 90–95
-Drift = <90
-5. PROGRESSION RULES
-Deep Dive Completion Rule
+Fail Answer
+Restart the full Intro automatically
+Ignore it and continue inherited training
+Choose a new phase manually
 
-If a tutor scores 96+ three consecutive attempts on a deep dive:
+Scenario 4
+The continuity result clears the inherited state. The Specialist wants to repeat the entire old diagnosis for certainty. What is the correct action?
 
-Set:
+Expected Answer
+Mark Handover complete and continue normal training from the verified state. Extra re-placement is unnecessary and breaks continuity.
 
-completed = true
-current_streak = 3
-completed_at = timestamp
-Streak Logic
+Fail Answer
+Repeat Intro because more evidence is always better
+Test every phase before training
+Reset stability to Low anyway
 
-If score >=96:
+FINAL TEST
 
-current_streak += 1
-(max 3 for completion display, but raw streak may continue optionally)
+FINAL QUESTION
+What is the replacement Specialist's job in Handover Verification?
 
-If score <96:
+Expected Answer
+Preserve the student's history, verify the inherited topic-state under the correct short condition, log the evidence truthfully, and resume normal training only from the state authorised by the result.
 
-current_streak = 0
-Module Completion Rule
-
-Module complete when all deep dives inside module have:
-
-completed = true
-Pathway Unlocks
-Module 1 Complete
-
-Unlock:
-
-Sandbox Mode
-Module 2 access
-Module 2 Complete + Module 1 Complete
-
-Unlock:
-
-Certified Live Mode
-Eligible for assignments
-6. WEEKLY BATTLE TEST ENGINE
-Purpose
-
-System selects 2–3 deep dives per live audit session.
-
-TD runs session. No manual topic choosing.
-
-Selection Priority Logic
-
-For each tutor, calculate priority score per deep dive.
-
-Highest Priority Factors:
-Not completed
-Lowest streak
-Recent fail/watchlist
-Longest time since last tested
-Optional random maintenance on completed dives
-Output
-
-Generate weekly assigned session:
-
-Tutor A:
-1. Clarity
-2. Logging System
-3. Controlled Discomfort
-
-
-TD Dashboard
-
-Button:
-
-Run Weekly Tutor Audit/Battle Test
+Fail Answer
+Reassess the student and choose where to begin
+Start teaching while learning the student
+Trust the old state without verification
