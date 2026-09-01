@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowRight, Check, ChevronDown, LockKeyhole, ShieldCheck, Target, TimerReset } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Eye, LockKeyhole, Repeat, ShieldCheck, Target, TimerReset, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResponseIntegrityLogo } from "@/components/ResponseIntegrityLogo";
 import { buildTrackedPath, buildTrackedReturnTo } from "@/lib/publicTracking";
@@ -38,12 +38,71 @@ const pathway = [
   },
 ] as const;
 
-const proofQuestions = [
-  "Can the methodology be transferred reliably?",
-  "Can another person operate the system without losing process integrity?",
-  "Can it create observable change across different students?",
-  "Can the technology support delivery reliably?",
-  "Can this become a repeatable economic opportunity for capable young people?",
+const foundingStandards = [
+  {
+    title: "Transfer the method without weakening it",
+    body:
+      "The first cohort establishes that the Response Integrity method can be executed by trained specialists while preserving the standard.",
+  },
+  {
+    title: "Operate the system with process integrity",
+    body:
+      "Specialists are expected to follow the operating model, use the platform correctly, and keep the intervention from drifting into ordinary tutoring.",
+  },
+  {
+    title: "Produce observable change with real students",
+    body:
+      "Trial delivery is used to show whether the specialist can create the intended student experience across different learners, families, and response patterns.",
+  },
+  {
+    title: "Strengthen the operating system through delivery",
+    body:
+      "The first cohort gives Response Integrity live evidence about training, tools, session records, reporting, and quality control under real delivery conditions.",
+  },
+  {
+    title: "Earn deployment through demonstrated capability",
+    body:
+      "The economic opportunity begins only after certification because responsibility must follow evidence, not confidence, charisma, or time spent in training.",
+  },
+] as const;
+
+const specialistCraft = [
+  {
+    icon: Target,
+    title: "Condition execution under difficulty",
+    body:
+      "The specialist is developed to do more than explain mathematics correctly. They learn to introduce difficulty deliberately, maintain structure when the learner struggles, and train the learner's response to difficulty. The capability being developed is execution conditioning.",
+  },
+  {
+    icon: Repeat,
+    title: "Prepare before pressure arrives",
+    body:
+      "A Response Conditioning Specialist is trained to think beyond the next homework question or upcoming test. They help the learner accumulate evidence that they can handle the work. The capability being developed is deliberate preparation.",
+  },
+  {
+    icon: Eye,
+    title: "Apply good pressure through observation",
+    body:
+      "A Response Conditioning Specialist is trained to see what happens between the question and the answer. They learn to ask what happened to the learner's response while they were trying to get there. The capability being developed is diagnostic observation.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Make mistakes usable",
+    body:
+      "A Response Conditioning Specialist must know how to make mistakes usable. They learn when to intervene and when to allow the learner to struggle productively. The capability being developed is psychological safety with learning discipline.",
+  },
+  {
+    icon: UserCheck,
+    title: "Give responsive individual attention",
+    body:
+      "A Response Conditioning Specialist is trained to work with the learner in front of them, not with an imaginary average student. They learn to adjust the session to the learner's actual response. The capability being developed is responsive attention.",
+  },
+  {
+    icon: LockKeyhole,
+    title: "Operate the system with integrity",
+    body:
+      "A Response Conditioning Specialist does not need to invent their own tutoring philosophy. They learn to operate the Response Integrity system with structure, discipline, responsibility, and consistent operational behaviour. The capability being developed is system execution.",
+  },
 ] as const;
 
 const fitSignals = [
@@ -168,14 +227,13 @@ export default function SpecialistLanding() {
         <section className="border-y border-[var(--ri-dark-border)] bg-[var(--ri-charcoal)] py-12 text-white sm:py-16">
           <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 md:px-12 lg:grid-cols-[0.9fr_1.1fr]">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--ri-dark-copy)]">Not a tutoring job</p>
               <h2 className="mt-3 text-3xl font-bold tracking-normal sm:text-4xl">
                 You are applying to learn a system for changing response under difficulty.
               </h2>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               {[
-                { icon: Target, text: "Math is the arena. Response is the skill." },
+                { icon: Target, text: "Math is the area. Response is the skill." },
                 { icon: ShieldCheck, text: "Trust opens only after evidence." },
                 { icon: TimerReset, text: "Pressure is trained deliberately." },
                 { icon: LockKeyhole, text: "Process integrity matters." },
@@ -186,6 +244,28 @@ export default function SpecialistLanding() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 md:px-12">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--ri-red)]">The craft</p>
+            <h2 className="mt-3 text-3xl font-bold tracking-normal sm:text-4xl">Develop the craft of making people better.</h2>
+            <p className="mt-4 text-base leading-7 text-[var(--ri-muted)]">
+              A Response Conditioning Specialist does not need to invent a tutoring philosophy. The platform provides the structure. The specialist learns to interpret the learner's state, use the tools correctly, apply the required intervention, and maintain session integrity.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {specialistCraft.map(({ icon: Icon, title, body }) => (
+              <div key={title} className="rounded-lg border border-[var(--ri-warm-border)] bg-white p-5 shadow-sm">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--ri-blush)]">
+                  <Icon className="h-5 w-5 text-[var(--ri-red)]" />
+                </div>
+                <h3 className="mt-5 text-lg font-bold tracking-normal text-[var(--ri-charcoal)]">{title}</h3>
+                <p className="mt-3 text-sm leading-7 text-[var(--ri-muted)]">{body}</p>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -272,31 +352,31 @@ export default function SpecialistLanding() {
         <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 md:px-12">
           <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--ri-red)]">Why the first cohort matters</p>
-              <h2 className="mt-3 text-3xl font-bold tracking-normal sm:text-4xl">You are helping prove the system.</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--ri-red)]">Founding cohort standard</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-normal sm:text-4xl">The first cohort establishes the specialist standard.</h2>
               <p className="mt-4 text-base leading-8 text-[var(--ri-muted)]">
-                The first cohort enters while transferability, delivery, technology, and economics are still being validated. That carries responsibility, and it makes the work unusually meaningful.
+                Later cohorts will inherit the standard this group helps make visible. Your execution, evidence, and feedback shape how Response Integrity trains specialists without losing the discipline of the system.
               </p>
             </div>
 
             <div className="divide-y divide-[var(--ri-warm-border)] rounded-lg border border-[var(--ri-warm-border)] bg-white shadow-sm">
-              {proofQuestions.map((question, index) => {
+              {foundingStandards.map((standard, index) => {
                 const isOpen = openQuestion === index;
 
                 return (
                   <button
-                    key={question}
+                    key={standard.title}
                     type="button"
                     className="block w-full p-5 text-left"
                     onClick={() => setOpenQuestion(isOpen ? -1 : index)}
                   >
                     <span className="flex items-center justify-between gap-4">
-                      <span className="text-sm font-semibold leading-6 text-[var(--ri-charcoal)]">{question}</span>
+                      <span className="text-sm font-semibold leading-6 text-[var(--ri-charcoal)]">{standard.title}</span>
                       <ChevronDown className={`h-4 w-4 flex-shrink-0 text-[var(--ri-red)] transition ${isOpen ? "rotate-180" : ""}`} />
                     </span>
                     {isOpen ? (
                       <span className="mt-3 block text-sm leading-7 text-[var(--ri-muted)]">
-                        This pilot exists to answer that question through observed delivery, documented execution, and real student and parent evidence.
+                        {standard.body}
                       </span>
                     ) : null}
                   </button>
@@ -308,7 +388,7 @@ export default function SpecialistLanding() {
 
         <section className="bg-[var(--ri-charcoal)] py-12 text-white sm:py-16">
           <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 md:px-12">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--ri-dark-copy)]">Temporary pilot cohort</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--ri-dark-copy)]">Pilot cohort</p>
             <h2 className="mt-3 text-3xl font-bold tracking-normal sm:text-4xl">Certification phase is unpaid. Deployment creates earning eligibility.</h2>
             <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-white/72">
               Successful certification may lead to deployment into Response Integrity Pods and paid service delivery. This is not guaranteed employment or guaranteed income.
