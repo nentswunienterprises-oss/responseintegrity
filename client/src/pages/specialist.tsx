@@ -129,7 +129,11 @@ export default function SpecialistLanding() {
   const returnTo = buildTrackedReturnTo(location.pathname, location.search);
   const applyPath = useMemo(
     () =>
-      buildTrackedPath("/operational/specialist/intake", location.search, {
+      buildTrackedPath("/operational/signup", location.search, {
+        role: "tutor",
+        mode: "signup",
+        lock: "signup",
+        fastTrack: "exec",
         returnTo,
       }),
     [location.search, returnTo],
@@ -149,7 +153,9 @@ export default function SpecialistLanding() {
     <div className="min-h-screen overflow-x-hidden bg-[var(--ri-cream)] text-[var(--ri-charcoal)]">
       <header className="fixed inset-x-0 top-0 z-50 border-b border-[var(--ri-warm-border)] bg-[rgba(var(--ri-cream-rgb),0.94)] backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:h-20 sm:px-6 md:px-12">
-          <ResponseIntegrityLogo size="lg" variant="integrity" />
+          <div className="pl-4 sm:pl-12 md:pl-28 lg:pl-44 xl:pl-56 2xl:pl-64">
+            <ResponseIntegrityLogo size="lg" variant="integrity" />
+          </div>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
