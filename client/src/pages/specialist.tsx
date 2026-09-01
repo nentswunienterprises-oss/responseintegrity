@@ -264,12 +264,12 @@ export default function SpecialistLanding() {
 
           <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {specialistCraft.map(({ icon: Icon, title, body }) => (
-              <div key={title} className="rounded-lg border border-[var(--ri-warm-border)] bg-white p-5 shadow-sm">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--ri-blush)]">
+              <div key={title} className="rounded-lg border border-[var(--ri-red)] bg-[var(--ri-red)] p-5 shadow-sm">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/95">
                   <Icon className="h-5 w-5 text-[var(--ri-red)]" />
                 </div>
-                <h3 className="mt-5 text-lg font-bold tracking-normal text-[var(--ri-charcoal)]">{title}</h3>
-                <p className="mt-3 text-sm leading-7 text-[var(--ri-muted)]">{body}</p>
+                <h3 className="mt-5 text-lg font-bold tracking-normal text-white">{title}</h3>
+                <p className="mt-3 text-sm leading-7 text-white/86">{body}</p>
               </div>
             ))}
           </div>
