@@ -29,15 +29,19 @@ export const TUTOR_ONBOARDING_DOCUMENTS: TutorOnboardingDocumentDefinition[] = [
   {
     step: 1,
     code: "Response Integrity-TCF-001",
-    title: "Tutor Consent Form",
+    title: "Specialist Consent Form",
     fileName: "TT-TCF-001.txt",
-    version: "1",
+    version: "2",
     requiresAcceptance: true,
     requiresUpload: false,
     mandatoryClauses: [
       {
         key: "platform_rules",
         label: "I acknowledge that I must operate inside the platform rules and system requirements.",
+      },
+      {
+        key: "evidence_integrity",
+        label: "I acknowledge that I must record observable session evidence truthfully and may not falsify, soften, exaggerate, or invent observations.",
       },
     ],
   },
@@ -46,16 +50,20 @@ export const TUTOR_ONBOARDING_DOCUMENTS: TutorOnboardingDocumentDefinition[] = [
     code: "Response Integrity-EQV-002",
     title: "Entry Qualification Verification",
     fileName: "TT-EQV-002.md",
-    version: "1",
+    version: "2",
     requiresAcceptance: true,
     requiresUpload: true,
     uploadTitle: "Certified Matric Certificate",
     uploadDescription:
-      "After accepting the verification terms, upload a certified copy of your official National Senior Certificate for COO review.",
+      "After accepting the verification terms, upload a certified copy of your official National Senior Certificate for COO review. Matric is required for entry.",
     mandatoryClauses: [
       {
         key: "qualification_truthfulness",
         label: "I confirm that the qualification information and supporting claims I provide to Response Integrity must be truthful.",
+      },
+      {
+        key: "matric_required",
+        label: "I confirm that I have completed Matric; applicants must be 18 or older unless they completed Matric early.",
       },
       {
         key: "matric_certificate_submission",
@@ -66,9 +74,9 @@ export const TUTOR_ONBOARDING_DOCUMENTS: TutorOnboardingDocumentDefinition[] = [
   {
     step: 3,
     code: "Response Integrity-ICA-003",
-    title: "Independent Contractor Agreement",
+    title: "Specialist Independent Contractor Agreement",
     fileName: "TT-ICA-003.md",
-    version: "1",
+    version: "2",
     requiresAcceptance: true,
     requiresUpload: false,
     mandatoryClauses: [
@@ -84,14 +92,18 @@ export const TUTOR_ONBOARDING_DOCUMENTS: TutorOnboardingDocumentDefinition[] = [
         key: "no_circumvention",
         label: "I may not take assigned learners or parents off-platform or use platform relationships for off-platform activity.",
       },
+      {
+        key: "package_completion_payout",
+        label: "I understand that I earn per eligible completed session, with payout calculated and released on the relevant package completion payout schedule.",
+      },
     ],
   },
   {
     step: 4,
     code: "Response Integrity-SCP-004",
-    title: "Safeguarding and Conduct Policy",
+    title: "Specialist Safeguarding and Conduct Policy",
     fileName: "TT-SCP-004.md",
-    version: "1",
+    version: "2",
     requiresAcceptance: true,
     requiresUpload: false,
     mandatoryClauses: [
@@ -110,7 +122,7 @@ export const TUTOR_ONBOARDING_DOCUMENTS: TutorOnboardingDocumentDefinition[] = [
     code: "Response Integrity-DPC-005",
     title: "Data Protection / POPIA Consent",
     fileName: "TT-DPC-005.md",
-    version: "1",
+    version: "2",
     requiresAcceptance: true,
     requiresUpload: false,
     mandatoryClauses: [

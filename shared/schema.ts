@@ -600,7 +600,7 @@ export const tutorApplications = pgTable("tutor_applications", {
   idType: varchar("id_type"),
 
   // Section 2 - Academic Background
-  completedMatric: varchar("completed_matric").notNull(),       // 'yes' | 'currently' | 'no'
+  completedMatric: varchar("completed_matric").notNull(),       // 'yes' required for Specialist onboarding; legacy values may include 'currently' | 'no'
   matricYear: varchar("matric_year"),
   mathLevel: varchar("math_level").notNull(),                   // 'core' | 'literacy'
   mathResult: varchar("math_result"),

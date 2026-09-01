@@ -17372,7 +17372,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const data = insertTutorApplicationSchema.parse({
           ...req.body,
           userId,
-        });
+        }) as any;
+        if (!Number.isInteger(data.age) || data.age < 16 || data.age > 100) {
+          return res.status(400).json({ message: "Age must be between 16 and 100." });
+        }
+        if (data.completedMatric !== "yes") {
+          return res.status(400).json({ message: "Matric is required before Specialist onboarding can continue." });
+        }
+        if (data.age < 18 && data.completedMatric !== "yes") {
+          return res.status(400).json({ message: "Applicants under 18 may only continue if they completed Matric early." });
+        }
+        if (!String(data.matricYear || "").trim()) {
+          return res.status(400).json({ message: "Matric year is required." });
+        }
+        if (!String(data.mathResult || "").trim()) {
+          return res.status(400).json({ message: "Final mathematics result is required." });
+        }
         const application = await storage.createTutorApplication(data);
         res.json(application);
       } catch (error) {

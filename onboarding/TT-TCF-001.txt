@@ -1,6 +1,6 @@
 RESPONSE INTEGRITY (PTY) LTD
-RESPONSE INTEGRITY LEADERSHIP PROGRAMME
-TUTOR CONSENT FORM (Response Integrity-TCF-001)
+RESPONSE INTEGRITY SPECIALIST DEVELOPMENT PATHWAY
+SPECIALIST CONSENT FORM (Response Integrity-TCF-001)
 
 This in-app agreement must be completed before participation begins.
 
@@ -13,12 +13,12 @@ ID Number: _________________________________________
 School Attended (Matric): _____________________________
 Current Status (e.g. Gap Year, University Student, Graduate): _____________________________
 
-SECTION B: PROGRAMME DEFINITION AND ROLE
+SECTION B: SPECIALIST DEVELOPMENT PATHWAY AND ROLE
 By accepting this form, the Contractor acknowledges and accepts the following:
 Response Integrity is not a tutoring service.
 It is a response-conditioning system delivered through mathematics.
 The purpose of every session is to train how a learner responds under difficulty, not to provide casual homework help or panic rescue.
-The Contractor operates as a response-conditioning operator responsible for stabilizing learner execution under pressure.
+The Contractor operates as a Response Integrity Specialist: a response-conditioning operator responsible for stabilizing learner execution under pressure.
 Every session is executed under the phase-aware Response Integrity Operating System (Response Integrity-OS).
 The active phase determines how much modeling, guidance, difficulty, and time pressure are permitted.
 Clarity:
@@ -31,13 +31,20 @@ Time Pressure Stability:
 Structure is tested under urgency.
 The Contractor does not merely fix answers.
 The Contractor helps train how the learner behaves when answers become unclear.
+Specialist progression is structured through application, onboarding, training, Battle Tests, Sandbox, Trial, and Certified Live operation.
+Certification is not automatic and requires demonstrated execution integrity before live responsibility.
 
 SECTION C: SESSION STRUCTURE AND DELIVERY
 The Contractor agrees to the following operational requirements:
 Deliver one-to-one online sessions to assigned learners.
 Execute all sessions in accordance with Response Integrity-OS.
 Record accurate session observations.
-Maintain the required technical setup, including clear visual working space.
+Maintain the required technical setup, including:
+smartphone or camera capable of showing a clear top-down view of written work
+mini ring light or equivalent lighting
+earphones or headset suitable for clear online instruction
+clear visual working space
+A gooseneck or stable top-down stand is recommended where needed to preserve visibility.
 Deliver structured drill-based sessions aligned with:
 conditioning phases
 stability states
@@ -54,11 +61,15 @@ rescuing learners
 feeding answers
 advancing learners without demonstrated stability
 using difficulty or time pressure in the wrong phase
-Phase progression is controlled by demonstrated stability, not tutor optimism alone.
+Phase progression is controlled by demonstrated stability, not Specialist optimism alone.
 All session data, drill execution, and observations must be:
 accurate
 honest
 complete
+evidence-based
+The Contractor must record observable facts rather than invented psychological interpretations.
+The Contractor may not falsify, soften, exaggerate, or manufacture observations.
+The Contractor must preserve drill conditions so that learner evidence remains valid for progression, reporting, audit, and parent-facing claims.
 Any deviation from Response Integrity-OS is considered non-compliance.
 
 SECTION E: PLATFORM AND COMMUNICATION CONTROL
@@ -66,7 +77,7 @@ The Contractor agrees:
 All sessions, communication, and operations must occur within the Response Integrity platform.
 No private communication with learners or parents outside Response Integrity is permitted.
 No acceptance of payment outside Response Integrity is permitted.
-All sessions may be recorded and stored for:
+Sessions may be recorded and stored where required for:
 compliance
 quality control
 system integrity
@@ -76,11 +87,13 @@ The Contractor acknowledges:
 They are engaged as an independent contractor, not an employee.
 No employment relationship, benefits, or protections apply.
 Payment is:
-per completed session package only
+earned per eligible completed session
+calculated and released on the relevant package completion payout schedule
 subject to Response Integrity's current rate structure
 There is:
 no guaranteed income
 no minimum earnings
+no guaranteed session volume
 no entitlement to payment for incomplete or non-compliant sessions
 Payment may be:
 withheld

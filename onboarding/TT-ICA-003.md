@@ -1,5 +1,5 @@
 RESPONSE INTEGRITY (PTY) LTD
-INDEPENDENT CONTRACTOR AGREEMENT (Response Integrity-ICA-003)
+SPECIALIST INDEPENDENT CONTRACTOR AGREEMENT (Response Integrity-ICA-003)
 
 1. PARTIES
 This Agreement is entered into between:
@@ -28,6 +28,8 @@ Response Integrity is a response-conditioning system delivered through mathemati
 execute structured response-conditioning sessions
 train learner behaviour under difficulty
 operate within Response Integrity's system, not a personal teaching style
+preserve valid drill conditions
+record evidence with integrity
 3.3 The Contractor acknowledges that:
 the Response Integrity Operating System (Response Integrity-OS) governs all sessions
 Response Integrity defines how sessions are executed
@@ -38,7 +40,7 @@ deviation from Response Integrity-OS is non-compliance
 deliver one-to-one online sessions to assigned learners
 execute all sessions in accordance with Response Integrity-OS
 record accurate session observations
-maintain required technical setup
+maintain required technical setup, including a clear top-down view of written work, suitable lighting, and clear audio
 4.2 The Contractor may not:
 provide services outside Response Integrity using Response Integrity learners
 communicate with Response Integrity learners or parents outside the platform
@@ -56,17 +58,21 @@ restrict platform access
 at its sole discretion
 
 6. PAYMENT STRUCTURE
-6.1 Payment is made per completed session package.
+6.1 The Contractor earns per eligible completed session.
 6.2 Payment structure is defined by Response Integrity and may be updated at any time with notice.
-6.3 Payment is conditional on:
-session package completion
+6.3 Payment is calculated and released according to the relevant package completion payout schedule.
+6.4 Payment is conditional on:
+eligible completed sessions
+package completion payout timing
 Response Integrity-OS compliance
 accurate reporting
-6.4 Response Integrity may withhold, reverse, or adjust payment where:
+evidence integrity
+6.5 Response Integrity may withhold, reverse, or adjust payment where:
 sessions are non-compliant
 reporting is inaccurate
+evidence is falsified, softened, exaggerated, or manufactured
 platform rules are violated
-6.5 No guarantees exist regarding:
+6.6 No guarantees exist regarding:
 income
 student allocation
 session volume
@@ -76,79 +82,92 @@ session volume
 follow Response Integrity-OS strictly
 maintain session integrity
 comply with platform rules
+record observable evidence truthfully
+distinguish observed behaviour from interpretation
+preserve phase, drill, set, and repetition conditions
 7.2 The following constitute breaches:
 rescuing learners
 skipping structure
 misreporting observations
+falsifying, softening, exaggerating, or manufacturing evidence
 advancing learners incorrectly
 operating outside Response Integrity
 7.3 Response Integrity may:
 audit sessions
 review recordings
 evaluate performance
+use recorded evidence for progression, reporting, audit, and parent-facing claims
 
-8. INTELLECTUAL PROPERTY
-8.1 All Response Integrity materials are proprietary, including:
+8. EVIDENCE INTEGRITY
+8.1 The Contractor acknowledges that session observations are not casual notes.
+8.2 Evidence captured by the Contractor may feed learner progression, internal audit, operational decisions, and reports to parents or guardians.
+8.3 The Contractor must record what occurred, not what they assume occurred.
+8.4 The Contractor may not invent psychological explanations, alter the record to make a session appear stronger, or report a learner response that did not happen.
+8.5 Breach of evidence integrity is a material breach of this Agreement.
+
+9. INTELLECTUAL PROPERTY
+9.1 All Response Integrity materials are proprietary, including:
 Response Integrity Operating System (Response Integrity-OS)
 drill structures
 session frameworks
 stability progression logic
 reporting systems
-8.2 The Contractor may not:
+9.2 The Contractor may not:
 copy Response Integrity systems or materials
 reproduce Response Integrity systems or materials
 distribute Response Integrity systems or materials
 teach Response Integrity systems or materials outside Response Integrity
-8.3 All session data, recordings, and learner information belong to Response Integrity.
+9.3 All session data, recordings, and learner information belong to Response Integrity.
 
-9. CONFIDENTIALITY
-9.1 The Contractor agrees to maintain confidentiality over:
+10. CONFIDENTIALITY
+10.1 The Contractor agrees to maintain confidentiality over:
 Response Integrity systems
 learner data
 operational processes
-9.2 This obligation continues after termination.
+10.2 This obligation continues after termination.
 
-10. RESTRICTION ON CIRCUMVENTION
-10.1 The Contractor may not:
+11. RESTRICTION ON CIRCUMVENTION
+11.1 The Contractor may not:
 engage Response Integrity learners privately
 solicit Response Integrity parents
 redirect Response Integrity relationships outside the platform
-10.2 Any attempt to bypass Response Integrity constitutes a material breach.
+11.2 Any attempt to bypass Response Integrity constitutes a material breach.
 
-11. SUSPENSION AND TERMINATION
-11.1 Response Integrity may suspend or terminate this Agreement:
+12. SUSPENSION AND TERMINATION
+12.1 Response Integrity may suspend or terminate this Agreement:
 at its discretion
 with or without notice
-11.2 Grounds include:
+12.2 Grounds include:
 non-compliance
 performance failure
 platform violations
 conduct issues
-11.3 Upon termination:
+evidence integrity breach
+12.3 Upon termination:
 platform access is revoked immediately
 payment eligibility ceases
 
-12. LIABILITY
-12.1 Response Integrity does not guarantee:
+13. LIABILITY
+13.1 Response Integrity does not guarantee:
 income
 results
 continued engagement
-12.2 The Contractor assumes full responsibility for:
+13.2 The Contractor assumes full responsibility for:
 tax obligations
 personal financial matters
 
-13. GOVERNING LAW
-13.1 This Agreement is governed by the laws of South Africa.
-13.2 Disputes must first go to mediation before legal action.
+14. GOVERNING LAW
+14.1 This Agreement is governed by the laws of South Africa.
+14.2 Disputes must first go to mediation before legal action.
 
-14. ENTIRE AGREEMENT
-14.1 This Agreement forms part of the Response Integrity contractor framework, alongside:
-Response Integrity-TCF-001 (Tutor Consent Form)
+15. ENTIRE AGREEMENT
+15.1 This Agreement forms part of the Response Integrity contractor framework, alongside:
+Response Integrity-TCF-001 (Specialist Consent Form)
 Response Integrity-EQV-002 (Entry Qualification Verification)
 Response Integrity Terms of Use
-14.2 In case of conflict, Response Integrity's operational interpretation prevails.
+15.2 In case of conflict, Response Integrity's operational interpretation prevails.
 
-15. ACCEPTANCE
+16. ACCEPTANCE
 By accepting this Agreement in the Response Integrity platform, the Contractor confirms:
 full understanding of this Agreement
 acceptance of Response Integrity's system and control

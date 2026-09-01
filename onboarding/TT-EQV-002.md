@@ -1,12 +1,14 @@
 RESPONSE INTEGRITY (PTY) LTD
-RESPONSE INTEGRITY LEADERSHIP PROGRAMME
+RESPONSE INTEGRITY SPECIALIST DEVELOPMENT PATHWAY
 ENTRY QUALIFICATION VERIFICATION (Response Integrity-EQV-002)
-Adult Contractor Onboarding
+Specialist Contractor Onboarding
 
 1. PURPOSE OF THIS FORM
 This in-app agreement is completed once at onboarding to verify that the Contractor meets Response Integrity's minimum entry qualification requirement through submission of an official Matric certificate.
+Matric completion is required for entry into Specialist onboarding.
+Applicants must be 18 years or older unless they completed Matric early and can submit the required certified certificate.
 This verification is an entry threshold only.
-It confirms eligibility to enter the Response Integrity Leadership Programme. It does not qualify the Contractor to operate as a Response Integrity tutor independently of Response Integrity's training, operating system, and session standards.
+It confirms eligibility to enter the Response Integrity Specialist Development Pathway. It does not qualify the Contractor to operate as a Response Integrity Specialist independently of Response Integrity's training, operating system, and session standards.
 Once verified and accepted, the Contractor's continued participation is governed by:
 Conduct
 Session execution
@@ -34,10 +36,12 @@ Response Integrity reserves the right to verify submitted results directly with 
 
 4. ENTRY QUALIFICATION AND ONBOARDING ACKNOWLEDGEMENTS
 By accepting this form, the Contractor confirms all of the following:
+I confirm that I have completed Matric.
+I understand that applicants must be 18 years or older unless they completed Matric early and can submit the required certified certificate.
 I confirm that the Matric certificate I am submitting is an official, complete, and accurate National Senior Certificate issued by the Department of Basic Education.
-I understand that this verification confirms entry eligibility only and does not by itself qualify me to operate as a Response Integrity tutor without compliance with Response Integrity's training system and session standards.
-I acknowledge that Response Integrity is a response-conditioning system delivered through mathematics, and that tutor performance is defined by execution within the Response Integrity Operating System (Response Integrity-OS), not by academic credentials alone.
-I understand that once my entry qualification is verified and accepted, my continued participation in the Response Integrity Leadership Programme is governed by:
+I understand that this verification confirms entry eligibility only and does not by itself qualify me to operate as a Response Integrity Specialist without compliance with Response Integrity's training system and session standards.
+I acknowledge that Response Integrity is a response-conditioning system delivered through mathematics, and that Specialist performance is defined by execution within the Response Integrity Operating System (Response Integrity-OS), not by academic credentials alone.
+I understand that once my entry qualification is verified and accepted, my continued participation in the Response Integrity Specialist Development Pathway is governed by:
 My conduct
 My session execution
 My adherence to the Response Integrity-OS
