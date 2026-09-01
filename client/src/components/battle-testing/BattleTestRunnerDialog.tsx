@@ -462,7 +462,7 @@ export default function BattleTestRunnerDialog({
                       <div className="rounded-2xl border border-[#E7D5C8] bg-[#FFF5ED] p-4 text-[#1A1A1A] sm:p-5">
                         <p className="text-sm font-medium text-foreground">Choose an audit module family</p>
                         <p className="mt-1 text-sm text-[#6B5B52]">
-                          TD first chooses the audit module family, then opens a specific deep-dive battle-test bank.
+                          TD first chooses the audit module family, then opens a specific 15-question deep-dive battle-test bank.
                         </p>
                       </div>
                       <div className="grid gap-4 md:grid-cols-2">
@@ -497,7 +497,7 @@ export default function BattleTestRunnerDialog({
                         <div>
                           <p className="text-sm font-medium text-foreground">{activeGroup?.title || "Audit Modules"}</p>
                           <p className="mt-1 text-sm text-[#6B5B52]">
-                            Click a module to open its deep-dive battle-test question bank.
+                            Click a module to open its 15-question deep-dive battle-test bank.
                           </p>
                         </div>
                         <Button variant="outline" size="sm" onClick={handleReturnToGroupList} disabled={auditLocked}>
@@ -521,7 +521,7 @@ export default function BattleTestRunnerDialog({
                                   </div>
                                   <ChevronRight className="mt-0.5 h-4 w-4 text-[#6B5B52]" />
                                 </div>
-                                <Badge variant="outline">{phase.questions.length} reps</Badge>
+                                <Badge variant="outline">{phase.questions.length} questions</Badge>
                               </div>
                             </Card>
                           </button>
@@ -729,7 +729,7 @@ export default function BattleTestRunnerDialog({
                       <p className="text-3xl font-semibold text-foreground">
                         {answeredCount}/{questions.length}
                       </p>
-                      <p className="text-sm text-muted-foreground">Answers scored</p>
+                      <p className="text-sm text-muted-foreground">Answers scored across assigned deep dive audits</p>
                     </div>
 
                     <Card className="border border-border/70 p-4">
@@ -747,7 +747,7 @@ export default function BattleTestRunnerDialog({
                         <div key={phase.key} className="rounded-xl border border-border/70 bg-background px-4 py-3">
                           <div className="flex items-center justify-between gap-3">
                             <span className="text-sm font-medium text-foreground">{phase.title}</span>
-                            <Badge variant="outline">{phase.questions.length} reps</Badge>
+                            <Badge variant="outline">{phase.questions.length} questions</Badge>
                           </div>
                         </div>
                       ))}

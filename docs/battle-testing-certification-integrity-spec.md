@@ -61,7 +61,9 @@ Every scored question must include:
 - an automatic critical-fail reason when the question tests a non-negotiable integrity boundary; and
 - a prompt form identifier when the question is part of a rotating bank form.
 
-The question bank shown to an assessor must never depend on a three-question fallback. Every one of the eleven deep dives must resolve to a complete canonical bank of fifteen questions.
+The question bank shown to an assessor must never depend on a three-question fallback. Every one of the eleven deep dives must resolve to its own complete canonical bank of fifteen questions.
+
+The fifteen-question unit is the individual deep dive audit. It is not a shared fifteen-question audit spread across all eleven deep dives.
 
 ## 5. Answer evidence contract
 
@@ -83,7 +85,7 @@ Historical audit review must display the Specialist answer before the expected a
 
 ## 6. Scoring standard
 
-Each fifteen-question deep dive uses the existing point model:
+Each assigned deep dive audit uses its own fifteen-question point model:
 
 - Clear = 1 point
 - Partial = 0.5 points
@@ -162,7 +164,7 @@ The six banks must test the current live operating model:
 
 ## 9. Rotating forms
 
-Every deep dive has three deterministic prompt forms: A, B, and C.
+Every deep dive has three deterministic fifteen-question prompt forms: A, B, and C.
 
 The form is assigned from the number of prior attempts on that deep dive:
 
@@ -182,7 +184,9 @@ When the TD opens a Training Mode audit:
 - all highest-priority recommended deep dives are preselected;
 - manual substitution is disabled for that assigned run;
 - the correct form is materialised from each deep dive's prior-attempt count; and
-- all questions in every assigned deep dive must be answered before submission.
+- all fifteen questions in every assigned deep dive must be answered before submission.
+
+Training Mode may assign more than one deep dive in a sitting, but each assigned deep dive remains a separate fifteen-question audit bank inside that run. For example, two assigned deep dives produce thirty questions; three assigned deep dives produce forty-five questions.
 
 Manual bank selection remains available only when no system assignment exists or when an authorised non-training audit explicitly calls for it.
 
@@ -198,7 +202,7 @@ Run action text must not assume every subject already has live responsibility.
 
 The upgrade is complete only when automated checks prove that:
 
-1. all eleven canonical tutor banks exist and each materialised form contains exactly fifteen questions;
+1. all eleven canonical tutor banks exist and each materialised deep dive form contains exactly fifteen questions;
 2. no active bank uses a fallback definition;
 3. every question has an expected answer, fail indicators, and Clear/Partial/Fail guidance;
 4. every deep dive includes application, evidence-integrity, contamination, and system-authority coverage where relevant;

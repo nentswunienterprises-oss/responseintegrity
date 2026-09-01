@@ -956,7 +956,7 @@ export default function TDOverview() {
                                               {tutorAudit?.nextBattleTests?.length ? (
                                                 <div className="mt-3 rounded-lg border border-border/60 bg-background/80 px-3 py-3">
                                                   <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                                    Next Battle Test
+                                                    Next Deep Dive Audits
                                                   </p>
                                                   <div className="mt-2 space-y-2">
                                                     {tutorAudit.nextBattleTests.map((entry) => (
@@ -1102,7 +1102,7 @@ export default function TDOverview() {
         }
         description={
           activeTutorRun
-            ? `Run the Response Integrity Specialist Alignment Engine for ${activeTutorRun.tutorName} inside ${activeTutorRun.podName}. The system has auto-selected the highest priority deep dives for this session.`
+            ? `Run the Response Integrity Specialist Alignment Engine for ${activeTutorRun.tutorName} inside ${activeTutorRun.podName}. The system has auto-selected the highest priority deep dives for this session; each assigned deep dive keeps its own 15-question audit bank.`
             : "Run the Response Integrity Specialist Alignment Engine."
         }
         phaseOptions={activePhaseOptions}

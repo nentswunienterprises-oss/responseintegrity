@@ -50,18 +50,18 @@ test("tutor battle-test safe bank preserves the full canonical phase list", () =
   );
 });
 
-test("all canonical tutor deep-dive banks load exactly 15 questions", () => {
+test("each canonical tutor deep-dive bank loads its own 15-question audit", () => {
   assert.deepEqual(
     TUTOR_BATTLE_TEST_PHASES_EXACT.map((phase) => phase.key),
     CANONICAL_TUTOR_KEYS
   );
 
   for (const phase of TUTOR_BATTLE_TEST_PHASES_EXACT) {
-    assert.equal(phase.questions.length, 15, `expected ${phase.key} to expose 15 questions`);
+    assert.equal(phase.questions.length, 15, `expected ${phase.key} to expose its own 15-question audit`);
     assert.equal(
       TUTOR_BATTLE_TEST_PHASES_SAFE.find((entry) => entry.key === phase.key)?.questions.length,
       15,
-      `expected safe bank to use exact questions for ${phase.key}`
+      `expected safe bank to use exact 15-question audit for ${phase.key}`
     );
   }
 });
@@ -115,7 +115,7 @@ test("forms A, B, and C preserve question keys while changing prompts", () => {
     );
 
     for (const form of forms) {
-      assert.equal(form.questions.length, 15, `${phase.key} ${form.variantKey} should have 15 questions`);
+      assert.equal(form.questions.length, 15, `${phase.key} ${form.variantKey} should have its own 15 questions`);
       assert.deepEqual(
         form.questions.map((question) => question.key),
         phase.questions.map((question) => question.key),
@@ -136,6 +136,19 @@ test("exact phase lookup materializes assigned form variants", () => {
   assert.equal(phase.questions.length, 15);
   assert.equal(phase.questions[0].key, getExactPhase("clarity").questions[0].key);
   assert.notEqual(phase.questions.map((question) => question.prompt).join("\n"), getExactPhase("clarity").questions.map((question) => question.prompt).join("\n"));
+});
+
+test("multi-deep-dive runs preserve 15 questions per assigned deep dive", () => {
+  const phases = getTutorBattleTestPhaseDefinitionsExact(["clarity", "logging_system"]);
+
+  assert.equal(phases.length, 2);
+  assert.equal(phases[0].questions.length, 15);
+  assert.equal(phases[1].questions.length, 15);
+  assert.equal(
+    phases.reduce((total, phase) => total + phase.questions.length, 0),
+    30,
+    "two assigned deep dives should produce two 15-question audits, not one shared 15-question audit"
+  );
 });
 
 test("phase banks preserve live drill constraints and evidence doctrine", () => {
