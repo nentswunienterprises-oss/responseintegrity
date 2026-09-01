@@ -275,22 +275,22 @@ export default function SpecialistLanding() {
           </div>
         </section>
 
-        <section id="pathway" className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 md:px-12">
+        <section id="pathway" className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-16 md:px-12">
           <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--ri-red)]">The path to certification</p>
-            <h2 className="mt-3 text-3xl font-bold tracking-normal sm:text-4xl">75 days is the window. Evidence is the gate.</h2>
-            <p className="mt-4 text-base leading-7 text-[var(--ri-muted)]">
+            <h2 className="mt-3 text-2xl font-bold tracking-normal sm:text-4xl">75 days is the window. Evidence is the gate.</h2>
+            <p className="mt-4 text-sm leading-7 text-[var(--ri-muted)] sm:text-base">
               Day 1 to Day 75 is the opportunity to complete the required training, sandbox competency, Trial delivery, evidence requirements, and review standard. Certification happens only when those gates are satisfied.
             </p>
           </div>
 
           <div className="mt-8 grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
-            <div className="grid gap-2">
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:grid lg:overflow-visible lg:px-0 lg:pb-0">
               {pathway.map((item, index) => (
                 <button
                   key={item.stage}
                   type="button"
-                  className={`rounded-lg border p-4 text-left transition ${
+                  className={`min-w-[148px] rounded-lg border p-4 text-left transition sm:min-w-[170px] lg:min-w-0 ${
                     selectedStage === index
                       ? "border-[var(--ri-red)] bg-white shadow-sm"
                       : "border-[var(--ri-warm-border)] bg-white/60 hover:bg-white"
@@ -305,15 +305,15 @@ export default function SpecialistLanding() {
               ))}
             </div>
 
-            <div className="rounded-lg border border-[var(--ri-warm-border)] bg-white p-6 shadow-sm sm:p-8">
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[var(--ri-red)]">
+            <div className="rounded-lg border border-[var(--ri-warm-border)] bg-white p-5 shadow-sm sm:p-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ri-red)] sm:text-sm">
                 {pathway[selectedStage].proof}
               </p>
-              <h3 className="mt-3 text-3xl font-bold tracking-normal text-[var(--ri-charcoal)]">
+              <h3 className="mt-3 text-2xl font-bold tracking-normal text-[var(--ri-charcoal)] sm:text-3xl">
                 {pathway[selectedStage].stage}
               </h3>
-              <p className="mt-4 text-base leading-8 text-[var(--ri-muted)]">{pathway[selectedStage].detail}</p>
-              <div className="mt-8 rounded-lg border border-[var(--ri-warm-border)] bg-[var(--ri-blush)] p-5">
+              <p className="mt-4 text-sm leading-7 text-[var(--ri-muted)] sm:text-base sm:leading-8">{pathway[selectedStage].detail}</p>
+              <div className="mt-6 rounded-lg border border-[var(--ri-warm-border)] bg-[var(--ri-blush)] p-4 sm:mt-8 sm:p-5">
                 <p className="text-sm font-semibold text-[var(--ri-charcoal)]">Evidence before responsibility.</p>
                 <p className="mt-2 text-sm leading-6 text-[var(--ri-muted)]">
                   Each stage asks whether you are ready for the next level of student and family trust. Time creates structure; evidence creates permission.
