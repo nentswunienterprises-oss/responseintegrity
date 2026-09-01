@@ -26,7 +26,7 @@ import type {
   BattleTestResponseInput,
   BattleTestScore,
 } from "@shared/battleTesting";
-import { BATTLE_TEST_SCORE_POINTS } from "@shared/battleTesting";
+import { BATTLE_TEST_SCORE_POINTS, getBattleTestScoringGuide } from "@shared/battleTesting";
 
 interface BattleTestRunnerDialogProps {
   open: boolean;
@@ -45,6 +45,7 @@ interface BattleTestRunnerDialogProps {
 
 type ResponseDraft = {
   score?: BattleTestScore;
+  answerEvidence: string;
   note: string;
   isCriticalFail: boolean;
 };
@@ -226,7 +227,11 @@ export default function BattleTestRunnerDialog({
   const answeredCount = questions.filter(({ questionId }) => responses[questionId]?.score).length;
   const allAnswered = questions.length > 0 && answeredCount === questions.length;
   const hasDraftResponses = Object.values(responses).some(
-    (response) => Boolean(response.score) || Boolean(response.note.trim()) || response.isCriticalFail
+    (response) =>
+      Boolean(response.score) ||
+      Boolean(response.answerEvidence.trim()) ||
+      Boolean(response.note.trim()) ||
+      response.isCriticalFail
   );
   const hasUnsavedProgress = hasStarted && hasDraftResponses && !saveCompleted;
   const auditLocked = isSubmitting || saveCompleted;
@@ -235,6 +240,10 @@ export default function BattleTestRunnerDialog({
     return !!response?.score &&
       (response.score === "partial" || response.score === "fail") &&
       !response.note.trim();
+  });
+  const hasMissingAnswerEvidence = questions.some(({ questionId }) => {
+    const response = responses[questionId];
+    return !!response?.score && !response.answerEvidence.trim();
   });
   const estimatedPoints = questions.reduce((sum, { questionId }) => {
     const score = responses[questionId]?.score;
@@ -330,6 +339,7 @@ export default function BattleTestRunnerDialog({
         ...current,
         [questionId]: {
           score,
+          answerEvidence: previous?.answerEvidence || "",
           note: previous?.note || "",
           isCriticalFail: score === "fail" ? previous?.isCriticalFail || false : false,
         },
@@ -337,8 +347,24 @@ export default function BattleTestRunnerDialog({
     });
   };
 
+  const handleAnswerEvidenceChange = (phaseKey: string, questionKey: string, value: string) => {
+    const questionId = getQuestionId(phaseKey, questionKey);
+    setResponses((current) => {
+      const previous = current[questionId];
+      return {
+        ...current,
+        [questionId]: {
+          score: previous?.score,
+          answerEvidence: value,
+          note: previous?.note || "",
+          isCriticalFail: previous?.isCriticalFail || false,
+        },
+      };
+    });
+  };
+
   const handleSubmit = async () => {
-    if (!allAnswered || hasMissingNotes || isSubmitting) return;
+    if (!allAnswered || hasMissingNotes || hasMissingAnswerEvidence || isSubmitting) return;
     setIsSubmitting(true);
     setSaveCompleted(false);
 
@@ -348,6 +374,7 @@ export default function BattleTestRunnerDialog({
         phaseKey: phase.key,
         questionKey: question.key,
         score: response.score!,
+        answerEvidence: response.answerEvidence.trim(),
         note: response.note.trim() || undefined,
         isCriticalFail: question.autoCriticalOnFail
           ? response.score === "fail"
@@ -528,7 +555,8 @@ export default function BattleTestRunnerDialog({
                     </div>
                   ) : null}
                   {questions.map(({ phase, question, questionId }, index) => {
-                    const response = responses[questionId] || { note: "", isCriticalFail: false };
+                    const response = responses[questionId] || { answerEvidence: "", note: "", isCriticalFail: false };
+                    const scoringGuide = getBattleTestScoringGuide(question);
                     return (
                       <Card key={questionId} className="rounded-[24px] border border-[#E7D5C8] bg-white p-4 shadow-sm sm:p-5 lg:p-6">
                         <div className="space-y-4">
@@ -571,6 +599,18 @@ export default function BattleTestRunnerDialog({
                             </Collapsible>
                           </div>
 
+                          <div className="space-y-2">
+                            <Label htmlFor={`${questionId}-answer-evidence`}>Specialist answer / evidence heard</Label>
+                            <Textarea
+                              id={`${questionId}-answer-evidence`}
+                              value={response.answerEvidence}
+                              disabled={auditLocked}
+                              onChange={(event) => handleAnswerEvidenceChange(phase.key, question.key, event.target.value)}
+                              placeholder="Capture the Specialist's actual answer or the evidence they gave before scoring."
+                              rows={3}
+                            />
+                          </div>
+
                           <RadioGroup
                             value={response.score}
                             disabled={auditLocked}
@@ -596,7 +636,7 @@ export default function BattleTestRunnerDialog({
                                       <Icon className="h-4 w-4" />
                                       <span className="font-semibold">{meta.label}</span>
                                     </div>
-                                    <p className="mt-1 text-xs opacity-80">{meta.description}</p>
+                                    <p className="mt-1 text-xs opacity-80">{scoringGuide[score] || meta.description}</p>
                                   </div>
                                 </Label>
                               );
@@ -616,6 +656,7 @@ export default function BattleTestRunnerDialog({
                                       ...current,
                                       [questionId]: {
                                         score: response.score,
+                                        answerEvidence: response.answerEvidence,
                                         note: event.target.value,
                                         isCriticalFail: response.isCriticalFail,
                                       },
@@ -635,6 +676,7 @@ export default function BattleTestRunnerDialog({
                                         ...current,
                                         [questionId]: {
                                           score: response.score,
+                                          answerEvidence: response.answerEvidence,
                                           note: response.note,
                                           isCriticalFail: checked === true,
                                         },
@@ -646,7 +688,8 @@ export default function BattleTestRunnerDialog({
                               ) : null}
                               {response.score === "fail" && question.autoCriticalOnFail ? (
                                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
-                                  This question auto-triggers a critical fail when scored as FAIL.
+                                  This question auto-triggers a critical fail when scored as FAIL
+                                  {question.criticalFailReason ? `: ${question.criticalFailReason}` : "."}
                                 </div>
                               ) : null}
                             </div>
@@ -686,7 +729,7 @@ export default function BattleTestRunnerDialog({
                       <p className="text-3xl font-semibold text-foreground">
                         {answeredCount}/{questions.length}
                       </p>
-                      <p className="text-sm text-muted-foreground">Reps logged</p>
+                      <p className="text-sm text-muted-foreground">Answers scored</p>
                     </div>
 
                     <Card className="border border-border/70 p-4">
@@ -711,13 +754,13 @@ export default function BattleTestRunnerDialog({
                     </div>
 
                     <div className="rounded-xl border border-border/70 bg-background p-4 text-sm text-muted-foreground">
-                      Notes are required for every PARTIAL or FAIL score. Critical fail overrides can be marked on FAIL reps.
+                      Capture the Specialist's actual answer for every scored question. Notes are required for every PARTIAL or FAIL score.
                     </div>
 
                     <div className="space-y-3">
                       <Button
                         className="w-full"
-                        disabled={saveCompleted || !allAnswered || hasMissingNotes || isSubmitting}
+                        disabled={saveCompleted || !allAnswered || hasMissingAnswerEvidence || hasMissingNotes || isSubmitting}
                         onClick={handleSubmit}
                       >
                         {saveCompleted ? "Saved" : isSubmitting ? "Saving..." : submitLabel}
@@ -736,6 +779,9 @@ export default function BattleTestRunnerDialog({
                       ) : null}
                       {!allAnswered ? (
                         <p className="text-xs text-amber-700">Every rep must be scored before submission.</p>
+                      ) : null}
+                      {allAnswered && hasMissingAnswerEvidence ? (
+                        <p className="text-xs text-amber-700">Capture the Specialist answer/evidence for every scored question.</p>
                       ) : null}
                       {allAnswered && hasMissingNotes ? (
                         <p className="text-xs text-amber-700">Add notes for each PARTIAL and FAIL score.</p>
@@ -773,7 +819,7 @@ export default function BattleTestRunnerDialog({
                       <p className="mt-2 text-3xl font-semibold text-foreground">
                         {answeredCount}/{questions.length}
                       </p>
-                      <p className="text-sm text-muted-foreground">Reps logged</p>
+                      <p className="text-sm text-muted-foreground">Answers scored</p>
                     </div>
 
                     <Card className="border border-[#E7D5C8] bg-[#FCF7F0] p-4 shadow-none">
@@ -798,14 +844,14 @@ export default function BattleTestRunnerDialog({
                     </div>
 
                     <div className="rounded-xl border border-[#E7D5C8] bg-[#FCF7F0] p-4 text-sm text-muted-foreground">
-                      Notes are required for every PARTIAL or FAIL score. Critical fail overrides can be marked on FAIL reps.
+                      Capture the Specialist's actual answer for every scored question. Notes are required for every PARTIAL or FAIL score.
                     </div>
 
                     {hasStarted && (
                       <div className="space-y-3">
                         <Button
                           className="w-full"
-                          disabled={saveCompleted || !allAnswered || hasMissingNotes || isSubmitting}
+                          disabled={saveCompleted || !allAnswered || hasMissingAnswerEvidence || hasMissingNotes || isSubmitting}
                           onClick={handleSubmit}
                         >
                           {saveCompleted ? "Saved" : isSubmitting ? "Saving..." : submitLabel}
@@ -824,6 +870,9 @@ export default function BattleTestRunnerDialog({
                         ) : null}
                         {!allAnswered ? (
                           <p className="text-xs text-amber-700">Every rep must be scored before submission.</p>
+                        ) : null}
+                        {allAnswered && hasMissingAnswerEvidence ? (
+                          <p className="text-xs text-amber-700">Capture the Specialist answer/evidence for every scored question.</p>
                         ) : null}
                         {allAnswered && hasMissingNotes ? (
                           <p className="text-xs text-amber-700">Add notes for each PARTIAL and FAIL score.</p>

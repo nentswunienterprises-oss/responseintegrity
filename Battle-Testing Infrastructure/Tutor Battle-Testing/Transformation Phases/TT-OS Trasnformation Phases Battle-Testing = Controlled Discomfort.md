@@ -1,178 +1,174 @@
 Response Integrity-OS BATTLE TEST: CONTROLLED DISCOMFORT DEEP DIVE
 
-SECTION 1: CORE PURPOSE
+SECTION 1: CAPABILITY AND SET PURPOSE
 
 Q1
-What is the purpose of Controlled Discomfort?
+What capability is Controlled Discomfort designed to build?
 
 Expected Answer
-To test and stabilize the student's response when uncertainty, difficulty, or unfamiliar forms appear.
+The ability to keep a known method and productive response functioning when difficulty, uncertainty, or unfamiliarity appears.
 
 Fail Answer
-Make questions harder
-challenge them
-build confidence
+Confidence
+Ability to solve random hard questions
+General resilience
 
 Q2
-What evidence should exist before RI-OS assigns Controlled Discomfort work?
+What evidence should exist before Controlled Discomfort is assigned?
 
 Expected Answer
-The student should have enough Clarity and Structured Execution evidence to attempt harder or unfamiliar forms without needing the tutor to reteach the full method.
+Enough Clarity and Structured Execution evidence that the student knows the method and can execute it under normal conditions; difficulty is now testing whether that response survives uncertainty.
 
 Fail Answer
-When they are bored
-When the tutor wants to challenge them
-Before they know the method
-When the parent wants harder work
+The student is bored
+The method is still unknown
+The parent wants harder work
 
 Q3
-What fields matter most in Controlled Discomfort?
+What four observation fields define Controlled Discomfort evidence?
 
 Expected Answer
-Discomfort tolerance, initial response, rescue dependence, and first-step control.
+Initial response, first-step control, discomfort tolerance, and rescue dependence.
 
 Fail Answer
-Accuracy, speed, confidence
-marks and completion
-
-SECTION 2: FIELDS AND BREAKDOWN
+Accuracy, speed, confidence, and marks
+Difficulty and completion
+Effort and attitude
 
 Q4
-During an assigned Controlled Discomfort rep, the student sees an unfamiliar form and immediately says, "I can't do this." What field is weak?
+What is the purpose and support boundary of Controlled Entry?
 
 Expected Answer
-Discomfort tolerance and initial response are weak. The student is collapsing when uncertainty appears.
+It builds a controlled first response under challenging difficulty: pause before action, orient, and state the first step. Minimal support is allowed, but the Specialist must not carry execution.
 
 Fail Answer
-They need easier work
-they lack intelligence
-they should skip it
+No difficulty is introduced
+The Specialist solves the opening step
+It tests speed of entry
 
 Q5
-A student waits for the tutor to simplify every hard question. What is weak?
+What is the purpose and support boundary of No Rescue?
 
 Expected Answer
-Rescue dependence is high. The student has not learned to stay in the struggle long enough to attempt a first step.
+It tests recovery and continued functioning under difficulty without full rescue. Only first-step support is allowed; the student must carry the remaining execution.
 
 Fail Answer
-They need support
-they are doing fine
-the tutor should explain more
+Any limited hint is allowed
+The Specialist may simplify the problem
+No support of any kind is defined
 
 Q6
-During a Controlled Discomfort rep, the student cannot complete the full question but can stay calm, identify the problem type, and give the first step. What does that show?
+What is the purpose and support boundary of Repeat Exposure?
 
 Expected Answer
-It shows first-step control and partial response stability under uncertainty. Controlled Discomfort is not only about final answers; it observes whether the student can stay oriented when certainty disappears.
+It tests whether the response becomes consistent across repeated challenging exposure at the same difficulty with no tutor support.
 
 Fail Answer
-They failed completely
-Only final answers matter
-Move them manually
-Explain everything immediately
-
-SECTION 3: PROTOCOL AND EXECUTION
+Reduce difficulty after every struggle
+Give a hint to preserve momentum
+Change to a new method each rep
 
 Q7
-During an assigned Controlled Discomfort rep, the tutor gives a full explanation mid-struggle. What rule was broken?
+Why does each repeated exposure matter?
 
 Expected Answer
-The tutor broke the Controlled Discomfort condition. Full explanations mid-struggle remove the uncertainty the phase is designed to observe. The tutor should preserve the assigned rep, give minimal guidance, and log the student's response.
+Each rep is another contact with the same intended difficulty condition, revealing whether collapse, rescue-seeking, first-step control, and tolerance are changing or merely appeared once.
 
 Fail Answer
-They were helping
-students need explanation
-it prevents frustration
+It is extra practice
+One brave attempt proves stability
+Repetition is for accuracy only
+
+SECTION 2: EVIDENCE AND CONTROL
 
 Q8
-The student freezes during a Boss Battle. What should the tutor do?
+The final answer is wrong, but the student remains calm and states an independent first step. Is the rep a complete failure?
 
 Expected Answer
-Do not rescue. Give thinking time, ask for identification, ask for the first step, and observe whether the student recovers.
+No. Log every field truthfully. First-step control or tolerance may be partial or clear even while answer accuracy is wrong; the phase measures response under difficulty, not only correctness.
 
 Fail Answer
-Show them how
-make it easier
-tell them the answer
+Yes, wrong answer means every field fails
+Ignore the wrong answer entirely
+Move the phase manually
 
 Q9
-Why does Controlled Discomfort introduce unfamiliar or harder forms?
+The student is silent for twelve seconds. What may be observed, and what may not be inferred?
 
 Expected Answer
-To see whether the student's structure survives when certainty disappears.
+Record the silence or delayed initial response and what happened next. Do not infer panic, refusal, or low confidence from silence alone.
 
 Fail Answer
-To make them stronger
-to impress parents
-to increase challenge
+Record panic
+Record defiance
+Assume rescue dependence
 
 Q10
-A tutor changes the assigned Controlled Discomfort rep into an easier one because the student is uncomfortable. What happened?
+Why is a question far beyond any known method not valid Controlled Discomfort?
 
 Expected Answer
-The rep condition was broken. The tutor removed the discomfort the drill was meant to observe, so the log no longer reflects the assigned phase accurately.
+The phase is controlled: it stresses an accessible known structure. Inaccessible content tests missing knowledge or random overload, not whether trained execution survives uncertainty.
 
 Fail Answer
-Good adaptation
-student-centered teaching
-helpful scaffolding
-Comfort matters more than the drill
+Harder always builds grit
+Any struggle counts
+Random challenge is the purpose
 
-SECTION 4: TUTOR DISCIPLINE AND RECOVERY
+SECTION 3: PRESSURE SCENARIOS
 
 Q11
-What emotional state should the tutor protect during Controlled Discomfort?
+During No Rescue, the student asks for help and the Specialist explains the whole method. What happened?
 
 Expected Answer
-Calm, neutral, structured effort. The tutor should not panic, over-comfort, shame, or rescue.
+The Specialist removed the condition being trained. Full explanation exceeds first-step-only support, so the rep cannot prove recovery or independence and the rescue must be logged.
 
 Fail Answer
-Make the student feel confident
-remove stress
-keep it easy
+Good teaching prevented frustration
+The rep is still valid if the answer is right
+No Rescue only means do not give the final answer
 
 Q12
-A student gets the answer wrong but stays calm, identifies the type, and attempts the first step. Is that a complete failure?
+During Repeat Exposure, the Specialist confirms the first step on every rep. May the set show clear independence?
 
 Expected Answer
-No. The answer is wrong, but the response may be improving. Log the actual fields: tolerance, initial response, rescue dependence, and first-step control.
+No. Repeat Exposure has no support. First-step confirmation contaminates rescue-dependence and first-step-control evidence across the set.
 
 Fail Answer
-Yes, wrong answer means fail
-accuracy is everything
-move back instantly
+Yes, first-step help is always allowed in this phase
+Yes, because it is not full rescue
+Mark clear if the student continues
 
 Q13
-A tutor gives a question far beyond the student's current method. Is that Controlled Discomfort?
+The student becomes uncomfortable, so the Specialist replaces the assigned question with an easier familiar one. What was lost?
 
 Expected Answer
-No. Controlled Discomfort is controlled. It tests whether known structure survives uncertainty. It is not random difficulty or content the student has no access to.
+The intended difficulty condition was removed. The easier response cannot answer whether the known method survives the assigned uncertainty.
 
 Fail Answer
-Yes, harder is better
-pressure builds grit
-let them struggle
+Nothing; adapting protects confidence
+The easier rep is equivalent
+Comfort matters more than the condition
 
 Q14
-What does recovery look like in Controlled Discomfort?
+The Specialist sees one controlled response and advances the topic because "the student has overcome the fear." What is wrong?
 
 Expected Answer
-The student pauses, stays oriented, identifies what they know, attempts the first step, and continues without full rescue.
+That invents a psychological conclusion and overrides repeated evidence. Record the observed response and let the system determine movement from the full set history.
 
 Fail Answer
-They feel happy
-they finish fast
-they stop struggling
+One strong rep proves recovery
+Tutor experience can replace the score
+Advance when the student looks confident
 
 FINAL TEST
 
 Q15
-What is the tutor's job inside Controlled Discomfort?
+What is the Specialist's operating job inside Controlled Discomfort?
 
 Expected Answer
-Preserve the assigned difficulty condition, avoid rescue, observe the student's response under uncertainty, guide only enough to return them to identification or first-step control, and log honestly.
+Apply controlled accessible difficulty, preserve each set's exact rescue boundary, allow the response to emerge, observe initial response, first-step control, tolerance and dependence, log without inference, and let the system decide movement.
 
 Fail Answer
-Explain fully
-make them comfortable
-challenge them randomly
+Make the student comfortable
+Explain whenever struggle appears
+Choose harder questions until confidence grows

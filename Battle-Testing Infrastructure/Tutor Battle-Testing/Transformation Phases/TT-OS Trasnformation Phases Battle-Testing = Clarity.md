@@ -1,175 +1,174 @@
 Response Integrity-OS BATTLE TEST: CLARITY DEEP DIVE
 
-SECTION 1: CORE PURPOSE
+SECTION 1: CAPABILITY AND EVIDENCE
 
 Q1
-What is the purpose of the Clarity phase?
+What capability is Clarity designed to build?
 
 Expected Answer
-To make sure the student can clearly see what they are dealing with before solving: vocabulary, method, reason, and immediate apply.
+A clear mental map of the topic: the student can identify the vocabulary and problem type, recognise the method, explain why it applies, and make an immediate low-pressure response.
 
 Fail Answer
-Help them understand
-explain the topic
-build confidence
+Confidence
+General understanding
+Fast accurate solving
 
 Q2
-What four fields must a tutor observe in Clarity?
+What four observation fields define Clarity evidence?
 
 Expected Answer
 Vocabulary, method, reason, and immediate apply.
 
 Fail Answer
-Accuracy, speed, confidence, neatness
-understanding and practice
-
-SECTION 2: FIELDS AND BREAKDOWN
+Accuracy, speed, neatness, and confidence
+Understanding and practice
+Marks and completion
 
 Q3
-A student can solve after help but cannot name the terms or parts in the question. What is weak?
+What is the purpose and evidence status of the Modeling step?
 
 Expected Answer
-Vocabulary is weak. The student does not yet clearly identify what they are looking at.
+Modeling builds the mental map before scored drilling. It is one unscored instructional preparation and does not prove that the student independently possesses Clarity.
 
 Fail Answer
-Structured Execution
-lack of practice
-confidence issue
+It is the first scored set
+Agreement during modeling proves Clarity
+It should contain repeated testing
 
 Q4
-A student names the topic correctly but does not know the method to use. What is weak?
+What is the purpose and constraint of Identification?
 
 Expected Answer
-Method is weak. They recognize the topic but do not have the correct solving structure yet.
+It tests repeatable recognition without solving: name the type or terms, identify the method and reason, and respond without tutor support or pressure.
 
 Fail Answer
-Time pressure
-they are careless
-they need more speed
+Solve with minimal help
+The tutor may cue the method
+It tests execution speed
 
 Q5
-A student follows steps but cannot explain why the steps work. What is weak?
+What is the purpose and constraint of Light Apply?
 
 Expected Answer
-Reason is weak. The method may be present, but the logic behind it is not clear enough.
+It tests whether the mental map survives first contact with active solving under no pressure and only minimal support; it is not yet a test of robust independent execution under difficulty.
 
 Fail Answer
-That is fine if they get answers
-move to speed
-they just need repetition
+It proves full Structured Execution
+No support is ever allowed
+It introduces unfamiliar hard forms
 
 Q6
-A student understands after explanation but hesitates heavily when asked to try a similar question. What field is weak?
+Why are there repeated scored reps after Modeling?
 
 Expected Answer
-Immediate apply is weak. Clarity has not yet transferred into action.
+Each rep is another evidence opportunity to see whether recognition and light application recur without being produced by memory, cueing, luck, or one unusually easy example.
 
 Fail Answer
-They are lazy
-they need motivation
-skip to Structured Execution
+To give more practice
+One successful rep already proves stability
+To fill the set
 
-SECTION 3: PROTOCOL AND EXECUTION
+SECTION 2: OBSERVATION AND CONTAMINATION
 
 Q7
-During a Clarity recognition rep, the student starts solving immediately. What should the tutor do?
+The student pauses for seven seconds before naming the correct method. What may be observed, and what may not be inferred?
 
 Expected Answer
-Pause the solving and return to recognition: name the problem type, identify the components, state the method, and explain the first step.
+Record the pause and eventual method recognition in the matching fields. Do not infer panic, laziness, or low confidence from the pause alone.
 
 Fail Answer
-Let them solve
-help them finish
-mark the answer
+Record that the student panicked
+Ignore the pause because the method was correct
+Record a confidence problem
 
 Q8
-During a recognition rep, the tutor starts explaining before checking what the student sees. What protocol break occurred?
+The student repeats the Specialist's explanation perfectly during Modeling. Does that establish independent Clarity?
 
 Expected Answer
-The tutor turned observation into teaching. In Clarity, the tutor must first observe whether the student can recognize the problem clearly.
+No. Modeling is instructional preparation. Independent evidence comes from the subsequent scored Identification and Light Apply reps under their defined constraints.
 
 Fail Answer
-They were helping
-explanation is always useful
-students need teaching first
+Yes, accurate repetition proves Clarity
+Yes, if the student sounds confident
+Modeling and evidence are the same
 
 Q9
-When modeling in Clarity, what should the tutor do first?
+During Identification, the student starts solving. What should the Specialist do?
 
 Expected Answer
-Name the problem type and components before explaining the method. Do not mix layers by explaining method before vocabulary.
+Stop the solving and restore the recognition condition: ask the student to name what they see, identify the method, and explain why without carrying out the solution.
 
 Fail Answer
-Start solving
-ask the student questions
-explain everything at once
+Let them finish because solving is stronger proof
+Help with the next step
+Score the correct answer as clear recognition
 
 Q10
-During modeling, should the tutor ask the student lots of questions?
+Why can repeated prompting make apparent Clarity evidence invalid?
 
 Expected Answer
-No. Modeling is showing, not testing. The tutor should model clearly, briefly, and in order.
+The prompts may supply the vocabulary, method, or reason being assessed. The student's resulting answer then reflects Specialist assistance rather than independent recognition.
 
 Fail Answer
-Yes, to keep them engaged
-ask until they understand
-test while modeling
+Prompts improve the quality of evidence
+Only the final answer matters
+Clarity always allows unlimited teaching
 
-SECTION 4: TUTOR MOVES AND PROGRESSION
+SECTION 3: PRESSURE SCENARIOS
 
 Q11
-A student gives a vague answer: "You just move the thing over." What should the tutor do?
+In Light Apply, the student gives a correct answer only after the Specialist names the method and first step. What is the evidence?
 
 Expected Answer
-Do not accept vague language. Require correct mathematical language and ask them to name the operation, term, or step clearly.
+The correct answer does not establish clear independent Clarity. Log the actual support-dependent response; the Specialist supplied material parts of the mental map.
 
 Fail Answer
-Accept it if they understand
-move on
-correct it later
+Clear because the answer is correct
+Move to Structured Execution
+Ignore the assistance
 
 Q12
-When can a tutor say Clarity is improving?
+The student names the method but cannot explain why it applies. Which field is weak?
 
 Expected Answer
-When the student names the problem type, identifies components, states the method, explains why it works, and applies it with less hesitation.
+Reason is weak. Method recognition may be present, but the logic connecting the method to the problem is not yet clear.
 
 Fail Answer
-They got more answers right
-they seem confident
-they enjoyed the session
+Immediate apply
+Time pressure
+Nothing if the method is correct
 
 Q13
-A student gets correct answers but cannot explain the method or reason. Should the tutor progress them?
+The student gets several correct Light Apply answers but cannot name the problem type without cues. May the Specialist advance the topic?
 
 Expected Answer
-No. Hold in Clarity because the response is not structurally clear yet.
+No. Record the mixed field evidence and let the system determine movement. Correct application does not erase weak independent vocabulary or recognition.
 
 Fail Answer
-Yes, because accuracy matters
-move to speed
-give harder questions
+Yes, accuracy proves readiness
+The Specialist may override weak vocabulary
+Move ahead and fix language later
 
 Q14
-What must not be introduced too early during Clarity?
+The Specialist adds a timer to Identification to make the evidence more realistic. What was contaminated?
 
 Expected Answer
-Boss Battles, heavy difficulty, and time pressure. Clarity must first build recognition, language, method, reason, and light application.
+Clarity is a no-pressure condition. Adding time changes the capability being tested and can make the evidence reflect urgency rather than recognition.
 
 Fail Answer
-Challenge them early
-test under pressure
-build confidence through hard work
+Nothing; pressure improves validity
+Timers are allowed in every phase
+Speed proves immediate apply
 
 FINAL TEST
 
 Q15
-What is the tutor's job inside Clarity?
+What is the Specialist's operating job inside Clarity?
 
 Expected Answer
-Build and verify the student's mental map: vocabulary, method, reason, and immediate apply, then return to observation instead of over-teaching.
+Build the mental map once through Modeling, then preserve the scored Identification and Light Apply conditions, observe vocabulary, method, reason and immediate apply without inventing, and let the system decide movement.
 
 Fail Answer
-Explain the topic
-make the student understand
-help them feel better
+Explain until the student understands
+Help the student complete the questions
+Decide when they seem ready

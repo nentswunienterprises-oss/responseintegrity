@@ -1,179 +1,174 @@
 Response Integrity-OS BATTLE TEST: STRUCTURED EXECUTION DEEP DIVE
 
-SECTION 1: CORE PURPOSE
+SECTION 1: CAPABILITY AND SET PURPOSE
 
 Q1
-What is the purpose of Structured Execution?
+What capability is Structured Execution designed to build?
 
 Expected Answer
-To make sure the student can execute a known method independently, in order, repeatedly, and without being carried by the tutor.
+Reliable, ordered, repeatable and independent execution of a method the student already understands.
 
 Fail Answer
-Practice solving
-improve accuracy
-revise the topic
+More practice
+Better accuracy
+Topic revision
 
 Q2
-What evidence shows that Clarity is strong enough for RI-OS to assign Structured Execution work?
+What four observation fields define Structured Execution evidence?
 
 Expected Answer
-The student can recognize the problem type, name the components, understand the steps, explain the reason, and apply lightly enough that the next issue is execution independence, not basic clarity.
+Start behaviour, step execution or discipline, repeatability, and independence.
 
 Fail Answer
-When the tutor feels ready
-When they got one answer right
-When the parent wants progress
-When the tutor has explained it
+Confidence, speed, marks, and neatness
+Understanding and effort
+Answers completed
 
 Q3
-What fields matter most in Structured Execution?
+What is the purpose and support boundary of Required Structure?
 
 Expected Answer
-Start behavior, step execution, repeatability or step order, and independence.
+It requires the student to state and follow the step order before solving. Minimal support is allowed while structure is established, but the student remains responsible for execution.
 
 Fail Answer
-Confidence, speed, marks
-how much work they finish
-
-SECTION 2: FIELDS AND BREAKDOWN
+The Specialist models every step
+No structure needs to be stated
+It is a no-help transfer test
 
 Q4
-A student can explain the steps after being asked, but when the question is placed in front of them, they wait for the tutor to start them off. What is weak?
+What is the purpose and support boundary of Independent Execution?
 
 Expected Answer
-Start behavior and independence are weak. The student is not initiating execution without tutor support.
+It tests repeated full execution of the known method with no tutor support, exposing whether the student can start, sequence, correct and complete independently.
 
 Fail Answer
-Clarity is completely missing
-They just need confidence
-Tutor should explain again
-Move to easier work immediately
+First-step confirmation is allowed
+Prompt after every hesitation
+It is another teaching set
 
 Q5
-A student starts correctly but keeps skipping steps. What is weak?
+What is the purpose and constraint of Variation Control?
 
 Expected Answer
-Step execution and repeatability are weak. The method is not being executed in a stable order.
+It tests whether the method survives a changed surface form with no tutor support, separating genuine method ownership from familiarity with repeated examples.
 
 Fail Answer
-Carelessness
-speed problem
-confidence issue
+Repeat the exact same form with hints
+Teach a new method
+Make the arithmetic harder only
 
 Q6
-A student can solve only when the tutor gives hints after each step. What is weak?
+Why are multiple reps required in Structured Execution?
 
 Expected Answer
-Independence is weak. The student is being carried through the method.
+They show whether ordered independent execution returns across opportunities rather than appearing once through prompting, memory, or a familiar example.
 
 Fail Answer
-They understand
-they are improving
-the tutor is supporting well
+To do more worksheets
+One correct solution proves stability
+To build confidence through volume
 
-SECTION 3: PROTOCOL AND EXECUTION
+SECTION 2: EVIDENCE AND CORRECTION
 
 Q7
-During Structured Execution, the student hesitates and the tutor starts modeling the whole method again. What rule is being broken?
+A student completes a problem after prompts at every step. Can it count as clear independent evidence?
 
 Expected Answer
-The tutor is carrying the student after independent execution is required. In Structured Execution, the tutor should not keep remodeling unless a true Clarity gap appears. The tutor should target the exact point of failure and return the student to execution.
+No. Completion was Specialist-dependent. Log the prompting and weak independence rather than treating the final answer as stable execution.
 
 Fail Answer
-Remodel every time they hesitate
-Explain the full method again
-Keep teaching until they feel confident
-Make the tutor do the first step
+Yes, because the problem was completed
+Partial prompts do not affect independence
+Correctness overrides support
 
 Q8
-In a Structured Execution drill, the student has already seen the method but says, "I don’t know," before attempting the first step. What should the tutor do?
+How should an error be handled without turning Structured Execution back into Clarity?
 
 Expected Answer
-Stay inside the assigned drill. Give thinking time, return them to the problem type, ask what the first step should be, and require an attempt without re-teaching the full method.
+Respect the active set's support boundary. Where minimal support is allowed, target only the broken structural point and return execution to the student; in no-support sets, preserve the rep, log the failure, and correct after the evidence opportunity.
 
 Fail Answer
-Explain the whole method again
-Show the first step immediately
-Change the drill
-Move them back manually
-
-SECTION 4: PROGRESSION AND TUTOR MOVES
+Remodel the whole method whenever they hesitate
+Give the first step in every set
+Ignore the set-specific support rule
 
 Q9
-A student completes a problem with constant prompting. Can that count as stable Structured Execution?
+The student waits ten seconds before starting. What may be recorded, and what may not be inferred?
 
 Expected Answer
-No. The execution was tutor-dependent. Structured Execution requires independent starts, ordered steps, and repeatability.
+Record delayed start behaviour and any observable request for help. Do not label the student unmotivated, anxious, or careless without direct evidence.
 
 Fail Answer
-Yes, because it was completed
-partial pass because answer is right
+Record low confidence
+Record laziness
+Ignore the delay if the answer is correct
 
 Q10
-How should a tutor correct an error during Structured Execution?
+Who decides whether the topic moves beyond Structured Execution?
 
 Expected Answer
-Target the exact point of failure. Do not explain everything again. Correct the broken step, then return the student to execution.
+The system uses repeated scored evidence. The Specialist runs the assigned sets and logs truthfully; they do not advance the phase because the student seems ready.
 
 Fail Answer
-Restart the whole lesson
-give a full explanation
-move to a different topic
+The Specialist decides after the session
+One clean problem is enough
+The parent decides from marks
+
+SECTION 3: PRESSURE SCENARIOS
 
 Q11
-The student says, "I just do the normal thing." What should the tutor require?
+During Independent Execution, the student says, "I don't know," and the Specialist supplies the first step. What happened to the rep?
 
 Expected Answer
-Require clear step language. The student must name the step or operation, not use vague shortcuts.
+The no-support condition was contaminated. Record the actual dependence; the resulting execution cannot prove an independent start.
 
 Fail Answer
-Accept it if they can solve
-language does not matter
-move on
+The rep remains independent because only one step was supplied
+Good scaffolding
+Mark clear if the rest is correct
 
 Q12
-Why does Structured Execution use repeated reps?
+The student executes the same form perfectly three times but breaks when the layout changes. Which set has revealed the instability?
 
 Expected Answer
-To prove the student can execute the same method consistently, in order, without dependence.
+Variation Control. The changed form shows that repeat familiarity was stronger than transferable method ownership.
 
 Fail Answer
-To do more practice
-to fill time
-to build confidence
+Required Structure
+Clarity Modeling
+Time Pressure Stability
 
 Q13
-A student understands the method but cannot repeat it without skipping steps. Is this Clarity or Structured Execution?
+The student starts correctly but skips a middle step on two of three reps. Which evidence is weak?
 
 Expected Answer
-Structured Execution. The method is known, but execution is not reliable.
+Step execution and repeatability are weak even if the final answers are correct; the ordered method is not stable across reps.
 
 Fail Answer
-Clarity
-Controlled Discomfort
-Time Pressure
+Only accuracy matters
+Start behaviour is the only weak field
+Mark clear because the first step was correct
 
 Q14
-What evidence should the tutor log to show Structured Execution is becoming complete and ready to be progressed to the next phase?
+The Specialist describes a prompted solution as "independent with reassurance." Is that acceptable evidence language?
 
 Expected Answer
-The tutor should log evidence that the student can start independently, follow steps in order, repeat the method reliably, and reduce tutor dependence across reps.
+No. Record the observable prompts and the matching independence level. Reassurance cannot be used to disguise assistance or convert dependency into clear evidence.
 
 Fail Answer
-They got one answer right
-They said they understand
-The tutor feels ready to move them
-They are more confident
+Yes, positive wording is harmless
+Yes, if the student needed emotional support
+The narrative may improve the raw option
 
 FINAL TEST
 
 Q15
-What is the tutor's job inside Structured Execution?
+What is the Specialist's operating job inside Structured Execution?
 
 Expected Answer
-Protect the known method structure, reduce tutor dependence, correct only the exact broken step, and require independent ordered execution without drifting back into full teaching.
+Preserve each set's exact support and variation condition, require the student to carry ordered execution, observe start, steps, repeatability and independence, record assistance honestly, and let the system decide movement.
 
 Fail Answer
-Explain more
-make it easier
-help them finish
+Explain until the student can finish
+Prompt enough to keep every rep successful
+Move them on after correct answers

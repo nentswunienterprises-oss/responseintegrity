@@ -1,197 +1,174 @@
-Response Integrity-OS BATTLE TEST: INTRO SESSION STRUCTURE (SCORING VERSION)
-🔹 SECTION A — CORE UNDERSTANDING
+Response Integrity-OS BATTLE TEST: INTRO SESSION STRUCTURE
+
+SECTION 1: PLACEMENT PURPOSE
+
 Q1
+What is the purpose of an Intro session in one sentence?
 
-What is the purpose of the intro session in Response Integrity, in one sentence?
+Expected Answer
+To verify the student's correct topic-entry phase through adaptive Diagnosis and lock where training should begin.
 
-Expected Answer (signal):
-To verify the student’s correct starting phase in a real topic using the placement block and score result.
+Fail Answer
+To assess the student generally
+To teach as much as possible
+To find every mathematical weakness
 
-Fail Answer:
-
-“To assess the student generally”
-“To teach the student and see how they do”
-“To understand their weaknesses”
 Q2
+What one question must the Intro session answer?
 
-What one question must the intro session answer?
+Expected Answer
+Where should this student's Response Integrity training begin in this specific topic?
 
-Expected Answer:
-Where should this student’s training begin in this topic?
+Fail Answer
+How good is the student at maths?
+What does the parent want taught?
+How confident is the student?
 
-Fail Answer:
-
-“What does the student struggle with?”
-“How good is the student?”
 Q3
+Why is Intro not a full teaching cycle?
 
-Why is the intro session not a full teaching cycle?
+Expected Answer
+Its purpose is topic-entry placement. Training begins only after Diagnosis has produced a locked entry state.
 
-Expected Answer:
-Because its purpose is placement verification, not active training.
+Fail Answer
+There is not enough time
+The Specialist has not prepared a lesson
+Intro is only for building rapport
 
-Fail Answer:
-
-“Because it’s only one session”
-“Because we don’t have enough time”
 Q4
-
 What is the system-recommended starting phase?
 
-Expected Answer:
-A starting hypothesis based on parent signals that must be tested, not blindly accepted.
+Expected Answer
+A starting hypothesis based on available intake signals that must be verified through the live Diagnosis block, not accepted as final placement.
 
-Fail Answer:
+Fail Answer
+The final phase
+The parent's chosen phase
+An optional suggestion the Specialist may ignore
 
-“The final placement”
-“Where the student definitely starts”
+SECTION 2: ADAPTIVE DIAGNOSIS
+
 Q5
+What does the Specialist run first after receiving the recommended starting phase?
 
-Who decides the next move after a verification block: tutor instinct or score result?
+Expected Answer
+The current-phase Diagnosis verification block with the prepared phase-matched problems and observation fields.
 
-Expected Answer:
-The score result.
+Fail Answer
+The full training sets
+A general maths assessment
+Clarity Modeling for every student
 
-Fail Answer:
-
-“Tutor judgment”
-“Both together”
-🔹 SECTION B — APPLICATION
 Q6
+What happens when a Diagnosis phase score is 44 or below?
 
-Parent reports: “My child understands but freezes in tests.”
-System recommends Structured Execution.
-What do you do first?
+Expected Answer
+The system de-escalates to the adjacent earlier phase for verification, where an earlier phase exists.
 
-Expected Answer:
-Run the Structured Execution verification block and follow the score result.
+Fail Answer
+Keep training in the current phase
+Jump directly to Clarity from any phase
+The Specialist chooses an easier activity
 
-Fail Answer:
-
-“Start teaching Structured Execution drills”
-“Move straight to Time Pressure Stability”
 Q7
+What happens when a Diagnosis phase score is from 45 through 79?
 
-You run a phase block and score 38/100.
-👉 What happens next?
+Expected Answer
+The system places the topic in that phase and locks the entry point; Diagnosis stops.
 
-Expected Answer:
-De-escalate and verify the earlier phase.
+Fail Answer
+Escalate because the student passed
+Repeat until the score reaches 80
+The Specialist decides whether it feels right
 
-Fail Answer:
-
-“Keep training here”
-“Try again and see”
 Q8
+What happens when a Diagnosis phase score is 80 or above?
 
-You run a phase block and score 63/100.
-👉 What happens next?
+Expected Answer
+The system escalates to the adjacent next phase for another verification, where a later phase exists. A high score is a movement signal, not permission to start normal training immediately.
 
-Expected Answer:
-Place the student in that phase and stop diagnosis.
+Fail Answer
+Start training in the current phase
+Jump to the final phase
+End because the student scored well
 
-Fail Answer:
-
-“Escalate to next phase”
-“Run another random test”
 Q9
+Why does Diagnosis move only through adjacent phases?
 
-You run a phase block and score 88/100.
-👉 What happens next?
+Expected Answer
+Adjacent movement preserves controlled placement and shows where the response first stops holding instead of allowing random jumps or tutor-selected placement.
 
-Expected Answer:
-Escalate and verify the next phase.
+Fail Answer
+It saves question preparation
+The Specialist may skip phases for strong students
+Adjacent movement is only a suggestion
 
-Fail Answer:
-
-“Start training immediately”
-“Keep them here because they did well”
 Q10
+What happens once the entry phase is locked?
 
-You confirm the correct entry point halfway through the session.
-👉 What should happen next?
+Expected Answer
+End Diagnosis and preserve the placed topic-state for the next authorised training action. Do not use remaining time to add unassigned training or extra phase testing.
 
-Expected Answer:
-End diagnosis. Intro stops once the entry point is locked.
+Fail Answer
+Run the full training drill immediately
+Keep testing for certainty
+Teach whichever gap was noticed
 
-Fail Answer:
+SECTION 3: PRESSURE SCENARIOS
 
-“Use the remaining time to train”
-“Keep testing more phases for certainty”
-🔹 SECTION C — PRESSURE SCENARIOS
 Scenario 1
+The student pauses for five seconds before choosing the correct method. The Specialist records "panicked." What is the evidence-integrity correction?
 
-Tutor feels the student belongs in Controlled Discomfort, but the block score says 52 in Structured Execution.
-👉 What governs?
+Expected Answer
+Record the observed pause and method response in the matching fields. Panic is an inference not established by the behaviour alone.
 
-Expected Answer:
-The score result. Place in Structured Execution.
+Fail Answer
+Keep panic because the pause proves it
+Record low confidence
+Ignore the pause because the method was correct
 
-Fail Answer:
-
-“Tutor instinct knows better”
 Scenario 2
+The Specialist spends twenty-five minutes explaining methods during Intro, then scores the student's assisted answers as Diagnosis evidence. What failed?
 
-Tutor spends 25 minutes teaching methods during intro.
-👉 What violation occurred?
+Expected Answer
+Intro was converted into training and the evidence condition was contaminated. Assisted performance cannot establish the independent entry state the block was meant to verify.
 
-Expected Answer:
-The intro was converted into a training session instead of placement verification.
+Fail Answer
+Nothing; more teaching improves placement
+The score remains valid if answers are correct
+Intro should always include a lesson
 
-Fail Answer:
-
-“Helping the student more deeply”
 Scenario 3
+The recommended phase is Structured Execution. The Specialist believes the student is advanced and jumps directly to Time Pressure Stability. Is that acceptable?
 
-Tutor jumps two phases ahead because the student seems smart.
-👉 What is wrong?
+Expected Answer
+No. Run the recommended current-phase block and follow adjacent movement from the score. Skipping phases replaces controlled placement with tutor instinct.
 
-Expected Answer:
-The tutor bypassed one-phase-at-a-time verification flow and replaced the system with instinct.
+Fail Answer
+Yes, strong students save time
+Yes, recommendations are optional
+Only the final score matters
 
-Fail Answer:
-
-“Nothing if the student handled it”
 Scenario 4
+A score of 61 places the topic in Controlled Discomfort, but the parent asks for Time Pressure Stability. What governs?
 
-Student is clear in the topic but breaks when working alone.
-👉 What does this show?
+Expected Answer
+The system placement governs. Preserve Controlled Discomfort as the entry phase; parent preference cannot override scored evidence.
 
-Expected Answer:
-The issue is phase placement beyond Clarity, likely Structured Execution.
+Fail Answer
+Compromise and start timed work
+Follow the parent's request
+The Specialist chooses after discussion
 
-Fail Answer:
+FINAL TEST
 
-“They need more explanation”
-🔹 SECTION D — RED FLAG RESPONSES
-
-Auto-fail signals:
-
-❌ “I use my judgment to place students”
-→ Rejects system logic
-
-❌ “Intro is a chance to impress parents by teaching a lot”
-→ Corrupt purpose
-
-❌ “If they score high, I start training immediately”
-→ Breaks escalation flow
-
-❌ “I test multiple phases randomly to save time”
-→ No controlled placement logic
-
-❌ “The recommendation is final”
-→ Misunderstands hypothesis model
-
-🔹 FINAL TEST
 FINAL QUESTION
+What is the Specialist's job inside Intro?
 
-“What is your job inside the intro session?”
+Expected Answer
+Run the recommended adaptive Diagnosis block, preserve its constraints, record observed behaviour truthfully, follow adjacent score-driven movement, and stop when the system locks the topic-entry phase.
 
-Expected Answer:
-“To run the recommended verification block, log honestly, and let the score result determine the student’s correct starting phase.”
-
-Fail Answer:
-
-“To assess and decide where they belong”
-“To help them and see their level”
-“To teach and evaluate”
+Fail Answer
+Assess and decide where the student belongs
+Teach while testing
+Use experience to improve the recommendation

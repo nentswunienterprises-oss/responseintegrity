@@ -77,7 +77,9 @@ import {
   withPayfastSignature,
 } from "./payfast";
 import {
+  BATTLE_TEST_VARIANT_KEYS,
   type BattleTestResponseInput,
+  type BattleTestVariantKey,
   type TutorTrainingMode,
 } from "@shared/battleTesting";
 import {
@@ -86,6 +88,7 @@ import {
   clearTutorAssignmentCertificationState,
   getBattleTestRunDetail,
   getBattleTestRunHistoryForPod,
+  getTutorBattleTestAssignedVariants,
   hydrateTutorAssignmentFromPortableSnapshot,
   persistBattleTestRun,
   upsertTutorPortableCertificationSnapshot,
@@ -376,14 +379,20 @@ const battleTestResponseSchema = z.object({
   phaseKey: z.string().min(1),
   questionKey: z.string().min(1),
   score: z.enum(["clear", "partial", "fail"]),
+  answerEvidence: z.string().trim().min(1),
   note: z.string().optional(),
   isCriticalFail: z.boolean().optional(),
 });
+
+const battleTestVariantSchema = z.enum(
+  BATTLE_TEST_VARIANT_KEYS as unknown as [BattleTestVariantKey, ...BattleTestVariantKey[]]
+);
 
 const tutorBattleTestSubmissionSchema = z.object({
   tutorAssignmentId: z.string().min(1),
   tutorId: z.string().min(1),
   phaseKeys: z.array(z.string().min(1)).min(1),
+  phaseVariants: z.record(z.string().min(1), battleTestVariantSchema),
   responses: z.array(battleTestResponseSchema).min(1),
 });
 
@@ -15312,7 +15321,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Tutor assignment mismatch" });
         }
 
-        const phases = getTutorBattleTestPhaseDefinitionsExact(payload.phaseKeys);
+        const assignedVariants = await getTutorBattleTestAssignedVariants(payload.tutorAssignmentId, payload.phaseKeys);
+        const invalidVariantPhase = payload.phaseKeys.find(
+          (phaseKey) => payload.phaseVariants[phaseKey] !== assignedVariants[phaseKey]
+        );
+        if (invalidVariantPhase) {
+          return res.status(400).json({
+            message:
+              "Tutor battle-test form has changed since this audit was opened. Reopen the tutor audit and submit the assigned form.",
+          });
+        }
+
+        const phases = getTutorBattleTestPhaseDefinitionsExact(payload.phaseKeys, assignedVariants);
         if (phases.length !== payload.phaseKeys.length) {
           return res.status(400).json({ message: "Invalid tutor battle-testing phase selection" });
         }

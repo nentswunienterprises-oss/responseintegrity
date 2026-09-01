@@ -1,176 +1,174 @@
 Response Integrity-OS BATTLE TEST: TOPIC CONDITIONING DEEP DIVE
 
-SECTION 1: CORE DEFINITION
+SECTION 1: TOPIC-STATE MODEL
 
 Q1
 What is Topic Conditioning in Response Integrity?
 
 Expected Answer
-Topic Conditioning means selecting one specific math topic, identifying the student's current RI-OS phase and stability inside that topic, then running the assigned drill so the student's response can be conditioned according to that phase.
+It is conditioning a student's response inside one specific mathematical topic according to that topic's current phase, stability, assigned drill, and evidence-driven next action.
 
 Fail Answer
-Teach the topic
-help them understand
-practice more questions
-improve marks
+Teaching a topic until it is understood
+General maths remediation
+Practising the weakest subject area
 
 Q2
-A parent says, "My child is bad at math." What is your first RI move?
+Why must the Specialist replace "bad at maths" with a specific topic?
 
 Expected Answer
-Do not treat math as one global problem. Choose a specific topic, such as algebra, fractions, exponents, or word problems, then diagnose the student's response inside that topic.
+Because RI state is topic-specific. The same student can be stable in fractions and break at a different phase in algebra, so a global label cannot select a valid drill.
 
 Fail Answer
-Start with basics
-ask what they don't understand
-give a general assessment
+Specific topics are easier to teach
+All topics share one ability level
+Choose whichever topic the parent mentions first
 
 Q3
-A student is stable in fractions but freezes in algebra. What does this tell you?
+A student is stable in fractions but freezes in algebra. What does that prove about state?
 
 Expected Answer
-The student does not have one global math level. Each topic has its own conditioning state, phase, and stability level.
+Each topic carries its own phase and stability. Performance in one topic cannot be copied across as the state of another.
 
 Fail Answer
-They are inconsistent
-they lack confidence
-they need more practice
+The student is inconsistent
+They have one general confidence problem
+Fractions should set the algebra phase
 
 Q4
-A student can explain the method when calm, but breaks down when the question becomes unfamiliar. What does this suggest?
+What operating chain should the Specialist be able to see for an active topic?
 
 Expected Answer
-It suggests the issue may not be basic knowledge only. The known structure may not be surviving uncertainty inside that topic. The tutor should continue through the assigned RI-OS check and select observations that show where the response breaks.
+Topic, current breakdown, phase capability, drill, set purpose, rep purpose, active constraint, observable behaviour, evidence, system decision, then next action.
 
 Fail Answer
-They don't understand properly
-they are not confident
-they need easier questions
+Topic, explanation, worksheet, answer
+Struggle, confidence, motivation
+The platform handles the chain so the Specialist need not understand it
 
 Q5
-During Topic Conditioning, who decides the next phase: the tutor or the system?
+What is the difference between phase and stability inside a topic?
 
 Expected Answer
-RI-OS determines phase movement using scored drill evidence. The tutor runs the assigned drill, follows the phase rules, selects the matching observation options accurately, and follows the system's next action.
+Phase identifies the response capability currently being conditioned. Stability describes how reliably that capability is holding based on repeated evidence.
 
 Fail Answer
-The tutor decides
-the parent decides
-move when the student seems ready
+Phase is difficulty and stability is marks
+They are the same value
+The Specialist chooses both from intuition
 
-SECTION 2: TUTOR MOVES
+SECTION 2: EVIDENCE AND MOVEMENT
 
 Q6
-A tutor hears that a student struggles in algebra and immediately starts teaching the whole algebra topic again. What is wrong?
+Why is one strong answer not enough to establish a stable topic-state?
 
 Expected Answer
-The tutor skipped diagnosis. They must first narrow the struggle into a specific topic-state and identify where the response is breaking: Clarity, Structured Execution, Controlled Discomfort, or Time Pressure Stability.
+It may reflect luck, familiarity, cueing, or an unusually easy example. Repeated evidence under the intended condition is needed to show the response returns.
 
 Fail Answer
-They are being helpful
-teaching first is fine
-students need explanations
+One correct answer is enough
+Tutor confidence makes it stable
+Only final marks matter
 
 Q7
-After a Topic Conditioning check, what should be clear?
+Who decides the next phase or stability movement?
 
 Expected Answer
-The active topic, current phase, current stability, assigned drill or next action, and which observation areas showed weakness or strength.
+The system applies deterministic rules to scored drill evidence. The Specialist runs the assigned condition, logs truthfully, and follows the next action.
 
 Fail Answer
-Whether the student passed
-whether they understand
-how many questions they got right
+The Specialist
+The parent
+The student chooses when ready
 
 Q8
-A parent says, "She panics in word problems." What should the tutor do with that information?
+A student pauses, asks for the question to be repeated, then begins. What is the evidence-integrity boundary?
 
 Expected Answer
-Use it as a starting signal, not final placement. Select word problems as the topic and run the appropriate RI-OS check to confirm where the response breaks.
+Record the observable pause, request, and subsequent start in the matching fields. Do not turn them into an unproven label such as panic, low confidence, or poor attitude.
 
 Fail Answer
-Put them in Controlled Discomfort immediately
-start motivation work
-avoid word problems
+Record that the student panicked
+Record a confidence problem
+Choose the phase from the pause alone
 
 Q9
-A student looks at a question but cannot name the problem type, identify the parts, or say what the first step should be. Which phase does this point to?
+Why does a Specialist's rep log matter beyond the current session?
 
 Expected Answer
-Clarity. The student is breaking before execution because they cannot clearly recognize what they are looking at or what structure applies.
+It feeds state movement, pattern detection, the next assigned action, and downstream reports or parent claims. A false observation can corrupt the whole evidence chain.
 
 Fail Answer
-Structured Execution
-Controlled Discomfort
-Time Pressure Stability
+It is only an internal note
+Reports can be rewritten later
+The system uses answer marks instead
 
 Q10
-A student can explain the method after being asked, but when the question is placed in front of them, they wait for the tutor to start them off. Which phase does this point to?
+What should be clear after a Topic Conditioning run?
 
 Expected Answer
-Structured Execution. Clarity may be present, but independent execution is weak. The breakdown is in starting, step order, repeatability, or independence.
+The active topic, verified phase and stability, relevant strengths or breakdown fields, assigned next action, and the evidence that produced that result.
 
 Fail Answer
-Clarity
-Controlled Discomfort
-Time Pressure Stability
+Whether the student passed maths
+How confident the student felt
+What the Specialist wants to teach next
+
+SECTION 3: PLACEMENT SCENARIOS
 
 Q11
-A student can solve the known form independently and repeatedly, but breaks when the same method appears in an unfamiliar form. Which phase does this point to?
+The student cannot name the problem type, identify the parts, or state what method applies. Which phase capability is breaking?
 
 Expected Answer
-Controlled Discomfort. Structured Execution is present, but the response is not yet stable when uncertainty or unfamiliar form appears.
+Clarity, because the breakdown occurs before reliable execution begins.
 
 Fail Answer
-Clarity
 Structured Execution
+Controlled Discomfort
 Time Pressure Stability
 
 Q12
-A student can solve the topic independently and handle unfamiliar forms, but under a timer they rush, panic, or abandon structure. Which phase does this point to?
+The student explains the method but waits for the Specialist to start every question and needs prompts to maintain step order. Which phase capability is breaking?
 
 Expected Answer
-Time Pressure Stability. The method exists, but structure is not yet stable under time pressure.
+Structured Execution, because the mental map is present but independent ordered execution is not stable.
+
+Fail Answer
+Clarity only
+Controlled Discomfort
+Time Pressure Stability
+
+Q13
+The student executes a known form independently but collapses when the same method appears in an unfamiliar form. Which phase capability is breaking?
+
+Expected Answer
+Controlled Discomfort, because known execution is not surviving uncertainty or changed presentation.
+
+Fail Answer
+Clarity
+Structured Execution only
+Time Pressure Stability
+
+Q14
+The student handles known and unfamiliar forms but rushes, guesses, and loses structure under a timer. Which phase capability is breaking?
+
+Expected Answer
+Time Pressure Stability, because urgency destabilises an otherwise available response.
 
 Fail Answer
 Clarity
 Structured Execution
 Controlled Discomfort
-
-SECTION 3: PROTOCOL BOUNDARIES
-
-Q13
-What does RI-OS use to determine phase movement?
-
-Expected Answer
-RI-OS uses scored drill evidence from selected observation options, not tutor feeling, parent pressure, student confidence, or one correct answer.
-
-Fail Answer
-Tutor feeling
-parent pressure
-student confidence
-one correct answer
-
-Q14
-In Topic Conditioning, what is the tutor's main role?
-
-Expected Answer
-The tutor is a system executor: run the assigned drill, follow the phase rules, observe the response accurately, select the matching observation options, and follow RI-OS next action.
-
-Fail Answer
-Teach the student
-motivate the student
-make the lesson enjoyable
 
 FINAL TEST
 
 Q15
-A tutor says, "I know the student better than the system, so I moved them ahead." Is this acceptable?
+The Specialist says, "I know this student better than the system, so I moved the topic ahead." What is the integrity judgment?
 
 Expected Answer
-No. That breaks RI-OS integrity. Phase movement must be based on scored drill evidence from RI-OS, not tutor preference.
+It is unacceptable. The Specialist has overridden operator authority and the evidence chain. Topic movement must come from scored repeated evidence and the deterministic system result.
 
 Fail Answer
-Yes, because tutors know students
-sometimes intuition matters
-move if it feels right
+Experienced tutors may override the system
+Move ahead when the student seems ready
+The score is only guidance

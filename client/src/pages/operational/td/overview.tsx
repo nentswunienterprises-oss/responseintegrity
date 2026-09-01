@@ -33,6 +33,8 @@ import { API_URL } from "@/lib/config";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   getBattleTestStateLabel,
+  getBattleTestVariantKey,
+  materializeBattleTestPhaseVariant,
   type BattleTestPhaseDefinition,
   type TutorBattleTestDeepDiveProgress,
   type BattleTestPhaseScore,
@@ -59,6 +61,7 @@ interface ActiveTutorRunContext {
   tutorId: string;
   tutorName: string;
   autoSelectedPhases: string[];
+  attemptsByPhase: Record<string, number>;
 }
 
 interface ActiveTutorHistoryContext {
@@ -301,12 +304,20 @@ export default function TDOverview() {
   }, [error, toast]);
 
   const activePhaseOptions = useMemo<BattleTestPhaseDefinition[]>(() => {
-    if (!tutorBattleTestPhases.length) return TUTOR_BATTLE_TEST_PHASES;
-    if (tutorBattleTestPhases.some((phase) => !phase.questions?.length)) {
-      return TUTOR_BATTLE_TEST_PHASES;
-    }
-    return tutorBattleTestPhases;
-  }, [tutorBattleTestPhases]);
+    const basePhases =
+      !tutorBattleTestPhases.length || tutorBattleTestPhases.some((phase) => !phase.questions?.length)
+        ? TUTOR_BATTLE_TEST_PHASES
+        : tutorBattleTestPhases;
+
+    if (!activeTutorRun) return basePhases;
+
+    return basePhases.map((phase) =>
+      materializeBattleTestPhaseVariant(
+        phase,
+        getBattleTestVariantKey(activeTutorRun.attemptsByPhase[phase.key] || 0)
+      )
+    );
+  }, [activeTutorRun, tutorBattleTestPhases]);
   const groupedTutorPhaseOptions = useMemo(() => {
     const groups: Record<TutorAuditGroupKey, BattleTestPhaseDefinition[]> = {
       transformation_phases: [],
@@ -358,18 +369,21 @@ export default function TDOverview() {
       tutorAssignmentId,
       tutorId,
       phaseKeys,
+      phaseVariants,
       responses,
     }: {
       podId: string;
       tutorAssignmentId: string;
       tutorId: string;
       phaseKeys: string[];
+      phaseVariants: Record<string, string>;
       responses: BattleTestResponseInput[];
     }) => {
       await apiRequest("POST", `/api/td/pods/${podId}/tutor-battle-tests`, {
         tutorAssignmentId,
         tutorId,
         phaseKeys,
+        phaseVariants,
         responses,
       });
     },
@@ -997,6 +1011,12 @@ export default function TDOverview() {
                                                       tutorId: tutor.id,
                                                       tutorName,
                                                       autoSelectedPhases: tutorAudit?.nextBattleTests?.map((test) => test.phaseKey) || [],
+                                                      attemptsByPhase: Object.fromEntries(
+                                                        (tutorAudit?.deepDiveProgress || []).map((entry) => [
+                                                          entry.phaseKey,
+                                                          entry.attemptsCount || 0,
+                                                        ])
+                                                      ),
                                                     });
                                                   }}
                                                 >
@@ -1086,8 +1106,8 @@ export default function TDOverview() {
             : "Run the Response Integrity Specialist Alignment Engine."
         }
         phaseOptions={activePhaseOptions}
-        preSelectedPhaseKeys={activeTutorRun?.autoSelectedPhases?.length === 1 ? activeTutorRun.autoSelectedPhases : undefined}
-        selectionMode="multiple"
+        preSelectedPhaseKeys={activeTutorRun?.autoSelectedPhases?.length ? activeTutorRun.autoSelectedPhases : undefined}
+        selectionMode={activeTutorRun?.autoSelectedPhases?.length ? "fixed" : "multiple"}
         submitLabel="Save Tutor Battle Test"
         onSubmit={async ({ selectedPhases, responses }) => {
           if (!activeTutorRun) return;
@@ -1096,6 +1116,9 @@ export default function TDOverview() {
             tutorAssignmentId: activeTutorRun.assignmentId,
             tutorId: activeTutorRun.tutorId,
             phaseKeys: selectedPhases.map((phase) => phase.key),
+            phaseVariants: Object.fromEntries(
+              selectedPhases.map((phase) => [phase.key, phase.variantKey || "form_a"])
+            ),
             responses,
           });
         }}

@@ -1,6 +1,6 @@
 # Response Integrity-OS Live Implementation Source of Truth
 
-Last updated: 2026-08-30
+Last updated: 2026-09-01
 Status: Canonical implementation spec
 
 ## Purpose
@@ -2691,6 +2691,8 @@ Implementation:
 
 - `shared/battleTesting.ts`
 - `server/battleTesting.ts`
+- `server/battleTestingBanks.ts`
+- `client/src/components/battle-testing/BattleTestRunnerDialog.tsx`
 
 ### Purpose
 
@@ -2718,6 +2720,109 @@ That includes areas such as:
 - handover verification
 - tools required
 - intro session structure
+
+### Specialist battle-test methodology
+
+Tutor Battle Testing is not a recall quiz.
+
+It exists to test whether a Specialist can reason like the system while preserving the operating boundary of the current phase, drill, set, and rep.
+
+The governing chain is:
+
+```text
+phase purpose -> drill purpose -> set purpose -> rep purpose -> active constraint -> observable response -> evidence -> system decision
+```
+
+A certification-grade question must therefore test more than a definition. It should test:
+
+- the capability being conditioned
+- the drill condition being preserved
+- the set-level evidentiary question
+- what a repetition is meant to reveal
+- what support is allowed or withheld
+- what would contaminate the condition
+- what evidence should be recorded
+- what conclusion the Specialist is not allowed to manufacture manually
+
+The live tutor bank contains eleven deep-dive banks:
+
+- five Transformation Phases banks
+- six Session Infrastructure banks
+
+Each bank must expose exactly fifteen questions.
+
+Each question must include:
+
+- a question prompt
+- an expected answer
+- fail indicators
+- a scoring guide with `CLEAR`, `PARTIAL`, and `FAIL` anchors
+- critical-fail metadata when failure would breach an operating boundary
+
+### Battle-test forms
+
+Tutor Battle Tests use deterministic form assignment:
+
+- first attempt: `form_a`
+- second attempt: `form_b`
+- third attempt: `form_c`
+- later attempts rotate through the same sequence
+
+The form is derived from the tutor's existing `attempts_count` for that deep dive.
+
+Training Mode must submit the assigned form key for every selected deep dive. The server must independently recompute the assigned form and reject stale or mismatched submissions.
+
+The purpose of forms is not to change the competency being tested. Form variants preserve:
+
+- the same phase
+- the same question keys
+- the same expected answer
+- the same scoring anchor
+- the same critical-fail boundary
+
+Only the prompt scenario varies.
+
+### Answer evidence requirement
+
+Every scored Battle Test response must include the Specialist's actual answer or a faithful concise capture of the evidence they gave.
+
+This field is required before persistence.
+
+Scoring without captured answer evidence is invalid because the audit would no longer be reviewable.
+
+For `PARTIAL` and `FAIL`, the TD must also record a note describing the drift, missing boundary, contamination risk, or failed reasoning.
+
+### Critical-fail boundaries
+
+Critical fail questions protect the methodology from high-risk operator drift.
+
+Examples include:
+
+- falsifying or inventing evidence
+- rescuing during a no-rescue condition
+- treating Specialist interpretation as recorded fact
+- overriding deterministic topic movement manually
+- accepting an invalid camera/audio setup as usable evidence
+- treating a tutor replacement as a fresh onboarding instead of handover continuity
+
+Critical-fail logic can force a failed state even when the numerical score would otherwise be stronger.
+
+### Training Mode behavior
+
+When Training Mode recommends next Battle Tests, the runner should open those recommended banks as a fixed assignment rather than asking the TD to choose manually.
+
+The recommendation engine identifies the highest-priority deep dives from progress, streak, drift, critical history, and time since last test.
+
+The runner then materializes the correct form for each recommended bank and submits:
+
+- selected phase keys
+- assigned form keys
+- scored answers
+- captured answer evidence
+- TD notes where required
+- critical-fail overrides where applicable
+
+The server validates the form assignment, question keys, answer evidence, and notes before recording the run.
 
 ### Current scored outputs
 
