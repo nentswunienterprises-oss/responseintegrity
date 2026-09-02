@@ -51,6 +51,7 @@ import TeamPage from "@/pages/about/team";
 import LeadershipDevelopmentPilot from "@/pages/leadershipdevelopmentpilot";
 import SpecialistLanding from "@/pages/specialist";
 import ResponseConditioningSystem from "@/pages/responseconditioningsystem";
+import ResponseConditioningIntroduction from "@/pages/responseconditioningsystem/introduction";
 import ResponseConditioningClarity from "@/pages/responseconditioningsystem/transformation-phases/clarity";
 import ResponseConditioningStructuredExecution from "@/pages/responseconditioningsystem/transformation-phases/structured-execution";
 import ResponseConditioningControlledDiscomfort from "@/pages/responseconditioningsystem/transformation-phases/controlled-discomfort";
@@ -256,6 +257,10 @@ function Router() {
       <Route path="/specialist" element={<SpecialistLanding />} />
       <Route path="/foundingtutorswanted" element={<RedirectWithSearch to="/operational/specialist/landing" />} />
       <Route path="/responseconditioningsystem" element={withDeepDiveDeterrent(<ResponseConditioningSystem />)} />
+      <Route
+        path="/responseconditioningsystem/introduction"
+        element={withDeepDiveDeterrent(<ResponseConditioningIntroduction />)}
+      />
       <Route
         path="/responseconditioningsystem/clarity"
         element={withDeepDiveDeterrent(<ResponseConditioningClarity />)}

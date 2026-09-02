@@ -177,6 +177,24 @@ export default function ResponseConditioningSystem() {
           </div>
         </Card>
 
+        <Card className="group border border-primary/15 bg-card shadow-sm hover:border-primary/40 transition-colors">
+          <Link
+            to="/responseconditioningsystem/introduction"
+            className="flex flex-col gap-5 p-6 sm:flex-row sm:items-start sm:justify-between"
+          >
+            <div className="space-y-2">
+              <Badge>Introduction</Badge>
+              <h2 className="text-xl font-bold leading-tight">
+                Introduction to the Response Conditioning Methodology
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Start here before Transformation Phases. This explains what a response is,
+                why mathematics is the arena, and how specialists preserve trustworthy evidence.
+              </p>
+            </div>
+          </Link>
+        </Card>
+
         <div className="grid md:grid-cols-2 gap-5">
           {modules.map((module) => {
             const Icon = module.icon;
