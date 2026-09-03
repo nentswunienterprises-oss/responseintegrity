@@ -570,6 +570,25 @@ The stored drill JSON now includes `responseSnapshot` for new diagnosis, trainin
 
 When a stored snapshot exists, `Observed Response` must be projected from the snapshot evidence rather than from the older broad behavior mapper. The field should summarize the strong response evidence and keep any weak or partial dimensions visible, including limiting evidence inside an otherwise strong rep. Later reports may use the structured lineage fields, but they must not mine the generated prose as a source of claims.
 
+The session-level `Observed Response` projection above is intentionally approved as the V1.1 session display contract. It is a projection from the persisted drill snapshot, not a new scoring rule and not a progression input.
+
+Response Snapshot V1 includes the full drill-level pattern layer:
+
+- Clarity training resolves the 9 scored two-set patterns across Identification and Light Apply.
+- Structured Execution, Controlled Discomfort, and Time Pressure Stability training each resolve the 27 ordered three-set patterns for that phase.
+- Drill `patternCode` is calculated from scored sets only. Clarity Modeling is still rendered as a `Not scored` set, but it does not add an artificial `N` to the scored drill matrix.
+- Set `patternCode` remains the ordered three-rep pattern for that set.
+
+Clarity Modeling must remain visible in the persisted snapshot as a non-scored set:
+
+> Modeling completed as a modeling set. No scored student response was recorded for this set.
+
+Persisted snapshot wording is historical output. Render stored `resultText` for persisted drill, set, and rep rows; use live formatters only for generation-time construction, legacy cleanup, or explicit migrations. Future wording improvements must not silently rewrite the meaning of an already submitted drill log.
+
+Evidence lineage must separate evidence occurrences from selected option definitions. `reportingLineage.evidenceIds` stores deterministic occurrence IDs tied to the source drill, schema, set, rep, and dimension. `reportingLineage.selectedOptionIds` stores reusable semantic option IDs. Later reports may aggregate occurrence IDs and option IDs, but must not treat option IDs alone as proof that a specific student produced specific evidence.
+
+On the immediate result screen, Response Snapshot is the main human-facing score explanation. The older raw per-set score cards remain available only as a collapsed technical disclosure labeled `View scoring breakdown`.
+
 ## Map And Tutor Control View
 
 The map is not the logging layer.
