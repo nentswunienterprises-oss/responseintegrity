@@ -9,6 +9,7 @@ import {
   type TopicPhase,
   type TopicStability,
 } from "@shared/topicConditioningEngine";
+import { getMonthlyServicePackage, type MonthlyPackageKey } from "@shared/servicePackages";
 
 interface ProposalData {
   id: string;
@@ -55,6 +56,11 @@ interface ProposalData {
   } | null;
   onboardingType?: "pilot" | "commercial";
   freeSessionsRemaining?: number;
+  packageKey?: MonthlyPackageKey;
+  packageSessions?: number;
+  plannedSessionsPerWeek?: number;
+  packageAmount?: number;
+  sessionPrice?: number;
 }
 
 interface ProposalTopicState {
@@ -90,6 +96,14 @@ export default function ProposalView({
   const studentName = proposal.student?.name || "Your Child";
   const studentFirstName = studentName.trim().split(/\s+/)[0] || "Your child";
   const isPilotOnboarding = proposal.onboardingType === "pilot";
+  const servicePackage = getMonthlyServicePackage(
+    proposal.packageKey || (proposal as any).package_key,
+  );
+  const packageSessions = Number(proposal.packageSessions || servicePackage.sessionsPerMonth);
+  const plannedSessionsPerWeek = Number(
+    proposal.plannedSessionsPerWeek || servicePackage.plannedSessionsPerWeek,
+  );
+  const packageAmount = Number(proposal.packageAmount || servicePackage.amountZar);
 
   type StudentPronounSet = {
     subject: "he" | "she" | "they";
@@ -765,7 +779,7 @@ export default function ProposalView({
         <CardContent>
           {isLiveTrainingView || isLiveTrainingStatePending ? (
             <ul className="text-sm text-muted-foreground space-y-1">
-              <li>- 2 sessions per week (8 per month)</li>
+              <li>- {plannedSessionsPerWeek} sessions per week ({packageSessions} per month)</li>
               <li>- Method-first execution</li>
               <li>- Immediate correction where needed</li>
               <li>- Repetition within the active training set</li>
@@ -773,7 +787,7 @@ export default function ProposalView({
             </ul>
           ) : (
             <ul className="text-sm text-muted-foreground space-y-1">
-              <li>- Cadence: 2 sessions per week (8 sessions per month)</li>
+              <li>- Cadence: {plannedSessionsPerWeek} sessions per week ({packageSessions} sessions per month)</li>
               <li>- Clear explanation of the problem structure</li>
               <li>- Guided practice with immediate correction</li>
               <li>- Repeated method-building in the active topic-conditioning set</li>
@@ -841,11 +855,36 @@ export default function ProposalView({
 
       <Card>
         <CardHeader>
+          <CardTitle>Monthly Package</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="text-xs text-muted-foreground">Sessions</p>
+              <p className="mt-1 font-semibold text-foreground">{packageSessions} per month</p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="text-xs text-muted-foreground">Planned frequency</p>
+              <p className="mt-1 font-semibold text-foreground">{plannedSessionsPerWeek} per week</p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="text-xs text-muted-foreground">Monthly amount</p>
+              <p className="mt-1 font-semibold text-foreground">R{packageAmount.toLocaleString("en-ZA")}</p>
+            </div>
+          </div>
+          <p className="mt-3 text-sm text-muted-foreground">
+            R200 is the per-session pricing basis. The service is delivered and renewed as this monthly package, not as ad-hoc session capacity.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Commitment</CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="text-sm text-muted-foreground space-y-1">
-            <li>- Cadence is fixed: 2 sessions weekly (8 sessions monthly)</li>
+            <li>- Package cadence: {plannedSessionsPerWeek} sessions weekly ({packageSessions} sessions monthly)</li>
             <li>- Consistent sessions are required</li>
             <li>- Student is expected to attempt before receiving guidance</li>
             <li>- Discomfort during learning is part of the process</li>
@@ -862,7 +901,7 @@ export default function ProposalView({
             <p className="text-sm text-muted-foreground text-center mb-6">
               {isPilotOnboarding
                 ? `Accept this pilot plan to unlock ${studentName}'s free-session access`
-                : `Pay R1000 for the Premium plan to unlock ${studentName}'s training sessions`}
+                : `Pay R${packageAmount.toLocaleString("en-ZA")} for the ${packageSessions}-session monthly package to unlock ${studentName}'s training sessions`}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
@@ -882,7 +921,11 @@ export default function ProposalView({
                 size="lg"
               >
                 <Check className="w-4 h-4" />
-                {isProcessing ? "Processing..." : isPilotOnboarding ? "Accept Pilot Access" : "Pay R1000 & Accept"}
+                {isProcessing
+                  ? "Processing..."
+                  : isPilotOnboarding
+                    ? "Accept Pilot Access"
+                    : `Pay R${packageAmount.toLocaleString("en-ZA")} & Accept`}
               </Button>
             </div>
           </CardContent>
