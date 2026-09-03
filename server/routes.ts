@@ -85,6 +85,7 @@ import {
 import {
   buildBattleTestSuccessPayload,
   buildPodBattleTestingSummary,
+  checkTutorDocumentationComplete,
   clearTutorAssignmentCertificationState,
   getBattleTestRunDetail,
   getBattleTestRunHistoryForPod,
@@ -113,6 +114,7 @@ import {
   createTrialCase,
   createTrialPlacement,
   decideTrialCase,
+  extendTrialCase,
   getOpenTrialCaseForTutor,
   getParentTrialCase,
   getTrialCaseById,
@@ -120,12 +122,32 @@ import {
   recordTrialReview,
   removeTrialPlacementCreatedDuringFailedAssignment,
 } from "./trialCertification";
+import {
+  buildSandboxReadinessOverview,
+  getLatestSandboxMockAssessment,
+  recordSandboxMockAssessment,
+} from "./sandboxReadiness";
+import {
+  approveSpecialistPathwayExtension,
+  ensureSpecialistDevelopmentPathway,
+  getSpecialistDevelopmentPathway,
+  linkSpecialistPathwayAssignment,
+} from "./specialistDevelopmentPathway";
+import {
+  DEFAULT_MONTHLY_PACKAGE_KEY,
+  MONTHLY_SERVICE_PACKAGES,
+  RESPONSE_INTEGRITY_SESSION_SHARE_ZAR,
+  SESSION_PRICE_ZAR,
+  SPECIALIST_SESSION_SHARE_ZAR,
+  buildPackagePayoutState,
+  getMonthlyServicePackage,
+  isMonthlyPackageKey,
+  type MonthlyPackageKey,
+} from "@shared/servicePackages";
+import { SANDBOX_REQUIRED_ACCOUNT_COUNT } from "@shared/sandboxReadiness";
 
-const PREMIUM_PLAN_NAME = "Premium";
-const PREMIUM_PLAN_AMOUNT = "1000.00";
-const PREMIUM_TUTOR_SHARE = "750.00";
-const PREMIUM_PLATFORM_SHARE = "250.00";
 const PAYMENT_PROVIDER_PAYFAST = "payfast";
+const DEFAULT_SERVICE_PACKAGE = MONTHLY_SERVICE_PACKAGES[DEFAULT_MONTHLY_PACKAGE_KEY];
 
 type SandboxCaseTemplate = {
   id: string;
@@ -316,14 +338,18 @@ function getPayfastConfig(useSandbox: boolean) {
   };
 }
 
-function isPremiumPlanPaymentReady(useSandbox = usePayfastSandbox()) {
+function isMonthlyPackagePaymentReady(useSandbox = usePayfastSandbox()) {
   const config = getPayfastConfig(useSandbox);
   return !!(config.merchantId && config.merchantKey);
 }
 
-function buildPremiumPaymentDescription(studentName: string | null | undefined) {
+function buildPackagePaymentDescription(
+  studentName: string | null | undefined,
+  packageKey: MonthlyPackageKey = DEFAULT_MONTHLY_PACKAGE_KEY,
+) {
   const label = String(studentName || "student").trim() || "student";
-  return `Response Integrity Premium monthly plan for ${label}`;
+  const servicePackage = getMonthlyServicePackage(packageKey);
+  return `Response Integrity ${servicePackage.sessionsPerMonth}-session monthly package for ${label}`;
 }
 
 function isValidPayfastEmail(value: string | null | undefined) {
@@ -495,6 +521,63 @@ async function getTutorCertificationMode(tutorId: string): Promise<TutorTraining
   return (assignment?.operationalMode as TutorTrainingMode | undefined) || "training";
 }
 
+async function getTutorSandboxReadiness(tutorId: string) {
+  const assignment = await storage.getTutorAssignment(tutorId);
+  if (!assignment?.id) throw new Error("Specialist must have an active pod assignment.");
+
+  const [tutor, students, docsComplete, latestMockAssessment, pathway, sandboxAccounts] = await Promise.all([
+    storage.getUser(tutorId),
+    storage.getStudentsByTutor(tutorId),
+    checkTutorDocumentationComplete(tutorId),
+    getLatestSandboxMockAssessment(assignment.id),
+    getSpecialistDevelopmentPathway(tutorId),
+    supabase
+      .from("parent_enrollments")
+      .select("id", { count: "exact", head: true })
+      .eq("assigned_tutor_id", tutorId)
+      .eq("is_sandbox_account", true)
+      .in("status", ACTIVE_PARENT_ENROLLMENT_STATUSES),
+  ]);
+  const summary = await buildPodBattleTestingSummary(
+    assignment.podId,
+    [{
+      assignmentId: assignment.id,
+      tutorId,
+      tutorName: tutor?.name || tutor?.firstName || "Unknown Specialist",
+      tutorEmail: tutor?.email || "",
+      studentCount: students.length,
+    }],
+    null,
+  );
+  const specialistSummary = summary.tutorSummaries[0] || null;
+  const moduleProgress = specialistSummary?.moduleProgress || [];
+  const transformationComplete = moduleProgress.find((entry) => entry.moduleKey === "transformation_phases")?.completed || false;
+  const sessionInfrastructureComplete = moduleProgress.find((entry) => entry.moduleKey === "session_infrastructure")?.completed || false;
+  const hasActiveFailHealth =
+    specialistSummary?.state === "fail" ||
+    specialistSummary?.hasCriticalFail === true ||
+    (specialistSummary?.deepDiveProgress || []).some(
+      (entry) => entry.currentHealthState === "drift" || entry.criticalFlag,
+    );
+
+  return {
+    tutorId,
+    tutorAssignmentId: assignment.id,
+    mode: specialistSummary?.mode || assignment.operationalMode || "training",
+    pathway,
+    sandboxAccountCount: sandboxAccounts.count || 0,
+    moduleProgress,
+    ...buildSandboxReadinessOverview({
+      docsComplete,
+      transformationComplete,
+      sessionInfrastructureComplete,
+      hasActiveFailHealth,
+      sandboxAccountCount: sandboxAccounts.count || 0,
+      latestMockAssessment,
+    }),
+  };
+}
+
 async function createPortableTutorAssignment(tutorId: string, podId: string) {
   const assignment = await storage.createTutorAssignment({
     tutorId,
@@ -504,6 +587,7 @@ async function createPortableTutorAssignment(tutorId: string, podId: string) {
 
   try {
     await hydrateTutorAssignmentFromPortableSnapshot(assignment.id, tutorId);
+    await linkSpecialistPathwayAssignment(tutorId, assignment.id);
     return assignment;
   } catch (error: any) {
     try {
@@ -913,7 +997,10 @@ async function reactivateDetachedSandboxEnrollment(enrollment: any, tutorId: str
   return data;
 }
 
-async function autoProvisionSandboxAccountsForTutor(tutorId: string, minimumCount = 3) {
+async function autoProvisionSandboxAccountsForTutor(
+  tutorId: string,
+  minimumCount = SANDBOX_REQUIRED_ACCOUNT_COUNT,
+) {
   const certificationMode = await getTutorCertificationMode(tutorId);
   if (certificationMode !== "sandbox") {
     return { certificationMode, createdAccounts: [] as any[] };
@@ -1235,7 +1322,10 @@ async function autoProvisionSandboxAccountsForTutor(tutorId: string, minimumCoun
   return { certificationMode, createdAccounts };
 }
 
-async function ensureVisibleSandboxStudentsForTutor(tutorId: string, minimumCount = 3) {
+async function ensureVisibleSandboxStudentsForTutor(
+  tutorId: string,
+  minimumCount = SANDBOX_REQUIRED_ACCOUNT_COUNT,
+) {
   const certificationMode = await getTutorCertificationMode(tutorId);
   if (certificationMode !== "sandbox") {
     return { certificationMode, createdAccounts: [] as any[], studentCount: 0 };
@@ -1762,9 +1852,36 @@ async function getLatestPaidPaymentForParent(parentId: string, studentId?: strin
   return fallbackResult;
 }
 
-const MONTHLY_SESSION_QUOTA = 8;
 const RESCHEDULE_LIMIT_PER_SESSION_PER_MONTH = 3;
 const CANCELLATION_CUTOFF_HOURS = 12;
+
+async function resolveEnrollmentServicePackage(options: {
+  enrollmentId?: string | null;
+  parentId?: string | null;
+  fallbackPackageKey?: unknown;
+}) {
+  if (options.enrollmentId) {
+    const { data } = await supabase
+      .from("parent_enrollments")
+      .select("package_key, package_sessions, planned_sessions_per_week")
+      .eq("id", options.enrollmentId)
+      .maybeSingle();
+    if (data?.package_key) return getMonthlyServicePackage(data.package_key);
+  }
+
+  if (options.parentId) {
+    const { data } = await supabase
+      .from("parent_enrollments")
+      .select("package_key, package_sessions, planned_sessions_per_week, updated_at")
+      .eq("user_id", options.parentId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data?.package_key) return getMonthlyServicePackage(data.package_key);
+  }
+
+  return getMonthlyServicePackage(options.fallbackPackageKey);
+}
 
 function getMonthStartIso(input: string | Date) {
   const date = input instanceof Date ? new Date(input) : new Date(input);
@@ -1790,6 +1907,7 @@ async function upsertMembershipMonth(options: {
   enrollmentId?: string | null;
   monthStartIso: string;
   isSandbox?: boolean;
+  packageKey?: MonthlyPackageKey | null;
 }) {
   const monthKey = toMonthKey(options.monthStartIso);
   const nowIso = new Date().toISOString();
@@ -1805,6 +1923,12 @@ async function upsertMembershipMonth(options: {
 
   if (existing) return existing;
 
+  const servicePackage = await resolveEnrollmentServicePackage({
+    enrollmentId: options.enrollmentId,
+    parentId: options.parentId,
+    fallbackPackageKey: options.packageKey,
+  });
+
   const { data: inserted, error } = await supabase
     .from("membership_months")
     .insert({
@@ -1813,9 +1937,17 @@ async function upsertMembershipMonth(options: {
       enrollment_id: options.enrollmentId || null,
       month_start: monthKey,
       month_key: monthKey,
-      session_quota: MONTHLY_SESSION_QUOTA,
+      package_key: servicePackage.key,
+      planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
+      session_price: SESSION_PRICE_ZAR,
+      specialist_per_session_amount: SPECIALIST_SESSION_SHARE_ZAR,
+      platform_per_session_amount: RESPONSE_INTEGRITY_SESSION_SHARE_ZAR,
+      specialist_earned_amount: 0,
+      specialist_payable_amount: 0,
+      payout_status: "accruing",
+      session_quota: servicePackage.sessionsPerMonth,
       sessions_used: 0,
-      sessions_remaining: MONTHLY_SESSION_QUOTA,
+      sessions_remaining: servicePackage.sessionsPerMonth,
       status: "active",
       is_sandbox: !!options.isSandbox,
       created_at: nowIso,
@@ -1898,7 +2030,7 @@ async function recalculateMembershipMonthUsage(options: {
 
   const { data: completedSessions } = await supabase
     .from("scheduled_sessions")
-    .select("id")
+    .select("id, tutor_id")
     .eq("parent_id", options.parentId)
     .eq("student_id", options.studentId)
     .eq("type", "training")
@@ -1907,13 +2039,20 @@ async function recalculateMembershipMonthUsage(options: {
     .lt("scheduled_time", nowIso);
 
   const completedSessionKeys = new Set<string>();
+  const completedScheduledSessions = new Map<string, string>();
+  const recordCompletedScheduledSession = (row: any) => {
+    const sessionId = String(row?.id || "").trim();
+    if (!sessionId) return;
+    completedSessionKeys.add(`training:${sessionId}`);
+    completedScheduledSessions.set(sessionId, String(row?.tutor_id || "").trim());
+  };
   // Filter sessions by sandbox flag (resolve enrollment per session)
   for (const row of (completedSessions || [])) {
     try {
       const sessionEnrollmentId = await resolveEnrollmentIdForSession({ parent_id: options.parentId, student_id: options.studentId, id: row.id });
       if (!sessionEnrollmentId) {
         // No enrollment, count as production
-        completedSessionKeys.add(`training:${row.id}`);
+        recordCompletedScheduledSession(row);
         continue;
       }
       const { data: linkedEnrollment } = await supabase
@@ -1924,13 +2063,13 @@ async function recalculateMembershipMonthUsage(options: {
 
       const isSandbox = isSandboxPaymentEnrollment(linkedEnrollment);
       if (!!options.isSandbox) {
-        if (isSandbox) completedSessionKeys.add(`training:${row.id}`);
+        if (isSandbox) recordCompletedScheduledSession(row);
       } else {
-        if (!isSandbox) completedSessionKeys.add(`training:${row.id}`);
+        if (!isSandbox) recordCompletedScheduledSession(row);
       }
     } catch (err) {
       // On error, be conservative and count the session
-      completedSessionKeys.add(`training:${row.id}`);
+      recordCompletedScheduledSession(row);
     }
   }
 
@@ -1958,6 +2097,7 @@ async function recalculateMembershipMonthUsage(options: {
     .gte("submitted_at", usageWindowStart)
     .lt("submitted_at", nowIso);
 
+  const evidenceEligibleSessionIds = new Set<string>();
   for (const row of (drills || [])) {
     if (!isTrainingDrillRecord(row)) continue;
     const scheduledId = String(row?.scheduled_session_id || "").trim();
@@ -1966,6 +2106,9 @@ async function recalculateMembershipMonthUsage(options: {
 
     if (scheduledId) {
       completedSessionKeys.add(`training:${scheduledId}`);
+      if (completedScheduledSessions.has(scheduledId)) {
+        evidenceEligibleSessionIds.add(scheduledId);
+      }
     } else if (runId) {
       completedSessionKeys.add(`training:${runId}`);
     } else if (drillId) {
@@ -1990,9 +2133,6 @@ async function recalculateMembershipMonthUsage(options: {
     return sum + Math.max(0, delta);
   }, 0);
 
-  const used = Math.max(0, Math.min(MONTHLY_SESSION_QUOTA, completedUsed + eventUsed));
-  const remaining = Math.max(0, MONTHLY_SESSION_QUOTA - used);
-
   const { data: membershipMonth } = await supabase
     .from("membership_months")
     .select("*")
@@ -2002,11 +2142,29 @@ async function recalculateMembershipMonthUsage(options: {
     .eq("is_sandbox", !!options.isSandbox)
     .maybeSingle();
 
+  const servicePackage = getMonthlyServicePackage(membershipMonth?.package_key);
+  const sessionQuota = Number(membershipMonth?.session_quota || servicePackage.sessionsPerMonth);
+  const used = Math.max(0, Math.min(sessionQuota, completedUsed + eventUsed));
+  const remaining = Math.max(0, sessionQuota - used);
+  const payoutState = buildPackagePayoutState({
+    packageKey: servicePackage.key,
+    eligibleSessionCount: evidenceEligibleSessionIds.size,
+    consumedSessionCount: used,
+  });
+  const protectedPayoutStatus = ["paid", "withheld"].includes(String(membershipMonth?.payout_status || ""))
+    ? String(membershipMonth.payout_status)
+    : payoutState.payoutStatus;
+
   const snapshot = {
     ...(membershipMonth || {}),
-    session_quota: MONTHLY_SESSION_QUOTA,
+    package_key: servicePackage.key,
+    planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
+    session_quota: sessionQuota,
     sessions_used: used,
     sessions_remaining: remaining,
+    specialist_earned_amount: payoutState.accruedAmountZar,
+    specialist_payable_amount: payoutState.payableAmountZar,
+    payout_status: protectedPayoutStatus,
     status: "active",
     updated_at: new Date().toISOString(),
   };
@@ -2016,6 +2174,9 @@ async function recalculateMembershipMonthUsage(options: {
     .update({
       sessions_used: used,
       sessions_remaining: remaining,
+      specialist_earned_amount: payoutState.accruedAmountZar,
+      specialist_payable_amount: payoutState.payableAmountZar,
+      payout_status: protectedPayoutStatus,
       updated_at: new Date().toISOString(),
     })
     .eq("parent_id", options.parentId)
@@ -2025,12 +2186,67 @@ async function recalculateMembershipMonthUsage(options: {
     .select("*")
     .maybeSingle();
 
+  const resolvedMembershipMonth = updated || membershipMonth;
+  if (!options.isSandbox && resolvedMembershipMonth?.id) {
+    let tutorId = Array.from(completedScheduledSessions.values()).find(Boolean) || "";
+    let enrollmentId = String(resolvedMembershipMonth.enrollment_id || "").trim();
+    if (!tutorId && enrollmentId) {
+      const { data: enrollment } = await supabase
+        .from("parent_enrollments")
+        .select("assigned_tutor_id")
+        .eq("id", enrollmentId)
+        .maybeSingle();
+      tutorId = String(enrollment?.assigned_tutor_id || "").trim();
+    }
+
+    if (tutorId) {
+      const { data: existingPayout } = await supabase
+        .from("specialist_package_payouts")
+        .select("id, status")
+        .eq("membership_month_id", resolvedMembershipMonth.id)
+        .maybeSingle();
+      const payoutStatus = ["paid", "withheld"].includes(String(existingPayout?.status || ""))
+        ? String(existingPayout.status)
+        : payoutState.payoutStatus;
+      const payoutRecord = {
+        membership_month_id: resolvedMembershipMonth.id,
+        tutor_id: tutorId,
+        parent_id: options.parentId,
+        student_id: options.studentId,
+        enrollment_id: enrollmentId || null,
+        package_key: servicePackage.key,
+        required_session_count: sessionQuota,
+        eligible_session_count: payoutState.eligibleSessionCount,
+        consumed_session_count: payoutState.consumedSessionCount,
+        accrued_amount: payoutState.accruedAmountZar,
+        payable_amount: payoutState.payableAmountZar,
+        status: payoutStatus,
+        package_completed_at: payoutState.payoutStatus === "payable" ? new Date().toISOString() : null,
+        evidence_snapshot: {
+          qualifyingSessionIds: Array.from(evidenceEligibleSessionIds),
+          evaluatedAt: new Date().toISOString(),
+        },
+        updated_at: new Date().toISOString(),
+      };
+      const { error: payoutError } = await supabase
+        .from("specialist_package_payouts")
+        .upsert(
+          existingPayout?.id ? { ...payoutRecord, id: existingPayout.id } : payoutRecord,
+          { onConflict: "membership_month_id" },
+        );
+      if (payoutError) console.error("Failed to reconcile Specialist package payout:", payoutError);
+    }
+  }
+
   return {
     ...snapshot,
     ...(updated || {}),
-    session_quota: MONTHLY_SESSION_QUOTA,
+    session_quota: sessionQuota,
     sessions_used: used,
     sessions_remaining: remaining,
+    specialist_earned_amount: payoutState.accruedAmountZar,
+    specialist_payable_amount: payoutState.payableAmountZar,
+    payout_status: protectedPayoutStatus,
     status: "active",
   };
 }
@@ -2211,7 +2427,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
     if (recalculated) {
       return {
         ...recalculated,
-        session_quota: Number(recalculated.session_quota ?? MONTHLY_SESSION_QUOTA),
+        session_quota: Number(recalculated.session_quota ?? DEFAULT_SERVICE_PACKAGE.sessionsPerMonth),
         sessions_used: Number(recalculated.sessions_used ?? 0),
         sessions_remaining: Number(recalculated.sessions_remaining ?? 0),
         status: String(recalculated.status || "active"),
@@ -2223,7 +2439,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
 
   return {
     ...row,
-    session_quota: Number(row.session_quota ?? MONTHLY_SESSION_QUOTA),
+    session_quota: Number(row.session_quota ?? DEFAULT_SERVICE_PACKAGE.sessionsPerMonth),
     sessions_used: Number(row.sessions_used ?? 0),
     sessions_remaining: Number(row.sessions_remaining ?? 0),
     status: String(row.status || "active"),
@@ -2359,6 +2575,9 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
   const monthKey = String(rawPayload.month_key || "").trim();
   const parentId = String(transaction?.parent_id || "").trim();
   let studentId = String(transaction?.student_id || "").trim();
+  const servicePackage = getMonthlyServicePackage(
+    transaction?.package_key || rawPayload.package_key || DEFAULT_MONTHLY_PACKAGE_KEY,
+  );
 
   if (!renewal || !monthKey || !parentId) {
     return null;
@@ -2483,6 +2702,7 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
       studentId,
       monthStartIso,
       isSandbox: isSandboxTransaction,
+      packageKey: servicePackage.key,
     });
     if (!month) return null;
     await recordSessionBillingEvent({
@@ -2494,12 +2714,13 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
       actorRole: "system",
       actorId: "system",
       billingImpact: "restore",
-      creditsDelta: MONTHLY_SESSION_QUOTA,
+      creditsDelta: servicePackage.sessionsPerMonth,
       reasonCodes: ["renewal"],
       reasonNote: "Monthly renewal payment applied",
       metadata: {
         monthKey,
         renewal: true,
+        packageKey: servicePackage.key,
         transactionId: String(transaction?.id || ""),
       },
       effectiveAtIso: String(transaction?.paid_at || new Date().toISOString()),
@@ -2509,7 +2730,13 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
       .from("membership_months")
       .update({
         sessions_used: 0,
-        sessions_remaining: MONTHLY_SESSION_QUOTA,
+        sessions_remaining: servicePackage.sessionsPerMonth,
+        session_quota: servicePackage.sessionsPerMonth,
+        package_key: servicePackage.key,
+        planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
+        specialist_earned_amount: 0,
+        specialist_payable_amount: 0,
+        payout_status: "accruing",
         status: "active",
         updated_at: new Date().toISOString(),
       })
@@ -2536,12 +2763,13 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
     actorRole: "system",
     actorId: "system",
     billingImpact: "restore",
-    creditsDelta: MONTHLY_SESSION_QUOTA,
+    creditsDelta: servicePackage.sessionsPerMonth,
     reasonCodes: ["renewal"],
     reasonNote: "Monthly renewal payment applied",
     metadata: {
       monthKey,
       renewal: true,
+      packageKey: servicePackage.key,
       transactionId: String(transaction?.id || ""),
     },
     effectiveAtIso: String(transaction?.paid_at || new Date().toISOString()),
@@ -2555,7 +2783,13 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
     .from("membership_months")
     .update({
       sessions_used: 0,
-      sessions_remaining: MONTHLY_SESSION_QUOTA,
+      sessions_remaining: servicePackage.sessionsPerMonth,
+      session_quota: servicePackage.sessionsPerMonth,
+      package_key: servicePackage.key,
+      planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
+      specialist_earned_amount: 0,
+      specialist_payable_amount: 0,
+      payout_status: "accruing",
       status: "active",
       updated_at: new Date().toISOString(),
     })
@@ -2756,8 +2990,8 @@ async function ensurePremiumAccessForParent(parentId: string, studentId?: string
       status: 402,
       message:
         billingModel.data.onboardingType === "pilot"
-          ? "Pilot access is exhausted. Premium payment is now required before more training sessions can be accessed."
-          : "Premium payment is required before training sessions can be accessed.",
+          ? "Pilot access is exhausted. Monthly package payment is now required before more training sessions can be accessed."
+          : "Monthly package payment is required before training sessions can be accessed.",
       onboardingType: billingModel.data.onboardingType,
     };
   }
@@ -2804,7 +3038,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
 
   const { data: proposal } = await supabase
     .from("onboarding_proposals")
-    .select("id, accepted_at, parent_code, student_id, tutor_id, topic_conditioning_topic, topic_conditioning_entry_phase, topic_conditioning_stability")
+    .select("id, accepted_at, parent_code, student_id, tutor_id, topic_conditioning_topic, topic_conditioning_entry_phase, topic_conditioning_stability, package_key, package_sessions, planned_sessions_per_week")
     .eq("id", proposalId)
     .maybeSingle();
 
@@ -2849,11 +3083,15 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
   }
 
   const nowIso = new Date().toISOString();
+  const servicePackage = getMonthlyServicePackage(proposal.package_key || transaction?.package_key);
 
   const { error: updateError } = await supabase
     .from("parent_enrollments")
     .update({
       status: "session_booked",
+      package_key: servicePackage.key,
+      package_sessions: servicePackage.sessionsPerMonth,
+      planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
       updated_at: nowIso,
     })
     .eq("id", enrollment.id);
@@ -3018,7 +3256,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
     proposal?.tutor_id,
     {
       title: "Proposal paid and accepted",
-      body: "A parent completed Premium payment. Continue with the scheduled session flow.",
+      body: "A parent completed monthly package payment. Continue with the scheduled session flow.",
       url: "/operational/tutor/pod",
       tag: `tutor-proposal-paid-${proposal.id}`,
     },
@@ -8752,7 +8990,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               try {
                 await ensureVisibleSandboxStudentsForTutor(
                   tutorId,
-                  Math.max(3, cleanupResult.detachedCount || 0)
+                  Math.max(SANDBOX_REQUIRED_ACCOUNT_COUNT, cleanupResult.detachedCount || 0)
                 );
               } catch (error) {
                 console.error("Sandbox provisioning/backfill failed after tutor pod response:", error);
@@ -8863,8 +9101,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const { tutorId } = req.params;
-        const { count = 3 } = req.body;
-        const result = await autoProvisionSandboxAccountsForTutor(tutorId, Number(count) || 3);
+        const result = await autoProvisionSandboxAccountsForTutor(
+          tutorId,
+          SANDBOX_REQUIRED_ACCOUNT_COUNT,
+        );
         if (result.certificationMode !== "sandbox") {
           return res.status(400).json({
             message: `Tutor must be in sandbox mode to provision fake accounts. Current status: ${result.certificationMode}`,
@@ -13906,7 +14146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if ((alignmentSummary?.mode || assignment.operationalMode) === "sandbox") {
           try {
-            await ensureVisibleSandboxStudentsForTutor(tutorId, 3);
+            await ensureVisibleSandboxStudentsForTutor(tutorId, SANDBOX_REQUIRED_ACCOUNT_COUNT);
           } catch (error) {
             console.error("Sandbox provisioning/backfill failed while loading tutor alignment summary:", error);
           }
@@ -18060,15 +18300,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!application) {
           return res.status(404).json({ message: "Application not found" });
         }
+        await ensureSpecialistDevelopmentPathway({
+          tutorId: application.userId,
+          applicationId: application.id,
+          startedAt: application.reviewedAt || new Date(),
+        });
         await safeSendPush(
           application.userId,
           {
-            title: "Tutor application approved",
-            body: "Your application was approved. Open Response Integrity to continue onboarding and upload your documents.",
+            title: "Specialist application approved",
+            body: "Your 75-day Specialist Development Pathway has started. Open Response Integrity to continue onboarding.",
             url: "/operational/tutor/gateway",
             tag: `tutor-application-approved-${application.id}`,
           },
-          "tutor application approved",
+          "Specialist application approved",
         );
         
         res.json(application);
@@ -19892,17 +20137,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   app.get(
+    "/api/tutor/development-pathway",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = (req as any).dbUser.id;
+        const pathway = await getSpecialistDevelopmentPathway(tutorId);
+        res.json({ pathway });
+      } catch (error) {
+        console.error("Error loading Specialist Development Pathway:", error);
+        res.status(500).json({ message: "Failed to load Specialist Development Pathway" });
+      }
+    },
+  );
+
+  app.get(
+    "/api/coo/tutors/:tutorId/sandbox-readiness",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        res.json(await getTutorSandboxReadiness(String(req.params.tutorId || "").trim()));
+      } catch (error) {
+        console.error("Error loading Sandbox Mock readiness:", error);
+        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to load Sandbox readiness" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/coo/tutors/:tutorId/sandbox-mock-assessment",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = String(req.params.tutorId || "").trim();
+        const before = await getTutorSandboxReadiness(tutorId);
+        if (before.mode !== "sandbox") {
+          return res.status(409).json({ message: `Sandbox Mock requires Sandbox mode. Current lifecycle: ${before.mode}.` });
+        }
+        if (!before.pathway?.timeline?.canContinue) {
+          return res.status(409).json({
+            message: before.pathway?.timeline?.state === "extension_required"
+              ? "The 75-day pathway window has ended. Approve a documented extension before the Mock."
+              : "The Specialist Development Pathway is missing or has expired.",
+          });
+        }
+        const prerequisiteBlockers = before.gate.blockers.filter(
+          (blocker: string) => !blocker.startsWith("The Sandbox Mock"),
+        );
+        if (prerequisiteBlockers.length > 0) {
+          return res.status(409).json({ message: prerequisiteBlockers.join(" ") });
+        }
+
+        const decision = String(req.body?.decision || "").trim();
+        if (!(["passed", "remediation_required"] as string[]).includes(decision)) {
+          return res.status(400).json({ message: "Choose passed or remediation required." });
+        }
+        await recordSandboxMockAssessment({
+          tutorId,
+          tutorAssignmentId: before.tutorAssignmentId,
+          decision: decision as "passed" | "remediation_required",
+          checklist: req.body?.checklist,
+          evidenceNote: String(req.body?.evidenceNote || ""),
+          assessedByUserId: (req as any).dbUser.id,
+        });
+        res.json(await getTutorSandboxReadiness(tutorId));
+      } catch (error) {
+        console.error("Error recording Sandbox Mock assessment:", error);
+        res.status(409).json({ message: error instanceof Error ? error.message : "Failed to record Sandbox Mock assessment" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/coo/tutors/:tutorId/pathway-extension",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const pathway = await approveSpecialistPathwayExtension({
+          tutorId: String(req.params.tutorId || "").trim(),
+          approvedByUserId: (req as any).dbUser.id,
+          reason: String(req.body?.reason || ""),
+        });
+        res.json({ pathway });
+      } catch (error) {
+        console.error("Error extending Specialist Development Pathway:", error);
+        res.status(409).json({ message: error instanceof Error ? error.message : "Failed to extend Specialist pathway" });
+      }
+    },
+  );
+
+  app.get(
     "/api/tutor/trial-case",
     isAuthenticated,
     requireRole(["tutor"]),
     async (req: Request, res: Response) => {
       try {
         const tutorId = (req as any).dbUser.id;
-        const [mode, trialCase] = await Promise.all([
+        const [mode, trialCase, pathway] = await Promise.all([
           getTutorCertificationMode(tutorId),
           getOpenTrialCaseForTutor(tutorId),
+          getSpecialistDevelopmentPathway(tutorId),
         ]);
-        res.json({ mode, case: trialCase });
+        res.json({ mode, case: trialCase, pathway });
       } catch (error) {
         console.error("Error loading tutor Trial case:", error);
         res.status(500).json({ message: "Failed to load Trial validation progress" });
@@ -19917,11 +20257,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const tutorId = String(req.params.tutorId || "").trim();
-        const [mode, trialCase] = await Promise.all([
+        const [mode, trialCase, pathway] = await Promise.all([
           getTutorCertificationMode(tutorId),
           getOpenTrialCaseForTutor(tutorId),
+          getSpecialistDevelopmentPathway(tutorId),
         ]);
-        res.json({ mode, case: trialCase });
+        res.json({ mode, case: trialCase, pathway });
       } catch (error) {
         console.error("Error loading COO tutor Trial case:", error);
         res.status(500).json({ message: "Failed to load Trial validation progress" });
@@ -19957,6 +20298,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         console.error("Error opening tutor Trial case:", error);
         res.status(400).json({ message: error instanceof Error ? error.message : "Failed to open Trial case" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/coo/trial-cases/:caseId/extension",
+    isAuthenticated,
+    requireRole(["coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const trialCase = await extendTrialCase({
+          caseId: String(req.params.caseId || "").trim(),
+          extensionEndsAt: String(req.body?.extensionEndsAt || "").trim(),
+          reason: String(req.body?.reason || "").trim(),
+          approvedByUserId: (req as any).dbUser.id,
+        });
+        res.json({ case: trialCase });
+      } catch (error) {
+        console.error("Error extending Trial window:", error);
+        res.status(409).json({ message: error instanceof Error ? error.message : "Failed to extend Trial window" });
       }
     },
   );
@@ -21696,7 +22057,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           billingModel.data.onboardingType === "pilot"
             ? Math.max(0, 9 - (sessionProgress.count || 0))
             : 0,
-        plan: latestPayment?.plan || PREMIUM_PLAN_NAME,
+        plan: latestPayment?.plan || DEFAULT_SERVICE_PACKAGE.label,
         paymentStatus: latestPayment
           ? String(latestPayment.payment_status || "").toUpperCase()
           : billingModel.data.onboardingType === "pilot" && (sessionProgress.count || 0) < 9
@@ -22041,12 +22402,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         recommendedPlan,
         justification,
         childWillWin,
+        packageKey,
       } = req.body;
 
       // Validate required fields
       if (!studentId || !recommendedPlan || !justification) {
         return res.status(400).json({ message: "Missing required fields" });
       }
+      if (packageKey != null && !isMonthlyPackageKey(packageKey)) {
+        return res.status(400).json({ message: "Choose a valid 8, 12, or 16-session monthly package." });
+      }
+      const servicePackage = getMonthlyServicePackage(packageKey || DEFAULT_MONTHLY_PACKAGE_KEY);
 
       const student = await storage.getStudent(studentId);
       if (!student) {
@@ -22287,6 +22653,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           recommended_plan: recommendedPlan,
           justification: justification,
           child_will_win: childWillWin,
+          package_key: servicePackage.key,
+          package_sessions: servicePackage.sessionsPerMonth,
+          planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
+          package_amount: servicePackage.amountZar,
+          specialist_per_session_amount: SPECIALIST_SESSION_SHARE_ZAR,
+          platform_per_session_amount: RESPONSE_INTEGRITY_SESSION_SHARE_ZAR,
           sent_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -22591,6 +22963,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         recommendedPlan: proposal.recommended_plan,
         justification: proposal.justification,
         childWillWin: proposal.child_will_win,
+        packageKey: getMonthlyServicePackage(proposal.package_key).key,
+        packageSessions: getMonthlyServicePackage(proposal.package_key).sessionsPerMonth,
+        plannedSessionsPerWeek: getMonthlyServicePackage(proposal.package_key).plannedSessionsPerWeek,
+        packageAmount: getMonthlyServicePackage(proposal.package_key).amountZar,
+        sessionPrice: SESSION_PRICE_ZAR,
         parentCode: proposal.parent_code,
         createdAt: proposal.created_at,
         student: {
@@ -22683,7 +23060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const payfastSandboxForEnrollment = isSandboxPaymentEnrollment(paymentEnrollment);
-      if (billingModel.data.onboardingType === "commercial" && !isPremiumPlanPaymentReady(payfastSandboxForEnrollment)) {
+      if (billingModel.data.onboardingType === "commercial" && !isMonthlyPackagePaymentReady(payfastSandboxForEnrollment)) {
         return res.status(500).json({ message: "PayFast is not configured on this deployment." });
       }
 
@@ -22696,7 +23073,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (existingPayment?.payment_status === "paid") {
         const finalized = await finalizeAcceptedProposalFromPayment(existingPayment);
         return res.json({
-          message: "Premium payment already confirmed.",
+          message: "Monthly package payment already confirmed.",
           paymentStatus: "PAID",
           status: finalized.status,
           parentCode: finalized.parentCode,
@@ -22705,13 +23082,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { data: paymentProposal } = await supabase
         .from("onboarding_proposals")
-        .select("id, student_id, tutor_id")
+        .select("id, student_id, tutor_id, package_key, package_sessions, planned_sessions_per_week, package_amount")
         .eq("id", paymentEnrollment.proposal_id)
         .maybeSingle();
 
       if (!paymentProposal?.student_id || !paymentProposal?.tutor_id) {
         return res.status(400).json({ message: "Proposal is missing student or tutor linkage." });
       }
+      const servicePackage = getMonthlyServicePackage(paymentProposal.package_key);
 
       if (billingModel.data.onboardingType === "pilot") {
         const finalizationSeed = existingPayment || {
@@ -22732,13 +23110,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const merchantReference = String(existingPayment?.merchant_reference || `response-integrity-premium-${uuidv4()}`);
+      const merchantReference = String(existingPayment?.merchant_reference || `response-integrity-package-${uuidv4()}`);
       const payfastConfig = getPayfastConfig(payfastSandboxForEnrollment);
       const nowIso = new Date().toISOString();
       const paymentRawPayload = {
         ...(existingPayment?.raw_payload && typeof existingPayment.raw_payload === "object" ? existingPayment.raw_payload : {}),
         payfast_mode: payfastSandboxForEnrollment ? "sandbox" : "live",
         sandbox_checkout: payfastSandboxForEnrollment,
+        package_key: servicePackage.key,
       };
       const paymentRecord = existingPayment
         ? {
@@ -22750,14 +23129,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             tutor_id: paymentProposal.tutor_id,
             provider: PAYMENT_PROVIDER_PAYFAST,
             payment_status: "pending",
-            plan: PREMIUM_PLAN_NAME,
-            amount: PREMIUM_PLAN_AMOUNT,
+            plan: servicePackage.label,
+            amount: servicePackage.amountZar.toFixed(2),
             currency: "ZAR",
-            tutor_share: PREMIUM_TUTOR_SHARE,
-            platform_share: PREMIUM_PLATFORM_SHARE,
+            tutor_share: servicePackage.specialistAllocationZar.toFixed(2),
+            platform_share: servicePackage.responseIntegrityAllocationZar.toFixed(2),
+            package_key: servicePackage.key,
+            package_sessions: servicePackage.sessionsPerMonth,
+            planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
+            session_price: SESSION_PRICE_ZAR,
             merchant_reference: merchantReference,
-            item_name: `${PREMIUM_PLAN_NAME} Plan`,
-            item_description: buildPremiumPaymentDescription(paymentEnrollment.student_full_name),
+            item_name: servicePackage.label,
+            item_description: buildPackagePaymentDescription(paymentEnrollment.student_full_name, servicePackage.key),
             raw_payload: paymentRawPayload,
             updated_at: nowIso,
           }
@@ -22769,14 +23152,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             tutor_id: paymentProposal.tutor_id,
             provider: PAYMENT_PROVIDER_PAYFAST,
             payment_status: "pending",
-            plan: PREMIUM_PLAN_NAME,
-            amount: PREMIUM_PLAN_AMOUNT,
+            plan: servicePackage.label,
+            amount: servicePackage.amountZar.toFixed(2),
             currency: "ZAR",
-            tutor_share: PREMIUM_TUTOR_SHARE,
-            platform_share: PREMIUM_PLATFORM_SHARE,
+            tutor_share: servicePackage.specialistAllocationZar.toFixed(2),
+            platform_share: servicePackage.responseIntegrityAllocationZar.toFixed(2),
+            package_key: servicePackage.key,
+            package_sessions: servicePackage.sessionsPerMonth,
+            planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
+            session_price: SESSION_PRICE_ZAR,
             merchant_reference: merchantReference,
-            item_name: `${PREMIUM_PLAN_NAME} Plan`,
-            item_description: buildPremiumPaymentDescription(paymentEnrollment.student_full_name),
+            item_name: servicePackage.label,
+            item_description: buildPackagePaymentDescription(paymentEnrollment.student_full_name, servicePackage.key),
             raw_payload: paymentRawPayload,
             created_at: nowIso,
             updated_at: nowIso,
@@ -22809,14 +23196,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             useSandbox: payfastSandboxForEnrollment,
           }),
           m_payment_id: merchantReference,
-          amount: PREMIUM_PLAN_AMOUNT,
-          item_name: `${PREMIUM_PLAN_NAME} Plan`,
-          item_description: buildPremiumPaymentDescription(paymentEnrollment.student_full_name),
+          amount: servicePackage.amountZar.toFixed(2),
+          item_name: servicePackage.label,
+          item_description: buildPackagePaymentDescription(paymentEnrollment.student_full_name, servicePackage.key),
           custom_str1: String(paymentEnrollment.id),
           custom_str2: String(paymentProposal.id),
           custom_str3: String(paymentProposal.student_id),
           custom_str4: String(paymentProposal.tutor_id),
-          custom_str5: PREMIUM_PLAN_NAME,
+          custom_str5: servicePackage.key,
         },
         payfastConfig.passphrase,
       );
@@ -22826,11 +23213,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         onboardingType: "commercial",
         paymentStatus: "UNPAID",
         paymentProvider: PAYMENT_PROVIDER_PAYFAST,
-        plan: PREMIUM_PLAN_NAME,
-        amount: Number(PREMIUM_PLAN_AMOUNT),
-        tutorShare: Number(PREMIUM_TUTOR_SHARE),
-        platformShare: Number(PREMIUM_PLATFORM_SHARE),
-        ttShare: Number(PREMIUM_PLATFORM_SHARE),
+        plan: servicePackage.label,
+        packageKey: servicePackage.key,
+        sessionsPerMonth: servicePackage.sessionsPerMonth,
+        plannedSessionsPerWeek: servicePackage.plannedSessionsPerWeek,
+        amount: servicePackage.amountZar,
+        tutorShare: servicePackage.specialistAllocationZar,
+        platformShare: servicePackage.responseIntegrityAllocationZar,
+        ttShare: servicePackage.responseIntegrityAllocationZar,
         merchantReference,
         checkoutUrl: payfastConfig.processUrl,
         sandbox: payfastSandboxForEnrollment,
@@ -23532,7 +23922,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             amount: Number(payment.amount || 0),
             currency: payment.currency,
             status: String(payment.payment_status || "pending").toUpperCase(),
-            type: rawPayload.renewal ? "Monthly renewal" : "Premium access",
+            type: rawPayload.renewal ? "Monthly renewal" : "Monthly package",
             paymentDate: payment.payment_date || payment.paid_at || payment.created_at,
             createdAt: payment.created_at,
           };
@@ -23550,8 +23940,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { data: enrollment, error: enrollmentError } = await selectLatestParentEnrollment({
         parentId,
-        primarySelect: "id, status, student_full_name, assigned_tutor_id, parent_email, is_sandbox_account, assigned_student_id, current_step",
-        fallbackSelect: "id, status, student_full_name, assigned_tutor_id, parent_email, is_sandbox_account, current_step",
+        primarySelect: "id, status, student_full_name, assigned_tutor_id, parent_email, is_sandbox_account, assigned_student_id, current_step, package_key, package_sessions, planned_sessions_per_week",
+        fallbackSelect: "id, status, student_full_name, assigned_tutor_id, parent_email, is_sandbox_account, current_step, package_key, package_sessions, planned_sessions_per_week",
       });
 
       const activeStatuses = ["confirmed", "session_booked", "report_received"];
@@ -23560,9 +23950,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const useSandbox = isSandboxPaymentEnrollment(enrollment);
-      if (!isPremiumPlanPaymentReady(useSandbox)) {
+      if (!isMonthlyPackagePaymentReady(useSandbox)) {
         return res.status(500).json({ message: "PayFast is not configured on this deployment." });
       }
+      const servicePackage = getMonthlyServicePackage(enrollment.package_key);
 
       const monthKey = toMonthKey(getMonthStartIso(new Date().toISOString())!);
       const canonicalStudent = await resolveCanonicalStudentForEnrollment(enrollment);
@@ -23579,7 +23970,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (monthlyQuota && Number(monthlyQuota.sessions_remaining || 0) > 0) {
-        return res.status(409).json({ message: "Your current monthly session quota is not exhausted yet. Renew only after all 8 sessions are used." });
+        return res.status(409).json({
+          message: `Your current ${servicePackage.sessionsPerMonth}-session monthly package is not complete yet. Renewal opens after all package sessions are used.`,
+        });
       }
 
       let existingRenewalPaymentQuery = supabase
@@ -23616,15 +24009,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           student_id: studentId,
           provider: PAYMENT_PROVIDER_PAYFAST,
           payment_status: "pending",
-          plan: PREMIUM_PLAN_NAME,
-          amount: PREMIUM_PLAN_AMOUNT,
+          plan: servicePackage.label,
+          amount: servicePackage.amountZar.toFixed(2),
           currency: "ZAR",
-          tutor_share: PREMIUM_TUTOR_SHARE,
-          platform_share: PREMIUM_PLATFORM_SHARE,
+          tutor_share: servicePackage.specialistAllocationZar.toFixed(2),
+          platform_share: servicePackage.responseIntegrityAllocationZar.toFixed(2),
+          package_key: servicePackage.key,
+          package_sessions: servicePackage.sessionsPerMonth,
+          planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
+          session_price: SESSION_PRICE_ZAR,
           merchant_reference: merchantReference,
-          item_name: `${PREMIUM_PLAN_NAME} Monthly Renewal`,
-          item_description: buildPremiumPaymentDescription(enrollment.student_full_name),
-          raw_payload: { payfast_mode: useSandbox ? "sandbox" : "live", renewal: true, month_key: monthKey },
+          item_name: `${servicePackage.label} Renewal`,
+          item_description: buildPackagePaymentDescription(enrollment.student_full_name, servicePackage.key),
+          raw_payload: {
+            payfast_mode: useSandbox ? "sandbox" : "live",
+            renewal: true,
+            month_key: monthKey,
+            package_key: servicePackage.key,
+          },
           created_at: nowIso,
           updated_at: nowIso,
         })
@@ -23652,17 +24054,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             useSandbox,
           }),
           m_payment_id: merchantReference,
-          amount: PREMIUM_PLAN_AMOUNT,
-          item_name: `${PREMIUM_PLAN_NAME} Monthly Renewal`,
-          item_description: buildPremiumPaymentDescription(enrollment.student_full_name),
+          amount: servicePackage.amountZar.toFixed(2),
+          item_name: `${servicePackage.label} Renewal`,
+          item_description: buildPackagePaymentDescription(enrollment.student_full_name, servicePackage.key),
           custom_str1: String(enrollment.id),
-          custom_str5: PREMIUM_PLAN_NAME,
+          custom_str5: servicePackage.key,
         },
         payfastConfig.passphrase,
       );
 
       return res.json({
         message: "Renewal payment prepared.",
+        packageKey: servicePackage.key,
+        sessionsPerMonth: servicePackage.sessionsPerMonth,
+        amount: servicePackage.amountZar,
         merchantReference,
         checkoutUrl: payfastConfig.processUrl,
         sandbox: useSandbox,
