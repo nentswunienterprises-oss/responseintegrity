@@ -185,7 +185,7 @@ export default function ParentGateway() {
             const data = await response.json().catch(() => ({}));
             toast({
               title: "Sandbox Payment Confirmed",
-              description: "Sandbox payment was confirmed and Premium access is now active.",
+              description: "Sandbox payment was confirmed and monthly package access is now active.",
             });
             if (data?.parentCode) {
               setParentCode(data.parentCode);
@@ -200,7 +200,7 @@ export default function ParentGateway() {
           } else if (!cancelled) {
             toast({
               title: "Payment Submitted",
-              description: "We are waiting for PayFast to confirm the Premium payment.",
+              description: "We are waiting for PayFast to confirm the monthly package payment.",
             });
             queryClient.invalidateQueries({ queryKey: ["/api/parent/enrollment-status"] });
           }
@@ -208,7 +208,7 @@ export default function ParentGateway() {
           if (!cancelled) {
             toast({
               title: "Payment Submitted",
-              description: "We are waiting for PayFast to confirm the Premium payment.",
+              description: "We are waiting for PayFast to confirm the monthly package payment.",
             });
             queryClient.invalidateQueries({ queryKey: ["/api/parent/enrollment-status"] });
           }
@@ -218,7 +218,7 @@ export default function ParentGateway() {
       if (payfastState === "cancelled" && !cancelled) {
         toast({
           title: "Payment Cancelled",
-          description: "Premium payment was cancelled. Sessions stay locked until payment is completed.",
+          description: "Monthly package payment was cancelled. Sessions stay locked until payment is completed.",
           variant: "destructive",
         });
       }
@@ -265,7 +265,7 @@ export default function ParentGateway() {
   });
 
   const { data: trainingSessionsData } = useQuery<{
-    monthlyQuota?: { sessions_remaining?: number; session_quota?: number } | null;
+    monthlyQuota?: { sessions_remaining?: number; session_quota?: number; session_price?: number } | null;
     paymentRequired?: boolean;
     paymentStatus?: string | null;
   }>({queryKey: ["/api/parent/training-sessions"], queryFn: getQueryFn({ on401: "returnNull" }), enabled: !!user && !authLoading && (enrollmentStatus?.status === "session_booked" || enrollmentStatus?.status === "report_received" || enrollmentStatus?.status === "confirmed"), refetchInterval: 15000 });
@@ -273,6 +273,8 @@ export default function ParentGateway() {
   const quotaExhausted = trainingSessionsData?.monthlyQuota != null && quotaRemaining <= 0;
   const paymentRequired = trainingSessionsData?.paymentRequired === true;
   const renewalBlocked = paymentRequired || quotaExhausted;
+  const renewalPackageSessions = Math.max(1, Number(trainingSessionsData?.monthlyQuota?.session_quota || 8));
+  const renewalAmount = renewalPackageSessions * Number(trainingSessionsData?.monthlyQuota?.session_price || 200);
 
   // Fetch intro session confirmation if status is assigned, awaiting assignment, or awaiting tutor acceptance
   const {
@@ -478,7 +480,7 @@ export default function ParentGateway() {
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(data?.message || "Failed to start Premium payment");
+        throw new Error(data?.message || "Failed to start monthly package payment");
       }
 
       if (data?.paymentStatus === "PAID" || data?.paymentStatus === "FREE_ACCESS") {
@@ -491,7 +493,7 @@ export default function ParentGateway() {
           description:
             data?.paymentStatus === "FREE_ACCESS"
               ? "Pilot onboarding is active and sessions are unlocked."
-              : "Premium payment is already confirmed and sessions are unlocked.",
+              : "Monthly package payment is already confirmed and sessions are unlocked.",
         });
         queryClient.invalidateQueries({ queryKey: ["/api/parent/enrollment-status"] });
         return;
@@ -507,7 +509,7 @@ export default function ParentGateway() {
 
       toast({
         title: "Redirecting to PayFast",
-        description: "Complete the R1000 Premium payment to unlock sessions.",
+        description: `Complete the R${Number(data?.amount || 0).toLocaleString("en-ZA")} ${data?.sessionsPerMonth || "monthly"}-session package payment to unlock sessions.`,
       });
 
       submitExternalPaymentForm(data.checkoutUrl, data.formFields);
@@ -515,7 +517,7 @@ export default function ParentGateway() {
       console.error("Error accepting proposal:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to start Premium payment. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to start monthly package payment. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -545,17 +547,20 @@ export default function ParentGateway() {
           title: "Renewal already completed",
           description: "This month's renewal is already paid. Refreshing quota and booking state.",
         });
-        queryClient.setQueryData<{ monthlyQuota?: { sessions_remaining?: number; session_quota?: number; sessions_used?: number } | null; paymentRequired?: boolean; paymentStatus?: string | null }>(["/api/parent/training-sessions"], (current) => ({
+        queryClient.setQueryData<{ monthlyQuota?: { sessions_remaining?: number; session_quota?: number; sessions_used?: number; session_price?: number } | null; paymentRequired?: boolean; paymentStatus?: string | null }>(["/api/parent/training-sessions"], (current) => {
+          const quota = Number(current?.monthlyQuota?.session_quota || 8);
+          return ({
           ...(current || {}),
           paymentRequired: false,
           paymentStatus: "PAID",
           monthlyQuota: {
             ...(current?.monthlyQuota || {}),
-            session_quota: current?.monthlyQuota?.session_quota ?? 8,
+            session_quota: quota,
             sessions_used: 0,
-            sessions_remaining: 8,
+            sessions_remaining: quota,
           },
-        }));
+        });
+        });
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["/api/parent/enrollment-status"] }),
           queryClient.invalidateQueries({ queryKey: ["/api/parent/proposal"] }),
@@ -573,7 +578,7 @@ export default function ParentGateway() {
       }
       toast({
         title: "Redirecting to PayFast",
-        description: "Complete the R1000 monthly renewal payment to unlock this month's sessions.",
+        description: `Complete the R${Number(data?.amount || renewalAmount).toLocaleString("en-ZA")} monthly package renewal to unlock this month's sessions.`,
       });
       submitExternalPaymentForm(data.checkoutUrl, data.formFields);
     } catch (error) {
@@ -2094,7 +2099,7 @@ export default function ParentGateway() {
                         <CardDescription className="text-xs sm:text-sm text-rose-600">
                           {paymentRequired
                             ? "Training bookings are disabled until the monthly renewal is completed."
-                            : "All 8 sessions for this month have been used. Renew now to unlock the next 8."}
+                            : `All ${renewalPackageSessions} package sessions for this month have been used. Renew to unlock the next monthly package.`}
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
@@ -2104,7 +2109,7 @@ export default function ParentGateway() {
                           className="w-full bg-rose-600 hover:bg-rose-700 text-white"
                           size="lg"
                         >
-                          {isRenewing ? "Preparing payment..." : "Renew This Month - R1000"}
+                          {isRenewing ? "Preparing payment..." : `Renew This Month - R${renewalAmount.toLocaleString("en-ZA")}`}
                         </Button>
                       </CardContent>
                     </Card>
@@ -2128,4 +2133,3 @@ export default function ParentGateway() {
     </div>
   );
 }
-
