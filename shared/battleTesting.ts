@@ -115,6 +115,8 @@ export interface BattleTestingTutorSummary {
   moduleProgress?: TutorBattleTestModuleProgress[];
   deepDiveProgress?: TutorBattleTestDeepDiveProgress[];
   nextBattleTests?: TutorBattleTestRecommendation[];
+  sandboxMockDecision?: "passed" | "remediation_required" | null;
+  sandboxMockAssessedAt?: string | null;
   certificationRecoveryNote?: string | null;
   recoveryRequiredUntil?: string | null;
 }
