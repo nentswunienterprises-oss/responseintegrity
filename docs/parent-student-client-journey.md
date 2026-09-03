@@ -26,14 +26,16 @@ That promise shapes both the parent and student experience.
 
 ## 2. The business model behind the experience
 
-The current family offer is a monthly subscription model with an 8-session monthly package, typically operating on a 2-sessions-per-week rhythm.
+The current family offer is a monthly subscription model with 8, 12, or 16 sessions per month, selected according to the student's diagnosed need and planned frequency.
 
 The live pricing language in the system is:
 
-- Premium plan / standard paid family offer
-- R1000 per month per student
-- tutor payout of R750
-- platform share of R250
+- 8-session monthly package: R1,600
+- 12-session monthly package: R2,400
+- 16-session monthly package: R3,200
+- Specialist allocation: R130 per qualifying evidence-backed session
+- Response Integrity allocation: R70 per qualifying evidence-backed session
+- payout remains package-led, not ad-hoc per session
 
 The experience is therefore not just “buy tutoring.” It is a recurring service relationship built around:
 
@@ -69,8 +71,8 @@ The operating model is intentionally structured around runway, cadence, and prep
 
 Across both intake paths, the standard is consistent:
 
-- 2 sessions per week
-- 8 sessions per month
+- a planned 8, 12, or 16 session monthly package
+- frequency matched to the student's diagnosed need
 - OS-driven topic conditioning
 - no panic culture
 - protection of rhythm even when school pressure rises
