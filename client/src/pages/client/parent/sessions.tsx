@@ -37,6 +37,8 @@ type ParentTrainingSessionsResponse = {
   monthlyQuota?: {
     sessions_remaining?: number;
     session_quota?: number;
+    package_amount_zar?: number;
+    session_price?: number;
   } | null;
 };
 
@@ -439,6 +441,8 @@ export default function ParentSessions() {
   const schedulingEnabled = data?.sessionSchedulingEnabled ?? true;
   const paymentRequired = data?.paymentRequired === true;
   const quotaRemaining = Number(data?.monthlyQuota?.sessions_remaining ?? -1);
+  const quotaTotal = Number(data?.monthlyQuota?.session_quota ?? 0);
+  const renewalAmount = Number(data?.monthlyQuota?.package_amount_zar ?? quotaTotal * Number(data?.monthlyQuota?.session_price ?? 200));
   const quotaExhausted = data?.monthlyQuota != null && quotaRemaining <= 0;
   const renewalBlocked = paymentRequired || quotaExhausted;
   const trainingModeScheduling = data?.operationalMode === "training";
@@ -475,14 +479,14 @@ export default function ParentSessions() {
               <p className="text-sm text-rose-600 mt-1">
                 {paymentRequired
                   ? "Training session booking is disabled until the monthly renewal is completed."
-                  : "All 8 sessions for this month have been used. Renew now to unlock the next 8."}
+                  : `All ${quotaTotal || "package"} sessions for this month have been used. Renew now to unlock the next ${quotaTotal || "monthly"} package.`}
               </p>
             </div>
             <Button
               onClick={() => navigate("/client/parent/gateway")}
               className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white"
             >
-              Go to Renewal
+              Go to Renewal{renewalAmount > 0 ? ` - R${renewalAmount.toLocaleString("en-ZA")}` : ""}
             </Button>
           </div>
         ) : null}
