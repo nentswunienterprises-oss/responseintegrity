@@ -43,7 +43,7 @@ test("reconcileTutorTrainingMode keeps applicant when documentation is incomplet
   );
 });
 
-test("reconcileTutorTrainingMode moves a preparation-complete tutor into Trial", () => {
+test("reconcileTutorTrainingMode keeps a preparation-complete Specialist in Sandbox until the Mock gate passes", () => {
   const moduleProgress: TutorBattleTestModuleProgress[] = [
     {
       moduleKey: "transformation_phases",
@@ -71,11 +71,11 @@ test("reconcileTutorTrainingMode moves a preparation-complete tutor into Trial",
       currentState: "locked",
       docsComplete: true,
     }),
-    "trial"
+    "sandbox"
   );
 });
 
-test("reconcileTutorTrainingMode promotes persisted Sandbox into Trial when preparation is complete", () => {
+test("reconcileTutorTrainingMode promotes persisted Sandbox into Trial only after a passed Mock gate", () => {
   const moduleProgress: TutorBattleTestModuleProgress[] = [
     {
       moduleKey: "transformation_phases",
@@ -100,6 +100,7 @@ test("reconcileTutorTrainingMode promotes persisted Sandbox into Trial when prep
       deepDiveProgress: [],
       currentState: "locked",
       docsComplete: true,
+      sandboxMockPassed: true,
     }),
     "trial",
   );
