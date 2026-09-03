@@ -1,5 +1,7 @@
 export const TRIAL_REQUIRED_FAMILIES = 2;
 export const TRIAL_REQUIRED_SESSIONS_PER_FAMILY = 9;
+export const TRIAL_WINDOW_DAYS = 14;
+export const TRIAL_RECOMMENDED_SESSIONS_PER_WEEK = "4-5";
 
 export type TrialCaseStatus =
   | "active"
@@ -14,6 +16,24 @@ export type TrialTestimonialPermission = "not_requested" | "granted" | "declined
 export type TrialOutcomeClassification = "positive" | "mixed" | "negative";
 export type TrialReviewDecision = "positive" | "remediation_required" | "unsuccessful";
 export type TrialCertificationDecision = "certified" | "remediation_required" | "unsuccessful";
+export type TrialWindowState =
+  | "awaiting_families"
+  | "active"
+  | "extension_active"
+  | "extension_required"
+  | "extension_expired"
+  | "complete";
+
+export interface TrialWindowOverview {
+  state: TrialWindowState;
+  startedAt: string | null;
+  standardEndsAt: string | null;
+  extensionEndsAt: string | null;
+  effectiveEndsAt: string | null;
+  extensionReason: string | null;
+  daysRemaining: number | null;
+  isExpired: boolean;
+}
 
 export interface TrialSessionEvidence {
   id: string;
@@ -91,6 +111,7 @@ export interface TrialCaseOverview {
   riskState: TrialRiskState;
   riskNote: string | null;
   startedAt: string;
+  window: TrialWindowOverview;
   reviewableAt: string | null;
   closedAt: string | null;
   placements: TrialPlacementOverview[];
@@ -108,6 +129,70 @@ function parseTime(value: string | null | undefined): number | null {
   if (!value) return null;
   const parsed = new Date(value).getTime();
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function addUtcDays(value: string, days: number) {
+  const parsed = parseTime(value);
+  if (parsed == null) return null;
+  const date = new Date(parsed);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString();
+}
+
+export function deriveTrialWindow({
+  windowStartedAt,
+  windowEndsAt,
+  extensionEndsAt,
+  extensionReason,
+  evidenceComplete = false,
+  now = new Date().toISOString(),
+}: {
+  windowStartedAt?: string | null;
+  windowEndsAt?: string | null;
+  extensionEndsAt?: string | null;
+  extensionReason?: string | null;
+  evidenceComplete?: boolean;
+  now?: string;
+}): TrialWindowOverview {
+  if (!windowStartedAt) {
+    return {
+      state: "awaiting_families",
+      startedAt: null,
+      standardEndsAt: null,
+      extensionEndsAt: extensionEndsAt || null,
+      effectiveEndsAt: null,
+      extensionReason: extensionReason || null,
+      daysRemaining: null,
+      isExpired: false,
+    };
+  }
+
+  const standardEndsAt = windowEndsAt || addUtcDays(windowStartedAt, TRIAL_WINDOW_DAYS);
+  const effectiveEndsAt = extensionEndsAt || standardEndsAt;
+  const effectiveEnd = parseTime(effectiveEndsAt);
+  const nowTime = parseTime(now) ?? Date.now();
+  const isExpired = effectiveEnd != null && nowTime >= effectiveEnd;
+  const daysRemaining = effectiveEnd == null
+    ? null
+    : Math.ceil(Math.max(0, effectiveEnd - nowTime) / (24 * 60 * 60 * 1000));
+
+  let state: TrialWindowState;
+  if (evidenceComplete) state = "complete";
+  else if (isExpired && extensionEndsAt) state = "extension_expired";
+  else if (isExpired) state = "extension_required";
+  else if (extensionEndsAt) state = "extension_active";
+  else state = "active";
+
+  return {
+    state,
+    startedAt: windowStartedAt,
+    standardEndsAt,
+    extensionEndsAt: extensionEndsAt || null,
+    effectiveEndsAt,
+    extensionReason: extensionReason || null,
+    daysRemaining,
+    isExpired,
+  };
 }
 
 function countCoveringReports(
@@ -128,16 +213,19 @@ function countCoveringReports(
 
 export function deriveTrialPlacementProgress({
   placementStartedAt,
+  qualificationEndsAt,
   requiredSessionCount = TRIAL_REQUIRED_SESSIONS_PER_FAMILY,
   sessions,
   reports,
 }: {
   placementStartedAt: string;
+  qualificationEndsAt?: string | null;
   requiredSessionCount?: number;
   sessions: TrialSessionEvidence[];
   reports: TrialReportEvidence[];
 }): TrialPlacementProgress {
   const placementStart = parseTime(placementStartedAt);
+  const qualificationEnd = parseTime(qualificationEndsAt);
   const uniqueCompletedSessions = new Map<string, TrialSessionEvidence>();
 
   for (const session of sessions) {
@@ -145,6 +233,7 @@ export function deriveTrialPlacementProgress({
     const completedAt = parseTime(session.completedAt) ?? scheduledAt;
     if (String(session.status || "").trim().toLowerCase() !== "completed") continue;
     if (placementStart != null && (scheduledAt == null || scheduledAt < placementStart)) continue;
+    if (qualificationEnd != null && (scheduledAt == null || scheduledAt > qualificationEnd)) continue;
 
     const existing = uniqueCompletedSessions.get(session.id);
     const existingTime = existing ? (parseTime(existing.completedAt) ?? parseTime(existing.scheduledAt) ?? 0) : null;
@@ -189,9 +278,11 @@ export function deriveTrialPlacementProgress({
 export function evaluateTrialCertificationGate({
   placements,
   riskState,
+  window,
 }: {
   placements: TrialPlacementGateInput[];
   riskState: TrialRiskState;
+  window?: TrialWindowOverview | null;
 }): TrialCertificationGateResult {
   const blockers: string[] = [];
   const distinctFamilies = new Set(placements.map((placement) => placement.familyKey));
@@ -220,6 +311,17 @@ export function evaluateTrialCertificationGate({
 
   if (riskState !== "clear") {
     blockers.push(`The trial case has an unresolved ${riskState} condition.`);
+  }
+
+  if (
+    window?.isExpired &&
+    placements.some((placement) => !placement.progress.evidenceComplete)
+  ) {
+    blockers.push(
+      window.extensionEndsAt
+        ? "The documented Trial extension ended before the required evidence was complete."
+        : "The 14-day Trial window ended before the required evidence was complete; a documented COO extension is required.",
+    );
   }
 
   return { reviewable: blockers.length === 0, blockers };
