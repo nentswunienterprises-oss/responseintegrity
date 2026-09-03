@@ -91,7 +91,7 @@ Trial is a first-class tutor lifecycle mode between Sandbox and Certified Live.
 
 Current implementation progression:
 
-Applicant -> Training -> Sandbox -> Trial -> Certified Live
+Applicant -> Training -> Sandbox -> Sandbox Mock Gate -> Trial -> Certified Live
 
 Definitions:
 
@@ -102,7 +102,7 @@ Definitions:
 Graduation rule:
 
 Trial -> Certified Live is determined by the Specialist Academy Validation Gate and an explicit COO decision record.
-Training, sandbox, and Battle Testing completion can open Trial; they cannot certify a new tutor automatically.
+Training and Battle Testing completion can open Sandbox. Sandbox opens Trial only after the Sandbox Mock Gate passes.
 
 Operational interpretation:
 
@@ -118,16 +118,16 @@ Target architecture note:
 
 1. If documentation is incomplete, mode is forced to Applicant.
 2. If Transformation Phases module is complete, tutor can move to SB.
-3. If Transformation Phases plus Session Infrastructure are complete, tutor can move to Trial.
+3. If Transformation Phases plus Session Infrastructure are complete, tutor remains in Sandbox until the Mock Gate passes.
 4. If drift or critical fail appears, mode shifts into watchlist behavior.
 5. If repeated drift reaches threshold, mode moves to retraining or suspension based on severity.
 
 Trial gate overlay:
 
 1. Sandbox -> Trial gate:
-	docs complete, transformation complete, session infrastructure complete, readiness thresholds met, no active fail health.
+	docs complete, transformation complete, session infrastructure complete, six sandbox accounts available, Sandbox Mock Gate passed, no active fail health.
 2. Trial -> Certified Live gate:
-	exactly two distinct Trial families, nine qualifying sessions per family, required logs and reports, feedback received or declined, positive COO outcome reviews, no active Trial risk, and explicit COO approval.
+	exactly two distinct Trial families, nine qualifying sessions per family inside the approved Trial window, required logs and reports, feedback received or declined, positive COO outcome reviews, no active Trial risk, and explicit COO approval.
 3. Certified Live -> Pod Ready gate:
 	certified_live operator conditions plus pod-level composition and quality gates pass.
 
@@ -148,6 +148,18 @@ Meaning: trust expands only when evidence is present.
 - Conversion to commercial must pass trial-to-live evidence gates.
 
 ### Billing and conversion gates for Trial
+
+Commercial family delivery is package-led:
+
+- 8 sessions/month at R1,600
+- 12 sessions/month at R2,400
+- 16 sessions/month at R3,200
+- R200 is the pricing primitive, not the product
+- R130 accrues to the Specialist per qualifying evidence-backed session
+- R70 remains with Response Integrity per qualifying evidence-backed session
+- Specialist payout is released according to package-completion rules
+
+This must not be implemented as ad-hoc session capacity or loose credits.
 
 1. Trial entry gate:
 	family is marked pilot, trial capacity available, and intake or validation policy allows entry.
@@ -206,7 +218,7 @@ A specialist moves from Sandbox to Trial only when all are true:
 2. Lane B thresholds are met and evidenced.
 3. Lane C control buffer is preserved.
 4. No active fail health state exists.
-5. Specialist Academy Validation Gate signs off readiness.
+5. The Sandbox Mock Gate is passed by COO using the required checklist and evidence note.
 
 If any condition fails, the system returns a deterministic failure reason and assigns remediation work before retest.
 
@@ -503,8 +515,8 @@ For each major transition, define required conditions and machine-readable failu
 Examples:
 
 - Training -> Sandbox requires: docs complete, transformation module complete, no critical fail lock
-- Sandbox -> Trial requires: transformation complete, session infrastructure complete, readiness threshold met, no active fail health
-- Trial -> Certified Live requires: exactly two distinct Trial families, nine qualifying sessions per family, required logs and reports, feedback received or declined, positive COO outcome reviews, no active Trial risk, and explicit COO approval
+- Sandbox -> Trial requires: transformation complete, session infrastructure complete, six sandbox accounts, passed Sandbox Mock Gate, no active fail health
+- Trial -> Certified Live requires: exactly two distinct Trial families, nine qualifying sessions per family inside the approved Trial window, required logs and reports, feedback received or declined, positive COO outcome reviews, no active Trial risk, and explicit COO approval
 - Certified Live -> Pod Assignment requires: mode is certified_live, health not fail, assignment-cap rules satisfied
 
 ### Tweak 3: Introduce a single Validation Gate object
