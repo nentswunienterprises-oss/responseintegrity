@@ -1,6 +1,6 @@
 # Response Integrity-OS Live Implementation Source of Truth
 
-Last updated: 2026-09-01
+Last updated: 2026-09-03
 Status: Canonical implementation spec
 
 ## Purpose
@@ -39,8 +39,8 @@ Its product logic is:
 - the student is not treated as one global math state
 - each topic has its own response state
 - the system classifies that topic by phase and stability
-- tutors do not decide the final state manually
-- tutors capture evidence
+- Specialists do not decide the final state manually
+- Specialists capture evidence
 - the system converts evidence into deterministic topic movement
 - reports are derived from topic movement, not tutor-written impressions
 - operational integrity matters as much as instructional quality
@@ -58,8 +58,8 @@ The platform is built around these principles:
 - a drill is the smallest controlled training unit in the system
 - a topic does not move because a tutor "felt progress"
 - a topic moves because drill evidence was captured and processed through deterministic rules
-- a tutor is an operator inside the system, not a free-form session designer
-- the platform must tell the tutor what to run, what to prepare, what to observe, and what happens next
+- a Specialist is an operator inside the system, not a free-form session designer
+- the platform must tell the Specialist what to run, what to prepare, what to observe, and what happens next
 
 ## Non-Negotiable Product Rules
 
@@ -75,6 +75,33 @@ Do not build Response Integrity-OS around:
 - tutor-authored state movement that bypasses scored drill evidence
 
 If the system becomes a loose tutoring tracker, it stops being Response Integrity-OS.
+
+## Commercial And Specialist Pathway Constants
+
+As of 2026-09-03, the live implementation uses these operating constants:
+
+- Parent packages are monthly 8, 12, or 16 session packages.
+- The price primitive is R200 per qualifying session, but the product is the monthly package.
+- Package amounts are R1,600, R2,400, and R3,200.
+- Each qualifying session allocates R130 to the Specialist and R70 to Response Integrity.
+- Specialist earnings accrue per evidence-backed completed session.
+- Specialist payout is released according to package-completion rules, not ad-hoc per-session cash-out.
+- Evidence integrity gates payable delivery.
+
+Do not describe the live commercial model as a R1,000 Premium plan, loose session credits, or ad-hoc session capacity.
+
+The Specialist development pathway is:
+
+- Application -> Training -> Sandbox -> Sandbox Mock Gate -> Trial -> Certified Live
+- standard development window: 75 active days
+- approved documented extension maximum: 90 active days
+- Training Battle Test: 15 questions per Deep Dive, 96%+ required three consecutive times for that Deep Dive
+- Sandbox Mock Gate: final Sandbox exit assessment, not a separate first-class mode
+- Trial window: 14 calendar days starting after both Trial families are placed
+- Trial evidence requirement: exactly 2 families x 9 qualifying completed sessions per family
+- Trial cadence target: intensive 4-5 sessions per week per family
+
+The 14-day Trial window never replaces the 2 x 9 evidence requirement. If the window expires before the evidence requirement is met, COO must record a justified extension, and the final effective date may not exceed the approved pathway maximum.
 
 ## System Layers
 
