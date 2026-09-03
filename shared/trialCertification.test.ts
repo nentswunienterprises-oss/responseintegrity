@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   deriveTrialPlacementProgress,
+  deriveTrialWindow,
   evaluateTrialCertificationGate,
   type TrialPlacementGateInput,
 } from "./trialCertification";
@@ -56,6 +57,55 @@ test("an incomplete or duplicate drill record cannot increase trial progress", (
   assert.equal(progress.qualifyingSessionCount, 8);
   assert.equal(progress.missingLogCount, 1);
   assert.equal(progress.evidenceComplete, false);
+});
+
+test("Trial session evidence outside the 14-day qualification window does not count", () => {
+  const progress = deriveTrialPlacementProgress({
+    placementStartedAt: "2026-08-01T00:00:00.000Z",
+    qualificationEndsAt: "2026-08-15T00:00:00.000Z",
+    sessions: buildSessions(9).map((session, index) =>
+      index === 8 ? { ...session, scheduledAt: "2026-08-16T10:00:00.000Z" } : session,
+    ),
+    reports: buildReports(),
+  });
+
+  assert.equal(progress.qualifyingSessionCount, 8);
+  assert.equal(progress.evidenceComplete, false);
+});
+
+test("the Trial window is fourteen days and starts only after both families are ready", () => {
+  assert.equal(deriveTrialWindow({}).state, "awaiting_families");
+
+  const window = deriveTrialWindow({
+    windowStartedAt: "2026-08-01T00:00:00.000Z",
+    now: "2026-08-10T00:00:00.000Z",
+  });
+
+  assert.equal(window.standardEndsAt, "2026-08-15T00:00:00.000Z");
+  assert.equal(window.state, "active");
+  assert.equal(window.daysRemaining, 5);
+});
+
+test("an incomplete Trial requires a documented extension after day fourteen", () => {
+  const window = deriveTrialWindow({
+    windowStartedAt: "2026-08-01T00:00:00.000Z",
+    now: "2026-08-16T00:00:00.000Z",
+  });
+  const second = eligiblePlacement("placement-2", "family-2");
+  second.progress = deriveTrialPlacementProgress({
+    placementStartedAt: "2026-08-01T00:00:00.000Z",
+    sessions: buildSessions(8),
+    reports: buildReports(),
+  });
+
+  const result = evaluateTrialCertificationGate({
+    placements: [eligiblePlacement("placement-1", "family-1"), second],
+    riskState: "clear",
+    window,
+  });
+
+  assert.equal(result.reviewable, false);
+  assert.match(result.blockers.join(" "), /14-day Trial window/);
 });
 
 function eligiblePlacement(id: string, familyKey: string): TrialPlacementGateInput {
