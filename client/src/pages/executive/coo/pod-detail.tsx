@@ -23,12 +23,14 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { TrialProgressCard } from "@/components/trial/TrialProgressCard";
+import { SandboxMockGateCard } from "@/components/sandbox/SandboxMockGateCard";
 import type {
   TrialCaseOverview,
   TrialOutcomeClassification,
   TrialReviewDecision,
   TrialCertificationDecision,
 } from "@shared/trialCertification";
+import type { SpecialistDevelopmentPathwayOverview } from "@shared/specialistDevelopmentPathway";
 import {
   Activity,
   ArrowLeft,
@@ -1746,12 +1748,15 @@ function TrialCertificationPanel({
   }>>({});
   const [finalDecision, setFinalDecision] = useState<TrialCertificationDecision>("certified");
   const [finalRationale, setFinalRationale] = useState("");
+  const [trialExtensionDate, setTrialExtensionDate] = useState("");
+  const [trialExtensionReason, setTrialExtensionReason] = useState("");
   const isTrialMode = String(operationalMode || "").toLowerCase() === "trial";
   const trialQueryKey = [`/api/coo/tutors/${tutorId}/trial-case`];
 
   const { data: trialPayload, isLoading: trialLoading } = useQuery<{
     mode: string;
     case: TrialCaseOverview | null;
+    pathway: SpecialistDevelopmentPathwayOverview | null;
   }>({
     queryKey: trialQueryKey,
     enabled: !!tutorId && isTrialMode,
@@ -1839,6 +1844,45 @@ function TrialCertificationPanel({
     },
   });
 
+  const trialExtensionMutation = useMutation({
+    mutationFn: async () => {
+      const trialCase = trialPayload?.case;
+      const pathway = trialPayload?.pathway;
+      if (!trialCase) throw new Error("Trial case is not loaded.");
+      if (!trialExtensionDate) throw new Error("Choose an extension end date.");
+      const extensionEndsAt = new Date(`${trialExtensionDate}T23:59:59.999Z`).toISOString();
+
+      if (
+        pathway &&
+        !pathway.timeline.extensionApproved &&
+        new Date(extensionEndsAt).getTime() > new Date(pathway.standardEndsAt).getTime()
+      ) {
+        await apiRequest("POST", `/api/coo/tutors/${tutorId}/pathway-extension`, {
+          reason: trialExtensionReason,
+        });
+      }
+
+      await apiRequest("POST", `/api/coo/trial-cases/${trialCase.id}/extension`, {
+        extensionEndsAt,
+        reason: trialExtensionReason,
+      });
+    },
+    onSuccess: () => {
+      setTrialExtensionDate("");
+      setTrialExtensionReason("");
+      queryClient.invalidateQueries({ queryKey: trialQueryKey });
+      toast({
+        title: "Trial extension recorded",
+        description: "The exception window and evidence reason are now auditable.",
+      });
+    },
+    onError: (error: any) => toast({
+      title: "Extension blocked",
+      description: error?.message || "Failed to extend the Trial window.",
+      variant: "destructive",
+    }),
+  });
+
   if (!isTrialMode) return null;
 
   const trialCase = trialPayload?.case || null;
@@ -1868,6 +1912,47 @@ function TrialCertificationPanel({
 
       {trialCase ? (
         <div className="space-y-3">
+          {trialCase.window.isExpired && !trialCase.window.extensionEndsAt ? (
+            <Card className="border-rose-200 bg-rose-50/30 p-4">
+              <p className="text-sm font-semibold text-foreground">Document a Trial exception</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                The 14-day clock does not replace the 9 x 2 evidence requirement. Extend only for a justified, recorded interruption; the final date can never exceed pathway day 90.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-[190px_1fr]">
+                <div>
+                  <Label htmlFor={`trial-extension-date-${tutorId}`}>Extension end date</Label>
+                  <Input
+                    id={`trial-extension-date-${tutorId}`}
+                    type="date"
+                    value={trialExtensionDate}
+                    max={trialPayload?.pathway?.maximumEndsAt?.slice(0, 10)}
+                    onChange={(event) => setTrialExtensionDate(event.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`trial-extension-reason-${tutorId}`}>Documented reason</Label>
+                  <Textarea
+                    id={`trial-extension-reason-${tutorId}`}
+                    value={trialExtensionReason}
+                    onChange={(event) => setTrialExtensionReason(event.target.value)}
+                    className="mt-1"
+                    placeholder="Record the cancellation, interruption, or remediable gap requiring the exception."
+                  />
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-3"
+                disabled={!trialExtensionDate || !trialExtensionReason.trim() || trialExtensionMutation.isPending}
+                onClick={() => trialExtensionMutation.mutate()}
+              >
+                {trialExtensionMutation.isPending ? "Recording extension..." : "Approve documented extension"}
+              </Button>
+            </Card>
+          ) : null}
+
           {trialCase.placements.map((placement) => {
             const draft = reviewDrafts[placement.id] || {
               outcomeClassification: placement.review?.outcomeClassification || "positive",
@@ -2077,6 +2162,12 @@ function TutorStudentsSection({
       </div>
 
       <TrialCertificationPanel
+        tutorId={tutorId}
+        tutorName={tutorName}
+        operationalMode={operationalMode}
+      />
+
+      <SandboxMockGateCard
         tutorId={tutorId}
         tutorName={tutorName}
         operationalMode={operationalMode}
