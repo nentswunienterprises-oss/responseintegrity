@@ -497,7 +497,9 @@ export default function TutorPod() {
       return Math.max(0, Number(quotaSnapshot.sessions_remaining ?? 0));
     }
 
-    const progressTotal = student.parentInfo?.onboarding_type === 'pilot' ? 9 : 8;
+    const progressTotal = student.parentInfo?.onboarding_type === "pilot"
+      ? 9
+      : Math.max(1, Number(student.parentInfo?.package_sessions || 8));
     const completed = Math.max(0, Number(student.sessionProgress || 0));
     const cycleProgress = completed > 0 ? (((completed - 1) % progressTotal) + 1) : 0;
     return cycleProgress === 0 ? progressTotal : Math.max(0, progressTotal - cycleProgress);
@@ -1092,4 +1094,3 @@ export default function TutorPod() {
     </DashboardLayout>
   );
 }
-
