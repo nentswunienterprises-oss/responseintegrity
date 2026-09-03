@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import { supabase } from "./storage";
 import {
   TRIAL_REQUIRED_SESSIONS_PER_FAMILY,
+  deriveTrialWindow,
   deriveTrialPlacementProgress,
   evaluateTrialCertificationGate,
   type TrialCaseOverview,
@@ -15,6 +16,7 @@ import {
   type TrialRiskState,
   type TrialTestimonialPermission,
 } from "@shared/trialCertification";
+import { getSpecialistDevelopmentPathway } from "./specialistDevelopmentPathway";
 
 const OPEN_TRIAL_CASE_STATUSES: TrialCaseStatus[] = ["active", "reviewable", "remediation_required"];
 
@@ -45,7 +47,11 @@ function mapReportEvidence(row: any): TrialReportEvidence | null {
   };
 }
 
-async function loadTrialPlacementOverview(placement: any, review: any | null): Promise<TrialPlacementOverview> {
+async function loadTrialPlacementOverview(
+  placement: any,
+  review: any | null,
+  qualificationEndsAt?: string | null,
+): Promise<TrialPlacementOverview> {
   const { data: enrollment } = await supabase
     .from("parent_enrollments")
     .select("parent_full_name, student_full_name")
@@ -98,6 +104,7 @@ async function loadTrialPlacementOverview(placement: any, review: any | null): P
 
   const progress = deriveTrialPlacementProgress({
     placementStartedAt: placement.started_at,
+    qualificationEndsAt,
     requiredSessionCount: Number(placement.required_session_count || TRIAL_REQUIRED_SESSIONS_PER_FAMILY),
     sessions: (sessions || []).map((session: any) => ({
       id: String(session.id),
@@ -162,14 +169,40 @@ async function loadTrialCaseOverview(caseRow: any): Promise<TrialCaseOverview> {
   }
   const reviewByPlacementId = new Map(reviews.map((review: any) => [String(review.placement_id), review]));
 
+  const derivedWindowStartedAt = caseRow.window_started_at || (
+    (placementRows || []).length === 2
+      ? [...(placementRows || [])]
+          .map((placement: any) => String(placement.started_at || ""))
+          .filter(Boolean)
+          .sort((left, right) => new Date(left).getTime() - new Date(right).getTime())
+          .pop() || null
+      : null
+  );
+  const preliminaryWindow = deriveTrialWindow({
+    windowStartedAt: derivedWindowStartedAt,
+    windowEndsAt: caseRow.window_ends_at,
+    extensionEndsAt: caseRow.extension_ends_at,
+    extensionReason: caseRow.extension_reason,
+  });
+
   const placements = await Promise.all(
     (placementRows || []).map((placement: any) =>
       loadTrialPlacementOverview(
         { ...placement, tutor_id: caseRow.tutor_id },
         reviewByPlacementId.get(String(placement.id)) || null,
+        preliminaryWindow.effectiveEndsAt,
       ),
     ),
   );
+
+  const window = deriveTrialWindow({
+    windowStartedAt: preliminaryWindow.startedAt,
+    windowEndsAt: preliminaryWindow.standardEndsAt,
+    extensionEndsAt: preliminaryWindow.extensionEndsAt,
+    extensionReason: preliminaryWindow.extensionReason,
+    evidenceComplete:
+      placements.length === 2 && placements.every((placement) => placement.progress.evidenceComplete),
+  });
 
   const gate = evaluateTrialCertificationGate({
     placements: placements.map((placement) => ({
@@ -180,6 +213,7 @@ async function loadTrialCaseOverview(caseRow: any): Promise<TrialCaseOverview> {
       reviewDecision: placement.review?.decision || null,
     })),
     riskState: caseRow.risk_state as TrialRiskState,
+    window,
   });
 
   const { data: decisionRows, error: decisionError } = await supabase
@@ -206,6 +240,7 @@ async function loadTrialCaseOverview(caseRow: any): Promise<TrialCaseOverview> {
     riskState: caseRow.risk_state as TrialRiskState,
     riskNote: caseRow.risk_note || null,
     startedAt: caseRow.started_at,
+    window,
     reviewableAt: caseRow.reviewable_at || null,
     closedAt: caseRow.closed_at || null,
     placements,
@@ -252,6 +287,15 @@ export async function createTrialCase(input: {
   tutorAssignmentId: string;
   createdByUserId?: string | null;
 }) {
+  const pathway = await getSpecialistDevelopmentPathway(input.tutorId);
+  if (pathway && !pathway.timeline.canContinue) {
+    throw new Error(
+      pathway.timeline.state === "extension_required"
+        ? "The 75-day pathway window has ended. A documented extension is required before Trial can open."
+        : "The Specialist Development Pathway has expired and cannot open Trial.",
+    );
+  }
+
   const existing = await getOpenTrialCaseForTutor(input.tutorId);
   if (existing) return existing;
 
@@ -278,6 +322,59 @@ export async function createTrialCase(input: {
   }
 
   return loadTrialCaseOverview(data);
+}
+
+export async function extendTrialCase(input: {
+  caseId: string;
+  extensionEndsAt: string;
+  reason: string;
+  approvedByUserId: string;
+}) {
+  const overview = await getTrialCaseById(input.caseId);
+  if (!overview) throw new Error("Trial case not found");
+  if (!overview.window.startedAt || !overview.window.standardEndsAt) {
+    throw new Error("The 14-day Trial window starts only after both families are placed.");
+  }
+  if (overview.window.extensionEndsAt) throw new Error("This Trial case already has a documented extension.");
+
+  const pathway = await getSpecialistDevelopmentPathway(overview.tutorId);
+  if (!pathway) throw new Error("The Specialist Development Pathway could not be loaded.");
+
+  const extensionTime = new Date(input.extensionEndsAt).getTime();
+  const standardEndTime = new Date(overview.window.standardEndsAt).getTime();
+  const pathwayStandardTime = new Date(pathway.standardEndsAt).getTime();
+  const pathwayEffectiveTime = new Date(pathway.timeline.effectiveEndsAt).getTime();
+  if (!Number.isFinite(extensionTime) || extensionTime <= standardEndTime) {
+    throw new Error("The Trial extension must end after the standard 14-day window.");
+  }
+  if (extensionTime > pathwayStandardTime && !pathway.timeline.extensionApproved) {
+    throw new Error("Approve the documented 75-to-90-day pathway extension before Trial can run beyond day 75.");
+  }
+  if (extensionTime > pathwayEffectiveTime) {
+    throw new Error(
+      pathway.timeline.extensionApproved
+        ? "The Trial extension cannot exceed the 90-day Specialist pathway maximum."
+        : "The Trial extension cannot exceed the standard 75-day pathway deadline.",
+    );
+  }
+  const reason = String(input.reason || "").trim();
+  if (!reason) throw new Error("A documented Trial extension reason is required.");
+
+  const nowIso = new Date().toISOString();
+  const { error } = await supabase
+    .from("tutor_trial_cases")
+    .update({
+      extension_ends_at: new Date(extensionTime).toISOString(),
+      extension_reason: reason,
+      extension_approved_at: nowIso,
+      extension_approved_by_user_id: input.approvedByUserId,
+      updated_at: nowIso,
+    })
+    .eq("id", input.caseId)
+    .in("status", OPEN_TRIAL_CASE_STATUSES);
+  if (error) throw new Error(`Failed to extend Trial case: ${error.message}`);
+
+  return getTrialCaseById(input.caseId);
 }
 
 export async function createTrialPlacement(input: {
@@ -435,6 +532,10 @@ export async function decideTrialCase(input: {
 }) {
   const overview = await getTrialCaseById(input.caseId);
   if (!overview) throw new Error("Trial case not found");
+  const pathway = await getSpecialistDevelopmentPathway(overview.tutorId);
+  if (input.decision === "certified" && pathway && !pathway.timeline.canContinue) {
+    throw new Error("Certification is blocked because the Specialist Development Pathway is no longer active.");
+  }
   if (input.decision === "certified" && !overview.gate.reviewable) {
     throw new Error(`Certification gate is blocked: ${overview.gate.blockers.join(" ")}`);
   }
