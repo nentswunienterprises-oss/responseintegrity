@@ -20,6 +20,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, FileText } from "lucide-react";
 import {
+  formatSnapshotPurposeText,
   formatSnapshotRepResult,
   formatSnapshotResultText,
   summarizeSnapshotObservedResponse,
@@ -174,32 +175,49 @@ function responseSnapshotColor(level: string) {
   return "text-muted-foreground";
 }
 
+function responseSnapshotScoreLabel(score: number | null | undefined) {
+  return typeof score === "number" ? `${score}/100` : "Not scored";
+}
+
 function ResponseSnapshotPanel({ snapshot }: { snapshot: ResponseSnapshotV1 }) {
   return (
     <div className="rounded-xl border border-primary/15 bg-primary/5 p-3">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm font-semibold">Response Snapshot{snapshot.source.topic ? ` - ${snapshot.source.topic}` : ""}</p>
         <p className={`text-xs font-semibold ${responseSnapshotColor(snapshot.drill.responseLevel)}`}>
-          {snapshot.drill.responseLabel} - {snapshot.drill.score ?? "Not scored"}/100
+          {snapshot.drill.responseLabel} - {responseSnapshotScoreLabel(snapshot.drill.score)}
         </p>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">{formatSnapshotResultText(snapshot.drill.resultText)}</p>
+      <div className="mt-2 space-y-1">
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Drill purpose</p>
+        <p className="text-xs text-foreground">{formatSnapshotPurposeText(snapshot.drill.purposeText)}</p>
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Drill response</p>
+        <p className="text-xs text-muted-foreground">{formatSnapshotResultText(snapshot.drill.resultText)}</p>
+      </div>
       <Accordion type="multiple" className="mt-2">
         {snapshot.sets.map((set) => (
           <AccordionItem key={set.setId} value={`${snapshot.source.sourceDrillId || snapshot.source.topic}-${set.setId}`}>
             <AccordionTrigger className="text-left text-sm">
               <span>
-                {set.setName} <span className={responseSnapshotColor(set.responseLevel)}>{set.responseLabel}</span>
+                {set.setName}{" "}
+                <span className={responseSnapshotColor(set.responseLevel)}>
+                  {set.responseLabel} - {responseSnapshotScoreLabel(set.score)}
+                </span>
               </span>
             </AccordionTrigger>
             <AccordionContent className="space-y-2">
-              <p className="text-xs text-muted-foreground">{formatSnapshotResultText(set.resultText, set.purposeText)}</p>
+              <div className="space-y-1">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Set purpose</p>
+                <p className="text-xs text-foreground">{formatSnapshotPurposeText(set.purposeText)}</p>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Set response</p>
+                <p className="text-xs text-muted-foreground">{formatSnapshotResultText(set.resultText, set.purposeText)}</p>
+              </div>
               {set.reps.map((rep) => (
                 <div key={`${set.setId}-${rep.repNumber}`} className="rounded-md border border-primary/10 bg-background px-3 py-2">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-xs font-semibold">Rep {rep.repNumber}</p>
                     <p className={`text-xs font-semibold ${responseSnapshotColor(rep.responseLevel)}`}>
-                      {rep.responseLabel} - {rep.score ?? "Not scored"}/100
+                      {rep.responseLabel} - {responseSnapshotScoreLabel(rep.score)}
                     </p>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">{formatSnapshotRepResult(rep)}</p>
@@ -537,4 +555,3 @@ export default function ViewTrackingSystemsDialog({
     </Dialog>
   );
 }
-
