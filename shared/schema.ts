@@ -1321,6 +1321,9 @@ export const parentEnrollments = pgTable("parent_enrollments", {
   proposalId: varchar("proposal_id"),
   assignedAt: timestamp("assigned_at"),
   assignmentLane: varchar("assignment_lane", { length: 16 }).notNull().default("commercial"),
+  packageKey: varchar("package_key", { length: 24 }).notNull().default("monthly_8"),
+  packageSessions: integer("package_sessions").notNull().default(8),
+  plannedSessionsPerWeek: integer("planned_sessions_per_week").notNull().default(2),
   proposalSentAt: timestamp("proposal_sent_at"),
   confirmedAt: timestamp("confirmed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1348,6 +1351,12 @@ export const tutorTrialCases = pgTable("tutor_trial_cases", {
   riskState: varchar("risk_state", { length: 24 }).notNull().default("clear"),
   riskNote: text("risk_note"),
   startedAt: timestamp("started_at").defaultNow().notNull(),
+  windowStartedAt: timestamp("window_started_at"),
+  windowEndsAt: timestamp("window_ends_at"),
+  extensionEndsAt: timestamp("extension_ends_at"),
+  extensionReason: text("extension_reason"),
+  extensionApprovedAt: timestamp("extension_approved_at"),
+  extensionApprovedByUserId: varchar("extension_approved_by_user_id").references(() => users.id),
   reviewableAt: timestamp("reviewable_at"),
   closedAt: timestamp("closed_at"),
   createdByUserId: varchar("created_by_user_id").references(() => users.id),
@@ -1403,6 +1412,38 @@ export type TutorTrialPlacement = typeof tutorTrialPlacements.$inferSelect;
 export type TutorTrialReview = typeof tutorTrialReviews.$inferSelect;
 export type TutorCertificationDecision = typeof tutorCertificationDecisions.$inferSelect;
 
+export const specialistDevelopmentPathways = pgTable("specialist_development_pathways", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tutorId: varchar("tutor_id").notNull().references(() => users.id),
+  applicationId: varchar("application_id").references(() => tutorApplications.id),
+  tutorAssignmentId: varchar("tutor_assignment_id").references(() => tutorAssignments.id),
+  status: varchar("status", { length: 24 }).notNull().default("active"),
+  startedAt: timestamp("started_at").notNull(),
+  standardEndsAt: timestamp("standard_ends_at").notNull(),
+  maximumEndsAt: timestamp("maximum_ends_at").notNull(),
+  extensionApprovedAt: timestamp("extension_approved_at"),
+  extensionApprovedByUserId: varchar("extension_approved_by_user_id").references(() => users.id),
+  extensionReason: text("extension_reason"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const tutorSandboxMockAssessments = pgTable("tutor_sandbox_mock_assessments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tutorId: varchar("tutor_id").notNull().references(() => users.id),
+  tutorAssignmentId: varchar("tutor_assignment_id").notNull().references(() => tutorAssignments.id),
+  decision: varchar("decision", { length: 32 }).notNull(),
+  checklist: jsonb("checklist").notNull(),
+  evidenceNote: text("evidence_note").notNull(),
+  assessedByUserId: varchar("assessed_by_user_id").notNull().references(() => users.id),
+  assessedAt: timestamp("assessed_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type SpecialistDevelopmentPathway = typeof specialistDevelopmentPathways.$inferSelect;
+export type TutorSandboxMockAssessment = typeof tutorSandboxMockAssessments.$inferSelect;
+
 // ============================================
 // ONBOARDING PROPOSALS TABLE
 // ============================================
@@ -1442,6 +1483,12 @@ export const onboardingProposals = pgTable("onboarding_proposals", {
   recommendedPlan: varchar("recommended_plan").notNull(),
   justification: text("justification").notNull(),
   childWillWin: text("child_will_win"),
+  packageKey: varchar("package_key", { length: 24 }).notNull().default("monthly_8"),
+  packageSessions: integer("package_sessions").notNull().default(8),
+  plannedSessionsPerWeek: integer("planned_sessions_per_week").notNull().default(2),
+  packageAmount: decimal("package_amount", { precision: 10, scale: 2 }).notNull().default("1600.00"),
+  specialistPerSessionAmount: decimal("specialist_per_session_amount", { precision: 10, scale: 2 }).notNull().default("130.00"),
+  platformPerSessionAmount: decimal("platform_per_session_amount", { precision: 10, scale: 2 }).notNull().default("70.00"),
   // Metadata
   sentAt: timestamp("sent_at"),
   viewedAt: timestamp("viewed_at"),
