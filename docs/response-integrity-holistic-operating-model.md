@@ -53,12 +53,15 @@ The current live family offer is a monthly subscription.
 
 ### Live pricing language
 
-- Monthly subscription per student: `R1000`
-- Standard paid family offer: monthly `8-session` package
-- Default cadence: `2 sessions per week`
+- 8-session monthly package: `R1,600`
+- 12-session monthly package: `R2,400`
+- 16-session monthly package: `R3,200`
+- Pricing primitive: `R200` per qualifying session
+- Specialist allocation: `R130` per qualifying evidence-backed session
+- Response Integrity allocation: `R70` per qualifying evidence-backed session
 
-The parent-facing UI uses **Premium plan** language.
-The legal and billing docs describe the same live offer as the standard paid family package.
+The parent-facing UI uses monthly package language.
+The legal and billing docs should describe the same live offer as a package-led subscription, not ad-hoc session capacity.
 
 The older “standard / premium / pro” ladder should not be treated as the current live truth.
 The code currently surfaces one paid family offer plus pilot-access exceptions, not a broad consumer tier stack.
@@ -66,14 +69,15 @@ The code currently surfaces one paid family offer plus pilot-access exceptions, 
 ### Payment logic
 
 - payment is tied to the monthly package
-- sessions are allocated in the fixed monthly rhythm
+- sessions are allocated according to the selected 8, 12, or 16 session package
 - carryover does not happen by default unless explicitly granted
 - some enrollments can enter through pilot or invitation-based access before standard payment flow begins
 
 ### Revenue split
 
-- Tutor: `R750`
-- Platform: `R250`
+- Specialist: `R130` per qualifying evidence-backed session
+- Platform: `R70` per qualifying evidence-backed session
+- Specialist payout is released according to package-completion rules
 
 So the business is not only a tutoring service; it is a recurring subscription model with an operational split per learner.
 
@@ -84,13 +88,13 @@ The current operating pod is:
 - `12 tutors`
 - `36 students`
 - `3 students per tutor`
-- `288 sessions per month`
+- package-dependent monthly session volume
 
 Per pod:
 
-- total monthly revenue collected: `36 x R1000 = R36,000`
-- tutor payouts: `36 x R750 = R27,000`
-- platform revenue: `36 x R250 = R9,000`
+- total monthly revenue depends on selected packages
+- Specialist allocation accrues at `R130` per qualifying session
+- platform revenue accrues at `R70` per qualifying session
 - workspace cost: `R864`
 - net platform income before marketing and admin: `R8,136`
 
@@ -749,9 +753,9 @@ The current live model is real, but it is also the first stage of a larger struc
 
 ### Current reality
 
-- current tutor validation track: matric-completed / young-adult operators
-- current live pod size: 12 tutors and 36 students
-- current family offer: monthly Premium / standard paid family package
+- current Specialist validation track: matric-completed / young-adult operators
+- current live pod size: 12 Specialists and 36 students
+- current family offer: monthly 8, 12, or 16 session package
 
 ### Future expansion
 
