@@ -59,6 +59,10 @@ interface ParentTrainingSessionsResponse {
     session_quota?: number;
     sessions_used?: number;
     sessions_remaining?: number;
+    package_key?: string;
+    package_label?: string;
+    package_amount_zar?: number;
+    session_price?: number;
     status?: string;
     month_key?: string;
   } | null;
@@ -146,6 +150,9 @@ export default function ParentProgress() {
   });
 
   const monthlyQuota = trainingData?.monthlyQuota;
+  const quotaTotal = Number(monthlyQuota?.session_quota ?? 0);
+  const renewalAmount = Number(monthlyQuota?.package_amount_zar ?? quotaTotal * Number(monthlyQuota?.session_price ?? 200));
+  const renewalLabel = monthlyQuota?.package_label || (quotaTotal > 0 ? `${quotaTotal}-session package` : "monthly package");
   const paymentHistory = paymentHistoryData?.payments || [];
 
   const location = useLocation();
@@ -479,13 +486,15 @@ export default function ParentProgress() {
               {Number(monthlyQuota.sessions_remaining || 0) <= 0 && (
                 <Card className="border border-rose-200 bg-rose-50">
                   <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <p className="text-sm text-rose-700">All 8 sessions for this month are used up. Renew to unlock the next 8.</p>
+                    <p className="text-sm text-rose-700">
+                      All {quotaTotal || "package"} sessions for this month are used up. Renew to unlock the next {quotaTotal || "monthly"} package.
+                    </p>
                     <Button
                       size="sm"
                       className="bg-rose-600 hover:bg-rose-700 text-white shrink-0"
                       onClick={() => navigate("/client/parent/gateway")}
                     >
-                      Renew - R1000
+                      Renew - R{renewalAmount.toLocaleString("en-ZA")}
                     </Button>
                   </CardContent>
                 </Card>
@@ -500,7 +509,7 @@ export default function ParentProgress() {
                   Payment History
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  Your Premium access and monthly renewal payments.
+                  Your {renewalLabel} access and monthly renewal payments.
                 </CardDescription>
               </CardHeader>
               <CardContent>
