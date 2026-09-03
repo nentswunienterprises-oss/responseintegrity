@@ -9,6 +9,15 @@ function formatState(value: string) {
     .join(" ");
 }
 
+function formatDate(value: string | null) {
+  if (!value) return "Pending";
+  return new Date(value).toLocaleDateString("en-ZA", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export function TrialProgressCard({
   trialCase,
   mode,
@@ -56,6 +65,35 @@ export function TrialProgressCard({
             {trialCase.gate.reviewable ? "Ready for COO decision" : formatState(trialCase.status)}
           </Badge>
         </div>
+
+        <div className="grid gap-2 sm:grid-cols-3">
+          <div className="rounded-xl border border-amber-200/80 bg-background/90 p-3">
+            <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Trial window</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">
+              {trialCase.window.startedAt ? "14 calendar days" : "Starts after family 2 is placed"}
+            </p>
+          </div>
+          <div className="rounded-xl border border-amber-200/80 bg-background/90 p-3">
+            <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Effective deadline</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{formatDate(trialCase.window.effectiveEndsAt)}</p>
+          </div>
+          <div className="rounded-xl border border-amber-200/80 bg-background/90 p-3">
+            <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Intensive cadence</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">Target 4-5 sessions/week/family</p>
+          </div>
+        </div>
+
+        {trialCase.window.isExpired && trialCase.window.state !== "complete" ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+            {trialCase.window.extensionEndsAt
+              ? "The documented extension has expired. Evidence recorded outside the approved window cannot qualify."
+              : "The 14-day window has ended. A documented COO extension is required before further sessions can qualify."}
+          </div>
+        ) : trialCase.window.extensionEndsAt ? (
+          <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
+            Documented extension active until {formatDate(trialCase.window.extensionEndsAt)}. Reason: {trialCase.window.extensionReason}
+          </div>
+        ) : null}
 
         <div className="grid gap-3 lg:grid-cols-2">
           {trialCase.placements.map((placement, index) => (
