@@ -8,9 +8,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { Send, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import {
+  DEFAULT_MONTHLY_PACKAGE_KEY,
+  MONTHLY_PACKAGE_KEYS,
+  MONTHLY_SERVICE_PACKAGES,
+  type MonthlyPackageKey,
+} from "@shared/servicePackages";
 
 interface ParentOnboardingProposalProps {
   open: boolean;
@@ -32,6 +40,8 @@ export default function ParentOnboardingProposal({
   const queryClient = useQueryClient();
   const studentFirstName = studentName.trim().split(/\s+/)[0] || "Your child";
   const [sending, setSending] = useState(false);
+  const [selectedPackageKey, setSelectedPackageKey] = useState<MonthlyPackageKey>(DEFAULT_MONTHLY_PACKAGE_KEY);
+  const selectedPackage = MONTHLY_SERVICE_PACKAGES[selectedPackageKey];
 
   // Fetch latest intro drill
   const { data: drillDataRaw, isLoading: drillLoading, error: drillError } = useQuery({
@@ -156,6 +166,7 @@ export default function ParentOnboardingProposal({
         topicConditioningTopic: topic,
         topicConditioningEntryPhase: trainingEntryPhase,
         topicConditioningStability: stability,
+        packageKey: selectedPackageKey,
       });
 
       toast({
@@ -254,6 +265,45 @@ export default function ParentOnboardingProposal({
           <Card>
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Recommended Monthly Package
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <RadioGroup
+                value={selectedPackageKey}
+                onValueChange={(value) => setSelectedPackageKey(value as MonthlyPackageKey)}
+                className="grid gap-2 sm:grid-cols-3"
+              >
+                {MONTHLY_PACKAGE_KEYS.map((packageKey) => {
+                  const servicePackage = MONTHLY_SERVICE_PACKAGES[packageKey];
+                  return (
+                    <Label
+                      key={packageKey}
+                      htmlFor={`proposal-${packageKey}`}
+                      className="flex cursor-pointer items-start gap-2 rounded-lg border p-3 hover:border-primary/50"
+                    >
+                      <RadioGroupItem id={`proposal-${packageKey}`} value={packageKey} className="mt-0.5" />
+                      <span>
+                        <span className="block text-sm font-semibold text-foreground">
+                          {servicePackage.sessionsPerMonth} sessions
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                          {servicePackage.plannedSessionsPerWeek}x weekly - R{servicePackage.amountZar.toLocaleString("en-ZA")}/month
+                        </span>
+                      </span>
+                    </Label>
+                  );
+                })}
+              </RadioGroup>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Select the frequency appropriate to the diagnosed need. This is a monthly package, not ad-hoc session capacity.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Focus Area
               </CardTitle>
             </CardHeader>
@@ -333,7 +383,7 @@ export default function ParentOnboardingProposal({
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <ul className="text-xs text-muted-foreground space-y-0.5 ml-2">
-                <li>Cadence: 2 sessions per week (8 sessions per month)</li>
+                <li>Cadence: {selectedPackage.plannedSessionsPerWeek} sessions per week ({selectedPackage.sessionsPerMonth} sessions per month)</li>
                 <li>Clear explanation of the problem structure</li>
                 <li>Guided practice with immediate correction</li>
                 <li>Repeated method-building in the same topic</li>
@@ -363,7 +413,7 @@ export default function ParentOnboardingProposal({
                 <strong className="text-foreground">Important Note</strong> - This training focuses on how the student responds under difficulty, not only on correct answers.
               </p>
               <p className="text-xs text-muted-foreground">
-                <strong className="text-foreground">Commitment</strong> - Consistency and active participation are required. Cadence is fixed at 2 sessions per week (8 sessions per month). Students are expected to attempt before receiving guidance.
+                <strong className="text-foreground">Commitment</strong> - Consistency and active participation are required across the selected {selectedPackage.sessionsPerMonth}-session monthly package. Students are expected to attempt before receiving guidance.
               </p>
             </CardContent>
           </Card>
