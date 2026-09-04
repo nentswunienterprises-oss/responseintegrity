@@ -1,0 +1,50 @@
+name: Response Snapshot CI
+
+on:
+  pull_request:
+    paths:
+      - "shared/responseSnapshot.ts"
+      - "shared/responseSnapshot.test.ts"
+      - "shared/responseIntegrityDrillRegistry.ts"
+      - "shared/responseIntegrityDrillRegistry.test.ts"
+      - "shared/responseIntegrityEvidenceLedger.ts"
+      - "shared/responseIntegrityEvidenceLedger.test.ts"
+      - "server/routes.ts"
+      - "client/src/components/tutor/IntroSessionDrillRunner.tsx"
+      - "client/src/components/tutor/ViewTrackingSystemsDialog.tsx"
+      - ".github/workflows/ri-snapshot-ci.yml"
+      - "package.json"
+      - "package-lock.json"
+  push:
+    branches:
+      - main
+    paths:
+      - "shared/responseSnapshot.ts"
+      - "shared/responseSnapshot.test.ts"
+      - "shared/responseIntegrityDrillRegistry.ts"
+      - "shared/responseIntegrityDrillRegistry.test.ts"
+      - "shared/responseIntegrityEvidenceLedger.ts"
+      - "shared/responseIntegrityEvidenceLedger.test.ts"
+      - "server/routes.ts"
+      - "client/src/components/tutor/IntroSessionDrillRunner.tsx"
+      - "client/src/components/tutor/ViewTrackingSystemsDialog.tsx"
+      - ".github/workflows/ri-snapshot-ci.yml"
+      - "package.json"
+      - "package-lock.json"
+
+jobs:
+  ri-snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - run: npm run check:ri-snapshot
+
+      - run: npm run test:ri-snapshot

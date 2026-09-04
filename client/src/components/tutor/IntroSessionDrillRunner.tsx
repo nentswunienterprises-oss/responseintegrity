@@ -731,13 +731,17 @@ function responseSnapshotColor(level: string) {
   return "text-muted-foreground";
 }
 
+function responseSnapshotScoreLabel(score: number | null | undefined) {
+  return typeof score === "number" ? `${score}/100` : "Not scored";
+}
+
 function ResponseSnapshotCard({ snapshot }: { snapshot: ResponseSnapshotV1 }) {
   return (
     <div className="rounded-xl border border-primary/15 bg-background overflow-hidden">
       <div className="bg-primary/5 px-4 py-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <span className="font-semibold text-sm">Response Snapshot{snapshot.source.topic ? ` - ${snapshot.source.topic}` : ""}</span>
         <span className={`text-sm font-semibold ${responseSnapshotColor(snapshot.drill.responseLevel)}`}>
-          {snapshot.drill.responseLabel} - {snapshot.drill.score ?? "Not scored"}/100
+          {snapshot.drill.responseLabel} - {responseSnapshotScoreLabel(snapshot.drill.score)}
         </span>
       </div>
       <div className="px-4 py-3 space-y-3 text-sm">
@@ -755,7 +759,7 @@ function ResponseSnapshotCard({ snapshot }: { snapshot: ResponseSnapshotV1 }) {
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <p className="font-semibold text-foreground">{set.setName}</p>
                 <p className={`text-xs font-semibold ${responseSnapshotColor(set.responseLevel)}`}>
-                  {set.responseLabel} - {set.score ?? "Not scored"}/100
+                  {set.responseLabel} - {responseSnapshotScoreLabel(set.score)}
                 </p>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">{formatSnapshotPurposeText(set.purposeText)}</p>
@@ -766,7 +770,7 @@ function ResponseSnapshotCard({ snapshot }: { snapshot: ResponseSnapshotV1 }) {
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-xs font-semibold text-foreground">Rep {rep.repNumber}</p>
                       <p className={`text-xs font-semibold ${responseSnapshotColor(rep.responseLevel)}`}>
-                        {rep.responseLabel} - {rep.score ?? "Not scored"}/100
+                        {rep.responseLabel} - {responseSnapshotScoreLabel(rep.score)}
                       </p>
                     </div>
                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{formatSnapshotRepResult(rep)}</p>
@@ -1679,35 +1683,41 @@ export default function IntroSessionDrillRunner() {
               />
             ))}
 
-            {/* Per-set scoring */}
-            {setNames.map((setName) => {
-              const rows = setGroups[setName];
-              const setMeta = rows.find((r) => typeof r.setPoints === "number" && typeof r.setMaxPoints === "number");
-              const setPercent = setMeta?.setScore ?? Math.round(rows.reduce((sum, r) => sum + (r.score ?? 0), 0) / rows.length);
-              const setPoints = setMeta?.setPoints ?? setPercent;
-              const setMaxPoints = setMeta?.setMaxPoints ?? 100;
-              return (
-                <div key={setName} className="rounded-xl border border-primary/15 bg-background overflow-hidden">
-                  <div className="bg-primary/5 px-4 py-2 flex justify-between items-center">
-                    <span className="font-semibold text-sm">{setName}</span>
-                    <span className="text-sm text-muted-foreground">
-                      Set Total: <strong>{setPoints}/{setMaxPoints || 100}</strong>
-                      <span className="ml-2 text-xs">({setPercent}%)</span>
-                    </span>
-                  </div>
-                  <div className="divide-y">
-                    {rows.map((row, i) => (
-                      <div key={i} className="px-4 py-2 flex justify-between items-center text-sm bg-background">
-                        <span className="text-muted-foreground">Rep {row.rep}</span>
-                        <span className={`font-medium ${
-                          row.score >= 70 ? "text-green-700" : row.score >= 45 ? "text-yellow-700" : "text-red-700"
-                        }`}>{row.score}/100</span>
+            <details className="rounded-xl border border-primary/15 bg-background px-4 py-3">
+              <summary className="cursor-pointer text-sm font-semibold text-foreground">
+                View scoring breakdown
+              </summary>
+              <div className="mt-3 space-y-3">
+                {setNames.map((setName) => {
+                  const rows = setGroups[setName];
+                  const setMeta = rows.find((r) => typeof r.setPoints === "number" && typeof r.setMaxPoints === "number");
+                  const setPercent = setMeta?.setScore ?? Math.round(rows.reduce((sum, r) => sum + (r.score ?? 0), 0) / rows.length);
+                  const setPoints = setMeta?.setPoints ?? setPercent;
+                  const setMaxPoints = setMeta?.setMaxPoints ?? 100;
+                  return (
+                    <div key={setName} className="rounded-xl border border-primary/15 bg-background overflow-hidden">
+                      <div className="bg-primary/5 px-4 py-2 flex justify-between items-center">
+                        <span className="font-semibold text-sm">{setName}</span>
+                        <span className="text-sm text-muted-foreground">
+                          Set Total: <strong>{setPoints}/{setMaxPoints || 100}</strong>
+                          <span className="ml-2 text-xs">({setPercent}%)</span>
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+                      <div className="divide-y">
+                        {rows.map((row, i) => (
+                          <div key={i} className="px-4 py-2 flex justify-between items-center text-sm bg-background">
+                            <span className="text-muted-foreground">Rep {row.rep}</span>
+                            <span className={`font-medium ${
+                              row.score >= 70 ? "text-green-700" : row.score >= 45 ? "text-yellow-700" : "text-red-700"
+                            }`}>{row.score}/100</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
 
             {/* Session total */}
             <div className="rounded-xl border border-primary/15 bg-background px-4 py-3 flex justify-between items-center">

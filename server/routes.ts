@@ -6539,7 +6539,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 phase: isTargetedRediagnosis ? startingPhase! : verificationPhase!,
                 sets: verificationBlocks as any,
                 drillScore: Number(handoverSummary.verificationScore || 0),
-                setScores: [Number(handoverSummary.verificationScore || 0)],
+                setScores: isTargetedRediagnosis
+                  ? (handoverSummary as ReturnType<typeof computeHandoverRediagnosisSummary>).phaseChecks.map((check: any) =>
+                      Number(check.phaseScore || 0),
+                    )
+                  : [Number(handoverSummary.verificationScore || 0)],
                 engineOutcomeRef: {
                   phaseBefore: verificationPhase,
                   stabilityBefore: previousStability,

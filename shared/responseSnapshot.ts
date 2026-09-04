@@ -2,8 +2,6 @@ import type { ObservationLevel } from "./observationScoring";
 import {
   getDrillSchemaDefinition,
   getDrillSchemaDefinitionByVersion,
-  getEvidenceSetById,
-  getEvidenceSetByName,
   getFieldDefinitionForRep,
   type EvidenceDrillMode,
   type SubmittedEvidenceSet,
@@ -13,6 +11,7 @@ import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
 export type ResponseSnapshotDisplayLevel = "weak" | "partial" | "strong" | "not_scored";
 
 export type ResponseSnapshotEvidence = {
+  evidenceId: string;
   dimensionId: string;
   dimensionLabel: string;
   selectedOptionId: string;
@@ -80,6 +79,7 @@ export type ResponseSnapshotV1 = {
   };
   reportingLineage: {
     evidenceIds: string[];
+    selectedOptionIds: string[];
     reportProjectionVersion: null;
   };
 };
@@ -132,6 +132,35 @@ const REP_PATTERN_SENTENCE: Record<string, string> = {
   SSW: "The response was strong for the first two reps, then broke on the final rep; the set did not finish stable.",
   SSP: "The response was strong for two reps and softened to partial on the final rep; strength was present but not fully maintained.",
   SSS: "The response remained strong across all three reps; the target behavior was repeatable within this set.",
+};
+
+const SET_ROLE_BY_ID: Record<string, string> = {
+  "clarity.recognition_probe": "recognition",
+  "clarity.light_apply_probe": "light application",
+  "structured_execution.start_and_structure": "cold-start structure",
+  "structured_execution.repeatability": "repeatability",
+  "controlled_discomfort.first_contact": "first contact with difficulty",
+  "controlled_discomfort.pressure_hold": "sustained pressure hold",
+  "time_pressure.light_timer": "first timed response",
+  "time_pressure.consistency": "timed consistency",
+  "clarity.identification": "identification",
+  "clarity.light_apply": "light application",
+  "structured_execution.required_structure": "required structure",
+  "structured_execution.independent_execution": "independent execution",
+  "structured_execution.variation_control": "variation control",
+  "controlled_discomfort.controlled_entry": "controlled entry",
+  "controlled_discomfort.no_rescue": "no-rescue execution",
+  "controlled_discomfort.repeat_exposure": "repeat exposure",
+  "time_pressure.structure_under_timer": "structure under timer",
+  "time_pressure.repeated_timed_execution": "repeated timed execution",
+  "time_pressure.full_constraint": "full constraint",
+};
+
+const PHASE_INSTABILITY_MEANING: Record<TopicPhase, string> = {
+  Clarity: "The student may recognize parts of the topic, but the usable mental map is not yet stable enough to treat as dependable.",
+  "Structured Execution": "The student may be able to perform parts of the method, but the execution chain is not yet dependable across the full drill demand.",
+  "Controlled Discomfort": "The student may have some access to the method, but the response is still vulnerable when difficulty is introduced or sustained.",
+  "Time Pressure Stability": "The student may have the method available, but time pressure is still changing the quality or completeness of execution.",
 };
 
 const DRILL_PURPOSE_BY_PHASE: Record<TopicPhase, string> = {
@@ -326,9 +355,6 @@ const clearNarrativeForRep = (repPurposeId: string, evidence: ResponseSnapshotEv
 };
 
 export const formatSnapshotRepResult = (rep: Pick<ResponseSnapshotRep, "repPurposeId" | "repPurposeText" | "responseLevel" | "evidence" | "resultText">) => {
-  if (Array.isArray(rep.evidence) && rep.evidence.length > 0) {
-    return buildRepResultText(rep.repPurposeText, rep.responseLevel, rep.evidence, rep.repPurposeId);
-  }
   return formatSnapshotResultText(rep.resultText);
 };
 
@@ -444,6 +470,12 @@ const naturalJoin = (values: string[]) => {
   return `${filtered.slice(0, -1).join(", ")}, and ${filtered[filtered.length - 1]}`;
 };
 
+const sentenceCase = (value: string) => {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+};
+
 const cleanEvidenceClause = (value: string) =>
   String(value || "")
     .trim()
@@ -509,6 +541,7 @@ const CONTEXTUAL_OPTION_CLAUSES: Record<string, Record<string, string>> = {
     "partial correction": "corrected only part of the error",
     "structured correction": "corrected the error structurally",
     "no correction needed": "did not need correction",
+    forgets: "forgot the method steps",
     "cannot adapt": "could not adapt the method",
     adapts: "adapted the method to the changed form",
     lost: "lost the step sequence",
@@ -667,6 +700,107 @@ const buildRepResultText = (
 const drillModeForRegistry = (mode: BuildResponseSnapshotInput["mode"]): EvidenceDrillMode =>
   mode === "handover_verification" || mode === "handover_rediagnosis" ? "verification" : mode;
 
+const schemaForSubmittedSet = (
+  mode: EvidenceDrillMode,
+  fallbackPhase: TopicPhase,
+  submittedSet: SubmittedEvidenceSet,
+) => {
+  const submittedPhase = String((submittedSet as any).phase || "");
+  const setPhase = submittedPhase === "Clarity" ||
+    submittedPhase === "Structured Execution" ||
+    submittedPhase === "Controlled Discomfort" ||
+    submittedPhase === "Time Pressure Stability"
+    ? submittedPhase
+    : fallbackPhase;
+  const liveSchema = getDrillSchemaDefinition(mode, setPhase);
+  const setSchemaVersion = Number(submittedSet.drillSchemaVersion || liveSchema.schemaVersion);
+  const schema = getDrillSchemaDefinitionByVersion(mode, setPhase, setSchemaVersion) || liveSchema;
+  return { schema, setPhase };
+};
+
+const definitionForSubmittedSet = (
+  schema: ReturnType<typeof getDrillSchemaDefinition>,
+  submittedSet: SubmittedEvidenceSet,
+) =>
+  schema.sets.find((definition) => submittedSet.setId && definition.setId === submittedSet.setId) ||
+  schema.sets.find((definition) => definition.setName === submittedSet.setName) ||
+  null;
+
+const buildEvidenceOccurrenceId = ({
+  sourceDrillId,
+  schemaId,
+  schemaVersion,
+  definitionHash,
+  setId,
+  setOrder,
+  repPurposeId,
+  repNumber,
+  dimensionId,
+}: {
+  sourceDrillId: string | null;
+  schemaId: string | null;
+  schemaVersion: number | null;
+  definitionHash: string | null;
+  setId: string;
+  setOrder: number;
+  repPurposeId: string;
+  repNumber: number;
+  dimensionId: string;
+}) =>
+  [
+    sourceDrillId || "pending-drill",
+    schemaId || "unknown-schema",
+    schemaVersion ?? "v?",
+    definitionHash || "unknown-hash",
+    `set:${setOrder}:${setId}`,
+    `rep:${repNumber}:${repPurposeId}`,
+    `dimension:${dimensionId}`,
+  ].join("|");
+
+const roleForSet = (set: Pick<ResponseSnapshotSet, "setId" | "setName">) =>
+  SET_ROLE_BY_ID[set.setId] || set.setName.toLowerCase();
+
+const buildDrillPatternResultText = (
+  phase: TopicPhase,
+  responseLevel: ResponseSnapshotDisplayLevel,
+  sets: ResponseSnapshotSet[],
+) => {
+  const scoredSets = sets.filter((set) => set.responseLevel !== "not_scored");
+  const label = responseLabelForLevel(responseLevel).toLowerCase();
+  if (!scoredSets.length) {
+    return `Across this ${phase} drill, no scored student response was recorded.`;
+  }
+
+  const grouped = {
+    strong: scoredSets.filter((set) => set.responseLevel === "strong").map(roleForSet),
+    partial: scoredSets.filter((set) => set.responseLevel === "partial").map(roleForSet),
+    weak: scoredSets.filter((set) => set.responseLevel === "weak").map(roleForSet),
+  };
+
+  if (grouped.strong.length === scoredSets.length) {
+    return `Across this ${phase} drill, the student produced a ${label}: ${naturalJoin(grouped.strong)} held together across the scored sets.`;
+  }
+  if (grouped.weak.length === scoredSets.length) {
+    return `Across this ${phase} drill, the student produced a ${label}: ${naturalJoin(grouped.weak)} remained weak across the scored sets. ${PHASE_INSTABILITY_MEANING[phase]}`;
+  }
+  if (grouped.partial.length === scoredSets.length) {
+    return `Across this ${phase} drill, the student produced a ${label}: ${naturalJoin(grouped.partial)} appeared in every scored set but remained incomplete. ${PHASE_INSTABILITY_MEANING[phase]}`;
+  }
+
+  const clauses: string[] = [];
+  if (grouped.strong.length) clauses.push(`${naturalJoin(grouped.strong)} ${grouped.strong.length === 1 ? "was" : "were"} strong`);
+  if (grouped.partial.length) clauses.push(`${naturalJoin(grouped.partial)} ${grouped.partial.length === 1 ? "was" : "were"} partial`);
+  if (grouped.weak.length) clauses.push(`${naturalJoin(grouped.weak)} ${grouped.weak.length === 1 ? "was" : "were"} weak`);
+
+  const decisiveInstability = grouped.weak.length
+    ? `${sentenceCase(naturalJoin(grouped.weak))} is the decisive weakness in this drill pattern.`
+    : grouped.partial.length
+      ? `${sentenceCase(naturalJoin(grouped.partial))} is the remaining incomplete part of this drill pattern.`
+      : "";
+
+  return `Across this ${phase} drill, the student produced a ${label}: ${naturalJoin(clauses)}. ${decisiveInstability} ${PHASE_INSTABILITY_MEANING[phase]}`.replace(/\s+/g, " ").trim();
+};
+
 export const buildResponseSnapshotV1 = ({
   sourceDrillId = null,
   generatedBy = "deterministic-server",
@@ -686,17 +820,26 @@ export const buildResponseSnapshotV1 = ({
   const snapshotSets: ResponseSnapshotSet[] = [];
 
   sets.forEach((submittedSet, setIndex) => {
-    const submittedSetPhase = String((submittedSet as any).phase || "");
-    const setPhase = submittedSetPhase === "Clarity" ||
-      submittedSetPhase === "Structured Execution" ||
-      submittedSetPhase === "Controlled Discomfort" ||
-      submittedSetPhase === "Time Pressure Stability"
-      ? submittedSetPhase
-      : phase;
-    const definition =
-      (submittedSet.setId && getEvidenceSetById(registryMode, setPhase, submittedSet.setId)) ||
-      getEvidenceSetByName(registryMode, setPhase, submittedSet.setName);
-    if (!definition?.fields?.length || definition.modelingOnly) return;
+    const { schema: setSchema } = schemaForSubmittedSet(registryMode, phase, submittedSet);
+    const definition = definitionForSubmittedSet(setSchema, submittedSet);
+    if (!definition) return;
+
+    if (!definition.fields.length || definition.modelingOnly) {
+      snapshotSets.push({
+        setId: definition.setId,
+        setOrder: Number(submittedSet.setOrder || setIndex + 1),
+        setName: definition.setName,
+        purposeId: definition.setId,
+        purposeText: definition.purpose,
+        score: null,
+        responseLevel: "not_scored",
+        responseLabel: responseLabelForLevel("not_scored"),
+        patternCode: null,
+        resultText: `${definition.setName} was completed as a modeling set. No scored student response was recorded for this set.`,
+        reps: [],
+      });
+      return;
+    }
 
     const reps: ResponseSnapshotRep[] = (submittedSet.observations || []).map((repObs, repIndex) => {
       const evidence = definition.fields.map((baseField) => {
@@ -704,8 +847,22 @@ export const buildResponseSnapshotV1 = ({
         const selectedRawOption = String(repObs?.[field.fieldKey] || "").trim();
         const normalizedLevel = String(repObs?.[`${field.fieldKey}_level`] || "") as ObservationLevel;
         const contribution = scoreContribution(field.scoreWeight, normalizedLevel);
+        const repPurposeId = String(repObs?._rep_id || definition.repPurposeIds[repIndex] || `${definition.setId}.opportunity_${repIndex + 1}`);
+        const repNumber = Number(repObs?._rep_number || repIndex + 1);
+        const dimensionId = String(repObs?.[`${field.fieldKey}_dimension_id`] || field.dimensionId);
         return {
-          dimensionId: String(repObs?.[`${field.fieldKey}_dimension_id`] || field.dimensionId),
+          evidenceId: buildEvidenceOccurrenceId({
+            sourceDrillId,
+            schemaId: setSchema.schemaId,
+            schemaVersion: setSchema.schemaVersion,
+            definitionHash: setSchema.definitionHash,
+            setId: definition.setId,
+            setOrder: Number(submittedSet.setOrder || setIndex + 1),
+            repPurposeId,
+            repNumber,
+            dimensionId,
+          }),
+          dimensionId,
           dimensionLabel: fieldLabel(field.fieldKey),
           selectedOptionId: String(repObs?.[`${field.fieldKey}_option_id`] || ""),
           selectedRawOption,
@@ -734,8 +891,9 @@ export const buildResponseSnapshotV1 = ({
     const computedSetScore = reps.length
       ? clampScore(reps.reduce((sum, rep) => sum + Number(rep.score || 0), 0) / reps.length)
       : null;
-    const score = typeof setScores?.[snapshotSets.length] === "number"
-      ? clampScore(setScores[snapshotSets.length])
+    const scoredSetIndex = snapshotSets.filter((set) => set.responseLevel !== "not_scored").length;
+    const score = typeof setScores?.[scoredSetIndex] === "number"
+      ? clampScore(setScores[scoredSetIndex])
       : computedSetScore;
     const responseLevel = displayLevelForScore(score);
     const patternCode = reps.map((rep) => patternCharForLevel(rep.responseLevel)).join("");
@@ -756,18 +914,17 @@ export const buildResponseSnapshotV1 = ({
     });
   });
 
+  const scoredSnapshotSets = snapshotSets.filter((set) => set.responseLevel !== "not_scored");
   const score = typeof drillScore === "number"
     ? clampScore(drillScore)
-    : snapshotSets.length
-      ? clampScore(snapshotSets.reduce((sum, set) => sum + Number(set.score || 0), 0) / snapshotSets.length)
+    : scoredSnapshotSets.length
+      ? clampScore(scoredSnapshotSets.reduce((sum, set) => sum + Number(set.score || 0), 0) / scoredSnapshotSets.length)
       : null;
   const responseLevel = displayLevelForScore(score);
-  const patternCode = snapshotSets.map((set) => patternCharForLevel(set.responseLevel)).join("") || null;
-  const limitation = snapshotSets.some((set) =>
-    set.reps.some((rep) => rep.evidence.some((item) => item.normalizedLevel === "weak" || item.normalizedLevel === "partial"))
-  )
-    ? " The set and rep log below shows exactly where the response was still incomplete."
-    : "";
+  const patternCode = snapshotSets
+    .filter((set) => set.responseLevel !== "not_scored")
+    .map((set) => patternCharForLevel(set.responseLevel))
+    .join("") || null;
 
   return {
     version: "response-snapshot-v1",
@@ -789,7 +946,7 @@ export const buildResponseSnapshotV1 = ({
       responseLevel,
       responseLabel: responseLabelForLevel(responseLevel),
       patternCode,
-      resultText: `Across this ${phase} drill, the student produced a ${responseLabelForLevel(responseLevel).toLowerCase()} against the predefined response checks.${limitation}`,
+      resultText: buildDrillPatternResultText(phase, responseLevel, snapshotSets),
     },
     sets: snapshotSets,
     engineOutcomeRef: {
@@ -801,6 +958,9 @@ export const buildResponseSnapshotV1 = ({
     },
     reportingLineage: {
       evidenceIds: snapshotSets.flatMap((set) =>
+        set.reps.flatMap((rep) => rep.evidence.map((item) => item.evidenceId).filter(Boolean))
+      ),
+      selectedOptionIds: snapshotSets.flatMap((set) =>
         set.reps.flatMap((rep) => rep.evidence.map((item) => item.selectedOptionId).filter(Boolean))
       ),
       reportProjectionVersion: null,
