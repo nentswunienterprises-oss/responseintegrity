@@ -26,3 +26,12 @@ test("tracked back targets preserve Production Link attribution", () => {
     "/about?production=AFIX123&pipeline=demand",
   );
 });
+
+test("FAQ back target returns to the tracked source page", () => {
+  assert.equal(
+    resolveTrackedBackTarget(
+      "?production=AFIX123&pipeline=demand&returnTo=%2F%3Fproduction%3DAFIX123%26pipeline%3Ddemand",
+    ),
+    "/?production=AFIX123&pipeline=demand",
+  );
+});
