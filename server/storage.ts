@@ -26,6 +26,7 @@ import {
 import { isAllowedOdEmail, normalizeEmail } from "@shared/odAccess";
 import type { TutorTrainingMode } from "@shared/battleTesting";
 import { claimProductionLeadIfUnattributed } from "./productionLinkPersistence";
+import { resolveProductionCloseLineage } from "./productionCloseLineage";
 
 // Initialize Supabase client with service role key to bypass RLS
 const supabaseUrl = process.env.SUPABASE_URL!;
@@ -288,6 +289,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getFirstProductionLeadByUser(userId: string): Promise<any | null>;
+  getCanonicalLeadByUser(userId: string): Promise<any | null>;
   getUsersByRole(role: string): Promise<User[]>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserVerification(id: string, verified: boolean): Promise<User | undefined>;
@@ -649,6 +651,20 @@ export class SupabaseStorage implements IStorage {
       .limit(1)
       .maybeSingle();
     if (error) throw error;
+    return data || null;
+  }
+
+  async getCanonicalLeadByUser(userId: string): Promise<any | null> {
+    const productionLead = await this.getFirstProductionLeadByUser(userId);
+    if (productionLead) return productionLead;
+    const { data } = await supabase
+      .from("leads")
+      .select("id, user_id, affiliate_id, production_link_code, tracking_source, tracking_campaign, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(1)
+      .maybeSingle();
     return data || null;
   }
 
@@ -2506,6 +2522,11 @@ export class SupabaseStorage implements IStorage {
     if (!data) return null;
     // Compose affiliate_name: prefer person_name, fallback to entity_name, fallback to null
     let affiliate_name = data.person_name || data.entity_name || null;
+    let ownershipStatus = data.owner_user_id || data.owner_type || data.owner_name ? "explicit" : "legacy_contributor";
+    if (!data.owner_user_id && !data.owner_type && data.affiliate_id) {
+      const { data: owner } = await supabase.from("users").select("role").eq("id", data.affiliate_id).maybeSingle();
+      if (owner?.role !== "affiliate") ownershipStatus = "unresolved_legacy";
+    }
     return {
       affiliate_id: data.affiliate_id,
       created_by: data.created_by,
@@ -2518,6 +2539,7 @@ export class SupabaseStorage implements IStorage {
       pipeline_type: data.pipeline_type || "demand",
       campaign_name: data.campaign_name || null,
       status: data.status || "active",
+      ownership_status: ownershipStatus,
     };
   }
 
@@ -2715,14 +2737,9 @@ export class SupabaseStorage implements IStorage {
     return enriched;
   }
 
-  async recordClose(affiliateId: string, parentId: string, studentId: string, podId?: string): Promise<any> {
+  async recordClose(_affiliateId: string | null, parentId: string, studentId: string, podId?: string): Promise<any> {
     // First get the lead
-    const { data: lead } = await supabase
-      .from("leads")
-      .select("id")
-      .eq("affiliate_id", affiliateId)
-      .eq("user_id", parentId)
-      .maybeSingle();
+    const lead = await this.getCanonicalLeadByUser(parentId);
     
     if (!lead) {
       throw new Error("Lead not found");
@@ -2731,7 +2748,6 @@ export class SupabaseStorage implements IStorage {
     const { data: existingClose } = await supabase
       .from("closes")
       .select("id")
-      .eq("affiliate_id", affiliateId)
       .eq("lead_id", lead.id)
       .eq("parent_id", parentId)
       .eq("student_id", studentId)
@@ -2766,16 +2782,23 @@ export class SupabaseStorage implements IStorage {
       throw new Error("A verified paid subscription is required before a production reward can be recorded");
     }
     
+    const productionLink = lead.production_link_code
+      ? await this.getAffiliateByCode(lead.production_link_code)
+      : null;
+    const lineage = resolveProductionCloseLineage(lead, productionLink);
     const { data, error } = await supabase
       .from("closes")
       .insert({
-        affiliate_id: affiliateId,
+        affiliate_id: lineage.affiliateId,
+        production_link_code: lineage.productionLinkCode,
+        production_owner_type: lineage.ownerType,
+        production_owner_name: lineage.ownerName,
         parent_id: parentId,
         lead_id: lead.id,
         student_id: studentId,
         pod_id: podId || null,
-        commission_amount: "100.00",
-        commission_status: "pending",
+        commission_amount: lineage.rewardEligible ? "100.00" : null,
+        commission_status: lineage.rewardEligible ? "pending" : "not_eligible",
         closed_at: new Date().toISOString(),
       })
       .select()

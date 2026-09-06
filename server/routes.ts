@@ -115,6 +115,7 @@ import {
   resolveDurableProductionLink,
   validateProductionLinkForRole,
 } from "@shared/productionLinks";
+import { resolveProductionCloseLineage } from "./productionCloseLineage";
 import { persistResponseIntegrityEvidenceLedgerShadow } from "./responseIntegrityEvidenceLedger";
 import {
   createTrialCase,
@@ -3219,7 +3220,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
   }
 
   const parentId = String(transaction.parent_id || "").trim();
-  const lead = await storage.getFirstProductionLeadByUser(parentId);
+  const lead = await storage.getCanonicalLeadByUser(parentId);
 
   if (lead && proposal?.student_id) {
     const { data: existingClose } = await supabase
@@ -3237,10 +3238,17 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
         .eq("tutor_id", proposal.tutor_id)
         .maybeSingle();
 
+      const productionLink = lead.production_link_code
+        ? await storage.getAffiliateByCode(lead.production_link_code)
+        : null;
+      const lineage = resolveProductionCloseLineage(lead, productionLink);
       const { error: closeError } = await supabase
         .from("closes")
         .insert({
-          affiliate_id: lead.affiliate_id,
+          affiliate_id: lineage.affiliateId,
+          production_link_code: lineage.productionLinkCode,
+          production_owner_type: lineage.ownerType,
+          production_owner_name: lineage.ownerName,
           parent_id: parentId,
           lead_id: lead.id,
           child_id: proposal.student_id,
@@ -15143,7 +15151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Fetch all leads (include affiliate_type, affiliate_name, lead_type, onboarding_type, full_name)
           const { data: leads, error } = await supabase
             .from("leads")
-            .select("id, user_id, affiliate_id, tracking_source, created_at, affiliate_type, affiliate_name, lead_type, onboarding_type, full_name")
+            .select("id, user_id, affiliate_id, production_link_code, tracking_source, created_at, affiliate_type, affiliate_name, lead_type, onboarding_type, full_name")
             .order("created_at", { ascending: false });
           if (error) {
             console.error("[COO LEADS] Supabase error:", error);
@@ -15180,8 +15188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Transform for UI
           const result = (leads || []).map((lead: any) => {
             const parent = userMap[lead.user_id] || {};
-            // If organic (affiliate_id is null), show as organic
-            const isOrganic = lead.affiliate_id === null;
+            const isOrganic = !lead.production_link_code;
             let affiliateType = lead.affiliate_type || '';
             let affiliateName = lead.affiliate_name || '';
             if (!isOrganic && codeMap[lead.affiliate_id]) {
@@ -15192,10 +15199,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               id: lead.id,
               parentName: `${parent.first_name || ''} ${parent.last_name || ''}`.trim(),
               userEmail: parent.email || '',
-              status: lead.tracking_source || (isOrganic ? 'organic' : ''),
+              status: lead.tracking_source || (isOrganic ? 'organic' : 'production'),
               createdAt: lead.created_at,
-              affiliateType: isOrganic ? 'organic' : (affiliateType || ''),
-              affiliateName: isOrganic ? '' : (affiliateName || ''),
+              affiliateType: isOrganic ? 'organic' : (affiliateType || 'production'),
+              affiliateName: isOrganic ? '' : (affiliateName || lead.production_link_code || ''),
               leadType: lead.lead_type || '',
               onboardingType: lead.onboarding_type || '',
               fullName: lead.full_name || '',
@@ -15294,12 +15301,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         });
         
-        // Organic leads (affiliate_id is null)
-        const organicLeads = leads.filter((l: any) => l.affiliate_id === null);
+        // Organic means no canonical Production Link, regardless of optional user owner.
+        const organicLeads = leads.filter((l: any) => !l.production_link_code);
         const organicCloses = closes.filter((c: any) => 
           organicLeads.some((l: any) => l.user_id === c.parent_id)
         );
         
+        const productionCampaignLeads = leads.filter((l: any) => Boolean(l.production_link_code) && !l.affiliate_id);
+        const productionCampaignCloses = closes.filter((c: any) =>
+          productionCampaignLeads.some((l: any) => l.user_id === c.parent_id)
+        );
+        const campaignStats = {
+          id: "production-campaigns",
+          name: "Production Campaigns",
+          email: "Non-user Production sources",
+          totalLeads: productionCampaignLeads.length,
+          totalCloses: productionCampaignCloses.length,
+          conversionRate: productionCampaignLeads.length > 0
+            ? Math.round((productionCampaignCloses.length / productionCampaignLeads.length) * 100)
+            : 0,
+          isProductionCampaign: true,
+        };
         const organicStats = {
           id: "organic",
           name: "Organic Traffic",
@@ -15315,6 +15337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Combine affiliate and organic details, sort by leads
         const allDetails = [
           ...affiliateDetails,
+          ...(productionCampaignLeads.length > 0 ? [campaignStats] : []),
           ...(organicLeads.length > 0 ? [organicStats] : [])
         ].sort((a, b) => b.totalLeads - a.totalLeads);
         
@@ -17674,6 +17697,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
           if (validationError) {
             return res.status(400).json({ message: validationError });
+          }
+          if (productionLink.ownership_status === "unresolved_legacy" && !durableUserProductionCode) {
+            return res.status(400).json({ message: "This legacy Production Link has unresolved ownership and cannot create new attribution" });
           }
           if (durableUserProductionCode && productionLink.status !== "active") {
             // Historical attribution remains valid after a link is disabled.
@@ -21914,19 +21940,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "studentId is required" });
         }
 
-        // Get parent's lead to find their affiliate
-        const { data: lead } = await supabase
-          .from("leads")
-          .select("affiliate_id")
-          .eq("user_id", parentId)
-          .maybeSingle();
+        // Resolve the deterministic canonical lead; affiliate_id may be null for campaign sources.
+        const lead = await storage.getCanonicalLeadByUser(parentId);
 
         if (!lead) {
-          return res.status(400).json({ message: "No affiliate found for this parent" });
+          return res.status(400).json({ message: "No acquisition lead found for this parent" });
         }
 
         // Record the close
-        const close = await storage.recordClose(lead.affiliate_id, parentId, studentId, podId);
+        const close = await storage.recordClose(lead.affiliate_id || null, parentId, studentId, podId);
         res.json(close);
       } catch (error) {
         console.error("Error recording close:", error);

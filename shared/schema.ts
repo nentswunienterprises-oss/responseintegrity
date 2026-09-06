@@ -1175,9 +1175,10 @@ export const insertLeadSchema = createInsertSchema(leads).omit({
 // Closes - Parent committed to tutoring journey (assigned tutor)
 export const closes = pgTable("closes", {
   id: serial("id").primaryKey(),
-  affiliateId: varchar("affiliate_id")
-    .notNull()
-    .references(() => users.id),
+  affiliateId: varchar("affiliate_id").references(() => users.id),
+  productionLinkCode: varchar("production_link_code", { length: 20 }),
+  productionOwnerType: varchar("production_owner_type", { length: 32 }),
+  productionOwnerName: varchar("production_owner_name", { length: 128 }),
   parentId: varchar("parent_id").references(() => users.id),
   leadId: bigint("lead_id", { mode: "number" }).references(() => leads.id),
   childId: bigint("child_id", { mode: "number" }).references(() => students.id),

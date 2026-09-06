@@ -102,6 +102,9 @@ export async function setupAuth(app: Express) {
         if (validationError) {
           return res.status(400).json({ message: validationError });
         }
+        if (productionLink.ownership_status === "unresolved_legacy") {
+          return res.status(400).json({ message: "This legacy Production Link has unresolved ownership and cannot create new attribution" });
+        }
         req.session.affiliateCode = incomingAffiliateCode || incomingProductionCode;
         (req.session as any).productionLinkCode = productionLink.production_link_code;
         (req.session as any).productionPipeline = productionLink.pipeline_type;
@@ -695,6 +698,9 @@ export async function setupAuth(app: Express) {
         const validationError = validateProductionLinkForRole(productionLink, requestedProductionPipeline, role);
         if (validationError) {
           return res.status(400).json({ message: validationError });
+        }
+        if (productionLink.ownership_status === "unresolved_legacy") {
+          return res.status(400).json({ message: "This legacy Production Link has unresolved ownership and cannot create new attribution" });
         }
         req.session.affiliateCode = effectiveAffiliateCode;
         (req.session as any).productionLinkCode = productionLink.production_link_code;

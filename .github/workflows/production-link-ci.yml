@@ -25,6 +25,8 @@ on:
       - "server/productionLinkOwnership.test.ts"
       - "server/productionLinkServerBoundary.test.ts"
       - "server/productionLinkPersistence.ts"
+      - "server/productionCloseLineage.ts"
+      - "server/productionCloseLineage.test.ts"
       - "migrations/**"
       - ".github/workflows/production-link-ci.yml"
       - "package.json"
@@ -55,6 +57,8 @@ on:
       - "server/productionLinkOwnership.test.ts"
       - "server/productionLinkServerBoundary.test.ts"
       - "server/productionLinkPersistence.ts"
+      - "server/productionCloseLineage.ts"
+      - "server/productionCloseLineage.test.ts"
       - "migrations/**"
       - ".github/workflows/production-link-ci.yml"
       - "package.json"
@@ -70,4 +74,4 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npx tsx --test client/src/lib/google-homepage.test.ts client/src/lib/oauth-attribution.test.ts server/productionLinks.test.ts server/productionLinkPersistence.test.ts server/productionLinkLive.integration.test.ts server/productionLinkOwnership.test.ts server/productionLinkServerBoundary.test.ts
+      - run: npx tsx --test client/src/lib/google-homepage.test.ts client/src/lib/oauth-attribution.test.ts server/productionLinks.test.ts server/productionLinkPersistence.test.ts server/productionLinkLive.integration.test.ts server/productionLinkOwnership.test.ts server/productionLinkServerBoundary.test.ts server/productionCloseLineage.test.ts
