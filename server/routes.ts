@@ -120,6 +120,7 @@ import {
   validateProductionLinkForRole,
 } from "@shared/productionLinks";
 import { resolveProductionCloseLineage } from "./productionCloseLineage";
+import { buildProductionEconomy } from "./productionEconomy";
 import { persistResponseIntegrityEvidenceLedgerShadow } from "./responseIntegrityEvidenceLedger";
 import {
   createTrialCase,
@@ -7391,7 +7392,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const { id } = req.params;
           // Only allow deleting codes created by this COO
           const result = await pool.query(
-            `DELETE FROM affiliate_codes WHERE id = $1 AND affiliate_id = $2 RETURNING *`,
+            `DELETE FROM affiliate_codes WHERE id = $1 AND created_by = $2 RETURNING *`,
             [id, dbUser.id]
           );
           if (result.rowCount === 0) {
@@ -7409,12 +7410,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const { pool } = await import('./db.js');
         const { transformSnakeToCamel } = await import('./storage');
         const dbUser = (req as any).dbUser;
-        // Only show codes created by this COO
+        // Creation and ownership are separate: campaign links may have no affiliate_id.
         const result = await pool.query(
-          `SELECT * FROM affiliate_codes WHERE affiliate_id = $1 ORDER BY created_at DESC`,
+          `SELECT * FROM affiliate_codes WHERE created_by = $1 ORDER BY created_at DESC`,
           [dbUser.id]
         );
-        const camelRows = transformSnakeToCamel(result.rows);
+        const camelRows = transformSnakeToCamel(result.rows).map((row: any) => ({
+          ...row,
+          link: buildCanonicalProductionLinkUrl(row.code, row.pipelineType),
+        }));
         res.json(camelRows);
       } catch (err) {
         console.error("[affiliate-codes] Error:", err);
@@ -15137,6 +15141,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ========================================
   // COO ROUTES
+    app.get(
+      "/api/coo/production-economy",
+      isAuthenticated,
+      requireRole(["coo"]),
+      async (_req: Request, res: Response) => {
+        try {
+          const [links, leads, applications, users, enrollments, assignments, trialCases, trialPlacements, closes] = await Promise.all([
+            supabase.from("affiliate_codes").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
+            supabase.from("leads").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
+            supabase.from("tutor_applications").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
+            supabase.from("users").select("id, name, first_name, last_name, email").then(({ data, error }) => { if (error) throw error; return data || []; }),
+            supabase.from("parent_enrollments").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
+            supabase.from("tutor_assignments").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
+            supabase.from("tutor_trial_cases").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
+            supabase.from("tutor_trial_placements").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
+            supabase.from("closes").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
+          ]);
+          res.json(buildProductionEconomy({ links, leads, applications, users, enrollments, assignments, trialCases, trialPlacements, closes }));
+        } catch (error) {
+          console.error("[COO PRODUCTION ECONOMY] Error:", error);
+          res.status(500).json({ message: "Failed to load Production Economy" });
+        }
+      },
+    );
     // Get COO leads for UI
     app.get(
       "/api/coo/leads",

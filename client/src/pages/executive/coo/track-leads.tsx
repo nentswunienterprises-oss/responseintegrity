@@ -1,221 +1,59 @@
 import React from "react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ToastProvider, Toast, ToastTitle, ToastDescription, ToastViewport } from "@/components/ui/toast";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+
+const labels: Record<string, string> = {
+  close: "Close", subscription: "Subscription", captured: "Captured", application: "Application",
+  training: "Training", sandbox: "Sandbox", trial: "Trial", certified_live: "Certified Live",
+};
+
+function Metric({ label, value }: { label: string; value: number | null }) {
+  return <div className="border-l pl-4"><div className="text-xs text-muted-foreground">{label}</div><div className="text-2xl font-semibold">{value == null ? "Not measurable" : value}</div></div>;
+}
 
 export default function TrackLeadsPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const queryClient = useQueryClient();
-  const [toast, setToast] = React.useState<{ title: string; description?: string } | null>(null);
-  const [tab, setTab] = React.useState("codes");
-
-  // Saved affiliate codes/links
-
-  // Use apiRequest for consistent API base URL
-  const { data: codes = [], isLoading: codesLoading } = useQuery<any[]>({
-    queryKey: ["/api/coo/affiliate-codes"],
+  const [filter, setFilter] = React.useState("all");
+  const [selected, setSelected] = React.useState<any | null>(null);
+  const { data, isLoading, error } = useQuery<any>({
+    queryKey: ["/api/coo/production-economy"],
     enabled: isAuthenticated && !authLoading,
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/coo/affiliate-codes");
-      return res.json();
-    },
+    queryFn: async () => (await apiRequest("GET", "/api/coo/production-economy")).json(),
   });
 
-  // Mutation for revoking a code
-  const revokeMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await apiRequest("DELETE", `/api/coo/affiliate-codes/${id}`);
-      if (!res.ok) throw new Error("Failed to revoke code");
-      return true;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/coo/affiliate-codes"] });
-      setToast({ title: "Code revoked" });
-    },
-    onError: () => setToast({ title: "Failed to revoke code" }),
+  const sources = (data?.sources || []).filter((source: any) => {
+    if (filter === "demand" || filter === "capacity") return source.pipeline === filter;
+    if (filter === "reward") return source.reward.eligible;
+    if (filter === "blocked") return (data.summary.blockers || []).length > 0 && source.pipeline === "demand";
+    return true;
   });
 
-  // Copy to clipboard helper
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setToast({ title: "Copied!", description: text });
-  };
-  // Example queries for leads, closes, subscriptions
-  const { data: leads = [], isLoading: leadsLoading } = useQuery<any[]>({
-    queryKey: ["/api/coo/leads"],
-    enabled: isAuthenticated && !authLoading,
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/coo/leads");
-      return res.json();
-    },
-  });
-  const { data: closes = [], isLoading: closesLoading } = useQuery<any[]>({
-    queryKey: ["/api/coo/closes"],
-    enabled: isAuthenticated && !authLoading,
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/coo/closes");
-      return res.json();
-    },
-  });
-  const { data: subscriptions = [], isLoading: subsLoading } = useQuery<any[]>({
-    queryKey: ["/api/coo/subscriptions"],
-    enabled: isAuthenticated && !authLoading,
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/coo/subscriptions");
-      return res.json();
-    },
-  });
+  const copy = async (value: string) => navigator.clipboard?.writeText(value);
 
   return (
-    <div className="max-w-3xl mx-auto py-8 overflow-auto">
-      <Button variant="outline" className="mb-6" onClick={() => window.location.href = '/executive/coo/dashboard'}>
-        ← Back to Dashboard
-      </Button>
-      <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="codes">Saved Links / Codes</TabsTrigger>
-          <TabsTrigger value="leads">Leads</TabsTrigger>
-          <TabsTrigger value="closes">Closes</TabsTrigger>
-          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-        </TabsList>
-        <TabsContent value="codes">
-          <Card>
-            <CardHeader>
-              <CardTitle>Saved Links / Codes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {codesLoading ? (
-                <p className="text-muted-foreground">Loading codes...</p>
-              ) : codes.length === 0 ? (
-                <p className="text-muted-foreground">No codes found.</p>
-              ) : (
-                <div className="space-y-2 overflow-auto max-h-[60vh]">
-                  {codes.map((code: any) => {
-                    const link = `${window.location.origin}/client/signup?affiliate=${code.code}`;
-                    return (
-                      <div key={code.id} className="p-2 border rounded flex flex-col md:flex-row md:justify-between md:items-center gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-mono break-all select-all">
-                            <b>{code.code}</b>
-                            <span className="text-xs text-muted-foreground ml-2">[{code.type}]</span>
-                            {code.personName && <span className="ml-2">Name: <b>{code.personName}</b></span>}
-                            {code.entityName && <span className="ml-2">Entity: <b>{code.entityName}</b></span>}
-                            {code.schoolType && <span className="ml-2">School: <b>{code.schoolType}</b></span>}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1 select-all">
-                            Link: <span className="break-all">{link}</span>
-                          </div>
-                        </div>
-                        <div className="flex flex-col md:flex-row gap-2 mt-2 md:mt-0">
-                          <Button size="sm" variant="outline" onClick={() => handleCopy(code.code)}>Copy Code</Button>
-                          <Button size="sm" variant="outline" onClick={() => handleCopy(link)}>Copy Link</Button>
-                          <Button size="sm" variant="destructive" onClick={() => revokeMutation.mutate(code.id)} disabled={revokeMutation.isPending}>Revoke</Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="leads">
-          <Card>
-            <CardHeader>
-              <CardTitle>Leads</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {leadsLoading ? (
-                <p className="text-muted-foreground">Loading leads...</p>
-              ) : leads.length === 0 ? (
-                <p className="text-muted-foreground">No leads found.</p>
-              ) : (
-                <div className="space-y-2 overflow-auto max-h-[60vh]">
-                  {leads.map((lead: any) => (
-                    <div
-                      key={lead.id}
-                      className="p-2 border rounded flex flex-col md:flex-row md:justify-between md:items-center gap-2"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div><b>{lead.parentName || lead.userEmail}</b></div>
-                        <div className="text-xs text-muted-foreground">
-                          Status: <Badge>{lead.status}</Badge>
-                          {lead.affiliateType && <span className="ml-2">Type: <b>{lead.affiliateType}</b></span>}
-                          {lead.affiliateName && <span className="ml-2">Affiliate: <b>{lead.affiliateName}</b></span>}
-                          {lead.leadType && <span className="ml-2">Lead Type: <b>{lead.leadType}</b></span>}
-                          {lead.onboardingType && <span className="ml-2">Onboarding: <b>{lead.onboardingType}</b></span>}
-                          {lead.fullName && <span className="ml-2">Full Name: <b>{lead.fullName}</b></span>}
-                        </div>
-                        <div className="text-xs text-muted-foreground">Created: {new Date(lead.createdAt).toLocaleString()}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="closes">
-          <Card>
-            <CardHeader>
-              <CardTitle>Closes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {closesLoading ? (
-                <p className="text-muted-foreground">Loading closes...</p>
-              ) : closes.length === 0 ? (
-                <p className="text-muted-foreground">No closes found.</p>
-              ) : (
-                <div className="space-y-2 overflow-auto max-h-[60vh]">
-                  {closes.map((close: any) => (
-                    <div key={close.id} className="p-2 border rounded flex justify-between items-center">
-                      <span>{close.parentName || close.userEmail}</span>
-                      <Badge variant="secondary">Closed</Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="subscriptions">
-          <Card>
-            <CardHeader>
-              <CardTitle>Subscriptions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {subsLoading ? (
-                <p className="text-muted-foreground">Loading subscriptions...</p>
-              ) : subscriptions.length === 0 ? (
-                <p className="text-muted-foreground">No subscriptions found.</p>
-              ) : (
-                <div className="space-y-2 overflow-auto max-h-[60vh]">
-                  {subscriptions.map((sub: any) => (
-                    <div key={sub.id} className="p-2 border rounded flex justify-between items-center">
-                      <span>{sub.parentName || sub.userEmail}</span>
-                      <Badge variant="secondary">Active</Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-      <ToastProvider>
-        <ToastViewport />
-        {toast && (
-          <Toast open onOpenChange={() => setToast(null)}>
-            <ToastTitle>{toast.title}</ToastTitle>
-            {toast.description && <ToastDescription>{toast.description}</ToastDescription>}
-          </Toast>
-        )}
-      </ToastProvider>
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+      <Button variant="outline" onClick={() => window.location.href = "/executive/coo/dashboard"}>Back to Dashboard</Button>
+      <header><p className="text-sm text-muted-foreground">COO operating desk</p><h1 className="text-3xl font-semibold">Production Economy</h1><p className="text-muted-foreground">Lineage before vanity metrics. Every station below is derived from persisted production records.</p></header>
+      {isLoading && <Card><CardContent className="pt-6">Loading production records...</CardContent></Card>}
+      {error && <Card><CardContent className="pt-6 text-destructive">Production Economy could not be loaded.</CardContent></Card>}
+      {data && <>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card><CardHeader><CardTitle>Demand Production</CardTitle></CardHeader><CardContent className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <Metric label="Active links" value={data.summary.demand.activeLinks} /><Metric label="Captured" value={data.summary.demand.captured} /><Metric label="Qualified" value={data.summary.demand.qualified} /><Metric label="Trial" value={data.summary.demand.trial} /><Metric label="Subscribed" value={data.summary.demand.subscribed} /><Metric label="Verified" value={data.summary.demand.verifiedConversions} /><Metric label="Reward eligible" value={data.summary.demand.rewardEligible} /><Metric label="Organic" value={data.summary.demand.organic} />
+          </CardContent></Card>
+          <Card><CardHeader><CardTitle>Capacity Production</CardTitle></CardHeader><CardContent className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <Metric label="Active links" value={data.summary.capacity.activeLinks} /><Metric label="Applications" value={data.summary.capacity.applications} /><Metric label="Training" value={data.summary.capacity.training} /><Metric label="Sandbox" value={data.summary.capacity.sandbox} /><Metric label="Trial" value={data.summary.capacity.trial} /><Metric label="Certified live" value={data.summary.capacity.certifiedLive} /><Metric label="Deployed" value={data.summary.capacity.deployed} />
+            <div className="border-l pl-4"><div className="text-xs text-muted-foreground">Reward</div><div className="text-sm font-medium">Not applicable in MVP</div></div>
+          </CardContent></Card>
+        </div>
+        {(data.summary.blockers || []).length > 0 && <Card className="border-amber-400"><CardHeader><CardTitle>Current blockers</CardTitle></CardHeader><CardContent className="space-y-2">{data.summary.blockers.map((blocker: any) => <p key={blocker.code} className="text-sm">{blocker.message}</p>)}</CardContent></Card>}
+        <div className="flex flex-wrap gap-2">{[["all", "All"], ["demand", "Demand"], ["capacity", "Capacity"], ["reward", "Reward eligible"], ["blocked", "Blocked"]].map(([value, label]) => <Button key={value} size="sm" variant={filter === value ? "default" : "outline"} onClick={() => setFilter(value)}>{label}</Button>)}</div>
+        <section className="space-y-3"><h2 className="text-xl font-semibold">Production Sources</h2>{sources.length === 0 ? <Card><CardContent className="pt-6 text-muted-foreground">No Production Links match this filter.</CardContent></Card> : sources.map((source: any) => <Card key={source.code} className="cursor-pointer" onClick={() => setSelected(selected?.code === source.code ? null : source)}><CardContent className="pt-6 space-y-3"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><span className="font-mono font-semibold">{source.code}</span><Badge variant="secondary">{source.pipeline}</Badge><Badge>{source.status}</Badge></div><p className="text-sm">{source.ownerName} <span className="text-muted-foreground">({source.ownerType})</span></p></div><div className="text-right text-sm text-muted-foreground">{source.opportunitiesProduced} opportunities<br />{source.reward.eligible ? "Reward eligible" : source.reward.status === "not_applicable" ? "No Production Reward" : "Reward not measurable"}</div></div><div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">{Object.entries(source.counts).map(([key, value]) => <span key={key}><b>{value == null ? "n/a" : value}</b> {key.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`)}</span>)}</div><div className="text-xs text-muted-foreground break-all">{source.link}</div><div className="flex gap-2" onClick={(event) => event.stopPropagation()}><Button size="sm" variant="outline" onClick={() => copy(source.code)}>Copy code</Button><Button size="sm" variant="outline" onClick={() => copy(source.link)}>Copy link</Button></div>{selected?.code === source.code && <div className="border-t pt-3 space-y-2"><h3 className="font-semibold">Lineage</h3>{source.lineages.map((lineage: any) => <div key={lineage.id} className="text-sm border rounded p-3"><div className="flex justify-between"><span className="font-mono">{lineage.code}</span><Badge variant="outline">{labels[lineage.currentStation] || lineage.currentStation}</Badge></div><p className="text-muted-foreground">{lineage.createdAt ? new Date(lineage.createdAt).toLocaleString() : "Timestamp unavailable"}</p>{lineage.close && <p className="mt-1">Close: {lineage.close.id} · {lineage.close.ownerName || "owner snapshot unavailable"} · affiliate {lineage.close.affiliateId || "none"}</p>}{lineage.reward && <p className="mt-1">Reward: {lineage.reward.eligible ? "eligible" : lineage.reward.status}</p>}</div>)}</div>}</CardContent></Card>)}</section>
+      </>}
     </div>
   );
 }
