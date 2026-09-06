@@ -45,7 +45,7 @@ const responseIntegrityDifferentiators = [
     title: "Good Pressure Through Observation",
     paragraphs: [
       "When a learner practises alone, it is easy to skip hard questions, leave blanks, avoid discomfort, or only practise what feels familiar.",
-      "With a Response Training Specialist watching each rep, the learner cannot hide from the work.",
+      "With a Response Training specialist watching each rep, the learner cannot hide from the work.",
       "The specialist sees where the learner freezes, rushes, guesses, skips steps, avoids difficulty, or loses structure.",
       "That creates good pressure.",
       "Not shame.",
