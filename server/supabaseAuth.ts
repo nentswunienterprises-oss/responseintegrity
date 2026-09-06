@@ -10,6 +10,11 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import pg from "pg";
 import { storage } from "./storage";
+import {
+  normalizeProductionLinkCode,
+  normalizeProductionPipeline,
+  validateProductionLinkForRole,
+} from "@shared/productionLinks";
 import { getDefaultDashboardRoute } from "@shared/portals";
 import { getAllowedOdEmailList, isAllowedOdEmail, normalizeEmail } from "@shared/odAccess";
 
@@ -87,16 +92,29 @@ export async function setupAuth(app: Express) {
       console.log("[SESSION] Before signup: req.sessionID:", req.sessionID);
       console.log("[SESSION] Before signup: req.session:", req.session);
       // Store affiliate_code in session for later use (e.g., enrollment)
-      const incomingProductionCode = req.body.production_link_code || req.body.affiliate_code;
+      const incomingProductionCode = normalizeProductionLinkCode(req.body.production_link_code);
+      const incomingAffiliateCode = normalizeProductionLinkCode(req.body.affiliate_code);
+      const requestedProductionPipeline = normalizeProductionPipeline(req.body.production_pipeline);
+      let productionLink: any = null;
       if (incomingProductionCode) {
-        req.session.affiliateCode = incomingProductionCode;
-        (req.session as any).productionLinkCode = incomingProductionCode;
+        productionLink = await storage.getAffiliateByCode(incomingProductionCode);
+        const validationError = validateProductionLinkForRole(productionLink, requestedProductionPipeline, req.body.role || "tutor");
+        if (validationError) {
+          return res.status(400).json({ message: validationError });
+        }
+        req.session.affiliateCode = incomingAffiliateCode || incomingProductionCode;
+        (req.session as any).productionLinkCode = productionLink.production_link_code;
+        (req.session as any).productionPipeline = productionLink.pipeline_type;
+        (req.session as any).trackingSource = req.body.tracking_source || null;
+        (req.session as any).trackingCampaign = req.body.tracking_campaign || null;
+      } else if (incomingAffiliateCode) {
+        req.session.affiliateCode = incomingAffiliateCode;
         console.log("[SIGNUP] affiliate_code stored in session as affiliateCode:", req.session.affiliateCode);
       } else {
         console.log("[SIGNUP] No affiliate_code in signup body; session.affiliateCode not set.");
       }
     try {
-      const { email, password, role = "tutor", first_name = "", last_name = "", affiliate_code = null, tracking_source = "organic", tracking_campaign = null } = req.body;
+      const { email, password, role = "tutor", first_name = "", last_name = "", affiliate_code = null, production_link_code = null, production_pipeline = null, tracking_source = "organic", tracking_campaign = null } = req.body;
       const normalizedEmail = normalizeEmail(email);
 
       if (role === "od" && !isAllowedOdEmail(normalizedEmail)) {
@@ -641,13 +659,32 @@ export async function setupAuth(app: Express) {
         last_name = "",
         affiliate_code = null,
         production_link_code = null,
+        production_pipeline = null,
         tracking_source = "organic",
         tracking_campaign = null,
       } = req.body;
-      const effectiveAffiliateCode = production_link_code || affiliate_code || (req.session as any).affiliateCode || null;
+      const incomingProductionCode = normalizeProductionLinkCode(production_link_code);
+      const requestedProductionPipeline = normalizeProductionPipeline(production_pipeline);
+      const effectiveAffiliateCode = incomingProductionCode || normalizeProductionLinkCode(affiliate_code) || (req.session as any).affiliateCode || null;
+      let productionLink: any = null;
+      if (incomingProductionCode) {
+        productionLink = await storage.getAffiliateByCode(incomingProductionCode);
+        const validationError = validateProductionLinkForRole(productionLink, requestedProductionPipeline, role);
+        if (validationError) {
+          return res.status(400).json({ message: validationError });
+        }
+        req.session.affiliateCode = effectiveAffiliateCode;
+        (req.session as any).productionLinkCode = productionLink.production_link_code;
+        (req.session as any).productionPipeline = productionLink.pipeline_type;
+      }
       if (effectiveAffiliateCode) {
         req.session.affiliateCode = effectiveAffiliateCode;
-        (req.session as any).productionLinkCode = effectiveAffiliateCode;
+        if (productionLink) {
+          (req.session as any).productionLinkCode = productionLink.production_link_code;
+          (req.session as any).productionPipeline = productionLink.pipeline_type;
+        }
+        (req.session as any).trackingSource = tracking_source || null;
+        (req.session as any).trackingCampaign = tracking_campaign || null;
       }
       const normalizedEmail = normalizeEmail(email);
 
@@ -670,9 +707,27 @@ export async function setupAuth(app: Express) {
       const existingUser = await storage.getUser(user_id);
       if (existingUser) {
         console.log("✅ User profile already exists, returning existing role:", existingUser.role);
+        if (productionLink && existingUser.role === "tutor") {
+          const existingApplications = await storage.getTutorApplicationsByUser(user_id);
+          const existingCode = existingApplications.find((application) => application.productionLinkCode)?.productionLinkCode;
+          if (existingCode && existingCode !== productionLink.production_link_code) {
+            return res.status(409).json({ message: "Existing specialist Production Link attribution cannot be reassigned" });
+          }
+        }
         if (existingUser.role === "parent" && effectiveAffiliateCode) {
           const affiliateInfo = await storage.getAffiliateByCode(effectiveAffiliateCode.toUpperCase());
           if (affiliateInfo?.affiliate_id) {
+            const { data: existingLead } = await supabase
+              .from("leads")
+              .select("production_link_code")
+              .eq("user_id", user_id)
+              .maybeSingle();
+            if (existingLead?.production_link_code && existingLead.production_link_code !== affiliateInfo.production_link_code) {
+              return res.status(409).json({ message: "Existing parent Production Link attribution cannot be reassigned" });
+            }
+            if (existingLead) {
+              return res.json({ role: existingUser.role, message: "User already exists" });
+            }
             await storage.createLead(affiliateInfo.affiliate_id, user_id, null, {
               trackingSource: tracking_source,
               trackingCampaign: tracking_campaign,

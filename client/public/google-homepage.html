@@ -347,7 +347,7 @@
         var params = new URLSearchParams(window.location.search);
         var affiliate = params.get("affiliate");
         var production = params.get("production");
-        var pipeline = params.get("pipeline");
+        var pipeline = (params.get("pipeline") || "").trim().toLowerCase();
         var trackingSource = params.get("utm_source");
         var trackingCampaign = params.get("utm_campaign");
         if (!affiliate && !production && !pipeline && !trackingSource && !trackingCampaign) return;
@@ -357,7 +357,8 @@
         if (pipeline) signupParams.set("pipeline", pipeline);
         if (trackingSource) signupParams.set("utm_source", trackingSource);
         if (trackingCampaign) signupParams.set("utm_campaign", trackingCampaign);
-        var href = "/client/signup" + (signupParams.toString() ? "?" + signupParams.toString() : "");
+        var signupPath = pipeline === "capacity" ? "/operational/specialist/landing" : "/client/signup";
+        var href = signupPath + (signupParams.toString() ? "?" + signupParams.toString() : "");
         document.querySelectorAll("[data-signup-link]").forEach(function (node) { node.setAttribute("href", href); });
       })();
     </script>

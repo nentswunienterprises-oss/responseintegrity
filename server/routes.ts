@@ -108,7 +108,12 @@ import {
   safelyUnassignEnrollmentFromTutor,
 } from "./tutorAssignmentProtection";
 import { registerExecutiveCommandRhythmRoutes } from "./routes/executiveCommandRhythm";
-import { normalizeProductionPipeline } from "@shared/productionLinks";
+import {
+  normalizeProductionLinkCode,
+  normalizeProductionPipeline,
+  preserveFirstProductionLink,
+  validateProductionLinkForRole,
+} from "@shared/productionLinks";
 import { persistResponseIntegrityEvidenceLedgerShadow } from "./responseIntegrityEvidenceLedger";
 import {
   createTrialCase,
@@ -17613,9 +17618,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
+        const sessionProductionCode = normalizeProductionLinkCode((req.session as any)?.productionLinkCode);
+        const sessionProductionPipeline = normalizeProductionPipeline((req.session as any)?.productionPipeline);
+        const requestedProductionCode = normalizeProductionLinkCode(req.body?.productionLinkCode) || sessionProductionCode;
+        const existingApplications = await storage.getTutorApplicationsByUser(userId);
+        const existingProductionCode = existingApplications.find((application) => application.productionLinkCode)?.productionLinkCode || null;
+        let durableProductionCode: string | null;
+        try {
+          durableProductionCode = preserveFirstProductionLink(existingProductionCode, requestedProductionCode);
+        } catch (error) {
+          return res.status(409).json({ message: error instanceof Error ? error.message : "Existing Production Link attribution cannot be reassigned" });
+        }
+        if (durableProductionCode) {
+          const productionLink = await storage.getAffiliateByCode(durableProductionCode);
+          const validationError = validateProductionLinkForRole(productionLink, "capacity", "tutor");
+          if (validationError) {
+            return res.status(400).json({ message: validationError });
+          }
+          if (sessionProductionCode && durableProductionCode !== sessionProductionCode) {
+            return res.status(409).json({ message: "Existing Production Link attribution cannot be reassigned" });
+          }
+          if (sessionProductionCode && sessionProductionPipeline !== productionLink.pipeline_type) {
+            return res.status(409).json({ message: "Existing Production Link pipeline cannot be reassigned" });
+          }
+          (req.session as any).productionLinkCode = productionLink.production_link_code;
+          (req.session as any).productionPipeline = productionLink.pipeline_type;
+        }
         const data = insertTutorApplicationSchema.parse({
           ...req.body,
           userId,
+          productionLinkCode: durableProductionCode || null,
+          trackingSource: (req.session as any)?.trackingSource || null,
+          trackingCampaign: (req.session as any)?.trackingCampaign || null,
         }) as any;
         if (!Number.isInteger(data.age) || data.age < 16 || data.age > 100) {
           return res.status(400).json({ message: "Age must be between 16 and 100." });

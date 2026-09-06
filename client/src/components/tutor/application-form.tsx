@@ -358,7 +358,11 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
         throw new Error("Applicants under 18 may only continue if they completed Matric early.");
       }
 
-      await apiRequest("POST", "/api/tutor/application", { ...data, age: parsedAge });
+      await apiRequest("POST", "/api/tutor/application", {
+        ...data,
+        age: parsedAge,
+        productionLinkCode: new URLSearchParams(window.location.search).get("production") || undefined,
+      });
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/tutor/applications"] }),

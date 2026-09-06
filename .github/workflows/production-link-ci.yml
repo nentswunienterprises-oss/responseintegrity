@@ -1,0 +1,55 @@
+name: Production Link CI
+
+on:
+  pull_request:
+    paths:
+      - "shared/productionLinks.ts"
+      - "server/productionLinks.test.ts"
+      - "client/public/google-homepage.html"
+      - "client/src/lib/google-homepage.test.ts"
+      - "client/src/lib/publicTracking.ts"
+      - "client/src/components/auth/auth-form.tsx"
+      - "client/src/pages/auth-callback.tsx"
+      - "client/src/pages/operational/**"
+      - "client/src/components/tutor/application-form.tsx"
+      - "server/supabaseAuth.ts"
+      - "server/routes.ts"
+      - "server/storage.ts"
+      - "shared/schema.ts"
+      - "migrations/**"
+      - ".github/workflows/production-link-ci.yml"
+      - "package.json"
+      - "package-lock.json"
+  push:
+    branches:
+      - main
+    paths:
+      - "shared/productionLinks.ts"
+      - "server/productionLinks.test.ts"
+      - "client/public/google-homepage.html"
+      - "client/src/lib/google-homepage.test.ts"
+      - "client/src/lib/publicTracking.ts"
+      - "client/src/components/auth/auth-form.tsx"
+      - "client/src/pages/auth-callback.tsx"
+      - "client/src/pages/operational/**"
+      - "client/src/components/tutor/application-form.tsx"
+      - "server/supabaseAuth.ts"
+      - "server/routes.ts"
+      - "server/storage.ts"
+      - "shared/schema.ts"
+      - "migrations/**"
+      - ".github/workflows/production-link-ci.yml"
+      - "package.json"
+      - "package-lock.json"
+
+jobs:
+  production-link:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx tsx --test client/src/lib/google-homepage.test.ts server/productionLinks.test.ts

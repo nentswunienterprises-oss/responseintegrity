@@ -61,6 +61,7 @@ export default function AuthCallback() {
       const productionPipeline = sessionStorage.getItem("oauth_production_pipeline");
       const trackingSource = sessionStorage.getItem("oauth_tracking_source");
       const trackingCampaign = sessionStorage.getItem("oauth_tracking_campaign");
+      const isSignup = sessionStorage.getItem("oauth_mode") !== "login";
       const response = await fetch(`${API_URL}/api/auth/oauth-profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -71,11 +72,11 @@ export default function AuthCallback() {
           role: oauthRole,
           first_name: metadata.given_name || metadata.first_name || "",
           last_name: metadata.family_name || metadata.last_name || "",
-          affiliate_code: affiliateCode,
-          production_link_code: productionLinkCode,
-          production_pipeline: productionPipeline,
-          tracking_source: trackingSource || "organic",
-          tracking_campaign: trackingCampaign,
+          affiliate_code: isSignup ? affiliateCode : null,
+          production_link_code: isSignup ? productionLinkCode : null,
+          production_pipeline: isSignup ? productionPipeline : null,
+          tracking_source: isSignup ? trackingSource || "organic" : "organic",
+          tracking_campaign: isSignup ? trackingCampaign : null,
         }),
       });
 

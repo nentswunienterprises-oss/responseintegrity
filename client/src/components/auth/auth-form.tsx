@@ -60,7 +60,9 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
       sessionStorage.setItem('oauth_mode', mode);
       if (code) {
         sessionStorage.setItem('oauth_affiliate_code', code);
-        sessionStorage.setItem('oauth_production_link_code', code);
+      }
+      if (urlProductionCode) {
+        sessionStorage.setItem('oauth_production_link_code', urlProductionCode);
       }
       if (urlPipeline) {
         sessionStorage.setItem('oauth_production_pipeline', urlPipeline);
@@ -151,7 +153,7 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
           first_name: firstName,
           last_name: lastName,
           affiliate_code: code || null,
-          production_link_code: code || null,
+          production_link_code: urlProductionCode || null,
           production_pipeline: urlPipeline || null,
           tracking_source: trackingSource,
           tracking_campaign: urlTrackingCampaign || null,

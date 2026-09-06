@@ -590,6 +590,9 @@ export const insertVerificationDocSchema = createInsertSchema(
 export const tutorApplications = pgTable("tutor_applications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
+  productionLinkCode: varchar("production_link_code", { length: 20 }),
+  trackingSource: varchar("tracking_source"),
+  trackingCampaign: varchar("tracking_campaign"),
 
   // Section 1 - Basic Information
   fullName: varchar("full_name").notNull(),

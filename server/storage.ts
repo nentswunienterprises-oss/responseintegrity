@@ -1605,6 +1605,9 @@ export class SupabaseStorage implements IStorage {
         .toLowerCase();
     const dbApplication = {
       user_id: application.userId,
+      production_link_code: application.productionLinkCode || null,
+      tracking_source: application.trackingSource || null,
+      tracking_campaign: application.trackingCampaign || null,
       full_name: application.fullName,
       age: application.age,
       phone: application.phone,
