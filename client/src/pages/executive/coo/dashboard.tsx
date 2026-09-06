@@ -95,6 +95,9 @@ export default function COODashboard() {
       const [schoolType, setSchoolType] = useState<'primary' | 'high' | "">("");
       const [pipelineType, setPipelineType] = useState<'demand' | 'capacity'>('demand');
       const [campaignName, setCampaignName] = useState("");
+      const [ownerUserId, setOwnerUserId] = useState("");
+      const [ownerName, setOwnerName] = useState("");
+      const { data: productionOwners = [] } = useQuery<any[]>({ queryKey: ["/api/coo/production-owners"] });
       const [generatedCode, setGeneratedCode] = useState("");
       const [generatedLink, setGeneratedLink] = useState("");
       const [creatingAffiliate, setCreatingAffiliate] = useState(false);
@@ -117,6 +120,9 @@ export default function COODashboard() {
             schoolType: affiliateType === 'entity' ? schoolType : undefined,
             pipelineType,
             campaignName: campaignName || undefined,
+            ownerUserId: ownerUserId || undefined,
+            ownerType: ownerUserId ? "contributor" : "campaign",
+            ownerName: ownerName || undefined,
           };
           const { API_URL } = await import("@/lib/config");
           const res = await fetch(`${API_URL}/api/coo/create-affiliate-code`, {
@@ -522,6 +528,21 @@ export default function COODashboard() {
           <Card className="border-slate-200 bg-gradient-to-br from-[#F9FAFB] via-white to-[#FFF8F0]">
             <CardHeader>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <Label>Production Owner</Label>
+                  <Select value={ownerUserId || "campaign"} onValueChange={(value) => setOwnerUserId(value === "campaign" ? "" : value)}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select contributor or campaign" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="campaign">Campaign / source</SelectItem>
+                      {productionOwners.map((owner) => (
+                        <SelectItem key={owner.id} value={owner.id}>{owner.name} ({owner.email})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!ownerUserId && <Input value={ownerName} onChange={e => setOwnerName(e.target.value)} placeholder="Campaign or source name" className="mt-2" />}
+                </div>
                 <div>
                   <CardTitle>Contribution Integrity</CardTitle>
                   <p className="text-sm text-muted-foreground">

@@ -330,16 +330,18 @@ export async function setupAuth(app: Express) {
           const fullName = `${first_name} ${last_name}`.trim() || email.split("@")[0];
           // Get affiliate info from code
           const affiliateInfo = await storage.getAffiliateByCode(effectiveAffiliateCode.toUpperCase());
-          if (affiliateInfo && affiliateInfo.affiliate_id) {
-            console.log("✅ Found affiliate for code:", affiliateInfo.affiliate_id);
+          if (affiliateInfo) {
+            console.log("✅ Found production owner for code:", affiliateInfo.owner_user_id || affiliateInfo.owner_name);
             // Find the encounter by email (since parent_email matches the signup email)
-            const { data: encounter } = await supabase
-              .from("encounters")
-              .select("id")
-              .eq("affiliate_id", affiliateInfo.affiliate_id)
-              .eq("parent_email", email)
-              .order("created_at", { ascending: false })
-              .maybeSingle();
+            const { data: encounter } = affiliateInfo.owner_user_id
+              ? await supabase
+                  .from("encounters")
+                  .select("id")
+                  .eq("affiliate_id", affiliateInfo.owner_user_id)
+                  .eq("parent_email", email)
+                  .order("created_at", { ascending: false })
+                  .maybeSingle()
+              : { data: null };
             const leadData = {
               trackingSource: tracking_source,
               trackingCampaign: tracking_campaign,
@@ -353,12 +355,12 @@ export async function setupAuth(app: Express) {
             if (encounter) {
               console.log("✅ Found encounter for parent email:", email, "encounter_id:", encounter.id);
               // Create a lead linked to this encounter
-              await storage.createLead(affiliateInfo.affiliate_id, user.id, encounter.id, leadData);
+              await storage.createLead(affiliateInfo.owner_user_id, user.id, encounter.id, leadData);
               console.log("✅ Lead created (with encounter) for affiliate:", affiliateInfo.affiliate_id, "encounter_id:", encounter.id);
             } else {
               console.log("ℹ️  No prior encounter found for parent email:", email);
               // Still create a lead - parent is now a lead even without prior encounter
-              await storage.createLead(affiliateInfo.affiliate_id, user.id, undefined, leadData);
+              await storage.createLead(affiliateInfo.owner_user_id, user.id, undefined, leadData);
               console.log("✅ Lead created (new signup) for affiliate:", affiliateInfo.affiliate_id, "user_id:", user.id);
             }
           } else {
@@ -743,7 +745,7 @@ export async function setupAuth(app: Express) {
         }
         if (existingUser.role === "parent" && effectiveAffiliateCode) {
           const affiliateInfo = await storage.getAffiliateByCode(effectiveAffiliateCode.toUpperCase());
-          if (affiliateInfo?.affiliate_id) {
+          if (affiliateInfo) {
             const existingLead = await storage.getFirstProductionLeadByUser(user_id);
             if (existingLead?.production_link_code && existingLead.production_link_code !== affiliateInfo.production_link_code) {
               return res.status(409).json({ message: "Existing parent Production Link attribution cannot be reassigned" });
@@ -751,7 +753,7 @@ export async function setupAuth(app: Express) {
             if (existingLead) {
               return res.json({ role: existingUser.role, message: "User already exists" });
             }
-            await storage.createLead(affiliateInfo.affiliate_id, user_id, null, {
+            await storage.createLead(affiliateInfo.owner_user_id, user_id, null, {
               trackingSource: tracking_source,
               trackingCampaign: tracking_campaign,
               leadType: "parent",
@@ -802,9 +804,9 @@ export async function setupAuth(app: Express) {
         try {
           const affiliateInfo = await storage.getAffiliateByCode(effectiveAffiliateCode.toUpperCase());
 
-          if (affiliateInfo?.affiliate_id) {
+          if (affiliateInfo) {
             console.log("🔗 Creating lead for parent with production link:", effectiveAffiliateCode);
-            await storage.createLead(affiliateInfo.affiliate_id, user_id, null, {
+            await storage.createLead(affiliateInfo.owner_user_id, user_id, null, {
               trackingSource: tracking_source,
               trackingCampaign: tracking_campaign,
               leadType: "parent",

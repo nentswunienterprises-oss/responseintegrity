@@ -3219,11 +3219,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
   }
 
   const parentId = String(transaction.parent_id || "").trim();
-  const { data: lead } = await supabase
-    .from("leads")
-    .select("id, affiliate_id")
-    .eq("user_id", parentId)
-    .maybeSingle();
+  const lead = await storage.getFirstProductionLeadByUser(parentId);
 
   if (lead && proposal?.student_id) {
     const { data: existingClose } = await supabase
@@ -7434,16 +7430,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   // COO: Create affiliate code/link
+  app.get("/api/coo/production-owners", isAuthenticated, requireRole(["coo"]), async (_req: Request, res: Response) => {
+    try {
+      const owners = await storage.getUsersByRole("affiliate");
+      res.json(owners.map((owner: any) => ({ id: owner.id, name: owner.name || owner.email, email: owner.email })));
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch production owners" });
+    }
+  });
+
   app.post("/api/coo/create-affiliate-code", isAuthenticated, requireRole(["coo"]), async (req: Request, res: Response) => {
     console.log("[DEBUG] Session on POST /api/coo/create-affiliate-code:", req.session);
     try {
-      const { type, personName, entityName, schoolType, campaignName } = req.body;
+      const { type, personName, entityName, schoolType, campaignName, ownerUserId, ownerType, ownerName } = req.body;
       const pipelineType = normalizeProductionPipeline(req.body?.pipelineType);
+      if (!ownerUserId && !String(ownerName || "").trim()) {
+        return res.status(400).json({ message: "A Production owner or source name is required" });
+      }
+      if (ownerUserId) {
+        const owner = await storage.getUser(ownerUserId);
+        if (!owner || owner.role !== "affiliate") {
+          return res.status(400).json({ message: "Production owner must be an existing contributor" });
+        }
+      }
       // Generate unique code (simple example)
       const code = "AFIX" + Math.random().toString(36).substring(2, 8).toUpperCase();
       // Insert into DB
       const affiliateCode = await createAffiliateCode({
-        affiliateId: (req as any).dbUser?.id,
+        affiliateId: ownerUserId || null,
+        createdBy: (req as any).dbUser?.id,
+        ownerUserId: ownerUserId || null,
+        ownerType,
+        ownerName,
         code,
         type,
         personName,
@@ -7453,7 +7471,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         campaignName: campaignName ? String(campaignName).trim() : null,
       });
       const baseUrl = `${req.protocol}://${req.get("host")}`;
-      res.json({ code, pipelineType, campaignName: campaignName || null, link: `${baseUrl}/?production=${encodeURIComponent(code)}&pipeline=${pipelineType}` });
+      res.json({
+        code,
+        pipelineType,
+        campaignName: campaignName || null,
+        createdBy: (req as any).dbUser?.id,
+        ownerUserId: ownerUserId || null,
+        ownerType: ownerType || (ownerUserId ? "contributor" : "campaign"),
+        ownerName: ownerName || personName || entityName || null,
+        link: `${baseUrl}/?production=${encodeURIComponent(code)}&pipeline=${pipelineType}`,
+      });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to create affiliate code" });
     }

@@ -25,6 +25,7 @@ import {
 } from "@shared/schema";
 import { isAllowedOdEmail, normalizeEmail } from "@shared/odAccess";
 import type { TutorTrainingMode } from "@shared/battleTesting";
+import { claimProductionLeadIfUnattributed } from "./productionLinkPersistence";
 
 // Initialize Supabase client with service role key to bypass RLS
 const supabaseUrl = process.env.SUPABASE_URL!;
@@ -33,8 +34,12 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABAS
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Create affiliate code (used by routes.ts)
-export async function createAffiliateCode({ affiliateId, code, type, personName, entityName, schoolType, pipelineType = "demand", campaignName }: {
-  affiliateId: string;
+export async function createAffiliateCode({ affiliateId, createdBy, ownerUserId, ownerType, ownerName, code, type, personName, entityName, schoolType, pipelineType = "demand", campaignName }: {
+  affiliateId?: string | null;
+  createdBy: string;
+  ownerUserId?: string | null;
+  ownerType?: string | null;
+  ownerName?: string | null;
   code: string;
   type?: string;
   personName?: string;
@@ -45,12 +50,12 @@ export async function createAffiliateCode({ affiliateId, code, type, personName,
 }) {
   const text = `
     INSERT INTO affiliate_codes
-      (affiliate_id, code, type, person_name, entity_name, school_type, pipeline_type, campaign_name, created_at)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      (affiliate_id, created_by, owner_user_id, owner_type, owner_name, code, type, person_name, entity_name, school_type, pipeline_type, campaign_name, created_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     RETURNING *;
   `;
   const canonicalPipeline = pipelineType === "capacity" ? "capacity" : "demand";
-  const values = [affiliateId, code, type, personName, entityName, schoolType, canonicalPipeline, campaignName || null, new Date()];
+  const values = [affiliateId || ownerUserId || null, createdBy, ownerUserId || null, ownerType || type || null, ownerName || personName || entityName || null, code, type, personName, entityName, schoolType, canonicalPipeline, campaignName || null, new Date()];
   const result = await (await import('./db')).pool.query(text, values);
   return result.rows[0];
 }
@@ -2466,6 +2471,9 @@ export class SupabaseStorage implements IStorage {
       .from("affiliate_codes")
       .insert({
         affiliate_id: affiliateId,
+        created_by: affiliateId,
+        owner_user_id: affiliateId,
+        owner_type: "contributor",
         code: code,
         pipeline_type: pipelineType,
       })
@@ -2492,7 +2500,7 @@ export class SupabaseStorage implements IStorage {
   async getAffiliateByCode(code: string): Promise<any | null> {
     const { data } = await supabase
       .from("affiliate_codes")
-      .select("affiliate_id, code, type, person_name, entity_name, pipeline_type, campaign_name, status")
+      .select("affiliate_id, created_by, owner_user_id, owner_type, owner_name, code, type, person_name, entity_name, pipeline_type, campaign_name, status")
       .eq("code", code)
       .maybeSingle();
     if (!data) return null;
@@ -2500,6 +2508,10 @@ export class SupabaseStorage implements IStorage {
     let affiliate_name = data.person_name || data.entity_name || null;
     return {
       affiliate_id: data.affiliate_id,
+      created_by: data.created_by,
+      owner_user_id: data.owner_user_id || data.affiliate_id || null,
+      owner_type: data.owner_type || data.type || null,
+      owner_name: data.owner_name || data.person_name || data.entity_name || null,
       affiliate_type: data.type || null,
       affiliate_name,
       production_link_code: data.code,
@@ -2562,7 +2574,7 @@ export class SupabaseStorage implements IStorage {
    * Optionally supports leadType for future extensibility.
    */
   async createLead(
-    affiliateId: string,
+    affiliateId: string | null,
     parentId: string,
     encounterId?: string,
     trackingData?: { trackingSource?: string; trackingCampaign?: string; leadType?: string; affiliateType?: string; affiliateName?: string; productionLinkCode?: string }
@@ -2582,19 +2594,18 @@ export class SupabaseStorage implements IStorage {
         .maybeSingle();
       if (oldestLeadError) throw oldestLeadError;
       if (oldestLead && !oldestLead.production_link_code) {
-        const { data: claimedLead, error: claimError } = await supabase
-          .from("leads")
-          .update({
-            affiliate_id: affiliateId || null,
-            production_link_code: trackingData.productionLinkCode,
-            tracking_source: trackingData.trackingSource || "affiliate",
-            tracking_campaign: trackingData.trackingCampaign || null,
-          })
-          .eq("id", oldestLead.id)
-          .select()
-          .single();
-        if (claimError) throw claimError;
-        return claimedLead;
+        const claimedLead = await claimProductionLeadIfUnattributed(
+          supabase,
+          oldestLead.id,
+          affiliateId || null,
+          trackingData.productionLinkCode,
+          trackingData.trackingSource,
+          trackingData.trackingCampaign,
+        );
+        if (claimedLead) return claimedLead;
+        const canonicalLead = await this.getFirstProductionLeadByUser(parentId);
+        if (canonicalLead) return canonicalLead;
+        return null;
       }
     }
     // Use null for organic leads (no affiliate)

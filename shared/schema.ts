@@ -1067,8 +1067,11 @@ export const encounterStatusEnum = pgEnum("encounter_status", [
 export const affiliateCodes = pgTable("affiliate_codes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   affiliateId: varchar("affiliate_id")
-    .notNull()
     .references(() => users.id),
+  createdBy: varchar("created_by").references(() => users.id),
+  ownerUserId: varchar("owner_user_id").references(() => users.id),
+  ownerType: varchar("owner_type", { length: 32 }),
+  ownerName: varchar("owner_name", { length: 128 }),
   code: varchar("code").notNull().unique(), // e.g., "AFIX001"
   type: varchar("type", { length: 16 }), // 'person' or 'entity'
   personName: varchar("person_name", { length: 128 }),
