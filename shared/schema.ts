@@ -129,6 +129,9 @@ export const users = pgTable("users", {
   phone: varchar("phone"),
   bio: text("bio"),
   profileImageUrl: varchar("profile_image_url"),
+  productionLinkCode: varchar("production_link_code", { length: 20 }),
+  trackingSource: varchar("tracking_source", { length: 128 }),
+  trackingCampaign: varchar("tracking_campaign", { length: 128 }),
   
   // Supabase auth fields
   password: varchar("password"), // Hashed password (optional - Supabase handles auth)

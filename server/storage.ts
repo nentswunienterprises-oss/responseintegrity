@@ -285,6 +285,12 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserVerification(id: string, verified: boolean): Promise<User | undefined>;
   updateUserProfile(id: string, data: { phone?: string | null; bio?: string | null; profileImageUrl?: string | null }): Promise<User | undefined>;
+  claimUserProductionAttribution(
+    userId: string,
+    productionLinkCode: string,
+    trackingSource?: string | null,
+    trackingCampaign?: string | null,
+  ): Promise<{ productionLinkCode: string; trackingSource: string | null; trackingCampaign: string | null }>;
 
   createPod(pod: InsertPod): Promise<Pod>;
   getPod(id: string): Promise<Pod | undefined>;
@@ -399,7 +405,7 @@ export class SupabaseStorage implements IStorage {
       // Explicitly select only user columns to avoid any relationship pollution
       const { data, error } = await supabase
         .from("users")
-        .select("id,email,first_name,last_name,phone,bio,profile_image_url,password,role,name,grade,school,verified,created_at,updated_at")
+        .select("id,email,first_name,last_name,phone,bio,profile_image_url,production_link_code,tracking_source,tracking_campaign,password,role,name,grade,school,verified,created_at,updated_at")
         .eq("id", id)
         .maybeSingle();
       if (error) {
@@ -418,6 +424,9 @@ export class SupabaseStorage implements IStorage {
         phone: data.phone,
         bio: data.bio,
         profileImageUrl: data.profile_image_url,
+        productionLinkCode: data.production_link_code,
+        trackingSource: data.tracking_source,
+        trackingCampaign: data.tracking_campaign,
         password: data.password,
         role: data.role,
         name: data.name,
@@ -526,6 +535,9 @@ export class SupabaseStorage implements IStorage {
       phone: user.phone,
       bio: user.bio,
       profile_image_url: user.profileImageUrl,
+      production_link_code: user.productionLinkCode || null,
+      tracking_source: user.trackingSource || null,
+      tracking_campaign: user.trackingCampaign || null,
       name: [user.firstName, user.lastName].filter(Boolean).join(" ") || "User",
     };
     if (user.role) {
@@ -538,7 +550,7 @@ export class SupabaseStorage implements IStorage {
     const { data, error } = await supabase
       .from("users")
       .upsert(dbUser)
-      .select("id,email,first_name,last_name,phone,bio,profile_image_url,password,role,name,grade,school,verified,created_at,updated_at")
+      .select("id,email,first_name,last_name,phone,bio,profile_image_url,production_link_code,tracking_source,tracking_campaign,password,role,name,grade,school,verified,created_at,updated_at")
       .single();
     if (error) throw new Error(`Supabase error: ${error.message}`);
     if (!data) throw new Error("Failed to upsert user");
@@ -552,6 +564,9 @@ export class SupabaseStorage implements IStorage {
       phone: data.phone,
       bio: data.bio,
       profileImageUrl: data.profile_image_url,
+      productionLinkCode: data.production_link_code,
+      trackingSource: data.tracking_source,
+      trackingCampaign: data.tracking_campaign,
       password: data.password,
       role: data.role,
       name: data.name,
@@ -658,6 +673,75 @@ export class SupabaseStorage implements IStorage {
       deletedAt: data.deleted_at,
       createdAt: data.created_at,
     };
+  }
+
+  async claimUserProductionAttribution(
+    userId: string,
+    productionLinkCode: string,
+    trackingSource: string | null = null,
+    trackingCampaign: string | null = null,
+  ) {
+    const updateCachedUser = (attribution: { productionLinkCode: string; trackingSource: string | null; trackingCampaign: string | null }) => {
+      if (this.__userCache[userId]) {
+        this.__userCache[userId] = {
+          ...this.__userCache[userId],
+          ...attribution,
+        } as User;
+      }
+      return attribution;
+    };
+    const { data: existing, error: existingError } = await supabase
+      .from("users")
+      .select("production_link_code, tracking_source, tracking_campaign")
+      .eq("id", userId)
+      .maybeSingle();
+    if (existingError) throw new Error(`Failed to read user attribution: ${existingError.message}`);
+    if (!existing) throw new Error("User not found while claiming Production Link attribution");
+    if (existing.production_link_code && existing.production_link_code !== productionLinkCode) {
+      throw new Error("Existing Production Link attribution cannot be reassigned");
+    }
+    if (existing.production_link_code) {
+      return updateCachedUser({
+        productionLinkCode: existing.production_link_code,
+        trackingSource: existing.tracking_source || null,
+        trackingCampaign: existing.tracking_campaign || null,
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("users")
+      .update({
+        production_link_code: productionLinkCode,
+        tracking_source: trackingSource,
+        tracking_campaign: trackingCampaign,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId)
+      .is("production_link_code", null)
+      .select("production_link_code, tracking_source, tracking_campaign")
+      .maybeSingle();
+    if (error) throw new Error(`Failed to persist user attribution: ${error.message}`);
+    if (!data) {
+      const { data: current, error: currentError } = await supabase
+        .from("users")
+        .select("production_link_code, tracking_source, tracking_campaign")
+        .eq("id", userId)
+        .single();
+      if (currentError) throw new Error(`Failed to read claimed user attribution: ${currentError.message}`);
+      if (current.production_link_code !== productionLinkCode) {
+        throw new Error("Existing Production Link attribution cannot be reassigned");
+      }
+      return updateCachedUser({
+        productionLinkCode: current.production_link_code,
+        trackingSource: current.tracking_source || null,
+        trackingCampaign: current.tracking_campaign || null,
+      });
+    }
+    return updateCachedUser({
+      productionLinkCode: data.production_link_code,
+      trackingSource: data.tracking_source || null,
+      trackingCampaign: data.tracking_campaign || null,
+    });
   }
 
   async getPods(): Promise<Pod[]> {

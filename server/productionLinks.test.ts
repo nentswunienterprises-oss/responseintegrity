@@ -5,6 +5,7 @@ import {
   normalizeProductionLinkCode,
   normalizeProductionPipeline,
   preserveFirstProductionLink,
+  resolveDurableProductionLink,
   validateProductionLinkForRole,
 } from "../shared/productionLinks";
 
@@ -32,4 +33,10 @@ test("canonical pipeline wins over a mismatched URL pipeline", () => {
 test("existing Production Link attribution is immutable", () => {
   assert.equal(preserveFirstProductionLink("CAP001", "CAP001"), "CAP001");
   assert.throws(() => preserveFirstProductionLink("CAP001", "CAP002"), /cannot be reassigned/);
+});
+
+test("durable account attribution survives application submission without transport state", () => {
+  assert.equal(resolveDurableProductionLink("CAP001", null, null), "CAP001");
+  assert.equal(resolveDurableProductionLink("CAP001", "CAP001", null), "CAP001");
+  assert.throws(() => resolveDurableProductionLink("CAP001", null, "CAP002"), /cannot be reassigned/);
 });

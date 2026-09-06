@@ -39,6 +39,17 @@ export function preserveFirstProductionLink(existingCode: unknown, incomingCode:
   return existing || incoming;
 }
 
+export function resolveDurableProductionLink(
+  accountCode: unknown,
+  applicationCode: unknown,
+  incomingCode: unknown,
+): string | null {
+  const account = normalizeProductionLinkCode(accountCode);
+  const application = normalizeProductionLinkCode(applicationCode);
+  const durable = preserveFirstProductionLink(account, application);
+  return preserveFirstProductionLink(durable, incomingCode);
+}
+
 export function buildProductionLinkUrl(baseUrl: string, code: string, pipeline: ProductionPipeline = "demand"): string {
   const url = new URL(baseUrl);
   url.searchParams.set("production", code);

@@ -7,6 +7,8 @@ on:
       - "server/productionLinks.test.ts"
       - "client/public/google-homepage.html"
       - "client/src/lib/google-homepage.test.ts"
+      - "client/src/lib/oauth-attribution.ts"
+      - "client/src/lib/oauth-attribution.test.ts"
       - "client/src/lib/publicTracking.ts"
       - "client/src/components/auth/auth-form.tsx"
       - "client/src/pages/auth-callback.tsx"
@@ -28,6 +30,8 @@ on:
       - "server/productionLinks.test.ts"
       - "client/public/google-homepage.html"
       - "client/src/lib/google-homepage.test.ts"
+      - "client/src/lib/oauth-attribution.ts"
+      - "client/src/lib/oauth-attribution.test.ts"
       - "client/src/lib/publicTracking.ts"
       - "client/src/components/auth/auth-form.tsx"
       - "client/src/pages/auth-callback.tsx"
@@ -52,4 +56,4 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npx tsx --test client/src/lib/google-homepage.test.ts server/productionLinks.test.ts
+      - run: npx tsx --test client/src/lib/google-homepage.test.ts client/src/lib/oauth-attribution.test.ts server/productionLinks.test.ts

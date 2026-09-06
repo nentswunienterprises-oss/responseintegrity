@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { API_URL } from "@/lib/config";
 import { getDefaultDashboardRoute } from "@shared/portals";
+import { buildOAuthAttribution, clearOAuthAttribution } from "@/lib/oauth-attribution";
 
 /**
  * OAuth Callback Handler
@@ -56,12 +57,7 @@ export default function AuthCallback() {
       }
 
       const metadata = oauthUser.user_metadata || {};
-      const productionLinkCode = sessionStorage.getItem("oauth_production_link_code");
-      const affiliateCode = sessionStorage.getItem("oauth_affiliate_code") || productionLinkCode;
-      const productionPipeline = sessionStorage.getItem("oauth_production_pipeline");
-      const trackingSource = sessionStorage.getItem("oauth_tracking_source");
-      const trackingCampaign = sessionStorage.getItem("oauth_tracking_campaign");
-      const isSignup = sessionStorage.getItem("oauth_mode") !== "login";
+      const oauthAttribution = buildOAuthAttribution(sessionStorage, sessionStorage.getItem("oauth_mode"));
       const response = await fetch(`${API_URL}/api/auth/oauth-profile`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72,11 +68,11 @@ export default function AuthCallback() {
           role: oauthRole,
           first_name: metadata.given_name || metadata.first_name || "",
           last_name: metadata.family_name || metadata.last_name || "",
-          affiliate_code: isSignup ? affiliateCode : null,
-          production_link_code: isSignup ? productionLinkCode : null,
-          production_pipeline: isSignup ? productionPipeline : null,
-          tracking_source: isSignup ? trackingSource || "organic" : "organic",
-          tracking_campaign: isSignup ? trackingCampaign : null,
+          affiliate_code: oauthAttribution.affiliate_code,
+          production_link_code: oauthAttribution.production_link_code,
+          production_pipeline: oauthAttribution.production_pipeline,
+          tracking_source: oauthAttribution.tracking_source,
+          tracking_campaign: oauthAttribution.tracking_campaign,
         }),
       });
 
@@ -86,17 +82,7 @@ export default function AuthCallback() {
 
       const profile = await response.json();
       const resolvedRole = profile.role || oauthRole;
-      for (const key of [
-        "oauth_role",
-        "oauth_mode",
-        "oauth_affiliate_code",
-        "oauth_production_link_code",
-        "oauth_production_pipeline",
-        "oauth_tracking_source",
-        "oauth_tracking_campaign",
-      ]) {
-        sessionStorage.removeItem(key);
-      }
+      clearOAuthAttribution(sessionStorage);
       if (!cancelled) {
         navigate(getDefaultDashboardRoute(resolvedRole), { replace: true });
       }

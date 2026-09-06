@@ -212,6 +212,23 @@ export async function setupAuth(app: Express) {
 
       const user = newUser;
 
+      if (user && user.role === "tutor" && productionLink) {
+        try {
+          await storage.claimUserProductionAttribution(
+            user.id,
+            productionLink.production_link_code,
+            tracking_source,
+            tracking_campaign,
+          );
+        } catch (error) {
+          console.error("[SIGNUP] Failed to persist specialist Production Link attribution:", error);
+          await supabase.auth.admin.deleteUser(user.id).catch((cleanupError) => {
+            console.error("Could not delete account after attribution failure:", cleanupError);
+          });
+          return res.status(500).json({ message: "Failed to persist Production Link attribution" });
+        }
+      }
+
       // If new affiliate signed up, generate their unique code
       if (user && user.role === "affiliate") {
         try {
@@ -708,11 +725,12 @@ export async function setupAuth(app: Express) {
       if (existingUser) {
         console.log("✅ User profile already exists, returning existing role:", existingUser.role);
         if (productionLink && existingUser.role === "tutor") {
-          const existingApplications = await storage.getTutorApplicationsByUser(user_id);
-          const existingCode = existingApplications.find((application) => application.productionLinkCode)?.productionLinkCode;
-          if (existingCode && existingCode !== productionLink.production_link_code) {
-            return res.status(409).json({ message: "Existing specialist Production Link attribution cannot be reassigned" });
-          }
+          await storage.claimUserProductionAttribution(
+            user_id,
+            productionLink.production_link_code,
+            tracking_source,
+            tracking_campaign,
+          );
         }
         if (existingUser.role === "parent" && effectiveAffiliateCode) {
           const affiliateInfo = await storage.getAffiliateByCode(effectiveAffiliateCode.toUpperCase());
@@ -762,6 +780,15 @@ export async function setupAuth(app: Express) {
         lastName: last_name,
         verificationStatus: "pending",
       });
+
+      if (role === "tutor" && productionLink) {
+        await storage.claimUserProductionAttribution(
+          user_id,
+          productionLink.production_link_code,
+          tracking_source,
+          tracking_campaign,
+        );
+      }
 
       console.log("✅ User profile created successfully");
 
