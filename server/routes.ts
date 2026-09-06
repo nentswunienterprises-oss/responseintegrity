@@ -109,6 +109,10 @@ import {
 } from "./tutorAssignmentProtection";
 import { registerExecutiveCommandRhythmRoutes } from "./routes/executiveCommandRhythm";
 import {
+  buildCanonicalProductionLinkUrl,
+  getAppBaseUrl,
+} from "./productionLinkUrls";
+import {
   normalizeProductionLinkCode,
   normalizeProductionPipeline,
   preserveFirstProductionLink,
@@ -297,13 +301,6 @@ function buildSandboxEnrollmentCase(seedIndex: number, source?: any | null) {
     previousTutoring: source?.previous_tutoring || template.previousTutoring,
     parentMotivation: source?.parent_motivation || template.parentMotivation,
   };
-}
-
-function getAppBaseUrl() {
-  return (
-    String(process.env.APP_BASE_URL || "").trim() ||
-    "https://app.responseintegrity.co.za"
-  );
 }
 
 function getApiPublicUrl() {
@@ -7478,7 +7475,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pipelineType,
         campaignName: campaignName ? String(campaignName).trim() : null,
       });
-      const baseUrl = `${req.protocol}://${req.get("host")}`;
       res.json({
         code,
         pipelineType,
@@ -7487,7 +7483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ownerUserId: ownerUserId || null,
         ownerType: ownerType || (ownerUserId ? "contributor" : "campaign"),
         ownerName: ownerName || personName || entityName || null,
-        link: `${baseUrl}/?production=${encodeURIComponent(code)}&pipeline=${pipelineType}`,
+        link: buildCanonicalProductionLinkUrl(code, pipelineType),
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to create affiliate code" });
@@ -21729,7 +21725,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           code: codeRecord.code,
           pipelineType: codeRecord.pipeline_type || pipelineType,
           campaignName: codeRecord.campaign_name || null,
-          link: `${req.protocol}://${req.get("host")}/?production=${encodeURIComponent(codeRecord.code)}&pipeline=${codeRecord.pipeline_type || "demand"}`,
+          link: buildCanonicalProductionLinkUrl(codeRecord.code, codeRecord.pipeline_type || pipelineType),
         });
       } catch (error) {
         console.error("Error getting affiliate code:", error);
@@ -21753,7 +21749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (error) throw error;
         res.json((data || []).map((link: any) => ({
           ...link,
-          link: `${req.protocol}://${req.get("host")}/?production=${encodeURIComponent(link.code)}&pipeline=${link.pipeline_type || "demand"}`,
+          link: buildCanonicalProductionLinkUrl(link.code, link.pipeline_type),
         })));
       } catch (error) {
         console.error("Error getting production links:", error);
