@@ -529,21 +529,6 @@ export default function COODashboard() {
             <CardHeader>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <Label>Production Owner</Label>
-                  <Select value={ownerUserId || "campaign"} onValueChange={(value) => setOwnerUserId(value === "campaign" ? "" : value)}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select contributor or campaign" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="campaign">Campaign / source</SelectItem>
-                      {productionOwners.map((owner) => (
-                        <SelectItem key={owner.id} value={owner.id}>{owner.name} ({owner.email})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {!ownerUserId && <Input value={ownerName} onChange={e => setOwnerName(e.target.value)} placeholder="Campaign or source name" className="mt-2" />}
-                </div>
-                <div>
                   <CardTitle>Contribution Integrity</CardTitle>
                   <p className="text-sm text-muted-foreground">
                     Open the executive command rhythm system for role onboarding, weekly records, and contribution review.
@@ -937,6 +922,21 @@ export default function COODashboard() {
             <CardContent>
               <div className="flex flex-col gap-4">
                 <div>
+                  <Label>Production Owner</Label>
+                  <Select value={ownerUserId || "campaign"} onValueChange={(value) => setOwnerUserId(value === "campaign" ? "" : value)}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select contributor or campaign" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="campaign">Campaign / source</SelectItem>
+                      {productionOwners.map((owner) => (
+                        <SelectItem key={owner.id} value={owner.id}>{owner.name} ({owner.email})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!ownerUserId && <Input value={ownerName} onChange={e => setOwnerName(e.target.value)} placeholder="Campaign or source name" className="mt-2" />}
+                </div>
+                <div>
                   <Label>Production Pipeline</Label>
                   <Select value={pipelineType} onValueChange={(value) => setPipelineType(value as 'demand' | 'capacity')}>
                     <SelectTrigger className="mt-1">
@@ -1003,6 +1003,11 @@ export default function COODashboard() {
                   <div className="mt-2">
                     <Label>Canonical Production Link</Label>
                     <Input value={generatedLink} readOnly className="mt-1" />
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Owner: {ownerUserId
+                        ? productionOwners.find((owner) => owner.id === ownerUserId)?.name || "Selected contributor"
+                        : ownerName || "Campaign / source"} · Pipeline: {pipelineType}
+                    </p>
                   </div>
                 )}
                 {/* Track Leads Button */}
