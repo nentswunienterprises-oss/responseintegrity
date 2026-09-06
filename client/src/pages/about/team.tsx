@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PageSeo, SITE_NAME, SITE_ORIGIN } from "@/components/PageSeo";
 import { ResponseIntegrityLogo } from "@/components/ResponseIntegrityLogo";
+import { buildTrackedPath } from "@/lib/publicTracking";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const portraitExtensions = ["jpg", "jpeg", "png", "webp"] as const;
 
@@ -58,6 +59,11 @@ function getInitials(name: string) {
 
 export default function TeamPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const currentParams = new URLSearchParams(location.search);
+  const returnTo = currentParams.get("returnTo");
+  const aboutBackTarget = buildTrackedPath("/about", location.search, returnTo ? { returnTo } : {});
+  const howWeOperateTarget = buildTrackedPath("/about/how-we-operate", location.search, returnTo ? { returnTo } : {});
   const [portraitIndexes, setPortraitIndexes] = useState<Record<string, number>>(() =>
     Object.fromEntries(leadershipTeam.map((member) => [member.id, 0])),
   );
@@ -117,7 +123,7 @@ export default function TeamPage() {
           <Button
             variant="ghost"
             className="rounded-full px-0 text-sm font-medium text-[#5A5A5A] hover:bg-transparent hover:text-[#1A1A1A]"
-            onClick={() => navigate("/about")}
+            onClick={() => navigate(aboutBackTarget)}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to About
@@ -261,13 +267,13 @@ export default function TeamPage() {
               <Button
                 variant="outline"
                 className="rounded-full border-[#1A1A1A] bg-[#FCF6F2] text-[#1A1A1A]"
-                onClick={() => navigate("/about")}
+                onClick={() => navigate(aboutBackTarget)}
               >
                 Back to About
               </Button>
               <Button
                 className="rounded-full border-0 bg-[#E63946] text-white hover:bg-[#d2303d]"
-                onClick={() => navigate("/about/how-we-operate")}
+                onClick={() => navigate(howWeOperateTarget)}
               >
                 See How We Operate
                 <ArrowRight className="ml-2 h-4 w-4" />

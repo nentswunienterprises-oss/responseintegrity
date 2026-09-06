@@ -136,6 +136,10 @@ function PortalLanding() {
     returnTo: landingReturnTo,
   });
 
+  const faqUrl = buildTrackedPath("/faq", location.search, {
+    returnTo: landingReturnTo,
+  });
+
   const wallpaperSvg = "";
   const svgEncoded = encodeURIComponent(wallpaperSvg);
   const wallpaperCss = `
@@ -624,7 +628,7 @@ function PortalLanding() {
 
             <div className="space-y-3 sm:space-y-4 sm:col-span-2 md:col-span-1">
               <h4 className="font-semibold text-sm sm:text-base" style={{ color: "var(--ri-charcoal)" }}>FAQ</h4>
-              <a href="/faq" className="text-xs sm:text-sm block hover:underline" style={{ color: "var(--ri-red)" }}>
+              <a href={faqUrl} className="text-xs sm:text-sm block hover:underline" style={{ color: "var(--ri-red)" }}>
                 Have a question?
               </a>
             </div>

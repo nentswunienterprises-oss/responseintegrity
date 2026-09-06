@@ -3,11 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageSeo, SITE_NAME, SITE_ORIGIN } from "@/components/PageSeo";
 import { ResponseIntegrityLogo } from "@/components/ResponseIntegrityLogo";
+import { buildTrackedPath, resolveTrackedBackTarget } from "@/lib/publicTracking";
 import { ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export default function AboutIndex() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const backTarget = resolveTrackedBackTarget(location.search);
+  const trackedNavigationParams = location.search ? { returnTo: backTarget } : {};
 
   return (
     <div className="min-h-screen bg-[#FCF6F2] text-[#1A1A1A]">
@@ -34,7 +38,7 @@ export default function AboutIndex() {
           <Button
             variant="ghost"
             className="rounded-full px-0 text-sm font-medium text-[#5A5A5A] hover:bg-transparent hover:text-[#1A1A1A]"
-            onClick={() => navigate("/")}
+            onClick={() => navigate(backTarget)}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
@@ -81,7 +85,7 @@ export default function AboutIndex() {
                 <Button
                   variant="outline"
                   className="mt-8 w-full rounded-full border-[#1A1A1A] text-[#1A1A1A] bg-[#FCF6F2]"
-                  onClick={() => navigate(item.href)}
+                  onClick={() => navigate(buildTrackedPath(item.href, location.search, trackedNavigationParams))}
                 >
                   {item.title === "Meet the Team" ? "View the Team" : `Read ${item.title}`}
                 </Button>
