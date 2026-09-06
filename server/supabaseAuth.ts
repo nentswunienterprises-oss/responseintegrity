@@ -633,7 +633,17 @@ export async function setupAuth(app: Express) {
       console.log("Request body:", JSON.stringify(req.body));
       console.log("═══════════════════════════════════════");
 
-      const { user_id, email, role, first_name = "", last_name = "", affiliate_code = null, production_link_code = null } = req.body;
+      const {
+        user_id,
+        email,
+        role,
+        first_name = "",
+        last_name = "",
+        affiliate_code = null,
+        production_link_code = null,
+        tracking_source = "organic",
+        tracking_campaign = null,
+      } = req.body;
       const effectiveAffiliateCode = production_link_code || affiliate_code || (req.session as any).affiliateCode || null;
       if (effectiveAffiliateCode) {
         req.session.affiliateCode = effectiveAffiliateCode;
@@ -660,6 +670,19 @@ export async function setupAuth(app: Express) {
       const existingUser = await storage.getUser(user_id);
       if (existingUser) {
         console.log("✅ User profile already exists, returning existing role:", existingUser.role);
+        if (existingUser.role === "parent" && effectiveAffiliateCode) {
+          const affiliateInfo = await storage.getAffiliateByCode(effectiveAffiliateCode.toUpperCase());
+          if (affiliateInfo?.affiliate_id) {
+            await storage.createLead(affiliateInfo.affiliate_id, user_id, null, {
+              trackingSource: tracking_source,
+              trackingCampaign: tracking_campaign,
+              leadType: "parent",
+              productionLinkCode: affiliateInfo.production_link_code,
+              affiliateType: affiliateInfo.affiliate_type,
+              affiliateName: affiliateInfo.affiliate_name,
+            });
+          }
+        }
         return res.json({ role: existingUser.role, message: "User already exists" });
       }
 
@@ -695,6 +718,8 @@ export async function setupAuth(app: Express) {
           if (affiliateInfo?.affiliate_id) {
             console.log("🔗 Creating lead for parent with production link:", effectiveAffiliateCode);
             await storage.createLead(affiliateInfo.affiliate_id, user_id, null, {
+              trackingSource: tracking_source,
+              trackingCampaign: tracking_campaign,
               leadType: "parent",
               productionLinkCode: affiliateInfo.production_link_code,
               affiliateType: affiliateInfo.affiliate_type,

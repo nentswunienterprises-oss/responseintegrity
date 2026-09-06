@@ -301,7 +301,7 @@
             <h2>Ready to Start With Intention?</h2>
             <p>Response Integrity works best when preparation begins early and continues through stable weekly cadence.</p>
           </div>
-          <a class="hero-cta" href="/client/signup"><span>Check Current Enrollment Window</span><svg class="hero-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+          <a class="hero-cta" href="/client/signup" data-signup-link><span>Check Current Enrollment Window</span><svg class="hero-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
         </div>
       </section>
     </main>
@@ -346,11 +346,15 @@
         if (yearNode) yearNode.textContent = String(new Date().getFullYear());
         var params = new URLSearchParams(window.location.search);
         var affiliate = params.get("affiliate");
+        var production = params.get("production");
+        var pipeline = params.get("pipeline");
         var trackingSource = params.get("utm_source");
         var trackingCampaign = params.get("utm_campaign");
-        if (!affiliate && !trackingSource && !trackingCampaign) return;
+        if (!affiliate && !production && !pipeline && !trackingSource && !trackingCampaign) return;
         var signupParams = new URLSearchParams();
         if (affiliate) signupParams.set("affiliate", affiliate);
+        if (production) signupParams.set("production", production);
+        if (pipeline) signupParams.set("pipeline", pipeline);
         if (trackingSource) signupParams.set("utm_source", trackingSource);
         if (trackingCampaign) signupParams.set("utm_campaign", trackingCampaign);
         var href = "/client/signup" + (signupParams.toString() ? "?" + signupParams.toString() : "");
