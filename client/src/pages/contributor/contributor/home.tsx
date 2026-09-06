@@ -5,11 +5,19 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Copy } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function ContributorHome() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const [pipeline, setPipeline] = useState<"demand" | "capacity">("demand");
 
   const { data: gatewaySession } = useQuery<any>({
     queryKey: ["/api/affiliate/gateway-session"],
@@ -24,8 +32,9 @@ export default function ContributorHome() {
 
   // Compatibility note: contributor template still uses affiliate endpoints in MVP.
   const { data: codeData } = useQuery<{ code: string; link?: string; pipelineType?: string }>({
-    queryKey: ["/api", "affiliate", "code"],
+    queryKey: [`/api/affiliate/code?pipeline=${pipeline}`],
   });
+  const isCapacity = codeData?.pipelineType === "capacity";
 
   const { data: stats } = useQuery<{ encounters: number; leads: number; closes: number }>({
     queryKey: ["/api", "affiliate", "stats"],
@@ -62,21 +71,36 @@ export default function ContributorHome() {
             Welcome back, {firstName}.
           </h1>
           <p className="text-sm sm:text-lg text-muted-foreground">
-            Track every opportunity, qualification, trial, and subscription from your production link.
+            {isCapacity
+              ? "Track specialist applicants from your capacity production link."
+              : "Track every opportunity, qualification, trial, and subscription from your production link."}
           </p>
+        </div>
+
+        <div className="max-w-xs">
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Production pipeline</p>
+          <Select value={pipeline} onValueChange={(value) => setPipeline(value as "demand" | "capacity")}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="demand">Demand</SelectItem>
+              <SelectItem value="capacity">Capacity</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:gap-6">
           <Card className="p-3 sm:p-8 border shadow-sm hover-elevate text-center">
-            <p className="text-2xl sm:text-5xl font-bold text-foreground">{stats?.leads || 0}</p>
+            <p className="text-2xl sm:text-5xl font-bold text-foreground">{isCapacity ? "—" : stats?.leads || 0}</p>
             <p className="text-[10px] sm:text-sm text-muted-foreground uppercase tracking-wide font-medium mt-1">
-              Leads
+              {isCapacity ? "Applicants" : "Leads"}
             </p>
           </Card>
           <Card className="p-3 sm:p-8 border shadow-sm hover-elevate text-center">
-            <p className="text-2xl sm:text-5xl font-bold text-foreground">{stats?.closes || 0}</p>
+            <p className="text-2xl sm:text-5xl font-bold text-foreground">{isCapacity ? "Capacity" : stats?.closes || 0}</p>
             <p className="text-[10px] sm:text-sm text-muted-foreground uppercase tracking-wide font-medium mt-1">
-              Subscriptions
+              {isCapacity ? "Capacity pipeline" : "Subscriptions"}
             </p>
           </Card>
         </div>
@@ -86,7 +110,9 @@ export default function ContributorHome() {
             <div>
               <h2 className="text-base sm:text-xl font-bold mb-1 sm:mb-2">Your Production Link</h2>
               <p className="text-xs sm:text-base text-muted-foreground">
-                Share this link to attribute demand production to your contributor line.
+                {isCapacity
+                  ? "Share this link to attribute specialist production to your contributor line."
+                  : "Share this link to attribute demand production to your contributor line."}
               </p>
             </div>
             <div className="flex gap-2 flex-col sm:flex-row">

@@ -21667,13 +21667,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const affiliateId = (req.session as any).userId;
         console.log("📋 Getting affiliate code for:", affiliateId);
         
-        const codeRecord = await storage.getOrCreateAffiliateCode(affiliateId);
+        const pipelineType = normalizeProductionPipeline(req.query?.pipeline);
+        const codeRecord = await storage.getOrCreateAffiliateCode(affiliateId, pipelineType);
         console.log("✅ Got code record:", codeRecord);
         
         // Return just the code field to match frontend expectations
         res.json({
           code: codeRecord.code,
-          pipelineType: codeRecord.pipeline_type || "demand",
+          pipelineType: codeRecord.pipeline_type || pipelineType,
           campaignName: codeRecord.campaign_name || null,
           link: `${req.protocol}://${req.get("host")}/?production=${encodeURIComponent(codeRecord.code)}&pipeline=${codeRecord.pipeline_type || "demand"}`,
         });

@@ -1150,8 +1150,7 @@ export const leads = pgTable("leads", {
   productionLinkCode: varchar("production_link_code", { length: 20 }),
   userId: varchar("user_id")
     .notNull()
-    .references(() => users.id)
-    .unique(), // One lead per parent
+    .references(() => users.id), // Multiple opportunity/encounter rows may exist per parent
   encounterId: varchar("encounter_id").references(() => encounters.id),
   // Tracking fields - how lead was acquired
   trackingSource: varchar("tracking_source"), // "affiliate", "blog", "school", "media", "organic"

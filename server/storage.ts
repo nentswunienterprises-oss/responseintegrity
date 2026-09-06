@@ -49,7 +49,8 @@ export async function createAffiliateCode({ affiliateId, code, type, personName,
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     RETURNING *;
   `;
-  const values = [affiliateId, code, type, personName, entityName, schoolType, pipelineType, campaignName || null, new Date()];
+  const canonicalPipeline = pipelineType === "capacity" ? "capacity" : "demand";
+  const values = [affiliateId, code, type, personName, entityName, schoolType, canonicalPipeline, campaignName || null, new Date()];
   const result = await (await import('./db')).pool.query(text, values);
   return result.rows[0];
 }
@@ -281,6 +282,7 @@ async function hydrateTutorApplicationsWithOnboardingState(
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getFirstProductionLeadByUser(userId: string): Promise<any | null>;
   getUsersByRole(role: string): Promise<User[]>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserVerification(id: string, verified: boolean): Promise<User | undefined>;
@@ -629,6 +631,20 @@ export class SupabaseStorage implements IStorage {
       createdAt: result.created_at,
       updatedAt: result.updated_at,
     } as User;
+  }
+
+  async getFirstProductionLeadByUser(userId: string): Promise<any | null> {
+    const { data, error } = await supabase
+      .from("leads")
+      .select("id, user_id, affiliate_id, production_link_code, tracking_source, tracking_campaign, created_at")
+      .eq("user_id", userId)
+      .not("production_link_code", "is", null)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
   }
 
   // Pods
@@ -2429,12 +2445,15 @@ export class SupabaseStorage implements IStorage {
   // AFFILIATE PROSPECTING SYSTEM
   // ============================================
 
-  async getOrCreateAffiliateCode(affiliateId: string): Promise<any> {
+  async getOrCreateAffiliateCode(affiliateId: string, pipelineType: "demand" | "capacity" = "demand"): Promise<any> {
     // Check if affiliate already has a code
     const { data: existing } = await supabase
       .from("affiliate_codes")
       .select("*")
       .eq("affiliate_id", affiliateId)
+      .eq("pipeline_type", pipelineType)
+      .order("created_at", { ascending: true })
+      .limit(1)
       .maybeSingle();
     
     if (existing) return existing;
@@ -2448,6 +2467,7 @@ export class SupabaseStorage implements IStorage {
       .insert({
         affiliate_id: affiliateId,
         code: code,
+        pipeline_type: pipelineType,
       })
       .select()
       .single();
@@ -2456,11 +2476,14 @@ export class SupabaseStorage implements IStorage {
     return newCode;
   }
 
-  async getAffiliateCode(affiliateId: string): Promise<any | null> {
+  async getAffiliateCode(affiliateId: string, pipelineType: "demand" | "capacity" = "demand"): Promise<any | null> {
     const { data } = await supabase
       .from("affiliate_codes")
       .select("*")
       .eq("affiliate_id", affiliateId)
+      .eq("pipeline_type", pipelineType)
+      .order("created_at", { ascending: true })
+      .limit(1)
       .maybeSingle();
     
     return data || null;
@@ -2544,6 +2567,36 @@ export class SupabaseStorage implements IStorage {
     encounterId?: string,
     trackingData?: { trackingSource?: string; trackingCampaign?: string; leadType?: string; affiliateType?: string; affiliateName?: string; productionLinkCode?: string }
   ): Promise<any> {
+    if (trackingData?.productionLinkCode) {
+      const firstAttributedLead = await this.getFirstProductionLeadByUser(parentId);
+      if (firstAttributedLead) {
+        return firstAttributedLead;
+      }
+      const { data: oldestLead, error: oldestLeadError } = await supabase
+        .from("leads")
+        .select("id, production_link_code")
+        .eq("user_id", parentId)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (oldestLeadError) throw oldestLeadError;
+      if (oldestLead && !oldestLead.production_link_code) {
+        const { data: claimedLead, error: claimError } = await supabase
+          .from("leads")
+          .update({
+            affiliate_id: affiliateId || null,
+            production_link_code: trackingData.productionLinkCode,
+            tracking_source: trackingData.trackingSource || "affiliate",
+            tracking_campaign: trackingData.trackingCampaign || null,
+          })
+          .eq("id", oldestLead.id)
+          .select()
+          .single();
+        if (claimError) throw claimError;
+        return claimedLead;
+      }
+    }
     // Use null for organic leads (no affiliate)
     let query = supabase
       .from("leads")
@@ -2557,7 +2610,11 @@ export class SupabaseStorage implements IStorage {
     if (encounterId) {
       query = query.eq("encounter_id", encounterId);
     }
-    const { data: existingLead, error: findError } = await query.maybeSingle();
+    const { data: existingLead, error: findError } = await query
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(1)
+      .maybeSingle();
     if (findError) {
       console.error("[createLead] Error finding existing lead:", findError);
       throw findError;

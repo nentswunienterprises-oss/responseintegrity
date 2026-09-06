@@ -108,6 +108,10 @@ export async function setupAuth(app: Express) {
         (req.session as any).trackingSource = req.body.tracking_source || null;
         (req.session as any).trackingCampaign = req.body.tracking_campaign || null;
       } else if (incomingAffiliateCode) {
+        const legacyLink = await storage.getAffiliateByCode(incomingAffiliateCode);
+        if (legacyLink && legacyLink.pipeline_type !== "demand") {
+          return res.status(400).json({ message: "Capacity Production Links must use the canonical production URL" });
+        }
         req.session.affiliateCode = incomingAffiliateCode;
         console.log("[SIGNUP] affiliate_code stored in session as affiliateCode:", req.session.affiliateCode);
       } else {
@@ -693,6 +697,11 @@ export async function setupAuth(app: Express) {
         req.session.affiliateCode = effectiveAffiliateCode;
         (req.session as any).productionLinkCode = productionLink.production_link_code;
         (req.session as any).productionPipeline = productionLink.pipeline_type;
+      } else if (effectiveAffiliateCode) {
+        const legacyLink = await storage.getAffiliateByCode(effectiveAffiliateCode);
+        if (legacyLink && legacyLink.pipeline_type !== "demand") {
+          return res.status(400).json({ message: "Capacity Production Links must use the canonical production URL" });
+        }
       }
       if (effectiveAffiliateCode) {
         req.session.affiliateCode = effectiveAffiliateCode;
@@ -735,11 +744,7 @@ export async function setupAuth(app: Express) {
         if (existingUser.role === "parent" && effectiveAffiliateCode) {
           const affiliateInfo = await storage.getAffiliateByCode(effectiveAffiliateCode.toUpperCase());
           if (affiliateInfo?.affiliate_id) {
-            const { data: existingLead } = await supabase
-              .from("leads")
-              .select("production_link_code")
-              .eq("user_id", user_id)
-              .maybeSingle();
+            const existingLead = await storage.getFirstProductionLeadByUser(user_id);
             if (existingLead?.production_link_code && existingLead.production_link_code !== affiliateInfo.production_link_code) {
               return res.status(409).json({ message: "Existing parent Production Link attribution cannot be reassigned" });
             }

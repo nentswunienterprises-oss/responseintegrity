@@ -93,6 +93,8 @@ export default function COODashboard() {
       const [personName, setPersonName] = useState("");
       const [entityName, setEntityName] = useState("");
       const [schoolType, setSchoolType] = useState<'primary' | 'high' | "">("");
+      const [pipelineType, setPipelineType] = useState<'demand' | 'capacity'>('demand');
+      const [campaignName, setCampaignName] = useState("");
       const [generatedCode, setGeneratedCode] = useState("");
       const [generatedLink, setGeneratedLink] = useState("");
       const [creatingAffiliate, setCreatingAffiliate] = useState(false);
@@ -113,6 +115,8 @@ export default function COODashboard() {
             personName: affiliateType === 'person' ? personName : undefined,
             entityName: affiliateType === 'entity' ? entityName : undefined,
             schoolType: affiliateType === 'entity' ? schoolType : undefined,
+            pipelineType,
+            campaignName: campaignName || undefined,
           };
           const { API_URL } = await import("@/lib/config");
           const res = await fetch(`${API_URL}/api/coo/create-affiliate-code`, {
@@ -126,7 +130,7 @@ export default function COODashboard() {
           const data = await res.json();
           if (!res.ok) throw new Error(data.message || "Failed to create affiliate");
           setGeneratedCode(data.code);
-          setGeneratedLink(`${window.location.origin}/client/signup?affiliate=${data.code}`);
+          setGeneratedLink(data.link);
         } catch (err: any) {
           setAffiliateError(err.message || "Unknown error");
         }
@@ -907,10 +911,26 @@ export default function COODashboard() {
         <section>
           <Card className="mb-4">
             <CardHeader>
-              <CardTitle>Generate Affiliate Code/Link</CardTitle>
+              <CardTitle>Generate Production Link</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col gap-4">
+                <div>
+                  <Label>Production Pipeline</Label>
+                  <Select value={pipelineType} onValueChange={(value) => setPipelineType(value as 'demand' | 'capacity')}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="demand">Demand</SelectItem>
+                      <SelectItem value="capacity">Capacity</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Campaign Name (optional)</Label>
+                  <Input value={campaignName} onChange={e => setCampaignName(e.target.value)} placeholder="Campaign identifier" className="mt-1" />
+                </div>
                 <div>
                   <Label>Affiliate Type</Label>
                   <Select value={affiliateType} onValueChange={handleAffiliateTypeChange}>
@@ -954,13 +974,13 @@ export default function COODashboard() {
                 {affiliateError && <p className="text-destructive text-sm mt-2">{affiliateError}</p>}
                 {generatedCode && (
                   <div className="mt-4">
-                    <Label>Affiliate Code</Label>
+                    <Label>Production Link Code</Label>
                     <Input value={generatedCode} readOnly className="mt-1" />
                   </div>
                 )}
                 {generatedLink && (
                   <div className="mt-2">
-                    <Label>Signup Link</Label>
+                    <Label>Canonical Production Link</Label>
                     <Input value={generatedLink} readOnly className="mt-1" />
                   </div>
                 )}

@@ -40,3 +40,22 @@ test("durable account attribution survives application submission without transp
   assert.equal(resolveDurableProductionLink("CAP001", "CAP001", null), "CAP001");
   assert.throws(() => resolveDurableProductionLink("CAP001", null, "CAP002"), /cannot be reassigned/);
 });
+
+test("only active canonical links can create new pipeline attribution", () => {
+  assert.equal(
+    validateProductionLinkForRole(
+      { code: "CAP001", pipeline_type: "capacity", status: "inactive" },
+      "capacity",
+      "tutor",
+    ),
+    "Production Link is invalid or inactive",
+  );
+  assert.equal(
+    validateProductionLinkForRole(
+      { code: "CAP001", pipeline_type: "capacity", status: "active" },
+      "demand",
+      "parent",
+    ),
+    "Production Link pipeline does not match the canonical link",
+  );
+});
