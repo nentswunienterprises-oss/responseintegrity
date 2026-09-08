@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "@/lib/config";
 import { clearAllCache, queryClient, setCurrentUserId } from "@/lib/queryClient";
+import { getAuthMode } from "@/lib/authMode";
 
 type Role = "coo" | "hr" | "ceo" | "cto" | "cmo";
 
@@ -53,6 +54,9 @@ export function ExecutiveAuthForm({ role, mode, setMode }: ExecutiveAuthFormProp
       clearAllCache();
 
       if (mode === "signup") {
+        if ((await getAuthMode()).emergencyDbMode) {
+          throw new Error("New account creation is temporarily unavailable. Please try again later.");
+        }
         // Call backend signup endpoint with executive role
         console.log("📝 Creating account with role:", role);
         const response = await fetch(`${API_URL}/api/auth/signup`, {
@@ -77,11 +81,7 @@ export function ExecutiveAuthForm({ role, mode, setMode }: ExecutiveAuthFormProp
         console.log("✅ Backend signup successful, user created with role:", role);
         
         // Sign in to Supabase on the client side to establish client-side session
-        const { error: supabaseError, data: authData } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
+        const { error: supabaseError } = await supabase.auth.signInWithPassword({ email, password });
         if (supabaseError) {
           console.error("❌ Supabase client signin after signup failed:", supabaseError.message);
           throw new Error("Failed to establish session: " + supabaseError.message);
@@ -107,15 +107,14 @@ export function ExecutiveAuthForm({ role, mode, setMode }: ExecutiveAuthFormProp
       }
 
       if (mode === "login") {
+        const emergencyDbMode = (await getAuthMode()).emergencyDbMode;
         // First sign in to Supabase on the client side to establish session
         console.log("📤 Signing into Supabase first...");
-        const { error: supabaseError, data: supabaseData } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (supabaseError) {
-          throw new Error(supabaseError.message || "Login failed");
+        if (!emergencyDbMode) {
+          const { error: supabaseError } = await supabase.auth.signInWithPassword({ email, password });
+          if (supabaseError) {
+            throw new Error(supabaseError.message || "Login failed");
+          }
         }
 
         console.log("✅ Supabase client signin successful");
@@ -160,7 +159,7 @@ export function ExecutiveAuthForm({ role, mode, setMode }: ExecutiveAuthFormProp
     } catch (err: any) {
       toast({
         title: "Error",
-        description: "We're experiencing a technical issue. Please try again later.",
+        description: "We're experiencing a technical issue. Please try again after a few hours.",
         variant: "destructive",
       });
     } finally {

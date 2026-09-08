@@ -11,6 +11,7 @@ import type { Role } from "@shared/portals";
 import { API_URL } from "@/lib/config";
 import { clearAllCache, queryClient, setCurrentUserId } from "@/lib/queryClient";
 import { buildForgotPasswordPath, buildPasswordResetReturnTo } from "@/lib/password-reset-navigation";
+import { getAuthMode } from "@/lib/authMode";
 
 interface AuthFormProps {
   mode: "signup" | "login";
@@ -55,6 +56,15 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
     
     setLoading(true);
     try {
+      if ((await getAuthMode()).emergencyDbMode) {
+        toast({
+          title: "Temporarily unavailable",
+          description: "Social login is temporarily unavailable. Please use your existing password.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
       // Store the intended role and mode in sessionStorage so callback knows what to do
       sessionStorage.setItem('oauth_role', role);
       sessionStorage.setItem('oauth_mode', mode);
@@ -99,7 +109,7 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
         console.error("❌ Google OAuth error:", error);
         toast({
           title: "Google Login Error",
-          description: "We're experiencing a technical issue. Please try again later.",
+          description: "We're experiencing a technical issue. Please try again after a few hours.",
           variant: "destructive",
         });
         setLoading(false);
@@ -111,7 +121,7 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
       console.error("❌ Exception in handleGoogleLogin:", err);
       toast({
         title: "Error",
-        description: "We're experiencing a technical issue. Please try again later.",
+        description: "We're experiencing a technical issue. Please try again after a few hours.",
         variant: "destructive",
       });
       setLoading(false);
@@ -133,6 +143,9 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
       // No validation needed - empty code will be sent as null to backend
 
       if (mode === "signup") {
+        if ((await getAuthMode()).emergencyDbMode) {
+          throw new Error("New account creation is temporarily unavailable. Please try again later.");
+        }
         // Call backend signup endpoint
         console.log("🚀 SIGNUP STARTING");
         console.log("  Email:", email);
@@ -210,6 +223,7 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
       }
 
       if (mode === "login") {
+        const emergencyDbMode = (await getAuthMode()).emergencyDbMode;
         // Call backend signin endpoint with role validation
         const response = await fetch(`${API_URL}/api/auth/signin`, {
           method: "POST",
@@ -231,28 +245,22 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
           }
         }
 
-        // Also sign in to Supabase on the client side
-        // IMPORTANT: Wait for this to complete before redirecting
-        const { data: loginData, error: supabaseError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (supabaseError) {
-          console.warn("Supabase client signin failed:", supabaseError.message);
-          // Don't fail - server session should still work
-        } else {
-          // Check if email is confirmed
-          const user = loginData?.user;
-          if (!user?.email_confirmed_at && !user?.confirmed_at) {
-            toast({
-              title: "Email not verified",
-              description: "Please verify your email before logging in.",
-              variant: "destructive",
-            });
-            setLoading(false);
-            return;
+        if (!emergencyDbMode) {
+          const { data: loginData, error: supabaseError } = await supabase.auth.signInWithPassword({ email, password });
+          if (supabaseError) {
+            console.warn("Supabase client signin failed:", supabaseError.message);
+          } else {
+            const user = loginData?.user;
+            if (!user?.email_confirmed_at && !user?.confirmed_at) {
+              toast({
+                title: "Email not verified",
+                description: "Please verify your email before logging in.",
+                variant: "destructive",
+              });
+              setLoading(false);
+              return;
+            }
           }
-          console.log("✅ Supabase client session established");
         }
         redirectUrl = data.redirectUrl || getDefaultDashboardRoute(role);
         toast({
@@ -271,7 +279,7 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
     } catch (err: any) {
       toast({
         title: "Error",
-        description: "We're experiencing a technical issue. Please try again later.",
+        description: "We're experiencing a technical issue. Please try again after a few hours.",
         variant: "destructive",
       });
     } finally {
