@@ -160,7 +160,7 @@ export function ExecutiveAuthForm({ role, mode, setMode }: ExecutiveAuthFormProp
     } catch (err: any) {
       toast({
         title: "Error",
-        description: err.message || "Something went wrong",
+        description: "We're experiencing a technical issue. Please try again later.",
         variant: "destructive",
       });
     } finally {

@@ -99,7 +99,7 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
         console.error("❌ Google OAuth error:", error);
         toast({
           title: "Google Login Error",
-          description: error.message,
+          description: "We're experiencing a technical issue. Please try again later.",
           variant: "destructive",
         });
         setLoading(false);
@@ -111,7 +111,7 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
       console.error("❌ Exception in handleGoogleLogin:", err);
       toast({
         title: "Error",
-        description: err.message || "Failed to start Google login",
+        description: "We're experiencing a technical issue. Please try again later.",
         variant: "destructive",
       });
       setLoading(false);
@@ -271,7 +271,7 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
     } catch (err: any) {
       toast({
         title: "Error",
-        description: err.message || "Something went wrong",
+        description: "We're experiencing a technical issue. Please try again later.",
         variant: "destructive",
       });
     } finally {
