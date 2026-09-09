@@ -96,7 +96,10 @@ export function COOAffiliateApplicationsPanel() {
   const { data: applications = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/coo/affiliate-applications"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    refetchInterval: 5000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
   });
 
   const pendingApplications = useMemo(
@@ -540,7 +543,10 @@ export function COOTdApplicationsPanel() {
   const { data: applications = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/coo/td-applications"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    refetchInterval: 5000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
   });
 
   const pendingApplications = useMemo(

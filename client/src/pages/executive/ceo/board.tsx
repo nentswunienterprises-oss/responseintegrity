@@ -72,9 +72,11 @@ export default function CEOBoardPage() {
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: isAuthenticated && !!user,
     refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchInterval: isAuthenticated ? 10000 : false,
-    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
+    refetchIntervalInBackground: false,
+    retry: false,
   });
 
   useEffect(() => {

@@ -11,5 +11,8 @@ export function useIntroSessionStatus(studentId: string) {
       return await res.json();
     },
     enabled: !!studentId,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 }

@@ -2,6 +2,7 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { supabase } from "./supabaseClient";
 import { API_URL } from "./config";
+import { getAuthMode } from "./authMode";
 
 // Check if we're online
 const isOnline = () => typeof navigator !== 'undefined' ? navigator.onLine : true;
@@ -74,7 +75,10 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   const fullUrl = API_URL + url;
-  const { data: { session } } = await supabase.auth.getSession();
+  const authMode = await getAuthMode();
+  const { data: { session } } = authMode.emergencyDbMode
+    ? { data: { session: null } }
+    : await supabase.auth.getSession();
   const headers: HeadersInit = data ? { "Content-Type": "application/json" } : {};
   if (session?.access_token) {
     headers.Authorization = `Bearer ${session.access_token}`;
@@ -102,7 +106,10 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     // Get the Supabase session to include auth token
-    const { data: { session } } = await supabase.auth.getSession();
+    const authMode = await getAuthMode();
+    const { data: { session } } = authMode.emergencyDbMode
+      ? { data: { session: null } }
+      : await supabase.auth.getSession();
     
     const headers: HeadersInit = {};
     
@@ -139,10 +146,10 @@ export const queryClient = new QueryClient({
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
-      refetchOnWindowFocus: true,
-      refetchOnReconnect: true,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
       refetchOnMount: true,
-      staleTime: 0,
+      staleTime: 1000 * 45,
       retry: (failureCount, error) => {
         // Don't retry if offline
         if (!isOnline()) return false;

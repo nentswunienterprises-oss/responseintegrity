@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient";
 import { apiRequest, clearAllCache } from "./queryClient";
+import { getAuthMode } from "./authMode";
 
 function navigateToAuthPath(path: string) {
   window.location.assign(path);
@@ -64,8 +65,10 @@ export async function logout(user) {
   try {
     // Call backend logout endpoint
     await apiRequest("POST", "/api/auth/logout");
-    // Sign out from Supabase
-    await supabase.auth.signOut();
+    const authMode = await getAuthMode();
+    if (!authMode.emergencyDbMode) {
+      await supabase.auth.signOut();
+    }
     // Clear ALL React Query cache (memory + localStorage) to prevent stale user data
     clearAllCache();
 

@@ -20,7 +20,7 @@ export default defineConfig({
         middlewareMode: false,
         proxy: {
             '/api': {
-                target: 'hResponse Integrityp://localhost:5000',
+                target: 'http://localhost:5000',
                 changeOrigin: true,
                 secure: false
             }
@@ -46,7 +46,7 @@ export default defineConfig({
             "react/jsx-dev-runtime": path.resolve(import.meta.dirname, "node_modules", "react", "jsx-dev-runtime.js"),
             "@": path.resolve(import.meta.dirname, "client", "src"),
             "@shared": path.resolve(import.meta.dirname, "shared"),
-            "@assets": path.resolve(import.meta.dirname, "aResponse Integrityached_assets"),
+            "@assets": path.resolve(import.meta.dirname, "attached_assets"),
         }
     },
     build: {

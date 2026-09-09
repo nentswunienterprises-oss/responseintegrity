@@ -36,6 +36,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import type { Pod, TutorAssignment, User } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { API_URL } from "@/lib/config";
+import { getAuthMode } from "@/lib/authMode";
 import { useToast } from "@/hooks/use-toast";
 import type { NotificationItem } from "@/components/notifications/NotificationInbox";
 
@@ -96,6 +97,7 @@ function hasTutorTrafficWaitingOnTutor(application: any) {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, isAuthenticated } = useAuth();
   const location = useLocation();
+  const [emergencyDbMode, setEmergencyDbMode] = useState(false);
   
   // Log Dispute Modal state
   const [showDisputeModal, setShowDisputeModal] = useState(false);
@@ -124,6 +126,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       checkStudentAuth();
     }
   }, [user, isAuthenticated]);
+
+  useEffect(() => {
+    let active = true;
+    getAuthMode().then((mode) => {
+      if (active) setEmergencyDbMode(mode.emergencyDbMode);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
   
   // Use student user if available, otherwise use regular user
   const effectiveUser = isStudentAuth ? {
@@ -159,47 +169,53 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     retry: false,
   });
 
-  const { data: cooTutorApplications = [] } = useQuery<any[]>({
-    queryKey: ["/api/coo/tutor-applications"],
+  const { data: cooTrafficSummary } = useQuery<{ totalActionCount?: number }>({
+    queryKey: ["/api/coo/traffic-summary"],
     enabled: effectiveIsAuth && !!effectiveUser && isCOO(effectiveUser),
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     retry: false,
-    refetchInterval: 5000,
-    refetchIntervalInBackground: true,
   });
 
-  const cooTrafficActionCount = useMemo(() => {
-    if (!effectiveUser || !isCOO(effectiveUser)) return 0;
-    const pendingApplications = cooTutorApplications.filter((app: any) => app.status === "pending").length;
-    const approvedApplications = cooTutorApplications.filter((app: any) => app.status === "approved");
-    const needsReview = approvedApplications.filter((app: any) => hasTutorTrafficPendingReview(app)).length;
-    const waitingOnTutor = approvedApplications.filter((app: any) => hasTutorTrafficWaitingOnTutor(app)).length;
-    return pendingApplications + needsReview + waitingOnTutor;
-  }, [cooTutorApplications, effectiveUser]);
+  const cooTrafficActionCount = Number(cooTrafficSummary?.totalActionCount || 0);
 
   const usesNotificationInbox = !!effectiveUser && (isTutor(effectiveUser) || isParent(effectiveUser) || isCOO(effectiveUser));
 
   const { data: notificationUnreadData } = useQuery<{ unreadCount: number }>({
     queryKey: ["/api/notifications/unread-count"],
     enabled: effectiveIsAuth && !!effectiveUser && usesNotificationInbox,
-    refetchInterval: 15000,
+    refetchInterval: emergencyDbMode ? false : 60000,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   const { data: notifications } = useQuery<NotificationItem[]>({
     queryKey: ["/api/notifications"],
     enabled: effectiveIsAuth && !!effectiveUser && usesNotificationInbox,
-    refetchInterval: 15000,
+    // Full notification content is loaded on demand; the badge uses the count endpoint.
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   const { data: parentCommunicationUnreadData } = useQuery<{ unreadCount: number }>({
     queryKey: ["/api/parent/communications/unread-count"],
     enabled: effectiveIsAuth && !!effectiveUser && isParent(effectiveUser),
-    refetchInterval: 15000,
+    refetchInterval: emergencyDbMode ? false : 60000,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   const { data: studentCommunicationUnreadData } = useQuery<{ unreadCount: number }>({
     queryKey: ["/api/student/communications/unread-count"],
     enabled: effectiveIsAuth && !!effectiveUser && effectiveUser.role === "student",
-    refetchInterval: 15000,
+    refetchInterval: emergencyDbMode ? false : 60000,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   const visibleNotifications = useMemo(
@@ -249,20 +265,29 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   // Fetch unread broadcast count
   const { data: unreadData } = useQuery<{ unreadCount: number }>({
     queryKey: ["/api/broadcasts/unread-count"],
-    enabled: usesBroadcastInbox,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    enabled: usesBroadcastInbox && !emergencyDbMode,
+    refetchInterval: emergencyDbMode ? false : 60000,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   // Fetch all broadcasts to filter unread ones
   const { data: broadcasts } = useQuery<any[]>({
     queryKey: ["/api/broadcasts"],
     enabled: usesBroadcastInbox,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   // Fetch read broadcasts list
   const { data: readData } = useQuery<{ readBroadcasts: string[] }>({
     queryKey: ["/api/broadcasts/read-list"],
     enabled: usesBroadcastInbox,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   // Filter unread broadcasts

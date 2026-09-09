@@ -17,6 +17,13 @@ import {
 } from "@shared/productionLinks";
 import { getDefaultDashboardRoute } from "@shared/portals";
 import { getAllowedOdEmailList, isAllowedOdEmail, normalizeEmail } from "@shared/odAccess";
+import { isEmergencyDbMode } from "./emergencyMode";
+import {
+  authenticateEmergencyUser,
+  createEmergencyTutorAccount,
+  emergencyExpectedRoleMatches,
+} from "./emergencyAuth";
+import { pool } from "./db";
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
   throw new Error("Missing Supabase environment variables");
@@ -87,15 +94,28 @@ export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());
 
+  if (isEmergencyDbMode()) {
+    console.warn("[AUTH] EMERGENCY_DB_MODE is active: using PostgreSQL sessions and direct password verification");
+  }
+
+  app.get("/api/auth/mode", (_req: Request, res: Response) => {
+    res.json({ emergencyDbMode: isEmergencyDbMode(), authMode: isEmergencyDbMode() ? "db-session" : "supabase" });
+  });
+
   // Sign up endpoint
   app.post("/api/auth/signup", async (req: Request, res: Response) => {
-      console.log("[SESSION] Before signup: req.sessionID:", req.sessionID);
-      console.log("[SESSION] Before signup: req.session:", req.session);
       // Store affiliate_code in session for later use (e.g., enrollment)
       const incomingProductionCode = normalizeProductionLinkCode(req.body.production_link_code);
       const incomingAffiliateCode = normalizeProductionLinkCode(req.body.affiliate_code);
       const requestedProductionPipeline = normalizeProductionPipeline(req.body.production_pipeline);
       let productionLink: any = null;
+      if (
+        isEmergencyDbMode() &&
+        (req.body.role || "tutor") === "tutor" &&
+        (incomingProductionCode || incomingAffiliateCode)
+      ) {
+        return res.status(503).json({ message: "Specialist Production Link signup is temporarily unavailable." });
+      }
       if (incomingProductionCode) {
         productionLink = await storage.getAffiliateByCode(incomingProductionCode);
         const validationError = validateProductionLinkForRole(productionLink, requestedProductionPipeline, req.body.role || "tutor");
@@ -130,23 +150,47 @@ export async function setupAuth(app: Express) {
         });
       }
 
-      console.log("═══════════════════════════════════════");
-      console.log("📝 SIGNUP REQUEST RECEIVED");
-      console.log("Request body:", JSON.stringify(req.body));
-      console.log("  Email:", email);
-      console.log("  Role from request:", req.body.role);
-      console.log("  Role extracted (with default):", role);
-      console.log("  First Name:", first_name);
-      console.log("  Last Name:", last_name);
-      console.log("  Affiliate Code:", affiliate_code);
-      console.log("  Tracking Source:", tracking_source);
-      console.log("  Tracking Campaign:", tracking_campaign);
-      console.log("═══════════════════════════════════════");
-
       if (!email || !password) {
         return res
           .status(400)
           .json({ message: "Email and password are required" });
+      }
+
+      if (isEmergencyDbMode()) {
+        if (role !== "tutor") {
+          return res.status(503).json({ message: "New account creation is temporarily available for specialists only." });
+        }
+        if (password.length < 6) {
+          return res.status(400).json({ message: "Password must be at least 6 characters" });
+        }
+        if (!first_name.trim() || !last_name.trim()) {
+          return res.status(400).json({ message: "First name and last name are required" });
+        }
+        if (productionLink) {
+          return res.status(503).json({ message: "Specialist Production Link signup is temporarily unavailable." });
+        }
+
+        try {
+          const user = await createEmergencyTutorAccount(pool, {
+            email: normalizedEmail,
+            password,
+            firstName: first_name.trim(),
+            lastName: last_name.trim(),
+            trackingSource: tracking_source,
+            trackingCampaign: tracking_campaign,
+          });
+          console.log("[EMERGENCY SIGNUP] created tutor", { userId: user.id });
+          return res.status(201).json({
+            user: { id: user.id, email: user.email, role: user.role },
+            message: "Account created. Please log in to continue.",
+          });
+        } catch (error) {
+          if ((error as { code?: string })?.code === "DUPLICATE_EMAIL") {
+            return res.status(409).json({ message: "An account with this email already exists." });
+          }
+          console.error("[EMERGENCY SIGNUP] failed", error instanceof Error ? error.message : "unknown error");
+          return res.status(500).json({ message: "Failed to create account" });
+        }
       }
 
       // Create user in Supabase Auth with metadata
@@ -168,7 +212,6 @@ export async function setupAuth(app: Express) {
 
       console.log("✅ Supabase auth user created");
       console.log("  Auth User ID:", authData.user.id);
-      console.log("  Email:", authData.user.email);
 
       // Manually create user record in public.users table
       // (Trigger is disabled due to issues)
@@ -397,11 +440,6 @@ export async function setupAuth(app: Express) {
       }
 
       // Set session with user data and token
-      console.log("💾 BEFORE setting session values:");
-      console.log("  authData.user.id:", authData.user.id);
-      console.log("  authData.user.email:", authData.user.email);
-      console.log("  authData.session?.access_token:", authData.session?.access_token ? "EXISTS" : "NULL");
-
       (req.session as any).userId = authData.user.id;
       (req.session as any).email = authData.user.email;
       (req.session as any).accessToken = authData.session?.access_token;
@@ -409,11 +447,6 @@ export async function setupAuth(app: Express) {
       // Force session to be marked as modified so cookie will be sent
       req.session.touch();
 
-      console.log("💾 AFTER setting session values:");
-      console.log("  req.session.userId:", (req.session as any).userId);
-      console.log("  req.session.email:", (req.session as any).email);
-      console.log("  req.session.accessToken:", (req.session as any).accessToken ? "EXISTS" : "NULL");
-      console.log("🔍 User role for redirect:", user?.role);
 
       let redirectUrl: string;
       
@@ -436,23 +469,10 @@ export async function setupAuth(app: Express) {
 
       // Save session before sending response
       req.session.save((err) => {
-          console.log("[SESSION] After signup: req.sessionID:", req.sessionID);
-          console.log("[SESSION] After signup: req.session:", req.session);
         if (err) {
           console.error("❌ Session save error:", err);
           return res.status(500).json({ message: "Session error" });
         }
-        
-        console.log("✅ Session saved successfully for signup");
-        console.log("  Session ID:", req.sessionID);
-        console.log("  Session cookie headers about to be sent:");
-        const setCookieHeader = res.getHeader('Set-Cookie');
-        console.log("  Set-Cookie header:", setCookieHeader);
-        console.log("  Session contents after save:", {
-          userId: (req.session as any).userId,
-          email: (req.session as any).email,
-          accessToken: (req.session as any).accessToken ? "EXISTS" : "NULL",
-        });
         
         // Make sure the response includes the session cookie
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -471,14 +491,9 @@ export async function setupAuth(app: Express) {
 
   // Sign in endpoint
   app.post("/api/auth/signin", async (req: Request, res: Response) => {
-      console.log("[SESSION] Before signin: req.sessionID:", req.sessionID);
-      console.log("[SESSION] Before signin: req.session:", req.session);
-      console.log("[SESSION] After signin: req.sessionID:", req.sessionID);
-      console.log("[SESSION] After signin: req.session:", req.session);
     try {
       console.log("═══════════════════════════════════════");
       console.log("🔐 SIGNIN REQUEST RECEIVED");
-      console.log("Request body:", JSON.stringify(req.body));
       console.log("═══════════════════════════════════════");
       
       const { email, password, expectedRole } = req.body;
@@ -490,12 +505,60 @@ export async function setupAuth(app: Express) {
       }
       console.log("✅ Parsed request body successfully");
 
-      console.log("🔐 Parsed values:", { email, password: password ? "***" : null, expectedRole });
 
       if (!email || !password) {
         return res
           .status(400)
           .json({ message: "Email and password are required" });
+      }
+
+      if (isEmergencyDbMode()) {
+        const result = await authenticateEmergencyUser(pool, email, password, req.ip || "unknown");
+        if ("error" in result) {
+          console.warn("[AUTH] Emergency login rejected", { reason: result.error });
+          return res.status(401).json({ message: "Invalid credentials" });
+        }
+
+        const user = await storage.getUser(result.authUser.id);
+        if (!user) {
+          console.error("[AUTH] Auth user has no public.users record", { authUserId: result.authUser.id });
+          return res.status(401).json({ message: "Invalid credentials" });
+        }
+        if (!emergencyExpectedRoleMatches(user.role, expectedRole)) {
+          return res.status(403).json({
+            message: `This account is not registered as a ${expectedRole}. Your account is registered as a ${user.role}.`,
+          });
+        }
+
+        (req.session as any).userId = user.id;
+        (req.session as any).email = user.email;
+        delete (req.session as any).accessToken;
+        const redirectUrl = user.role === "parent"
+          ? "/client/parent/gateway"
+          : getDefaultDashboardRoute((user.role as any) || "tutor");
+
+        return req.session.save((err) => {
+          if (err) {
+            console.error("[AUTH] Emergency session save error", err);
+            return res.status(500).json({ message: "Session error" });
+          }
+          console.log("[EMERGENCY LOGIN] credential source", {
+            userId: user.id,
+            source: result.authUser.email_confirmed_at ? "supabase-auth" : "emergency",
+          });
+          res.json({
+            user: {
+              id: result.authUser.id,
+              email: result.authUser.email,
+              email_confirmed_at: result.authUser.email_confirmed_at,
+              app_metadata: result.authUser.raw_app_meta_data || {},
+              user_metadata: result.authUser.raw_user_meta_data || {},
+            },
+            dbUser: user,
+            redirectUrl,
+            message: "Login successful",
+          });
+        });
       }
 
       // Authenticate with Supabase
@@ -559,7 +622,6 @@ export async function setupAuth(app: Express) {
 
       console.log("═══════════════════════════════════════");
       console.log("👤 USER FETCHED FROM DATABASE:");
-      console.log("  Email:", user.email);
       console.log("  Role:", user.role);
       console.log("  Expected Role:", expectedRole);
       console.log("═══════════════════════════════════════");
@@ -582,7 +644,7 @@ export async function setupAuth(app: Express) {
       // If parent is logging in, check if they should have a lead
       if (user.role === "parent") {
         try {
-          console.log("🔍 Checking for retroactive lead creation for parent:", email);
+          console.log("🔍 Checking for retroactive lead creation for parent");
           
           // Find all encounters for this parent (by email)
           const { data: encounters } = await supabase
@@ -619,7 +681,6 @@ export async function setupAuth(app: Express) {
       (req.session as any).email = authData.user.email;
       (req.session as any).accessToken = authData.session?.access_token;
 
-      console.log("💾 Setting session - Session ID:", req.sessionID);
       console.log("💾 User ID being saved:", authData.user.id);
       console.log("🔍 User role for redirect:", user.role);
 
@@ -651,7 +712,7 @@ export async function setupAuth(app: Express) {
           return res.status(500).json({ message: "Session error" });
         }
         
-        console.log("✅ Session saved successfully for user:", user.email);
+        console.log("✅ Session saved successfully for user");
         
         res.json({
           user: authData.user,
@@ -671,6 +732,9 @@ export async function setupAuth(app: Express) {
 
   // OAuth profile creation endpoint - handles new users signing up via Google OAuth
   app.post("/api/auth/oauth-profile", async (req: Request, res: Response) => {
+      if (isEmergencyDbMode()) {
+        return res.status(503).json({ message: "Social login is temporarily unavailable. Please use your existing password." });
+      }
     try {
       console.log("═══════════════════════════════════════");
       console.log("🔐 OAUTH PROFILE CREATION REQUEST");
@@ -841,18 +905,14 @@ export async function setupAuth(app: Express) {
 
   // Logout endpoint
   app.post("/api/auth/logout", async (req: Request, res: Response) => {
-      console.log("[SESSION] Before logout: req.sessionID:", req.sessionID);
-      console.log("[SESSION] Before logout: req.session:", req.session);
     try {
       const accessToken = (req.session as any).accessToken;
 
-      if (accessToken) {
+      if (accessToken && !isEmergencyDbMode()) {
         await supabase.auth.signOut();
       }
 
       req.session.destroy((err) => {
-          console.log("[SESSION] After logout: req.sessionID:", req.sessionID);
-          console.log("[SESSION] After logout: req.session:", req.session);
         if (err) {
           console.error("Session destruction error:", err);
         }
@@ -866,12 +926,17 @@ export async function setupAuth(app: Express) {
 
   // Get current user endpoint
   app.get("/api/auth/user", async (req: Request, res: Response) => {
-      console.log("[SESSION] Before /api/auth/user: req.sessionID:", req.sessionID);
-      console.log("[SESSION] Before /api/auth/user: req.session:", req.session);
     try {
       console.log("🔍 GET /api/auth/user - Checking authentication...");
-      console.log("🔍 Session check - Session ID:", req.sessionID);
       
+      if (isEmergencyDbMode()) {
+        const userId = (req.session as any)?.userId;
+        if (!userId) return res.status(401).json({ message: "Unauthorized" });
+        const user = await storage.getUser(userId);
+        if (!user) return res.status(401).json({ message: "Unauthorized" });
+        return res.json(user);
+      }
+
       // Prefer explicit Bearer token auth over any backend session cookie.
       let userId: string | undefined = undefined;
       let authSource = "session";
@@ -917,7 +982,7 @@ export async function setupAuth(app: Express) {
         return res.status(401).json({ message: "User not found" });
       }
 
-      console.log("✅ User authenticated:", user.email, "with role:", user.role);
+      console.log("✅ User authenticated", { userId: user.id, role: user.role });
       console.log("📋 Full user object:", JSON.stringify(user, null, 2));
       console.log("📋 User role type:", typeof user.role);
       console.log("📋 User role === 'parent':", user.role === "parent");
@@ -958,6 +1023,15 @@ export const isAuthenticated: RequestHandler = async (
   next: NextFunction,
 ) => {
   try {
+    if (isEmergencyDbMode()) {
+      const userId = (req.session as any)?.userId;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(401).json({ message: "Unauthorized" });
+      (req as any).dbUser = user;
+      return next();
+    }
+
     // First, try session-based auth only when no explicit Bearer token is present.
     if (!(req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) && req.session && (req.session as any).userId) {
       const sessionUserId = (req.session as any).userId;

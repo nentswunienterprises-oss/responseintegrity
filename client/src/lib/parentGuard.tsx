@@ -21,11 +21,11 @@ export function ProtectedParentRoute({ children }: ProtectedParentRouteProps) {
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: isAuthenticated && user?.role === "parent",
     retry: false,
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    refetchInterval: 10000,
+    staleTime: 1000 * 45,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: 60000,
   });
 
   // Show loading state

@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
+import { createHash } from "crypto";
 import { existsSync } from "fs";
 import { createServer, type Server } from "http";
 import { join, resolve } from "path";
@@ -7,7 +8,11 @@ import { storage, supabase, createAffiliateCode } from "./storage";
 import { getTutorOnboardingDocumentDefinition, loadTutorOnboardingDocument, TUTOR_ONBOARDING_DOCUMENTS } from "./tutorOnboardingDocuments";
 import { EGP_ONBOARDING_DOCUMENTS, getEgpOnboardingDocumentDefinition, loadEgpOnboardingDocument } from "./egpOnboardingDocuments";
 import { TD_ONBOARDING_DOCUMENTS, getTdOnboardingDocumentDefinition, loadTdOnboardingDocument } from "./tdOnboardingDocuments";
-import { setupAuth, isAuthenticated } from "./supabaseAuth";
+import { isAuthenticated } from "./supabaseAuth";
+import { pool } from "./db";
+import { isEmergencyDbMode } from "./emergencyMode";
+import { buildEmergencyEnrollmentStatusFilter } from "./emergencyPodQuery";
+import { createEmergencyFileBundle, decryptEmergencyFileBundle } from "./emergencyAuth";
 import { fileURLToPath } from "url";
 import {
   insertPodSchema,
@@ -121,7 +126,10 @@ import {
 } from "@shared/productionLinks";
 import { resolveProductionCloseLineage } from "./productionCloseLineage";
 import { buildProductionEconomy } from "./productionEconomy";
-import { persistResponseIntegrityEvidenceLedgerShadow } from "./responseIntegrityEvidenceLedger";
+import {
+  persistResponseIntegrityEvidenceLedgerShadow,
+  persistResponseIntegrityEvidenceLedgerShadowDirect,
+} from "./responseIntegrityEvidenceLedger";
 import {
   createTrialCase,
   createTrialPlacement,
@@ -454,12 +462,68 @@ async function getTutorOperationalMode(tutorId: string): Promise<TutorTrainingMo
   return getTutorCertificationMode(tutorId);
 }
 
+export function resolveEmergencyTutorMode({
+  assignmentMode,
+  certificationMode,
+}: {
+  assignmentMode?: string | null;
+  certificationMode?: string | null;
+}): TutorTrainingMode {
+  return (String(certificationMode || "").trim() || String(assignmentMode || "training").trim() || "training") as TutorTrainingMode;
+}
+
+export function mapEmergencyTutorParentReport(report: any, structuredData: any = null) {
+  return {
+    id: report.id,
+    tutorId: report.tutor_id,
+    studentId: report.student_id,
+    parentId: report.parent_id,
+    reportType: report.report_type,
+    weekNumber: report.week_number,
+    monthName: report.month_name,
+    summary: report.summary,
+    topicsLearned: report.topics_learned,
+    strengths: report.strengths,
+    areasForGrowth: report.areas_for_growth,
+    bossBattlesCompleted: report.boss_battles_completed,
+    solutionsUnlocked: report.solutions_unlocked,
+    confidenceGrowth: report.confidence_growth,
+    nextSteps: report.next_steps,
+    parentFeedback: report.parent_feedback,
+    parentFeedbackAt: report.parent_feedback_at,
+    sentAt: report.sent_at,
+    createdAt: report.created_at,
+    structuredData,
+  };
+}
+
 function isLiveSchedulingMode(mode: TutorTrainingMode) {
   return mode === "trial" || mode === "certified_live";
 }
 
 async function getTutorCertificationMode(tutorId: string): Promise<TutorTrainingMode> {
   const assignment = await storage.getTutorAssignment(tutorId);
+  if (isEmergencyDbMode()) {
+    if (!assignment?.id) return "training";
+    const certificationResult = await pool.query(
+      `SELECT mode
+         FROM public.tutor_battle_test_statuses
+        WHERE tutor_assignment_id = $1
+        LIMIT 1`,
+      [assignment.id],
+    );
+    const certificationMode = String(certificationResult.rows[0]?.mode || "").trim() as TutorTrainingMode;
+    const assignmentMode = String(assignment.operationalMode || "training").trim() as TutorTrainingMode;
+    if (certificationMode && certificationMode !== assignmentMode) {
+      console.warn("[EMERGENCY MODE DRIFT]", {
+        tutorId,
+        assignmentId: assignment.id,
+        assignmentMode,
+        certificationMode,
+      });
+    }
+    return resolveEmergencyTutorMode({ assignmentMode, certificationMode });
+  }
   if (!assignment?.id) {
     const { data: portableSnapshot } = await supabase
       .from("tutor_portable_certification_snapshots")
@@ -630,8 +694,100 @@ async function rollbackPortableTutorAssignments(assignments: Array<{ id: string 
   }
 }
 
+export function buildEmergencyParentTrialCaseContract(enrollmentLike?: { assignment_lane?: string | null; assignmentLane?: string | null } | null) {
+  const assignmentLane = String(enrollmentLike?.assignment_lane ?? enrollmentLike?.assignmentLane ?? "").trim().toLowerCase();
+  if (assignmentLane === "trial") {
+    return { case: null, unavailable: true };
+  }
+  return { case: null, unavailable: false };
+}
+
+export function buildEmergencyParentStudentStats({
+  sessionCount = 0,
+  commitmentCount = 0,
+  currentStreak = 0,
+  introDiagnosisCount = 0,
+  trainingSessionCount = 0,
+  bossBattlesCompleted = 0,
+  solutionsUnlocked = 0,
+}: {
+  sessionCount?: number;
+  commitmentCount?: number;
+  currentStreak?: number;
+  introDiagnosisCount?: number;
+  trainingSessionCount?: number;
+  bossBattlesCompleted?: number;
+  solutionsUnlocked?: number;
+} = {}) {
+  return {
+    introDiagnosisCompleted: Number(introDiagnosisCount || 0),
+    bossBattlesCompleted: Number(bossBattlesCompleted || 0),
+    solutionsUnlocked: Number(solutionsUnlocked || 0),
+    confidenceGrowth: 50,
+    sessionsCompleted: Number(sessionCount || 0),
+    trainingSessionsCompleted: Number(trainingSessionCount || 0),
+    currentStreak: Number(currentStreak || 0),
+    totalCommitments: Number(commitmentCount || 0),
+  };
+}
+
+export function mapEmergencyNotification(row: any) {
+  return {
+    id: row.id,
+    recipientUserId: row.recipient_user_id,
+    actorUserId: row.actor_user_id,
+    channel: row.channel || "informational",
+    title: row.title,
+    message: row.message,
+    link: row.link,
+    entityType: row.entity_type,
+    entityId: row.entity_id,
+    isRead: row.is_read,
+    readAt: row.read_at,
+    createdAt: row.created_at,
+  };
+}
+
+export function getEmergencyBroadcastVisibilities(role: string | null | undefined): string[] {
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  if (normalizedRole === "tutor") return ["all", "tutors"];
+  if (normalizedRole === "parent") return ["all", "parents"];
+  if (normalizedRole === "student") return ["all", "students"];
+  if (normalizedRole === "td") return ["all", "tds"];
+  if (normalizedRole === "coo") return ["all", "ceo"];
+  if (normalizedRole === "affiliate") return ["all", "affiliates"];
+  if (normalizedRole === "od") return ["all", "od"];
+  if (normalizedRole === "hr") return ["all", "hr"];
+  return ["all"];
+}
+
+export function mapEmergencyBroadcast(row: any) {
+  return {
+    id: row.id,
+    subject: row.subject || "(No Subject)",
+    message: row.message,
+    senderRole: row.sender_role,
+    visibility: row.visibility,
+    channel: row.channel,
+    createdAt: row.created_at,
+  };
+}
+
 async function getParentAssignedTutorOperationalMode(parentId: string): Promise<TutorTrainingMode> {
   let assignedTutorId: string | null = null;
+
+  if (isEmergencyDbMode()) {
+    const result = await pool.query(
+      `SELECT ta.operational_mode
+         FROM public.parent_enrollments pe
+        JOIN public.tutor_assignments ta ON ta.tutor_id = pe.assigned_tutor_id::text
+        WHERE pe.user_id = $1
+        ORDER BY pe.updated_at DESC
+        LIMIT 1`,
+      [parentId],
+    );
+    return (result.rows[0]?.operational_mode as TutorTrainingMode | undefined) || "training";
+  }
 
   const directEnrollmentResult = await supabase
     .from("parent_enrollments")
@@ -811,6 +967,26 @@ async function loadTutorAssignedEnrollments(
   const sandboxOnly = !!options?.sandboxOnly;
   const ordered = !!options?.ordered;
   const includeAnyAssignedState = !!options?.includeAnyAssignedState;
+
+  if (isEmergencyDbMode()) {
+    const values: unknown[] = [tutorId];
+    const conditions = ["assigned_tutor_id = $1"];
+    if (!includeAnyAssignedState) {
+      values.push(ACTIVE_PARENT_ENROLLMENT_STATUSES);
+      conditions.push(buildEmergencyEnrollmentStatusFilter(values.length));
+    }
+    if (sandboxOnly) {
+      values.push(true);
+      conditions.push(`is_sandbox_account = $${values.length}`);
+    }
+    const result = await pool.query(
+      `SELECT * FROM public.parent_enrollments
+        WHERE ${conditions.join(" AND ")}
+        ${ordered ? "ORDER BY updated_at DESC" : ""}`,
+      values,
+    );
+    return { data: result.rows, error: null };
+  }
 
   let query = supabase
     .from("parent_enrollments")
@@ -2387,6 +2563,27 @@ async function getMonthlySessionQuotaSnapshot(options: {
   if (!monthStartIso) return null;
   const monthKey = toMonthKey(monthStartIso);
 
+  if (isEmergencyDbMode()) {
+    const isSandbox = options.isSandboxContext === true;
+    const result = await pool.query(
+      `SELECT *
+         FROM public.membership_months
+        WHERE parent_id = $1 AND student_id = $2
+          AND month_key = $3 AND is_sandbox = $4
+        LIMIT 1`,
+      [options.parentId, options.studentId, monthKey, isSandbox],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      ...row,
+      session_quota: Number(row.session_quota ?? DEFAULT_SERVICE_PACKAGE.sessionsPerMonth),
+      sessions_used: Number(row.sessions_used ?? 0),
+      sessions_remaining: Number(row.sessions_remaining ?? 0),
+      status: String(row.status || "active"),
+    };
+  }
+
   // detect whether this parent/student should use sandbox membership row
   let isSandboxContext = options.isSandboxContext;
   if (typeof isSandboxContext !== "boolean") {
@@ -3427,6 +3624,25 @@ async function resolveTutorScheduledSession(
   kind: "intro" | "handover" | "training",
   sessionId?: string | null
 ) {
+  if (isEmergencyDbMode()) {
+    const values: unknown[] = [tutorId, studentId, kind];
+    let query = `SELECT ${SCHEDULED_SESSION_SELECT}
+                   FROM public.scheduled_sessions
+                  WHERE tutor_id = $1 AND student_id = $2 AND type = $3`;
+    if (sessionId) {
+      values.push(sessionId);
+      query += ` AND id = $${values.length}`;
+    }
+    query += " ORDER BY scheduled_time DESC, created_at DESC";
+    if (!sessionId) query += " LIMIT 20";
+    const result = await pool.query(query, values);
+    if (sessionId) return { session: result.rows[0] || null, error: null };
+    const preferred = result.rows.find((row: any) => getSessionLaunchState(row, kind).isLive)
+      || result.rows.find((row: any) => getSessionLaunchState(row, kind).isImminent)
+      || result.rows[0]
+      || null;
+    return { session: preferred, error: null };
+  }
   let query = supabase
     .from("scheduled_sessions")
     .select(SCHEDULED_SESSION_SELECT)
@@ -3461,6 +3677,19 @@ async function resolveTutorScheduledSession(
 }
 
 async function getPendingTrainingConfirmationSession(tutorId: string, studentId: string) {
+  if (isEmergencyDbMode()) {
+    const result = await pool.query(
+      `SELECT ${SCHEDULED_SESSION_SELECT}
+         FROM public.scheduled_sessions
+        WHERE tutor_id = $1 AND student_id = $2
+          AND type = 'training'
+          AND status = 'pending_parent_confirmation'
+        ORDER BY scheduled_time ASC, created_at DESC
+        LIMIT 1`,
+      [tutorId, studentId],
+    );
+    return { session: result.rows[0] || null, error: null };
+  }
   const pendingSessionResult: any = await supabase
     .from("scheduled_sessions")
     .select(SCHEDULED_SESSION_SELECT)
@@ -3480,7 +3709,9 @@ async function getPendingTrainingConfirmationSession(tutorId: string, studentId:
 
 export async function registerRoutes(app: Express): Promise<Server> {
           const persistEvidenceLedgerShadow = async (input: EvidenceLedgerProjectionInput) => {
-            const result = await persistResponseIntegrityEvidenceLedgerShadow(supabase as any, input);
+            const result = isEmergencyDbMode()
+              ? await persistResponseIntegrityEvidenceLedgerShadowDirect(pool, input)
+              : await persistResponseIntegrityEvidenceLedgerShadow(supabase as any, input);
             const logContext = {
               sourceDrillId: input.sourceDrillId,
               drillType: input.drillType,
@@ -5523,6 +5754,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
 
           const isTutorAssignmentAcceptedForStudent = async (student: any, tutorId: string) => {
+            if (isEmergencyDbMode()) {
+              const enrollmentId = String(
+                (student as any)?.parentEnrollmentId || (student as any)?.parent_enrollment_id || ""
+              ).trim();
+              if (!enrollmentId) return true;
+              const enrollmentResult = await pool.query(
+                `SELECT status
+                   FROM public.parent_enrollments
+                  WHERE id = $1 AND assigned_tutor_id = $2
+                  LIMIT 1`,
+                [enrollmentId, tutorId],
+              );
+              return enrollmentResult.rows[0]?.status !== "awaiting_tutor_acceptance";
+            }
             let enrollmentForStudent: { status: string } | null = null;
 
             const explicitEnrollmentId = String(
@@ -6099,14 +6344,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
 
               if (normalizedScheduledSessionId) {
-                const explicitScheduledSessionResult: any = await supabase
-                  .from("scheduled_sessions")
-                  .select(SCHEDULED_SESSION_SELECT)
-                  .eq("id", normalizedScheduledSessionId)
-                  .eq("tutor_id", tutorId)
-                  .eq("student_id", studentId)
-                  .in("type", ["intro", "training"])
-                  .maybeSingle();
+                const explicitScheduledSessionResult = isEmergencyDbMode()
+                  ? { data: (await pool.query(
+                      `SELECT ${SCHEDULED_SESSION_SELECT}
+                         FROM public.scheduled_sessions
+                        WHERE id = $1 AND tutor_id = $2 AND student_id = $3
+                          AND type IN ('intro', 'training')
+                        LIMIT 1`,
+                      [normalizedScheduledSessionId, tutorId, studentId],
+                    )).rows[0] || null, error: null }
+                  : await supabase
+                      .from("scheduled_sessions")
+                      .select(SCHEDULED_SESSION_SELECT)
+                      .eq("id", normalizedScheduledSessionId)
+                      .eq("tutor_id", tutorId)
+                      .eq("student_id", studentId)
+                      .in("type", ["intro", "training"])
+                      .maybeSingle();
                 const { data: explicitScheduledSession, error: explicitScheduledSessionError } = explicitScheduledSessionResult;
 
                 if (explicitScheduledSessionError) {
@@ -6199,29 +6453,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
 
               // Store drill results in intro_session_drills table
-              const { data: inserted, error } = await supabase
-                .from("intro_session_drills")
-                .insert({
-                  id,
-                  student_id: studentId,
-                  tutor_id: tutorId,
-                  drill: JSON.stringify({
-                    introTopic: normalizedIntroTopic,
-                    phase: diagnosisSummary.phase,
-                    startingPhase: isAdaptiveDiagnosis ? startingPhase : drillPhase,
-                    drillType: "diagnosis",
-                    diagnosisMode: isAdaptiveDiagnosis ? "adaptive" : "legacy",
-                    scheduledSessionId: diagnosisScheduledSessionId,
-                    sessionContextKind: diagnosisSessionKind,
-                    sets: isAdaptiveDiagnosis ? adaptiveBlocks : drillSets,
-                    summary: diagnosisSummary,
-                    responseSnapshot,
-                  }),
-                  scheduled_session_id: diagnosisScheduledSessionId,
-                  submitted_at: new Date().toISOString(),
-                })
-                .select()
-                .single();
+              const drillPayload = JSON.stringify({
+                introTopic: normalizedIntroTopic,
+                phase: diagnosisSummary.phase,
+                startingPhase: isAdaptiveDiagnosis ? startingPhase : drillPhase,
+                drillType: "diagnosis",
+                diagnosisMode: isAdaptiveDiagnosis ? "adaptive" : "legacy",
+                scheduledSessionId: diagnosisScheduledSessionId,
+                sessionContextKind: diagnosisSessionKind,
+                sets: isAdaptiveDiagnosis ? adaptiveBlocks : drillSets,
+                summary: diagnosisSummary,
+                responseSnapshot,
+              });
+              const submittedAt = new Date().toISOString();
+              const inserted = isEmergencyDbMode()
+                ? (await pool.query(
+                    `INSERT INTO public.intro_session_drills
+                      (id, student_id, tutor_id, drill, scheduled_session_id, submitted_at)
+                     VALUES ($1, $2, $3, $4, $5, $6)
+                     RETURNING *`,
+                    [id, studentId, tutorId, drillPayload, diagnosisScheduledSessionId, submittedAt],
+                  )).rows[0]
+                : (await supabase
+                    .from("intro_session_drills")
+                    .insert({
+                      id,
+                      student_id: studentId,
+                      tutor_id: tutorId,
+                      drill: drillPayload,
+                      scheduled_session_id: diagnosisScheduledSessionId,
+                      submitted_at: submittedAt,
+                    })
+                    .select()
+                    .single()).data;
+              const error = inserted ? null : new Error("Failed to store drill results");
               if (error) {
                 console.error("Error inserting intro session drill:", error);
                 return res.status(500).json({ message: "Failed to store drill results" });
@@ -6376,16 +6641,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
 
               if (diagnosisSessionKind === "intro" && scheduledSession) {
-                await supabase
-                  .from("scheduled_sessions")
-                  .update({
-                    status: "completed",
-                    attendance_status: "both_joined",
-                    recording_status: "manual_not_tracked",
-                    transcript_status: "manual_not_tracked",
-                    updated_at: new Date().toISOString(),
-                  })
-                  .eq("id", scheduledSession.id);
+                if (isEmergencyDbMode()) {
+                  await pool.query(
+                    `UPDATE public.scheduled_sessions
+                        SET status = 'completed', attendance_status = 'both_joined',
+                            recording_status = 'manual_not_tracked',
+                            transcript_status = 'manual_not_tracked', updated_at = NOW()
+                      WHERE id = $1 AND tutor_id = $2`,
+                    [scheduledSession.id, tutorId],
+                  );
+                } else {
+                  await supabase
+                    .from("scheduled_sessions")
+                    .update({
+                      status: "completed",
+                      attendance_status: "both_joined",
+                      recording_status: "manual_not_tracked",
+                      transcript_status: "manual_not_tracked",
+                      updated_at: new Date().toISOString(),
+                    })
+                    .eq("id", scheduledSession.id);
+                }
               }
 
               res.json({
@@ -6719,6 +6995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           app.post("/api/tutor/training-session-drill", isAuthenticated, requireRole(["tutor"]), async (req: Request, res: Response) => {
+            let emergencyDbClient: any = null;
             try {
               const tutorId = (req as any).dbUser.id;
               const { studentId, sessionDrills, scheduledSessionId } = req.body;
@@ -6740,7 +7017,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const operationalMode = await getTutorOperationalMode(tutorId);
               let scheduledSession: any = null;
 
-              if (isLiveSchedulingMode(operationalMode) || operationalMode === "training") {
+              if (isLiveSchedulingMode(operationalMode) || operationalMode === "training" || operationalMode === "sandbox") {
                 const { session: resolvedScheduledSession, error: scheduledSessionError } = await resolveTutorScheduledSession(
                   tutorId,
                   studentId,
@@ -6754,7 +7031,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   return res.status(400).json({ message: "A Response Integrity training lesson must be attached before drill submission." });
                 }
 
-                if (operationalMode === "training") {
+                if (operationalMode === "training" || operationalMode === "sandbox") {
                   const status = String(resolvedScheduledSession.status || "").trim();
                   const hasConfirmedSchedule =
                     ["confirmed", "ready", "live"].includes(status) &&
@@ -6776,6 +7053,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 scheduledSession = resolvedScheduledSession;
               }
 
+              emergencyDbClient = isEmergencyDbMode() ? await pool.connect() : null;
+              if (emergencyDbClient) await emergencyDbClient.query("BEGIN");
+              const pendingEmergencyLedgerInputs: EvidenceLedgerProjectionInput[] = [];
+
               const conceptMastery: any =
                 student.conceptMastery && typeof student.conceptMastery === "object"
                   ? { ...(student.conceptMastery as any) }
@@ -6794,21 +7075,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const drillResults = [];
               const scheduledSessionRecordId = scheduledSession?.id || null;
 
-              const { data: trainingRun } = await supabase
-                .from("training_session_runs")
-                .insert({
-                  id: sessionId,
-                  scheduled_session_id: scheduledSessionRecordId,
-                  student_id: studentId,
-                  tutor_id: tutorId,
-                  topic_count: sessionDrills.length,
-                  started_at: sessionStartTime,
-                  status: "in_progress",
-                  created_at: sessionStartTime,
-                  updated_at: sessionStartTime,
-                })
-                .select()
-                .single();
+              const trainingRun = isEmergencyDbMode()
+                ? (await emergencyDbClient!.query(
+                    `INSERT INTO public.training_session_runs
+                      (id, scheduled_session_id, student_id, tutor_id, topic_count, started_at, status, created_at, updated_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, 'in_progress', $6, $6)
+                     RETURNING *`,
+                    [sessionId, scheduledSessionRecordId, studentId, tutorId, sessionDrills.length, sessionStartTime],
+                  )).rows[0]
+                : (await supabase
+                    .from("training_session_runs")
+                    .insert({
+                      id: sessionId,
+                      scheduled_session_id: scheduledSessionRecordId,
+                      student_id: studentId,
+                      tutor_id: tutorId,
+                      topic_count: sessionDrills.length,
+                      started_at: sessionStartTime,
+                      status: "in_progress",
+                      created_at: sessionStartTime,
+                      updated_at: sessionStartTime,
+                    })
+                    .select()
+                    .single()).data;
 
               // Process each drill in the session
               for (const drillData of sessionDrills) {
@@ -6818,18 +7107,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const normalizedTopic = String(trainingTopic || "").trim();
 
                 if (drillSets.length === 0) {
-                  return res.status(400).json({ message: `Missing drill data for topic ${normalizedTopic}` });
+                  throw new Error(`Missing drill data for topic ${normalizedTopic}`);
                 }
                 if (!observedPhase) {
-                  return res.status(400).json({ message: `Invalid or missing phase for topic ${normalizedTopic}` });
+                  throw new Error(`Invalid or missing phase for topic ${normalizedTopic}`);
                 }
                 if (!normalizedTopic) {
-                  return res.status(400).json({ message: "Training topic is required for each drill" });
+                  throw new Error("Training topic is required for each drill");
                 }
 
                 const drillValidationError = validateDrillStructure("training", observedPhase, drillSets);
                 if (drillValidationError) {
-                  return res.status(400).json({ message: `Validation error for ${normalizedTopic}: ${drillValidationError}` });
+                  throw new Error(`Validation error for ${normalizedTopic}: ${drillValidationError}`);
                 }
 
                 // Get current topic state
@@ -6883,36 +7172,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     transitionReason: trainingSummary.transitionReason,
                   },
                 });
-                const { data: inserted, error } = await supabase
-                  .from("intro_session_drills")
-                  .insert({
-                    id: drillId,
-                    student_id: studentId,
-                    tutor_id: tutorId,
-                    drill: JSON.stringify({
-                      trainingTopic: normalizedTopic,
-                      phase: trainingSummary.observedPhase,
-                      previousStability: trainingSummary.previousStability,
-                      drillType: "training",
-                      sets: drillSets,
-                      summary: trainingSummary,
-                      responseSnapshot,
-                      sessionId: sessionId,
-                      scheduledSessionId: scheduledSessionRecordId,
-                    }),
-                    scheduled_session_id: scheduledSessionRecordId,
-                    training_session_run_id: trainingRun?.id || sessionId,
-                    submitted_at: sessionStartTime,
-                  })
-                  .select()
-                  .single();
+                const drillPayload = {
+                  trainingTopic: normalizedTopic,
+                  phase: trainingSummary.observedPhase,
+                  previousStability: trainingSummary.previousStability,
+                  drillType: "training",
+                  sets: drillSets,
+                  summary: trainingSummary,
+                  responseSnapshot,
+                  sessionId: sessionId,
+                  scheduledSessionId: scheduledSessionRecordId,
+                };
+                const inserted = isEmergencyDbMode()
+                  ? (await emergencyDbClient!.query(
+                      `INSERT INTO public.intro_session_drills
+                        (id, student_id, tutor_id, drill, scheduled_session_id, training_session_run_id, submitted_at)
+                       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)
+                       RETURNING *`,
+                      [drillId, studentId, tutorId, JSON.stringify(drillPayload), scheduledSessionRecordId, trainingRun?.id || sessionId, sessionStartTime],
+                    )).rows[0]
+                  : (await supabase
+                      .from("intro_session_drills")
+                      .insert({
+                        id: drillId,
+                        student_id: studentId,
+                        tutor_id: tutorId,
+                        drill: JSON.stringify(drillPayload),
+                        scheduled_session_id: scheduledSessionRecordId,
+                        training_session_run_id: trainingRun?.id || sessionId,
+                        submitted_at: sessionStartTime,
+                      })
+                      .select()
+                      .single()).data;
+                const error = inserted ? null : new Error("Training drill insert returned no row");
 
                 if (error) {
-                  console.error("Error inserting training session drill:", error);
-                  return res.status(500).json({ message: `Failed to store drill for ${normalizedTopic}` });
+                  throw new Error(`Failed to store drill for ${normalizedTopic}`);
                 }
 
-                await persistEvidenceLedgerShadow({
+                const ledgerInput: EvidenceLedgerProjectionInput = {
                   sourceDrillId: String(inserted?.id || drillId),
                   studentId: String(studentId),
                   tutorId: String(tutorId),
@@ -6930,7 +7228,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   transitionReason: trainingSummary.transitionReason,
                   observedAt: String(inserted?.submitted_at || sessionStartTime),
                   sets: drillSets as any,
-                });
+                };
+                if (isEmergencyDbMode()) {
+                  pendingEmergencyLedgerInputs.push(ledgerInput);
+                } else {
+                  await persistEvidenceLedgerShadow(ledgerInput);
+                }
 
                 // Update topic state
                 const nowIso = new Date().toISOString();
@@ -7012,16 +7315,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
               topicConditioningStore.lastUpdatedAt = new Date().toISOString();
               conceptMastery.topicConditioning = topicConditioningStore;
 
-              await storage.updateStudent(studentId, { conceptMastery });
+              if (isEmergencyDbMode()) {
+                await emergencyDbClient!.query(
+                  `UPDATE public.students
+                      SET concept_mastery = $1
+                    WHERE id = $2 AND tutor_id = $3`,
+                  [JSON.stringify(conceptMastery), studentId, tutorId],
+                );
+              } else {
+                await storage.updateStudent(studentId, { conceptMastery });
+              }
 
               // Store session summary
               const sessionDuration = 0; // Could be calculated if start/end times provided
               const topicsTouched = Array.from(new Set(sessionDrills.map(d => d.trainingTopic)));
 
-              try {
-                await maybeAutoSendDeterministicReports(studentId, tutorId);
-              } catch (autoReportError) {
-                console.error("Auto report generation failed after training session:", autoReportError);
+              if (!isEmergencyDbMode()) {
+                try {
+                  await maybeAutoSendDeterministicReports(studentId, tutorId);
+                } catch (autoReportError) {
+                  console.error("Auto report generation failed after training session:", autoReportError);
+                }
               }
 
               const scoring = drillResults.flatMap((result) =>
@@ -7031,26 +7345,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
               );
 
               if (scheduledSession) {
-                await supabase
-                  .from("scheduled_sessions")
-                  .update({
-                    status: "completed",
-                    attendance_status: "both_joined",
-                    recording_status: "manual_not_tracked",
-                    transcript_status: "manual_not_tracked",
-                    updated_at: new Date().toISOString(),
-                  })
-                  .eq("id", scheduledSession.id);
+                if (isEmergencyDbMode()) {
+                  await emergencyDbClient!.query(
+                    `UPDATE public.scheduled_sessions
+                        SET status = 'completed', attendance_status = 'both_joined',
+                            recording_status = 'manual_not_tracked', transcript_status = 'manual_not_tracked', updated_at = NOW()
+                      WHERE id = $1 AND tutor_id = $2 AND student_id = $3`,
+                    [scheduledSession.id, tutorId, studentId],
+                  );
+                } else {
+                  await supabase
+                    .from("scheduled_sessions")
+                    .update({
+                      status: "completed",
+                      attendance_status: "both_joined",
+                      recording_status: "manual_not_tracked",
+                      transcript_status: "manual_not_tracked",
+                      updated_at: new Date().toISOString(),
+                    })
+                    .eq("id", scheduledSession.id);
+                }
               }
 
-              await supabase
-                .from("training_session_runs")
-                .update({
-                  status: "submitted",
-                  submitted_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("id", trainingRun?.id || sessionId);
+              if (isEmergencyDbMode()) {
+                await emergencyDbClient!.query(
+                  `UPDATE public.training_session_runs
+                      SET status = 'submitted', submitted_at = NOW(), updated_at = NOW()
+                    WHERE id = $1 AND student_id = $2 AND tutor_id = $3`,
+                  [trainingRun?.id || sessionId, studentId, tutorId],
+                );
+              } else {
+                await supabase
+                  .from("training_session_runs")
+                  .update({
+                    status: "submitted",
+                    submitted_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", trainingRun?.id || sessionId);
+              }
 
               let parentId = String(
                 scheduledSession?.parent_id ||
@@ -7058,7 +7391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   (student as any)?.parent_id ||
                   "",
               ).trim();
-              if (!parentId) {
+              if (!parentId && !isEmergencyDbMode()) {
                 const { data: linkedStudent } = await supabase
                   .from("students")
                   .select("parent_id")
@@ -7068,12 +7401,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
 
               let monthlyQuota = null;
-              if (parentId) {
+              if (parentId && !isEmergencyDbMode()) {
                 monthlyQuota = await getMonthlySessionQuotaSnapshot({
                   parentId,
                   studentId: String(studentId),
                   referenceIso: new Date().toISOString(),
                 });
+              }
+
+              if (emergencyDbClient) {
+                await emergencyDbClient.query("COMMIT");
+                emergencyDbClient.release();
+                emergencyDbClient = null;
+                for (const ledgerInput of pendingEmergencyLedgerInputs) {
+                  const projection = await persistEvidenceLedgerShadow(ledgerInput);
+                  if (projection.status === "persistence_failed" || projection.status === "projection_invalid") {
+                    console.warn("[RI_EVIDENCE_LEDGER_SHADOW_DEGRADED]", {
+                      sourceDrillId: ledgerInput.sourceDrillId,
+                      sessionGroupId: ledgerInput.sessionGroupId,
+                      status: projection.status,
+                    });
+                  }
+                }
               }
 
               res.json({
@@ -7087,6 +7436,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 scoring,
               });
             } catch (err) {
+              if (emergencyDbClient) {
+                try {
+                  await emergencyDbClient.query("ROLLBACK");
+                } finally {
+                  emergencyDbClient.release();
+                  emergencyDbClient = null;
+                }
+              }
               console.error("Exception in training session drill submission:", err);
               res.status(500).json({ message: "Internal server error" });
             }
@@ -7095,8 +7452,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         app.get("/api/tutor/students/:studentId/topic-conditioning-activations", isAuthenticated, requireRole(["tutor"]), async (req: Request, res: Response) => {
           try {
             const { studentId } = req.params;
+            const tutorId = (req as any).dbUser.id;
             if (!studentId) {
               return res.status(400).json({ message: "Missing studentId" });
+            }
+            const student = await storage.getStudent(studentId);
+            if (!student || String(student.tutorId) !== String(tutorId)) {
+              return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+            }
+            if (isEmergencyDbMode()) {
+              const result = await pool.query(
+                `SELECT id, student_id, tutor_id, topic, reason, created_at
+                   FROM public.topic_conditioning_activations
+                  WHERE student_id = $1 AND tutor_id = $2
+                  ORDER BY created_at DESC`,
+                [studentId, tutorId],
+              );
+              return res.json({ activations: result.rows });
             }
             const { data, error } = await supabase
               .from("topic_conditioning_activations")
@@ -7494,28 +7866,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Debug endpoint for remote header/session inspection
+  // Debug endpoint retained without exposing session or cookie contents.
   app.get("/api/debug/auth-info", (req: Request, res: Response) => {
-    const authHeader = req.headers.authorization || null;
-    const sessionId = req.sessionID || null;
-    const session = req.session || null;
-    console.log("[DEBUG] /api/debug/auth-info");
-    console.log("  Authorization header:", authHeader);
-    console.log("  Session ID:", sessionId);
-    console.log("  Session:", session);
-    console.log("  Cookies:", req.headers.cookie || null);
-    console.log("  User-Agent:", req.headers["user-agent"] || null);
-    console.log("  Origin:", req.headers.origin || null);
-    console.log("  Referer:", req.headers.referer || null);
-    res.json({
-          authorization: authHeader,
-          sessionId,
-          session,
-          cookies: req.headers.cookie || null,
-          userAgent: req.headers["user-agent"] || null,
-          origin: req.headers.origin || null,
-          referer: req.headers.referer || null
-        });
+    res.json({ authenticated: Boolean((req as any).dbUser), userId: (req as any).dbUser?.id || null });
       });
     // Get intro session details for a student (for tutors)
     app.get(
@@ -7524,7 +7877,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       requireRole(["tutor"]),
       async (req: Request, res: Response) => {
         try {
-          console.log('TEST LOG: intro-session-details route hit');
           const { studentId } = req.params;
           const dbUser = (req as any).dbUser;
           // Verify student exists and belongs to this tutor
@@ -7534,6 +7886,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           if (student.tutorId !== dbUser.id) {
             return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+          }
+          if (isEmergencyDbMode()) {
+            const studentWorkflow = ((student.personalProfile as any) || {}).workflow || {};
+            const sessionType = studentWorkflow.handoverRequiredAt && !studentWorkflow.handoverCompletedAt
+              ? "handover"
+              : "intro";
+            const sessionResult = await pool.query(
+              `SELECT ${SCHEDULED_SESSION_SELECT}
+                 FROM public.scheduled_sessions
+                WHERE tutor_id = $1 AND student_id = $2 AND type = $3
+                ORDER BY created_at DESC
+                LIMIT 1`,
+              [dbUser.id, studentId, sessionType],
+            );
+            let session = sessionResult.rows[0] || null;
+            if (!session && (student as any).parentId) {
+              const fallbackResult = await pool.query(
+                `SELECT ${SCHEDULED_SESSION_SELECT}
+                   FROM public.scheduled_sessions
+                  WHERE tutor_id = $1 AND parent_id = $2 AND type = $3
+                  ORDER BY created_at DESC
+                  LIMIT 1`,
+                [dbUser.id, (student as any).parentId, sessionType],
+              );
+              session = fallbackResult.rows[0] || null;
+            }
+            if (!session) return res.json({ status: "not_scheduled" });
+            return res.json({
+              id: session.id,
+              scheduled_time: session.scheduled_time,
+              status: getEffectiveScheduledSessionStatus(session),
+              parent_confirmed: session.parent_confirmed,
+              tutor_confirmed: session.tutor_confirmed,
+              created_at: session.created_at,
+              updated_at: session.updated_at,
+              debug: {
+                tutor_id: session.tutor_id,
+                student_id: session.student_id,
+                parent_id: session.parent_id,
+                type: session.type,
+              },
+            });
           }
           const studentWorkflow = ((student.personalProfile as any) || {}).workflow || {};
           const sessionType = studentWorkflow.handoverRequiredAt && !studentWorkflow.handoverCompletedAt
@@ -7665,8 +8059,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     );
   // ...existing code...
-  await setupAuth(app);
-
   // Parent proposes an intro session (after auth setup)
   app.post("/api/parent/intro-session/propose", isAuthenticated, async (req: Request, res: Response) => {
     try {
@@ -7859,6 +8251,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const userId = (req as any).dbUser.id;
         const operationalMode = await getParentAssignedTutorOperationalMode(userId);
+
+        if (isEmergencyDbMode()) {
+          const enrollmentResult = await pool.query(
+            `SELECT id, user_id, assigned_tutor_id, status, current_step, student_full_name, parent_email, student_grade
+               FROM public.parent_enrollments
+              WHERE user_id = $1
+              ORDER BY updated_at DESC
+              LIMIT 1`,
+            [userId],
+          );
+          const enrollmentData = enrollmentResult.rows[0] || null;
+
+          if (!enrollmentData || !enrollmentData.assigned_tutor_id) {
+            return res.json({ status: "not_scheduled", operationalMode });
+          }
+
+          const sessionType = getEnrollmentSessionType(enrollmentData);
+          const sessionLabel = getSessionDisplayLabel(sessionType);
+          const sessionResult = await pool.query(
+            `SELECT id, status, type, scheduled_time, scheduled_end, timezone, parent_confirmed, tutor_confirmed, parent_id, tutor_id
+               FROM public.scheduled_sessions
+              WHERE parent_id = $1 AND tutor_id = $2 AND type = $3
+              ORDER BY updated_at DESC, created_at DESC
+              LIMIT 1`,
+            [userId, enrollmentData.assigned_tutor_id, sessionType],
+          );
+          const session = sessionResult.rows[0] || null;
+
+          if (!session) {
+            return res.json({
+              status: "not_scheduled",
+              operationalMode,
+              introCompleted: false,
+              type: sessionType,
+              sessionLabel,
+            });
+          }
+
+          return res.json({
+            id: session.id,
+            status: getEffectiveScheduledSessionStatus(session),
+            operationalMode,
+            type: session.type,
+            sessionLabel,
+            scheduled_time: session.scheduled_time,
+            scheduled_end: session.scheduled_end,
+            timezone: session.timezone,
+            parent_confirmed: session.parent_confirmed,
+            tutor_confirmed: session.tutor_confirmed,
+            introCompleted: false,
+            debug: {
+              parent_id: session.parent_id,
+              tutor_id: session.tutor_id,
+              type: session.type,
+              session_status: session.status,
+            },
+          });
+        }
 
         const { data: enrollmentData, error: enrollmentError } = await selectLatestParentEnrollment({
           parentId: userId,
@@ -8441,6 +8891,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const tutorId = (req as any).dbUser.id;
           const dbUser = (req as any).dbUser;
+          if (isEmergencyDbMode()) {
+            const [assignment, students, sessions, enrollments, tutorApplications] = await Promise.all([
+              storage.getTutorAssignment(tutorId),
+              storage.getStudentsByTutor(tutorId),
+              getTutorSessionFeed(tutorId),
+              pool.query(
+                `SELECT status FROM public.parent_enrollments
+                  WHERE assigned_tutor_id = $1
+                  ORDER BY updated_at DESC
+                  LIMIT 1`,
+                [tutorId],
+              ),
+              storage.getTutorApplicationsByUser(tutorId),
+            ]);
+            const latestApp = tutorApplications[0] || null;
+            return res.json({
+              assignment,
+              students,
+              sessions,
+              profile: null,
+              province: null,
+              role: dbUser?.role || "tutor",
+              enrollmentStatus: enrollments.rows[0]?.status || null,
+              verificationStatus: Boolean(dbUser?.verified),
+              applicationStatus: latestApp ? deriveTutorGatewayApplicationStatus(latestApp) : { status: "not_applied" },
+            });
+          }
           // Fetch assignment
           const assignment = await storage.getTutorAssignment(tutorId);
           // Fetch students
@@ -8752,6 +9229,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const tutorId = (req as any).dbUser.id;
+        if (isEmergencyDbMode()) {
+          const assignment = await storage.getTutorAssignment(tutorId);
+          const operationalMode = await getTutorOperationalMode(tutorId);
+          const students = await storage.getStudentsByTutor(tutorId);
+          const studentIds = students.map((student: any) => student.id).filter(Boolean);
+          const progressByStudent = new Map<string, number>();
+          if (studentIds.length > 0) {
+            const trainingRuns = await pool.query(
+              `SELECT student_id, scheduled_session_id, id, status
+                 FROM public.training_session_runs
+                WHERE tutor_id = $1 AND student_id = ANY($2::uuid[])
+                  AND status IN ('submitted', 'completed')`,
+              [tutorId, studentIds],
+            );
+            const seen = new Set<string>();
+            trainingRuns.rows.forEach((row: any) => {
+              const studentId = String(row.student_id || "");
+              const key = `${studentId}:${row.scheduled_session_id || row.id}`;
+              if (studentId && !seen.has(key)) {
+                seen.add(key);
+                progressByStudent.set(studentId, (progressByStudent.get(studentId) || 0) + 1);
+              }
+            });
+          }
+          console.log("[EMERGENCY POD]", {
+            userId: tutorId,
+            assignmentFound: Boolean(assignment),
+            podId: assignment?.podId || null,
+            podFound: Boolean(assignment?.pod),
+            studentCount: students.length,
+            responseAssignment: Boolean(assignment),
+          });
+          if (!assignment) return res.json({ assignment: null, students: [] });
+
+          const enrollments = (await loadTutorAssignedEnrollments(tutorId, { ordered: true })).data || [];
+          const enrollmentByStudentId = new Map<string, any>();
+          const enrollmentByName = new Map<string, any>();
+          enrollments.forEach((enrollment: any) => {
+            if (enrollment.assigned_student_id) enrollmentByStudentId.set(String(enrollment.assigned_student_id), enrollment);
+            if (enrollment.student_full_name) enrollmentByName.set(String(enrollment.student_full_name).trim().toLowerCase(), enrollment);
+          });
+
+          return res.json({
+            assignment: assignment ? { ...assignment, operationalMode } : assignment,
+            students: students.map((student: any) => {
+              const enrollment = enrollmentByStudentId.get(String(student.id)) || enrollmentByName.get(String(student.name || "").trim().toLowerCase()) || null;
+              return {
+                ...student,
+                sessionProgress: progressByStudent.get(String(student.id)) || 0,
+                enrollmentId: enrollment?.id || student.parentEnrollmentId || null,
+                parentInfo: enrollment,
+                pendingTutorAcceptance: enrollment?.status === "awaiting_tutor_acceptance" &&
+                  !Boolean((student.personalProfile as any)?.workflow?.assignmentAcceptedAt),
+              };
+            }),
+          });
+        }
         const assignment = await storage.getTutorAssignment(tutorId);
         if (!assignment) {
           return res.json({ assignment: null, students: [] });
@@ -8922,6 +9456,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 )
               );
 
+              let proposalSnapshot: any = null;
+              let proposalAcceptedAt: string | null = null;
+              let monthlyQuota: any = null;
+              if (isEmergencyDbMode() && parentEnrollment && student?.id) {
+                const proposalResult = await pool.query(
+                  `SELECT accepted_at, current_topics, topic_conditioning_topic,
+                          topic_conditioning_entry_phase, topic_conditioning_stability,
+                          justification, tutor_notes
+                     FROM public.onboarding_proposals
+                    WHERE (student_id = $1 OR enrollment_id = $2)
+                      AND tutor_id = $3
+                    ORDER BY created_at DESC
+                    LIMIT 1`,
+                  [student.id, parentEnrollment.id, tutorId],
+                );
+                proposalSnapshot = proposalResult.rows[0] || null;
+                proposalAcceptedAt = proposalSnapshot?.accepted_at || null;
+
+                if (parentEnrollment.user_id) {
+                  const quotaResult = await pool.query(
+                    `SELECT *
+                       FROM public.membership_months
+                      WHERE parent_id = $1 AND student_id = $2
+                      ORDER BY month_key DESC
+                      LIMIT 1`,
+                    [parentEnrollment.user_id, student.id],
+                  );
+                  const quota = quotaResult.rows[0];
+                  if (quota) {
+                    monthlyQuota = {
+                      ...quota,
+                      session_quota: Number(quota.session_quota ?? DEFAULT_SERVICE_PACKAGE.sessionsPerMonth),
+                      sessions_used: Number(quota.sessions_used ?? 0),
+                      sessions_remaining: Number(quota.sessions_remaining ?? 0),
+                      status: String(quota.status || "active"),
+                    };
+                  }
+                }
+              }
+
               if (missingCanonicalResponseSignals) {
                 const sandboxCase = buildSandboxEnrollmentCase(index, parentEnrollment);
                 const canonicalSignalUpdate = {
@@ -8956,9 +9530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
 
               // Check if proposal was accepted by querying the proposal table
-              let proposalAcceptedAt = null;
-              let proposalSnapshot: any = null;
-              if (parentEnrollment?.proposal_id) {
+              if (!isEmergencyDbMode() && parentEnrollment?.proposal_id) {
                 const { data: proposal } = await supabase
                   .from("onboarding_proposals")
                   .select("accepted_at, current_topics, topic_conditioning_topic, topic_conditioning_entry_phase, topic_conditioning_stability, justification, tutor_notes")
@@ -8968,8 +9540,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 proposalAcceptedAt = proposal?.accepted_at || null;
               }
 
-              let monthlyQuota = null;
-              if (parentEnrollment?.user_id && student?.id) {
+              if (!isEmergencyDbMode() && parentEnrollment?.user_id && student?.id) {
                 try {
                   monthlyQuota = await getMonthlySessionQuotaSnapshot({
                     parentId: String(parentEnrollment.user_id),
@@ -9270,6 +9841,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         weekEnd.setDate(weekEnd.getDate() + 6);
         weekEnd.setHours(23, 59, 59, 999);
 
+        if (isEmergencyDbMode()) {
+          const scheduleResult = await pool.query(
+            `SELECT id, scheduled_time, scheduled_end, timezone, status, type, workflow_stage,
+                    parent_confirmed, tutor_confirmed, student_id, parent_id, google_meet_url,
+                    created_at, updated_at
+               FROM public.scheduled_sessions
+              WHERE tutor_id = $1
+                AND scheduled_time >= $2
+                AND scheduled_time <= $3
+                AND status NOT IN ('cancelled', 'flagged')
+              ORDER BY scheduled_time ASC`,
+            [tutorId, weekStart.toISOString(), weekEnd.toISOString()],
+          );
+          const studentIds = Array.from(new Set(scheduleResult.rows.map((session: any) => session.student_id).filter(Boolean)));
+          const studentsById = new Map<string, any>();
+          if (studentIds.length > 0) {
+            const studentResult = await pool.query(
+              "SELECT id, name, grade FROM public.students WHERE id = ANY($1::uuid[])",
+              [studentIds],
+            );
+            studentResult.rows.forEach((student: any) => studentsById.set(String(student.id), student));
+          }
+          return res.json({
+            weekStart: weekStart.toISOString(),
+            weekEnd: weekEnd.toISOString(),
+            operationalMode,
+            sessionSchedulingEnabled: isLiveSchedulingMode(operationalMode),
+            sessions: scheduleResult.rows.map((session: any) => ({
+              ...session,
+              student: studentsById.get(String(session.student_id || "")) || null,
+            })),
+          });
+        }
+
         const { data: sessions, error } = await supabase
           .from("scheduled_sessions")
           .select("id, scheduled_time, scheduled_end, timezone, status, type, workflow_stage, parent_confirmed, tutor_confirmed, student_id, parent_id, google_meet_url, created_at, updated_at")
@@ -9329,6 +9934,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const tutorId = (req as any).dbUser.id;
         const { sessionId } = req.params;
+
+        if (isEmergencyDbMode()) {
+          const sessionResult = await pool.query(
+            `SELECT id, scheduled_time, status, type, student_id, tutor_id
+               FROM public.scheduled_sessions
+              WHERE id = $1 AND tutor_id = $2
+              LIMIT 1`,
+            [sessionId, tutorId],
+          );
+          const session = sessionResult.rows[0];
+          if (!session) return res.status(404).json({ message: "Scheduled session not found" });
+          const [drillResult, runResult] = await Promise.all([
+            pool.query(
+              `SELECT id, drill, submitted_at, training_session_run_id
+                 FROM public.intro_session_drills
+                WHERE scheduled_session_id = $1
+                ORDER BY submitted_at ASC`,
+              [sessionId],
+            ),
+            pool.query(
+              `SELECT id, topic_count, started_at, submitted_at, status
+                 FROM public.training_session_runs
+                WHERE scheduled_session_id = $1
+                ORDER BY submitted_at DESC`,
+              [sessionId],
+            ),
+          ]);
+          return res.json({
+            session,
+            trainingRuns: runResult.rows,
+            sessionLogs: aggregateDeterministicSessions(drillResult.rows),
+          });
+        }
 
         const { data: session, error: sessionError } = await supabase
           .from("scheduled_sessions")
@@ -9400,7 +10038,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireRole(["tutor"]),
     async (req: Request, res: Response) => {
       try {
-        console.log('TEST LOG: intro-session-details route hit');
         const { studentId } = req.params;
         const dbUser = (req as any).dbUser;
         // Verify student exists and belongs to this tutor
@@ -9411,13 +10048,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (student.tutorId !== dbUser.id) {
           return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
         }
-        // DEBUG: Print all scheduled_sessions for this tutor and student
-        const { data: debugSessions, error: debugSessionsError } = await supabase
-          .from("scheduled_sessions")
-          .select("id, tutor_id, student_id, type, status, scheduled_time, parent_confirmed, tutor_confirmed, created_at, updated_at")
-          .eq("tutor_id", dbUser.id)
-          .eq("student_id", studentId);
-        console.log("[DEBUG] All scheduled_sessions for tutor and student:", { debugSessions, debugSessionsError, tutorId: dbUser.id, studentId });
         // Find latest intro session for this student/tutor
         const { data: session, error: sessionError } = await supabase
           .from("scheduled_sessions")
@@ -9721,6 +10351,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (!normalizedStudent || !tutorOwnsStudent) {
           return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+        }
+
+        if (isEmergencyDbMode()) {
+          const result = await pool.query(
+            `SELECT ${SCHEDULED_SESSION_SELECT}
+               FROM public.scheduled_sessions
+              WHERE tutor_id = $1 AND student_id = $2 AND type = 'training'
+              ORDER BY scheduled_time ASC
+              LIMIT 12`,
+            [tutorId, studentId],
+          );
+          return res.json({
+            sessions: result.rows.map((session: any) => ({
+              ...session,
+              launch: getSessionLaunchState(session, "training"),
+            })),
+            googleMeetConfigured: false,
+          });
         }
 
         const premiumAccess = await ensurePremiumAccessForStudent(student);
@@ -10638,6 +11286,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/parent/training-sessions", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).dbUser.id;
+      if (isEmergencyDbMode()) {
+        const enrollmentResult = await pool.query(
+          `SELECT id, assigned_tutor_id, status, student_full_name, student_grade, parent_email
+             FROM public.parent_enrollments
+            WHERE user_id = $1
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [userId],
+        );
+        const enrollment = enrollmentResult.rows[0];
+        if (!enrollment?.assigned_tutor_id) return res.json({ operationalMode: "training", sessionSchedulingEnabled: false, sessions: [] });
+        const studentResult = await pool.query(
+          `SELECT *
+             FROM public.students
+            WHERE parent_contact = $1
+              AND tutor_id = $2::text
+              AND name = $3
+            ORDER BY created_at DESC
+            LIMIT 1`,
+          [enrollment.parent_email, String(enrollment.assigned_tutor_id), enrollment.student_full_name],
+        );
+        const student = studentResult.rows[0] || null;
+        const studentId = student?.id ? String(student.id) : null;
+        const sessionValues: unknown[] = [String(userId), String(enrollment.assigned_tutor_id)];
+        const studentFilter = studentId ? " AND student_id = $3::uuid" : "";
+        if (studentId) sessionValues.push(studentId);
+        const sessionsResult = await pool.query(
+          `SELECT ${SCHEDULED_SESSION_SELECT}
+             FROM public.scheduled_sessions
+            WHERE parent_id = $1
+              AND tutor_id = $2
+              AND type = 'training'${studentFilter}
+            ORDER BY scheduled_time ASC
+            LIMIT 12`,
+          sessionValues,
+        );
+        const operationalMode = await getParentAssignedTutorOperationalMode(userId);
+        const monthlyQuota = studentId
+          ? await getMonthlySessionQuotaSnapshot({
+              parentId: String(userId),
+              studentId,
+              isSandboxContext: String(enrollment.parent_email || "").toLowerCase().startsWith("sandbox-parent-"),
+            })
+          : null;
+        return res.json({
+          operationalMode,
+          sessionSchedulingEnabled: isLiveSchedulingMode(operationalMode),
+          monthlyQuota,
+          sessions: sessionsResult.rows.map((session: any) => ({ ...session, launch: getSessionLaunchState(session, "training") })),
+        });
+      }
       const operationalMode = await getParentAssignedTutorOperationalMode(userId);
 
       const { data: enrollment, error: enrollmentError } = await selectLatestParentEnrollment({
@@ -11564,6 +12263,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     fallbackSelect?: string;
     preferPaidEnrollment?: boolean;
   }) => {
+    if (isEmergencyDbMode()) {
+      const byParent = await pool.query(
+        `SELECT * FROM public.parent_enrollments
+          WHERE user_id = $1
+          ORDER BY updated_at DESC
+          LIMIT 1`,
+        [parentId],
+      );
+      let data = byParent.rows[0] || null;
+      if (!data) {
+        const userResult = await pool.query("SELECT email FROM public.users WHERE id = $1 LIMIT 1", [parentId]);
+        const email = normalizeEmail(userResult.rows[0]?.email);
+        if (email) {
+          const byEmail = await pool.query(
+            `SELECT * FROM public.parent_enrollments
+              WHERE lower(parent_email) = $1
+              ORDER BY updated_at DESC
+              LIMIT 1`,
+            [email],
+          );
+          data = byEmail.rows[0] || null;
+        }
+      }
+      return { data, error: null };
+    }
     const resolveParentEmail = async () => {
       const { data: userRow, error: userError } = await supabase
         .from("users")
@@ -11819,6 +12543,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const resolveCanonicalStudentForEnrollment = async (enrollment: any) => {
     if (!enrollment) return null;
     const tutorId = enrollment?.assigned_tutor_id;
+
+    if (isEmergencyDbMode()) {
+      if (enrollment.assigned_student_id) {
+        const assignedStudent = await storage.getStudent(enrollment.assigned_student_id);
+        if (assignedStudent) return normalizeStudentRecord(assignedStudent);
+      }
+      const result = await pool.query(
+        `SELECT * FROM public.students
+          WHERE parent_enrollment_id = $1
+          ORDER BY created_at DESC
+          LIMIT 1`,
+        [enrollment.id],
+      );
+      return result.rows[0] ? normalizeStudentRecord(result.rows[0]) : null;
+    }
 
     if (enrollment.assigned_student_id) {
       const assignedStudent = await storage.getStudent(enrollment.assigned_student_id);
@@ -12439,6 +13178,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   const getTutorSessionFeed = async (tutorId: string, studentId?: string | null) => {
+    if (isEmergencyDbMode()) {
+      const values: unknown[] = [tutorId, ["completed", "ready", "live", "confirmed"]];
+      const studentFilter = studentId ? ` AND student_id = $3` : "";
+      if (studentId) values.push(studentId);
+      const scheduledResult = await pool.query(
+        `SELECT ${SCHEDULED_SESSION_SELECT}
+           FROM public.scheduled_sessions
+          WHERE tutor_id = $1
+            AND status = ANY($2::text[])${studentFilter}
+          ORDER BY scheduled_time DESC`,
+        values,
+      );
+      const scheduledRows = scheduledResult.rows;
+      const scheduledIds = scheduledRows.map((row: any) => row.id).filter(Boolean);
+      const trainingResult = await pool.query(
+        `SELECT id, scheduled_session_id, topic_count, submitted_at, status
+           FROM public.training_session_runs
+          WHERE tutor_id = $1${studentId ? " AND student_id = $2" : ""}`,
+        studentId ? [tutorId, studentId] : [tutorId],
+      );
+      const drillsResult = await pool.query(
+        `SELECT id, student_id, scheduled_session_id, training_session_run_id, submitted_at, drill
+           FROM public.intro_session_drills
+          WHERE tutor_id = $1${studentId ? " AND student_id = $2" : ""}`,
+        studentId ? [tutorId, studentId] : [tutorId],
+      );
+      const runsByScheduledId = new Map<string, any>();
+      trainingResult.rows.forEach((row: any) => {
+        if (row.scheduled_session_id) runsByScheduledId.set(String(row.scheduled_session_id), row);
+      });
+      const drillsByScheduledId = new Map<string, any[]>();
+      drillsResult.rows.forEach((row: any) => {
+        if (!row.scheduled_session_id) return;
+        const bucket = drillsByScheduledId.get(String(row.scheduled_session_id)) || [];
+        let parsed = null;
+        if (typeof row.drill === "string") {
+          try { parsed = JSON.parse(row.drill); } catch { parsed = null; }
+        }
+        bucket.push({ ...row, parsed });
+        drillsByScheduledId.set(String(row.scheduled_session_id), bucket);
+      });
+      return scheduledRows.map((session: any) => {
+        const sessionDrills = drillsByScheduledId.get(String(session.id)) || [];
+        const trainingRun = runsByScheduledId.get(String(session.id)) || null;
+        const dateText = String(session.scheduled_time || session.created_at || new Date().toISOString());
+        const startMs = new Date(dateText).getTime();
+        const endMs = new Date(String(session.scheduled_end || "")).getTime();
+        const duration = Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs
+          ? Math.round((endMs - startMs) / 60000)
+          : session.type === "training" ? TRAINING_SESSION_DURATION_MINUTES : INTRO_SESSION_DURATION_MINUTES;
+        const primaryDrill = sessionDrills[sessionDrills.length - 1]?.parsed || null;
+        const topicCount = session.type === "training"
+          ? Number(trainingRun?.topic_count || sessionDrills.length || 0)
+          : sessionDrills.length > 0 ? 1 : 0;
+        const activeTopic = primaryDrill?.trainingTopic || primaryDrill?.introTopic || primaryDrill?.summary?.topic || null;
+        return {
+          id: String(session.id),
+          tutorId: String(session.tutor_id || tutorId),
+          studentId: String(session.student_id || studentId || ""),
+          date: dateText,
+          duration,
+          notes: `${session.type === "training" ? "Response Integrity Training Session" : "Response Integrity Intro Session"}${activeTopic ? ` | Active Topic: ${activeTopic}` : ""} | Status: ${session.status || "completed"}`,
+          vocabularyNotes: session.type === "training" ? "Response Integrity training execution recorded." : "Response Integrity intro diagnosis recorded.",
+          methodNotes: activeTopic ? `Active Topic: ${activeTopic}` : null,
+          reasonNotes: primaryDrill?.summary?.nextAction || null,
+          studentResponse: primaryDrill?.summary?.phase && primaryDrill?.summary?.stability
+            ? `Phase: ${primaryDrill.summary.phase} | Stability: ${primaryDrill.summary.stability}` : null,
+          tutorGrowthReflection: null,
+          bossBattlesDone: topicCount > 0 ? String(topicCount) : null,
+          practiceProblems: null,
+          createdAt: String(session.created_at || dateText),
+        };
+      }).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
     let scheduledQuery = supabase
       .from("scheduled_sessions")
       .select(SCHEDULED_SESSION_SELECT)
@@ -12776,6 +13589,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const student = await storage.getStudent(studentId);
         if (!student || student.tutorId !== tutorId) {
           return res.status(403).json({ message: "Unauthorized" });
+        }
+
+        if (isEmergencyDbMode()) {
+          const drillResult = await pool.query(
+            `SELECT id, student_id, tutor_id, drill, submitted_at
+               FROM public.intro_session_drills
+              WHERE student_id = $1 AND tutor_id = $2
+              ORDER BY submitted_at DESC`,
+            [studentId, tutorId],
+          );
+          const reportResult = await pool.query(
+            `SELECT *
+               FROM public.parent_reports
+              WHERE student_id = $1 AND tutor_id = $2
+              ORDER BY sent_at DESC`,
+            [studentId, tutorId],
+          );
+          const enrichedReports = reportResult.rows.map((report: any) =>
+            mapEmergencyTutorParentReport(report, parseStructuredReportSummary(report.summary))
+          );
+          return res.json({
+            sessions: aggregateDeterministicSessions(drillResult.rows),
+            reports: enrichedReports,
+          });
         }
 
         const { data: drillRows, error: drillRowsError } = await supabase
@@ -13391,6 +14228,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
         }
 
+        if (isEmergencyDbMode()) {
+          const result = await pool.query(
+            `SELECT id, tutor_id, student_id, title, description, problems_assigned, due_date,
+                    is_completed, completed_at, student_result, student_work, created_at
+               FROM public.assignments
+              WHERE student_id = $1 AND tutor_id = $2
+              ORDER BY created_at DESC`,
+            [studentId, dbUser.id],
+          );
+          return res.json(result.rows);
+        }
+
         // Get all assignments for this student
         const { data: assignments, error } = await supabase
           .from("assignments")
@@ -13428,6 +14277,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (student.tutorId !== dbUser.id) {
           return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+        }
+
+        if (isEmergencyDbMode()) {
+          const personalProfile = (student.personalProfile as any) || {};
+          const workflow = personalProfile.workflow || {};
+          const explicitEnrollmentId = String(
+            (student as any).parentEnrollmentId || (student as any).parent_enrollment_id || ""
+          ).trim();
+          let enrollment: any = null;
+          if (explicitEnrollmentId) {
+            const result = await pool.query(
+              `SELECT id, status, user_id, assigned_tutor_id
+                 FROM public.parent_enrollments
+                WHERE id = $1 AND assigned_tutor_id = $2
+                LIMIT 1`,
+              [explicitEnrollmentId, dbUser.id],
+            );
+            enrollment = result.rows[0] || null;
+          }
+          if (!enrollment && (student as any).parentId) {
+            const result = await pool.query(
+              `SELECT id, status, user_id, assigned_tutor_id
+                 FROM public.parent_enrollments
+                WHERE user_id = $1 AND assigned_tutor_id = $2
+                ORDER BY updated_at DESC
+                LIMIT 1`,
+              [(student as any).parentId, dbUser.id],
+            );
+            enrollment = result.rows[0] || null;
+          }
+
+          const proposalResult = await pool.query(
+            `SELECT sent_at, accepted_at, enrollment_id
+               FROM public.onboarding_proposals
+              WHERE student_id = $1 AND tutor_id = $2
+              ORDER BY created_at DESC
+              LIMIT 1`,
+            [studentId, dbUser.id],
+          );
+          let latestProposal = proposalResult.rows[0] || null;
+          if (!latestProposal && enrollment?.id) {
+            const fallbackProposal = await pool.query(
+              `SELECT sent_at, accepted_at, enrollment_id
+                 FROM public.onboarding_proposals
+                WHERE enrollment_id = $1 AND tutor_id = $2
+                ORDER BY created_at DESC
+                LIMIT 1`,
+              [enrollment.id, dbUser.id],
+            );
+            latestProposal = fallbackProposal.rows[0] || null;
+          }
+
+          const drillResult = await pool.query(
+            `SELECT drill
+               FROM public.intro_session_drills
+              WHERE student_id = $1 AND tutor_id = $2
+              ORDER BY submitted_at DESC
+              LIMIT 8`,
+            [studentId, dbUser.id],
+          );
+          let hasDiagnosisEvidence = false;
+          let hasTrainingEvidence = false;
+          for (const row of drillResult.rows) {
+            try {
+              const parsed = typeof row.drill === "string" ? JSON.parse(row.drill) : row.drill || {};
+              const drillType = String(parsed?.drillType || "").trim().toLowerCase();
+              hasDiagnosisEvidence ||= drillType === "diagnosis";
+              hasTrainingEvidence ||= drillType === "training";
+            } catch {
+              // Ignore malformed historical drill rows, matching normal-mode behavior.
+            }
+          }
+
+          const { session: introSession } = await resolveTutorScheduledSession(dbUser.id, studentId, "intro");
+          const handoverRequired = !!workflow.handoverRequiredAt && !workflow.handoverCompletedAt;
+          const { session: handoverSession } = handoverRequired
+            ? await resolveTutorScheduledSession(dbUser.id, studentId, "handover")
+            : { session: null };
+          const enrollmentStatus = String(enrollment?.status || "").trim().toLowerCase();
+          const assignmentAccepted = enrollmentStatus === "awaiting_tutor_acceptance"
+            ? false
+            : Boolean(
+                workflow.assignmentAcceptedAt ||
+                (enrollment && enrollmentStatus !== "awaiting_tutor_acceptance")
+              );
+          const topicStore = (student.conceptMastery as any)?.topicConditioning || {};
+          const hasTopicEvidence = Object.keys(topicStore.topics || {}).length > 0 ||
+            Boolean(String(topicStore.topic || "").trim()) || Boolean(String(topicStore.entry_phase || "").trim());
+          const inferredIntroCompleted = Boolean(workflow.introCompletedAt) || hasTopicEvidence || hasDiagnosisEvidence || hasTrainingEvidence;
+          const inferredProposalSent = Boolean(latestProposal?.sent_at) ||
+            ["proposal_sent", "session_booked", "report_received", "confirmed"].includes(enrollmentStatus) ||
+            hasTrainingEvidence;
+          const inferredProposalAccepted = Boolean(latestProposal?.accepted_at) ||
+            ["session_booked", "report_received", "confirmed"].includes(enrollmentStatus) ||
+            hasTrainingEvidence;
+
+          return res.json({
+            assignmentAccepted,
+            introConfirmed: ["confirmed", "ready", "live", "completed"].includes(String(getEffectiveScheduledSessionStatus(introSession) || "")),
+            introCompleted: inferredIntroCompleted,
+            handoverVerificationRequired: handoverRequired,
+            handoverSessionConfirmed: ["confirmed", "ready", "live", "completed"].includes(String(getEffectiveScheduledSessionStatus(handoverSession) || "")),
+            handoverCompleted: Boolean(workflow.handoverCompletedAt),
+            identitySaved: Boolean(student.identitySheetCompletedAt),
+            proposalSent: inferredProposalSent,
+            proposalAccepted: inferredProposalAccepted,
+          });
         }
 
         const { session: introSession } = await resolveTutorScheduledSession(
@@ -14145,6 +15101,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const tutorId = (req as any).dbUser.id;
+        if (isEmergencyDbMode()) {
+          const assignment = await storage.getTutorAssignment(tutorId);
+          if (!assignment) {
+            return res.json({
+              podId: null,
+              podName: null,
+              assignmentId: null,
+              operationalMode: null,
+              alignmentSummary: null,
+              unavailable: true,
+              reason: "assignment_unavailable",
+            });
+          }
+          const [statusResult, progressResult, runResult] = await Promise.all([
+            pool.query(
+              `SELECT mode, module_progress, next_battle_tests, certification_recovery_note, recovery_required_until
+                 FROM public.tutor_battle_test_statuses
+                WHERE tutor_assignment_id = $1
+                ORDER BY updated_at DESC
+                LIMIT 1`,
+              [assignment.id],
+            ),
+            pool.query(
+              `SELECT phase_key, title, module_key, module_title, historical_state, current_health_state,
+                      current_streak, consecutive_drift_count, latest_score, completed_at, last_tested_at,
+                      attempts_count, critical_flag
+                 FROM public.tutor_battle_test_deep_dive_progress
+                WHERE tutor_assignment_id = $1
+                ORDER BY phase_key ASC`,
+              [assignment.id],
+            ),
+            pool.query(
+              `SELECT phase_scores, alignment_percent, state, has_critical_fail, action_required, completed_at
+                 FROM public.battle_test_runs
+                WHERE tutor_assignment_id = $1 AND subject_type = 'tutor'
+                ORDER BY completed_at DESC
+                LIMIT 1`,
+              [assignment.id],
+            ),
+          ]);
+          const status = statusResult.rows[0] || null;
+          const latestRun = runResult.rows[0] || null;
+          const deepDiveProgress = progressResult.rows.map((row: any) => ({
+            phaseKey: row.phase_key,
+            title: row.title,
+            moduleKey: row.module_key,
+            moduleTitle: row.module_title,
+            historicalState: row.historical_state,
+            currentHealthState: row.current_health_state,
+            currentStreak: Number(row.current_streak || 0),
+            consecutiveDriftCount: Number(row.consecutive_drift_count || 0),
+            latestScore: row.latest_score == null ? null : Number(row.latest_score),
+            completedAt: row.completed_at,
+            lastTestedAt: row.last_tested_at,
+            attemptsCount: Number(row.attempts_count || 0),
+            criticalFlag: Boolean(row.critical_flag),
+          }));
+          const user = await storage.getUser(tutorId);
+          const students = await storage.getStudentsByTutor(tutorId);
+          const operationalMode = await getTutorOperationalMode(tutorId);
+          const alignmentSummary = {
+            assignmentId: assignment.id,
+            tutorId,
+            tutorName: user?.name || user?.firstName || "Unknown Tutor",
+            tutorEmail: user?.email || "",
+            studentCount: students.length,
+            alignmentPercent: latestRun?.alignment_percent == null ? null : Number(latestRun.alignment_percent),
+            state: latestRun?.state || null,
+            hasCriticalFail: Boolean(latestRun?.has_critical_fail),
+            actionRequired: latestRun?.action_required || null,
+            lastAuditAt: latestRun?.completed_at || null,
+            phaseScores: Array.isArray(latestRun?.phase_scores) ? latestRun.phase_scores : [],
+            mode: operationalMode,
+            moduleProgress: Array.isArray(status?.module_progress) ? status.module_progress : [],
+            deepDiveProgress,
+            nextBattleTests: Array.isArray(status?.next_battle_tests) ? status.next_battle_tests : [],
+            certificationRecoveryNote: status?.certification_recovery_note || null,
+            recoveryRequiredUntil: status?.recovery_required_until || null,
+          };
+          return res.json({
+            podId: assignment.podId,
+            podName: assignment.pod?.podName || null,
+            assignmentId: assignment.id,
+            operationalMode,
+            alignmentSummary,
+          });
+        }
         const assignment = await storage.getTutorAssignment(tutorId);
 
         if (!assignment) {
@@ -16304,6 +17347,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const tutorId = (req as any).dbUser.id;
         const { studentId } = req.params;
+
+        if (isEmergencyDbMode()) {
+          const studentResult = await pool.query(
+            `SELECT id
+               FROM public.students
+              WHERE id = $1 AND tutor_id = $2
+              LIMIT 1`,
+            [studentId, tutorId],
+          );
+          if (!studentResult.rows[0]) {
+            return res.status(403).json({ message: "Unauthorized" });
+          }
+
+          const unreadResult = await pool.query(
+            `SELECT count(*)::int AS count
+               FROM public.student_communication_messages
+              WHERE student_id = $1
+                AND tutor_id = $2
+                AND read_by_tutor_at IS NULL
+                AND sender_role <> 'tutor'`,
+            [studentId, tutorId],
+          );
+          return res.json({ unreadCount: Number(unreadResult.rows[0]?.count || 0) });
+        }
+
         const student = await storage.getStudent(studentId);
 
         if (!student || student.tutorId !== tutorId) {
@@ -17490,6 +18558,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     isAuthenticated,
     async (req: Request, res: Response) => {
       try {
+        if (isEmergencyDbMode()) {
+          const userRole = String((req as any).dbUser?.role || "").trim().toLowerCase();
+          const visibilities = getEmergencyBroadcastVisibilities(userRole);
+          const userCreatedAt = (req as any).dbUser?.createdAt;
+          const values: any[] = [visibilities];
+          let createdAtClause = "";
+          if (userCreatedAt) {
+            values.push(userCreatedAt);
+            createdAtClause = `AND created_at >= $${values.length}`;
+          }
+          const result = await pool.query(
+            `SELECT id, subject, message, sender_role, visibility, channel, created_at
+               FROM public.broadcasts
+              WHERE visibility::text = ANY($1::text[])
+                ${createdAtClause}
+              ORDER BY created_at DESC`,
+            values,
+          );
+          return res.json(result.rows.map(mapEmergencyBroadcast));
+        }
+
         const userCreatedAt = (req as any).dbUser?.createdAt;
         const broadcasts = await storage.getBroadcasts(userCreatedAt);
         res.json(broadcasts);
@@ -17507,6 +18596,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const userId = (req as any).dbUser.id;
+
+        if (isEmergencyDbMode()) {
+          const userRole = String((req as any).dbUser?.role || "").trim().toLowerCase();
+          const visibilities = getEmergencyBroadcastVisibilities(userRole);
+          const userCreatedAt = (req as any).dbUser?.createdAt;
+          const values: any[] = [userId, visibilities];
+          let createdAtClause = "";
+          if (userCreatedAt) {
+            values.push(userCreatedAt);
+            createdAtClause = `AND b.created_at >= $${values.length}`;
+          }
+          const result = await pool.query(
+            `SELECT count(*)::int AS count
+               FROM public.broadcasts b
+               LEFT JOIN public.broadcast_reads br
+                 ON br.broadcast_id = b.id AND br.user_id = $1
+              WHERE b.visibility::text = ANY($2::text[])
+                AND br.id IS NULL
+                ${createdAtClause}`,
+            values,
+          );
+          return res.json({ unreadCount: Number(result.rows[0]?.count || 0) });
+        }
+
         const userCreatedAt = (req as any).dbUser?.createdAt;
         const unreadCount = await storage.getUnreadBroadcastCount(userId, userCreatedAt);
         res.json({ unreadCount });
@@ -17524,6 +18637,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const userId = (req as any).dbUser.id;
+
+        if (isEmergencyDbMode()) {
+          const result = await pool.query(
+            `SELECT broadcast_id
+               FROM public.broadcast_reads
+              WHERE user_id = $1
+              ORDER BY read_at DESC`,
+            [userId],
+          );
+          return res.json({ readBroadcasts: result.rows.map((row: any) => row.broadcast_id) });
+        }
+
         const readBroadcasts = await storage.getUserBroadcastReads(userId);
         res.json({ readBroadcasts });
       } catch (error) {
@@ -17573,6 +18698,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!broadcastId || broadcastId.trim() === "") {
           return res.status(400).json({ message: "Invalid broadcast ID" });
         }
+
+        if (isEmergencyDbMode()) {
+          const result = await pool.query(
+            `INSERT INTO public.broadcast_reads (user_id, broadcast_id)
+             SELECT $1, b.id
+               FROM public.broadcasts b
+              WHERE b.id = $2
+             ON CONFLICT (user_id, broadcast_id) DO NOTHING
+             RETURNING id`,
+            [userId, broadcastId],
+          );
+          if (result.rowCount === 0) {
+            const broadcastResult = await pool.query("SELECT id FROM public.broadcasts WHERE id = $1 LIMIT 1", [broadcastId]);
+            if (!broadcastResult.rows[0]) return res.status(404).json({ message: "Broadcast not found" });
+          }
+          return res.json({ success: true });
+        }
         
         await storage.markBroadcastAsRead(userId, broadcastId);
         res.json({ success: true });
@@ -17600,6 +18742,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/notifications", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).dbUser.id;
+
+      if (isEmergencyDbMode()) {
+        const result = await pool.query(
+          `SELECT id, recipient_user_id, actor_user_id, channel, title, message, link, entity_type, entity_id, is_read, read_at, created_at
+             FROM public.notifications
+            WHERE recipient_user_id = $1
+            ORDER BY created_at DESC`,
+          [userId],
+        );
+        return res.json(result.rows.map(mapEmergencyNotification));
+      }
+
       const userCreatedAt = (req as any).dbUser?.createdAt;
       const notifications = await storage.getNotifications(userId, userCreatedAt);
       res.json(notifications);
@@ -17612,6 +18766,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/notifications/unread-count", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).dbUser.id;
+
+      if (isEmergencyDbMode()) {
+        const result = await pool.query(
+          `SELECT count(*)::int AS count
+             FROM public.notifications
+            WHERE recipient_user_id = $1
+              AND is_read = false`,
+          [userId],
+        );
+        return res.json({ unreadCount: Number(result.rows[0]?.count || 0) });
+      }
+
       const userCreatedAt = (req as any).dbUser?.createdAt;
       const unreadCount = await storage.getUnreadNotificationCount(userId, userCreatedAt);
       res.json({ unreadCount });
@@ -17625,6 +18791,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).dbUser.id;
       const { notificationId } = req.params;
+
+      if (isEmergencyDbMode()) {
+        await pool.query(
+          `UPDATE public.notifications
+              SET is_read = true, read_at = NOW()
+            WHERE id = $1 AND recipient_user_id = $2`,
+          [notificationId, userId],
+        );
+        return res.json({ success: true });
+      }
+
       await storage.markNotificationAsRead(userId, notificationId);
       res.json({ success: true });
     } catch (error) {
@@ -17702,6 +18879,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const incomingProductionCode = normalizeProductionLinkCode(req.body?.productionLinkCode) || sessionProductionCode;
         const existingApplications = await storage.getTutorApplicationsByUser(userId);
         const existingProductionCode = existingApplications.find((application) => application.productionLinkCode)?.productionLinkCode || null;
+
+        if (isEmergencyDbMode()) {
+          if (incomingProductionCode && incomingProductionCode !== durableUserProductionCode) {
+            return res.status(503).json({ message: "Production Link application submission is temporarily unavailable." });
+          }
+          const data = insertTutorApplicationSchema.parse({
+            ...req.body,
+            userId,
+            productionLinkCode: durableUserProductionCode || null,
+            trackingSource: durableUserProductionCode
+              ? durableUserTrackingSource
+              : (req.session as any)?.trackingSource || durableUserTrackingSource,
+            trackingCampaign: durableUserProductionCode
+              ? durableUserTrackingCampaign
+              : (req.session as any)?.trackingCampaign || durableUserTrackingCampaign,
+          }) as any;
+          if (!Number.isInteger(data.age) || data.age < 16 || data.age > 100) {
+            return res.status(400).json({ message: "Age must be between 16 and 100." });
+          }
+          if (data.completedMatric !== "yes") {
+            return res.status(400).json({ message: "Matric is required before Specialist onboarding can continue." });
+          }
+          if (data.age < 18 && data.completedMatric !== "yes") {
+            return res.status(400).json({ message: "Applicants under 18 may only continue if they completed Matric early." });
+          }
+          if (!String(data.matricYear || "").trim()) {
+            return res.status(400).json({ message: "Matric year is required." });
+          }
+          if (!String(data.mathResult || "").trim()) {
+            return res.status(400).json({ message: "Final mathematics result is required." });
+          }
+          const application = await storage.createTutorApplicationEmergency(data);
+          return res.json(application);
+        }
         let durableProductionCode: string | null;
         try {
           durableProductionCode = resolveDurableProductionLink(
@@ -18088,14 +19299,251 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Only doc step 2 (Matric certificate) and doc step 6 (certified ID) accept file uploads." });
         }
 
-        // Verify the application belongs to this user
         const applications = await storage.getTutorApplicationsByUser(userId);
         const app = applications.find(a => a.id === applicationId) as any;
         if (!app) {
           return res.status(403).json({ message: "Application not found or access denied" });
         }
+
         if (parsedDocStep === 2 && !app?.onboardingAcceptanceMap?.["2"]) {
           return res.status(400).json({ message: "You must accept Response Integrity-EQV-002 in app before uploading your certified Matric certificate." });
+        }
+
+        if (isEmergencyDbMode()) {
+          const normalizedFileName = String(fileName || "").trim();
+          if (!normalizedFileName) {
+            return res.status(400).json({ message: "Missing file name." });
+          }
+
+          const normalizedFileType = String(fileType || "").trim().toLowerCase();
+          const fileTypeAllowed = new Set(["application/pdf", "image/png", "image/jpeg", "image/jpg"]);
+          const lowerFileName = normalizedFileName.toLowerCase();
+          const extensionAllowed = lowerFileName.endsWith(".pdf") || lowerFileName.endsWith(".png") || lowerFileName.endsWith(".jpg") || lowerFileName.endsWith(".jpeg");
+
+          if (!fileTypeAllowed.has(normalizedFileType) && !extensionAllowed) {
+            return res.status(400).json({ message: "Only PDF, PNG, JPG, and JPEG files are supported for emergency uploads." });
+          }
+
+          const normalizedBase64 = String(fileData).includes(",")
+            ? (String(fileData).split(",").pop() || "")
+            : String(fileData);
+
+          const buffer = Buffer.from(normalizedBase64, "base64");
+          if (!buffer.byteLength) {
+            return res.status(400).json({ message: "Uploaded file was empty." });
+          }
+
+          if (buffer.byteLength > 25 * 1024 * 1024) {
+            return res.status(400).json({ message: "Uploaded file must be 25 MB or smaller." });
+          }
+
+          let bundle: ReturnType<typeof createEmergencyFileBundle>;
+          try {
+            bundle = createEmergencyFileBundle(buffer, process.env.EMERGENCY_DOCUMENT_ENCRYPTION_KEY);
+          } catch (error) {
+            console.error("Emergency file encryption failed:", error);
+            return res.status(500).json({
+              message: error instanceof Error ? error.message : "Emergency file encryption is unavailable.",
+            });
+          }
+
+          const protectedUrl = `/api/tutor/onboarding-documents/${parsedDocStep}/file?applicationId=${encodeURIComponent(applicationId)}`;
+          const client = await pool.connect();
+
+          try {
+            await client.query("BEGIN");
+
+            const applicationResult = await client.query(
+              `SELECT *
+                 FROM public.tutor_applications
+                WHERE id = $1
+                  AND user_id = $2
+                FOR UPDATE`,
+              [applicationId, userId],
+            );
+            const existing = applicationResult.rows[0];
+            if (!existing) {
+              throw new Error("Application not found or access denied");
+            }
+
+            const documentsStatus = typeof existing.documents_status === "object" && existing.documents_status
+              ? { ...existing.documents_status }
+              : {
+                  "1": "not_started",
+                  "2": "not_started",
+                  "3": "not_started",
+                  "4": "not_started",
+                  "5": "not_started",
+                  "6": "not_started",
+                };
+
+            if (parsedDocStep === 2) {
+              if (!app?.onboardingAcceptanceMap?.["2"]) {
+                throw new Error("You must accept Response Integrity-EQV-002 in app before uploading your certified Matric certificate.");
+              }
+
+              if (String(documentsStatus["2"] || "not_started") === "approved") {
+                throw new Error("Step 2 is already approved and cannot be re-uploaded.");
+              }
+
+              documentsStatus["2"] = "pending_review";
+              documentsStatus["3"] = "not_started";
+
+              await client.query(
+                `INSERT INTO private.emergency_tutor_onboarding_files (
+                   application_id,
+                   user_id,
+                   doc_step,
+                   original_file_name,
+                   mime_type,
+                   byte_size,
+                   sha256,
+                   ciphertext,
+                   iv,
+                   auth_tag,
+                   created_at
+                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())`,
+                [
+                  applicationId,
+                  userId,
+                  parsedDocStep,
+                  normalizedFileName,
+                  normalizedFileType || "application/octet-stream",
+                  buffer.byteLength,
+                  bundle.sha256,
+                  bundle.ciphertext,
+                  bundle.iv,
+                  bundle.authTag,
+                ],
+              );
+
+              const updatedResult = await client.query(
+                `UPDATE public.tutor_applications
+                    SET documents_status = $1::jsonb,
+                        document_submission_step = 2,
+                        doc_2_submission_url = $2,
+                        doc_2_submission_uploaded_at = now(),
+                        doc_2_submission_verified = false,
+                        doc_2_submission_verified_by = NULL,
+                        doc_2_submission_verified_at = NULL,
+                        doc_2_submission_rejection_reason = NULL,
+                        updated_at = now()
+                  WHERE id = $3
+                    AND user_id = $4
+                  RETURNING *`,
+                [
+                  JSON.stringify(documentsStatus),
+                  protectedUrl,
+                  applicationId,
+                  userId,
+                ],
+              );
+
+              if (!updatedResult.rows[0]) {
+                throw new Error("Failed to update document record");
+              }
+            } else if (parsedDocStep === 6) {
+              if (String(existing.status || "").toLowerCase() !== "approved") {
+                throw new Error("Application must be approved before uploading the certified ID copy.");
+              }
+
+              if (Number(existing.document_submission_step) !== 6) {
+                throw new Error("Certified ID upload is only allowed while the application is on Step 6.");
+              }
+
+              const allEarlierStepsApproved = ["1", "2", "3", "4", "5"].every(
+                (step) => String(documentsStatus[step] || "") === "approved",
+              );
+
+              if (!allEarlierStepsApproved) {
+                throw new Error("Steps 1 through 5 must all be approved before uploading the certified ID copy.");
+              }
+
+              const currentStep6Status = String(documentsStatus["6"] || "not_started");
+              if (currentStep6Status === "pending_review") {
+                throw new Error("Certified ID copy is already pending COO review and cannot be re-uploaded.");
+              }
+              if (currentStep6Status === "approved") {
+                throw new Error("Certified ID copy is already approved and cannot be re-uploaded.");
+              }
+              if (currentStep6Status !== "pending_upload" && currentStep6Status !== "rejected") {
+                throw new Error("Certified ID upload is only allowed while Step 6 is pending upload or has been rejected for resubmission.");
+              }
+
+              documentsStatus["6"] = "pending_review";
+
+              await client.query(
+                `INSERT INTO private.emergency_tutor_onboarding_files (
+                   application_id,
+                   user_id,
+                   doc_step,
+                   original_file_name,
+                   mime_type,
+                   byte_size,
+                   sha256,
+                   ciphertext,
+                   iv,
+                   auth_tag,
+                   created_at
+                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())`,
+                [
+                  applicationId,
+                  userId,
+                  parsedDocStep,
+                  normalizedFileName,
+                  normalizedFileType || "application/octet-stream",
+                  buffer.byteLength,
+                  bundle.sha256,
+                  bundle.ciphertext,
+                  bundle.iv,
+                  bundle.authTag,
+                ],
+              );
+
+              const updatedResult = await client.query(
+                `UPDATE public.tutor_applications
+                    SET documents_status = $1::jsonb,
+                        document_submission_step = 6,
+                        doc_6_submission_url = $2,
+                        doc_6_submission_uploaded_at = now(),
+                        doc_6_submission_verified = false,
+                        doc_6_submission_verified_by = NULL,
+                        doc_6_submission_verified_at = NULL,
+                        doc_6_submission_rejection_reason = NULL,
+                        onboarding_completed_at = NULL,
+                        updated_at = now()
+                  WHERE id = $3
+                    AND user_id = $4
+                  RETURNING *`,
+                [
+                  JSON.stringify(documentsStatus),
+                  protectedUrl,
+                  applicationId,
+                  userId,
+                ],
+              );
+
+              if (!updatedResult.rows[0]) {
+                throw new Error("Failed to update document record");
+              }
+            }
+
+            await client.query("COMMIT");
+          } catch (error) {
+            await client.query("ROLLBACK").catch(() => undefined);
+            throw error;
+          } finally {
+            client.release();
+          }
+
+          const refreshedApplications = await storage.getTutorApplicationsByUser(userId);
+          const refreshedApp = refreshedApplications.find((entry) => entry.id === applicationId) as any;
+
+          return res.json({
+            success: true,
+            application: refreshedApp,
+            protectedUrl,
+          });
         }
 
         // Decode base64 file data
@@ -18147,6 +19595,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         console.error('Error uploading onboarding document (server handler):', error);
         res.status(500).json({ message: 'Failed to upload document' });
+      }
+    }
+  );
+
+  app.get(
+    "/api/tutor/onboarding-documents/:docStep/file",
+    isAuthenticated,
+    requireRole(["tutor", "coo"]),
+    async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
+        const applicationId = String(req.query.applicationId || "").trim();
+        const docStep = Number(req.params.docStep);
+
+        if (!applicationId || !Number.isInteger(docStep) || (docStep !== 2 && docStep !== 6)) {
+          return res.status(400).json({ message: "Invalid emergency document request." });
+        }
+
+        const role = (req as any).dbUser?.role || (req.session as any)?.role;
+        if (role === "tutor") {
+          const applications = await storage.getTutorApplicationsByUser(userId);
+          const app = applications.find((entry) => entry.id === applicationId);
+          if (!app) {
+            return res.status(403).json({ message: "Application not found or access denied" });
+          }
+        }
+
+        const rowResult = await pool.query(
+          `SELECT *
+             FROM private.emergency_tutor_onboarding_files
+            WHERE application_id = $1
+              AND doc_step = $2
+            ORDER BY created_at DESC
+            LIMIT 1`,
+          [applicationId, docStep],
+        );
+
+        const row = rowResult.rows[0];
+        if (!row) {
+          return res.status(404).json({ message: "Emergency document not found." });
+        }
+
+        const normalizeBytea = (value: unknown): Buffer => {
+          if (Buffer.isBuffer(value)) {
+            return value;
+          }
+          if (value instanceof Uint8Array) {
+            return Buffer.from(value);
+          }
+          if (typeof value === "string") {
+            return Buffer.from(value, "binary");
+          }
+          if (value == null) {
+            throw new Error("Emergency document stored value is missing.");
+          }
+          return Buffer.from(value as any);
+        };
+
+        const ciphertext = normalizeBytea(row.ciphertext);
+        const iv = normalizeBytea(row.iv);
+        const authTag = normalizeBytea(row.auth_tag);
+
+        const bundle = {
+          ciphertext,
+          iv,
+          authTag,
+        };
+
+        const plaintext = decryptEmergencyFileBundle(bundle, process.env.EMERGENCY_DOCUMENT_ENCRYPTION_KEY);
+        const expectedSha256 = String(row.sha256 || "").trim().toLowerCase();
+        const actualSha256 = createHash("sha256").update(plaintext).digest("hex");
+
+        if (expectedSha256 && actualSha256 !== expectedSha256) {
+          throw new Error("Emergency document integrity check failed: SHA-256 mismatch.");
+        }
+
+        const rawFileName = String(row.original_file_name || `doc-${docStep}.bin`);
+        const safeFilename = rawFileName.split(/[\\/]/).pop() || `doc-${docStep}.bin`;
+
+        res.setHeader("Content-Type", row.mime_type || "application/octet-stream");
+        res.setHeader("Content-Disposition", `inline; filename="${safeFilename.replace(/[\r\n"]/g, "_")}"`);
+        res.setHeader("Content-Length", String(plaintext.byteLength));
+        res.setHeader("Cache-Control", "private, no-store");
+        return res.end(plaintext);
+      } catch (error) {
+        console.error("Error retrieving emergency onboarding document:", error);
+        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to retrieve emergency document." });
       }
     }
   );
@@ -18409,6 +19944,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get all tutor applications (COO and HR)
   app.get(
+    "/api/coo/traffic-summary",
+    isAuthenticated,
+    requireRole(["coo", "hr"]),
+    async (_req: Request, res: Response) => {
+      try {
+        const result = await pool.query<{
+          pending_applications: string;
+          needs_review: string;
+          waiting_on_tutor: string;
+        }>(`
+          SELECT
+            count(*) FILTER (WHERE status = 'pending')::text AS pending_applications,
+            count(*) FILTER (
+              WHERE status = 'approved'
+                AND (documents_status->>'2' = 'pending_review' OR documents_status->>'6' = 'pending_review')
+            )::text AS needs_review,
+            count(*) FILTER (
+              WHERE status = 'approved'
+                AND documents_status->>'1' <> 'approved'
+                AND documents_status->>'2' <> 'approved'
+                AND documents_status->>'3' <> 'approved'
+                AND documents_status->>'4' <> 'approved'
+                AND documents_status->>'5' <> 'approved'
+                AND documents_status->>'6' <> 'approved'
+                AND documents_status->>'2' <> 'pending_review'
+                AND documents_status->>'6' <> 'pending_review'
+            )::text AS waiting_on_tutor
+          FROM tutor_applications
+        `);
+        const row = result.rows[0] || { pending_applications: "0", needs_review: "0", waiting_on_tutor: "0" };
+        const pendingApplications = Number(row.pending_applications || 0);
+        const needsReview = Number(row.needs_review || 0);
+        const waitingOnTutor = Number(row.waiting_on_tutor || 0);
+        res.json({ pendingApplications, needsReview, waitingOnTutor, totalActionCount: pendingApplications + needsReview + waitingOnTutor });
+      } catch (error) {
+        console.error("Error fetching COO traffic summary:", error);
+        res.status(500).json({ message: "Failed to fetch traffic summary" });
+      }
+    },
+  );
+
+  app.get(
     "/api/coo/tutor-applications",
     isAuthenticated,
     requireRole(["coo", "hr"]),
@@ -18445,11 +20022,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!application) {
           return res.status(404).json({ message: "Application not found" });
         }
-        await ensureSpecialistDevelopmentPathway({
-          tutorId: application.userId,
-          applicationId: application.id,
-          startedAt: application.reviewedAt || new Date(),
-        });
+        if (!isEmergencyDbMode()) {
+          await ensureSpecialistDevelopmentPathway({
+            tutorId: application.userId,
+            applicationId: application.id,
+            startedAt: application.reviewedAt || new Date(),
+          });
+        }
         await safeSendPush(
           application.userId,
           {
@@ -20382,6 +21961,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const tutorId = (req as any).dbUser.id;
+        if (isEmergencyDbMode()) {
+          return res.json({
+            unavailable: true,
+            reason: "temporarily_unavailable",
+            mode: null,
+            case: null,
+            pathway: null,
+          });
+        }
         const [mode, trialCase, pathway] = await Promise.all([
           getTutorCertificationMode(tutorId),
           getOpenTrialCaseForTutor(tutorId),
@@ -20541,8 +22129,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     requireRole(["parent"]),
     async (req: Request, res: Response) => {
       try {
+        if (isEmergencyDbMode()) {
+          const { data: enrollment, error } = await supabase
+            .from("parent_enrollments")
+            .select("assignment_lane")
+            .eq("user_id", (req as any).dbUser.id)
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (error) {
+            return res.status(200).json(buildEmergencyParentTrialCaseContract({ assignment_lane: null }));
+          }
+
+          return res.status(200).json(buildEmergencyParentTrialCaseContract({ assignment_lane: enrollment?.assignment_lane ?? null }));
+        }
+
         const trialCase = await getParentTrialCase((req as any).dbUser.id);
-        res.json({ case: trialCase });
+        res.json({ case: trialCase, unavailable: false });
       } catch (error) {
         console.error("Error loading family Trial case:", error);
         res.status(500).json({ message: "Failed to load family Trial progress" });
@@ -21992,6 +23596,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
       const dbUser = (req as any).dbUser;
+
+      if (isEmergencyDbMode()) {
+        const enrollmentResult = await pool.query(
+          `SELECT * FROM public.parent_enrollments
+            WHERE user_id = $1
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [userId],
+        );
+        const enrollment = enrollmentResult.rows[0] || null;
+        const debug: Record<string, unknown> = {
+          userId,
+          dbUserEmail: dbUser?.email || null,
+          enrollmentId: enrollment?.id || null,
+          enrollmentStatus: enrollment?.status || null,
+          enrollmentStep: enrollment?.current_step || null,
+          emergencyDbMode: true,
+        };
+        if (!enrollment) return res.json({ status: "not_enrolled", debug });
+
+        let status = String(enrollment.status || "not_enrolled");
+        let step = enrollment.current_step || null;
+        if (enrollment.assigned_tutor_id && ["proposal_sent", "session_booked", "report_received", "confirmed"].includes(status)) {
+          const sessionResult = await pool.query(
+            `SELECT status, type
+               FROM public.scheduled_sessions
+              WHERE (parent_id = $1 OR student_id = $2)
+                AND tutor_id = $3
+                AND type IN ('intro', 'training')
+              ORDER BY updated_at DESC, created_at DESC
+              LIMIT 1`,
+            [userId, enrollment.assigned_student_id, enrollment.assigned_tutor_id],
+          );
+          const session = sessionResult.rows[0];
+          if (!session || !["confirmed", "ready", "live", "completed"].includes(String(session.status || ""))) {
+            status = "assigned";
+            step = "assigned";
+          }
+        }
+        debug.effectiveStatus = status;
+        return res.json({
+          status,
+          step,
+          onboardingType: null,
+          freeSessionsRemaining: 0,
+          plan: null,
+          paymentStatus: null,
+          paymentDate: null,
+          debug,
+        });
+      }
       const enrollmentDebug: Record<string, any> = {
         userId,
         dbUserEmail: dbUser?.email || null,
@@ -22903,6 +24558,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/parent/proposal", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
     try {
       const parentId = (req as any).dbUser.id;
+
+      if (isEmergencyDbMode()) {
+        const enrollmentResult = await pool.query(
+          `SELECT * FROM public.parent_enrollments
+            WHERE user_id = $1
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [parentId],
+        );
+        const enrollment = enrollmentResult.rows[0] || null;
+        let proposal = null;
+        if (enrollment?.proposal_id) {
+          const proposalResult = await pool.query(
+            "SELECT * FROM public.onboarding_proposals WHERE id = $1 LIMIT 1",
+            [enrollment.proposal_id],
+          );
+          proposal = proposalResult.rows[0] || null;
+        }
+        if (!proposal && enrollment?.id) {
+          const proposalResult = await pool.query(
+            `SELECT * FROM public.onboarding_proposals
+              WHERE enrollment_id = $1
+              ORDER BY created_at DESC
+              LIMIT 1`,
+            [enrollment.id],
+          );
+          proposal = proposalResult.rows[0] || null;
+        }
+        if (!proposal) return res.status(404).json({ message: "Proposal not found" });
+
+        const studentResult = proposal.student_id
+          ? await pool.query("SELECT name, grade, concept_mastery, personal_profile FROM public.students WHERE id = $1 LIMIT 1", [proposal.student_id])
+          : { rows: [] };
+        const student = studentResult.rows[0] || null;
+        const tutorResult = proposal.tutor_id
+          ? await pool.query("SELECT email, name, bio, phone FROM public.users WHERE id = $1 LIMIT 1", [String(proposal.tutor_id)])
+          : { rows: [] };
+        const tutor = tutorResult.rows[0] || null;
+        const topicConditioning = buildTopicConditioningMap(proposal);
+        const reportedTopics = buildReportedTopics(
+          enrollment.topic_response_symptoms,
+          enrollment.reported_topics,
+          enrollment.topic_recommended_starting_phases,
+        );
+
+        return res.json({
+          id: proposal.id,
+          primaryIdentity: proposal.primary_identity,
+          mathRelationship: proposal.math_relationship,
+          confidenceTriggers: proposal.confidence_triggers,
+          confidenceKillers: proposal.confidence_killers,
+          pressureResponse: proposal.pressure_response,
+          growthDrivers: proposal.growth_drivers,
+          reportedTopics,
+          currentTopics: proposal.current_topics || reportedTopics.join(", "),
+          topicConditioning,
+          immediateStruggles: proposal.immediate_struggles,
+          gapsIdentified: proposal.gaps_identified,
+          tutorNotes: proposal.tutor_notes,
+          futureIdentity: proposal.future_identity,
+          wantToRemembered: proposal.want_to_remembered,
+          hiddenMotivations: proposal.hidden_motivations,
+          internalConflict: proposal.internal_conflict,
+          recommendedPlan: proposal.recommended_plan,
+          justification: proposal.justification,
+          childWillWin: proposal.child_will_win,
+          packageKey: getMonthlyServicePackage(proposal.package_key).key,
+          packageSessions: getMonthlyServicePackage(proposal.package_key).sessionsPerMonth,
+          plannedSessionsPerWeek: getMonthlyServicePackage(proposal.package_key).plannedSessionsPerWeek,
+          packageAmount: getMonthlyServicePackage(proposal.package_key).amountZar,
+          sessionPrice: SESSION_PRICE_ZAR,
+          parentCode: proposal.parent_code,
+          sentAt: proposal.sent_at,
+          acceptedAt: proposal.accepted_at,
+          createdAt: proposal.created_at,
+          student: {
+            name: student?.name || enrollment.student_full_name || "Your child",
+            grade: student?.grade || enrollment.student_grade || "",
+            gender: enrollment.student_gender || null,
+          },
+          tutor: tutor ? { name: tutor.name || tutor.email, email: tutor.email, bio: tutor.bio, phone: tutor.phone } : null,
+          payment: null,
+          onboardingType: null,
+          freeSessionsRemaining: 0,
+        });
+      }
 
       console.log("📋 Fetching proposal for parent:", parentId);
 
@@ -24038,6 +25779,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/parent/payment-history", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
     try {
       const parentId = String((req as any).dbUser.id || "").trim();
+      if (isEmergencyDbMode()) {
+        const result = await pool.query(
+          `SELECT id, provider, merchant_reference, plan, amount, currency, payment_status, payment_date, paid_at, created_at, raw_payload
+             FROM public.payment_transactions
+            WHERE parent_id = $1
+            ORDER BY created_at DESC
+            LIMIT 50`,
+          [parentId],
+        );
+        return res.json({
+          payments: result.rows.map((payment: any) => {
+            const rawPayload = payment?.raw_payload && typeof payment.raw_payload === "object"
+              ? payment.raw_payload
+              : {};
+            return {
+              id: payment.id,
+              provider: payment.provider,
+              reference: payment.merchant_reference,
+              plan: payment.plan,
+              amount: Number(payment.amount || 0),
+              currency: payment.currency,
+              status: String(payment.payment_status || "pending").toUpperCase(),
+              type: rawPayload.renewal ? "Monthly renewal" : "Monthly package",
+              paymentDate: payment.payment_date || payment.paid_at || payment.created_at,
+              createdAt: payment.created_at,
+            };
+          }),
+        });
+      }
       const { data, error } = await supabase
         .from("payment_transactions")
         .select("id, provider, merchant_reference, plan, amount, currency, payment_status, payment_date, paid_at, created_at, raw_payload")
@@ -25593,6 +27363,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const parentId = (req as any).dbUser.id;
 
+      if (isEmergencyDbMode()) {
+        const enrollmentResult = await pool.query(
+          `SELECT id, assigned_tutor_id, user_id, student_full_name FROM public.parent_enrollments
+            WHERE user_id = $1
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [parentId],
+        );
+        const enrollment = enrollmentResult.rows[0];
+        const studentResult = await pool.query(
+          `SELECT id
+             FROM public.students
+            WHERE parent_enrollment_id = $1
+            ORDER BY created_at DESC
+            LIMIT 1`,
+           [enrollment?.id || null],
+        );
+        const studentId = studentResult.rows[0]?.id || null;
+        if (!studentId) {
+          return res.json(buildEmergencyParentStudentStats());
+        }
+        const [scheduledSessionResult, drillResult, trainingRunResult, commitmentResult, streakResult] = await Promise.all([
+          pool.query(
+            `SELECT id, type, status, parent_confirmed, tutor_confirmed
+               FROM public.scheduled_sessions
+              WHERE student_id = $1 AND type IN ('intro', 'training')`,
+            [studentId],
+          ),
+          pool.query(
+            `SELECT id, scheduled_session_id, training_session_run_id, drill
+               FROM public.intro_session_drills
+              WHERE student_id = $1
+              ORDER BY submitted_at DESC`,
+            [studentId],
+          ),
+          pool.query(
+            `SELECT id, scheduled_session_id, topic_count, status
+               FROM public.training_session_runs
+              WHERE student_id = $1
+              ORDER BY submitted_at DESC`,
+            [studentId],
+          ),
+          pool.query("SELECT count(*)::int AS count FROM public.student_commitments WHERE student_id = $1 AND is_active = true", [studentId]),
+          pool.query("SELECT COALESCE(MAX(streak_count), 0)::int AS streak_count FROM public.student_commitments WHERE student_id = $1 AND is_active = true", [studentId]),
+        ]);
+
+        const parseDrillPayload = (value: unknown) => {
+          if (typeof value !== "string") return null;
+          try {
+            return JSON.parse(value);
+          } catch {
+            return null;
+          }
+        };
+        const trainingRuns = trainingRunResult.rows.filter((row: any) =>
+          ["submitted", "completed"].includes(String(row?.status || "").toLowerCase())
+        );
+        const introDrills = drillResult.rows.filter((row: any) => {
+          const payload = parseDrillPayload(row?.drill);
+          const drillType = payload?.drillType || (row?.training_session_run_id ? "training" : "diagnosis");
+          return String(drillType).trim().toLowerCase() === "diagnosis";
+        });
+        const completedSessionKeys = new Set<string>();
+        introDrills.forEach((row: any) => {
+          completedSessionKeys.add(row.scheduled_session_id ? `intro:${row.scheduled_session_id}` : `intro:${row.id}`);
+        });
+        trainingRuns.forEach((row: any) => {
+          const sessionId = String(row.scheduled_session_id || "").trim();
+          const runId = String(row.id || "").trim();
+          completedSessionKeys.add(`training:${sessionId || runId}`);
+        });
+        const completedTrainingSessions = scheduledSessionResult.rows.filter((row: any) =>
+          String(row.type || "").toLowerCase() === "training" &&
+          getEffectiveScheduledSessionStatus(row) === "completed"
+        );
+        if (trainingRuns.length === 0) {
+          completedTrainingSessions.forEach((row: any) => completedSessionKeys.add(`training:${row.id}`));
+        }
+        const derivedBossBattles = trainingRuns.reduce((sum: number, row: any) => sum + Number(row.topic_count || 0), 0);
+        const derivedSolutionsUnlocked = trainingRuns.length;
+        return res.json(buildEmergencyParentStudentStats({
+          sessionCount: completedSessionKeys.size,
+          commitmentCount: Number(commitmentResult.rows[0]?.count || 0),
+          currentStreak: Number(streakResult.rows[0]?.streak_count || 0),
+          introDiagnosisCount: introDrills.length,
+          trainingSessionCount: completedTrainingSessions.length || trainingRuns.length,
+          bossBattlesCompleted: derivedBossBattles,
+          solutionsUnlocked: derivedSolutionsUnlocked,
+        }));
+      }
+
       const { data: enrollment, error: enrollmentError } = await selectLatestParentEnrollment({
         parentId,
         primarySelect: "id, user_id, student_full_name, student_grade, assigned_tutor_id, assigned_student_id, parent_email, proposal_id",
@@ -25661,6 +27522,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/parent/student-info", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
     try {
       const parentId = (req as any).dbUser.id;
+
+      if (isEmergencyDbMode()) {
+        const { data: enrollment } = await selectLatestParentEnrollment({
+          parentId,
+          primarySelect: "*",
+        });
+        if (!enrollment) return res.status(404).json({ message: "No enrollment found" });
+        const student = await resolveCanonicalStudentForEnrollment(enrollment);
+        let podName: string | null = null;
+        if (enrollment.assigned_tutor_id) {
+          const podResult = await pool.query(
+            `SELECT p.pod_name
+               FROM public.tutor_assignments ta
+               JOIN public.pods p ON p.id = ta.pod_id
+              WHERE ta.tutor_id = $1 AND p.deleted_at IS NULL
+              LIMIT 1`,
+            [enrollment.assigned_tutor_id],
+          );
+          podName = podResult.rows[0]?.pod_name || null;
+        }
+        return res.json({
+          name: student?.name || enrollment.student_full_name,
+          grade: student?.grade || enrollment.student_grade,
+          podName,
+        });
+      }
 
       const { data: enrollment, error: enrollmentError } = await selectLatestParentEnrollment({
         parentId,
@@ -25958,6 +27845,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const parentId = (req as any).dbUser.id;
 
+      if (isEmergencyDbMode()) {
+        const reportResult = await pool.query(
+          `SELECT pr.*, u.name AS tutor_name
+             FROM public.parent_reports pr
+             LEFT JOIN public.users u ON u.id = pr.tutor_id
+            WHERE pr.parent_id = $1
+            ORDER BY pr.sent_at DESC`,
+          [parentId],
+        );
+        return res.json(reportResult.rows.map((report: any) => mapParentFacingReport(report, report.tutor_name)));
+      }
+
       const { data: reports, error } = await supabase
         .from("parent_reports")
         .select("*")
@@ -26062,6 +27961,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/parent/communications", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
     try {
       const parentId = (req as any).dbUser.id;
+
+      if (isEmergencyDbMode()) {
+        const enrollmentResult = await pool.query(
+          `SELECT id, assigned_tutor_id, student_full_name, student_grade
+             FROM public.parent_enrollments
+            WHERE user_id = $1
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [parentId],
+        );
+        const enrollment = enrollmentResult.rows[0] || null;
+        if (!enrollment) return res.status(404).json({ message: "No active enrollment found" });
+
+        const studentResult = await pool.query(
+          `SELECT id, name, grade, tutor_id
+             FROM public.students
+            WHERE parent_enrollment_id = $1
+            ORDER BY created_at DESC
+            LIMIT 1`,
+          [enrollment.id],
+        );
+        const student = studentResult.rows[0] || null;
+        if (!student || String(student.tutor_id || "") !== String(enrollment.assigned_tutor_id || "")) {
+          return res.status(404).json({ message: "Student not found" });
+        }
+
+        const [tutorResult, parentResult, threadResult] = await Promise.all([
+          pool.query("SELECT id, name FROM public.users WHERE id = $1 LIMIT 1", [student.tutor_id]),
+          pool.query("SELECT id, name FROM public.users WHERE id = $1 LIMIT 1", [parentId]),
+          pool.query(
+            `SELECT id, student_id, tutor_id, parent_id, audience
+               FROM public.student_communication_threads
+              WHERE student_id = $1 AND parent_id = $2 AND audience = 'parent'
+              LIMIT 1`,
+            [student.id, parentId],
+          ),
+        ]);
+        let thread = threadResult.rows[0] || null;
+        if (!thread) {
+          const insertedThread = await pool.query(
+            `INSERT INTO public.student_communication_threads (student_id, tutor_id, parent_id, audience)
+             VALUES ($1, $2, $3, 'parent')
+             RETURNING id, student_id, tutor_id, parent_id, audience`,
+            [student.id, student.tutor_id, parentId],
+          );
+          thread = insertedThread.rows[0] || null;
+        }
+        if (!thread) return res.status(500).json({ message: "Communication thread unavailable" });
+
+        const messageResult = await pool.query(
+          `SELECT id, thread_id, student_id, tutor_id, parent_id, audience, sender_role,
+                  sender_user_id, sender_student_user_id, reply_to_message_id, message,
+                  created_at, read_by_tutor_at, read_by_parent_at, read_by_student_at
+             FROM public.student_communication_messages
+            WHERE thread_id = $1 AND student_id = $2 AND parent_id = $3 AND audience = 'parent'
+            ORDER BY created_at ASC`,
+          [thread.id, student.id, parentId],
+        );
+        const messagesById = new Map<string, any>(messageResult.rows.map((row: any) => [String(row.id), row]));
+        const tutorName = tutorResult.rows[0]?.name || "Tutor";
+        const parentName = parentResult.rows[0]?.name || "Parent";
+        const senderName = (row: any) => row.sender_role === "tutor"
+          ? tutorName
+          : row.sender_role === "parent"
+            ? parentName
+            : String(student.name || "Student").trim() || "Student";
+        const messages = messageResult.rows.map((row: any) => {
+          const replyTarget = row.reply_to_message_id ? messagesById.get(String(row.reply_to_message_id)) : null;
+          return {
+            id: row.id,
+            threadId: row.thread_id,
+            studentId: row.student_id,
+            tutorId: row.tutor_id,
+            parentId: row.parent_id,
+            audience: row.audience,
+            senderRole: row.sender_role,
+            senderUserId: row.sender_user_id,
+            senderStudentUserId: row.sender_student_user_id,
+            senderName: senderName(row),
+            replyToMessageId: row.reply_to_message_id || null,
+            replyTo: replyTarget ? {
+              id: replyTarget.id,
+              senderName: senderName(replyTarget),
+              message: replyTarget.message,
+            } : null,
+            message: row.message,
+            createdAt: row.created_at,
+            readByTutorAt: row.read_by_tutor_at,
+            readByParentAt: row.read_by_parent_at,
+            readByStudentAt: row.read_by_student_at,
+          };
+        });
+
+        await pool.query(
+          `UPDATE public.student_communication_messages
+              SET read_by_parent_at = NOW()
+            WHERE thread_id = $1 AND student_id = $2 AND parent_id = $3
+              AND audience = 'parent' AND read_by_parent_at IS NULL`,
+          [thread.id, student.id, parentId],
+        );
+
+        return res.json({
+          student: { id: student.id, name: student.name, grade: student.grade || null },
+          tutor: { id: student.tutor_id, name: tutorName },
+          parent: { id: parentId, name: parentName, available: !!parentResult.rows[0] },
+          thread: { threadId: thread.id, audience: "parent", messages },
+        });
+      }
+
       const { data: enrollment, error } = await selectLatestParentEnrollment({
         parentId,
         primarySelect: "id, user_id, assigned_tutor_id, assigned_student_id, student_full_name, student_grade, parent_email",
@@ -26095,6 +28103,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/parent/communications/unread-count", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
     try {
       const parentId = (req as any).dbUser.id;
+
+      if (isEmergencyDbMode()) {
+        const enrollmentResult = await pool.query(
+          `SELECT id, assigned_tutor_id, student_full_name
+             FROM public.parent_enrollments
+            WHERE user_id = $1
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [parentId],
+        );
+        const enrollment = enrollmentResult.rows[0] || null;
+        if (!enrollment?.assigned_tutor_id) return res.json({ unreadCount: 0 });
+
+        const studentResult = await pool.query(
+          `SELECT id, tutor_id
+             FROM public.students
+            WHERE parent_enrollment_id = $1
+            ORDER BY created_at DESC
+            LIMIT 1`,
+           [enrollment.id],
+        );
+        const student = studentResult.rows[0] || null;
+        if (!student || String(student.tutor_id) !== String(enrollment.assigned_tutor_id)) {
+          return res.json({ unreadCount: 0 });
+        }
+
+        const unreadResult = await pool.query(
+          `SELECT count(*)::int AS count
+             FROM public.student_communication_messages
+            WHERE student_id = $1
+              AND parent_id = $2
+              AND audience = 'parent'
+              AND read_by_parent_at IS NULL
+              AND sender_role <> 'parent'`,
+          [student.id, parentId],
+        );
+        return res.json({ unreadCount: Number(unreadResult.rows[0]?.count || 0) });
+      }
+
       const { data: enrollment, error } = await selectLatestParentEnrollment({
         parentId,
         primarySelect: "id, user_id, assigned_tutor_id, assigned_student_id, student_full_name, student_grade, parent_email",

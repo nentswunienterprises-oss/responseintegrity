@@ -7,6 +7,7 @@ import {
   type ResponseIntegrityEvidenceLedgerEntry,
 } from "../shared/responseIntegrityEvidenceLedger";
 import { tryParsePhase, normalizeStability, type TopicPhase } from "../shared/topicConditioningEngine";
+import type { Pool } from "pg";
 
 export type EvidenceLedgerShadowPersistenceResult = {
   status: "projected" | "legacy_unprojected" | "projection_invalid" | "persistence_failed";
@@ -27,6 +28,12 @@ export type StoredDrillLedgerRow = {
   training_session_run_id?: unknown;
   submitted_at?: unknown;
   drill?: unknown;
+};
+
+export const normalizeEvidenceLedgerTimestamp = (value: unknown) => {
+  const raw = String(value || "").trim();
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
 };
 
 type EvidenceLedgerSupabaseClient = {
@@ -75,7 +82,7 @@ export const toEvidenceLedgerPersistenceRow = (
   score_contribution: entry.scoreContribution,
   score_contribution_max: entry.scoreContributionMax,
   constraint_profile: entry.constraintProfile,
-  observed_at: entry.observedAt,
+  observed_at: normalizeEvidenceLedgerTimestamp(entry.observedAt),
 });
 
 const parseStoredDrillPayload = (value: unknown): Record<string, any> | null => {
@@ -267,6 +274,41 @@ export const persistResponseIntegrityEvidenceLedgerShadow = async (
         code: "unexpected_persistence_error",
         message: error instanceof Error ? error.message : "Unexpected ledger persistence failure",
       }],
+    };
+  }
+};
+
+export const persistResponseIntegrityEvidenceLedgerShadowDirect = async (
+  pool: Pool,
+  input: EvidenceLedgerProjectionInput,
+): Promise<EvidenceLedgerShadowPersistenceResult> => {
+  const projection = projectResponseIntegrityEvidenceLedger(input);
+  if (projection.status === "legacy_unprojected") return { status: "legacy_unprojected", entryCount: 0 };
+  if (projection.status === "invalid") return { status: "projection_invalid", entryCount: 0, issues: projection.issues };
+  if (projection.entries.length === 0) return { status: "projected", entryCount: 0 };
+
+  const rows = projection.entries.map(toEvidenceLedgerPersistenceRow);
+  const columns = Object.keys(rows[0]);
+  const values: unknown[] = [];
+  const placeholders = rows.map((row) => `(${columns.map((column) => {
+    values.push(row[column]);
+    return `$${values.length}`;
+  }).join(", ")})`).join(", ");
+
+  try {
+    await pool.query(
+      `INSERT INTO public.response_integrity_evidence_ledger (${columns.map((column) => `"${column}"`).join(", ")})
+       VALUES ${placeholders}
+       ON CONFLICT (evidence_id) DO NOTHING`,
+      values,
+    );
+    return { status: "projected", entryCount: rows.length };
+  } catch (error) {
+    return {
+      status: "persistence_failed",
+      entryCount: 0,
+      errorCode: null,
+      issues: [{ code: "database_error", message: error instanceof Error ? error.message : "Ledger insert failed" }],
     };
   }
 };

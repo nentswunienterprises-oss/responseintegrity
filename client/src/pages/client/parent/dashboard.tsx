@@ -8,11 +8,12 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ProposalView from "@/components/parent/ProposalView";
 import { PushOptInCard } from "@/components/push/PushOptInCard";
 import { useNavigate } from "react-router-dom";
+import { getAuthMode } from "@/lib/authMode";
 
 interface StudentStats {
   introDiagnosisCompleted?: number;
@@ -523,8 +524,17 @@ function formatParentGradeLabel(grade: string): string {
 export default function ParentDashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [emergencyDbMode, setEmergencyDbMode] = useState(false);
   const [proposalDialogOpen, setProposalDialogOpen] = useState(false);
   const [topicConditioningDialogOpen, setTopicConditioningDialogOpen] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    getAuthMode().then((mode) => {
+      if (active) setEmergencyDbMode(mode.emergencyDbMode);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   const { data: proposal, isLoading: proposalLoading, error: proposalError } = useQuery<any>({
     queryKey: ["/api/parent/proposal"],
@@ -532,9 +542,9 @@ export default function ParentDashboard() {
     retry: false,
     staleTime: 0,
     refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    refetchInterval: 10000,
+    refetchInterval: emergencyDbMode ? false : 10000,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
   });
 
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery<StudentStats>({
@@ -543,8 +553,9 @@ export default function ParentDashboard() {
     retry: false,
     staleTime: 0,
     refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchInterval: 10000,
+    refetchInterval: emergencyDbMode ? false : 10000,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
   });
 
   const { data: studentInfo, isLoading: studentInfoLoading, error: studentInfoError } = useQuery<any>({
@@ -553,9 +564,9 @@ export default function ParentDashboard() {
     retry: false,
     staleTime: 0,
     refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    refetchInterval: 10000,
+    refetchInterval: emergencyDbMode ? false : 10000,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
   });
 
   const { data: assignedTutor } = useQuery<TutorInfo | null>({
@@ -564,9 +575,9 @@ export default function ParentDashboard() {
     retry: false,
     staleTime: 0,
     refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    refetchInterval: 10000,
+    refetchInterval: emergencyDbMode ? false : 10000,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
   });
 
   const { data: introSession } = useQuery<IntroSessionInfo | null>({
@@ -575,12 +586,19 @@ export default function ParentDashboard() {
     retry: false,
     staleTime: 0,
     refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    refetchInterval: 10000,
+    refetchInterval: emergencyDbMode ? false : 10000,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
   });
 
-  const { data: trainingSessionsData } = useQuery<{ monthlyQuota?: { sessions_remaining?: number; session_quota?: number } | null }>({ queryKey: ["/api/parent/training-sessions"], queryFn: getQueryFn({ on401: "returnNull" }), refetchInterval: 15000 });
+  const { data: trainingSessionsData } = useQuery<{ monthlyQuota?: { sessions_remaining?: number; session_quota?: number } | null }>({
+    queryKey: ["/api/parent/training-sessions"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    refetchInterval: emergencyDbMode ? false : 15000,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
+  });
   const sessionsRemaining = trainingSessionsData?.monthlyQuota != null ? Number(trainingSessionsData.monthlyQuota.sessions_remaining ?? 0) : null;
 
   const { data: topicStatesData } = useQuery<ParentTopicState[]>({
@@ -589,9 +607,9 @@ export default function ParentDashboard() {
     retry: false,
     staleTime: 0,
     refetchOnMount: "always",
-    refetchOnReconnect: true,
-    refetchInterval: (query) => (query.state.error ? false : 15000),
-    refetchOnWindowFocus: true,
+    refetchInterval: (query) => (emergencyDbMode || query.state.error ? false : 15000),
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
   });
 
   if (proposalLoading || statsLoading || studentInfoLoading) {

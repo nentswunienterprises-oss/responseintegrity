@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { getAuthMode } from "@/lib/authMode";
 import { Calendar, MessageSquare, Send, FileText, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -133,6 +134,15 @@ export default function ParentProgress() {
   const [selectedReport, setSelectedReport] = useState<ParentReport | null>(null);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [emergencyDbMode, setEmergencyDbMode] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    getAuthMode().then((mode) => {
+      if (active) setEmergencyDbMode(mode.emergencyDbMode);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   const { data: reports = [] } = useQuery<ParentReport[]>({
     queryKey: ["/api/parent/reports"],
@@ -147,6 +157,10 @@ export default function ParentProgress() {
   const { data: paymentHistoryData, isLoading: paymentHistoryLoading, isError: paymentHistoryError } = useQuery<ParentPaymentHistoryResponse>({
     queryKey: ["/api/parent/payment-history"],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    refetchInterval: false,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   const monthlyQuota = trainingData?.monthlyQuota;

@@ -23,13 +23,15 @@ export default function HRDashboard() {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const navigate = useNavigate();
 
-  // Fetch HR stats - refetch every 10 seconds to stay updated
   const { data: stats, isLoading: statsLoading } = useQuery<HRStats>({
     queryKey: ["/api/hr/stats"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: isAuthenticated && !!user,
-    refetchInterval: 10000, // Refetch every 10 seconds
-    refetchIntervalInBackground: true, // Keep refetching even if tab is not focused
+    refetchInterval: false,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
   });
 
   // Fetch leadership pilot requests for HR
@@ -37,7 +39,10 @@ export default function HRDashboard() {
     queryKey: ["/api/hr/leadership-pilot-requests"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: isAuthenticated && !!user,
-    refetchInterval: 10000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
   });
 
   // Fetch early intervention pilot requests for HR
@@ -45,7 +50,10 @@ export default function HRDashboard() {
     queryKey: ["/api/hr/earlyintervention-requests"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: isAuthenticated && !!user,
-    refetchInterval: 10000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
   });
 
   if (authLoading) {
