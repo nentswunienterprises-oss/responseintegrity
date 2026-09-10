@@ -264,7 +264,7 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "", onE
     } catch (err: any) {
       toast({
         title: "Error",
-        description: "We're experiencing a technical issue. Please try again after a few hours.",
+        description: err?.message || "We're experiencing a technical issue. Please try again after a few hours.",
         variant: "destructive",
       });
     } finally {
