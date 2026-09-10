@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, getQueryFn } from "@/lib/queryClient";
@@ -26,6 +26,8 @@ import { TutorDocumentReview } from "@/components/tutor/TutorDocumentReview";
 import { COOAffiliateApplicationsPanel, COOTdApplicationsPanel } from "@/pages/executive/coo/applications";
 import type { TutorApplication } from "@shared/schema";
 import { RESPONSE_SYMPTOM_GROUPS } from "@shared/responseSymptomMapping";
+import { formatApplicationDate } from "@/lib/application-date";
+import { getAuthMode } from "@/lib/authMode";
 
 interface ParentEnrollment {
   id: string;
@@ -155,6 +157,7 @@ function isWaitingOnTutorAction(application: any) {
 
 export default function ExecutiveHRTraffic() {
   const { isAuthenticated, user } = useAuth();
+  const [emergencyDbMode, setEmergencyDbMode] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [assignTutorOpen, setAssignTutorOpen] = useState(false);
@@ -165,12 +168,18 @@ export default function ExecutiveHRTraffic() {
   const [tutorAppSubTab, setTutorAppSubTab] = useState("pending");
   const [parentSubTab, setParentSubTab] = useState("awaiting");
   const [unassigningEnrollmentId, setUnassigningEnrollmentId] = useState<string | null>(null);
+  useEffect(() => {
+    getAuthMode().then((mode) => setEmergencyDbMode(mode.emergencyDbMode));
+  }, []);
   // Fetch tutor verification docs (from /api/coo/applications)
   const { data: tutorVerificationData = [], refetch: refetchVerificationData } = useQuery<{ user: any; verificationDoc: any }[]>({
     queryKey: ["/api/coo/applications"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: isAuthenticated && !!user,
-    refetchInterval: 10000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
   });
 
   const normalizeStatus = (value: unknown) => String(value || "").toLowerCase().trim();
@@ -201,17 +210,22 @@ export default function ExecutiveHRTraffic() {
     queryKey: ["/api/hr/stats"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: isAuthenticated && !!user,
-    refetchInterval: 10000,
-    refetchIntervalInBackground: true,
+    refetchInterval: false,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
   });
 
-  // Fetch all parent enrollments - refetch every 5 seconds
   const { data: enrollments = [], isLoading: enrollmentsLoading } = useQuery<ParentEnrollment[]>({
     queryKey: ["/api/hr/enrollments"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: isAuthenticated && !!user,
-    refetchInterval: 5000,
-    refetchIntervalInBackground: true,
+    refetchInterval: false,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
   });
 
   // Fetch specialist applications
@@ -219,7 +233,10 @@ export default function ExecutiveHRTraffic() {
     queryKey: ["/api/coo/tutor-applications"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: isAuthenticated && !!user,
-    refetchInterval: 5000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
   });
 
   // Filter enrollments by status (normalize strings to avoid casing/whitespace issues)
@@ -1183,7 +1200,7 @@ export default function ExecutiveHRTraffic() {
             <DialogHeader>
               <DialogTitle>{(selectedApplication as any).fullName || (selectedApplication as any).full_name || (selectedApplication as any).full_names || (selectedApplication as any).fullNames}</DialogTitle>
               <DialogDescription>
-                Submitted on {format(new Date((selectedApplication as any).created_at || (selectedApplication as any).createdAt), "PPP")}
+                Submitted on {formatApplicationDate((selectedApplication as any).created_at || (selectedApplication as any).createdAt)}
               </DialogDescription>
             </DialogHeader>
             <ApplicationDetails application={selectedApplication} />

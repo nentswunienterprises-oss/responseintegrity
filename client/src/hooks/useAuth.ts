@@ -5,6 +5,7 @@ import { getQueryFn, clearAllCache, setCurrentUserId, getCurrentUserId, setupMul
 import { useLocation } from "wouter";
 import { supabase } from "@/lib/supabaseClient";
 import { API_URL } from "@/lib/config";
+import { getAuthMode } from "@/lib/authMode";
 import { useState, useEffect, useRef } from "react";
 import { logout as roleLogout } from "@/lib/auth";
 
@@ -16,8 +17,12 @@ export function useAuth() {
   
   // Wait for Supabase to initialize and check for existing session
   useEffect(() => {
-    supabase.auth.getSession().then(() => {
-      setSupabaseReady(true);
+    getAuthMode().then((authMode) => {
+      if (authMode.emergencyDbMode) {
+        setSupabaseReady(true);
+        return;
+      }
+      supabase.auth.getSession().then(() => setSupabaseReady(true));
     });
   }, []);
 

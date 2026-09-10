@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { db } from "./db";
+import { db, pool } from "./db";
+import { isEmergencyDbMode } from "./emergencyMode";
 import {
   User, UpsertUser,
   Pod, InsertPod,
@@ -64,6 +65,9 @@ export async function createAffiliateCode({ affiliateId, createdBy, ownerUserId,
 // Helper function to transform snake_case to camelCase
 export function transformSnakeToCamel(obj: any): any {
   if (!obj || typeof obj !== 'object') return obj;
+  if (obj instanceof Date) {
+    return Number.isNaN(obj.getTime()) ? null : obj.toISOString();
+  }
   if (Array.isArray(obj)) return obj.map(transformSnakeToCamel);
   
   const result: any = {};
@@ -74,6 +78,10 @@ export function transformSnakeToCamel(obj: any): any {
     }
   }
   return result;
+}
+
+export function toJsonbParam(value: unknown) {
+  return JSON.stringify(value ?? null);
 }
 
 type SequentialDocumentStatus =
@@ -285,6 +293,47 @@ async function hydrateTutorApplicationsWithOnboardingState(
   });
 }
 
+async function hydrateTutorApplicationsWithOnboardingStateEmergency(
+  applications: TutorApplication[],
+): Promise<TutorApplication[]> {
+  if (!applications.length) return applications;
+
+  const applicationIds = applications.map((application) => application.id).filter(Boolean);
+  if (!applicationIds.length) return applications;
+
+  const acceptanceResult = await pool.query(
+    `SELECT *
+       FROM public.tutor_onboarding_acceptances
+      WHERE application_id = ANY($1::varchar[])
+      ORDER BY accepted_at DESC`,
+    [applicationIds],
+  );
+  const acceptancesByApplication = new Map<string, any[]>();
+  for (const row of acceptanceResult.rows) {
+    const current = acceptancesByApplication.get(row.application_id) ?? [];
+    current.push(transformSnakeToCamel(row));
+    acceptancesByApplication.set(row.application_id, current);
+  }
+
+  return applications.map((application) => {
+    const acceptanceRows = acceptancesByApplication.get(application.id) ?? [];
+    return mergeTutorApplicationOnboardingState(application, acceptanceRows);
+  });
+}
+
+export function mergeTutorApplicationOnboardingState(application: TutorApplication, acceptanceRows: any[]) {
+  const latestAcceptanceByStep = acceptanceRows.reduce<Record<string, any>>((accumulator, acceptance) => {
+    const key = String(acceptance.documentStep);
+    if (!accumulator[key]) accumulator[key] = acceptance;
+    return accumulator;
+  }, {});
+  return {
+    ...application,
+    onboardingAcceptances: acceptanceRows,
+    onboardingAcceptanceMap: latestAcceptanceByStep,
+  };
+}
+
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
@@ -411,6 +460,40 @@ export class SupabaseStorage implements IStorage {
       return this.__userCache[id];
     }
     try {
+      if (isEmergencyDbMode()) {
+        const result = await pool.query(
+          `SELECT id, email, first_name, last_name, phone, bio, profile_image_url,
+                  production_link_code, tracking_source, tracking_campaign, role,
+                  name, grade, school, verified, created_at, updated_at
+             FROM public.users
+            WHERE id = $1
+            LIMIT 1`,
+          [id],
+        );
+        const data = result.rows[0];
+        if (!data) return undefined;
+        const user = {
+          id: data.id,
+          email: data.email,
+          firstName: data.first_name,
+          lastName: data.last_name,
+          phone: data.phone,
+          bio: data.bio,
+          profileImageUrl: data.profile_image_url,
+          productionLinkCode: data.production_link_code,
+          trackingSource: data.tracking_source,
+          trackingCampaign: data.tracking_campaign,
+          role: data.role,
+          name: data.name,
+          grade: data.grade,
+          school: data.school,
+          verified: data.verified,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        } as User;
+        this.__userCache[id] = user;
+        return user;
+      }
       // Explicitly select only user columns to avoid any relationship pollution
       const { data, error } = await supabase
         .from("users")
@@ -694,6 +777,17 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getPod(id: string): Promise<Pod | undefined> {
+    if (isEmergencyDbMode()) {
+      const result = await pool.query(
+        `SELECT id, pod_name, pod_type, vehicle, phase, td_id, status, start_date, end_date, deleted_at, created_at
+           FROM public.pods
+          WHERE id = $1
+          LIMIT 1`,
+        [id],
+      );
+      const data = result.rows[0];
+      return data ? transformSnakeToCamel(data) as Pod : undefined;
+    }
     const { data } = await supabase.from("pods").select("*").eq("id", id).maybeSingle();
     if (!data) return undefined;
     // Transform snake_case to camelCase
@@ -917,6 +1011,50 @@ export class SupabaseStorage implements IStorage {
 
   async getTutorAssignment(tutorId: string): Promise<(TutorAssignment & { pod: Pod }) | undefined> {
     console.log("🔍 Looking for tutor assignment for tutorId:", tutorId);
+    if (isEmergencyDbMode()) {
+      const assignmentResult = await pool.query(
+        `SELECT id, tutor_id, pod_id, student_count, certification_status, operational_mode, created_at
+           FROM public.tutor_assignments
+          WHERE tutor_id = $1
+          LIMIT 1`,
+        [tutorId],
+      );
+      const assignment = assignmentResult.rows[0];
+      if (!assignment) return undefined;
+
+      const podResult = await pool.query(
+        `SELECT id, pod_name, pod_type, vehicle, phase, td_id, status, start_date, end_date, deleted_at, created_at
+           FROM public.pods
+          WHERE id = $1
+          LIMIT 1`,
+        [assignment.pod_id],
+      );
+      const pod = podResult.rows[0];
+      if (!pod) return undefined;
+
+      return {
+        id: assignment.id,
+        tutorId: assignment.tutor_id,
+        podId: assignment.pod_id,
+        studentCount: assignment.student_count,
+        certificationStatus: assignment.certification_status,
+        operationalMode: assignment.operational_mode,
+        createdAt: assignment.created_at,
+        pod: {
+          id: pod.id,
+          podName: pod.pod_name,
+          podType: pod.pod_type,
+          vehicle: pod.vehicle,
+          phase: pod.phase,
+          tdId: pod.td_id,
+          status: pod.status,
+          startDate: pod.start_date,
+          endDate: pod.end_date,
+          deletedAt: pod.deleted_at,
+          createdAt: pod.created_at,
+        },
+      };
+    }
     const { data, error } = await supabase.from("tutor_assignments").select("*").eq("tutor_id", tutorId).maybeSingle();
     if (error) {
       console.log("ℹ️ No assignment found (expected for single()):", error.message);
@@ -945,6 +1083,16 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getTutorAssignmentsByPod(podId: string): Promise<TutorAssignment[]> {
+    if (isEmergencyDbMode()) {
+      const result = await pool.query(
+        `SELECT id, tutor_id, pod_id, student_count, certification_status, operational_mode, created_at
+           FROM public.tutor_assignments
+          WHERE pod_id = $1
+          ORDER BY created_at ASC`,
+        [podId],
+      );
+      return result.rows.map((assignment: any) => transformSnakeToCamel(assignment) as TutorAssignment);
+    }
     const { data } = await supabase.from("tutor_assignments").select("*").eq("pod_id", podId);
     if (!data) return [];
     // Transform snake_case to camelCase
@@ -1039,12 +1187,25 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getStudent(id: string): Promise<Student | undefined> {
+    if (isEmergencyDbMode()) {
+      const result = await pool.query("SELECT * FROM public.students WHERE id = $1 LIMIT 1", [id]);
+      return result.rows[0] ? transformSnakeToCamel(result.rows[0]) as Student : undefined;
+    }
     const { data } = await supabase.from("students").select("*").eq("id", id).maybeSingle();
     if (!data) return undefined;
     return transformSnakeToCamel(data);
   }
 
   async getStudentsByTutor(tutorId: string): Promise<Student[]> {
+    if (isEmergencyDbMode()) {
+      const result = await pool.query(
+        "SELECT * FROM public.students WHERE tutor_id = $1 ORDER BY created_at ASC",
+        [tutorId],
+      );
+      return result.rows
+        .filter((student: any) => student.id && String(student.id).trim() !== "")
+        .map((student: any) => transformSnakeToCamel(student) as Student);
+    }
     const { data } = await supabase.from("students").select("*").eq("tutor_id", tutorId);
     if (!data) return [];
     return (data ?? [])
@@ -1065,6 +1226,26 @@ export class SupabaseStorage implements IStorage {
       if (key === 'id' || key === 'createdAt') continue; // Skip readonly fields
       const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
       dbData[snakeKey] = value;
+    }
+
+    if (isEmergencyDbMode()) {
+      const allowedColumns = new Set([
+        "name", "grade", "session_progress", "concept_mastery", "confidence_score",
+        "parent_contact", "personal_profile", "emotional_insights", "academic_diagnosis",
+        "identity_sheet", "identity_sheet_completed_at", "tutor_id", "parent_id", "parent_enrollment_id",
+      ]);
+      const entries = Object.entries(dbData).filter(([key]) => allowedColumns.has(key));
+      if (entries.length === 0) return this.getStudent(id);
+      const assignments = entries.map(([key], index) => `"${key}" = $${index + 1}`).join(", ");
+      const values = entries.map(([, value]) => value);
+      values.push(id);
+      const result = await pool.query(
+        `UPDATE public.students SET ${assignments}, updated_at = NOW()
+          WHERE id = $${values.length}
+          RETURNING *`,
+        values,
+      );
+      return result.rows[0] ? transformSnakeToCamel(result.rows[0]) as Student : undefined;
     }
 
     const { data: updated, error } = await supabase
@@ -1100,17 +1281,50 @@ export class SupabaseStorage implements IStorage {
       practice_problems: session.practiceProblems,
       confidence_score_delta: session.confidenceScoreDelta,
     };
+    if (isEmergencyDbMode()) {
+      const result = await pool.query(
+        `INSERT INTO public.tutoring_sessions
+          (tutor_id, student_id, date, duration, notes, vocabulary_notes, method_notes,
+           reason_notes, student_response, confidence_change, tutor_growth_reflection,
+           boss_battles_done, practice_problems, confidence_score_delta)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+         RETURNING *`,
+        [
+          dbSession.tutor_id, dbSession.student_id, dbSession.date, dbSession.duration,
+          dbSession.notes, dbSession.vocabulary_notes, dbSession.method_notes,
+          dbSession.reason_notes, dbSession.student_response, dbSession.confidence_change,
+          dbSession.tutor_growth_reflection, dbSession.boss_battles_done,
+          dbSession.practice_problems, dbSession.confidence_score_delta,
+        ],
+      );
+      if (!result.rows[0]) throw new Error("Failed to create session");
+      return transformSnakeToCamel(result.rows[0]) as Session;
+    }
     const { data } = await supabase.from("tutoring_sessions").insert(dbSession).select().single();
     if (!data) throw new Error("Failed to create session");
     return transformSnakeToCamel(data) as Session;
   }
 
   async getSessionsByTutor(tutorId: string): Promise<Session[]> {
+    if (isEmergencyDbMode()) {
+      const result = await pool.query(
+        "SELECT * FROM public.tutoring_sessions WHERE tutor_id = $1 ORDER BY date DESC",
+        [tutorId],
+      );
+      return result.rows.map((session: any) => transformSnakeToCamel(session) as Session);
+    }
     const { data } = await supabase.from("tutoring_sessions").select("*").eq("tutor_id", tutorId).order("date", { ascending: false });
     return (data ?? []).map(transformSnakeToCamel) as Session[];
   }
 
   async getSessionsByStudent(studentId: string): Promise<Session[]> {
+    if (isEmergencyDbMode()) {
+      const result = await pool.query(
+        "SELECT * FROM public.tutoring_sessions WHERE student_id = $1 ORDER BY date DESC",
+        [studentId],
+      );
+      return result.rows.map((session: any) => transformSnakeToCamel(session) as Session);
+    }
     const { data } = await supabase.from("tutoring_sessions").select("*").eq("student_id", studentId).order("date", { ascending: false });
     return (data ?? []).map(transformSnakeToCamel) as Session[];
   }
@@ -1771,7 +1985,82 @@ export class SupabaseStorage implements IStorage {
     return data;
   }
 
+  async createTutorApplicationEmergency(application: any): Promise<TutorApplication> {
+    const normalizedIdType =
+      String(application?.idType ?? application?.id_type ?? "")
+        .trim()
+        .toLowerCase();
+    const values = [
+      application.userId,
+      application.productionLinkCode || null,
+      application.trackingSource || null,
+      application.trackingCampaign || null,
+      application.fullName,
+      application.age,
+      application.phone,
+      application.email,
+      application.city,
+      application.completedMatric,
+      application.matricYear,
+      application.mathLevel,
+      application.mathResult,
+      application.otherSubjects,
+      application.currentSituation,
+      application.currentSituationOther,
+      application.interestReason,
+      application.helpedBefore,
+      application.helpExplanation,
+      application.studentDontGet,
+      application.pressureStory,
+      application.pressureResponse,
+      application.panicCause,
+      application.disciplineReason,
+      application.repeatMistakeResponse,
+      application.ttMeaning,
+      application.structurePreference,
+      application.hoursPerWeek,
+      application.availableAfternoon,
+      application.finalReason,
+      application.commitment,
+      application.status || "pending",
+      normalizedIdType === "sa_id" || normalizedIdType === "passport" ? normalizedIdType : null,
+    ];
+    const result = await pool.query(
+      `INSERT INTO public.tutor_applications (
+         user_id, production_link_code, tracking_source, tracking_campaign,
+         full_name, age, phone, email, city, completed_matric, matric_year,
+         math_level, math_result, other_subjects, current_situation,
+         current_situation_other, interest_reason, helped_before,
+         help_explanation, student_dont_get, pressure_story, pressure_response,
+         panic_cause, discipline_reason, repeat_mistake_response, tt_meaning,
+         structure_preference, hours_per_week, available_afternoon, final_reason,
+         commitment, status, id_type
+       )
+       VALUES (
+         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+         $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28,
+         $29, $30, $31, $32, $33
+       )
+       RETURNING *`,
+      values,
+    );
+    const data = result.rows[0];
+    if (!data) throw new Error("Failed to create tutor application: No data returned");
+    return transformSnakeToCamel(data) as TutorApplication;
+  }
+
   async getTutorApplicationsByUser(userId: string): Promise<TutorApplication[]> {
+    if (isEmergencyDbMode()) {
+      const result = await pool.query(
+        `SELECT * FROM public.tutor_applications
+          WHERE user_id = $1
+          ORDER BY created_at DESC`,
+        [userId],
+      );
+      return hydrateTutorApplicationsWithOnboardingStateEmergency(
+        result.rows.map((application: any) => transformSnakeToCamel(application) as TutorApplication),
+      );
+    }
     const { data } = await supabase
       .from("tutor_applications")
       .select("*")
@@ -1783,6 +2072,15 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getTutorApplications(): Promise<TutorApplication[]> {
+    if (isEmergencyDbMode()) {
+      const result = await pool.query(
+        `SELECT * FROM public.tutor_applications
+          ORDER BY created_at DESC`,
+      );
+      return hydrateTutorApplicationsWithOnboardingStateEmergency(
+        result.rows.map((application: any) => transformSnakeToCamel(application) as TutorApplication),
+      );
+    }
     const { data, error } = await supabase
       .from("tutor_applications")
       .select("*")
@@ -1797,6 +2095,17 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getTutorApplicationsByStatus(status: "pending" | "approved" | "rejected"): Promise<TutorApplication[]> {
+    if (isEmergencyDbMode()) {
+      const result = await pool.query(
+        `SELECT * FROM public.tutor_applications
+          WHERE status = $1
+          ORDER BY created_at DESC`,
+        [status],
+      );
+      return hydrateTutorApplicationsWithOnboardingStateEmergency(
+        result.rows.map((application: any) => transformSnakeToCamel(application) as TutorApplication),
+      );
+    }
     const { data, error } = await supabase
       .from("tutor_applications")
       .select("*")
@@ -1812,6 +2121,27 @@ export class SupabaseStorage implements IStorage {
   }
 
   async approveTutorApplication(id: string, reviewedBy: string): Promise<TutorApplication | undefined> {
+    if (isEmergencyDbMode()) {
+      const result = await pool.query(
+        `UPDATE public.tutor_applications
+            SET status = 'approved',
+                reviewed_by = $2,
+                reviewed_at = now(),
+                document_submission_step = 1,
+                documents_status = $3::jsonb,
+                updated_at = now()
+          WHERE id = $1
+          RETURNING *`,
+        [
+          id,
+          reviewedBy,
+          JSON.stringify(INITIAL_TUTOR_DOCUMENT_STATUSES),
+        ],
+      );
+      return result.rows[0]
+        ? (transformSnakeToCamel(result.rows[0]) as TutorApplication)
+        : undefined;
+    }
     const { data, error } = await supabase
       .from("tutor_applications")
       .update({
@@ -1833,6 +2163,22 @@ export class SupabaseStorage implements IStorage {
   }
 
   async rejectTutorApplication(id: string, reviewedBy: string, reason: string): Promise<TutorApplication | undefined> {
+    if (isEmergencyDbMode()) {
+      const result = await pool.query(
+        `UPDATE public.tutor_applications
+            SET status = 'rejected',
+                reviewed_by = $2,
+                reviewed_at = now(),
+                rejection_reason = $3,
+                updated_at = now()
+          WHERE id = $1
+          RETURNING *`,
+        [id, reviewedBy, reason],
+      );
+      return result.rows[0]
+        ? (transformSnakeToCamel(result.rows[0]) as TutorApplication)
+        : undefined;
+    }
     const { data } = await supabase
       .from("tutor_applications")
       .update({
@@ -2007,6 +2353,210 @@ export class SupabaseStorage implements IStorage {
   async createTutorOnboardingAcceptance(
     input: CreateTutorOnboardingAcceptanceInput
   ): Promise<{ application?: TutorApplication; acceptance?: TutorOnboardingAcceptance }> {
+    if (isEmergencyDbMode()) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+
+        const applicationResult = await client.query(
+          `SELECT *
+             FROM public.tutor_applications
+            WHERE id = $1
+              AND user_id = $2
+            FOR UPDATE`,
+          [input.applicationId, input.userId],
+        );
+        const existing = applicationResult.rows[0];
+        if (!existing) {
+          throw new Error("Application not found or access denied");
+        }
+        if (existing.status !== "approved") {
+          throw new Error("Application must be approved before onboarding acceptance.");
+        }
+
+        const documentsStatus = normalizeTutorDocumentStatuses(existing.documents_status);
+        const currentStep = buildCurrentStepFromStatuses(documentsStatus);
+        for (let step = 1; step < input.documentStep; step++) {
+          if (String(documentsStatus[step.toString()] || "not_started") !== "approved") {
+            throw new Error(`Sequential step order violation: step ${step} must be completed first.`);
+          }
+        }
+        if (input.documentStep !== currentStep) {
+          throw new Error(`Sequential step order violation: current acceptance step is ${currentStep}.`);
+        }
+        if (String(documentsStatus[input.documentStep.toString()] || "not_started") === "approved") {
+          throw new Error(`Step ${input.documentStep} has already been accepted.`);
+        }
+
+        const duplicateResult = await client.query(
+          `SELECT id
+             FROM public.tutor_onboarding_acceptances
+            WHERE application_id = $1
+              AND user_id = $2
+              AND document_step = $3
+            LIMIT 1`,
+          [input.applicationId, input.userId, input.documentStep],
+        );
+        if (duplicateResult.rows[0]) {
+          throw new Error(`Step ${input.documentStep} has already been accepted.`);
+        }
+
+        const acceptanceResult = await client.query(
+          `INSERT INTO public.tutor_onboarding_acceptances (
+             application_id, user_id, document_step, document_code, document_title,
+             document_version, document_effective_date, document_last_updated_at,
+             document_snapshot, document_checksum, typed_full_name, account_email,
+             phone_number_snapshot, accepted_timezone, ip_address, user_agent,
+             device_type, platform, session_id, locale, source_flow,
+             form_snapshot_json, accepted_clauses_json, scroll_completion_percent,
+             view_started_at, view_completed_at, accept_clicked_at
+           )
+           VALUES (
+             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+             $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27
+           )
+           RETURNING *`,
+          [
+            input.applicationId,
+            input.userId,
+            input.documentStep,
+            input.documentCode,
+            input.documentTitle,
+            input.documentVersion,
+            input.documentEffectiveDate ?? null,
+            input.documentLastUpdatedAt ?? null,
+            input.documentSnapshot,
+            input.documentChecksum,
+            input.typedFullName,
+            input.accountEmail,
+            input.phoneNumberSnapshot ?? null,
+            input.acceptedTimezone ?? null,
+            input.ipAddress ?? null,
+            input.userAgent ?? null,
+            input.deviceType ?? null,
+            input.platform ?? null,
+            input.sessionId ?? null,
+            input.locale ?? null,
+            input.sourceFlow ?? null,
+            toJsonbParam(input.formSnapshotJson),
+            toJsonbParam(input.acceptedClauses.map((clause) => clause.key)),
+            input.scrollCompletionPercent ?? null,
+            input.viewStartedAt ?? null,
+            input.viewCompletedAt ?? null,
+            input.acceptClickedAt ?? null,
+          ],
+        );
+        const acceptanceRow = acceptanceResult.rows[0];
+        if (!acceptanceRow) throw new Error("Failed to create onboarding acceptance");
+
+        if (input.acceptedClauses.length) {
+          const clauseValues: unknown[] = [];
+          const clausePlaceholders = input.acceptedClauses.map((clause, index) => {
+            const offset = index * 3;
+            clauseValues.push(acceptanceRow.id, clause.key, clause.label);
+            return `($${offset + 1}, $${offset + 2}, $${offset + 3})`;
+          });
+          await client.query(
+            `INSERT INTO public.tutor_onboarding_clause_acknowledgements
+               (acceptance_id, clause_key, clause_label)
+             VALUES ${clausePlaceholders.join(", ")}`,
+            clauseValues,
+          );
+        }
+
+        const eventPayloads = [
+          { eventType: "view_started", payload: { at: input.viewStartedAt?.toISOString?.() ?? null } },
+          {
+            eventType: "view_completed",
+            payload: {
+              at: input.viewCompletedAt?.toISOString?.() ?? null,
+              scrollCompletionPercent: input.scrollCompletionPercent ?? null,
+            },
+          },
+          {
+            eventType: "accepted",
+            payload: {
+              at: input.acceptClickedAt?.toISOString?.() ?? null,
+              method: "checkbox_typed_name",
+              clauses: input.acceptedClauses.map((clause) => clause.key),
+              formSnapshot: input.formSnapshotJson ?? null,
+            },
+          },
+        ];
+        const eventValues: unknown[] = [];
+        const eventPlaceholders = eventPayloads.map((event, index) => {
+          const offset = index * 6;
+          eventValues.push(
+            acceptanceRow.id,
+            input.applicationId,
+            input.userId,
+            input.documentStep,
+            event.eventType,
+            toJsonbParam(event.payload),
+          );
+          return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+        });
+        await client.query(
+          `INSERT INTO public.tutor_onboarding_acceptance_events
+             (acceptance_id, application_id, user_id, document_step, event_type, payload)
+           VALUES ${eventPlaceholders.join(", ")}`,
+          eventValues,
+        );
+
+        const isAcceptanceOnlyStep = hasAcceptanceOnlyStep(input.documentStep);
+        const documentFields = getSequentialTutorDocumentFields(input.documentStep);
+        const acceptanceRecordedAt = new Date();
+        documentsStatus[input.documentStep.toString()] = isAcceptanceOnlyStep ? "approved" : "pending_upload";
+        if (isAcceptanceOnlyStep && input.documentStep < 6) {
+          documentsStatus[(input.documentStep + 1).toString()] = "pending_upload";
+        }
+        const updateValues: unknown[] = [
+          toJsonbParam(documentsStatus),
+          isAcceptanceOnlyStep && input.documentStep < 6 ? input.documentStep + 1 : input.documentStep,
+          acceptanceRecordedAt,
+          input.applicationId,
+        ];
+
+        let updateQuery = `UPDATE public.tutor_applications
+              SET documents_status = $1::jsonb,
+                  document_submission_step = $2::integer,
+                  updated_at = $3::timestamptz,
+                  ${documentFields.rejectionReason} = NULL`;
+
+        if (isAcceptanceOnlyStep) {
+          updateValues.push(input.userId);
+          updateQuery += `,
+                  ${documentFields.verifiedBy} = $5::varchar,
+                  ${documentFields.verifiedAt} = $3::timestamptz`;
+
+          if (["sa_id", "passport"].includes(String(input.formSnapshotJson?.idType || "").trim().toLowerCase())) {
+            updateValues.push(input.formSnapshotJson?.idType ?? null);
+            updateQuery += `,
+                  id_type = $6::text`;
+          }
+        }
+
+        updateQuery += `
+            WHERE id = $4
+            RETURNING *`;
+
+        const updatedResult = await client.query(updateQuery, updateValues);
+        const updatedApplication = updatedResult.rows[0];
+        if (!updatedApplication) throw new Error("Failed to update onboarding application state");
+
+        await client.query("COMMIT");
+        return {
+          application: transformSnakeToCamel(updatedApplication) as TutorApplication,
+          acceptance: transformSnakeToCamel(acceptanceRow) as TutorOnboardingAcceptance,
+        };
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => undefined);
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
+
     const { data: existing, error: existingError } = await supabase
       .from("tutor_applications")
       .select("id, user_id, documents_status, document_submission_step, phone, email")
@@ -2306,6 +2856,149 @@ export class SupabaseStorage implements IStorage {
     }
 
     const fields = getSequentialTutorDocumentFields(docStep);
+
+    if (isEmergencyDbMode()) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+
+        let existingResult;
+        try {
+          existingResult = await client.query(
+            `SELECT
+                id,
+                documents_status,
+                document_submission_step,
+                doc_1_completed_template_url,
+                doc_2_completed_template_url,
+                doc_3_completed_template_url,
+                doc_4_completed_template_url,
+                doc_5_completed_template_url,
+                doc_1_submission_url,
+                doc_2_submission_url,
+                doc_3_submission_url,
+                doc_4_submission_url,
+                doc_5_submission_url,
+                doc_6_submission_url
+              FROM public.tutor_applications
+              WHERE id = $1
+              FOR UPDATE`,
+            [applicationId],
+          );
+        } catch (queryError) {
+          throw new Error(
+            `Emergency database read failed: ${queryError instanceof Error ? queryError.message : String(queryError)}`,
+          );
+        }
+
+        const existing = existingResult.rows[0];
+        if (!existing) {
+          await client.query("ROLLBACK");
+          return undefined;
+        }
+
+        const documentsStatus = normalizeTutorDocumentStatuses(existing.documents_status);
+        const currentStepStatus = String(documentsStatus[docStep.toString()] || "not_started");
+        if (currentStepStatus !== "pending_review") {
+          throw new Error(`Step ${docStep} is not currently pending review.`);
+        }
+
+        const updatedDocumentsStatus = { ...documentsStatus };
+        const tutorSignedUrl = existing?.[fields.url];
+        const verifiedByCast = docStep === 6 ? "uuid" : "varchar";
+        if (approved && !tutorSignedUrl) {
+          throw new Error(`Tutor-signed document is required before approving step ${docStep}.`);
+        }
+        if (approved) {
+
+          updatedDocumentsStatus[docStep.toString()] = "approved";
+          if (docStep < 6) {
+            const nextStep = (docStep + 1).toString();
+            if (updatedDocumentsStatus[nextStep] !== "approved") {
+              updatedDocumentsStatus[nextStep] = "pending_upload";
+            }
+          }
+        } else {
+          updatedDocumentsStatus[docStep.toString()] = "rejected";
+        }
+
+        const effectiveCompletedUrl =
+          completedDocumentUrl ||
+          (fields.completedTemplateUrl ? existing?.[fields.completedTemplateUrl] ?? null : null);
+
+        const targetStep = approved ? (docStep < 6 ? docStep + 1 : 6) : docStep;
+
+        const allSequentialDocumentsApproved = ["1", "2", "3", "4", "5", "6"].every(
+          (step) => String(updatedDocumentsStatus[step] || "") === "approved"
+        );
+
+        let updateQuery = `
+          UPDATE public.tutor_applications
+          SET documents_status = $1::jsonb,
+              document_submission_step = $2::integer,
+              updated_at = now()`;
+
+        const updateValues: unknown[] = [
+          toJsonbParam(updatedDocumentsStatus),
+          targetStep,
+        ];
+
+        let nextPlaceholder = 3;
+
+        if (approved) {
+          updateQuery += `,
+              ${fields.verified} = $${nextPlaceholder}::boolean,
+              ${fields.verifiedBy} = $${nextPlaceholder + 1}::${verifiedByCast},
+              ${fields.verifiedAt} = now(),
+              ${fields.rejectionReason} = NULL`;
+          updateValues.push(true, reviewedBy);
+          nextPlaceholder += 2;
+        } else {
+          updateQuery += `,
+              ${fields.verified} = $${nextPlaceholder}::boolean,
+              ${fields.verifiedBy} = NULL,
+              ${fields.verifiedAt} = NULL,
+              ${fields.rejectionReason} = $${nextPlaceholder + 1}::text`;
+          updateValues.push(false, rejectionReason || "Please review and resubmit");
+          nextPlaceholder += 2;
+        }
+
+        if (fields.completedTemplateUrl) {
+          if (approved && effectiveCompletedUrl) {
+            updateQuery += `,
+              ${fields.completedTemplateUrl} = $${nextPlaceholder}::text`;
+            updateValues.push(effectiveCompletedUrl);
+            nextPlaceholder += 1;
+          } else {
+            updateQuery += `,
+              ${fields.completedTemplateUrl} = NULL`;
+          }
+        }
+
+        if (allSequentialDocumentsApproved) {
+          updateQuery += `,
+              onboarding_completed_at = now()`;
+        }
+
+        updateQuery += `
+          WHERE id = $${nextPlaceholder}
+          RETURNING *`;
+        updateValues.push(applicationId);
+
+        const updatedResult = await client.query(updateQuery, updateValues);
+        const updated = updatedResult.rows[0];
+
+        await client.query("COMMIT");
+
+        return updated ? (transformSnakeToCamel(updated) as TutorApplication) : undefined;
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => undefined);
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
+
     const { data: existing, error: existingError } = await supabase
       .from("tutor_applications")
       .select(

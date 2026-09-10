@@ -11,6 +11,11 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { sanitizeLegacyOnboardingDocumentText } from "@shared/onboardingDocumentSanitizer";
+import {
+  deriveSpecialistDateOfBirth,
+  getSpecialistIdentificationLabel,
+  normalizeSpecialistIdentificationType,
+} from "@/lib/specialist-identification";
 import { CheckCircle2, Download, Expand, FileCheck, FileText, Loader2, Upload } from "lucide-react";
 
 type DocumentStatus = "not_started" | "pending_upload" | "pending_review" | "approved" | "rejected";
@@ -147,37 +152,8 @@ function formatCurrentSituation(value: string) {
   return labels[normalized] || normalized.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function deriveDateOfBirthFromSouthAfricanId(idNumber: string) {
-  const digits = String(idNumber || "").replace(/\D/g, "");
-  if (digits.length < 6) return "";
-  const yy = Number(digits.slice(0, 2));
-  const mm = Number(digits.slice(2, 4));
-  const dd = Number(digits.slice(4, 6));
-  if (!yy || mm < 1 || mm > 12 || dd < 1 || dd > 31) return "";
-
-  const now = new Date();
-  const currentTwoDigitYear = now.getFullYear() % 100;
-  const fullYear = yy <= currentTwoDigitYear ? 2000 + yy : 1900 + yy;
-  const date = new Date(fullYear, mm - 1, dd);
-  if (
-    Number.isNaN(date.getTime()) ||
-    date.getFullYear() !== fullYear ||
-    date.getMonth() !== mm - 1 ||
-    date.getDate() !== dd
-  ) {
-    return "";
-  }
-
-  return `${fullYear}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
-}
-
 function deriveDateOfBirthConditional(idType: string, idNumber: string) {
-  // Only derive date of birth from SA ID numbers
-  if (idType === "sa_id" || idType === "" || !idType) {
-    return deriveDateOfBirthFromSouthAfricanId(idNumber);
-  }
-  // For passports and other ID types, date of birth must be entered manually
-  return "";
+  return deriveSpecialistDateOfBirth(idType, idNumber);
 }
 
 function escapeHtml(value: string) {
@@ -212,10 +188,14 @@ function normalizeAgreementContent(content: string) {
 }
 
 function getStep6UploadDescription(idType: string): string {
-  if (idType === "passport") {
+  const label = getSpecialistIdentificationLabel(idType);
+  if (label === "Passport") {
     return "Upload a certified copy of your passport. This is the only remaining file upload step.";
   }
-  return "Upload a certified copy of your South African ID. This is the only remaining file upload step.";
+  if (label === "South African ID") {
+    return "Upload a certified copy of your South African ID. This is the only remaining file upload step.";
+  }
+  return "Upload a certified copy of your identification document. This is the only remaining file upload step.";
 }
 
 function tokenizeAgreementLines(content: string) {
@@ -503,7 +483,7 @@ function normalizeDisplayedVersion(value: unknown) {
 
 function buildInitialFormData(fields: FieldDefinition[], application: any, acceptance: any) {
   const savedForm = acceptance?.formSnapshotJson || acceptance?.form_snapshot_json || {};
-  const applicationIdType = normalizeValue(application?.idType || application?.id_type || "sa_id");
+  const applicationIdType = normalizeSpecialistIdentificationType(application?.idType || application?.id_type);
   const applicationIdNumber = normalizeValue(application?.idNumber || application?.id_number);
   const applicationCurrentSituation = normalizeValue(
     application?.currentSituationOther ||
@@ -547,7 +527,7 @@ function buildInitialFormData(fields: FieldDefinition[], application: any, accep
 
 function buildAcceptanceDerivedFormData(acceptance: any) {
   const savedForm = acceptance?.formSnapshotJson || acceptance?.form_snapshot_json || {};
-  const idType = normalizeValue(savedForm.idType || "sa_id");
+  const idType = normalizeSpecialistIdentificationType(savedForm.idType);
   return {
     legalName: normalizeValue(acceptance?.typedFullName || acceptance?.typed_full_name || savedForm.legalName),
     emailAddress: normalizeValue(savedForm.emailAddress),
@@ -563,7 +543,7 @@ function buildAcceptanceDerivedFormData(acceptance: any) {
 }
 
 function buildApplicationLockedFormData(application: any) {
-  const applicationIdType = normalizeValue(application?.idType || application?.id_type || "sa_id");
+  const applicationIdType = normalizeSpecialistIdentificationType(application?.idType || application?.id_type);
   const applicationIdNumber = normalizeValue(application?.idNumber || application?.id_number);
   return {
     legalName: normalizeValue(application?.fullName || application?.full_name),
@@ -591,7 +571,7 @@ function buildApplicationLockedFormData(application: any) {
 
 export function hydrateDocumentContent(content: string, fieldValues: Record<string, string>) {
   const sanitizedContent = sanitizeLegacyOnboardingDocumentText(content);
-  const idTypeLabel = fieldValues.idType === "passport" ? "Passport" : "South African ID";
+  const idTypeLabel = getSpecialistIdentificationLabel(fieldValues.idType);
   const replacements: Array<[RegExp, string]> = [
     [/Full Name:\s*_+/i, `Full Name: ${fieldValues.legalName || "______________________________"}`],
     [/Contact Number:\s*_+/i, `Contact Number: ${fieldValues.phoneNumber || "______________________________"}`],
@@ -788,7 +768,7 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
           <TutorAgreementSection title="Contractor Details">
             <div className="tt-inline-detail-grid">
               <div><span>Full Name</span><strong>{formData.legalName || "Not captured"}</strong></div>
-              <div><span>Identification Type</span><strong>{formData.idType === "passport" ? "Passport" : "SA ID"}</strong></div>
+              <div><span>Identification Type</span><strong>{getSpecialistIdentificationLabel(formData.idType) || "Not captured"}</strong></div>
               <div><span>Identification Number</span><strong>{formData.idNumber || "Not captured"}</strong></div>
               {formData.dateOfBirth && <div><span>Date of Birth</span><strong>{formData.dateOfBirth}</strong></div>}
               <div><span>Contact Number</span><strong>{formData.phoneNumber || "Not captured"}</strong></div>
@@ -1246,6 +1226,22 @@ function buildAcceptedCopyHtml(params: {
 </html>`;
 }
 
+function openAcceptedCopyPrintWindow(html: string, title: string) {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const printWindow = window.open(url, "_blank", "width=960,height=720");
+  if (!printWindow) return false;
+  window.setTimeout(() => {
+    try {
+      printWindow.document.title = title;
+      printWindow.focus();
+    } catch {}
+    printWindow.print();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }, 250);
+  return true;
+}
+
 const DEFAULT_DOCUMENT_STATUSES: Record<string, DocumentStatus> = {
   "1": "pending_upload",
   "2": "not_started",
@@ -1322,8 +1318,8 @@ function resolveFieldBehavior(params: {
   }
 
   if (field.key === "dateOfBirth") {
-    const idType = allFieldValues?.idType || "sa_id";
-    const isSaId = idType === "sa_id" || idType === "" || !idType;
+    const idType = normalizeSpecialistIdentificationType(allFieldValues?.idType);
+    const isSaId = idType === "sa_id";
     
     if (isSaId) {
       return {
@@ -1382,10 +1378,15 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
   const [generalBound, setGeneralBound] = useState(false);
   const [clauseChecks, setClauseChecks] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState<Record<string, string>>({});
+  const [acceptedDocuments, setAcceptedDocuments] = useState<Record<string, any>>({});
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   useEffect(() => {
     setLiveApplication(applicationStatus);
+    const persistedAcceptances = applicationStatus?.onboardingAcceptanceMap || {};
+    if (Object.keys(persistedAcceptances).length > 0) {
+      setAcceptedDocuments((current) => ({ ...current, ...persistedAcceptances }));
+    }
   }, [applicationStatus]);
 
   const { data, isLoading } = useQuery<{ applicationId: string; documents: OnboardingDocumentDefinition[] }>({
@@ -1403,7 +1404,10 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
     () => normalizeDocumentStatuses(liveApplication?.documentsStatus || liveApplication?.documents_status),
     [liveApplication]
   );
-  const acceptanceMap = liveApplication?.onboardingAcceptanceMap || {};
+  const acceptanceMap = {
+    ...acceptedDocuments,
+    ...(liveApplication?.onboardingAcceptanceMap || {}),
+  };
   const doc1Acceptance = acceptanceMap["1"];
   const currentStep = getCurrentStep(documentsStatus);
   const currentDocument = data?.documents?.find((entry) => entry.step === currentStep);
@@ -1542,6 +1546,12 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
       return payload;
     },
     onSuccess: (payload) => {
+      if (payload.acceptance && currentDocument) {
+        setAcceptedDocuments((current) => ({
+          ...current,
+          [String(currentDocument.step)]: payload.acceptance,
+        }));
+      }
       setLiveApplication(payload.application);
       queryClient.invalidateQueries({ queryKey: ["/api/tutor/gateway-session"] });
       toast({ title: "Agreement accepted", description: `${currentDocument?.code} has been recorded.` });
@@ -1676,6 +1686,22 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
     URL.revokeObjectURL(url);
   };
 
+  const printAcceptedCopyFor = (docDefinition: OnboardingDocumentDefinition, acceptance: any) => {
+    if (!docDefinition?.content || !acceptance) return;
+    const storedFormData = acceptance?.formSnapshotJson || acceptance?.form_snapshot_json || {};
+    const html = buildAcceptedCopyHtml({
+      document: docDefinition,
+      acceptance,
+      typedFullName: acceptance?.typedFullName || acceptance?.typed_full_name || "",
+      formData: storedFormData,
+      fields: DOCUMENT_FORM_FIELDS[docDefinition.step] || [],
+    });
+    const opened = openAcceptedCopyPrintWindow(html, `${docDefinition.code}-accepted-copy`);
+    if (!opened) {
+      toast({ title: "Popup blocked", description: "Allow popups to print or save the accepted copy as PDF.", variant: "destructive" });
+    }
+  };
+
   if (isLoading || !currentDocument) {
     return <Card><CardContent className="py-10 text-sm text-muted-foreground">Loading onboarding documents...</CardContent></Card>;
   }
@@ -1806,7 +1832,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
           {isUploadStep ? (
             <div className="rounded-2xl border p-4">
               <p className="font-medium">{currentDocument.uploadTitle || "Required upload"}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{currentStep === 6 ? getStep6UploadDescription(formData.idType || "sa_id") : currentDocument.uploadDescription}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{currentStep === 6 ? getStep6UploadDescription(formData.idType) : currentDocument.uploadDescription}</p>
               {currentStep === 2 && !uploadReady ? <p className="mt-3 text-sm text-amber-700">Accept Response Integrity-EQV-002 first. The certified Matric certificate upload unlocks immediately after acceptance.</p> : null}
               {currentStep === 2 && uploadReady && currentStatus !== "pending_review" ? (
                 <p className="mt-3 text-sm text-muted-foreground">Choose the certified Matric certificate, then upload it for COO review. Step 3 opens only after COO approves this certificate.</p>
@@ -1831,8 +1857,8 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
           {data?.documents?.some((document) => document.requiresAcceptance && acceptanceMap[String(document.step)]) ? (
             <div className="rounded-2xl border p-4">
               <div className="mb-4">
-                <p className="font-medium">Accepted documents</p>
-                <p className="text-sm text-muted-foreground">Download a clean accepted copy for any agreement you have already completed.</p>
+                <p className="font-medium">Previously accepted documents</p>
+                <p className="text-sm text-muted-foreground">Download or print a clean accepted copy for any agreement you have already completed.</p>
               </div>
               <div className="space-y-3">
                 {data.documents
@@ -1851,10 +1877,14 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
                             <p className="text-xs text-muted-foreground">Accepted {new Date(acceptedAt).toLocaleString()}</p>
                           ) : null}
                         </div>
-                        <div className="w-full sm:w-auto">
+                        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                           <Button type="button" variant="outline" className="w-full whitespace-normal text-left sm:w-auto sm:whitespace-nowrap sm:text-center" onClick={() => downloadAcceptedCopyFor(document, acceptance)}>
                             <Download className="mr-2 h-4 w-4 shrink-0" />
                             Download accepted copy
+                          </Button>
+                          <Button type="button" variant="outline" className="w-full whitespace-normal text-left sm:w-auto sm:whitespace-nowrap sm:text-center" onClick={() => printAcceptedCopyFor(document, acceptance)}>
+                            <FileCheck className="mr-2 h-4 w-4 shrink-0" />
+                            Print / Save PDF
                           </Button>
                         </div>
                       </div>
@@ -2041,7 +2071,17 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
                             const resolution = fieldResolutions[field.key];
                             const isDisabled = !resolution?.canEdit;
 
-                            return (
+                            return field.key === "idType" && !isDisabled ? (
+                          <select
+                            value={fieldValue}
+                            onChange={(event) => setFormData((value) => ({ ...value, idType: normalizeSpecialistIdentificationType(event.target.value) }))}
+                            className="flex h-10 w-full rounded-md border border-[#E7D5C8] bg-white px-3 py-2 text-sm"
+                          >
+                            <option value="">Select identification type</option>
+                            <option value="sa_id">South African ID</option>
+                            <option value="passport">Passport</option>
+                          </select>
+                            ) : (
                           <Input
                             value={fieldValue}
                             disabled={isDisabled}
@@ -2056,7 +2096,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
                                 setFormData((value) => ({
                                   ...value,
                                   idNumber: nextId,
-                                  dateOfBirth: deriveDateOfBirthFromSouthAfricanId(nextId),
+                                  dateOfBirth: deriveDateOfBirthConditional(value.idType, nextId) || value.dateOfBirth || "",
                                 }));
                                 return;
                               }

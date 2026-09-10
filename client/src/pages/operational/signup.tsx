@@ -273,7 +273,11 @@ export default function OperationalSignup() {
           )}
 
           <Card className="p-8 border-0 shadow-lg" style={{ backgroundColor: "white" }}>
-            <AuthForm mode={mode} defaultRole={selectedRole} />
+            <AuthForm
+              mode={mode}
+              defaultRole={selectedRole}
+              onEmergencySignupSuccess={() => setMode("login")}
+            />
           </Card>
 
           <p className="text-xs text-center" style={{ color: "#5A5A5A" }}>

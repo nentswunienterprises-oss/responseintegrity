@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { addDays, format, startOfWeek } from "date-fns";
 import { Calendar, ChevronLeft, ChevronRight, Clock, Video } from "lucide-react";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest } from "@/lib/queryClient";
+import { getAuthMode } from "@/lib/authMode";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   summarizeSnapshotObservedResponse,
@@ -126,6 +127,15 @@ function formatTutorGradeLabel(grade?: string | null) {
 export default function TutorSessions() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [selectedLogSession, setSelectedLogSession] = useState<TutorWeeklyScheduleSession | null>(null);
+  const [emergencyDbMode, setEmergencyDbMode] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    getAuthMode().then((mode) => {
+      if (active) setEmergencyDbMode(mode.emergencyDbMode);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
   const { data: podData } = useQuery<any>({
     queryKey: ["/api/tutor/pod"],
   });
@@ -137,7 +147,11 @@ export default function TutorSessions() {
       const response = await apiRequest("GET", `/api/tutor/weekly-schedule?weekStart=${weekKey}`);
       return response.json();
     },
-    refetchInterval: 15000,
+    refetchInterval: emergencyDbMode ? false : 15000,
+    refetchIntervalInBackground: emergencyDbMode ? false : true,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   const weekDays = useMemo(() => (

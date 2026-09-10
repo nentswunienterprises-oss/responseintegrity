@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { getAuthMode } from "@/lib/authMode";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -189,10 +190,19 @@ export function CommunicationInbox({
   );
   const [draft, setDraft] = useState("");
   const [replyTarget, setReplyTarget] = useState<CommunicationMessage | null>(null);
+  const [emergencyDbMode, setEmergencyDbMode] = useState(false);
   const unreadCountQueryKey = useMemo(
     () => (unreadCountPath ? [unreadCountPath] : []),
     [unreadCountPath]
   );
+
+  useEffect(() => {
+    let active = true;
+    getAuthMode().then((mode) => {
+      if (active) setEmergencyDbMode(mode.emergencyDbMode);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   const { data: unreadCountData, refetch: refetchUnreadCount } = useQuery<{ unreadCount: number }>({
     queryKey: unreadCountQueryKey,
@@ -201,7 +211,10 @@ export function CommunicationInbox({
       const res = await apiRequest("GET", unreadCountPath!);
       return res.json();
     },
-    refetchInterval: 15000,
+    refetchInterval: emergencyDbMode ? false : 15000,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   const unreadCount = Number(unreadCountData?.unreadCount || 0);
@@ -213,6 +226,10 @@ export function CommunicationInbox({
       const res = await apiRequest("GET", getPath);
       return res.json();
     },
+    refetchInterval: false,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   const sendMessage = useMutation({

@@ -1,6 +1,7 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
+import { getAuthMode } from "@/lib/authMode";
 import {
   Dialog,
   DialogContent,
@@ -268,27 +269,43 @@ export default function ViewTrackingSystemsDialog({
   studentName,
   apiBasePath = "/api/tutor",
 }: ViewTrackingSystemsDialogProps) {
-  const { data: reportsCenter, isLoading: reportsLoading, refetch: refetchReports } = useQuery<ReportsCenterData>({
+  const [emergencyDbMode, setEmergencyDbMode] = useState(false);
+  const [authModeReady, setAuthModeReady] = useState(false);
+  useEffect(() => {
+    let active = true;
+    getAuthMode().then((mode) => {
+      if (active) {
+        setEmergencyDbMode(mode.emergencyDbMode);
+        setAuthModeReady(true);
+      }
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
+  const { data: reportsCenter, isLoading: reportsLoading, isError: reportsError } = useQuery<ReportsCenterData>({
     queryKey: [`${apiBasePath}/students/${studentId}/reports-center`],
     queryFn: getQueryFn({ on401: "throw" }),
-    enabled: open && !!studentId,
+    enabled: open && !!studentId && authModeReady,
     staleTime: 0,
     gcTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+    refetchOnMount: emergencyDbMode ? false : "always",
+    refetchInterval: false,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
 
-  useEffect(() => {
-    if (open && studentId) {
-      void refetchReports();
-    }
-  }, [open, studentId]);
-
-  const { data: assignments, isLoading: assignmentsLoading } = useQuery<Assignment[]>({
+  const { data: assignments, isLoading: assignmentsLoading, isError: assignmentsError } = useQuery<Assignment[]>({
     queryKey: [`${apiBasePath}/students/${studentId}/assignments`],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    enabled: open && !!studentId,
+    enabled: open && !!studentId && authModeReady,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: emergencyDbMode ? false : "always",
+    refetchInterval: false,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   const weeklyReports = useMemo(
@@ -334,6 +351,11 @@ export default function ViewTrackingSystemsDialog({
                 <Skeleton className="h-20" />
                 <Skeleton className="h-20" />
               </div>
+            ) : reportsError ? (
+              <Card className="rounded-2xl border border-orange-200 bg-orange-50 p-5 shadow-sm">
+                <h3 className="font-semibold text-orange-900">Reports temporarily unavailable</h3>
+                <p className="mt-2 text-sm text-orange-800">The tracking history could not be loaded. No session count is being shown.</p>
+              </Card>
             ) : (
               <Tabs defaultValue="session-logs" className="w-full space-y-4">
                 <TabsList className="grid w-full grid-cols-3 h-auto rounded-xl border border-primary/15 bg-muted/20 p-1 gap-1">
@@ -500,6 +522,11 @@ export default function ViewTrackingSystemsDialog({
                 <Skeleton className="h-24" />
                 <Skeleton className="h-24" />
               </div>
+            ) : assignmentsError ? (
+              <Card className="rounded-2xl border border-orange-200 bg-orange-50 p-5 shadow-sm">
+                <h3 className="font-semibold text-orange-900">Assignments temporarily unavailable</h3>
+                <p className="mt-2 text-sm text-orange-800">Assignments could not be loaded.</p>
+              </Card>
             ) : !assignments || assignments.length === 0 ? (
               <Card className="rounded-2xl border border-primary/15 bg-muted/20 p-12 text-center shadow-sm">
                 <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />

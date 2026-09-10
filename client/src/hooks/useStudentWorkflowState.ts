@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { getAuthMode } from "@/lib/authMode";
+import { useEffect, useState } from "react";
 
 export interface StudentWorkflowState {
   assignmentAccepted: boolean;
@@ -18,6 +20,12 @@ export function useStudentWorkflowState(
   apiBasePath = "/api/tutor",
   enabled = true,
 ) {
+  const [emergencyDbMode, setEmergencyDbMode] = useState(false);
+
+  useEffect(() => {
+    getAuthMode().then((mode) => setEmergencyDbMode(mode.emergencyDbMode));
+  }, []);
+
   return useQuery<StudentWorkflowState>({
     queryKey: [apiBasePath, "students", studentId, "workflow-state"],
     queryFn: async () => {
@@ -39,7 +47,10 @@ export function useStudentWorkflowState(
       return await res.json();
     },
     enabled: enabled && !!studentId,
-    refetchInterval: 10000,
+    refetchInterval: emergencyDbMode ? false : 10000,
+    retry: emergencyDbMode ? false : undefined,
+    refetchOnWindowFocus: emergencyDbMode ? false : undefined,
+    refetchOnReconnect: emergencyDbMode ? false : undefined,
   });
 }
 

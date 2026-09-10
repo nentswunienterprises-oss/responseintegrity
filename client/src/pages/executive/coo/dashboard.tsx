@@ -193,6 +193,7 @@ export default function COODashboard() {
   const { data: salesStats = null, isLoading: salesStatsLoading } = useQuery<any>({
     queryKey: ["/api/coo/sales-stats"],
     enabled: isAuthenticated && !authLoading,
+    retry: false,
   });
 
   // Fetch leadership pilot requests for COO
@@ -200,7 +201,10 @@ export default function COODashboard() {
     queryKey: ["/api/coo/leadership-pilot-requests"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: isAuthenticated && !authLoading,
-    refetchInterval: 10000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
   });
 
   // Fetch early intervention pilot requests for COO
@@ -208,7 +212,10 @@ export default function COODashboard() {
     queryKey: ["/api/coo/earlyintervention-requests"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: isAuthenticated && !authLoading,
-    refetchInterval: 10000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
   });
 
   useEffect(() => {

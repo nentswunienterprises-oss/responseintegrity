@@ -43,7 +43,9 @@ export function useScheduledSession(studentId) {
       return await res.json();
     },
     enabled: !!studentId,
-    refetchInterval: 10000,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 }
 
@@ -73,7 +75,9 @@ export function useTrainingSessions(studentId, enabled = true) {
       return await res.json();
     },
     enabled: !!studentId && enabled,
-    refetchInterval: 15000,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 }
 

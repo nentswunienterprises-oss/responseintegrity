@@ -1,8 +1,12 @@
 import { supabase } from "./supabaseClient";
 import { API_URL } from "./config";
+import { getAuthMode } from "./authMode";
 
 export async function authorizedGetJson(path: string): Promise<any> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const authMode = await getAuthMode();
+  const { data: { session } } = authMode.emergencyDbMode
+    ? { data: { session: null } }
+    : await supabase.auth.getSession();
   const headers: HeadersInit = {};
   if (session?.access_token) {
     headers.Authorization = `Bearer ${session.access_token}`;

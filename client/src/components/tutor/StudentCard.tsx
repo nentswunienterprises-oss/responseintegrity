@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { buildTopics } from "./topicUtils";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { getAuthMode } from "@/lib/authMode";
 import { useStudentWorkflowState, useMarkHandoverCompleted, useRespondToAssignment } from "@/hooks/useStudentWorkflowState";
 import { TutorIntroSessionActions } from "./TutorIntroSessionActions";
 import { useScheduledSession, useTrainingSessions } from "@/hooks/useScheduledSession";
@@ -232,6 +233,16 @@ export function StudentCard({
   setCommunicationDialogOpen,
 }) {
   const navigate = useNavigate();
+  const [emergencyDbMode, setEmergencyDbMode] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    getAuthMode().then((mode) => {
+      if (active) setEmergencyDbMode(mode.emergencyDbMode);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
   // ...existing code...
   // State for assignment modal
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
@@ -364,6 +375,9 @@ export function StudentCard({
       return res.json();
     },
     enabled: !!student.id,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const { data: communicationUnreadData } = useQuery({
@@ -376,7 +390,10 @@ export function StudentCard({
       return res.json();
     },
     enabled: !!student.id && !!workflow?.proposalAccepted,
-    refetchInterval: 30000,
+    refetchInterval: emergencyDbMode ? false : 30000,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   const communicationUnreadCount = Number(communicationUnreadData?.unreadCount || 0);

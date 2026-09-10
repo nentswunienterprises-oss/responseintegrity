@@ -1,6 +1,8 @@
 import type { Express, Request, RequestHandler, Response } from "express";
 import { z } from "zod";
 import { supabase } from "../storage";
+import { pool } from "../db";
+import { isEmergencyDbMode } from "../emergencyMode";
 
 const EXECUTIVE_ROLES = ["ceo", "coo", "hr", "cto", "cmo"] as const;
 const EXECUTIVE_PROOF_TYPES = ["link", "screenshot", "image", "doc"] as const;
@@ -544,6 +546,16 @@ function normalizeExecutiveAppointment(row: any): ExecutiveRoleAppointment {
 }
 
 async function getExecutiveCandidateUsers() {
+  if (isEmergencyDbMode()) {
+    const result = await pool.query(
+      `SELECT id, email, name, role, created_at, updated_at
+         FROM public.users
+        WHERE role::text = ANY($1::text[])`,
+      [EXECUTIVE_ROLES],
+    );
+    return result.rows.map(normalizeExecutiveUser);
+  }
+
   const { data, error } = await supabase
     .from("users")
     .select("id, email, name, role, created_at, updated_at")
@@ -554,6 +566,21 @@ async function getExecutiveCandidateUsers() {
 }
 
 async function getExecutiveAppointments() {
+  if (isEmergencyDbMode()) {
+    try {
+      const result = await pool.query(
+        `SELECT id, role, appointed_user_id, appointed_by_user_id, notes,
+                appointed_at, created_at, updated_at
+           FROM public.executive_role_appointments
+          ORDER BY role ASC`,
+      );
+      return result.rows.map(normalizeExecutiveAppointment);
+    } catch (error) {
+      if (isMissingExecutiveInfrastructureError(error)) return [];
+      throw error;
+    }
+  }
+
   const { data, error } = await supabase
     .from("executive_role_appointments")
     .select("*")
@@ -570,12 +597,12 @@ async function getExecutiveAppointments() {
   return (data || []).map(normalizeExecutiveAppointment);
 }
 
-async function buildExecutiveRoster(currentUserId: string, currentUserRole: ExecutiveRole) {
-  const [candidateUsers, appointments] = await Promise.all([
-    getExecutiveCandidateUsers(),
-    getExecutiveAppointments(),
-  ]);
-
+export function buildExecutiveRosterFromRows(
+  currentUserId: string,
+  currentUserRole: ExecutiveRole,
+  candidateUsers: ExecutiveUser[],
+  appointments: ExecutiveRoleAppointment[],
+) {
   const candidatesById = new Map(candidateUsers.map((user) => [user.id, user]));
   const appointmentRecordByRole = new Map(appointments.map((appointment) => [appointment.role, appointment]));
   const appointmentByRole = new Map(
@@ -635,6 +662,15 @@ async function buildExecutiveRoster(currentUserId: string, currentUserRole: Exec
     canManageAppointments,
     isCurrentUserAppointed,
   };
+}
+
+async function buildExecutiveRoster(currentUserId: string, currentUserRole: ExecutiveRole) {
+  const [candidateUsers, appointments] = await Promise.all([
+    getExecutiveCandidateUsers(),
+    getExecutiveAppointments(),
+  ]);
+
+  return buildExecutiveRosterFromRows(currentUserId, currentUserRole, candidateUsers, appointments);
 }
 
 async function ensureExecutiveProfiles(users: ExecutiveUser[]) {

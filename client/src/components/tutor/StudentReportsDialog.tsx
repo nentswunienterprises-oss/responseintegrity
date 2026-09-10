@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns/format";
 import { getQueryFn } from "@/lib/queryClient";
+import { getAuthMode } from "@/lib/authMode";
 import {
   Dialog,
   DialogContent,
@@ -231,22 +232,31 @@ export default function StudentReportsDialog({
   studentId,
   studentName,
 }: StudentReportsDialogProps) {
-  const { data, isLoading, refetch } = useQuery<ReportsCenterData>({
+  const [emergencyDbMode, setEmergencyDbMode] = useState(false);
+  const [authModeReady, setAuthModeReady] = useState(false);
+  useEffect(() => {
+    let active = true;
+    getAuthMode().then((mode) => {
+      if (active) {
+        setEmergencyDbMode(mode.emergencyDbMode);
+        setAuthModeReady(true);
+      }
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
+  const { data, isLoading, isError } = useQuery<ReportsCenterData>({
     queryKey: [`/api/tutor/students/${studentId}/reports-center`],
     queryFn: getQueryFn({ on401: "throw" }),
-    enabled: open && !!studentId,
+    enabled: open && !!studentId && authModeReady,
     staleTime: 0,
     gcTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+    refetchOnMount: emergencyDbMode ? false : "always",
+    refetchInterval: false,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
-
-  useEffect(() => {
-    if (open && studentId) {
-      void refetch();
-    }
-  }, [open, studentId]);
 
   const weeklyReports = useMemo(
     () => (data?.reports || []).filter((r) => r.reportType === "weekly"),
@@ -280,6 +290,11 @@ export default function StudentReportsDialog({
             <Skeleton className="h-20" />
             <Skeleton className="h-20" />
           </div>
+        ) : isError ? (
+          <Card className="mx-6 rounded-2xl border border-orange-200 bg-orange-50 p-5 shadow-sm">
+            <h3 className="font-semibold text-orange-900">Reports temporarily unavailable</h3>
+            <p className="mt-2 text-sm text-orange-800">The tracking history could not be loaded. No session count is being shown.</p>
+          </Card>
         ) : (
           <div className="space-y-6 px-6 py-5">
             <Tabs defaultValue="session-logs" className="w-full space-y-4">

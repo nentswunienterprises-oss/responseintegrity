@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getQueryFn, apiRequest } from "@/lib/queryClient";
+import { getAuthMode } from "@/lib/authMode";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,11 +48,23 @@ export function NotificationInbox({
 }) {
   const qc = useQueryClient();
   const initialized = useRef(false);
+  const [emergencyDbMode, setEmergencyDbMode] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    getAuthMode().then((mode) => {
+      if (active) setEmergencyDbMode(mode.emergencyDbMode);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
   const { data: notifications, isLoading } = useQuery<NotificationItem[] | null>({
     queryKey: ["/api/notifications"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     retry: false,
-    refetchInterval: 30000,
+    refetchInterval: emergencyDbMode ? false : 30000,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
   });
   const notificationList = Array.isArray(notifications) ? notifications : [];
   const markRead = useMutation({

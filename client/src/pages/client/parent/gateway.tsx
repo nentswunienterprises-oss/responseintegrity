@@ -12,6 +12,7 @@ import ProposalView from "@/components/parent/ProposalView";
 import { PushOptInCard } from "@/components/push/PushOptInCard";
 import { useNavigate } from "react-router-dom";
 import { API_URL } from "@/lib/config";
+import { getAuthMode } from "@/lib/authMode";
 import { Textarea } from "@/components/ui/textarea";
 import { TrialProgressCard } from "@/components/trial/TrialProgressCard";
 import type { TrialCaseOverview, TrialTestimonialPermission } from "@shared/trialCertification";
@@ -38,6 +39,7 @@ import {
 interface EnrollmentStatus {
   status: "not_enrolled" | "awaiting_assignment" | "awaiting_tutor_acceptance" | "assigned" | "proposal_sent" | "session_booked" | "report_received" | "confirmed";
   step?: string;
+  assignmentLane?: string | null;
   plan?: string;
   onboardingType?: "pilot" | "commercial";
   freeSessionsRemaining?: number;
@@ -133,6 +135,7 @@ export default function ParentGateway() {
   const [isProcessingProposal, setIsProcessingProposal] = useState(false);
   const [isRenewing, setIsRenewing] = useState(false);
   const [parentCode, setParentCode] = useState<string | null>(null);
+  const [emergencyDbMode, setEmergencyDbMode] = useState(false);
   const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
   const [proposedDate, setProposedDate] = useState<Date | undefined>(undefined);
   const [proposedTime, setProposedTime] = useState<string>("");
@@ -144,6 +147,16 @@ export default function ParentGateway() {
   const [hideStudentCodeCard, setHideStudentCodeCard] = useState(false);
   const [mathTopicDraft, setMathTopicDraft] = useState("");
   const handledPayfastReturnRef = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    getAuthMode().then((mode) => {
+      if (active) setEmergencyDbMode(mode.emergencyDbMode);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -240,9 +253,10 @@ export default function ParentGateway() {
     enabled: !!user && !authLoading,
     staleTime: 0,
     refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    refetchInterval: 10000,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    refetchInterval: emergencyDbMode ? false : 10000,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   // Fetch assigned tutor if status is assigned
@@ -259,16 +273,27 @@ export default function ParentGateway() {
       ),
     staleTime: 0,
     refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    refetchInterval: 10000,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    refetchInterval: emergencyDbMode ? false : 10000,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   const { data: trainingSessionsData } = useQuery<{
     monthlyQuota?: { sessions_remaining?: number; session_quota?: number; session_price?: number } | null;
     paymentRequired?: boolean;
     paymentStatus?: string | null;
-  }>({queryKey: ["/api/parent/training-sessions"], queryFn: getQueryFn({ on401: "returnNull" }), enabled: !!user && !authLoading && (enrollmentStatus?.status === "session_booked" || enrollmentStatus?.status === "report_received" || enrollmentStatus?.status === "confirmed"), refetchInterval: 15000 });
+  }>({
+    queryKey: ["/api/parent/training-sessions"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: !!user && !authLoading && (enrollmentStatus?.status === "session_booked" || enrollmentStatus?.status === "report_received" || enrollmentStatus?.status === "confirmed"),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    refetchInterval: emergencyDbMode ? false : 15000,
+    retry: emergencyDbMode ? false : undefined,
+  });
   const quotaRemaining = Number(trainingSessionsData?.monthlyQuota?.sessions_remaining ?? -1);
   const quotaExhausted = trainingSessionsData?.monthlyQuota != null && quotaRemaining <= 0;
   const paymentRequired = trainingSessionsData?.paymentRequired === true;
@@ -297,23 +322,30 @@ export default function ParentGateway() {
       ),
     staleTime: 0,
     refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    refetchInterval: 5000, // Poll every 5s for status updates
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    refetchInterval: emergencyDbMode ? false : 5000,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   const {
     data: trialCasePayload,
     isLoading: trialCaseLoading,
-  } = useQuery<{ case: TrialCaseOverview | null }>({
+  } = useQuery<{ case: TrialCaseOverview | null; unavailable?: boolean }>({
     queryKey: ["/api/parent/trial-case"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    enabled: !!user && !authLoading,
+    enabled:
+      !!user &&
+      !authLoading &&
+      !emergencyDbMode &&
+      !!enrollmentStatus &&
+      String(enrollmentStatus.assignmentLane || "").trim().toLowerCase() === "trial",
     staleTime: 0,
     refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    refetchInterval: 10000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
+    retry: false,
   });
 
   const [trialFeedbackNote, setTrialFeedbackNote] = useState("");
@@ -364,40 +396,21 @@ export default function ParentGateway() {
   // Fetch proposal if available
   const { data: proposal, isLoading: proposalLoading, error: proposalError } = useQuery<any>({
     queryKey: ["/api/parent/proposal"],
-    queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: HeadersInit = {};
-      if (session?.access_token) {
-        headers["Authorization"] = `Bearer ${session.access_token}`;
-      }
-      const response = await fetch(`${API_URL}/api/parent/proposal`, {
-        credentials: "include",
-        headers,
-      });
-      if (response.status === 404) {
-        console.log("ðŸ“‹ No proposal found (404)");
-        return null;
-      }
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("Failed to fetch proposal:", response.status, errorData);
-        throw new Error(errorData.message || "Failed to fetch proposal");
-      }
-      const data = await response.json();
-      console.log("ðŸ“‹ Proposal received:", data);
-      if (data.parentCode) {
-        setParentCode(data.parentCode);
-      }
-      return data;
-    },
+    queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!user && !authLoading && !!enrollmentStatus,
     staleTime: 0,
     refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    refetchInterval: 10000,
-    retry: false, // Don't retry on 404
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    refetchInterval: emergencyDbMode ? false : 10000,
+    retry: false,
   });
+
+  useEffect(() => {
+    if (proposal?.parentCode) {
+      setParentCode(proposal.parentCode);
+    }
+  }, [proposal?.parentCode]);
 
   // Derive effective parent code from local state or proposal data
   const effectiveParentCode = useMemo(() => {

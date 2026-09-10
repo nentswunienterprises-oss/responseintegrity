@@ -27,6 +27,7 @@ import StudentReportsDialog from "@/components/tutor/StudentReportsDialog";
 import StudentTopicConditioningDialog from "@/components/tutor/StudentTopicConditioningDialog";
 import StudentCommunicationDialog from "@/components/communications/StudentCommunicationDialog";
 import { PushOptInCard } from "@/components/push/PushOptInCard";
+import { getAuthMode } from "@/lib/authMode";
 import { TrialProgressCard } from "@/components/trial/TrialProgressCard";
 import type { Student, TutorAssignment, Pod } from "@shared/schema";
 import type { BattleTestingTutorSummary, TutorTrainingMode } from "@shared/battleTesting";
@@ -123,6 +124,7 @@ function formatTutorAlignmentStatus(value: string | null | undefined) {
 }
 
 function formatTutorMode(value: TutorAlignmentSummaryData["operationalMode"]) {
+  if (!value) return "Unavailable";
   if (value === "certified_live") return "Certified Live";
   if (value === "trial") return "Trial";
   if (value === "sandbox") return "Sandbox Mode";
@@ -160,6 +162,7 @@ function formatSessionTime(value?: string | null) {
 
 export default function TutorPod() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const [emergencyDbMode, setEmergencyDbMode] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -180,6 +183,10 @@ export default function TutorPod() {
   const [selectedTeamMemberId, setSelectedTeamMemberId] = useState<string>("");
   const [studentIdentitySheets, setStudentIdentitySheets] = useState<Record<string, any>>({});
   // Force refresh - identity sheet integration
+
+  useEffect(() => {
+    getAuthMode().then((mode) => setEmergencyDbMode(mode.emergencyDbMode));
+  }, []);
 
   const {
     data: podData,
@@ -209,18 +216,26 @@ export default function TutorPod() {
   const { data: tutorAlignmentSummary } = useQuery<TutorAlignmentSummaryData>({
     queryKey: ["/api/tutor/pod-alignment-summary"],
     enabled: isAuthenticated && !authLoading,
+    refetchInterval: false,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
   const { data: trialCaseData } = useQuery<{ mode: TutorTrainingMode; case: TrialCaseOverview | null }>({
     queryKey: ["/api/tutor/trial-case"],
     queryFn: async () => authorizedGetJson("/api/tutor/trial-case"),
-    enabled: isAuthenticated && !authLoading,
+    enabled: isAuthenticated && !authLoading && !emergencyDbMode,
     refetchInterval: 15000,
   });
   const { data: weeklyScheduleData } = useQuery<TutorPodWeeklyScheduleResponse>({
     queryKey: ["/api/tutor/weekly-schedule", "current-week"],
     queryFn: async () => authorizedGetJson("/api/tutor/weekly-schedule"),
     enabled: isAuthenticated && !authLoading,
-    refetchInterval: 15000,
+    refetchInterval: emergencyDbMode ? false : 15000,
+    refetchIntervalInBackground: emergencyDbMode ? false : true,
+    refetchOnWindowFocus: !emergencyDbMode,
+    refetchOnReconnect: !emergencyDbMode,
+    retry: emergencyDbMode ? false : undefined,
   });
 
   const hasSubmittedApplication = applications && applications.length > 0;
@@ -594,7 +609,7 @@ export default function TutorPod() {
               <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Operational Mode</p>
                 <p className="mt-2 text-sm font-medium text-foreground">
-                  {formatTutorMode(tutorAlignmentSummary?.operationalMode || "training")}
+                  {formatTutorMode(tutorAlignmentSummary?.operationalMode)}
                 </p>
               </div>
               <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
