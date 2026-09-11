@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS specialist_capability_sandbox_simulation_attempts (
   passed boolean NOT NULL DEFAULT false,
   has_critical_fail boolean NOT NULL DEFAULT false,
   critical_fail_decision_keys jsonb NOT NULL DEFAULT '[]'::jsonb,
+  triggered_critical_boundary_keys jsonb NOT NULL DEFAULT '[]'::jsonb,
   evidence_contamination_count integer NOT NULL DEFAULT 0 CHECK (evidence_contamination_count >= 0),
   authority_violation_count integer NOT NULL DEFAULT 0 CHECK (authority_violation_count >= 0),
   escalation_failure_count integer NOT NULL DEFAULT 0 CHECK (escalation_failure_count >= 0),
