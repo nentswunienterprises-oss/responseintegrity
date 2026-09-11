@@ -99,6 +99,7 @@ export async function persistSandboxSimulationAttempt(input: {
          passed,
          has_critical_fail,
          critical_fail_decision_keys,
+         triggered_critical_boundary_keys,
          evidence_contamination_count,
          authority_violation_count,
          escalation_failure_count,
@@ -108,7 +109,7 @@ export async function persistSandboxSimulationAttempt(input: {
          authoritative
        ) VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-         $14::jsonb, $15, $16, $17, $18::jsonb, $19::jsonb, $20::jsonb, false
+         $14::jsonb, $15::jsonb, $16, $17, $18, $19::jsonb, $20::jsonb, $21::jsonb, false
        )
        RETURNING id, completed_at`,
       [
@@ -126,6 +127,7 @@ export async function persistSandboxSimulationAttempt(input: {
         result.passed,
         result.hasCriticalFail,
         JSON.stringify(result.criticalFailDecisionKeys),
+        JSON.stringify(result.triggeredCriticalBoundaryKeys),
         result.evidenceContaminationCount,
         result.authorityViolationCount,
         result.escalationFailureCount,
