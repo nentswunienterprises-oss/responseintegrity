@@ -41,7 +41,6 @@ CREATE TABLE IF NOT EXISTS private.specialist_capability_assessment_items (
     ON DELETE RESTRICT
 );
 
-REVOKE ALL ON SCHEMA private FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON TABLE private.specialist_capability_assessment_configs FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON TABLE private.specialist_capability_assessment_items FROM PUBLIC, anon, authenticated;
 
