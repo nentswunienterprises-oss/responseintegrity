@@ -3,6 +3,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes.ts";
 import { registerCapabilityEngineRoutes } from "./routes/capabilityEngine";
 import { registerCapabilityPracticalEvidenceRoutes } from "./routes/capabilityPracticalEvidence";
+import { registerCapabilityOralDefenseRoutes } from "./routes/capabilityOralDefense";
 import { setupAuth } from "./supabaseAuth";
 import cors from 'cors';
 
@@ -100,6 +101,7 @@ app.use((req, res, next) => {
   await setupAuth(app); // Ensure session/auth middleware is active before routes
   registerCapabilityEngineRoutes(app);
   registerCapabilityPracticalEvidenceRoutes(app);
+  registerCapabilityOralDefenseRoutes(app);
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
