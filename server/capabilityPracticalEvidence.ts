@@ -400,6 +400,9 @@ export async function reviewPracticalCapabilityEvidence(input: {
   }
 
   const feedback = String(input.feedback || "").trim() || null;
+  if (derived.outcome !== "approved" && (!feedback || feedback.length < 20)) {
+    throw httpError(400, "Repeat required and integrity review outcomes need at least 20 characters of actionable reviewer feedback.");
+  }
 
   try {
     const result = await pool.query(
