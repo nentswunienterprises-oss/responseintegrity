@@ -4,6 +4,7 @@ import {
   buildCapabilityLedger,
   evaluateCapabilityAssessment,
   type CapabilityLedgerAttempt,
+  type CapabilityPracticalLedgerRecord,
   type CapabilityQuestionResult,
   type CapabilityResponseInput,
 } from "@shared/capabilityEngine";
@@ -228,21 +229,39 @@ export async function getSpecialistCapabilityLedger(input: {
 }) {
   await assertTutorAssignmentOwnership(input.tutorAssignmentId, input.tutorId);
 
-  const result = await pool.query(
-    `SELECT id,
-            assessment_key,
-            evidence_kind,
-            passed,
-            question_results,
-            completed_at
-       FROM specialist_capability_assessment_attempts
-      WHERE tutor_assignment_id = $1
-        AND tutor_id = $2
-      ORDER BY completed_at ASC`,
-    [input.tutorAssignmentId, input.tutorId],
-  );
+  const [assessmentResult, practicalResult] = await Promise.all([
+    pool.query(
+      `SELECT id,
+              assessment_key,
+              evidence_kind,
+              passed,
+              question_results,
+              completed_at
+         FROM specialist_capability_assessment_attempts
+        WHERE tutor_assignment_id = $1
+          AND tutor_id = $2
+        ORDER BY completed_at ASC`,
+      [input.tutorAssignmentId, input.tutorId],
+    ),
+    pool.query(
+      `SELECT e.id,
+              e.proof_key,
+              e.proof_version,
+              e.attempt_number,
+              e.competency_links,
+              e.submitted_at,
+              r.outcome,
+              r.reviewed_at
+         FROM specialist_capability_practical_evidence e
+         LEFT JOIN specialist_capability_practical_reviews r ON r.evidence_id = e.id
+        WHERE e.tutor_assignment_id = $1
+          AND e.tutor_id = $2
+        ORDER BY e.submitted_at ASC`,
+      [input.tutorAssignmentId, input.tutorId],
+    ),
+  ]);
 
-  const attempts: CapabilityLedgerAttempt[] = result.rows.map((row) => ({
+  const attempts: CapabilityLedgerAttempt[] = assessmentResult.rows.map((row) => ({
     attemptId: String(row.id),
     assessmentKey: String(row.assessment_key),
     evidenceKind: row.evidence_kind,
@@ -251,5 +270,16 @@ export async function getSpecialistCapabilityLedger(input: {
     questionResults: (Array.isArray(row.question_results) ? row.question_results : []) as CapabilityQuestionResult[],
   }));
 
-  return buildCapabilityLedger(attempts);
+  const practicalRecords: CapabilityPracticalLedgerRecord[] = practicalResult.rows.map((row) => ({
+    evidenceId: String(row.id),
+    proofKey: String(row.proof_key),
+    proofVersion: Number(row.proof_version),
+    attemptNumber: Number(row.attempt_number),
+    status: row.outcome || "submitted",
+    submittedAt: row.submitted_at,
+    reviewedAt: row.reviewed_at || null,
+    competencyLinks: Array.isArray(row.competency_links) ? row.competency_links : [],
+  }));
+
+  return buildCapabilityLedger(attempts, practicalRecords);
 }
