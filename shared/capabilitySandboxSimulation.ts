@@ -19,6 +19,7 @@ export interface SandboxSimulationDecisionDefinition {
   options: SandboxSimulationOption[];
   correctOptionKeys: string[];
   criticalFailOptionKeys?: string[];
+  criticalBoundaryKeys?: string[];
   riskOptionKeys?: Partial<Record<SandboxSimulationRiskKind, string[]>>;
   explanation: string;
 }
@@ -44,6 +45,7 @@ export interface SandboxSimulationDecisionResult {
   competencyKey: string;
   correct: boolean;
   criticalFail: boolean;
+  triggeredCriticalBoundaryKeys: string[];
   risks: SandboxSimulationRiskKind[];
   selectedOptionKeys: string[];
   correctOptionKeys: string[];
@@ -59,6 +61,7 @@ export interface SandboxSimulationResult {
   passed: boolean;
   hasCriticalFail: boolean;
   criticalFailDecisionKeys: string[];
+  triggeredCriticalBoundaryKeys: string[];
   evidenceContaminationCount: number;
   authorityViolationCount: number;
   escalationFailureCount: number;
@@ -132,6 +135,13 @@ export function validateSandboxSimulationDefinition(definition: SandboxSimulatio
           `Sandbox simulation decision ${decision.key} references unknown option ${optionKey}.`,
         );
       }
+    }
+
+    const boundaryKeys = uniqueSorted(decision.criticalBoundaryKeys || []);
+    if (boundaryKeys.length > 0 && !(decision.criticalFailOptionKeys || []).length) {
+      throw new Error(
+        `Sandbox simulation decision ${decision.key} names a critical boundary without a critical-fail action.`,
+      );
     }
 
     const correct = new Set(decision.correctOptionKeys);
@@ -212,6 +222,9 @@ export function evaluateSandboxSimulation(
       (decision.criticalFailOptionKeys || []).includes(optionKey),
     );
     const risks = risksForSelection(decision, selectedOptionKeys);
+    const triggeredCriticalBoundaryKeys = criticalFail
+      ? uniqueSorted(decision.criticalBoundaryKeys || [])
+      : [];
 
     return {
       decisionKey: decision.key,
@@ -219,6 +232,7 @@ export function evaluateSandboxSimulation(
       competencyKey: decision.competencyKey,
       correct,
       criticalFail,
+      triggeredCriticalBoundaryKeys,
       risks,
       selectedOptionKeys,
       correctOptionKeys: [...decision.correctOptionKeys],
@@ -243,6 +257,9 @@ export function evaluateSandboxSimulation(
     passed: percent >= definition.passThresholdPercent && criticalFailDecisionKeys.length === 0,
     hasCriticalFail: criticalFailDecisionKeys.length > 0,
     criticalFailDecisionKeys,
+    triggeredCriticalBoundaryKeys: uniqueSorted(
+      decisionResults.flatMap((result) => result.triggeredCriticalBoundaryKeys),
+    ),
     evidenceContaminationCount: countRisk("evidence_contamination"),
     authorityViolationCount: countRisk("authority_violation"),
     escalationFailureCount: countRisk("escalation_failure"),
