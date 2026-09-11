@@ -156,8 +156,9 @@ export async function submitPracticalCapabilityEvidence(input: {
          artifact_url,
          artifact_type,
          declaration,
+         competency_links,
          no_real_student_data_confirmed
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, true)
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, true)
        RETURNING id, submitted_at`,
       [
         input.tutorAssignmentId,
@@ -168,6 +169,7 @@ export async function submitPracticalCapabilityEvidence(input: {
         artifactUrl,
         input.artifactType,
         JSON.stringify(declaration),
+        JSON.stringify(definition.competencyLinks),
       ],
     );
 
@@ -309,7 +311,7 @@ async function assertReviewerCanAccessEvidence(input: {
   if (!row) throw httpError(404, "Practical capability evidence not found.");
   if (row.review_id) throw httpError(409, "This practical capability evidence has already been reviewed.");
   if (reviewerRole === "td" && String(row.td_id || "") !== input.reviewerId) {
-    throw httpError(403, "This evidence is outside the Territory Director's assigned pod scope.");
+    throw httpError(403, "This evidence is outside the reviewer's assigned pod scope.");
   }
 
   return reviewerRole;
