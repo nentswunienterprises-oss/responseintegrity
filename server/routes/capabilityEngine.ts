@@ -2,11 +2,10 @@ import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { isAuthenticated } from "../supabaseAuth";
 import {
-  buildPublicCapabilityAssessment,
-  getCapabilityAssessmentDefinition,
   getCapabilityAssessmentHistory,
   getSpecialistCapabilityLedger,
   persistCapabilityAssessmentAttempt,
+  prepareCapabilityAssessmentForm,
 } from "../capabilityEngine";
 
 const capabilityResponseSchema = z.object({
@@ -16,6 +15,8 @@ const capabilityResponseSchema = z.object({
 
 const capabilityAttemptSchema = z.object({
   tutorAssignmentId: z.string().trim().min(1),
+  formId: z.string().trim().min(1),
+  bankVersion: z.number().int().positive(),
   responses: z.array(capabilityResponseSchema).min(1),
 });
 
@@ -37,16 +38,28 @@ export function registerCapabilityEngineRoutes(app: Express) {
     "/api/tutor/capability-assessments/:assessmentKey",
     isAuthenticated,
     async (req: Request, res: Response) => {
-      const dbUser = requireSpecialistUser(req, res);
-      if (!dbUser) return;
+      try {
+        const dbUser = requireSpecialistUser(req, res);
+        if (!dbUser) return;
 
-      const definition = getCapabilityAssessmentDefinition(String(req.params.assessmentKey || ""));
-      if (!definition) {
-        return res.status(404).json({ message: "Unknown capability assessment." });
+        const tutorAssignmentId = String(req.query.tutorAssignmentId || "").trim();
+        if (!tutorAssignmentId) {
+          return res.status(400).json({ message: "tutorAssignmentId is required." });
+        }
+
+        const form = await prepareCapabilityAssessmentForm({
+          tutorAssignmentId,
+          tutorId: String(dbUser.id),
+          assessmentKey: String(req.params.assessmentKey || "").trim(),
+        });
+
+        return res.json(form);
+      } catch (error) {
+        const status = Number((error as any)?.status || 500);
+        const message = error instanceof Error ? error.message : "Failed to prepare capability assessment.";
+        return res.status(status).json({ message });
       }
-
-      return res.json(buildPublicCapabilityAssessment(definition));
-    }
+    },
   );
 
   app.post(
@@ -61,7 +74,9 @@ export function registerCapabilityEngineRoutes(app: Express) {
         const result = await persistCapabilityAssessmentAttempt({
           tutorAssignmentId: payload.tutorAssignmentId,
           tutorId: String(dbUser.id),
-          assessmentKey: String(req.params.assessmentKey || ""),
+          assessmentKey: String(req.params.assessmentKey || "").trim(),
+          formId: payload.formId,
+          bankVersion: payload.bankVersion,
           responses: payload.responses,
         });
 
@@ -78,7 +93,7 @@ export function registerCapabilityEngineRoutes(app: Express) {
         const message = error instanceof Error ? error.message : "Failed to save capability assessment attempt.";
         return res.status(status).json({ message });
       }
-    }
+    },
   );
 
   app.get(
@@ -94,15 +109,10 @@ export function registerCapabilityEngineRoutes(app: Express) {
           return res.status(400).json({ message: "tutorAssignmentId is required." });
         }
 
-        const assessmentKey = String(req.params.assessmentKey || "").trim();
-        if (!getCapabilityAssessmentDefinition(assessmentKey)) {
-          return res.status(404).json({ message: "Unknown capability assessment." });
-        }
-
         const attempts = await getCapabilityAssessmentHistory({
           tutorAssignmentId,
           tutorId: String(dbUser.id),
-          assessmentKey,
+          assessmentKey: String(req.params.assessmentKey || "").trim(),
         });
 
         return res.json({ attempts });
@@ -111,7 +121,7 @@ export function registerCapabilityEngineRoutes(app: Express) {
         const message = error instanceof Error ? error.message : "Failed to load capability assessment history.";
         return res.status(status).json({ message });
       }
-    }
+    },
   );
 
   app.get(
@@ -138,6 +148,6 @@ export function registerCapabilityEngineRoutes(app: Express) {
         const message = error instanceof Error ? error.message : "Failed to load capability ledger.";
         return res.status(status).json({ message });
       }
-    }
+    },
   );
 }
