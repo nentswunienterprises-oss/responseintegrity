@@ -5,6 +5,7 @@ import {
   buildOralDefenseBrief,
   completeOralDefense,
   getSpecialistOralDefenseStatus,
+  listOralDefenseCandidates,
 } from "../capabilityOralDefense";
 import {
   assertCapabilityTutorAssignmentOwnership,
@@ -21,7 +22,9 @@ const oralProbeSchema = z.object({
 });
 
 const completeDefenseSchema = z.object({
+  briefId: z.string().trim().min(16).max(128),
   defenseVersion: z.number().int().positive(),
+  attemptNumber: z.number().int().positive(),
   probes: z.array(oralProbeSchema).min(3).max(5),
   feedback: z.string().trim().max(4000).optional().nullable(),
   sandboxScenarioConfirmed: z.literal(true),
@@ -110,6 +113,24 @@ export function registerCapabilityOralDefenseRoutes(app: Express) {
   );
 
   app.get(
+    "/api/capability-review/oral-defense/candidates",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const user = requireReviewer(req, res);
+        if (!user) return;
+        const candidates = await listOralDefenseCandidates({
+          reviewerId: String(user.id),
+          reviewerRole: String(user.role),
+        });
+        return res.json({ candidates });
+      } catch (error) {
+        return respondError(res, error, "Failed to load Oral Integrity Defense candidates.");
+      }
+    },
+  );
+
+  app.get(
     "/api/capability-review/oral-defense/:tutorAssignmentId/brief",
     isAuthenticated,
     async (req: Request, res: Response) => {
@@ -142,7 +163,9 @@ export function registerCapabilityOralDefenseRoutes(app: Express) {
           tutorAssignmentId: String(req.params.tutorAssignmentId || "").trim(),
           reviewerId: String(user.id),
           reviewerRole: String(user.role),
+          briefId: payload.briefId,
           defenseVersion: payload.defenseVersion,
+          attemptNumber: payload.attemptNumber,
           probes: payload.probes,
           feedback: payload.feedback,
           sandboxScenarioConfirmed: payload.sandboxScenarioConfirmed,
