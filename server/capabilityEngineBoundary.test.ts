@@ -33,9 +33,10 @@ test("runtime capability service never imports public fixture assessment banks",
   assert.match(bankSource, /private\.specialist_capability_assessment_items/);
 });
 
-test("private assessment-bank tables are explicitly outside direct client access", () => {
+test("private assessment-bank tables are explicitly outside direct client access without changing the whole private schema", () => {
   assert.match(migrationSource, /CREATE SCHEMA IF NOT EXISTS private/);
-  assert.match(migrationSource, /REVOKE ALL ON SCHEMA private FROM PUBLIC, anon, authenticated/);
+  assert.doesNotMatch(migrationSource, /REVOKE ALL ON SCHEMA private/);
+  assert.match(migrationSource, /REVOKE ALL ON TABLE private\.specialist_capability_assessment_configs FROM PUBLIC, anon, authenticated/);
   assert.match(migrationSource, /REVOKE ALL ON TABLE private\.specialist_capability_assessment_items FROM PUBLIC, anon, authenticated/);
 });
 
