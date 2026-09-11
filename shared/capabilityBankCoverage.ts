@@ -1,4 +1,5 @@
 import {
+  CAPABILITY_CROSS_CUTTING_COMPETENCIES,
   CAPABILITY_DEEP_DIVE_BLUEPRINTS,
   getCapabilityDeepDiveBlueprint,
   getRequiredCapabilityEvidenceCells,
@@ -39,6 +40,17 @@ function evidenceCellCode(deepDiveKey: string, evidenceKind: CapabilityBlueprint
   return `deep_dive.${deepDiveKey}.${evidenceKind}`;
 }
 
+function isKnownCompetency(deepDiveKey: string, competencyKey: string) {
+  const deepDive = getCapabilityDeepDiveBlueprint(deepDiveKey);
+  if (!deepDive) return false;
+  return (
+    deepDive.competencyKeys.includes(competencyKey) ||
+    CAPABILITY_CROSS_CUTTING_COMPETENCIES.includes(
+      competencyKey as (typeof CAPABILITY_CROSS_CUTTING_COMPETENCIES)[number],
+    )
+  );
+}
+
 export function validateCapabilityAssessmentAgainstBlueprint(
   assessment: CapabilityBankCoverageAssessment,
 ) {
@@ -65,7 +77,7 @@ export function validateCapabilityAssessmentAgainstBlueprint(
         `Capability assessment ${assessment.assessmentKey} blueprint references unknown Deep Dive ${entry.deepDiveKey}.`,
       );
     }
-    if (!deepDive.competencyKeys.includes(entry.competencyKey)) {
+    if (!isKnownCompetency(entry.deepDiveKey, entry.competencyKey)) {
       throw new Error(
         `Capability assessment ${assessment.assessmentKey} blueprint uses unknown competency ${entry.deepDiveKey}:${entry.competencyKey}.`,
       );
@@ -88,7 +100,7 @@ export function validateCapabilityAssessmentAgainstBlueprint(
         `Capability assessment ${assessment.assessmentKey} item references unknown Deep Dive ${item.deepDiveKey}.`,
       );
     }
-    if (!deepDive.competencyKeys.includes(item.competencyKey)) {
+    if (!isKnownCompetency(item.deepDiveKey, item.competencyKey)) {
       throw new Error(
         `Capability assessment ${assessment.assessmentKey} item uses unknown competency ${item.deepDiveKey}:${item.competencyKey}.`,
       );
