@@ -20,6 +20,10 @@ export interface GeneratedSandboxSimulation {
   definition: SandboxSimulationDefinition;
 }
 
+function stableRank(seed: string, value: string) {
+  return createHash("sha256").update(`${seed}:${value}`).digest("hex");
+}
+
 function validateBank(config: SandboxSimulationBankConfig) {
   if (!config.bankKey.trim()) throw new Error("Sandbox simulation bank key is required.");
   if (!Number.isInteger(config.bankVersion) || config.bankVersion < 1) {
@@ -63,6 +67,33 @@ function baseOffset(seed: string, scenarioCount: number) {
   return numeric % scenarioCount;
 }
 
+function projectAttemptPresentation(
+  definition: SandboxSimulationDefinition,
+  seed: string,
+  attemptNumber: number,
+): SandboxSimulationDefinition {
+  return {
+    ...definition,
+    decisions: definition.decisions.map((decision) => {
+      const optionSeed = `${seed}:scenario:${definition.key}:attempt:${attemptNumber}:options:${decision.key}`;
+      return {
+        ...decision,
+        options: [...decision.options].sort((left, right) => {
+          const leftRank = stableRank(optionSeed, left.key);
+          const rightRank = stableRank(optionSeed, right.key);
+          return leftRank.localeCompare(rightRank) || left.key.localeCompare(right.key);
+        }),
+      };
+    }),
+  };
+}
+
+function presentationSignature(definition: SandboxSimulationDefinition) {
+  return definition.decisions
+    .map((decision) => `${decision.key}[${decision.options.map((option) => option.key).join(",")}]`)
+    .join("|");
+}
+
 export function generateDeterministicSandboxSimulation(input: {
   config: SandboxSimulationBankConfig;
   tutorAssignmentId: string;
@@ -85,7 +116,8 @@ export function generateDeterministicSandboxSimulation(input: {
   });
   const offset = baseOffset(seed, input.config.scenarios.length);
   const index = (offset + input.attemptNumber - 1) % input.config.scenarios.length;
-  const definition = input.config.scenarios[index];
+  const sourceDefinition = input.config.scenarios[index];
+  const definition = projectAttemptPresentation(sourceDefinition, seed, input.attemptNumber);
   const simulationFormId = createHash("sha256")
     .update(
       [
@@ -95,6 +127,7 @@ export function generateDeterministicSandboxSimulation(input: {
         String(input.attemptNumber),
         definition.key,
         String(definition.version),
+        presentationSignature(definition),
         seed,
       ].join(":"),
     )
