@@ -32,8 +32,8 @@ export interface GeneratedCapabilityForm {
   itemKeys: string[];
 }
 
-function stableRank(seed: string, itemKey: string) {
-  return createHash("sha256").update(`${seed}:${itemKey}`).digest("hex");
+function stableRank(seed: string, value: string) {
+  return createHash("sha256").update(`${seed}:${value}`).digest("hex");
 }
 
 function validateConfig(config: PrivateCapabilityAssessmentConfig) {
@@ -117,15 +117,28 @@ export function generateDeterministicCapabilityForm(
     }
   }
 
-  const ordered = [...selected].sort((left, right) => {
-    const leftRank = stableRank(`${seed}:order`, left.key);
-    const rightRank = stableRank(`${seed}:order`, right.key);
-    return leftRank.localeCompare(rightRank) || left.key.localeCompare(rightRank);
-  });
+  const ordered = [...selected]
+    .sort((left, right) => {
+      const leftRank = stableRank(`${seed}:order`, left.key);
+      const rightRank = stableRank(`${seed}:order`, right.key);
+      return leftRank.localeCompare(rightRank) || left.key.localeCompare(right.key);
+    })
+    .map((item) => ({
+      ...item,
+      options: [...item.options].sort((left, right) => {
+        const optionSeed = `${seed}:options:${item.key}`;
+        const leftRank = stableRank(optionSeed, left.key);
+        const rightRank = stableRank(optionSeed, right.key);
+        return leftRank.localeCompare(rightRank) || left.key.localeCompare(right.key);
+      }),
+    }));
 
   const itemKeys = ordered.map((item) => item.key);
+  const presentationSignature = ordered
+    .map((item) => `${item.key}[${item.options.map((option) => option.key).join(",")}]`)
+    .join("|");
   const formId = createHash("sha256")
-    .update(`${config.assessmentKey}:${config.bankVersion}:${itemKeys.join(",")}`)
+    .update(`${config.assessmentKey}:${config.bankVersion}:${presentationSignature}`)
     .digest("hex")
     .slice(0, 24);
 
