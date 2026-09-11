@@ -155,12 +155,18 @@ export default function CapabilityPracticalReview() {
     }
   }, [allJudged, criterionJudgments, notesValid, selected]);
 
+  const remediationSummaryRequired = derivedPreview !== null && derivedPreview.outcome !== "approved";
+  const feedbackValid = !remediationSummaryRequired || feedback.trim().length >= 20;
+
   const reviewMutation = useMutation({
     mutationFn: async () => {
       if (!selected) throw new Error("Select practical evidence first.");
       if (!allJudged) throw new Error("Judge every rubric criterion before submitting the review.");
       if (!notesValid) throw new Error("Every Partial or Fail judgment needs at least 20 characters of observed evidence.");
       if (!derivedPreview) throw new Error("The rubric result could not be derived from the current judgments.");
+      if (derivedPreview.outcome !== "approved" && feedback.trim().length < 20) {
+        throw new Error("Repeat required and integrity review outcomes need at least 20 characters of actionable reviewer feedback.");
+      }
 
       const response = await apiRequest(
         "POST",
@@ -371,15 +377,22 @@ export default function CapabilityPracticalReview() {
                     )}
 
                     <label className="block space-y-2">
-                      <span className="text-sm font-medium">Reviewer summary (optional)</span>
+                      <span className="text-sm font-medium">
+                        Reviewer summary {remediationSummaryRequired ? "(required for this outcome)" : "(optional for Approved)"}
+                      </span>
                       <textarea
                         value={feedback}
                         onChange={(event) => setFeedback(event.target.value)}
                         rows={4}
                         maxLength={4000}
                         className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                        placeholder="Optional synthesis. Criterion-level evidence remains the authoritative basis for the derived outcome."
+                        placeholder={remediationSummaryRequired
+                          ? "Tell the Specialist what must change before the next attempt or what integrity issue must be resolved."
+                          : "Optional synthesis. Criterion-level evidence remains the authoritative basis for the derived outcome."}
                       />
+                      {remediationSummaryRequired ? (
+                        <span className="text-xs text-muted-foreground">Minimum 20 characters so the next action is explicit.</span>
+                      ) : null}
                     </label>
 
                     {reviewMutation.error && (
@@ -387,7 +400,7 @@ export default function CapabilityPracticalReview() {
                     )}
 
                     <Button
-                      disabled={reviewMutation.isPending || !derivedPreview}
+                      disabled={reviewMutation.isPending || !derivedPreview || !feedbackValid}
                       onClick={() => reviewMutation.mutate()}
                     >
                       {reviewMutation.isPending ? "Recording rubric..." : "Record immutable rubric review"}
