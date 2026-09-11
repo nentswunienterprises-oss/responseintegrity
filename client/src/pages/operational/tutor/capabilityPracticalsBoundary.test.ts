@@ -65,6 +65,14 @@ test("reviewer UI derives an outcome preview but posts only rubric judgments to 
   assert.match(reviewerSource, /Record immutable rubric review/);
 });
 
+test("non-approved practical outcomes require an actionable reviewer summary before submit", () => {
+  assert.match(reviewerSource, /derivedPreview\.outcome !== "approved"/);
+  assert.match(reviewerSource, /feedback\.trim\(\)\.length < 20/);
+  assert.match(reviewerSource, /Repeat required and integrity review outcomes need at least 20 characters of actionable reviewer feedback/);
+  assert.match(reviewerSource, /required for this outcome/);
+  assert.match(reviewerSource, /!feedbackValid/);
+});
+
 test("integrity-critical criteria are visible to reviewers without making outcome selectable", () => {
   assert.match(reviewerSource, /criterion\.criticalOnFail/);
   assert.match(reviewerSource, /Integrity-critical if Fail/);
