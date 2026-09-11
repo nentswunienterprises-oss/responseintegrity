@@ -19,6 +19,16 @@ export interface CapabilityActiveAssessmentVersion {
   bankVersion: number;
 }
 
+export interface CapabilityEvidenceCellState {
+  code: string;
+  deepDiveKey: string;
+  evidenceKind: CapabilityBlueprintEvidenceKind;
+  satisfiedAt: string;
+  assessmentKey: string;
+  bankVersion: number;
+  attemptNumber: number;
+}
+
 export interface CapabilityPracticalEvidenceSnapshot {
   proofKey: string;
   proofVersion: number;
@@ -56,6 +66,14 @@ function timestamp(value: string | Date | null | undefined) {
   return Number.isNaN(time) ? 0 : time;
 }
 
+function iso(value: string | Date) {
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`Invalid capability evidence timestamp: ${String(value)}`);
+  }
+  return parsed.toISOString();
+}
+
 function latestByKey<T>(
   records: T[],
   keyOf: (record: T) => string,
@@ -86,21 +104,63 @@ export function capabilityEvidenceCellCode(
   return `deep_dive.${deepDiveKey}.${evidenceKind}`;
 }
 
-export function selectCurrentCapabilityReadinessEvidence(
-  input: CurrentCapabilityEvidenceSelectionInput,
-): CapabilityReadinessEvidence {
-  const activeAssessmentVersions = new Map(
-    input.activeAssessmentVersions.map((version) => [version.assessmentKey, version.bankVersion]),
+export function selectCurrentPassingCapabilityAssessments(
+  assessments: CapabilityAssessmentEvidenceSnapshot[],
+  activeAssessmentVersions: CapabilityActiveAssessmentVersion[],
+) {
+  const activeVersions = new Map(
+    activeAssessmentVersions.map((version) => [version.assessmentKey, version.bankVersion]),
   );
-  const currentPracticalVersions = new Map(
-    input.currentPracticalVersions.map((version) => [version.proofKey, version.proofVersion]),
-  );
-
   const latestAssessments = latestByKey(
-    input.assessments,
+    assessments,
     (record) => record.assessmentKey,
     (record) => record.attemptNumber,
     (record) => timestamp(record.completedAt),
+  );
+
+  return Array.from(latestAssessments.values()).filter(
+    (record) =>
+      record.passed &&
+      activeVersions.get(record.assessmentKey) === record.bankVersion,
+  );
+}
+
+export function buildCurrentCapabilityEvidenceCellStates(
+  currentPassedAssessments: CapabilityAssessmentEvidenceSnapshot[],
+): CapabilityEvidenceCellState[] {
+  const cells = new Map<string, CapabilityEvidenceCellState>();
+
+  for (const record of currentPassedAssessments) {
+    if (!record.evidenceKind) continue;
+    for (const deepDiveKey of record.coveredDeepDiveKeys || []) {
+      const blueprint = getCapabilityDeepDiveBlueprint(deepDiveKey);
+      if (!blueprint || !blueprint.requiredEvidenceKinds.includes(record.evidenceKind)) continue;
+
+      const code = capabilityEvidenceCellCode(deepDiveKey, record.evidenceKind);
+      const next: CapabilityEvidenceCellState = {
+        code,
+        deepDiveKey,
+        evidenceKind: record.evidenceKind,
+        satisfiedAt: iso(record.completedAt),
+        assessmentKey: record.assessmentKey,
+        bankVersion: record.bankVersion,
+        attemptNumber: record.attemptNumber,
+      };
+      const current = cells.get(code);
+      if (!current || timestamp(next.satisfiedAt) < timestamp(current.satisfiedAt)) {
+        cells.set(code, next);
+      }
+    }
+  }
+
+  return Array.from(cells.values()).sort((left, right) => left.code.localeCompare(right.code));
+}
+
+export function selectCurrentCapabilityReadinessEvidence(
+  input: CurrentCapabilityEvidenceSelectionInput,
+): CapabilityReadinessEvidence {
+  const currentPracticalVersions = new Map(
+    input.currentPracticalVersions.map((version) => [version.proofKey, version.proofVersion]),
   );
   const latestPracticals = latestByKey(
     input.practicals,
@@ -109,28 +169,16 @@ export function selectCurrentCapabilityReadinessEvidence(
     (record) => timestamp(record.reviewedAt || record.submittedAt),
   );
 
-  const currentPassedAssessments = Array.from(latestAssessments.values()).filter(
-    (record) =>
-      record.passed &&
-      activeAssessmentVersions.get(record.assessmentKey) === record.bankVersion,
+  const currentPassedAssessments = selectCurrentPassingCapabilityAssessments(
+    input.assessments,
+    input.activeAssessmentVersions,
   );
+  const evidenceCellStates = buildCurrentCapabilityEvidenceCellStates(currentPassedAssessments);
 
   const passedAssessmentKeys = currentPassedAssessments
     .map((record) => record.assessmentKey)
     .sort();
-
-  const satisfiedEvidenceCells = Array.from(
-    new Set(
-      currentPassedAssessments.flatMap((record) => {
-        if (!record.evidenceKind) return [];
-        return (record.coveredDeepDiveKeys || []).flatMap((deepDiveKey) => {
-          const blueprint = getCapabilityDeepDiveBlueprint(deepDiveKey);
-          if (!blueprint || !blueprint.requiredEvidenceKinds.includes(record.evidenceKind!)) return [];
-          return [capabilityEvidenceCellCode(deepDiveKey, record.evidenceKind!)];
-        });
-      }),
-    ),
-  ).sort();
+  const satisfiedEvidenceCells = evidenceCellStates.map((cell) => cell.code);
 
   const approvedPracticalProofKeys = Array.from(latestPracticals.values())
     .filter(
