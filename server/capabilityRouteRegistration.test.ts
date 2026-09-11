@@ -9,10 +9,12 @@ for (const [name, source] of [
   ["server", serverIndex],
   ["vercel", vercelIndex],
 ] as const) {
-  test(`${name} entrypoint registers automated and practical capability routes`, () => {
+  test(`${name} entrypoint registers all Capability Engine routes`, () => {
     assert.match(source, /registerCapabilityEngineRoutes/);
     assert.match(source, /registerCapabilityPracticalEvidenceRoutes/);
+    assert.match(source, /registerCapabilityOralDefenseRoutes/);
     assert.match(source, /registerCapabilityEngineRoutes\(app\)/);
     assert.match(source, /registerCapabilityPracticalEvidenceRoutes\(app\)/);
+    assert.match(source, /registerCapabilityOralDefenseRoutes\(app\)/);
   });
 }
