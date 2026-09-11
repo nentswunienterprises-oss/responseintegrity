@@ -1,7 +1,0 @@
-Capability Engine Sprint 6 freeze marker
-Base: feat/capability-engine-sprint-5
-Scope: targeted Oral Integrity Defense + non-authoritative shadow readiness
-No main merge
-No production migration
-No production deployment
-Existing Battle Test and Sandbox Mock Gate remain authoritative
