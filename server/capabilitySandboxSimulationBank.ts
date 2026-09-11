@@ -8,6 +8,7 @@ import {
   validateSandboxSimulationDefinition,
   type SandboxSimulationDefinition,
 } from "@shared/capabilitySandboxSimulation";
+import { validateSandboxSimulationAgainstCapabilityBlueprint } from "@shared/capabilitySandboxSimulationBlueprint";
 
 export const DEFAULT_SANDBOX_SIMULATION_BANK_KEY = "sandbox_foundation";
 
@@ -21,6 +22,7 @@ function parseDefinition(value: unknown): SandboxSimulationDefinition {
   const definition =
     typeof value === "string" ? JSON.parse(value) : (value as SandboxSimulationDefinition);
   validateSandboxSimulationDefinition(definition);
+  validateSandboxSimulationAgainstCapabilityBlueprint(definition);
   return definition;
 }
 
