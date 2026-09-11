@@ -1,12 +1,15 @@
 import { pool } from "./db";
 import {
   CAPABILITY_PRACTICAL_PROOFS,
+  deriveCapabilityPracticalReview,
   getCapabilityPracticalProofDefinition,
+  snapshotCapabilityPracticalRubric,
+  validateCapabilityPracticalRubric,
   type CapabilityPracticalArtifactType,
+  type CapabilityPracticalCriterionReviewInput,
   type CapabilityPracticalProofDefinition,
+  type CapabilityPracticalReviewRubric,
 } from "@shared/capabilityPracticalEvidence";
-
-export type PracticalReviewOutcome = "approved" | "repeat_required" | "integrity_review";
 
 function httpError(status: number, message: string) {
   const error = new Error(message) as Error & { status?: number };
@@ -47,6 +50,21 @@ function validateDeclaration(
   }
 
   return normalized;
+}
+
+function parseFrozenRubric(value: unknown): CapabilityPracticalReviewRubric {
+  const parsed = typeof value === "string" ? JSON.parse(value) : value;
+  if (!parsed || typeof parsed !== "object") {
+    throw httpError(409, "This practical submission does not contain a frozen review rubric.");
+  }
+  try {
+    return validateCapabilityPracticalRubric(parsed as CapabilityPracticalReviewRubric);
+  } catch (error) {
+    throw httpError(
+      409,
+      `This practical submission contains an invalid frozen review rubric: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 export function buildPublicPracticalDefinitions() {
@@ -144,6 +162,7 @@ export async function submitPracticalCapabilityEvidence(input: {
   const attemptNumber = Number(latest?.attempt_number || 0) + 1;
   const artifactUrl = normalizeArtifactUrl(input.artifactUrl);
   const declaration = validateDeclaration(definition, input.declaration);
+  const rubricSnapshot = snapshotCapabilityPracticalRubric(definition.reviewRubric);
 
   try {
     const result = await pool.query(
@@ -157,8 +176,10 @@ export async function submitPracticalCapabilityEvidence(input: {
          artifact_type,
          declaration,
          competency_links,
+         rubric_version,
+         rubric_snapshot,
          no_real_student_data_confirmed
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, true)
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11::jsonb, true)
        RETURNING id, submitted_at`,
       [
         input.tutorAssignmentId,
@@ -170,6 +191,8 @@ export async function submitPracticalCapabilityEvidence(input: {
         input.artifactType,
         JSON.stringify(declaration),
         JSON.stringify(definition.competencyLinks),
+        rubricSnapshot.version,
+        JSON.stringify(rubricSnapshot),
       ],
     );
 
@@ -177,6 +200,7 @@ export async function submitPracticalCapabilityEvidence(input: {
       evidenceId: result.rows[0]?.id,
       proofKey: definition.key,
       proofVersion: definition.version,
+      rubricVersion: rubricSnapshot.version,
       attemptNumber,
       status: "submitted" as const,
       submittedAt: result.rows[0]?.submitted_at,
@@ -199,12 +223,17 @@ export async function getSpecialistPracticalEvidence(input: {
     `SELECT e.id,
             e.proof_key,
             e.proof_version,
+            e.rubric_version,
             e.attempt_number,
             e.artifact_type,
             e.submitted_at,
             r.outcome,
             r.feedback,
             r.reason_code,
+            r.clear_count,
+            r.partial_count,
+            r.fail_count,
+            r.critical_fail_count,
             r.reviewed_at
        FROM specialist_capability_practical_evidence e
        LEFT JOIN specialist_capability_practical_reviews r ON r.evidence_id = e.id
@@ -218,11 +247,20 @@ export async function getSpecialistPracticalEvidence(input: {
     evidenceId: row.id,
     proofKey: row.proof_key,
     proofVersion: Number(row.proof_version),
+    rubricVersion: row.rubric_version === null ? null : Number(row.rubric_version),
     attemptNumber: Number(row.attempt_number),
     artifactType: row.artifact_type,
     status: row.outcome || "submitted",
     feedback: row.feedback || null,
     reasonCode: row.reason_code || null,
+    rubricCounts: row.outcome
+      ? {
+          clear: Number(row.clear_count || 0),
+          partial: Number(row.partial_count || 0),
+          fail: Number(row.fail_count || 0),
+          criticalFail: Number(row.critical_fail_count || 0),
+        }
+      : null,
     submittedAt: row.submitted_at,
     reviewedAt: row.reviewed_at || null,
   }));
@@ -255,6 +293,8 @@ export async function getPracticalReviewQueue(input: {
             e.tutor_id,
             e.proof_key,
             e.proof_version,
+            e.rubric_version,
+            e.rubric_snapshot,
             e.attempt_number,
             e.artifact_url,
             e.artifact_type,
@@ -274,20 +314,30 @@ export async function getPracticalReviewQueue(input: {
     params,
   );
 
-  return result.rows.map((row) => ({
-    evidenceId: row.id,
-    tutorAssignmentId: row.tutor_assignment_id,
-    tutorId: row.tutor_id,
-    specialistName: [row.first_name, row.last_name].filter(Boolean).join(" ").trim(),
-    podName: row.pod_name || null,
-    proofKey: row.proof_key,
-    proofVersion: Number(row.proof_version),
-    attemptNumber: Number(row.attempt_number),
-    artifactUrl: row.artifact_url,
-    artifactType: row.artifact_type,
-    declaration: row.declaration,
-    submittedAt: row.submitted_at,
-  }));
+  return result.rows.map((row) => {
+    const reviewRubric = parseFrozenRubric(row.rubric_snapshot);
+    const rubricVersion = Number(row.rubric_version || 0);
+    if (rubricVersion !== reviewRubric.version) {
+      throw httpError(409, `Practical evidence ${String(row.id)} has mismatched rubric lineage.`);
+    }
+
+    return {
+      evidenceId: row.id,
+      tutorAssignmentId: row.tutor_assignment_id,
+      tutorId: row.tutor_id,
+      specialistName: [row.first_name, row.last_name].filter(Boolean).join(" ").trim(),
+      podName: row.pod_name || null,
+      proofKey: row.proof_key,
+      proofVersion: Number(row.proof_version),
+      rubricVersion,
+      reviewRubric,
+      attemptNumber: Number(row.attempt_number),
+      artifactUrl: row.artifact_url,
+      artifactType: row.artifact_type,
+      declaration: row.declaration,
+      submittedAt: row.submitted_at,
+    };
+  });
 }
 
 async function assertReviewerCanAccessEvidence(input: {
@@ -297,7 +347,13 @@ async function assertReviewerCanAccessEvidence(input: {
 }) {
   const reviewerRole = assertReviewerRole(input.reviewerRole);
   const result = await pool.query(
-    `SELECT e.id, p.td_id, r.id AS review_id
+    `SELECT e.id,
+            e.proof_key,
+            e.proof_version,
+            e.rubric_version,
+            e.rubric_snapshot,
+            p.td_id,
+            r.id AS review_id
        FROM specialist_capability_practical_evidence e
        JOIN tutor_assignments ta ON ta.id = e.tutor_assignment_id
        LEFT JOIN pods p ON p.id = ta.pod_id
@@ -314,24 +370,36 @@ async function assertReviewerCanAccessEvidence(input: {
     throw httpError(403, "This evidence is outside the reviewer's assigned pod scope.");
   }
 
-  return reviewerRole;
+  const rubric = parseFrozenRubric(row.rubric_snapshot);
+  const rubricVersion = Number(row.rubric_version || 0);
+  if (rubricVersion !== rubric.version) {
+    throw httpError(409, "Practical evidence rubric version does not match its frozen rubric snapshot.");
+  }
+
+  return { reviewerRole, row, rubric };
 }
 
 export async function reviewPracticalCapabilityEvidence(input: {
   evidenceId: string;
   reviewerId: string;
   reviewerRole: string;
-  outcome: PracticalReviewOutcome;
-  reasonCode?: string | null;
+  rubricVersion: number;
+  criterionJudgments: CapabilityPracticalCriterionReviewInput[];
   feedback?: string | null;
 }) {
-  const reviewerRole = await assertReviewerCanAccessEvidence(input);
-  const feedback = String(input.feedback || "").trim();
-  const reasonCode = String(input.reasonCode || "").trim() || null;
-
-  if ((input.outcome === "repeat_required" || input.outcome === "integrity_review") && feedback.length < 20) {
-    throw httpError(400, "Reviewer feedback is required when requesting a repeat or escalating integrity review.");
+  const access = await assertReviewerCanAccessEvidence(input);
+  if (input.rubricVersion !== access.rubric.version) {
+    throw httpError(409, "The practical review rubric changed or does not match this frozen submission.");
   }
+
+  let derived;
+  try {
+    derived = deriveCapabilityPracticalReview(access.rubric, input.criterionJudgments);
+  } catch (error) {
+    throw httpError(400, error instanceof Error ? error.message : "Invalid practical rubric review.");
+  }
+
+  const feedback = String(input.feedback || "").trim() || null;
 
   try {
     const result = await pool.query(
@@ -339,25 +407,48 @@ export async function reviewPracticalCapabilityEvidence(input: {
          evidence_id,
          reviewer_id,
          reviewer_role,
+         rubric_version,
+         outcome_rule_version,
+         criterion_judgments,
+         clear_count,
+         partial_count,
+         fail_count,
+         critical_fail_count,
+         critical_fail_criterion_keys,
          outcome,
          reason_code,
          feedback
-       ) VALUES ($1, $2, $3, $4, $5, $6)
+       ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11::jsonb, $12, $13, $14)
        RETURNING id, reviewed_at`,
       [
         input.evidenceId,
         input.reviewerId,
-        reviewerRole,
-        input.outcome,
-        reasonCode,
-        feedback || null,
+        access.reviewerRole,
+        derived.rubricVersion,
+        derived.outcomeRuleVersion,
+        JSON.stringify(derived.criterionReviews),
+        derived.clearCount,
+        derived.partialCount,
+        derived.failCount,
+        derived.criticalFailCount,
+        JSON.stringify(derived.criticalFailCriterionKeys),
+        derived.outcome,
+        derived.reasonCode,
+        feedback,
       ],
     );
 
     return {
       reviewId: result.rows[0]?.id,
       evidenceId: input.evidenceId,
-      outcome: input.outcome,
+      outcome: derived.outcome,
+      reasonCode: derived.reasonCode,
+      rubricVersion: derived.rubricVersion,
+      outcomeRuleVersion: derived.outcomeRuleVersion,
+      clearCount: derived.clearCount,
+      partialCount: derived.partialCount,
+      failCount: derived.failCount,
+      criticalFailCount: derived.criticalFailCount,
       reviewedAt: result.rows[0]?.reviewed_at,
     };
   } catch (error) {
