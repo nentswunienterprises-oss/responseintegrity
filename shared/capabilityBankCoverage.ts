@@ -11,6 +11,9 @@ import { buildCapabilityCriticalBoundaryRequirements } from "./capabilityCritica
 export interface CapabilityBankCoverageItem {
   competencyKey: string;
   deepDiveKey: string;
+  kind?: "single_choice" | "multi_select" | "sequence";
+  correctOptionKeys?: string[];
+  criticalFailOptionKeys?: string[];
   criticalBoundaryKeys?: string[];
 }
 
@@ -68,10 +71,32 @@ function validateCriticalBoundaryTags(assessment: CapabilityBankCoverageAssessme
     const blueprint = getCapabilityDeepDiveBlueprint(item.deepDiveKey);
     if (!blueprint) continue;
     const validBoundaryKeys = new Set(blueprint.criticalBoundaries.map((boundary) => boundary.key));
-    for (const boundaryKey of item.criticalBoundaryKeys || []) {
+    const criticalBoundaryKeys = item.criticalBoundaryKeys || [];
+
+    for (const boundaryKey of criticalBoundaryKeys) {
       if (!validBoundaryKeys.has(boundaryKey)) {
         throw new Error(
           `Capability assessment ${assessment.assessmentKey} item tags unknown critical boundary ${item.deepDiveKey}:${boundaryKey}.`,
+        );
+      }
+    }
+
+    if (assessment.enforceMvpPlan && criticalBoundaryKeys.length > 0) {
+      if (item.kind === "sequence") {
+        throw new Error(
+          `Capability assessment ${assessment.assessmentKey} uses a sequence item for critical boundary ${criticalBoundaryKeys.join(", ")}; V1 critical-fail semantics require single-choice or multi-select items.`,
+        );
+      }
+      if (!(item.criticalFailOptionKeys || []).length) {
+        throw new Error(
+          `Capability assessment ${assessment.assessmentKey} critical-boundary item must define at least one critical-fail option.`,
+        );
+      }
+      const correct = new Set(item.correctOptionKeys || []);
+      const overlap = (item.criticalFailOptionKeys || []).filter((optionKey) => correct.has(optionKey));
+      if (overlap.length > 0) {
+        throw new Error(
+          `Capability assessment ${assessment.assessmentKey} critical-fail option cannot also be a correct option: ${overlap.join(", ")}.`,
         );
       }
     }
