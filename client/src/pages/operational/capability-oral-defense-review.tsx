@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type ProbeJudgment = "clear" | "partial" | "fail";
+type PredictedOutcome = "pending" | "approved" | "repeat_required" | "integrity_review";
 
 type OralDefenseCandidate = {
   tutorAssignmentId: string;
@@ -65,7 +66,14 @@ type ProbeObservation = {
   integrityConcern: boolean;
 };
 
-type ProbeState = Record<string, Omit<ProbeObservation, "focusKey" | "deepDiveKey">>;
+type ProbeDraft = {
+  scenarioSummary: string;
+  observedResponseSummary: string;
+  judgment: ProbeJudgment | null;
+  integrityConcern: boolean;
+};
+
+type ProbeState = Record<string, ProbeDraft>;
 
 function probeIdentity(probe: Pick<OralDefenseProbeBrief, "focusKey" | "deepDiveKey">) {
   return `${probe.deepDiveKey}:${probe.focusKey}`;
@@ -78,18 +86,18 @@ function humanizeKey(value: string) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function predictedOutcome(observations: ProbeObservation[]) {
-  if (observations.some((probe) => probe.integrityConcern)) return "integrity_review" as const;
-  if (observations.length > 0 && observations.every((probe) => probe.judgment === "clear")) {
-    return "approved" as const;
-  }
-  return "repeat_required" as const;
+function predictedOutcome(drafts: ProbeDraft[]): PredictedOutcome {
+  if (!drafts.length || drafts.some((probe) => !probe.judgment)) return "pending";
+  if (drafts.some((probe) => probe.integrityConcern)) return "integrity_review";
+  if (drafts.every((probe) => probe.judgment === "clear")) return "approved";
+  return "repeat_required";
 }
 
-function outcomePresentation(outcome: ReturnType<typeof predictedOutcome>) {
+function outcomePresentation(outcome: PredictedOutcome) {
   if (outcome === "approved") return { label: "Approved", icon: CheckCircle2 };
   if (outcome === "integrity_review") return { label: "Integrity review", icon: ShieldAlert };
-  return { label: "Repeat required", icon: RefreshCcw };
+  if (outcome === "repeat_required") return { label: "Repeat required", icon: RefreshCcw };
+  return { label: "Pending explicit judgments", icon: Target };
 }
 
 export default function CapabilityOralDefenseReview() {
@@ -143,7 +151,7 @@ export default function CapabilityOralDefenseReview() {
       next[probeIdentity(probe)] = {
         scenarioSummary: "",
         observedResponseSummary: "",
-        judgment: "clear",
+        judgment: null,
         integrityConcern: false,
       };
     }
@@ -152,45 +160,55 @@ export default function CapabilityOralDefenseReview() {
     setSandboxConfirmed(false);
   }, [brief?.briefId]);
 
-  const observations = useMemo<ProbeObservation[]>(() => {
+  const drafts = useMemo<ProbeDraft[]>(() => {
     if (!brief) return [];
-    return brief.probes.map((probe) => {
-      const state = probeState[probeIdentity(probe)] || {
+    return brief.probes.map((probe) =>
+      probeState[probeIdentity(probe)] || {
         scenarioSummary: "",
         observedResponseSummary: "",
-        judgment: "clear" as const,
+        judgment: null,
         integrityConcern: false,
-      };
-      return {
-        focusKey: probe.focusKey,
-        deepDiveKey: probe.deepDiveKey,
-        ...state,
-      };
-    });
+      },
+    );
   }, [brief, probeState]);
 
-  const outcome = predictedOutcome(observations);
+  const outcome = predictedOutcome(drafts);
   const OutcomeIcon = outcomePresentation(outcome).icon;
   const observationsComplete = Boolean(
     brief &&
-      observations.length === brief.probes.length &&
-      observations.every(
-        (probe) => probe.scenarioSummary.trim().length >= 30 && probe.observedResponseSummary.trim().length >= 30,
+      drafts.length === brief.probes.length &&
+      drafts.every(
+        (probe) =>
+          Boolean(probe.judgment) &&
+          probe.scenarioSummary.trim().length >= 30 &&
+          probe.observedResponseSummary.trim().length >= 30,
       ),
   );
-  const feedbackComplete = outcome === "approved" || feedback.trim().length >= 20;
+  const feedbackComplete = outcome === "approved" || (outcome !== "pending" && feedback.trim().length >= 20);
 
-  const updateProbe = (
-    probe: OralDefenseProbeBrief,
-    patch: Partial<Omit<ProbeObservation, "focusKey" | "deepDiveKey">>,
-  ) => {
+  const observations = useMemo<ProbeObservation[]>(() => {
+    if (!brief || !observationsComplete) return [];
+    return brief.probes.map((probe) => {
+      const state = probeState[probeIdentity(probe)];
+      return {
+        focusKey: probe.focusKey,
+        deepDiveKey: probe.deepDiveKey,
+        scenarioSummary: state.scenarioSummary,
+        observedResponseSummary: state.observedResponseSummary,
+        judgment: state.judgment as ProbeJudgment,
+        integrityConcern: state.integrityConcern,
+      };
+    });
+  }, [brief, observationsComplete, probeState]);
+
+  const updateProbe = (probe: OralDefenseProbeBrief, patch: Partial<ProbeDraft>) => {
     const identity = probeIdentity(probe);
     setProbeState((current) => ({
       ...current,
       [identity]: {
         scenarioSummary: current[identity]?.scenarioSummary || "",
         observedResponseSummary: current[identity]?.observedResponseSummary || "",
-        judgment: current[identity]?.judgment || "clear",
+        judgment: current[identity]?.judgment || null,
         integrityConcern: current[identity]?.integrityConcern || false,
         ...patch,
       },
@@ -200,7 +218,7 @@ export default function CapabilityOralDefenseReview() {
   const completeMutation = useMutation({
     mutationFn: async () => {
       if (!brief || !selectedAssignmentId) throw new Error("Select an eligible Specialist first.");
-      if (!observationsComplete) throw new Error("Record the scenario and observed response for every issued probe.");
+      if (!observationsComplete) throw new Error("Record the scenario, observed response and an explicit judgment for every issued probe.");
       if (!sandboxConfirmed) throw new Error("Confirm that every oral probe used only fictional or sandbox material.");
       if (!feedbackComplete) throw new Error("Write at least 20 characters of actionable feedback for a non-approved defense.");
 
@@ -333,7 +351,7 @@ export default function CapabilityOralDefenseReview() {
                 <div className="space-y-4">
                   {brief.probes.map((probe, index) => {
                     const identity = probeIdentity(probe);
-                    const state = probeState[identity] || { scenarioSummary: "", observedResponseSummary: "", judgment: "clear" as const, integrityConcern: false };
+                    const state = probeState[identity] || { scenarioSummary: "", observedResponseSummary: "", judgment: null, integrityConcern: false };
                     return (
                       <Card key={identity}>
                         <CardHeader>
@@ -412,7 +430,7 @@ export default function CapabilityOralDefenseReview() {
                   </CardHeader>
                   <CardContent className="space-y-5">
                     <label className="block space-y-2">
-                      <span className="text-sm font-medium">Reviewer feedback {outcome === "approved" ? "(optional)" : "(required)"}</span>
+                      <span className="text-sm font-medium">Reviewer feedback {outcome === "approved" ? "(optional)" : "(required when the defense resolves)"}</span>
                       <textarea
                         rows={5}
                         maxLength={4000}
@@ -433,7 +451,7 @@ export default function CapabilityOralDefenseReview() {
                     )}
 
                     <Button
-                      disabled={completeMutation.isPending || !observationsComplete || !sandboxConfirmed || !feedbackComplete}
+                      disabled={completeMutation.isPending || !observationsComplete || outcome === "pending" || !sandboxConfirmed || !feedbackComplete}
                       onClick={() => completeMutation.mutate()}
                     >
                       {completeMutation.isPending ? "Recording defense..." : "Record immutable defense"}
