@@ -11,6 +11,11 @@ vite.config.ts.*
 .env.*.local
 .env.production
 
+# Private capability assessment banks
+.capability-bank/
+private-capability-bank*.json
+**/private-capability-bank*.json
+
 # IDE and OS
 .vscode/
 .idea/
