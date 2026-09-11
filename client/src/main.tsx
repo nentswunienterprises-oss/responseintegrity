@@ -24,7 +24,8 @@ if (rootElement) {
   const isCapabilityRoute =
     currentPath.startsWith("/operational/specialist/capability/") ||
     currentPath === "/operational/specialist/capability-practicals" ||
-    currentPath === "/operational/capability-review/practicals";
+    currentPath === "/operational/capability-review/practicals" ||
+    currentPath === "/operational/capability-review/oral-defense";
 
   const app = (
     <React.StrictMode>
