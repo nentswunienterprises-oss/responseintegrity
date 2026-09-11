@@ -8,6 +8,7 @@ import { TutorGatewayGuard } from "@/lib/tutorGatewayGuard";
 import SpecialistCapabilityAssessment from "@/pages/operational/tutor/capability-assessment";
 import SpecialistCapabilityPracticals from "@/pages/operational/tutor/capability-practicals";
 import CapabilityPracticalReview from "@/pages/operational/capability-practical-review";
+import CapabilityOralDefenseReview from "@/pages/operational/capability-oral-defense-review";
 
 export function CapabilityStandaloneApp() {
   return (
@@ -35,6 +36,10 @@ export function CapabilityStandaloneApp() {
           <Route
             path="/operational/capability-review/practicals"
             element={<CapabilityPracticalReview />}
+          />
+          <Route
+            path="/operational/capability-review/oral-defense"
+            element={<CapabilityOralDefenseReview />}
           />
           <Route path="*" element={<Navigate to="/specialist/pod" replace />} />
         </Routes>
