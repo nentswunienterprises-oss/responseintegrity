@@ -5,7 +5,8 @@ on:
     paths:
       - "shared/capabilityEngine.ts"
       - "shared/capabilityEngine.test.ts"
-      - "shared/capabilityAssessments.ts"
+      - "shared/capabilityAssessments*.ts"
+      - "shared/capabilityAssessmentBank.ts"
       - "server/capabilityEngine.ts"
       - "server/routes/capabilityEngine.ts"
       - "migrations/2026-09-11_add_capability_assessment_attempts.sql"
@@ -14,11 +15,12 @@ on:
       - ".github/workflows/capability-engine-ci.yml"
   push:
     branches:
-      - main
+      - "feat/capability-engine-*"
     paths:
       - "shared/capabilityEngine.ts"
       - "shared/capabilityEngine.test.ts"
-      - "shared/capabilityAssessments.ts"
+      - "shared/capabilityAssessments*.ts"
+      - "shared/capabilityAssessmentBank.ts"
       - "server/capabilityEngine.ts"
       - "server/routes/capabilityEngine.ts"
       - "migrations/2026-09-11_add_capability_assessment_attempts.sql"
