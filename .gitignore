@@ -16,6 +16,13 @@ vite.config.ts.*
 private-capability-bank*.json
 **/private-capability-bank*.json
 
+# Private Sandbox simulation banks
+.capability-simulation-bank/
+private-sandbox-simulation-bank*.json
+**/private-sandbox-simulation-bank*.json
+ri_private_sandbox_simulation_bank*.json
+**/ri_private_sandbox_simulation_bank*.json
+
 # IDE and OS
 .vscode/
 .idea/
