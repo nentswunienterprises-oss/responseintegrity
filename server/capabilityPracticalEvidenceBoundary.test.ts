@@ -72,6 +72,12 @@ test("derived practical outcome and reason code are persisted rather than review
   assert.doesNotMatch(serviceSource, /input\.reasonCode/);
 });
 
+test("non-approved practical reviews require actionable Specialist feedback", () => {
+  assert.match(serviceSource, /derived\.outcome !== "approved"/);
+  assert.match(serviceSource, /feedback\.length < 20/);
+  assert.match(serviceSource, /Repeat required and integrity review outcomes need at least 20 characters of actionable reviewer feedback/);
+});
+
 test("Specialist practical history does not return recording URLs or reviewer rubric internals", () => {
   const start = serviceSource.indexOf("export async function getSpecialistPracticalEvidence");
   const end = serviceSource.indexOf("function assertReviewerRole", start);
