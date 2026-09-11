@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS specialist_capability_assessment_attempts (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE specialist_capability_assessment_attempts ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE specialist_capability_assessment_attempts FROM anon, authenticated;
+
 CREATE INDEX IF NOT EXISTS idx_capability_attempts_tutor_assignment
   ON specialist_capability_assessment_attempts (tutor_assignment_id, completed_at DESC);
 
@@ -27,4 +30,4 @@ CREATE INDEX IF NOT EXISTS idx_capability_attempts_assessment
   ON specialist_capability_assessment_attempts (assessment_key, completed_at DESC);
 
 COMMENT ON TABLE specialist_capability_assessment_attempts IS
-  'Immutable evidence for deterministic Specialist capability assessments. Sprint 1 does not replace Battle Test certification progression.';
+  'Immutable evidence for deterministic Specialist capability assessments. Direct client access is denied; Sprint 1 does not replace Battle Test certification progression.';
