@@ -18,7 +18,7 @@ test("Specialist practical workspace is reference-first and never uploads video 
 test("Specialist must explicitly confirm sandbox-only evidence", () => {
   assert.match(specialistSource, /noRealStudentDataConfirmed: true/);
   assert.match(specialistSource, /contains no real student, parent or family data/);
-  assert.match(specialistSource, /disabled=\{submitMutation\.isPending \|\| !artifactUrl\.trim\(\) \|\| !artifactType \|\| !sandboxConfirmed\}/);
+  assert.match(specialistSource, /!sandboxConfirmed \|\| !selectedRubric/);
 });
 
 test("Specialist UI blocks resubmission while evidence is pending, approved or under integrity review", () => {
@@ -28,17 +28,55 @@ test("Specialist UI blocks resubmission while evidence is pending, approved or u
   assert.match(specialistSource, /latest\.status === "repeat_required"/);
 });
 
-test("reviewer UI offers only the three immutable review outcomes", () => {
-  assert.match(reviewerSource, /"approved" \| "repeat_required" \| "integrity_review"/);
-  assert.match(reviewerSource, />Approve</);
-  assert.match(reviewerSource, />Repeat required</);
-  assert.match(reviewerSource, />Integrity review</);
-  assert.match(reviewerSource, /Record immutable decision/);
+test("Specialist sees the same observable rubric anchors before recording", () => {
+  assert.match(specialistSource, /getCapabilityPracticalProofDefinition/);
+  assert.match(specialistSource, /How this will be judged/);
+  assert.match(specialistSource, /Approved requires every criterion to be Clear/);
+  assert.match(specialistSource, /criterion\.observableStandard/);
+  assert.match(specialistSource, /criterion\.clearAnchor/);
+  assert.match(specialistSource, /criterion\.partialAnchor/);
+  assert.match(specialistSource, /criterion\.failAnchor/);
+  assert.doesNotMatch(specialistSource, /criticalBoundaryLinks/);
+  assert.doesNotMatch(specialistSource, /competencyLinks/);
 });
 
-test("repeat and integrity review require actionable reviewer feedback", () => {
+test("reviewer UI starts every criterion unjudged and offers only Clear Partial Fail judgments", () => {
+  assert.match(reviewerSource, /judgment: CapabilityPracticalCriterionJudgment \| ""/);
+  assert.match(reviewerSource, /judgment: "", evidenceNote: ""/);
+  assert.match(reviewerSource, /\["clear", "partial", "fail"\]/);
+  assert.match(reviewerSource, /No criterion defaults to Clear/);
+  assert.doesNotMatch(reviewerSource, />Approve</);
+  assert.doesNotMatch(reviewerSource, /setOutcome/);
+});
+
+test("reviewer UI requires observation notes for every Partial or Fail judgment", () => {
+  assert.match(reviewerSource, /draft\.evidenceNote\.trim\(\)\.length >= 20/);
+  assert.match(reviewerSource, /Every Partial or Fail judgment needs at least 20 characters/);
+  assert.match(reviewerSource, /Name the exact behavior in the recording that supports this judgment/);
+});
+
+test("reviewer UI derives an outcome preview but posts only rubric judgments to the server", () => {
+  assert.match(reviewerSource, /deriveCapabilityPracticalReview\(selected\.reviewRubric, criterionJudgments\)/);
+  assert.match(reviewerSource, /Derived outcome:/);
+  assert.match(reviewerSource, /rubricVersion: selected\.rubricVersion/);
+  assert.match(reviewerSource, /criterionJudgments,/);
+  assert.doesNotMatch(reviewerSource, /outcome,/);
+  assert.doesNotMatch(reviewerSource, /reasonCode:/);
+  assert.match(reviewerSource, /Record immutable rubric review/);
+});
+
+test("non-approved practical outcomes require an actionable reviewer summary before submit", () => {
+  assert.match(reviewerSource, /derivedPreview\.outcome !== "approved"/);
   assert.match(reviewerSource, /feedback\.trim\(\)\.length < 20/);
-  assert.match(reviewerSource, /Write at least 20 characters/);
+  assert.match(reviewerSource, /Repeat required and integrity review outcomes need at least 20 characters of actionable reviewer feedback/);
+  assert.match(reviewerSource, /required for this outcome/);
+  assert.match(reviewerSource, /!feedbackValid/);
+});
+
+test("integrity-critical criteria are visible to reviewers without making outcome selectable", () => {
+  assert.match(reviewerSource, /criterion\.criticalOnFail/);
+  assert.match(reviewerSource, /Integrity-critical if Fail/);
+  assert.match(reviewerSource, /At least one integrity-critical criterion is explicitly Fail/);
 });
 
 test("practical Specialist and reviewer routes are isolated from the central router", () => {

@@ -19,10 +19,14 @@ const practicalSubmissionSchema = z.object({
 });
 
 const practicalReviewSchema = z.object({
-  outcome: z.enum(["approved", "repeat_required", "integrity_review"]),
-  reasonCode: z.string().trim().max(100).optional().nullable(),
+  rubricVersion: z.number().int().positive(),
+  criterionJudgments: z.array(z.object({
+    criterionKey: z.string().trim().min(1),
+    judgment: z.enum(["clear", "partial", "fail"]),
+    evidenceNote: z.string().trim().max(2000).optional().nullable(),
+  })).min(1),
   feedback: z.string().trim().max(4000).optional().nullable(),
-});
+}).strict();
 
 function requireSpecialist(req: Request, res: Response) {
   const user = (req as any).dbUser;
@@ -146,8 +150,8 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
           evidenceId: String(req.params.evidenceId || "").trim(),
           reviewerId: String(user.id),
           reviewerRole: String(user.role),
-          outcome: payload.outcome,
-          reasonCode: payload.reasonCode,
+          rubricVersion: payload.rubricVersion,
+          criterionJudgments: payload.criterionJudgments,
           feedback: payload.feedback,
         });
 
