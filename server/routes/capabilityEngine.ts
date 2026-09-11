@@ -5,6 +5,7 @@ import {
   buildPublicCapabilityAssessment,
   getCapabilityAssessmentDefinition,
   getCapabilityAssessmentHistory,
+  getSpecialistCapabilityLedger,
   persistCapabilityAssessmentAttempt,
 } from "../capabilityEngine";
 
@@ -108,6 +109,33 @@ export function registerCapabilityEngineRoutes(app: Express) {
       } catch (error) {
         const status = Number((error as any)?.status || 500);
         const message = error instanceof Error ? error.message : "Failed to load capability assessment history.";
+        return res.status(status).json({ message });
+      }
+    }
+  );
+
+  app.get(
+    "/api/tutor/capability-ledger",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const dbUser = requireSpecialistUser(req, res);
+        if (!dbUser) return;
+
+        const tutorAssignmentId = String(req.query.tutorAssignmentId || "").trim();
+        if (!tutorAssignmentId) {
+          return res.status(400).json({ message: "tutorAssignmentId is required." });
+        }
+
+        const ledger = await getSpecialistCapabilityLedger({
+          tutorAssignmentId,
+          tutorId: String(dbUser.id),
+        });
+
+        return res.json({ ledger });
+      } catch (error) {
+        const status = Number((error as any)?.status || 500);
+        const message = error instanceof Error ? error.message : "Failed to load capability ledger.";
         return res.status(status).json({ message });
       }
     }
