@@ -198,6 +198,7 @@ function validationShape(assessment: ParsedAssessment) {
     items: assessment.items.map((item) => ({
       competencyKey: item.competencyKey,
       deepDiveKey: item.deepDiveKey,
+      prompt: item.prompt,
       kind: item.kind,
       correctOptionKeys: item.correctOptionKeys,
       criticalFailOptionKeys: item.criticalFailOptionKeys,
