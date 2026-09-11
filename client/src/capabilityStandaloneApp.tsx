@@ -8,6 +8,7 @@ import { TutorGatewayGuard } from "@/lib/tutorGatewayGuard";
 import SpecialistCapabilityAssessment from "@/pages/operational/tutor/capability-assessment";
 import SpecialistCapabilityPlan from "@/pages/operational/tutor/capability-plan";
 import SpecialistCapabilityPracticals from "@/pages/operational/tutor/capability-practicals";
+import SpecialistCapabilitySandboxSimulation from "@/pages/operational/tutor/capability-sandbox-simulation";
 import CapabilityPracticalReview from "@/pages/operational/capability-practical-review";
 import CapabilityOralDefenseReview from "@/pages/operational/capability-oral-defense-review";
 
@@ -39,6 +40,14 @@ export function CapabilityStandaloneApp() {
             element={
               <TutorGatewayGuard>
                 <SpecialistCapabilityPracticals />
+              </TutorGatewayGuard>
+            }
+          />
+          <Route
+            path="/operational/specialist/capability-sandbox-simulation"
+            element={
+              <TutorGatewayGuard>
+                <SpecialistCapabilitySandboxSimulation />
               </TutorGatewayGuard>
             }
           />

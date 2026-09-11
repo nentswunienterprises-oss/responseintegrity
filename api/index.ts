@@ -5,6 +5,7 @@ import { registerRoutes } from '../server/routes';
 import { registerCapabilityEngineRoutes } from '../server/routes/capabilityEngine';
 import { registerCapabilityPracticalEvidenceRoutes } from '../server/routes/capabilityPracticalEvidence';
 import { registerCapabilityOralDefenseRoutes } from '../server/routes/capabilityOralDefense';
+import { registerCapabilitySandboxSimulationRoutes } from '../server/routes/capabilitySandboxSimulation';
 import { getSession } from '../server/supabaseAuth';
 import cors from 'cors';
 
@@ -46,6 +47,7 @@ app.use((req, res, next) => {
 registerCapabilityEngineRoutes(app);
 registerCapabilityPracticalEvidenceRoutes(app);
 registerCapabilityOralDefenseRoutes(app);
+registerCapabilitySandboxSimulationRoutes(app);
 registerRoutes(app);
 
 // Catch-all for unhandled routes

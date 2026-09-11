@@ -13,8 +13,10 @@ for (const [name, source] of [
     assert.match(source, /registerCapabilityEngineRoutes/);
     assert.match(source, /registerCapabilityPracticalEvidenceRoutes/);
     assert.match(source, /registerCapabilityOralDefenseRoutes/);
+    assert.match(source, /registerCapabilitySandboxSimulationRoutes/);
     assert.match(source, /registerCapabilityEngineRoutes\(app\)/);
     assert.match(source, /registerCapabilityPracticalEvidenceRoutes\(app\)/);
     assert.match(source, /registerCapabilityOralDefenseRoutes\(app\)/);
+    assert.match(source, /registerCapabilitySandboxSimulationRoutes\(app\)/);
   });
 }
