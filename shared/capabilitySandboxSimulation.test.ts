@@ -48,6 +48,7 @@ test("cross-module design fixture covers five RI Deep Dives and passes determini
     "session_flow_control",
     "structured_execution",
   ]);
+  assert.deepEqual(first.triggeredCriticalBoundaryKeys, []);
   assert.equal(first.evidenceContaminationCount, 0);
   assert.equal(first.authorityViolationCount, 0);
 });
@@ -67,6 +68,7 @@ test("operational miss and evidence contamination remain separately visible", ()
   assert.equal(result.percent, 80);
   assert.equal(result.passed, true);
   assert.equal(result.hasCriticalFail, false);
+  assert.deepEqual(result.triggeredCriticalBoundaryKeys, []);
   assert.equal(result.evidenceContaminationCount, 1);
   assert.equal(result.authorityViolationCount, 0);
 });
@@ -86,6 +88,7 @@ test("critical authority violation fails the simulation regardless of aggregate 
   assert.equal(result.passed, false);
   assert.equal(result.hasCriticalFail, true);
   assert.deepEqual(result.criticalFailDecisionKeys, ["session_flow_system_authority"]);
+  assert.deepEqual(result.triggeredCriticalBoundaryKeys, ["session_flow.no_manual_drill_override"]);
   assert.equal(result.authorityViolationCount, 1);
   assert.equal(result.evidenceContaminationCount, 1);
 });
@@ -103,6 +106,7 @@ test("full rescue inside Controlled Discomfort is captured as critical contamina
 
   assert.equal(result.passed, false);
   assert.equal(result.hasCriticalFail, true);
+  assert.deepEqual(result.triggeredCriticalBoundaryKeys, ["controlled_discomfort.no_full_rescue"]);
   assert.equal(result.evidenceContaminationCount, 1);
 });
 
@@ -134,6 +138,15 @@ test("definition validation rejects duplicate decisions and non-fictional simula
     fictionalScenarioConfirmed: false,
   } as unknown as SandboxSimulationDefinition;
   assert.throws(() => validateSandboxSimulationDefinition(nonFictional), /explicitly fictional/);
+});
+
+test("named critical boundary requires a critical-fail action", () => {
+  const invalid = structuredClone(SANDBOX_SIMULATION_DESIGN_FIXTURE_V1);
+  invalid.decisions[0].criticalFailOptionKeys = [];
+  assert.throws(
+    () => validateSandboxSimulationDefinition(invalid),
+    /names a critical boundary without a critical-fail action/,
+  );
 });
 
 test("response set fails closed on missing, duplicate and unknown decisions", () => {
