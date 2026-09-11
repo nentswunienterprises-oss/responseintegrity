@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { validateCapabilityAssessmentAgainstBlueprint } from "./capabilityBankCoverage";
 
-function item(index: number) {
+function item() {
   return {
     competencyKey: "tools.compulsory_kit",
     deepDiveKey: "tools_required",
@@ -14,7 +14,7 @@ function item(index: number) {
 }
 
 test("release-grade mastery cannot omit a declared Deep Dive competency", () => {
-  const items = Array.from({ length: 30 }, (_, index) => item(index));
+  const items = Array.from({ length: 30 }, () => item());
 
   assert.throws(
     () =>
