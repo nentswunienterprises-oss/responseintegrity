@@ -1,4 +1,4 @@
-import type { SandboxMockCriterionKey } from "./sandboxReadiness";
+import { SANDBOX_MOCK_CRITERIA, type SandboxMockCriterionKey } from "./sandboxReadiness";
 import { getCapabilityDeepDiveBlueprint } from "./capabilityBlueprint";
 
 export type CapabilityPracticalProofKey = "prepare" | "execute" | "evidence";
@@ -103,7 +103,7 @@ const PREPARE_RUBRIC: CapabilityPracticalReviewRubric = {
       observableStandard: "Selects the session context, drill, set conditions, and order from the assigned RI state rather than personal preference.",
       clearAnchor: "Every material planning choice follows the system-provided state and assigned operating path.",
       partialAnchor: "The final plan is mostly correct, but at least one choice is uncertain or justified from preference rather than the system contract.",
-      failAnchor: "The Specialist knowingly replaces a system-selected drill, state, or movement with a preferred alternative.",
+      failAnchor: "The Specialist replaces a system-selected drill, state, or movement with a preferred alternative and treats that replacement as authorised.",
       criticalOnFail: true,
       competencyLinks: [
         { deepDiveKey: "session_flow_control", competencyKey: "session_flow.system_selected_drill" },
@@ -240,7 +240,7 @@ const EXECUTE_RUBRIC: CapabilityPracticalReviewRubric = {
       observableStandard: "If assistance occurs, preserves its evidentiary meaning instead of presenting the resulting response as independent.",
       clearAnchor: "Any support is acknowledged accurately and the Specialist distinguishes assisted completion from independent evidence.",
       partialAnchor: "The Specialist notices the support but is imprecise about how it changes the evidence classification.",
-      failAnchor: "Assisted performance is knowingly described, logged, or defended as independent evidence.",
+      failAnchor: "Assisted performance is described, logged, or defended as independent evidence.",
       criticalOnFail: true,
       competencyLinks: [
         { deepDiveKey: "structured_execution", competencyKey: "evidence.contamination" },
@@ -504,6 +504,7 @@ export function validateCapabilityPracticalRubric(rubric: CapabilityPracticalRev
   if (new Set(keys).size !== keys.length) {
     throw new Error("Practical review rubric contains duplicate criterion keys.");
   }
+  const knownSandboxMockCriteria = new Set(SANDBOX_MOCK_CRITERIA.map((criterion) => criterion.key));
 
   for (const criterion of rubric.criteria) {
     if (!criterion.key.trim() || !criterion.label.trim() || !criterion.observableStandard.trim()) {
@@ -527,6 +528,9 @@ export function validateCapabilityPracticalRubric(rubric: CapabilityPracticalRev
     }
     if (!criterion.sandboxMockCriteria.length) {
       throw new Error(`Practical review criterion ${criterion.key} must support at least one Sandbox Mock criterion.`);
+    }
+    if (criterion.sandboxMockCriteria.some((key) => !knownSandboxMockCriteria.has(key))) {
+      throw new Error(`Practical review criterion ${criterion.key} references an unknown Sandbox Mock criterion.`);
     }
   }
 
