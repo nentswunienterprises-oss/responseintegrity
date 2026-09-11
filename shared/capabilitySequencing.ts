@@ -67,8 +67,16 @@ function targetCodes(plan: CapabilityAssessmentPlanEntry) {
 
 function prerequisiteCodes(plan: CapabilityAssessmentPlanEntry) {
   if (plan.evidenceKind === "mastery") return [];
-  const prerequisiteKind = plan.evidenceKind === "retrieval" ? "mastery" : "retrieval";
-  return plan.coveredDeepDiveKeys.map((deepDiveKey) => cellCode(deepDiveKey, prerequisiteKind));
+  if (plan.evidenceKind === "retrieval") {
+    return plan.coveredDeepDiveKeys.map((deepDiveKey) => cellCode(deepDiveKey, "mastery"));
+  }
+
+  // Transfer depends on both layers. This prevents an old retrieval pass from
+  // bypassing a newly-invalidated or rotated mastery requirement.
+  return plan.coveredDeepDiveKeys.flatMap((deepDiveKey) => [
+    cellCode(deepDiveKey, "mastery"),
+    cellCode(deepDiveKey, "retrieval"),
+  ]);
 }
 
 export function buildCapabilityAssessmentAvailability(input: {
