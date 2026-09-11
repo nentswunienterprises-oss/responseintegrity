@@ -32,20 +32,20 @@ test("one incorrect answer misses the 96% mastery threshold", () => {
   assert.equal(result.mastered, false);
 });
 
-test("critical-fail selection overrides an otherwise strong attempt", () => {
+test("critical-fail endorsement overrides an otherwise strong attempt", () => {
   const responses = buildCorrectResponses();
   const questionIndex = CLARITY_MASTERY_ASSESSMENT.questions.findIndex(
-    (question) => question.key === "clarity_logging_11"
+    (question) => question.key === "clarity_contamination_05"
   );
   assert.notEqual(questionIndex, -1);
   responses[questionIndex] = {
-    questionKey: "clarity_logging_11",
-    selectedOptionKeys: ["c"],
+    questionKey: "clarity_contamination_05",
+    selectedOptionKeys: ["a"],
   };
 
   const result = evaluateCapabilityAssessment(CLARITY_MASTERY_ASSESSMENT, responses);
   assert.equal(result.hasCriticalFail, true);
-  assert.deepEqual(result.criticalFailQuestionKeys, ["clarity_logging_11"]);
+  assert.deepEqual(result.criticalFailQuestionKeys, ["clarity_contamination_05"]);
   assert.equal(result.mastered, false);
 });
 
