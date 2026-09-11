@@ -24,10 +24,12 @@ test("oral defense submission is bound to the issued brief and sandbox confirmat
   assert.match(reviewSource, /Minimum 30 characters/);
 });
 
-test("review outcome is derived from probe evidence rather than manually selected", () => {
+test("review outcome is derived from explicit probe evidence rather than manually selected", () => {
   assert.match(reviewSource, /function predictedOutcome/);
-  assert.match(reviewSource, /observations\.some\(\(probe\) => probe\.integrityConcern\)/);
-  assert.match(reviewSource, /observations\.every\(\(probe\) => probe\.judgment === "clear"\)/);
+  assert.match(reviewSource, /drafts\.some\(\(probe\) => !probe\.judgment\)/);
+  assert.match(reviewSource, /drafts\.some\(\(probe\) => probe\.integrityConcern\)/);
+  assert.match(reviewSource, /drafts\.every\(\(probe\) => probe\.judgment === "clear"\)/);
+  assert.match(reviewSource, /judgment: null/);
   assert.doesNotMatch(reviewSource, /setOutcome/);
 });
 
