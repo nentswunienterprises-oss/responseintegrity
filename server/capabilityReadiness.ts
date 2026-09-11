@@ -4,12 +4,22 @@ import {
   FOUNDATION_CAPABILITY_SHADOW_GATE_V1,
   type CapabilityReadinessResult,
 } from "@shared/capabilityReadiness";
+import { getCapabilityPracticalProofDefinition } from "@shared/capabilityPracticalEvidence";
+import { ORAL_DEFENSE_VERSION } from "@shared/capabilityOralDefense";
 
 function httpError(status: number, message: string, data?: Record<string, unknown>) {
   const error = new Error(message) as Error & { status?: number; data?: Record<string, unknown> };
   error.status = status;
   error.data = data;
   return error;
+}
+
+export function normalizeCapabilityReviewerRole(role: string) {
+  const normalized = String(role || "").toLowerCase();
+  if (!new Set(["td", "coo", "hr"]).has(normalized)) {
+    throw httpError(403, "Capability review access is restricted.");
+  }
+  return normalized;
 }
 
 export async function assertCapabilityTutorAssignmentOwnership(
@@ -38,10 +48,7 @@ export async function assertCapabilityReviewerAccessToAssignment(input: {
   reviewerId: string;
   reviewerRole: string;
 }) {
-  const reviewerRole = String(input.reviewerRole || "").toLowerCase();
-  if (!new Set(["td", "coo", "hr"]).has(reviewerRole)) {
-    throw httpError(403, "Capability review access is restricted.");
-  }
+  const reviewerRole = normalizeCapabilityReviewerRole(input.reviewerRole);
 
   const result = await pool.query(
     `SELECT ta.id, ta.tutor_id, ta.pod_id, p.td_id
@@ -64,35 +71,75 @@ export async function assertCapabilityReviewerAccessToAssignment(input: {
 export async function getCapabilityReadinessEvidence(tutorAssignmentId: string) {
   const [assessmentResult, practicalResult, oralResult] = await Promise.all([
     pool.query(
-      `SELECT DISTINCT assessment_key
-         FROM specialist_capability_assessment_attempts
-        WHERE tutor_assignment_id = $1
-          AND passed = true`,
-      [tutorAssignmentId],
-    ),
-    pool.query(
-      `SELECT DISTINCT e.proof_key
-         FROM specialist_capability_practical_evidence e
-         JOIN specialist_capability_practical_reviews r ON r.evidence_id = e.id
-        WHERE e.tutor_assignment_id = $1
-          AND r.outcome = 'approved'`,
-      [tutorAssignmentId],
-    ),
-    pool.query(
-      `SELECT EXISTS (
-         SELECT 1
-           FROM specialist_capability_oral_defenses
+      `WITH latest_attempt AS (
+         SELECT DISTINCT ON (assessment_key)
+                assessment_key,
+                bank_version,
+                passed,
+                attempt_number,
+                completed_at
+           FROM specialist_capability_assessment_attempts
           WHERE tutor_assignment_id = $1
-            AND outcome = 'approved'
-       ) AS approved`,
+          ORDER BY assessment_key, attempt_number DESC, completed_at DESC
+       )
+       SELECT latest_attempt.assessment_key
+         FROM latest_attempt
+         JOIN private.specialist_capability_assessment_configs config
+           ON config.assessment_key = latest_attempt.assessment_key
+          AND config.bank_version = latest_attempt.bank_version
+          AND config.active = true
+        WHERE latest_attempt.passed = true`,
+      [tutorAssignmentId],
+    ),
+    pool.query(
+      `WITH latest_practical AS (
+         SELECT DISTINCT ON (e.proof_key)
+                e.id,
+                e.proof_key,
+                e.proof_version,
+                e.attempt_number,
+                e.submitted_at
+           FROM specialist_capability_practical_evidence e
+          WHERE e.tutor_assignment_id = $1
+          ORDER BY e.proof_key, e.attempt_number DESC, e.submitted_at DESC
+       )
+       SELECT latest_practical.proof_key,
+              latest_practical.proof_version,
+              r.outcome
+         FROM latest_practical
+         LEFT JOIN specialist_capability_practical_reviews r
+           ON r.evidence_id = latest_practical.id`,
+      [tutorAssignmentId],
+    ),
+    pool.query(
+      `SELECT defense_version, outcome
+         FROM specialist_capability_oral_defenses
+        WHERE tutor_assignment_id = $1
+        ORDER BY attempt_number DESC, completed_at DESC
+        LIMIT 1`,
       [tutorAssignmentId],
     ),
   ]);
 
+  const approvedPracticalProofKeys = practicalResult.rows
+    .filter((row) => {
+      if (row.outcome !== "approved") return false;
+      const definition = getCapabilityPracticalProofDefinition(String(row.proof_key));
+      return Boolean(definition && definition.version === Number(row.proof_version));
+    })
+    .map((row) => String(row.proof_key));
+
+  const latestOral = oralResult.rows[0] || null;
+  const oralDefenseApproved = Boolean(
+    latestOral &&
+      Number(latestOral.defense_version) === ORAL_DEFENSE_VERSION &&
+      latestOral.outcome === "approved",
+  );
+
   return {
     passedAssessmentKeys: assessmentResult.rows.map((row) => String(row.assessment_key)),
-    approvedPracticalProofKeys: practicalResult.rows.map((row) => String(row.proof_key)),
-    oralDefenseApproved: Boolean(oralResult.rows[0]?.approved),
+    approvedPracticalProofKeys,
+    oralDefenseApproved,
   };
 }
 
