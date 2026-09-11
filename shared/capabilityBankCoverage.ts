@@ -217,6 +217,22 @@ export function validateCapabilityAssessmentAgainstBlueprint(
         `Mastery assessment ${assessment.assessmentKey} must cover exactly its declared Deep Dive ${assessment.assessmentDeepDiveKey}.`,
       );
     }
+
+    if (assessment.enforceMvpPlan) {
+      const declaredCompetencies = new Set(
+        assessment.competencyBlueprint
+          .filter((entry) => entry.deepDiveKey === assessment.assessmentDeepDiveKey)
+          .map((entry) => entry.competencyKey),
+      );
+      const missingCompetencies = assessmentDeepDive.competencyKeys.filter(
+        (competencyKey) => !declaredCompetencies.has(competencyKey),
+      );
+      if (missingCompetencies.length > 0) {
+        throw new Error(
+          `Mastery assessment ${assessment.assessmentKey} omits declared ${assessment.assessmentDeepDiveKey} competencies: ${missingCompetencies.join(", ")}.`,
+        );
+      }
+    }
   }
 
   if (assessment.evidenceKind === "transfer") {
