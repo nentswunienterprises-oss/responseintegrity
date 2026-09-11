@@ -25,6 +25,7 @@ if (rootElement) {
     currentPath === "/operational/specialist/capability-plan" ||
     currentPath.startsWith("/operational/specialist/capability/") ||
     currentPath === "/operational/specialist/capability-practicals" ||
+    currentPath === "/operational/specialist/capability-sandbox-simulation" ||
     currentPath === "/operational/capability-review/practicals" ||
     currentPath === "/operational/capability-review/oral-defense";
 
