@@ -4,7 +4,8 @@ export const CLARITY_MASTERY_ASSESSMENT: CapabilityAssessmentDefinition = {
   key: "clarity_mastery_v1",
   deepDiveKey: "clarity",
   title: "Clarity Mastery Check",
-  masteryThresholdPercent: 96,
+  evidenceKind: "mastery",
+  passThresholdPercent: 96,
   questions: [
     {
       key: "clarity_purpose_01",
@@ -47,7 +48,7 @@ export const CLARITY_MASTERY_ASSESSMENT: CapabilityAssessmentDefinition = {
         { key: "d", label: "The Specialist may choose any support they think is useful" },
       ],
       correctOptionKeys: ["b"],
-      explanation: "Light Apply permits minimal guidance, but not step-by-step rescue or free-form tutor discretion.",
+      explanation: "Light Apply permits minimal guidance, but not step-by-step rescue or free-form Specialist discretion.",
     },
     {
       key: "clarity_evidence_04",
@@ -221,5 +222,3 @@ export const CLARITY_MASTERY_ASSESSMENT: CapabilityAssessmentDefinition = {
     },
   ],
 };
-
-export const CAPABILITY_MASTERY_ASSESSMENTS = [CLARITY_MASTERY_ASSESSMENT] as const;
