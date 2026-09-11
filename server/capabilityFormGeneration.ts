@@ -86,6 +86,37 @@ function validateConfig(config: PrivateCapabilityAssessmentConfig) {
   }
 }
 
+function validateItemPool(itemPool: CapabilityBoundaryTaggedQuestion[]) {
+  const itemKeys = new Set<string>();
+  for (const item of itemPool) {
+    if (itemKeys.has(item.key)) {
+      throw new Error(`Capability item pool contains duplicate item key ${item.key}.`);
+    }
+    itemKeys.add(item.key);
+
+    const criticalFailOptionKeys = item.criticalFailOptionKeys || [];
+    if (item.kind === "sequence" && criticalFailOptionKeys.length > 0) {
+      throw new Error(
+        `Capability sequence item ${item.key} cannot use option-based critical-fail semantics in V1.`,
+      );
+    }
+
+    const correct = new Set(item.correctOptionKeys);
+    const overlap = criticalFailOptionKeys.filter((optionKey) => correct.has(optionKey));
+    if (overlap.length > 0) {
+      throw new Error(
+        `Capability item ${item.key} marks correct option(s) as critical fail: ${overlap.join(", ")}.`,
+      );
+    }
+
+    if ((item.criticalBoundaryKeys || []).length > 0 && criticalFailOptionKeys.length === 0) {
+      throw new Error(
+        `Capability critical-boundary item ${item.key} must define a critical-fail option.`,
+      );
+    }
+  }
+}
+
 export function createCapabilityFormSeed(input: {
   secret: string;
   tutorAssignmentId: string;
@@ -115,6 +146,7 @@ export function generateDeterministicCapabilityForm(
   seed: string,
 ): GeneratedCapabilityForm {
   validateConfig(config);
+  validateItemPool(itemPool);
 
   const selected: CapabilityBoundaryTaggedQuestion[] = [];
   const selectedKeys = new Set<string>();
