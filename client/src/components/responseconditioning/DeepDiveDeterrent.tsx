@@ -8,7 +8,7 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Video } from "lucide-react";
 
 type DeepDiveDeterrentProps = {
   children: ReactNode;
@@ -115,15 +115,22 @@ export function DeepDiveDeterrent({ children }: DeepDiveDeterrentProps) {
                 <CheckCircle2 className="h-4 w-4" /> Prove this capability
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                When you are ready, complete the digital mastery check. The result becomes capability evidence, not automatic certification.
+                Start with the digital mastery check. Practical evidence then shows whether you can carry the method into observable execution. Neither is automatic certification.
               </p>
             </div>
-            <Button
-              className="shrink-0"
-              onClick={() => navigate(`/operational/specialist/capability/${capabilityAssessmentKey}`)}
-            >
-              Take mastery check
-            </Button>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button
+                onClick={() => navigate(`/operational/specialist/capability/${capabilityAssessmentKey}`)}
+              >
+                Take mastery check
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate("/operational/specialist/capability-practicals")}
+              >
+                <Video className="mr-2 h-4 w-4" /> Practical evidence
+              </Button>
+            </div>
           </div>
         </div>
       )}
