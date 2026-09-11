@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS specialist_capability_practical_evidence (
   artifact_url text NOT NULL,
   artifact_type varchar NOT NULL CHECK (artifact_type IN ('screen_voice', 'screen_video', 'video')),
   declaration jsonb NOT NULL,
+  competency_links jsonb NOT NULL,
   no_real_student_data_confirmed boolean NOT NULL CHECK (no_real_student_data_confirmed = true),
   submitted_at timestamptz NOT NULL DEFAULT now(),
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -132,7 +133,7 @@ COMMENT ON TABLE specialist_capability_assessment_attempts IS
   'Immutable submitted Specialist capability evidence including exact bank version and deterministic form identity. Direct client table access is denied.';
 
 COMMENT ON TABLE specialist_capability_practical_evidence IS
-  'Immutable Specialist practical evidence references. Recordings must use sandbox scenarios and may not contain real student data.';
+  'Immutable Specialist practical evidence references with frozen competency lineage. Recordings must use sandbox scenarios and may not contain real student data.';
 
 COMMENT ON TABLE specialist_capability_practical_reviews IS
   'Immutable human review decisions for Specialist practical capability evidence.';
