@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { Pod, TutorAssignment } from "@shared/schema";
+import { getCapabilityPracticalProofDefinition } from "@shared/capabilityPracticalEvidence";
 
 type PracticalProofKey = "prepare" | "execute" | "evidence";
 type PracticalArtifactType = "screen_voice" | "screen_video" | "video";
@@ -158,6 +159,10 @@ export default function SpecialistCapabilityPracticals() {
   });
 
   const selectedProof = practicalQuery.data?.proofs.find((proof) => proof.key === selectedProofKey) || null;
+  const selectedProofStandard = selectedProof ? getCapabilityPracticalProofDefinition(selectedProof.key) : null;
+  const selectedRubric = selectedProofStandard?.version === selectedProof?.version
+    ? selectedProofStandard.reviewRubric
+    : null;
   const readiness = readinessQuery.data?.readiness || null;
   const defense = oralDefenseQuery.data?.defense || null;
 
@@ -362,6 +367,46 @@ export default function SpecialistCapabilityPracticals() {
                 </div>
               </div>
 
+              {selectedRubric ? (
+                <div>
+                  <div className="flex flex-wrap items-end justify-between gap-2">
+                    <div>
+                      <h2 className="font-semibold">How this will be judged</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        The reviewer uses this same rubric. Approved requires every criterion to be Clear. Partial or ordinary Fail requires a repeat. An integrity-critical Fail pauses the proof for integrity review.
+                      </p>
+                    </div>
+                    <span className="text-xs text-muted-foreground">Rubric v{selectedRubric.version}</span>
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    {selectedRubric.criteria.map((criterion, index) => (
+                      <div key={criterion.key} className="rounded-lg border p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Criterion {index + 1}</p>
+                            <p className="mt-1 font-semibold">{criterion.label}</p>
+                          </div>
+                          {criterion.criticalOnFail ? (
+                            <span className="rounded-full border px-2.5 py-1 text-xs font-medium">Integrity-critical if Fail</span>
+                          ) : null}
+                        </div>
+                        <p className="mt-2 text-sm">{criterion.observableStandard}</p>
+                        <div className="mt-3 grid gap-2 text-xs md:grid-cols-3">
+                          <div className="rounded-md border p-3"><span className="font-semibold">Clear:</span> {criterion.clearAnchor}</div>
+                          <div className="rounded-md border p-3"><span className="font-semibold">Partial:</span> {criterion.partialAnchor}</div>
+                          <div className="rounded-md border p-3"><span className="font-semibold">Fail:</span> {criterion.failAnchor}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>The review rubric for this practical version could not be loaded. Do not submit until the standard is available.</AlertDescription>
+                </Alert>
+              )}
+
               <div className="grid gap-5 md:grid-cols-2">
                 <label className="space-y-2">
                   <span className="text-sm font-medium">Recording type</span>
@@ -420,7 +465,7 @@ export default function SpecialistCapabilityPracticals() {
               )}
 
               <div className="flex flex-wrap gap-3">
-                <Button disabled={submitMutation.isPending || !artifactUrl.trim() || !artifactType || !sandboxConfirmed} onClick={() => submitMutation.mutate()}>
+                <Button disabled={submitMutation.isPending || !artifactUrl.trim() || !artifactType || !sandboxConfirmed || !selectedRubric} onClick={() => submitMutation.mutate()}>
                   {submitMutation.isPending ? "Submitting..." : "Submit immutable evidence"}
                 </Button>
                 <Button variant="outline" onClick={() => { setSelectedProofKey(null); resetForm(); }}>Cancel</Button>
