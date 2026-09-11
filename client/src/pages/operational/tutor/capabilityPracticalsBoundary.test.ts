@@ -18,7 +18,7 @@ test("Specialist practical workspace is reference-first and never uploads video 
 test("Specialist must explicitly confirm sandbox-only evidence", () => {
   assert.match(specialistSource, /noRealStudentDataConfirmed: true/);
   assert.match(specialistSource, /contains no real student, parent or family data/);
-  assert.match(specialistSource, /disabled=\{submitMutation\.isPending \|\| !artifactUrl\.trim\(\) \|\| !artifactType \|\| !sandboxConfirmed\}/);
+  assert.match(specialistSource, /!sandboxConfirmed \|\| !selectedRubric/);
 });
 
 test("Specialist UI blocks resubmission while evidence is pending, approved or under integrity review", () => {
@@ -26,6 +26,18 @@ test("Specialist UI blocks resubmission while evidence is pending, approved or u
   assert.match(specialistSource, /latest\?\.status === "approved"/);
   assert.match(specialistSource, /latest\?\.status === "integrity_review"/);
   assert.match(specialistSource, /latest\.status === "repeat_required"/);
+});
+
+test("Specialist sees the same observable rubric anchors before recording", () => {
+  assert.match(specialistSource, /getCapabilityPracticalProofDefinition/);
+  assert.match(specialistSource, /How this will be judged/);
+  assert.match(specialistSource, /Approved requires every criterion to be Clear/);
+  assert.match(specialistSource, /criterion\.observableStandard/);
+  assert.match(specialistSource, /criterion\.clearAnchor/);
+  assert.match(specialistSource, /criterion\.partialAnchor/);
+  assert.match(specialistSource, /criterion\.failAnchor/);
+  assert.doesNotMatch(specialistSource, /criticalBoundaryLinks/);
+  assert.doesNotMatch(specialistSource, /competencyLinks/);
 });
 
 test("reviewer UI starts every criterion unjudged and offers only Clear Partial Fail judgments", () => {
