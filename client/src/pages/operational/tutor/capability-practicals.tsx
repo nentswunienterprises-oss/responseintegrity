@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, ArrowLeft, CheckCircle2, Clock3, ExternalLink, RefreshCcw, ShieldAlert, Video } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle2, Clock3, ExternalLink, RefreshCcw, ShieldAlert, Target, Video } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,6 +41,32 @@ type PracticalPayload = {
   evidence: PracticalEvidence[];
 };
 
+type ReadinessRequirement = {
+  code: string;
+  kind: "assessment" | "practical" | "oral_defense";
+  label: string;
+  satisfied: boolean;
+};
+
+type ShadowReadiness = {
+  gateKey: string;
+  gateVersion: number;
+  label: string;
+  authoritative: false;
+  status: "READY" | "NOT_READY";
+  satisfiedRequirementCodes: string[];
+  missingRequirementCodes: string[];
+  requirements: ReadinessRequirement[];
+};
+
+type OralDefenseStatus = {
+  defenseVersion: number;
+  attemptNumber: number;
+  outcome: "approved" | "repeat_required" | "integrity_review";
+  feedback: string | null;
+  completedAt: string;
+} | null;
+
 type PodData = {
   assignment: TutorAssignment & { pod: Pod };
 };
@@ -65,6 +91,13 @@ function statusPresentation(status?: PracticalStatus) {
     return { label: "Awaiting review", detail: "Your immutable submission is in the review queue.", icon: Clock3 };
   }
   return { label: "Not submitted", detail: "Record the required sandbox demonstration and submit its review link.", icon: Video };
+}
+
+function oralStatusPresentation(defense: OralDefenseStatus) {
+  if (!defense) return "Not yet completed";
+  if (defense.outcome === "approved") return `Approved on attempt ${defense.attemptNumber}`;
+  if (defense.outcome === "integrity_review") return `Integrity review after attempt ${defense.attemptNumber}`;
+  return `Repeat required after attempt ${defense.attemptNumber}`;
 }
 
 export default function SpecialistCapabilityPracticals() {
@@ -96,7 +129,37 @@ export default function SpecialistCapabilityPracticals() {
     },
   });
 
+  const readinessQuery = useQuery<{ readiness: ShadowReadiness }>({
+    queryKey: ["capability-readiness", tutorAssignmentId],
+    enabled: Boolean(tutorAssignmentId),
+    retry: false,
+    staleTime: 0,
+    queryFn: async () => {
+      const response = await apiRequest(
+        "GET",
+        `/api/tutor/capability-readiness?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}`,
+      );
+      return (await response.json()) as { readiness: ShadowReadiness };
+    },
+  });
+
+  const oralDefenseQuery = useQuery<{ defense: OralDefenseStatus }>({
+    queryKey: ["capability-oral-defense-status", tutorAssignmentId],
+    enabled: Boolean(tutorAssignmentId),
+    retry: false,
+    staleTime: 0,
+    queryFn: async () => {
+      const response = await apiRequest(
+        "GET",
+        `/api/tutor/capability-oral-defense?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}`,
+      );
+      return (await response.json()) as { defense: OralDefenseStatus };
+    },
+  });
+
   const selectedProof = practicalQuery.data?.proofs.find((proof) => proof.key === selectedProofKey) || null;
+  const readiness = readinessQuery.data?.readiness || null;
+  const defense = oralDefenseQuery.data?.defense || null;
 
   const latestByProof = useMemo(() => {
     const map = new Map<PracticalProofKey, PracticalEvidence>();
@@ -155,6 +218,7 @@ export default function SpecialistCapabilityPracticals() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["capability-practicals", tutorAssignmentId] }),
         queryClient.invalidateQueries({ queryKey: ["capability-ledger", tutorAssignmentId] }),
+        queryClient.invalidateQueries({ queryKey: ["capability-readiness", tutorAssignmentId] }),
       ]);
     },
   });
@@ -187,6 +251,60 @@ export default function SpecialistCapabilityPracticals() {
             </p>
           </div>
         </div>
+
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Shadow capability readiness</p>
+                <CardTitle className="mt-1 flex items-center gap-2">
+                  <Target className="h-5 w-5" /> {readiness?.status || "Checking evidence..."}
+                </CardTitle>
+              </div>
+              {readiness && (
+                <span className="rounded-full border px-3 py-1 text-xs font-medium">
+                  {readiness.satisfiedRequirementCodes.length}/{readiness.requirements.length} requirements
+                </span>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <Alert>
+              <AlertDescription>
+                This is a shadow signal only. It cannot certify you, change your operational mode, open Trial, or replace the current Battle Test and Sandbox Mock Gate.
+              </AlertDescription>
+            </Alert>
+
+            {readinessQuery.error ? (
+              <p className="text-sm text-muted-foreground">Readiness could not be calculated. Your existing training state has not changed.</p>
+            ) : readiness ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {readiness.requirements.map((requirement) => (
+                  <div key={requirement.code} className="flex items-start gap-3 rounded-lg border p-3 text-sm">
+                    {requirement.satisfied ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />}
+                    <div>
+                      <p className="font-medium">{requirement.label}</p>
+                      <p className="text-xs text-muted-foreground">{requirement.satisfied ? "Evidence satisfied" : "Evidence still required"}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Calculating current-version evidence...</p>
+            )}
+
+            <div className="rounded-lg border p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Oral Integrity Defense</p>
+              <p className="mt-1 font-semibold">{oralStatusPresentation(defense)}</p>
+              {!defense && readiness && readiness.requirements.filter((item) => item.kind !== "oral_defense").every((item) => item.satisfied) && (
+                <p className="mt-2 text-sm text-muted-foreground">Your pre-oral evidence stack is complete. You are now eligible for targeted human verification.</p>
+              )}
+              {defense?.feedback && (
+                <Alert className="mt-3"><AlertDescription><span className="font-medium">Reviewer feedback:</span> {defense.feedback}</AlertDescription></Alert>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {practicalQuery.error && (
           <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>Practical evidence could not be loaded. Your existing training state has not changed.</AlertDescription></Alert>

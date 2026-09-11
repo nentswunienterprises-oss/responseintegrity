@@ -123,6 +123,37 @@ CREATE INDEX IF NOT EXISTS idx_capability_practical_tutor
 CREATE INDEX IF NOT EXISTS idx_capability_practical_reviewed_at
   ON specialist_capability_practical_reviews (reviewed_at DESC);
 
+CREATE TABLE IF NOT EXISTS specialist_capability_oral_defenses (
+  id varchar PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  tutor_assignment_id varchar NOT NULL REFERENCES tutor_assignments(id) ON DELETE CASCADE,
+  tutor_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  defense_version integer NOT NULL CHECK (defense_version > 0),
+  attempt_number integer NOT NULL CHECK (attempt_number > 0),
+  reviewer_id varchar NOT NULL REFERENCES users(id),
+  reviewer_role varchar NOT NULL,
+  brief_snapshot jsonb NOT NULL,
+  probes jsonb NOT NULL,
+  clear_count integer NOT NULL CHECK (clear_count >= 0),
+  partial_count integer NOT NULL CHECK (partial_count >= 0),
+  fail_count integer NOT NULL CHECK (fail_count >= 0),
+  integrity_concern_count integer NOT NULL CHECK (integrity_concern_count >= 0),
+  outcome varchar NOT NULL CHECK (outcome IN ('approved', 'repeat_required', 'integrity_review')),
+  feedback text,
+  sandbox_scenario_confirmed boolean NOT NULL CHECK (sandbox_scenario_confirmed = true),
+  completed_at timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tutor_assignment_id, defense_version, attempt_number)
+);
+
+ALTER TABLE specialist_capability_oral_defenses ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE specialist_capability_oral_defenses FROM anon, authenticated;
+
+CREATE INDEX IF NOT EXISTS idx_capability_oral_defense_tutor
+  ON specialist_capability_oral_defenses (tutor_assignment_id, completed_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_capability_oral_defense_outcome
+  ON specialist_capability_oral_defenses (outcome, completed_at DESC);
+
 COMMENT ON TABLE private.specialist_capability_assessment_configs IS
   'Private live capability assessment configuration. Production answer content must not be sourced from the public repository.';
 
@@ -137,3 +168,6 @@ COMMENT ON TABLE specialist_capability_practical_evidence IS
 
 COMMENT ON TABLE specialist_capability_practical_reviews IS
   'Immutable human review decisions for Specialist practical capability evidence.';
+
+COMMENT ON TABLE specialist_capability_oral_defenses IS
+  'Immutable targeted human oral-defense evidence. Outcomes are derived from 3-5 recorded sandbox probes and never mutate existing Battle Test or Sandbox progression.';

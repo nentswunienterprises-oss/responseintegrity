@@ -4,6 +4,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { registerRoutes } from '../server/routes';
 import { registerCapabilityEngineRoutes } from '../server/routes/capabilityEngine';
 import { registerCapabilityPracticalEvidenceRoutes } from '../server/routes/capabilityPracticalEvidence';
+import { registerCapabilityOralDefenseRoutes } from '../server/routes/capabilityOralDefense';
 import { getSession } from '../server/supabaseAuth';
 import cors from 'cors';
 
@@ -44,6 +45,7 @@ app.use((req, res, next) => {
 // Register API routes
 registerCapabilityEngineRoutes(app);
 registerCapabilityPracticalEvidenceRoutes(app);
+registerCapabilityOralDefenseRoutes(app);
 registerRoutes(app);
 
 // Catch-all for unhandled routes
