@@ -11,6 +11,7 @@ import { buildCapabilityCriticalBoundaryRequirements } from "./capabilityCritica
 export interface CapabilityBankCoverageItem {
   competencyKey: string;
   deepDiveKey: string;
+  prompt?: string;
   kind?: "single_choice" | "multi_select" | "sequence";
   correctOptionKeys?: string[];
   criticalFailOptionKeys?: string[];
@@ -53,6 +54,14 @@ function sameStrings(left: string[], right: string[]) {
 
 function evidenceCellCode(deepDiveKey: string, evidenceKind: CapabilityBlueprintEvidenceKind) {
   return `deep_dive.${deepDiveKey}.${evidenceKind}`;
+}
+
+function normalizeLabel(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function isKnownCompetency(deepDiveKey: string, competencyKey: string) {
@@ -156,6 +165,40 @@ function validateReleasePoolBreadth(
           `Capability assessment ${assessment.assessmentKey} must declare at least two distinct competencies for cumulative Deep Dive ${deepDiveKey}.`,
         );
       }
+    }
+  }
+}
+
+function validateTransferPromptBlindness(assessment: CapabilityBankCoverageAssessment) {
+  if (!assessment.enforceMvpPlan || assessment.evidenceKind !== "transfer") return;
+
+  for (const item of assessment.items) {
+    if (!item.prompt) continue;
+    const deepDive = getCapabilityDeepDiveBlueprint(item.deepDiveKey);
+    if (!deepDive) continue;
+
+    const prompt = normalizeLabel(item.prompt);
+    const formalDeepDiveLabels = unique([
+      deepDive.title,
+      deepDive.title.replace(/\s+deep dive$/i, ""),
+      item.deepDiveKey,
+    ])
+      .map(normalizeLabel)
+      .filter(Boolean);
+    const competencyLabel = normalizeLabel(item.competencyKey);
+
+    const leakedDeepDiveLabel = formalDeepDiveLabels.find(
+      (label) => label.length >= 5 && prompt.includes(label),
+    );
+    if (leakedDeepDiveLabel) {
+      throw new Error(
+        `Transfer assessment ${assessment.assessmentKey} prompt exposes tested Deep Dive label ${item.deepDiveKey}.`,
+      );
+    }
+    if (competencyLabel.length >= 5 && prompt.includes(competencyLabel)) {
+      throw new Error(
+        `Transfer assessment ${assessment.assessmentKey} prompt exposes tested competency ${item.competencyKey}.`,
+      );
     }
   }
 }
@@ -293,6 +336,7 @@ export function validateCapabilityAssessmentAgainstBlueprint(
 
   validateReleasePoolBreadth(assessment, referencedDeepDiveKeys);
   validateCriticalBoundaryTags(assessment);
+  validateTransferPromptBlindness(assessment);
 
   return {
     assessmentKey: assessment.assessmentKey,
