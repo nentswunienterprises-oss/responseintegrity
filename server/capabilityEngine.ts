@@ -1,17 +1,16 @@
 import { pool } from "./db";
+import { CAPABILITY_ASSESSMENTS } from "@shared/capabilityAssessmentBank";
 import {
-  CAPABILITY_MASTERY_ASSESSMENTS,
-} from "@shared/capabilityAssessments";
-import {
+  buildCapabilityLedger,
   evaluateCapabilityAssessment,
   type CapabilityAssessmentDefinition,
+  type CapabilityLedgerAttempt,
+  type CapabilityQuestionResult,
   type CapabilityResponseInput,
 } from "@shared/capabilityEngine";
 
 export function getCapabilityAssessmentDefinition(assessmentKey: string): CapabilityAssessmentDefinition | null {
-  return (
-    CAPABILITY_MASTERY_ASSESSMENTS.find((assessment) => assessment.key === assessmentKey) || null
-  );
+  return CAPABILITY_ASSESSMENTS.find((assessment) => assessment.key === assessmentKey) || null;
 }
 
 export function buildPublicCapabilityAssessment(definition: CapabilityAssessmentDefinition) {
@@ -19,7 +18,8 @@ export function buildPublicCapabilityAssessment(definition: CapabilityAssessment
     key: definition.key,
     deepDiveKey: definition.deepDiveKey,
     title: definition.title,
-    masteryThresholdPercent: definition.masteryThresholdPercent,
+    evidenceKind: definition.evidenceKind,
+    passThresholdPercent: definition.passThresholdPercent,
     totalQuestions: definition.questions.length,
     questions: definition.questions.map((question) => ({
       key: question.key,
@@ -72,32 +72,36 @@ export async function persistCapabilityAssessmentAttempt(input: {
        tutor_assignment_id,
        tutor_id,
        assessment_key,
-       deep_dive_key,
-       mastery_threshold_percent,
+       assessment_deep_dive_key,
+       evidence_kind,
+       covered_deep_dive_keys,
+       pass_threshold_percent,
        total_questions,
        correct_questions,
        percent,
        has_critical_fail,
        critical_fail_question_keys,
-       mastered,
+       passed,
        responses,
        question_results
      ) VALUES (
-       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12::jsonb, $13::jsonb
+       $1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12::jsonb, $13, $14::jsonb, $15::jsonb
      )
      RETURNING id, completed_at`,
     [
       input.tutorAssignmentId,
       input.tutorId,
       result.assessmentKey,
-      result.deepDiveKey,
-      definition.masteryThresholdPercent,
+      result.assessmentDeepDiveKey,
+      result.evidenceKind,
+      JSON.stringify(result.coveredDeepDiveKeys),
+      definition.passThresholdPercent,
       result.totalQuestions,
       result.correctQuestions,
       result.percent,
       result.hasCriticalFail,
       JSON.stringify(result.criticalFailQuestionKeys),
-      result.mastered,
+      result.passed,
       JSON.stringify(input.responses),
       JSON.stringify(result.questionResults),
     ]
@@ -127,14 +131,16 @@ export async function getCapabilityAssessmentHistory(input: {
   const result = await pool.query(
     `SELECT id,
             assessment_key,
-            deep_dive_key,
-            mastery_threshold_percent,
+            assessment_deep_dive_key,
+            evidence_kind,
+            covered_deep_dive_keys,
+            pass_threshold_percent,
             total_questions,
             correct_questions,
             percent,
             has_critical_fail,
             critical_fail_question_keys,
-            mastered,
+            passed,
             completed_at
        FROM specialist_capability_assessment_attempts
       WHERE tutor_assignment_id = $1
@@ -145,4 +151,36 @@ export async function getCapabilityAssessmentHistory(input: {
   );
 
   return result.rows;
+}
+
+export async function getSpecialistCapabilityLedger(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+}) {
+  await assertTutorAssignmentOwnership(input.tutorAssignmentId, input.tutorId);
+
+  const result = await pool.query(
+    `SELECT id,
+            assessment_key,
+            evidence_kind,
+            passed,
+            question_results,
+            completed_at
+       FROM specialist_capability_assessment_attempts
+      WHERE tutor_assignment_id = $1
+        AND tutor_id = $2
+      ORDER BY completed_at ASC`,
+    [input.tutorAssignmentId, input.tutorId]
+  );
+
+  const attempts: CapabilityLedgerAttempt[] = result.rows.map((row) => ({
+    attemptId: String(row.id),
+    assessmentKey: String(row.assessment_key),
+    evidenceKind: row.evidence_kind,
+    passed: Boolean(row.passed),
+    completedAt: row.completed_at,
+    questionResults: (Array.isArray(row.question_results) ? row.question_results : []) as CapabilityQuestionResult[],
+  }));
+
+  return buildCapabilityLedger(attempts);
 }
