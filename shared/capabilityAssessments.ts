@@ -160,7 +160,6 @@ export const CLARITY_MASTERY_ASSESSMENT: CapabilityAssessmentDefinition = {
         { key: "d", label: "Using the registered observation options" },
       ],
       correctOptionKeys: ["c"],
-      criticalFailOptionKeys: ["c"],
       explanation: "Historical rep evidence must not be softened or rewritten to fit a desired outcome.",
     },
     {
