@@ -1,0 +1,42 @@
+name: Capability Engine CI
+
+on:
+  pull_request:
+    paths:
+      - "shared/capabilityEngine.ts"
+      - "shared/capabilityEngine.test.ts"
+      - "shared/capabilityAssessments.ts"
+      - "server/capabilityEngine.ts"
+      - "server/routes/capabilityEngine.ts"
+      - "migrations/2026-09-11_add_capability_assessment_attempts.sql"
+      - "server/index.ts"
+      - "api/index.ts"
+      - ".github/workflows/capability-engine-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "shared/capabilityEngine.ts"
+      - "shared/capabilityEngine.test.ts"
+      - "shared/capabilityAssessments.ts"
+      - "server/capabilityEngine.ts"
+      - "server/routes/capabilityEngine.ts"
+      - "migrations/2026-09-11_add_capability_assessment_attempts.sql"
+      - "server/index.ts"
+      - "api/index.ts"
+      - ".github/workflows/capability-engine-ci.yml"
+
+jobs:
+  capability-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Capability Engine tests
+        run: npx tsx --test shared/capabilityEngine.test.ts
+      - name: TypeScript check
+        run: npm run check
