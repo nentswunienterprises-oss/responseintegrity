@@ -120,6 +120,46 @@ function validateCriticalBoundaryTags(assessment: CapabilityBankCoverageAssessme
   }
 }
 
+function validateReleasePoolBreadth(
+  assessment: CapabilityBankCoverageAssessment,
+  referencedDeepDiveKeys: string[],
+) {
+  if (!assessment.enforceMvpPlan) return;
+
+  for (const deepDiveKey of referencedDeepDiveKeys) {
+    const deepDive = getCapabilityDeepDiveBlueprint(deepDiveKey);
+    if (!deepDive) continue;
+
+    const representedBoundaries = new Set(
+      assessment.items
+        .filter((item) => item.deepDiveKey === deepDiveKey)
+        .flatMap((item) => item.criticalBoundaryKeys || []),
+    );
+    const missingBoundaries = deepDive.criticalBoundaries
+      .map((boundary) => boundary.key)
+      .filter((boundaryKey) => !representedBoundaries.has(boundaryKey));
+
+    if (missingBoundaries.length > 0) {
+      throw new Error(
+        `Capability assessment ${assessment.assessmentKey} private pool omits canonical ${deepDiveKey} critical boundaries: ${missingBoundaries.join(", ")}.`,
+      );
+    }
+
+    if (assessment.evidenceKind !== "mastery") {
+      const distinctCompetencies = new Set(
+        assessment.competencyBlueprint
+          .filter((entry) => entry.deepDiveKey === deepDiveKey)
+          .map((entry) => entry.competencyKey),
+      );
+      if (distinctCompetencies.size < 2) {
+        throw new Error(
+          `Capability assessment ${assessment.assessmentKey} must declare at least two distinct competencies for cumulative Deep Dive ${deepDiveKey}.`,
+        );
+      }
+    }
+  }
+}
+
 export function validateCapabilityAssessmentAgainstBlueprint(
   assessment: CapabilityBankCoverageAssessment,
 ) {
@@ -251,6 +291,7 @@ export function validateCapabilityAssessmentAgainstBlueprint(
     }
   }
 
+  validateReleasePoolBreadth(assessment, referencedDeepDiveKeys);
   validateCriticalBoundaryTags(assessment);
 
   return {
