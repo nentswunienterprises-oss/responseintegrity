@@ -23,11 +23,34 @@ export function buildPublicCapabilityAssessment(plan: CapabilityAttemptPlan) {
     maxAttempts: plan.config.maxAttempts,
     questions: definition.questions.map((question) => ({
       key: question.key,
-      competencyKey: question.competencyKey,
       prompt: question.prompt,
       kind: question.kind,
       options: question.options,
     })),
+  };
+}
+
+function buildPublicCapabilityAttemptResult(input: {
+  attemptId: string | undefined;
+  completedAt: unknown;
+  bankVersion: number;
+  attemptNumber: number;
+  formId: string;
+  result: ReturnType<typeof evaluateCapabilityAssessment>;
+}) {
+  return {
+    attemptId: input.attemptId,
+    completedAt: input.completedAt,
+    bankVersion: input.bankVersion,
+    attemptNumber: input.attemptNumber,
+    formId: input.formId,
+    assessmentKey: input.result.assessmentKey,
+    evidenceKind: input.result.evidenceKind,
+    totalQuestions: input.result.totalQuestions,
+    correctQuestions: input.result.correctQuestions,
+    percent: input.result.percent,
+    passed: input.result.passed,
+    hasCriticalFail: input.result.hasCriticalFail,
   };
 }
 
@@ -139,14 +162,14 @@ export async function persistCapabilityAssessmentAttempt(input: {
       ],
     );
 
-    return {
+    return buildPublicCapabilityAttemptResult({
       attemptId: insertResult.rows[0]?.id,
       completedAt: insertResult.rows[0]?.completed_at,
       bankVersion: plan.form.bankVersion,
       attemptNumber: plan.attemptNumber,
       formId: plan.form.formId,
-      ...result,
-    };
+      result,
+    });
   } catch (error) {
     if ((error as { code?: string })?.code === "23505") {
       const conflict = new Error("This capability assessment attempt has already been submitted.") as Error & {
@@ -181,13 +204,11 @@ export async function getCapabilityAssessmentHistory(input: {
             form_id,
             assessment_deep_dive_key,
             evidence_kind,
-            covered_deep_dive_keys,
             pass_threshold_percent,
             total_questions,
             correct_questions,
             percent,
             has_critical_fail,
-            critical_fail_question_keys,
             passed,
             completed_at
        FROM specialist_capability_assessment_attempts
