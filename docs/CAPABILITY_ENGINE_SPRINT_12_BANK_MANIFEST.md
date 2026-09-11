@@ -52,6 +52,23 @@ Results:
 - minimum distinct questions observed across three attempts in the sample: 24 of 45
 - each active bank version therefore retains meaningful retry variation while preserving the same capability surface
 
+## Adversarial test-taking audit
+
+The first structurally valid draft was rejected during content QA because correct options were disproportionately the longest response and one generic distractor repeated hundreds of times. That would have created a test-taking shortcut unrelated to RI capability.
+
+The private payload was regenerated and re-audited.
+
+Current result:
+
+- 495 items total
+- 443 distinct prompts
+- correct option is uniquely longest in 24.4% of items, approximately neutral for four-option questions
+- correct option appears across all four answer-length ranks rather than consistently occupying one linguistic pattern
+- no exact option label appears more than 11 times across the full 495-item payload
+- per-attempt option presentation is independently shuffled by the server-side deterministic form generator
+
+This is an authoring integrity requirement: Specialists should need to understand the operating rule, not reverse-engineer writing style.
+
 ## Source grounding
 
 The private item authoring is grounded in the implemented RI Battle Test source and the canonical Capability Engine blueprint.
@@ -76,27 +93,29 @@ The authoring deliberately converts these operating truths into new deterministi
 
 Combined private payload SHA-256:
 
-`b04ab608c5f7dd6d89920e5d1f654704e125bda9d4c8bda40f693a7fd8b1f3c9`
+`59a91cd16fc5723ccc258e17cc314afa558d5b10ae56db2bd00724c8ac751d1c`
 
 Per-assessment canonical JSON SHA-256:
 
-- `clarity_mastery_v1`: `63f260b70810e61746ae4b9ccf4292de8ae420936b99260195ba212ba429f76f`
-- `structured_execution_mastery_v1`: `6f4de627aa4598743d97c99985c3b265d903f992a2631bae782ac2be3c0d9587`
-- `controlled_discomfort_mastery_v1`: `f6a25360be137805f713b56249ddc14ff54556bdbb76bfbbf8d5d305c76814a1`
-- `time_pressure_stability_mastery_v1`: `3a9e26f846b4faecc4886a2a52cf1b108e24ce2f74f558a7aa0d2e9790e0a6d5`
-- `topic_conditioning_mastery_v1`: `a8579b42b475333c37dbf5bdd77bdf9383849a0e5584c03fc55299244f5dbd79`
-- `intro_session_structure_mastery_v1`: `1f5786bc0b68816a0144e30b92fd84684fb45abe62bc2b7db62ba9f7db62b2c9`
-- `logging_system_mastery_v1`: `9ffce9c94164693cb08b49444629244809d407f3ee8e9f9716cd6d6f293b41be`
-- `session_flow_control_mastery_v1`: `484af1259466828c19ed4982a0b9d44080f4e8548b6e5c9a0f754c11c01af574`
-- `drill_library_mastery_v1`: `5c8896cc622c813320ba659fee91351a8fae97386166b97692523714e752aede`
-- `handover_verification_mastery_v1`: `bcedf2d2ac470980a26667ad9aa6736c69c53db54a89b16c347c39289741d6d6`
-- `tools_required_mastery_v1`: `e1b71455e586d22f6e7f4c8f9499f496a023a731aafaedc2fc2f12631cc67fe2`
+- `clarity_mastery_v1`: `8f3d6b5a0f9dc4449a0d3ce454f2d0561be159fb7144865cb3d64c96c740f37f`
+- `structured_execution_mastery_v1`: `32c699df28755ee27d49734dd5e3e8fecc34178f0809fe2a32e3582a089aab13`
+- `controlled_discomfort_mastery_v1`: `f247858a15a30fbe90ea2fdaa041ed7ce694aff648df1fc58aa016694ab817ad`
+- `time_pressure_stability_mastery_v1`: `b754db684ce953699a99d2c08ffddaa6ce518136880e0860f9b19c0c86e371bf`
+- `topic_conditioning_mastery_v1`: `ba43808213f872789c854f34c27106fd1cc137e187658210d4ebbca47baf0a30`
+- `intro_session_structure_mastery_v1`: `760afd555278b0cd2c9b5a974b2d170d8a7fa6c53b3e60686ee0555f494ebc18`
+- `logging_system_mastery_v1`: `d28e38af5aa81f76a8a0eb6aad085aa95d58dbe4a91d549890c6b3a34a2acee5`
+- `session_flow_control_mastery_v1`: `5a0c9cab872d613d40109a96b1fd1730ef772dfdb296a583db9e69f7c5e03386`
+- `drill_library_mastery_v1`: `218e5921e90d2516a9f73ca393b111df9379ffbf327d95d53db30e1da26d2614`
+- `handover_verification_mastery_v1`: `3142107faeca71f83c7a5790207c6c12d291033d4be2f90b93a2e8402aff3db5`
+- `tools_required_mastery_v1`: `2f47e0b67e549f5153d9997cd7ef88e34427426281dac94f89b3b7acb0ef4b44`
 
 ## Validator hardening added in Sprint 12
 
 Release-grade mastery validation now fails closed when the assessment competency blueprint omits any competency declared by the canonical Deep Dive blueprint.
 
 This is important because a 15-question form could otherwise satisfy its own self-declared blueprint while silently ignoring part of the actual RI capability definition.
+
+The Capability Engine CI command also now executes the private-bank leakage boundary tests, so private assessment or simulation JSON cannot be silently committed to the public repository without failing the feature-branch gate once the Actions runner is available.
 
 ## Validation status
 
@@ -110,11 +129,12 @@ Validated without opening a database connection:
 - 96% threshold for every bank
 - 45 items per bank, above the 30-item minimum
 - every declared Deep Dive competency present
-- every critical boundary represented by critical-fail-capable items
+- every critical boundary represented by multiple critical-fail-capable candidates where the form quota permits selection
 - no critical/correct option overlap
 - critical-boundary reservation is feasible inside each competency quota
 - no duplicate item identities
 - all correct/critical option references resolve to actual options
+- sampled retry generation preserves all required critical boundaries
 
 ## Explicitly not done
 
