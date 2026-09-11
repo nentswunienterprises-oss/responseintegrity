@@ -1,0 +1,53 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { CLARITY_MASTERY_ASSESSMENT } from "@shared/capabilityAssessments";
+import { evaluateCapabilityAssessment } from "@shared/capabilityEngine";
+import {
+  projectCapabilityAssessmentForSpecialist,
+  projectCapabilityAttemptResultForSpecialist,
+} from "./capabilityPublicProjection";
+
+function perfectResponses() {
+  return CLARITY_MASTERY_ASSESSMENT.questions.map((question) => ({
+    questionKey: question.key,
+    selectedOptionKeys: [...question.correctOptionKeys],
+  }));
+}
+
+test("Specialist assessment projection contains prompts and options but no scoring secrets", () => {
+  const projected = projectCapabilityAssessmentForSpecialist({
+    definition: CLARITY_MASTERY_ASSESSMENT,
+    formId: "form-proof-1",
+    bankVersion: 1,
+    attemptNumber: 1,
+    maxAttempts: 3,
+  });
+  const serialized = JSON.stringify(projected);
+
+  assert.equal(projected.questions.length, CLARITY_MASTERY_ASSESSMENT.questions.length);
+  assert.match(serialized, /Clarity Mastery Check/);
+  assert.doesNotMatch(serialized, /correctOptionKeys/);
+  assert.doesNotMatch(serialized, /criticalFailOptionKeys/);
+  assert.doesNotMatch(serialized, /explanation/);
+  assert.doesNotMatch(serialized, /competencyKey/);
+});
+
+test("Specialist result projection exposes outcome but not answer or question-level internals", () => {
+  const result = evaluateCapabilityAssessment(CLARITY_MASTERY_ASSESSMENT, perfectResponses());
+  const projected = projectCapabilityAttemptResultForSpecialist({
+    attemptId: "attempt-proof-1",
+    completedAt: "2026-09-11T15:00:00Z",
+    bankVersion: 1,
+    attemptNumber: 1,
+    formId: "form-proof-1",
+    result,
+  });
+  const serialized = JSON.stringify(projected);
+
+  assert.equal(projected.passed, true);
+  assert.equal(projected.percent, 100);
+  assert.doesNotMatch(serialized, /questionResults/);
+  assert.doesNotMatch(serialized, /criticalFailQuestionKeys/);
+  assert.doesNotMatch(serialized, /correctOptionKeys/);
+  assert.doesNotMatch(serialized, /explanation/);
+});

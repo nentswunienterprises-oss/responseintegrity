@@ -3,7 +3,10 @@ import fs from "node:fs";
 import test from "node:test";
 
 const oralService = fs.readFileSync(new URL("./capabilityOralDefense.ts", import.meta.url), "utf8");
+const oralCore = fs.readFileSync(new URL("./capabilityOralDefenseCore.ts", import.meta.url), "utf8");
 const readinessService = fs.readFileSync(new URL("./capabilityReadiness.ts", import.meta.url), "utf8");
+const evidenceSelector = fs.readFileSync(new URL("../shared/capabilityEvidenceSelection.ts", import.meta.url), "utf8");
+const reviewerScope = fs.readFileSync(new URL("../shared/capabilityReviewerScope.ts", import.meta.url), "utf8");
 const routeSource = fs.readFileSync(new URL("./routes/capabilityOralDefense.ts", import.meta.url), "utf8");
 const readinessContract = fs.readFileSync(new URL("../shared/capabilityReadiness.ts", import.meta.url), "utf8");
 const migrationSource = fs.readFileSync(
@@ -13,18 +16,18 @@ const migrationSource = fs.readFileSync(
 
 test("oral brief uses internal evidence risk but never exposes answer keys or stored item wording", () => {
   assert.match(oralService, /question_results/);
-  assert.match(oralService, /incorrectCount/);
-  assert.match(oralService, /criticalFailCount/);
-  assert.match(oralService, /practicalRepeatCount/);
-  assert.doesNotMatch(oralService, /correctOptionKeys/);
-  assert.doesNotMatch(oralService, /selectedOptionKeys/);
-  assert.doesNotMatch(oralService, /explanation:/);
-  assert.match(oralService, /Do not reuse a known assessment item/);
+  assert.match(oralCore, /incorrectCount/);
+  assert.match(oralCore, /criticalFailCount/);
+  assert.match(oralCore, /practicalRepeatCount/);
+  assert.doesNotMatch(oralCore, /correctOptionKeys/);
+  assert.doesNotMatch(oralCore, /selectedOptionKeys/);
+  assert.doesNotMatch(oralCore, /explanation:/);
+  assert.match(oralCore, /Do not reuse a known assessment item/);
 });
 
 test("oral defense remains bounded to three baseline probes plus at most two evidence-risk probes", () => {
-  assert.match(oralService, /\.slice\(0, 2\)/);
-  assert.match(oralService, /ORAL_DEFENSE_ALWAYS_PROBE/);
+  assert.match(oralCore, /\.slice\(0, 2\)/);
+  assert.match(oralCore, /ORAL_DEFENSE_ALWAYS_PROBE/);
   assert.match(routeSource, /\.min\(3\)\.max\(5\)/);
 });
 
@@ -34,18 +37,19 @@ test("human oral defense cannot open before automated and practical prerequisite
   assert.match(readinessService, /missingRequirementCodes/);
 });
 
-test("shadow readiness accepts only latest evidence on current versions", () => {
-  assert.match(readinessService, /DISTINCT ON \(assessment_key\)/);
-  assert.match(readinessService, /config\.active = true/);
-  assert.match(readinessService, /config\.bank_version = latest_attempt\.bank_version/);
-  assert.match(readinessService, /DISTINCT ON \(e\.proof_key\)/);
-  assert.match(readinessService, /definition\.version === Number\(row\.proof_version\)/);
-  assert.match(readinessService, /Number\(latestOral\.defense_version\) === ORAL_DEFENSE_VERSION/);
+test("shadow readiness uses the shared latest/current-version evidence selector", () => {
+  assert.match(readinessService, /selectCurrentCapabilityReadinessEvidence/);
+  assert.match(readinessService, /WHERE active = true/);
+  assert.match(readinessService, /CAPABILITY_PRACTICAL_PROOFS/);
+  assert.match(evidenceSelector, /latestByKey/);
+  assert.match(evidenceSelector, /activeAssessmentVersions\.get\(record\.assessmentKey\) === record\.bankVersion/);
+  assert.match(evidenceSelector, /currentPracticalVersions\.get\(record\.proofKey\) === record\.proofVersion/);
+  assert.match(evidenceSelector, /latestOralDefense\.defenseVersion === input\.currentOralDefenseVersion/);
 });
 
 test("issued oral brief is bound to current evidence state and attempt identity", () => {
-  assert.match(oralService, /evidenceFingerprint/);
-  assert.match(oralService, /briefId/);
+  assert.match(oralService, /buildCapabilityEvidenceFingerprint/);
+  assert.match(oralService, /buildCapabilityOralBriefId/);
   assert.match(oralService, /input\.briefId !== brief\.briefId/);
   assert.match(oralService, /input\.attemptNumber !== brief\.attemptNumber/);
   assert.match(routeSource, /briefId: z\.string/);
@@ -54,13 +58,15 @@ test("issued oral brief is bound to current evidence state and attempt identity"
 
 test("historical practical repeat or integrity outcomes can target the oral defense", () => {
   assert.match(oralService, /competency_links/);
-  assert.match(oralService, /outcome !== "repeat_required" && outcome !== "integrity_review"/);
-  assert.match(oralService, /practicalIntegrityCount/);
+  assert.match(oralCore, /practical\.outcome !== "repeat_required" && practical\.outcome !== "integrity_review"/);
+  assert.match(oralCore, /practicalIntegrityCount/);
 });
 
-test("TD access remains scoped by the existing pod TD relation", () => {
-  assert.match(readinessService, /reviewerRole === "td"/);
-  assert.match(readinessService, /String\(row\.td_id \|\| ""\) !== input\.reviewerId/);
+test("TD access is delegated to the shared pod-scope rule", () => {
+  assert.match(readinessService, /canCapabilityReviewerAccessAssignment/);
+  assert.match(reviewerScope, /input\.reviewerRole === "td"/);
+  assert.match(reviewerScope, /input\.assignmentTdId/);
+  assert.match(reviewerScope, /input\.reviewerId/);
 });
 
 test("oral defense evidence is immutable and sandbox-only", () => {

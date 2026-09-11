@@ -4,8 +4,14 @@ import {
   FOUNDATION_CAPABILITY_SHADOW_GATE_V1,
   type CapabilityReadinessResult,
 } from "@shared/capabilityReadiness";
-import { getCapabilityPracticalProofDefinition } from "@shared/capabilityPracticalEvidence";
+import { CAPABILITY_PRACTICAL_PROOFS } from "@shared/capabilityPracticalEvidence";
 import { ORAL_DEFENSE_VERSION } from "@shared/capabilityOralDefense";
+import { selectCurrentCapabilityReadinessEvidence } from "@shared/capabilityEvidenceSelection";
+import {
+  canCapabilityReviewerAccessAssignment,
+  isCapabilityReviewerRole,
+  type CapabilityReviewerRole,
+} from "@shared/capabilityReviewerScope";
 
 function httpError(status: number, message: string, data?: Record<string, unknown>) {
   const error = new Error(message) as Error & { status?: number; data?: Record<string, unknown> };
@@ -14,9 +20,9 @@ function httpError(status: number, message: string, data?: Record<string, unknow
   return error;
 }
 
-export function normalizeCapabilityReviewerRole(role: string) {
+export function normalizeCapabilityReviewerRole(role: string): CapabilityReviewerRole {
   const normalized = String(role || "").toLowerCase();
-  if (!new Set(["td", "coo", "hr"]).has(normalized)) {
+  if (!isCapabilityReviewerRole(normalized)) {
     throw httpError(403, "Capability review access is restricted.");
   }
   return normalized;
@@ -61,7 +67,11 @@ export async function assertCapabilityReviewerAccessToAssignment(input: {
 
   const row = result.rows[0];
   if (!row) throw httpError(404, "Specialist assignment not found.");
-  if (reviewerRole === "td" && String(row.td_id || "") !== input.reviewerId) {
+  if (!canCapabilityReviewerAccessAssignment({
+    reviewerId: input.reviewerId,
+    reviewerRole,
+    assignmentTdId: row.td_id || null,
+  })) {
     throw httpError(403, "This Specialist is outside the reviewer's assigned pod scope.");
   }
 
@@ -69,78 +79,80 @@ export async function assertCapabilityReviewerAccessToAssignment(input: {
 }
 
 export async function getCapabilityReadinessEvidence(tutorAssignmentId: string) {
-  const [assessmentResult, practicalResult, oralResult] = await Promise.all([
+  const [assessmentResult, activeConfigResult, practicalResult, oralResult] = await Promise.all([
     pool.query(
-      `WITH latest_attempt AS (
-         SELECT DISTINCT ON (assessment_key)
-                assessment_key,
-                bank_version,
-                passed,
-                attempt_number,
-                completed_at
-           FROM specialist_capability_assessment_attempts
-          WHERE tutor_assignment_id = $1
-          ORDER BY assessment_key, attempt_number DESC, completed_at DESC
-       )
-       SELECT latest_attempt.assessment_key
-         FROM latest_attempt
-         JOIN private.specialist_capability_assessment_configs config
-           ON config.assessment_key = latest_attempt.assessment_key
-          AND config.bank_version = latest_attempt.bank_version
-          AND config.active = true
-        WHERE latest_attempt.passed = true`,
+      `SELECT assessment_key,
+              bank_version,
+              attempt_number,
+              passed,
+              completed_at
+         FROM specialist_capability_assessment_attempts
+        WHERE tutor_assignment_id = $1
+        ORDER BY assessment_key, attempt_number ASC, completed_at ASC`,
       [tutorAssignmentId],
     ),
     pool.query(
-      `WITH latest_practical AS (
-         SELECT DISTINCT ON (e.proof_key)
-                e.id,
-                e.proof_key,
-                e.proof_version,
-                e.attempt_number,
-                e.submitted_at
-           FROM specialist_capability_practical_evidence e
-          WHERE e.tutor_assignment_id = $1
-          ORDER BY e.proof_key, e.attempt_number DESC, e.submitted_at DESC
-       )
-       SELECT latest_practical.proof_key,
-              latest_practical.proof_version,
-              r.outcome
-         FROM latest_practical
-         LEFT JOIN specialist_capability_practical_reviews r
-           ON r.evidence_id = latest_practical.id`,
+      `SELECT assessment_key, bank_version
+         FROM private.specialist_capability_assessment_configs
+        WHERE active = true`,
+    ),
+    pool.query(
+      `SELECT e.proof_key,
+              e.proof_version,
+              e.attempt_number,
+              e.submitted_at,
+              r.outcome,
+              r.reviewed_at
+         FROM specialist_capability_practical_evidence e
+         LEFT JOIN specialist_capability_practical_reviews r ON r.evidence_id = e.id
+        WHERE e.tutor_assignment_id = $1
+        ORDER BY e.proof_key, e.attempt_number ASC, e.submitted_at ASC`,
       [tutorAssignmentId],
     ),
     pool.query(
-      `SELECT defense_version, outcome
+      `SELECT defense_version,
+              attempt_number,
+              outcome,
+              completed_at
          FROM specialist_capability_oral_defenses
         WHERE tutor_assignment_id = $1
-        ORDER BY attempt_number DESC, completed_at DESC
-        LIMIT 1`,
+        ORDER BY attempt_number ASC, completed_at ASC`,
       [tutorAssignmentId],
     ),
   ]);
 
-  const approvedPracticalProofKeys = practicalResult.rows
-    .filter((row) => {
-      if (row.outcome !== "approved") return false;
-      const definition = getCapabilityPracticalProofDefinition(String(row.proof_key));
-      return Boolean(definition && definition.version === Number(row.proof_version));
-    })
-    .map((row) => String(row.proof_key));
-
-  const latestOral = oralResult.rows[0] || null;
-  const oralDefenseApproved = Boolean(
-    latestOral &&
-      Number(latestOral.defense_version) === ORAL_DEFENSE_VERSION &&
-      latestOral.outcome === "approved",
-  );
-
-  return {
-    passedAssessmentKeys: assessmentResult.rows.map((row) => String(row.assessment_key)),
-    approvedPracticalProofKeys,
-    oralDefenseApproved,
-  };
+  return selectCurrentCapabilityReadinessEvidence({
+    assessments: assessmentResult.rows.map((row) => ({
+      assessmentKey: String(row.assessment_key),
+      bankVersion: Number(row.bank_version),
+      attemptNumber: Number(row.attempt_number),
+      passed: Boolean(row.passed),
+      completedAt: row.completed_at,
+    })),
+    activeAssessmentVersions: activeConfigResult.rows.map((row) => ({
+      assessmentKey: String(row.assessment_key),
+      bankVersion: Number(row.bank_version),
+    })),
+    practicals: practicalResult.rows.map((row) => ({
+      proofKey: String(row.proof_key),
+      proofVersion: Number(row.proof_version),
+      attemptNumber: Number(row.attempt_number),
+      outcome: (row.outcome || "submitted") as "submitted" | "approved" | "repeat_required" | "integrity_review",
+      submittedAt: row.submitted_at,
+      reviewedAt: row.reviewed_at || null,
+    })),
+    currentPracticalVersions: CAPABILITY_PRACTICAL_PROOFS.map((proof) => ({
+      proofKey: proof.key,
+      proofVersion: proof.version,
+    })),
+    oralDefenses: oralResult.rows.map((row) => ({
+      defenseVersion: Number(row.defense_version),
+      attemptNumber: Number(row.attempt_number),
+      outcome: row.outcome as "approved" | "repeat_required" | "integrity_review",
+      completedAt: row.completed_at,
+    })),
+    currentOralDefenseVersion: ORAL_DEFENSE_VERSION,
+  });
 }
 
 export async function getFoundationCapabilityReadiness(
