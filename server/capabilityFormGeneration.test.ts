@@ -39,6 +39,7 @@ function item(
       { key: "b", label: "B" },
     ],
     correctOptionKeys: ["a"],
+    criticalFailOptionKeys: criticalBoundaryKeys.length > 0 ? ["b"] : [],
     criticalBoundaryKeys,
     explanation: "Fixture explanation",
   };
@@ -197,6 +198,37 @@ test("generation fails closed when critical-boundary coverage conflicts with ava
   assert.throws(
     () => generateDeterministicCapabilityForm(boundaryConfig, incompleteBoundaryPool, "boundary-seed"),
     /cannot satisfy critical boundary/,
+  );
+});
+
+test("critical-boundary items must define a real corrupt option and cannot use sequence semantics", () => {
+  const missingCriticalFail = {
+    ...item("bad_boundary", "fixture.alpha", "fixture", ["fixture.boundary.one"]),
+    criticalFailOptionKeys: [],
+  };
+  assert.throws(
+    () => generateDeterministicCapabilityForm(config, [missingCriticalFail, ...pool], "seed"),
+    /must define a critical-fail option/,
+  );
+
+  const ambiguousSequence = {
+    ...item("sequence_boundary", "fixture.alpha", "fixture", ["fixture.boundary.one"]),
+    kind: "sequence" as const,
+  };
+  assert.throws(
+    () => generateDeterministicCapabilityForm(config, [ambiguousSequence, ...pool], "seed"),
+    /sequence item .* cannot use option-based critical-fail semantics/,
+  );
+});
+
+test("correct options can never simultaneously be critical-fail options", () => {
+  const corrupt = {
+    ...item("overlap", "fixture.alpha"),
+    criticalFailOptionKeys: ["a"],
+  };
+  assert.throws(
+    () => generateDeterministicCapabilityForm(config, [corrupt, ...pool], "seed"),
+    /marks correct option\(s\) as critical fail/,
   );
 });
 
