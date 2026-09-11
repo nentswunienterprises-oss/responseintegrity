@@ -111,18 +111,21 @@ export function selectCurrentPassingCapabilityAssessments(
   const activeVersions = new Map(
     activeAssessmentVersions.map((version) => [version.assessmentKey, version.bankVersion]),
   );
+
+  // Attempt numbering restarts for a new immutable bank version. Filter to the
+  // active version before choosing the latest attempt so an old v1 attempt 3
+  // can never outrank the current v2 attempt 1.
+  const activeVersionAttempts = assessments.filter(
+    (record) => activeVersions.get(record.assessmentKey) === record.bankVersion,
+  );
   const latestAssessments = latestByKey(
-    assessments,
+    activeVersionAttempts,
     (record) => record.assessmentKey,
     (record) => record.attemptNumber,
     (record) => timestamp(record.completedAt),
   );
 
-  return Array.from(latestAssessments.values()).filter(
-    (record) =>
-      record.passed &&
-      activeVersions.get(record.assessmentKey) === record.bankVersion,
-  );
+  return Array.from(latestAssessments.values()).filter((record) => record.passed);
 }
 
 export function buildCurrentCapabilityEvidenceCellStates(
