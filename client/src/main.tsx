@@ -20,7 +20,12 @@ if (loader) {
 }
 
 if (rootElement) {
-  const isCapabilityRoute = window.location.pathname.startsWith("/operational/specialist/capability/");
+  const currentPath = window.location.pathname;
+  const isCapabilityRoute =
+    currentPath.startsWith("/operational/specialist/capability/") ||
+    currentPath === "/operational/specialist/capability-practicals" ||
+    currentPath === "/operational/capability-review/practicals";
+
   const app = (
     <React.StrictMode>
       <BrowserRouter>

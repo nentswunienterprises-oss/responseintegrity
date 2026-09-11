@@ -133,3 +133,60 @@ test("capability ledger keeps mastery retrieval and transfer as independent evid
   assert.equal(structureCompetency.evidence.mastery.correctOnPassedAttempt, true);
   assert.equal(structureCompetency.evidence.transfer.correctOnPassedAttempt, true);
 });
+
+test("approved practical evidence supports linked competencies without becoming a quiz pass", () => {
+  const ledger = buildCapabilityLedger([], [
+    {
+      evidenceId: "practical-1",
+      proofKey: "prepare",
+      proofVersion: 1,
+      attemptNumber: 1,
+      status: "approved",
+      submittedAt: "2026-09-15T09:00:00Z",
+      reviewedAt: "2026-09-15T11:00:00Z",
+      competencyLinks: [
+        { deepDiveKey: "clarity", competencyKey: "system.authority" },
+        { deepDiveKey: "structured_execution", competencyKey: "structured_execution.phase_boundary" },
+      ],
+    },
+  ]);
+
+  const clarity = ledger.deepDives.find((entry) => entry.deepDiveKey === "clarity");
+  const structured = ledger.deepDives.find((entry) => entry.deepDiveKey === "structured_execution");
+  assert.ok(clarity);
+  assert.ok(structured);
+  assert.equal(clarity.practical.approvedSubmissions, 1);
+  assert.equal(clarity.evidence.mastery.passedAttempts, 0);
+  assert.equal(structured.practical.approvedSubmissions, 1);
+
+  const authority = clarity.competencies.find((entry) => entry.competencyKey === "system.authority");
+  assert.ok(authority);
+  assert.equal(authority.practical.approvedEvidence, true);
+  assert.deepEqual(authority.practical.proofKeys, ["prepare"]);
+  assert.equal(ledger.practicalProofs[0].status, "approved");
+});
+
+test("repeat-required practical evidence stays visible but does not become approved capability", () => {
+  const ledger = buildCapabilityLedger([], [
+    {
+      evidenceId: "practical-2",
+      proofKey: "execute",
+      proofVersion: 1,
+      attemptNumber: 1,
+      status: "repeat_required",
+      submittedAt: "2026-09-16T09:00:00Z",
+      reviewedAt: "2026-09-16T10:00:00Z",
+      competencyLinks: [
+        { deepDiveKey: "structured_execution", competencyKey: "structured_execution.independent_execution" },
+      ],
+    },
+  ]);
+
+  const structured = ledger.deepDives.find((entry) => entry.deepDiveKey === "structured_execution");
+  assert.ok(structured);
+  assert.equal(structured.practical.submissions, 1);
+  assert.equal(structured.practical.approvedSubmissions, 0);
+  const independence = structured.competencies.find((entry) => entry.competencyKey === "structured_execution.independent_execution");
+  assert.ok(independence);
+  assert.equal(independence.practical.approvedEvidence, false);
+});

@@ -1,5 +1,6 @@
 export type CapabilityQuestionKind = "single_choice" | "multi_select" | "sequence";
 export type CapabilityEvidenceKind = "mastery" | "retrieval" | "transfer";
+export type CapabilityPracticalLedgerStatus = "submitted" | "approved" | "repeat_required" | "integrity_review";
 
 export interface CapabilityQuestionDefinition {
   key: string;
@@ -61,11 +62,39 @@ export interface CapabilityLedgerAttempt {
   questionResults: CapabilityQuestionResult[];
 }
 
+export interface CapabilityPracticalLedgerRecord {
+  evidenceId: string;
+  proofKey: string;
+  proofVersion: number;
+  attemptNumber: number;
+  status: CapabilityPracticalLedgerStatus;
+  submittedAt: string | Date;
+  reviewedAt?: string | Date | null;
+  competencyLinks: Array<{
+    deepDiveKey: string;
+    competencyKey: string;
+  }>;
+}
+
 export interface CapabilityEvidenceBucket {
   attempts: number;
   passedAttempts: number;
   latestAttemptAt: string | null;
   latestPassedAt: string | null;
+}
+
+export interface CapabilityPracticalEvidenceBucket {
+  submissions: number;
+  approvedSubmissions: number;
+  latestSubmittedAt: string | null;
+  latestApprovedAt: string | null;
+}
+
+export interface CapabilityCompetencyPracticalEvidence {
+  submissions: number;
+  approvedEvidence: boolean;
+  latestApprovedAt: string | null;
+  proofKeys: string[];
 }
 
 export interface CapabilityCompetencyLedgerEntry {
@@ -76,16 +105,27 @@ export interface CapabilityCompetencyLedgerEntry {
     correctOnPassedAttempt: boolean;
     latestCorrectAt: string | null;
   }>;
+  practical: CapabilityCompetencyPracticalEvidence;
 }
 
 export interface CapabilityDeepDiveLedgerEntry {
   deepDiveKey: string;
   evidence: Record<CapabilityEvidenceKind, CapabilityEvidenceBucket>;
+  practical: CapabilityPracticalEvidenceBucket;
   competencies: CapabilityCompetencyLedgerEntry[];
 }
 
 export interface CapabilityLedger {
   deepDives: CapabilityDeepDiveLedgerEntry[];
+  practicalProofs: Array<{
+    evidenceId: string;
+    proofKey: string;
+    proofVersion: number;
+    attemptNumber: number;
+    status: CapabilityPracticalLedgerStatus;
+    submittedAt: string;
+    reviewedAt: string | null;
+  }>;
 }
 
 const EVIDENCE_KINDS: CapabilityEvidenceKind[] = ["mastery", "retrieval", "transfer"];
@@ -129,12 +169,30 @@ function emptyEvidenceBucket(): CapabilityEvidenceBucket {
   };
 }
 
+function emptyPracticalEvidenceBucket(): CapabilityPracticalEvidenceBucket {
+  return {
+    submissions: 0,
+    approvedSubmissions: 0,
+    latestSubmittedAt: null,
+    latestApprovedAt: null,
+  };
+}
+
 function emptyCompetencyEvidence() {
   return {
     mastery: { attempts: 0, correctOnPassedAttempt: false, latestCorrectAt: null },
     retrieval: { attempts: 0, correctOnPassedAttempt: false, latestCorrectAt: null },
     transfer: { attempts: 0, correctOnPassedAttempt: false, latestCorrectAt: null },
   } satisfies CapabilityCompetencyLedgerEntry["evidence"];
+}
+
+function emptyCompetencyPracticalEvidence(): CapabilityCompetencyPracticalEvidence {
+  return {
+    submissions: 0,
+    approvedEvidence: false,
+    latestApprovedAt: null,
+    proofKeys: [],
+  };
 }
 
 export function validateCapabilityAssessmentDefinition(definition: CapabilityAssessmentDefinition) {
@@ -250,9 +308,14 @@ export function evaluateCapabilityAssessment(
   };
 }
 
-export function buildCapabilityLedger(attempts: CapabilityLedgerAttempt[]): CapabilityLedger {
+export function buildCapabilityLedger(
+  attempts: CapabilityLedgerAttempt[],
+  practicalRecords: CapabilityPracticalLedgerRecord[] = [],
+): CapabilityLedger {
   const deepDiveMap = new Map<string, CapabilityDeepDiveLedgerEntry>();
   const countedAttemptDeepDives = new Set<string>();
+  const countedPracticalDeepDives = new Set<string>();
+  const countedPracticalCompetencies = new Set<string>();
 
   const ensureDeepDive = (deepDiveKey: string) => {
     let entry = deepDiveMap.get(deepDiveKey);
@@ -264,11 +327,26 @@ export function buildCapabilityLedger(attempts: CapabilityLedgerAttempt[]): Capa
           retrieval: emptyEvidenceBucket(),
           transfer: emptyEvidenceBucket(),
         },
+        practical: emptyPracticalEvidenceBucket(),
         competencies: [],
       };
       deepDiveMap.set(deepDiveKey, entry);
     }
     return entry;
+  };
+
+  const ensureCompetency = (deepDive: CapabilityDeepDiveLedgerEntry, competencyKey: string) => {
+    let competency = deepDive.competencies.find((entry) => entry.competencyKey === competencyKey);
+    if (!competency) {
+      competency = {
+        competencyKey,
+        deepDiveKey: deepDive.deepDiveKey,
+        evidence: emptyCompetencyEvidence(),
+        practical: emptyCompetencyPracticalEvidence(),
+      };
+      deepDive.competencies.push(competency);
+    }
+    return competency;
   };
 
   for (const attempt of attempts) {
@@ -290,22 +368,49 @@ export function buildCapabilityLedger(attempts: CapabilityLedgerAttempt[]): Capa
       }
 
       for (const questionResult of attempt.questionResults.filter((result) => result.deepDiveKey === deepDiveKey)) {
-        let competency = deepDive.competencies.find((entry) => entry.competencyKey === questionResult.competencyKey);
-        if (!competency) {
-          competency = {
-            competencyKey: questionResult.competencyKey,
-            deepDiveKey,
-            evidence: emptyCompetencyEvidence(),
-          };
-          deepDive.competencies.push(competency);
-        }
-
+        const competency = ensureCompetency(deepDive, questionResult.competencyKey);
         const competencyEvidence = competency.evidence[attempt.evidenceKind];
         competencyEvidence.attempts += 1;
         if (attempt.passed && questionResult.correct) {
           competencyEvidence.correctOnPassedAttempt = true;
           if (!competencyEvidence.latestCorrectAt || completedAt > competencyEvidence.latestCorrectAt) {
             competencyEvidence.latestCorrectAt = completedAt;
+          }
+        }
+      }
+    }
+  }
+
+  for (const practical of practicalRecords) {
+    const submittedAt = iso(practical.submittedAt);
+    const reviewedAt = practical.reviewedAt ? iso(practical.reviewedAt) : null;
+    const approved = practical.status === "approved";
+
+    for (const link of practical.competencyLinks) {
+      const deepDive = ensureDeepDive(link.deepDiveKey);
+      const practicalDeepDiveIdentity = `${practical.evidenceId}:${link.deepDiveKey}`;
+      if (!countedPracticalDeepDives.has(practicalDeepDiveIdentity)) {
+        countedPracticalDeepDives.add(practicalDeepDiveIdentity);
+        deepDive.practical.submissions += 1;
+        if (approved) deepDive.practical.approvedSubmissions += 1;
+        if (!deepDive.practical.latestSubmittedAt || submittedAt > deepDive.practical.latestSubmittedAt) {
+          deepDive.practical.latestSubmittedAt = submittedAt;
+        }
+        if (approved && reviewedAt && (!deepDive.practical.latestApprovedAt || reviewedAt > deepDive.practical.latestApprovedAt)) {
+          deepDive.practical.latestApprovedAt = reviewedAt;
+        }
+      }
+
+      const competency = ensureCompetency(deepDive, link.competencyKey);
+      const practicalCompetencyIdentity = `${practical.evidenceId}:${link.deepDiveKey}:${link.competencyKey}`;
+      if (!countedPracticalCompetencies.has(practicalCompetencyIdentity)) {
+        countedPracticalCompetencies.add(practicalCompetencyIdentity);
+        competency.practical.submissions += 1;
+        competency.practical.proofKeys = uniqueSorted([...competency.practical.proofKeys, practical.proofKey]);
+        if (approved) {
+          competency.practical.approvedEvidence = true;
+          if (reviewedAt && (!competency.practical.latestApprovedAt || reviewedAt > competency.practical.latestApprovedAt)) {
+            competency.practical.latestApprovedAt = reviewedAt;
           }
         }
       }
@@ -319,5 +424,16 @@ export function buildCapabilityLedger(attempts: CapabilityLedgerAttempt[]): Capa
         competencies: [...entry.competencies].sort((a, b) => a.competencyKey.localeCompare(b.competencyKey)),
       }))
       .sort((a, b) => a.deepDiveKey.localeCompare(b.deepDiveKey)),
+    practicalProofs: practicalRecords
+      .map((record) => ({
+        evidenceId: record.evidenceId,
+        proofKey: record.proofKey,
+        proofVersion: record.proofVersion,
+        attemptNumber: record.attemptNumber,
+        status: record.status,
+        submittedAt: iso(record.submittedAt),
+        reviewedAt: record.reviewedAt ? iso(record.reviewedAt) : null,
+      }))
+      .sort((left, right) => left.submittedAt.localeCompare(right.submittedAt)),
   };
 }
