@@ -1,98 +1,117 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  getDrillSchemaDefinition,
+  type EvidenceSetDefinition,
+} from "@shared/responseIntegrityDrillRegistry";
 
-const trainingSets = [
-  {
-    name: "Required Structure",
-    reps: "3 reps",
-    purpose: "Force step discipline before full independence.",
-    instruction: "State the steps first. Then solve.",
-    rules: [
-      "Steps must be stated before solving.",
-      "No skipping steps.",
-      "Correct step order is required.",
-    ],
-  },
-  {
-    name: "Independent Execution",
-    reps: "3 reps",
-    purpose: "Build clean, repeatable execution with no help from tutor.",
-    instruction: "Solve independently.",
-    rules: [
-      "No help from tutor.",
-      "Full independence expected.",
-      "Observe consistency and error handling.",
-    ],
-  },
-  {
-    name: "Variation Control",
-    reps: "3 reps",
-    purpose: "Test transfer to a slightly different form using the same method.",
-    instruction: "Solve a slightly different form.",
-    rules: [
-      "Same method, different form.",
-      "Test transfer, not memorization.",
-      "No hints on what changed.",
-    ],
-  },
-];
+const STRUCTURED_REP_PURPOSES: Record<string, string[]> = {
+  "structured_execution.required_structure": [
+    "First attempt: can the student pause, state the required method, and execute without skipping the structure?",
+    "Repetition: does required step discipline hold again after the first structured attempt?",
+    "Confirmation: can the required structure be treated as repeatable inside the set?",
+  ],
+  "structured_execution.independent_execution": [
+    "First independent attempt: can execution begin and continue without Specialist help?",
+    "Error-handling check: does independence hold when the student has to correct or continue without being carried?",
+    "Repeatability check: is independent execution repeatable rather than isolated?",
+  ],
+  "structured_execution.variation_control": [
+    "First transfer attempt: does the method survive the first changed problem form?",
+    "Second transfer attempt: does step retention hold through another variation?",
+    "Confirmation: can transfer be confirmed across the variation set?",
+  ],
+};
 
-const diagnosisSets = [
+const STRUCTURED_SET_EXECUTION: Record<
+  string,
   {
-    name: "Start + Structure",
-    reps: "3 reps",
-    purpose: "Observe whether structure exists from the first move with no assistance.",
-    instruction: "Solve the problem. No help for 10 seconds.",
-    rules: [
-      "No help for the cold start window.",
-      "Observe independent start behavior.",
-      "Record exactly what happens with no prompting.",
+    studentAction: string;
+    specialistAction: string;
+    preserve: string;
+    doNot: string[];
+  }
+> = {
+  "structured_execution.required_structure": {
+    studentAction:
+      "State the method or step order first, then solve. The answer is not allowed to outrun the structure.",
+    specialistAction:
+      "Require the student to name the sequence before execution. Observe whether they can hold the order while solving, then log the actual response.",
+    preserve:
+      "Structure-before-answer. The target is not a lucky correct answer; the target is a visible method chain the student can follow.",
+    doNot: [
+      "Do not accept a correct answer if the required steps were skipped.",
+      "Do not supply the next step before the student attempts the sequence.",
+      "Do not turn this set back into Clarity modeling unless the engine places the topic back there.",
     ],
   },
-  {
-    name: "Repeatability",
-    reps: "3 reps",
-    purpose: "Test whether execution holds across similar problems without breakdown.",
-    instruction: "Solve a similar problem.",
-    rules: [
-      "Same method repeated.",
-      "No step-by-step guidance.",
-      "Observe consistency across reps.",
+  "structured_execution.independent_execution": {
+    studentAction:
+      "Solve independently from start to finish, using the known method without being carried by the Specialist.",
+    specialistAction:
+      "Withhold help, observe the start, structure, error handling, and completion, then log what happened without strengthening the evidence through rescue.",
+    preserve:
+      "No-help execution. The rep must reveal whether the student can execute the known method without Specialist direction.",
+    doNot: [
+      "Do not give step-by-step help.",
+      "Do not interrupt hesitation too early just to keep the session comfortable.",
+      "Do not treat assisted execution as independent execution.",
     ],
   },
-];
+  "structured_execution.variation_control": {
+    studentAction:
+      "Apply the same method to a changed form and keep the structure stable even though the surface of the problem is different.",
+    specialistAction:
+      "Present a changed-form problem, do not point out what changed, observe whether the student transfers the method, and log the actual response.",
+    preserve:
+      "Same method, changed form. The set tests transfer, not memorized repetition and not Specialist-led noticing.",
+    doNot: [
+      "Do not hint at what changed in the problem form.",
+      "Do not reduce the variation until the rep no longer tests transfer.",
+      "Do not count memorized same-form execution as variation control.",
+    ],
+  },
+};
 
 const observationSignals = [
-  "Start behavior: do they avoid, delay, or start immediately?",
-  "Step execution: do they guess, partially structure, or run full structure?",
-  "Repeatability: does the step order hold across reps or drift?",
-  "Independence: do they wait for help, ask after trying, or complete alone?",
+  "Start behavior: does the student begin, delay, avoid, or wait for help?",
+  "Step execution: does the student preserve the required sequence or guess around it?",
+  "Repeatability: does the method chain hold across reps or drift after one good attempt?",
+  "Independence: does the student continue without being carried by Specialist prompts?",
 ];
 
 const progressionBands = [
-  "Low: run Structured Execution drill. No time pressure. No Boss Battles until Controlled Discomfort.",
-  "Medium: stay in Structured Execution and reinforce repeatable structure across multiple problems.",
-  "High: run High Maintenance checks. Do not phase advance yet. Prove repeatable stability.",
-  "High Maintenance: if a full session scores 85 or above, the engine progresses the topic into Controlled Discomfort at Low.",
+  "Low: run the Structured Execution drill. No Boss Battles, no timer, and no premature pressure escalation.",
+  "Medium: remain in Structured Execution and strengthen repeatable method use across multiple problems.",
+  "High: remain in Structured Execution and prove repeatability. High does not phase-progress directly.",
+  "High Maintenance: qualifying evidence can progress the topic into Controlled Discomfort at Low. The engine owns that decision.",
 ];
 
-const auditChecks = [
-  "Cold start window was respected with no early help.",
-  "Student was required to initiate and execute independently.",
-  "Tutor enforced step order instead of tolerating guessing.",
-  "Each rep was presented clearly and the log reflects what really happened.",
-];
+const constraintLabel = (set: EvidenceSetDefinition) => {
+  const support = set.constraints.supportLevel.replaceAll("_", " ");
+  const pressure = set.constraints.pressureLevel.replaceAll("_", " ");
+  const variation = set.constraints.variationLevel.replaceAll("_", " ");
+  const difficulty = set.constraints.difficultyLevel.replaceAll("_", " ");
+  return `Support: ${support} | Pressure: ${pressure} | Variation: ${variation} | Difficulty: ${difficulty}`;
+};
 
-const criticalFails = [
-  "Tutor helps before the student attempts.",
-  "Student is not required to start independently.",
-  "Tutor allows guessing or skips enforcing the steps.",
-];
+const diagnosisInstructionFor = (set: EvidenceSetDefinition) => {
+  if (set.setId === "structured_execution.start_and_structure") {
+    return "Give the student the problem, preserve the no-help opening condition, and observe whether they can start and structure the method without being carried.";
+  }
+
+  return "Give a similar problem and observe whether execution remains stable across repetition without step-by-step guidance.";
+};
 
 export default function ResponseConditioningStructuredExecution() {
   const navigate = useNavigate();
+  const trainingSchema = useMemo(() => getDrillSchemaDefinition("training", "Structured Execution"), []);
+  const diagnosisSchema = useMemo(() => getDrillSchemaDefinition("diagnosis", "Structured Execution"), []);
+
+  const requiredTrainingProblems = trainingSchema.sets.reduce((total, set) => total + set.reps, 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -119,7 +138,7 @@ export default function ResponseConditioningStructuredExecution() {
                 Structured Execution
               </h1>
               <p className="text-base md:text-lg text-muted-foreground mt-2">
-                The execution phase as defined by the state engine and drill library
+                Turn clarity into independent, repeatable method use.
               </p>
             </div>
           </div>
@@ -127,109 +146,215 @@ export default function ResponseConditioningStructuredExecution() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-        <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">Phase Function in the Engine</h2>
+        <Card className="p-6 space-y-5 border-l-4 border-l-primary">
+          <h2 className="text-2xl font-bold">The Transformation</h2>
+          <p className="text-xl font-semibold">
+            Structured Execution asks: can the student do the known method without being carried?
+          </p>
           <p className="text-muted-foreground">
-            Structured Execution exists to test and build the student's ability to execute
-            a known method independently. The student already knows. Now the system requires
-            proof that they can do it alone, in order, repeatedly.
+            Clarity proves the student can see the problem and name the method. Structured Execution proves the student can act on
+            that clarity. The phase trains visible step order, independent starts, repetition, and method transfer before difficulty
+            or time pressure are introduced.
+          </p>
+          <div className="rounded-lg border bg-muted/40 p-4 space-y-2">
+            <p className="font-semibold">Structure</p>
+            <p className="text-sm text-muted-foreground">The student states or preserves the method chain before chasing the answer.</p>
+            <p className="font-semibold">Independence</p>
+            <p className="text-sm text-muted-foreground">The student begins and continues without being rescued by prompts.</p>
+            <p className="font-semibold">Repeatability</p>
+            <p className="text-sm text-muted-foreground">The response holds across reps, not only on one comfortable attempt.</p>
+          </div>
+          <p className="font-medium">
+            A correct answer is not enough if the structure was skipped or manufactured by Specialist help.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">Where Structured Execution Sits</h2>
+          <p className="text-xl font-bold text-primary">
+            Clarity -&gt; Structured Execution -&gt; Controlled Discomfort -&gt; Time Pressure Stability
+          </p>
+          <p className="text-muted-foreground">
+            Structured Execution comes after Clarity and before Controlled Discomfort. It is still a no-pressure phase. Do not introduce
+            Boss Battles or timers before the student has shown the method can be executed independently and repeatedly.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>State steps before solving.</li>
-            <li>No guessing tolerated.</li>
-            <li>No skipping steps.</li>
+            <li>No Boss Battles.</li>
+            <li>No timed pressure.</li>
+            <li>No rescuing the student into a stronger-looking score.</li>
           </ul>
         </Card>
 
-        <Card className="p-6 space-y-5 border-l-4 border-l-primary">
-          <h2 className="text-2xl font-bold">Unified Protocol</h2>
+        <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
+          <h2 className="text-2xl font-bold">The Structured Execution Training Recipe</h2>
           <p className="text-muted-foreground">
-            This phase is where the app stops rewarding passive understanding and starts scoring
-            behavior. The purpose of the phase and the drill structure are the same system.
+            This sequence is rendered from the live drill registry so the Deep Dive stays aligned with the runner.
           </p>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>Purpose of phase: convert clarity into independent, repeatable method use.</li>
-            <li>Primary action in the engine: run Structured Execution drill.</li>
-            <li>Tutor role: enforce step order, not provide comfort teaching.</li>
-            <li>Success is measured through rep-by-rep execution signals, not tutor opinion.</li>
-          </ul>
+          <div className="rounded-lg border bg-background p-4">
+            <p className="font-semibold text-lg">
+              {trainingSchema.sets.map((set) => `${set.setName} (${set.reps})`).join(" -> ")}
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              {requiredTrainingProblems} required opportunities in the live training drill. Every set produces scored execution evidence.
+            </p>
+          </div>
+          <p className="font-medium">
+            Mental model: Require structure -&gt; withhold help -&gt; test variation -&gt; submit evidence -&gt; let RI-OS decide what happens next.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
+          <p className="text-muted-foreground">
+            Use the active student topic and the Map/pre-session preparation direction. Every problem must be usable under the condition
+            of the set it belongs to: required structure, no-help independence, or changed-form transfer.
+          </p>
+          <div className="space-y-3">
+            {trainingSchema.sets.map((set) => (
+              <div key={set.setId} className="rounded-lg border p-4 space-y-2">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h3 className="font-semibold">{set.setName}</h3>
+                  <span className="text-sm text-muted-foreground">
+                    {set.reps} required {set.reps === 1 ? "opportunity" : "opportunities"}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">{set.purpose}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{constraintLabel(set)}</p>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
+            <p className="font-semibold">Preparation boundary</p>
+            <p className="text-sm text-muted-foreground">
+              Prepare problems that reveal execution quality, not problems that let the Specialist reteach every step. If the student
+              needs heavy remodelling, that is evidence that the topic may not yet belong here.
+            </p>
+          </div>
+        </Card>
+
+        <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">Run the Drill: Set by Set</h2>
+          <p className="text-muted-foreground">
+            Each set is a controlled experience. Follow the sequence, preserve the condition, and let every repetition answer its own
+            question about the student's execution.
+          </p>
+
+          <div className="space-y-5">
+            {trainingSchema.sets.map((set, setIndex) => {
+              const execution = STRUCTURED_SET_EXECUTION[set.setId];
+              const repPurposes = STRUCTURED_REP_PURPOSES[set.setId] || [];
+
+              return (
+                <div key={set.setId} className="rounded-xl border p-5 space-y-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Set {setIndex + 1}</p>
+                    <h3 className="text-xl font-bold">{set.setName}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">{set.purpose}</p>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-lg bg-muted/40 p-4 space-y-2">
+                      <p className="font-semibold">What the Specialist does</p>
+                      <p className="text-sm text-muted-foreground">{execution.specialistAction}</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/40 p-4 space-y-2">
+                      <p className="font-semibold">What the student does</p>
+                      <p className="text-sm text-muted-foreground">{execution.studentAction}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border-l-4 border-l-primary bg-primary/5 p-4 space-y-2">
+                    <p className="font-semibold">Condition to preserve</p>
+                    <p className="text-sm text-muted-foreground">{execution.preserve}</p>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{constraintLabel(set)}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="font-semibold">Why every rep exists</p>
+                    {repPurposes.map((purpose, repIndex) => (
+                      <div key={purpose} className="rounded-lg border p-3">
+                        <p className="text-sm">
+                          <span className="font-semibold">Rep {repIndex + 1}: </span>
+                          <span className="text-muted-foreground">{purpose}</span>
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="font-semibold">Do not contaminate this set</p>
+                    <ul className="space-y-1 text-sm text-muted-foreground">
+                      {execution.doNot.map((rule) => (
+                        <li key={rule}>{rule}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </Card>
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Diagnosis Structure</h2>
           <p className="text-muted-foreground">
-            Diagnosis comes first in the intro session. It is not a general check-in. It uses
-            fixed sets to expose start behavior, step order, and repeatability before training
-            begins.
+            Diagnosis uses a shorter Structured Execution check before ongoing training begins. It verifies whether execution is already
+            present or whether the topic needs structured training.
           </p>
           <div className="space-y-4">
-            {diagnosisSets.map((set) => (
-              <div key={set.name} className="rounded-lg border p-4 space-y-3">
+            {diagnosisSchema.sets.map((set) => (
+              <div key={set.setId} className="rounded-lg border p-4 space-y-3">
                 <div>
-                  <h3 className="text-lg font-semibold">{set.name}</h3>
-                  <p className="text-sm text-muted-foreground">{set.reps}</p>
+                  <h3 className="text-lg font-semibold">{set.setName}</h3>
+                  <p className="text-sm text-muted-foreground">{set.reps} reps</p>
                 </div>
                 <p className="text-muted-foreground">{set.purpose}</p>
                 <p className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Rep instruction:</span>{" "}
-                  {set.instruction}
+                  <span className="font-medium text-foreground">Rep instruction:</span> {diagnosisInstructionFor(set)}
                 </p>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  {set.rules.map((rule) => (
-                    <li key={rule}>{rule}</li>
-                  ))}
-                </ul>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{constraintLabel(set)}</p>
               </div>
             ))}
           </div>
         </Card>
 
         <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">Training Drill Structure</h2>
+          <h2 className="text-2xl font-bold">What You Observe</h2>
           <p className="text-muted-foreground">
-            Once diagnosis places the topic in Structured Execution, ongoing sessions use the
-            training sets below to build independent method use.
+            Structured Execution is not scored by whether the student sounds confident. It is scored by visible execution behavior.
           </p>
-          <div className="space-y-4">
-            {trainingSets.map((set) => (
-              <div key={set.name} className="rounded-lg border p-4 space-y-3">
-                <div>
-                  <h3 className="text-lg font-semibold">{set.name}</h3>
-                  <p className="text-sm text-muted-foreground">{set.reps}</p>
-                </div>
-                <p className="text-muted-foreground">{set.purpose}</p>
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Rep instruction:</span>{" "}
-                  {set.instruction}
-                </p>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  {set.rules.map((rule) => (
-                    <li key={rule}>{rule}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">What the App Actually Observes</h2>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {observationSignals.map((signal) => (
               <li key={signal}>{signal}</li>
             ))}
           </ul>
           <p className="font-medium">
-            These observations are converted into weak, partial, or clear signals and rolled into
-            the drill total that determines stability movement.
+            Observe before you interpret. Record the structure the student actually used, the help they actually needed, and whether the
+            method held across repetition.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
+          <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
+          <p className="text-muted-foreground">
+            A student can delay, skip steps, guess, lose repeatability, or fail to adapt to variation inside a correctly executed drill.
+            That is evidence.
+          </p>
+          <p className="font-semibold">
+            The Specialist must not rescue the execution chain to protect the score. Correct Specialist execution means the condition
+            was preserved and the evidence is trustworthy.
+          </p>
+          <p className="text-muted-foreground">
+            Failed Specialist execution is different: providing steps during a no-help rep, accepting unstructured guessing as success,
+            reducing variation until it no longer tests transfer, or logging independence that was actually assisted.
           </p>
         </Card>
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression Logic</h2>
           <p className="text-muted-foreground">
-            Advancement out of Structured Execution only happens when the engine sees sustained
-            High Maintenance performance, not when a tutor feels satisfied.
+            Structured Execution does not progress because the Specialist feels satisfied. The engine advances only from qualifying
+            scored evidence and stability state.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {progressionBands.map((band) => (
@@ -239,46 +364,17 @@ export default function ResponseConditioningStructuredExecution() {
         </Card>
 
         <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">Tutor Discipline Inside This Phase</h2>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>Do not interrupt the cold start too early. Observe it first.</li>
-            <li>Do not keep remodelling when the phase requires independent execution.</li>
-            <li>Do not accept skipped steps because the final answer looks right.</li>
-            <li>After correction, return the problem to the student and require re-execution.</li>
-          </ul>
-        </Card>
-
-        <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">Compliance Audit Exposure</h2>
+          <h2 className="text-2xl font-bold">Before Sandbox Execution Check</h2>
           <p className="text-muted-foreground">
-            Structured Execution sessions are auditable against the TD compliance library. The audit
-            tests execution integrity, not tutor intent.
+            A Specialist should be able to explain this phase without reading from the page before running it with a student.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            {auditChecks.map((check) => (
-              <li key={check}>{check}</li>
-            ))}
+            <li>Why Structured Execution comes after Clarity and before difficulty work.</li>
+            <li>Why a correct answer without visible method structure is not enough.</li>
+            <li>What makes each set valid: required structure, independent execution, and variation control.</li>
+            <li>What actions contaminate the evidence and require review.</li>
+            <li>Why RI-OS, not the Specialist, owns the progression decision.</li>
           </ul>
-          <p className="font-medium">
-            Only full compliance passes. If the drill is softened, the session fails audit.
-          </p>
-        </Card>
-
-        <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
-          <h2 className="text-2xl font-bold">Violation Consequence</h2>
-          <p className="text-muted-foreground">
-            Any attempt to bypass independent execution, interfere early, or clean up the logs can
-            trigger compliance review.
-          </p>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            {criticalFails.map((fail) => (
-              <li key={fail}>{fail}</li>
-            ))}
-          </ul>
-          <p className="font-medium">
-            Flagged non-compliance can lead to failed audits, suspension from active training,
-            and for repeated or severe breaches, removal from the platform.
-          </p>
         </Card>
       </div>
     </div>
