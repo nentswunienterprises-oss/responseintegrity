@@ -3,7 +3,12 @@ import test from "node:test";
 import fs from "node:fs";
 
 const serviceSource = fs.readFileSync(new URL("./capabilityEngine.ts", import.meta.url), "utf8");
+const bankSource = fs.readFileSync(new URL("./capabilityBank.ts", import.meta.url), "utf8");
 const routeSource = fs.readFileSync(new URL("./routes/capabilityEngine.ts", import.meta.url), "utf8");
+const migrationSource = fs.readFileSync(
+  new URL("../migrations/2026-09-11_add_capability_assessment_attempts.sql", import.meta.url),
+  "utf8",
+);
 
 test("public assessment projection does not expose answer keys or critical-fail keys", () => {
   const projectionStart = serviceSource.indexOf("export function buildPublicCapabilityAssessment");
@@ -16,6 +21,23 @@ test("public assessment projection does not expose answer keys or critical-fail 
   assert.doesNotMatch(projection, /criticalFailOptionKeys/);
   assert.match(projection, /competencyKey/);
   assert.match(projection, /options/);
+  assert.match(projection, /formId/);
+  assert.match(projection, /bankVersion/);
+});
+
+test("runtime capability service never imports public fixture assessment banks", () => {
+  assert.doesNotMatch(serviceSource, /capabilityAssessmentBank/);
+  assert.doesNotMatch(serviceSource, /capabilityAssessments/);
+  assert.match(serviceSource, /capabilityBank/);
+  assert.match(bankSource, /private\.specialist_capability_assessment_configs/);
+  assert.match(bankSource, /private\.specialist_capability_assessment_items/);
+});
+
+test("private assessment-bank tables are explicitly outside direct client access without changing the whole private schema", () => {
+  assert.match(migrationSource, /CREATE SCHEMA IF NOT EXISTS private/);
+  assert.doesNotMatch(migrationSource, /REVOKE ALL ON SCHEMA private/);
+  assert.match(migrationSource, /REVOKE ALL ON TABLE private\.specialist_capability_assessment_configs FROM PUBLIC, anon, authenticated/);
+  assert.match(migrationSource, /REVOKE ALL ON TABLE private\.specialist_capability_assessment_items FROM PUBLIC, anon, authenticated/);
 });
 
 test("all capability endpoints require authenticated Specialist access", () => {
@@ -25,7 +47,10 @@ test("all capability endpoints require authenticated Specialist access", () => {
   assert.match(routeSource, /Specialist access required/);
 });
 
-test("attempt persistence is ownership-bound to tutor assignment and authenticated tutor", () => {
+test("attempt submission is bound to assignment ownership and issued form identity", () => {
   assert.match(serviceSource, /WHERE id = \$1\s+AND tutor_id = \$2/);
-  assert.match(serviceSource, /assertTutorAssignmentOwnership\(input\.tutorAssignmentId, input\.tutorId\)/);
+  assert.match(serviceSource, /plan\.form\.formId !== input\.formId/);
+  assert.match(serviceSource, /plan\.form\.bankVersion !== input\.bankVersion/);
+  assert.match(routeSource, /formId: z\.string/);
+  assert.match(routeSource, /bankVersion: z\.number/);
 });
