@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { registerRoutes } from '../server/routes';
+import { registerCapabilityEngineRoutes } from '../server/routes/capabilityEngine';
 import { getSession } from '../server/supabaseAuth';
 import cors from 'cors';
 
@@ -40,6 +41,7 @@ app.use((req, res, next) => {
 });
 
 // Register API routes
+registerCapabilityEngineRoutes(app);
 registerRoutes(app);
 
 // Catch-all for unhandled routes
