@@ -43,7 +43,7 @@ export function validateCapabilityAssessmentAgainstBlueprint(
   assessment: CapabilityBankCoverageAssessment,
 ) {
   const assessmentDeepDive = getCapabilityDeepDiveBlueprint(assessment.assessmentDeepDiveKey);
-  if (!assessmentDeepDive) {
+  if (assessment.assessmentDeepDiveKey !== "mixed" && !assessmentDeepDive) {
     throw new Error(
       `Capability assessment ${assessment.assessmentKey} references unknown assessment Deep Dive ${assessment.assessmentDeepDiveKey}.`,
     );
@@ -96,6 +96,9 @@ export function validateCapabilityAssessmentAgainstBlueprint(
   }
 
   if (assessment.evidenceKind === "mastery") {
+    if (!assessmentDeepDive) {
+      throw new Error(`Mastery assessment ${assessment.assessmentKey} must declare a real Deep Dive, not mixed.`);
+    }
     if (referencedDeepDiveKeys.length !== 1 || referencedDeepDiveKeys[0] !== assessment.assessmentDeepDiveKey) {
       throw new Error(
         `Mastery assessment ${assessment.assessmentKey} must cover exactly its declared Deep Dive ${assessment.assessmentDeepDiveKey}.`,
