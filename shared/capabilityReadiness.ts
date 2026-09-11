@@ -1,3 +1,9 @@
+import type { TutorBattleTestPhaseKey } from "./battleTesting";
+import {
+  getRequiredCapabilityEvidenceCells,
+  type CapabilityBlueprintEvidenceKind,
+} from "./capabilityBlueprint";
+
 export type CapabilityReadinessStatus = "READY" | "NOT_READY";
 
 export type CapabilityReadinessRequirement =
@@ -5,6 +11,13 @@ export type CapabilityReadinessRequirement =
       code: string;
       kind: "assessment";
       assessmentKey: string;
+      label: string;
+    }
+  | {
+      code: string;
+      kind: "deep_dive_evidence";
+      deepDiveKey: TutorBattleTestPhaseKey;
+      evidenceKind: CapabilityBlueprintEvidenceKind;
       label: string;
     }
   | {
@@ -29,6 +42,7 @@ export interface CapabilityReadinessGateDefinition {
 
 export interface CapabilityReadinessEvidence {
   passedAssessmentKeys: string[];
+  satisfiedEvidenceCells: string[];
   approvedPracticalProofKeys: string[];
   oralDefenseApproved: boolean;
 }
@@ -44,6 +58,8 @@ export interface CapabilityReadinessResult {
   requirements: Array<CapabilityReadinessRequirement & { satisfied: boolean }>;
 }
 
+// Preserved only for Sprint 1-7 shadow-proof compatibility. Runtime readiness
+// moves to the full blueprint gate below in Sprint 8.
 export const FOUNDATION_CAPABILITY_SHADOW_GATE_V1: CapabilityReadinessGateDefinition = {
   key: "foundation_capability_shadow_gate",
   version: 1,
@@ -100,17 +116,63 @@ export const FOUNDATION_CAPABILITY_SHADOW_GATE_V1: CapabilityReadinessGateDefini
   ],
 };
 
+const FULL_BLUEPRINT_REQUIREMENTS: CapabilityReadinessRequirement[] = getRequiredCapabilityEvidenceCells().map(
+  (cell) => ({
+    code: cell.code,
+    kind: "deep_dive_evidence" as const,
+    deepDiveKey: cell.deepDiveKey,
+    evidenceKind: cell.evidenceKind,
+    label: cell.label,
+  }),
+);
+
+export const CAPABILITY_MVP_SHADOW_GATE_V2: CapabilityReadinessGateDefinition = {
+  key: "capability_mvp_shadow_gate",
+  version: 2,
+  label: "Capability MVP Shadow Gate",
+  authoritative: false,
+  requirements: [
+    ...FULL_BLUEPRINT_REQUIREMENTS,
+    {
+      code: "practical.prepare.approved",
+      kind: "practical",
+      proofKey: "prepare",
+      label: "Prepare practical approved",
+    },
+    {
+      code: "practical.execute.approved",
+      kind: "practical",
+      proofKey: "execute",
+      label: "Execute practical approved",
+    },
+    {
+      code: "practical.evidence.approved",
+      kind: "practical",
+      proofKey: "evidence",
+      label: "Evidence practical approved",
+    },
+    {
+      code: "oral_defense.approved",
+      kind: "oral_defense",
+      label: "Oral Integrity Defense approved",
+    },
+  ],
+};
+
 export function evaluateCapabilityReadiness(
   gate: CapabilityReadinessGateDefinition,
   evidence: CapabilityReadinessEvidence,
 ): CapabilityReadinessResult {
   const passedAssessmentKeys = new Set(evidence.passedAssessmentKeys);
+  const satisfiedEvidenceCells = new Set(evidence.satisfiedEvidenceCells);
   const approvedPracticalProofKeys = new Set(evidence.approvedPracticalProofKeys);
 
   const requirements = gate.requirements.map((requirement) => {
     let satisfied = false;
     if (requirement.kind === "assessment") {
       satisfied = passedAssessmentKeys.has(requirement.assessmentKey);
+    } else if (requirement.kind === "deep_dive_evidence") {
+      satisfied = satisfiedEvidenceCells.has(requirement.code);
     } else if (requirement.kind === "practical") {
       satisfied = approvedPracticalProofKeys.has(requirement.proofKey);
     } else {
