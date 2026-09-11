@@ -1,8 +1,10 @@
 import { pool } from "./db";
 import type { CapabilityEvidenceKind, CapabilityQuestionDefinition } from "@shared/capabilityEngine";
+import { buildCapabilityCriticalBoundaryRequirements } from "@shared/capabilityCriticalCoverage";
 import {
   createCapabilityFormSeed,
   generateDeterministicCapabilityForm,
+  type CapabilityBoundaryTaggedQuestion,
   type GeneratedCapabilityForm,
   type PrivateCapabilityAssessmentConfig,
 } from "./capabilityFormGeneration";
@@ -55,10 +57,11 @@ async function loadActiveCapabilityConfig(assessmentKey: string): Promise<Privat
     maxAttempts: Number(row.max_attempts),
     retryCooldownHours: Number(row.retry_cooldown_hours),
     competencyBlueprint: parseJsonArray(row.competency_blueprint),
+    criticalBoundaryRequirements: buildCapabilityCriticalBoundaryRequirements(String(row.assessment_key)),
   };
 }
 
-async function loadCapabilityItems(config: PrivateCapabilityAssessmentConfig): Promise<CapabilityQuestionDefinition[]> {
+async function loadCapabilityItems(config: PrivateCapabilityAssessmentConfig): Promise<CapabilityBoundaryTaggedQuestion[]> {
   const result = await pool.query(
     `SELECT item_key,
             competency_key,
@@ -68,6 +71,7 @@ async function loadCapabilityItems(config: PrivateCapabilityAssessmentConfig): P
             options,
             correct_option_keys,
             critical_fail_option_keys,
+            critical_boundary_keys,
             explanation
        FROM private.specialist_capability_assessment_items
       WHERE assessment_key = $1
@@ -86,8 +90,9 @@ async function loadCapabilityItems(config: PrivateCapabilityAssessmentConfig): P
     options: parseJsonArray(row.options),
     correctOptionKeys: parseJsonArray(row.correct_option_keys),
     criticalFailOptionKeys: parseJsonArray(row.critical_fail_option_keys),
+    criticalBoundaryKeys: parseJsonArray(row.critical_boundary_keys),
     explanation: String(row.explanation),
-  }));
+  })) satisfies CapabilityBoundaryTaggedQuestion[];
 }
 
 async function getAttemptState(tutorAssignmentId: string, assessmentKey: string) {
