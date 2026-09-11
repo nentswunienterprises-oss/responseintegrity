@@ -10,19 +10,50 @@ const migrationSource = fs.readFileSync(
   "utf8",
 );
 
-test("public assessment projection does not expose answer keys or critical-fail keys", () => {
+test("public assessment projection exposes only presentation-safe question fields", () => {
   const projectionStart = serviceSource.indexOf("export function buildPublicCapabilityAssessment");
-  const projectionEnd = serviceSource.indexOf("async function assertTutorAssignmentOwnership", projectionStart);
+  const projectionEnd = serviceSource.indexOf("function buildPublicCapabilityAttemptResult", projectionStart);
   assert.notEqual(projectionStart, -1);
   assert.notEqual(projectionEnd, -1);
 
   const projection = serviceSource.slice(projectionStart, projectionEnd);
   assert.doesNotMatch(projection, /correctOptionKeys/);
   assert.doesNotMatch(projection, /criticalFailOptionKeys/);
-  assert.match(projection, /competencyKey/);
+  assert.doesNotMatch(projection, /competencyKey/);
+  assert.doesNotMatch(projection, /explanation/);
+  assert.match(projection, /prompt/);
   assert.match(projection, /options/);
   assert.match(projection, /formId/);
   assert.match(projection, /bankVersion/);
+});
+
+test("submitted result projection never returns answer-level evidence", () => {
+  const projectionStart = serviceSource.indexOf("function buildPublicCapabilityAttemptResult");
+  const projectionEnd = serviceSource.indexOf("async function assertTutorAssignmentOwnership", projectionStart);
+  assert.notEqual(projectionStart, -1);
+  assert.notEqual(projectionEnd, -1);
+
+  const projection = serviceSource.slice(projectionStart, projectionEnd);
+  assert.doesNotMatch(projection, /questionResults/);
+  assert.doesNotMatch(projection, /correctOptionKeys/);
+  assert.doesNotMatch(projection, /criticalFailQuestionKeys/);
+  assert.doesNotMatch(projection, /explanation/);
+  assert.match(projection, /hasCriticalFail/);
+  assert.match(projection, /percent/);
+  assert.match(projection, /passed/);
+});
+
+test("Specialist history does not expose question-level answer or critical-key lineage", () => {
+  const historyStart = serviceSource.indexOf("export async function getCapabilityAssessmentHistory");
+  const historyEnd = serviceSource.indexOf("export async function getSpecialistCapabilityLedger", historyStart);
+  assert.notEqual(historyStart, -1);
+  assert.notEqual(historyEnd, -1);
+
+  const history = serviceSource.slice(historyStart, historyEnd);
+  assert.doesNotMatch(history, /question_results/);
+  assert.doesNotMatch(history, /critical_fail_question_keys/);
+  assert.match(history, /has_critical_fail/);
+  assert.match(history, /percent/);
 });
 
 test("runtime capability service never imports public fixture assessment banks", () => {
