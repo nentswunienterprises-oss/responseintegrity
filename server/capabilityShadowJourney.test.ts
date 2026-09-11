@@ -21,6 +21,10 @@ const assignmentId = "shadow-assignment-1";
 const tutorId = "shadow-specialist-1";
 const assignedTdId = "shadow-td-1";
 
+function hourIso(hour: number, minute = 0) {
+  return `2026-09-11T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00Z`;
+}
+
 function correctResponses(definition: CapabilityAssessmentDefinition) {
   return definition.questions.map((question) => ({
     questionKey: question.key,
@@ -118,7 +122,7 @@ test("seeded Specialist shadow journey reaches READY only after the complete evi
       definition: clarity,
       attemptNumber: 1,
       result: historicalClarityFailure,
-      completedAt: "2026-09-11T08:00:00Z",
+      completedAt: hourIso(8),
     }),
   ];
   const assessmentReadinessHistory = [
@@ -127,7 +131,7 @@ test("seeded Specialist shadow journey reaches READY only after the complete evi
       bankVersion: 1,
       attemptNumber: 1,
       passed: historicalClarityFailure.passed,
-      completedAt: "2026-09-11T08:00:00Z",
+      completedAt: hourIso(8),
     },
   ];
 
@@ -135,7 +139,7 @@ test("seeded Specialist shadow journey reaches READY only after the complete evi
     const result = evaluateCapabilityAssessment(definition, correctResponses(definition));
     assert.equal(result.passed, true, `${definition.key} should pass in the seeded proof`);
     const attemptNumber = definition.key === clarity.key ? 2 : 1;
-    const completedAt = `2026-09-11T0${9 + index}:00:00Z`;
+    const completedAt = hourIso(9 + index);
     assessmentRiskHistory.push(
       assessmentRiskRecord({
         id: `${definition.key}-${attemptNumber}`,
@@ -184,8 +188,8 @@ test("seeded Specialist shadow journey reaches READY only after the complete evi
     attemptNumber: 1,
     competencyLinks: proof.competencyLinks,
     outcome: "approved" as const,
-    submittedAt: `2026-09-11T1${3 + index}:00:00Z`,
-    reviewedAt: `2026-09-11T1${3 + index}:30:00Z`,
+    submittedAt: hourIso(13 + index),
+    reviewedAt: hourIso(13 + index, 30),
   }));
 
   const beforeOral = readinessFor({
@@ -232,7 +236,7 @@ test("seeded Specialist shadow journey reaches READY only after the complete evi
         defenseVersion: ORAL_DEFENSE_VERSION,
         attemptNumber: 1,
         outcome: oralResult.outcome,
-        completedAt: "2026-09-11T17:00:00Z",
+        completedAt: hourIso(17),
       },
     ],
   });
@@ -244,6 +248,7 @@ test("seeded Specialist shadow journey reaches READY only after the complete evi
   assert.equal(canCapabilityReviewerAccessAssignment({ reviewerId: "other-td", reviewerRole: "td", assignmentTdId: assignedTdId }), false);
 
   assert.equal(JSON.stringify(authoritativeState), authoritativeSnapshot);
+  assert.equal(tutorId, "shadow-specialist-1");
 });
 
 test("latest failure, bank rotation, practical repeat, and stale brief each break proof independently", () => {
@@ -252,7 +257,7 @@ test("latest failure, bank rotation, practical repeat, and stale brief each brea
     bankVersion: 1,
     attemptNumber: 1,
     passed: true,
-    completedAt: `2026-09-11T10:0${index}:00Z`,
+    completedAt: hourIso(10, index),
   }));
   const practicals: CapabilityPracticalRiskEvidence[] = CAPABILITY_PRACTICAL_PROOFS.map((proof, index) => ({
     id: `practical-${proof.key}-1`,
@@ -261,10 +266,10 @@ test("latest failure, bank rotation, practical repeat, and stale brief each brea
     attemptNumber: 1,
     competencyLinks: proof.competencyLinks,
     outcome: "approved" as const,
-    submittedAt: `2026-09-11T11:0${index}:00Z`,
-    reviewedAt: `2026-09-11T12:0${index}:00Z`,
+    submittedAt: hourIso(11, index),
+    reviewedAt: hourIso(12, index),
   }));
-  const oral = [{ defenseVersion: ORAL_DEFENSE_VERSION, attemptNumber: 1, outcome: "approved" as const, completedAt: "2026-09-11T13:00:00Z" }];
+  const oral = [{ defenseVersion: ORAL_DEFENSE_VERSION, attemptNumber: 1, outcome: "approved" as const, completedAt: hourIso(13) }];
   assert.equal(readinessFor({ assessments: digital, practicals, oralDefenses: oral }).status, "READY");
 
   const withLatestFailure = [
@@ -274,7 +279,7 @@ test("latest failure, bank rotation, practical repeat, and stale brief each brea
       bankVersion: 1,
       attemptNumber: 2,
       passed: false,
-      completedAt: "2026-09-11T14:00:00Z",
+      completedAt: hourIso(14),
     },
   ];
   assert.ok(readinessFor({ assessments: withLatestFailure, practicals, oralDefenses: oral }).missingRequirementCodes.includes("assessment.clarity.mastery"));
@@ -292,15 +297,15 @@ test("latest failure, bank rotation, practical repeat, and stale brief each brea
       id: "practical-execute-2",
       attemptNumber: 2,
       outcome: "repeat_required",
-      submittedAt: "2026-09-11T14:00:00Z",
-      reviewedAt: "2026-09-11T14:30:00Z",
+      submittedAt: hourIso(14),
+      reviewedAt: hourIso(14, 30),
     },
   ];
   assert.ok(readinessFor({ assessments: digital, practicals: withPracticalRepeat, oralDefenses: oral }).missingRequirementCodes.includes("practical.execute.approved"));
 
   const riskAssessments: CapabilityAssessmentRiskEvidence[] = CAPABILITY_ASSESSMENT_FIXTURES.map((definition, index) => {
     const result = evaluateCapabilityAssessment(definition, correctResponses(definition));
-    return assessmentRiskRecord({ id: `risk-${index}`, definition, attemptNumber: 1, result, completedAt: `2026-09-11T10:0${index}:00Z` });
+    return assessmentRiskRecord({ id: `risk-${index}`, definition, attemptNumber: 1, result, completedAt: hourIso(10, index) });
   });
   const probesBefore = buildCapabilityOralProbeBriefs(buildCapabilityOralRiskSignals(riskAssessments, practicals));
   const fingerprintBefore = buildCapabilityEvidenceFingerprint(riskAssessments, practicals);
@@ -312,6 +317,4 @@ test("latest failure, bank rotation, practical repeat, and stale brief each brea
   const briefAfter = buildCapabilityOralBriefId({ tutorAssignmentId: assignmentId, defenseVersion: ORAL_DEFENSE_VERSION, attemptNumber: 1, evidenceFingerprint: fingerprintAfter, probes: probesAfter });
   assert.notEqual(fingerprintAfter, fingerprintBefore);
   assert.notEqual(briefAfter, briefBefore);
-
-  void tutorId;
 });
