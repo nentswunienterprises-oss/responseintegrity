@@ -25,6 +25,7 @@ export const SANDBOX_SIMULATION_DESIGN_FIXTURE_V1: SandboxSimulationDefinition =
       ],
       correctOptionKeys: ["preserve"],
       criticalFailOptionKeys: ["mark_clear"],
+      criticalBoundaryKeys: ["clarity.identification_no_solving"],
       riskOptionKeys: {
         evidence_contamination: ["continue", "mark_clear"],
       },
@@ -45,6 +46,7 @@ export const SANDBOX_SIMULATION_DESIGN_FIXTURE_V1: SandboxSimulationDefinition =
       ],
       correctOptionKeys: ["observe"],
       criticalFailOptionKeys: ["rewrite"],
+      criticalBoundaryKeys: ["structured_execution.no_support_independent_execution"],
       riskOptionKeys: {
         evidence_contamination: ["prompt", "rewrite"],
       },
@@ -65,6 +67,7 @@ export const SANDBOX_SIMULATION_DESIGN_FIXTURE_V1: SandboxSimulationDefinition =
       ],
       correctOptionKeys: ["first_step"],
       criticalFailOptionKeys: ["full_rescue"],
+      criticalBoundaryKeys: ["controlled_discomfort.no_full_rescue"],
       riskOptionKeys: {
         evidence_contamination: ["full_rescue"],
       },
@@ -85,6 +88,7 @@ export const SANDBOX_SIMULATION_DESIGN_FIXTURE_V1: SandboxSimulationDefinition =
       ],
       correctOptionKeys: ["observed"],
       criticalFailOptionKeys: ["improved"],
+      criticalBoundaryKeys: ["logging.record_actual_behavior"],
       riskOptionKeys: {
         evidence_contamination: ["anxious", "improved"],
       },
@@ -105,6 +109,7 @@ export const SANDBOX_SIMULATION_DESIGN_FIXTURE_V1: SandboxSimulationDefinition =
       ],
       correctOptionKeys: ["follow_system"],
       criticalFailOptionKeys: ["silent_override"],
+      criticalBoundaryKeys: ["session_flow.no_manual_drill_override"],
       riskOptionKeys: {
         authority_violation: ["override", "silent_override"],
         evidence_contamination: ["silent_override"],
