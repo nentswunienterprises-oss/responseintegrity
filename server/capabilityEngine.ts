@@ -8,51 +8,19 @@ import {
   type CapabilityQuestionResult,
   type CapabilityResponseInput,
 } from "@shared/capabilityEngine";
+import {
+  projectCapabilityAssessmentForSpecialist,
+  projectCapabilityAttemptResultForSpecialist,
+} from "./capabilityPublicProjection";
 
 export function buildPublicCapabilityAssessment(plan: CapabilityAttemptPlan) {
-  const definition = plan.form.definition;
-  return {
-    key: definition.key,
-    deepDiveKey: definition.deepDiveKey,
-    title: definition.title,
-    evidenceKind: definition.evidenceKind,
-    passThresholdPercent: definition.passThresholdPercent,
-    totalQuestions: definition.questions.length,
+  return projectCapabilityAssessmentForSpecialist({
+    definition: plan.form.definition,
     formId: plan.form.formId,
     bankVersion: plan.form.bankVersion,
     attemptNumber: plan.attemptNumber,
     maxAttempts: plan.config.maxAttempts,
-    questions: definition.questions.map((question) => ({
-      key: question.key,
-      prompt: question.prompt,
-      kind: question.kind,
-      options: question.options,
-    })),
-  };
-}
-
-function buildPublicCapabilityAttemptResult(input: {
-  attemptId: string | undefined;
-  completedAt: unknown;
-  bankVersion: number;
-  attemptNumber: number;
-  formId: string;
-  result: ReturnType<typeof evaluateCapabilityAssessment>;
-}) {
-  return {
-    attemptId: input.attemptId,
-    completedAt: input.completedAt,
-    bankVersion: input.bankVersion,
-    attemptNumber: input.attemptNumber,
-    formId: input.formId,
-    assessmentKey: input.result.assessmentKey,
-    evidenceKind: input.result.evidenceKind,
-    totalQuestions: input.result.totalQuestions,
-    correctQuestions: input.result.correctQuestions,
-    percent: input.result.percent,
-    passed: input.result.passed,
-    hasCriticalFail: input.result.hasCriticalFail,
-  };
+  });
 }
 
 async function assertTutorAssignmentOwnership(tutorAssignmentId: string, tutorId: string) {
@@ -163,7 +131,7 @@ export async function persistCapabilityAssessmentAttempt(input: {
       ],
     );
 
-    return buildPublicCapabilityAttemptResult({
+    return projectCapabilityAttemptResultForSpecialist({
       attemptId: insertResult.rows[0]?.id,
       completedAt: insertResult.rows[0]?.completed_at,
       bankVersion: plan.form.bankVersion,
