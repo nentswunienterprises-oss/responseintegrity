@@ -3,6 +3,7 @@ import test from "node:test";
 import fs from "node:fs";
 
 const serviceSource = fs.readFileSync(new URL("./capabilityEngine.ts", import.meta.url), "utf8");
+const projectionSource = fs.readFileSync(new URL("./capabilityPublicProjection.ts", import.meta.url), "utf8");
 const bankSource = fs.readFileSync(new URL("./capabilityBank.ts", import.meta.url), "utf8");
 const routeSource = fs.readFileSync(new URL("./routes/capabilityEngine.ts", import.meta.url), "utf8");
 const migrationSource = fs.readFileSync(
@@ -10,13 +11,18 @@ const migrationSource = fs.readFileSync(
   "utf8",
 );
 
+test("runtime delegates Specialist assessment output to the safe projector", () => {
+  assert.match(serviceSource, /projectCapabilityAssessmentForSpecialist/);
+  assert.match(serviceSource, /projectCapabilityAttemptResultForSpecialist/);
+});
+
 test("public assessment projection exposes only presentation-safe question fields", () => {
-  const projectionStart = serviceSource.indexOf("export function buildPublicCapabilityAssessment");
-  const projectionEnd = serviceSource.indexOf("function buildPublicCapabilityAttemptResult", projectionStart);
+  const projectionStart = projectionSource.indexOf("export function projectCapabilityAssessmentForSpecialist");
+  const projectionEnd = projectionSource.indexOf("export function projectCapabilityAttemptResultForSpecialist", projectionStart);
   assert.notEqual(projectionStart, -1);
   assert.notEqual(projectionEnd, -1);
 
-  const projection = serviceSource.slice(projectionStart, projectionEnd);
+  const projection = projectionSource.slice(projectionStart, projectionEnd);
   assert.doesNotMatch(projection, /correctOptionKeys/);
   assert.doesNotMatch(projection, /criticalFailOptionKeys/);
   assert.doesNotMatch(projection, /competencyKey/);
@@ -28,12 +34,10 @@ test("public assessment projection exposes only presentation-safe question field
 });
 
 test("submitted result projection never returns answer-level evidence", () => {
-  const projectionStart = serviceSource.indexOf("function buildPublicCapabilityAttemptResult");
-  const projectionEnd = serviceSource.indexOf("async function assertTutorAssignmentOwnership", projectionStart);
+  const projectionStart = projectionSource.indexOf("export function projectCapabilityAttemptResultForSpecialist");
   assert.notEqual(projectionStart, -1);
-  assert.notEqual(projectionEnd, -1);
 
-  const projection = serviceSource.slice(projectionStart, projectionEnd);
+  const projection = projectionSource.slice(projectionStart);
   assert.doesNotMatch(projection, /questionResults/);
   assert.doesNotMatch(projection, /correctOptionKeys/);
   assert.doesNotMatch(projection, /criticalFailQuestionKeys/);
