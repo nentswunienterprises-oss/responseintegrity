@@ -8,6 +8,7 @@ import {
   type CapabilityPracticalCriterionReviewInput,
   type CapabilityPracticalReviewRubric,
 } from "./capabilityPracticalEvidence";
+import { SANDBOX_MOCK_CRITERIA } from "./sandboxReadiness";
 
 test("V1 defines exactly the three approved practical proofs", () => {
   assert.deepEqual(
@@ -35,6 +36,18 @@ test("every practical proof is versioned, sandbox-only and carries an anchored r
         .every((criterion) => criterion.criticalBoundaryLinks.length >= 1),
     );
   }
+});
+
+test("three practical rubrics collectively prepare all five authoritative Sandbox Mock criteria", () => {
+  const covered = new Set(
+    CAPABILITY_PRACTICAL_PROOFS.flatMap((proof) =>
+      proof.reviewRubric.criteria.flatMap((criterion) => criterion.sandboxMockCriteria),
+    ),
+  );
+  assert.deepEqual(
+    Array.from(covered).sort(),
+    SANDBOX_MOCK_CRITERIA.map((criterion) => criterion.key).sort(),
+  );
 });
 
 test("Prepare and Evidence require a screen-based artifact rather than talking-head video alone", () => {
