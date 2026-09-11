@@ -139,6 +139,7 @@ CREATE TABLE IF NOT EXISTS specialist_capability_oral_defenses (
   integrity_concern_count integer NOT NULL CHECK (integrity_concern_count >= 0),
   outcome varchar NOT NULL CHECK (outcome IN ('approved', 'repeat_required', 'integrity_review')),
   feedback text,
+  sandbox_scenario_confirmed boolean NOT NULL CHECK (sandbox_scenario_confirmed = true),
   completed_at timestamptz NOT NULL DEFAULT now(),
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (tutor_assignment_id, defense_version, attempt_number)
@@ -169,4 +170,4 @@ COMMENT ON TABLE specialist_capability_practical_reviews IS
   'Immutable human review decisions for Specialist practical capability evidence.';
 
 COMMENT ON TABLE specialist_capability_oral_defenses IS
-  'Immutable targeted human oral-defense evidence. Outcomes are derived from 3-5 recorded probes and never mutate existing Battle Test or Sandbox progression.';
+  'Immutable targeted human oral-defense evidence. Outcomes are derived from 3-5 recorded sandbox probes and never mutate existing Battle Test or Sandbox progression.';
