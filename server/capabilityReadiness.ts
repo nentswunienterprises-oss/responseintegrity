@@ -1,7 +1,7 @@
 import { pool } from "./db";
 import {
+  CAPABILITY_MVP_SHADOW_GATE_V2,
   evaluateCapabilityReadiness,
-  FOUNDATION_CAPABILITY_SHADOW_GATE_V1,
   type CapabilityReadinessResult,
 } from "@shared/capabilityReadiness";
 import { CAPABILITY_PRACTICAL_PROOFS } from "@shared/capabilityPracticalEvidence";
@@ -84,6 +84,8 @@ export async function getCapabilityReadinessEvidence(tutorAssignmentId: string) 
       `SELECT assessment_key,
               bank_version,
               attempt_number,
+              evidence_kind,
+              covered_deep_dive_keys,
               passed,
               completed_at
          FROM specialist_capability_assessment_attempts
@@ -126,6 +128,8 @@ export async function getCapabilityReadinessEvidence(tutorAssignmentId: string) 
       assessmentKey: String(row.assessment_key),
       bankVersion: Number(row.bank_version),
       attemptNumber: Number(row.attempt_number),
+      evidenceKind: row.evidence_kind,
+      coveredDeepDiveKeys: Array.isArray(row.covered_deep_dive_keys) ? row.covered_deep_dive_keys.map(String) : [],
       passed: Boolean(row.passed),
       completedAt: row.completed_at,
     })),
@@ -155,11 +159,13 @@ export async function getCapabilityReadinessEvidence(tutorAssignmentId: string) 
   });
 }
 
+// Kept as the stable service name while the shadow gate evolves. From Sprint 8
+// onward this returns the full 11-Deep-Dive Capability MVP readiness result.
 export async function getFoundationCapabilityReadiness(
   tutorAssignmentId: string,
 ): Promise<CapabilityReadinessResult> {
   const evidence = await getCapabilityReadinessEvidence(tutorAssignmentId);
-  return evaluateCapabilityReadiness(FOUNDATION_CAPABILITY_SHADOW_GATE_V1, evidence);
+  return evaluateCapabilityReadiness(CAPABILITY_MVP_SHADOW_GATE_V2, evidence);
 }
 
 export async function assertPreOralCapabilityEvidenceReady(tutorAssignmentId: string) {

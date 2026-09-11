@@ -1,4 +1,8 @@
 import type { CapabilityReadinessEvidence } from "./capabilityReadiness";
+import {
+  getCapabilityDeepDiveBlueprint,
+  type CapabilityBlueprintEvidenceKind,
+} from "./capabilityBlueprint";
 
 export interface CapabilityAssessmentEvidenceSnapshot {
   assessmentKey: string;
@@ -6,6 +10,8 @@ export interface CapabilityAssessmentEvidenceSnapshot {
   attemptNumber: number;
   passed: boolean;
   completedAt: string | Date;
+  evidenceKind?: CapabilityBlueprintEvidenceKind;
+  coveredDeepDiveKeys?: string[];
 }
 
 export interface CapabilityActiveAssessmentVersion {
@@ -73,6 +79,13 @@ function latestByKey<T>(
   return latest;
 }
 
+export function capabilityEvidenceCellCode(
+  deepDiveKey: string,
+  evidenceKind: CapabilityBlueprintEvidenceKind,
+) {
+  return `deep_dive.${deepDiveKey}.${evidenceKind}`;
+}
+
 export function selectCurrentCapabilityReadinessEvidence(
   input: CurrentCapabilityEvidenceSelectionInput,
 ): CapabilityReadinessEvidence {
@@ -96,14 +109,28 @@ export function selectCurrentCapabilityReadinessEvidence(
     (record) => timestamp(record.reviewedAt || record.submittedAt),
   );
 
-  const passedAssessmentKeys = Array.from(latestAssessments.values())
-    .filter(
-      (record) =>
-        record.passed &&
-        activeAssessmentVersions.get(record.assessmentKey) === record.bankVersion,
-    )
+  const currentPassedAssessments = Array.from(latestAssessments.values()).filter(
+    (record) =>
+      record.passed &&
+      activeAssessmentVersions.get(record.assessmentKey) === record.bankVersion,
+  );
+
+  const passedAssessmentKeys = currentPassedAssessments
     .map((record) => record.assessmentKey)
     .sort();
+
+  const satisfiedEvidenceCells = Array.from(
+    new Set(
+      currentPassedAssessments.flatMap((record) => {
+        if (!record.evidenceKind) return [];
+        return (record.coveredDeepDiveKeys || []).flatMap((deepDiveKey) => {
+          const blueprint = getCapabilityDeepDiveBlueprint(deepDiveKey);
+          if (!blueprint || !blueprint.requiredEvidenceKinds.includes(record.evidenceKind!)) return [];
+          return [capabilityEvidenceCellCode(deepDiveKey, record.evidenceKind!)];
+        });
+      }),
+    ),
+  ).sort();
 
   const approvedPracticalProofKeys = Array.from(latestPracticals.values())
     .filter(
@@ -128,6 +155,7 @@ export function selectCurrentCapabilityReadinessEvidence(
 
   return {
     passedAssessmentKeys,
+    satisfiedEvidenceCells,
     approvedPracticalProofKeys,
     oralDefenseApproved,
   };
