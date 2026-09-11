@@ -26,13 +26,14 @@ test("Specialist simulation projection exposes scenario choices but no evaluator
   assert.equal(projected.fictionalScenarioConfirmed, true);
   assert.doesNotMatch(serialized, /correctOptionKeys/);
   assert.doesNotMatch(serialized, /criticalFailOptionKeys/);
+  assert.doesNotMatch(serialized, /criticalBoundaryKeys/);
   assert.doesNotMatch(serialized, /riskOptionKeys/);
   assert.doesNotMatch(serialized, /explanation/);
   assert.doesNotMatch(serialized, /competencyKey/);
   assert.doesNotMatch(serialized, /deepDiveKey/);
 });
 
-test("Specialist result projection exposes aggregate outcome but no decision answer keys", () => {
+test("Specialist result projection exposes aggregate outcome but no decision answer or boundary lineage", () => {
   const result = evaluateSandboxSimulation(SANDBOX_SIMULATION_DESIGN_FIXTURE_V1, responses);
   const projected = projectSandboxSimulationResultForSpecialist({
     attemptId: "simulation-attempt-1",
@@ -49,5 +50,6 @@ test("Specialist result projection exposes aggregate outcome but no decision ans
   assert.doesNotMatch(serialized, /decisionResults/);
   assert.doesNotMatch(serialized, /correctOptionKeys/);
   assert.doesNotMatch(serialized, /criticalFailDecisionKeys/);
+  assert.doesNotMatch(serialized, /triggeredCriticalBoundaryKeys/);
   assert.doesNotMatch(serialized, /explanation/);
 });
