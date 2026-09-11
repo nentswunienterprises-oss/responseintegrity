@@ -2,8 +2,11 @@ import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { pool } from "../server/db";
 import { generateDeterministicCapabilityForm } from "../server/capabilityFormGeneration";
+import {
+  summarizeCapabilityBankCoverage,
+  validateCapabilityAssessmentAgainstBlueprint,
+} from "../shared/capabilityBankCoverage";
 
 const optionSchema = z.object({
   key: z.string().trim().min(1),
@@ -44,17 +47,34 @@ const bankSchema = z.object({
   assessments: z.array(assessmentSchema).min(1),
 });
 
+type ParsedAssessment = z.infer<typeof assessmentSchema>;
+type DatabasePool = {
+  query: (text: string, params?: unknown[]) => Promise<{ rowCount: number | null }>;
+  connect: () => Promise<{
+    query: (text: string, params?: unknown[]) => Promise<unknown>;
+    release: () => void;
+  }>;
+  end: () => Promise<void>;
+};
+
 function readArgs() {
   const args = process.argv.slice(2);
   const apply = args.includes("--apply");
+  const requireMvpCoverage = args.includes("--require-mvp-coverage");
   const fileArg = args.find((arg) => !arg.startsWith("--"));
   if (!fileArg) {
-    throw new Error("Usage: tsx scripts/import-private-capability-bank.ts <private-bank.json> [--apply]");
+    throw new Error(
+      "Usage: tsx scripts/import-private-capability-bank.ts <private-bank.json> [--require-mvp-coverage] [--apply]",
+    );
   }
-  return { apply, filePath: path.resolve(fileArg) };
+  return { apply, requireMvpCoverage, filePath: path.resolve(fileArg) };
 }
 
-async function ensureVersionDoesNotExist(assessmentKey: string, bankVersion: number) {
+async function ensureVersionDoesNotExist(
+  pool: DatabasePool,
+  assessmentKey: string,
+  bankVersion: number,
+) {
   const result = await pool.query(
     `SELECT 1
        FROM private.specialist_capability_assessment_configs
@@ -68,8 +88,8 @@ async function ensureVersionDoesNotExist(assessmentKey: string, bankVersion: num
   }
 }
 
-async function importAssessment(assessment: z.infer<typeof assessmentSchema>) {
-  await ensureVersionDoesNotExist(assessment.assessmentKey, assessment.bankVersion);
+async function importAssessment(pool: DatabasePool, assessment: ParsedAssessment) {
+  await ensureVersionDoesNotExist(pool, assessment.assessmentKey, assessment.bankVersion);
 
   const client = await pool.connect();
   try {
@@ -162,51 +182,98 @@ async function importAssessment(assessment: z.infer<typeof assessmentSchema>) {
   }
 }
 
+function validateAssessment(assessment: ParsedAssessment) {
+  const blueprintCoverage = validateCapabilityAssessmentAgainstBlueprint({
+    assessmentKey: assessment.assessmentKey,
+    assessmentDeepDiveKey: assessment.assessmentDeepDiveKey,
+    evidenceKind: assessment.evidenceKind,
+    competencyBlueprint: assessment.competencyBlueprint,
+    items: assessment.items.map((item) => ({
+      competencyKey: item.competencyKey,
+      deepDiveKey: item.deepDiveKey,
+    })),
+  });
+
+  generateDeterministicCapabilityForm(
+    {
+      assessmentKey: assessment.assessmentKey,
+      bankVersion: assessment.bankVersion,
+      title: assessment.title,
+      assessmentDeepDiveKey: assessment.assessmentDeepDiveKey,
+      evidenceKind: assessment.evidenceKind,
+      passThresholdPercent: assessment.passThresholdPercent,
+      formSize: assessment.formSize,
+      maxAttempts: assessment.maxAttempts,
+      retryCooldownHours: assessment.retryCooldownHours,
+      competencyBlueprint: assessment.competencyBlueprint,
+    },
+    assessment.items,
+    "private-bank-import-validation",
+  );
+
+  console.log(
+    `[CAPABILITY BANK] validated ${assessment.assessmentKey} v${assessment.bankVersion} (${assessment.items.length} private items; ${blueprintCoverage.coveredEvidenceCells.join(", ")})`,
+  );
+
+  return blueprintCoverage;
+}
+
 async function main() {
-  const { apply, filePath } = readArgs();
+  const { apply, requireMvpCoverage, filePath } = readArgs();
   const payload = bankSchema.parse(JSON.parse(fs.readFileSync(filePath, "utf8")));
 
   for (const assessment of payload.assessments) {
-    generateDeterministicCapabilityForm(
-      {
-        assessmentKey: assessment.assessmentKey,
-        bankVersion: assessment.bankVersion,
-        title: assessment.title,
-        assessmentDeepDiveKey: assessment.assessmentDeepDiveKey,
-        evidenceKind: assessment.evidenceKind,
-        passThresholdPercent: assessment.passThresholdPercent,
-        formSize: assessment.formSize,
-        maxAttempts: assessment.maxAttempts,
-        retryCooldownHours: assessment.retryCooldownHours,
-        competencyBlueprint: assessment.competencyBlueprint,
-      },
-      assessment.items,
-      "private-bank-import-validation",
-    );
+    validateAssessment(assessment);
+  }
 
-    console.log(
-      `[CAPABILITY BANK] validated ${assessment.assessmentKey} v${assessment.bankVersion} (${assessment.items.length} private items)`,
+  const coverage = summarizeCapabilityBankCoverage(
+    payload.assessments.map((assessment) => ({
+      assessmentKey: assessment.assessmentKey,
+      assessmentDeepDiveKey: assessment.assessmentDeepDiveKey,
+      evidenceKind: assessment.evidenceKind,
+      competencyBlueprint: assessment.competencyBlueprint,
+      items: assessment.items.map((item) => ({
+        competencyKey: item.competencyKey,
+        deepDiveKey: item.deepDiveKey,
+      })),
+    })),
+  );
+
+  console.log(
+    `[CAPABILITY BANK] blueprint coverage ${coverage.coveredEvidenceCells.length}/33 evidence cells`,
+  );
+  if (coverage.missingEvidenceCells.length > 0) {
+    console.log(`[CAPABILITY BANK] missing: ${coverage.missingEvidenceCells.join(", ")}`);
+  }
+
+  if (requireMvpCoverage && coverage.missingEvidenceCells.length > 0) {
+    throw new Error(
+      `Capability bank is not MVP-complete. Missing ${coverage.missingEvidenceCells.length} of 33 required evidence cells.`,
     );
   }
 
   if (!apply) {
-    console.log("[CAPABILITY BANK] validation only. Re-run with --apply against the intended non-production database when ready.");
+    console.log(
+      "[CAPABILITY BANK] validation only. No database connection was opened. Re-run with --apply only against an explicitly approved non-production database.",
+    );
     return;
   }
 
-  for (const assessment of payload.assessments) {
-    await importAssessment(assessment);
-    console.log(
-      `[CAPABILITY BANK] activated ${assessment.assessmentKey} v${assessment.bankVersion} (${assessment.items.length} items)`,
-    );
+  const { pool } = await import("../server/db");
+  const databasePool = pool as unknown as DatabasePool;
+  try {
+    for (const assessment of payload.assessments) {
+      await importAssessment(databasePool, assessment);
+      console.log(
+        `[CAPABILITY BANK] activated ${assessment.assessmentKey} v${assessment.bankVersion} (${assessment.items.length} items)`,
+      );
+    }
+  } finally {
+    await databasePool.end();
   }
 }
 
-main()
-  .catch((error) => {
-    console.error("[CAPABILITY BANK] import failed:", error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await pool.end();
-  });
+main().catch((error) => {
+  console.error("[CAPABILITY BANK] import failed:", error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+});
