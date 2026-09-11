@@ -20,6 +20,7 @@ export interface CapabilityBankCoverageAssessment {
   evidenceKind: CapabilityBlueprintEvidenceKind;
   formSize?: number;
   passThresholdPercent?: number;
+  enforceMvpPlan?: boolean;
   competencyBlueprint: Array<{
     competencyKey: string;
     deepDiveKey: string;
@@ -76,6 +77,8 @@ function validateCriticalBoundaryTags(assessment: CapabilityBankCoverageAssessme
     }
   }
 
+  if (!assessment.enforceMvpPlan) return;
+
   for (const requirement of buildCapabilityCriticalBoundaryRequirements(assessment.assessmentKey)) {
     const representedBoundaryKeys = new Set(
       assessment.items
@@ -112,7 +115,7 @@ export function validateCapabilityAssessmentAgainstBlueprint(
   }
 
   const plan = getCapabilityMvpAssessmentPlanEntry(assessment.assessmentKey);
-  if (plan) {
+  if (plan && assessment.enforceMvpPlan) {
     if (assessment.evidenceKind !== plan.evidenceKind) {
       throw new Error(
         `Capability assessment ${assessment.assessmentKey} must use ${plan.evidenceKind} evidence, not ${assessment.evidenceKind}.`,
