@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { selectCurrentCapabilityReadinessEvidence } from "./capabilityEvidenceSelection";
+import {
+  selectCurrentCapabilityReadinessEvidence,
+  type CurrentCapabilityEvidenceSelectionInput,
+} from "./capabilityEvidenceSelection";
 
 const activeAssessmentVersions = [
   { assessmentKey: "clarity_mastery_v1", bankVersion: 1 },
@@ -14,14 +17,46 @@ const currentPracticalVersions = [
   { proofKey: "evidence", proofVersion: 1 },
 ];
 
-function baseInput() {
+function baseInput(): CurrentCapabilityEvidenceSelectionInput {
   return {
-    assessments: activeAssessmentVersions.map((entry, index) => ({
-      ...entry,
-      attemptNumber: 1,
-      passed: true,
-      completedAt: `2026-09-11T10:0${index}:00Z`,
-    })),
+    assessments: [
+      {
+        assessmentKey: "clarity_mastery_v1",
+        bankVersion: 1,
+        attemptNumber: 1,
+        passed: true,
+        evidenceKind: "mastery",
+        coveredDeepDiveKeys: ["clarity"],
+        completedAt: "2026-09-11T10:00:00Z",
+      },
+      {
+        assessmentKey: "clarity_retrieval_v1",
+        bankVersion: 1,
+        attemptNumber: 1,
+        passed: true,
+        evidenceKind: "retrieval",
+        coveredDeepDiveKeys: ["clarity"],
+        completedAt: "2026-09-11T10:01:00Z",
+      },
+      {
+        assessmentKey: "structured_execution_mastery_v1",
+        bankVersion: 1,
+        attemptNumber: 1,
+        passed: true,
+        evidenceKind: "mastery",
+        coveredDeepDiveKeys: ["structured_execution"],
+        completedAt: "2026-09-11T10:02:00Z",
+      },
+      {
+        assessmentKey: "clarity_structured_transfer_v1",
+        bankVersion: 1,
+        attemptNumber: 1,
+        passed: true,
+        evidenceKind: "transfer",
+        coveredDeepDiveKeys: ["clarity", "structured_execution"],
+        completedAt: "2026-09-11T10:03:00Z",
+      },
+    ],
     activeAssessmentVersions,
     practicals: currentPracticalVersions.map((entry, index) => ({
       ...entry,
@@ -43,33 +78,66 @@ function baseInput() {
   };
 }
 
-test("complete current-version evidence selects the whole readiness stack", () => {
+test("complete current-version foundation evidence selects the legacy keys and five blueprint cells", () => {
   const evidence = selectCurrentCapabilityReadinessEvidence(baseInput());
   assert.deepEqual(evidence.passedAssessmentKeys, activeAssessmentVersions.map((entry) => entry.assessmentKey).sort());
+  assert.deepEqual(evidence.satisfiedEvidenceCells, [
+    "deep_dive.clarity.mastery",
+    "deep_dive.clarity.retrieval",
+    "deep_dive.clarity.transfer",
+    "deep_dive.structured_execution.mastery",
+    "deep_dive.structured_execution.transfer",
+  ]);
   assert.deepEqual(evidence.approvedPracticalProofKeys, ["evidence", "execute", "prepare"]);
   assert.equal(evidence.oralDefenseApproved, true);
 });
 
-test("a newer failed digital attempt invalidates an older pass", () => {
+test("a newer failed digital attempt invalidates both its assessment key and evidence cell", () => {
   const input = baseInput();
   input.assessments.push({
     assessmentKey: "clarity_mastery_v1",
     bankVersion: 1,
     attemptNumber: 2,
     passed: false,
+    evidenceKind: "mastery",
+    coveredDeepDiveKeys: ["clarity"],
     completedAt: "2026-09-11T14:00:00Z",
   });
   const evidence = selectCurrentCapabilityReadinessEvidence(input);
   assert.equal(evidence.passedAssessmentKeys.includes("clarity_mastery_v1"), false);
+  assert.equal(evidence.satisfiedEvidenceCells.includes("deep_dive.clarity.mastery"), false);
 });
 
-test("rotating the active bank invalidates a pass from the retired bank version", () => {
+test("rotating the active bank invalidates the retired bank pass and evidence cell", () => {
   const input = baseInput();
   input.activeAssessmentVersions = input.activeAssessmentVersions.map((entry) =>
     entry.assessmentKey === "clarity_mastery_v1" ? { ...entry, bankVersion: 2 } : entry,
   );
   const evidence = selectCurrentCapabilityReadinessEvidence(input);
   assert.equal(evidence.passedAssessmentKeys.includes("clarity_mastery_v1"), false);
+  assert.equal(evidence.satisfiedEvidenceCells.includes("deep_dive.clarity.mastery"), false);
+});
+
+test("one passing mixed transfer assessment can satisfy multiple Deep Dive transfer cells", () => {
+  const evidence = selectCurrentCapabilityReadinessEvidence(baseInput());
+  assert.ok(evidence.satisfiedEvidenceCells.includes("deep_dive.clarity.transfer"));
+  assert.ok(evidence.satisfiedEvidenceCells.includes("deep_dive.structured_execution.transfer"));
+});
+
+test("unknown Deep Dive coverage cannot manufacture a readiness evidence cell", () => {
+  const input = baseInput();
+  input.assessments.push({
+    assessmentKey: "unknown_transfer_v1",
+    bankVersion: 1,
+    attemptNumber: 1,
+    passed: true,
+    evidenceKind: "transfer",
+    coveredDeepDiveKeys: ["not_a_real_deep_dive"],
+    completedAt: "2026-09-11T14:00:00Z",
+  });
+  input.activeAssessmentVersions.push({ assessmentKey: "unknown_transfer_v1", bankVersion: 1 });
+  const evidence = selectCurrentCapabilityReadinessEvidence(input);
+  assert.equal(evidence.satisfiedEvidenceCells.some((cell) => cell.includes("not_a_real_deep_dive")), false);
 });
 
 test("latest practical repeat invalidates an older approval", () => {
