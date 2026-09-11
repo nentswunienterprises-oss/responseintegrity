@@ -7,6 +7,7 @@ import {
   summarizeCapabilityBankCoverage,
   validateCapabilityAssessmentAgainstBlueprint,
 } from "../shared/capabilityBankCoverage";
+import { buildCapabilityCriticalBoundaryRequirements } from "../shared/capabilityCriticalCoverage";
 
 const optionSchema = z.object({
   key: z.string().trim().min(1),
@@ -22,6 +23,7 @@ const itemSchema = z.object({
   options: z.array(optionSchema).min(2),
   correctOptionKeys: z.array(z.string().trim().min(1)).min(1),
   criticalFailOptionKeys: z.array(z.string().trim().min(1)).default([]),
+  criticalBoundaryKeys: z.array(z.string().trim().min(1)).default([]),
   explanation: z.string().trim().min(1),
 });
 
@@ -136,9 +138,10 @@ async function importAssessment(pool: DatabasePool, assessment: ParsedAssessment
            options,
            correct_option_keys,
            critical_fail_option_keys,
+           critical_boundary_keys,
            explanation,
            active
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11, true)`,
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12, true)`,
         [
           assessment.assessmentKey,
           assessment.bankVersion,
@@ -150,6 +153,7 @@ async function importAssessment(pool: DatabasePool, assessment: ParsedAssessment
           JSON.stringify(item.options),
           JSON.stringify(item.correctOptionKeys),
           JSON.stringify(item.criticalFailOptionKeys),
+          JSON.stringify(item.criticalBoundaryKeys),
           item.explanation,
         ],
       );
@@ -182,17 +186,29 @@ async function importAssessment(pool: DatabasePool, assessment: ParsedAssessment
   }
 }
 
-function validateAssessment(assessment: ParsedAssessment) {
-  const blueprintCoverage = validateCapabilityAssessmentAgainstBlueprint({
+function validationShape(assessment: ParsedAssessment) {
+  return {
     assessmentKey: assessment.assessmentKey,
     assessmentDeepDiveKey: assessment.assessmentDeepDiveKey,
     evidenceKind: assessment.evidenceKind,
+    formSize: assessment.formSize,
+    passThresholdPercent: assessment.passThresholdPercent,
+    enforceMvpPlan: true,
     competencyBlueprint: assessment.competencyBlueprint,
     items: assessment.items.map((item) => ({
       competencyKey: item.competencyKey,
       deepDiveKey: item.deepDiveKey,
+      kind: item.kind,
+      correctOptionKeys: item.correctOptionKeys,
+      criticalFailOptionKeys: item.criticalFailOptionKeys,
+      criticalBoundaryKeys: item.criticalBoundaryKeys,
     })),
-  });
+  };
+}
+
+function validateAssessment(assessment: ParsedAssessment) {
+  const blueprintCoverage = validateCapabilityAssessmentAgainstBlueprint(validationShape(assessment));
+  const criticalBoundaryRequirements = buildCapabilityCriticalBoundaryRequirements(assessment.assessmentKey);
 
   generateDeterministicCapabilityForm(
     {
@@ -206,13 +222,14 @@ function validateAssessment(assessment: ParsedAssessment) {
       maxAttempts: assessment.maxAttempts,
       retryCooldownHours: assessment.retryCooldownHours,
       competencyBlueprint: assessment.competencyBlueprint,
+      criticalBoundaryRequirements,
     },
     assessment.items,
     "private-bank-import-validation",
   );
 
   console.log(
-    `[CAPABILITY BANK] validated ${assessment.assessmentKey} v${assessment.bankVersion} (${assessment.items.length} private items; ${blueprintCoverage.coveredEvidenceCells.join(", ")})`,
+    `[CAPABILITY BANK] validated ${assessment.assessmentKey} v${assessment.bankVersion} (${assessment.items.length} private items; ${blueprintCoverage.coveredEvidenceCells.join(", ")}; ${criticalBoundaryRequirements.length} critical-boundary group(s))`,
   );
 
   return blueprintCoverage;
@@ -227,16 +244,7 @@ async function main() {
   }
 
   const coverage = summarizeCapabilityBankCoverage(
-    payload.assessments.map((assessment) => ({
-      assessmentKey: assessment.assessmentKey,
-      assessmentDeepDiveKey: assessment.assessmentDeepDiveKey,
-      evidenceKind: assessment.evidenceKind,
-      competencyBlueprint: assessment.competencyBlueprint,
-      items: assessment.items.map((item) => ({
-        competencyKey: item.competencyKey,
-        deepDiveKey: item.deepDiveKey,
-      })),
-    })),
+    payload.assessments.map(validationShape),
   );
 
   console.log(

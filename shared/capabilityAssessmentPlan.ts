@@ -4,6 +4,8 @@ import {
   type CapabilityBlueprintEvidenceKind,
 } from "./capabilityBlueprint";
 
+export type CapabilityCriticalCoverageMode = "all_boundaries" | "one_per_deep_dive";
+
 export interface CapabilityAssessmentPlanEntry {
   assessmentKey: string;
   title: string;
@@ -13,6 +15,7 @@ export interface CapabilityAssessmentPlanEntry {
   minimumItemPoolSize: number;
   passThresholdPercent: number;
   minimumDelayHours: number;
+  criticalCoverageMode: CapabilityCriticalCoverageMode;
   purpose: string;
 }
 
@@ -34,6 +37,7 @@ const masteryEntry = (
   minimumItemPoolSize: MASTERY_MINIMUM_POOL_SIZE,
   passThresholdPercent: PASS_THRESHOLD_PERCENT,
   minimumDelayHours: 0,
+  criticalCoverageMode: "all_boundaries",
   purpose: "Verify immediate operating understanding after the Specialist has worked through the Deep Dive.",
 });
 
@@ -58,6 +62,7 @@ export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] 
     minimumItemPoolSize: CUMULATIVE_MINIMUM_POOL_SIZE,
     passThresholdPercent: PASS_THRESHOLD_PERCENT,
     minimumDelayHours: 24,
+    criticalCoverageMode: "one_per_deep_dive",
     purpose:
       "Re-test the Transformation Phases after a spacing interval so recognition and operating boundaries must be retrieved rather than immediately repeated.",
   },
@@ -77,6 +82,7 @@ export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] 
     minimumItemPoolSize: CUMULATIVE_MINIMUM_POOL_SIZE,
     passThresholdPercent: PASS_THRESHOLD_PERCENT,
     minimumDelayHours: 24,
+    criticalCoverageMode: "one_per_deep_dive",
     purpose:
       "Re-test session infrastructure after a spacing interval so the Specialist must retrieve operating rules without relying on immediate module familiarity.",
   },
@@ -95,6 +101,7 @@ export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] 
     minimumItemPoolSize: CUMULATIVE_MINIMUM_POOL_SIZE,
     passThresholdPercent: PASS_THRESHOLD_PERCENT,
     minimumDelayHours: 24,
+    criticalCoverageMode: "one_per_deep_dive",
     purpose:
       "Mix phase and topic-state scenarios so the Specialist must identify which capability and boundary applies without being told the Deep Dive in advance.",
   },
@@ -112,6 +119,7 @@ export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] 
     minimumItemPoolSize: CUMULATIVE_MINIMUM_POOL_SIZE,
     passThresholdPercent: PASS_THRESHOLD_PERCENT,
     minimumDelayHours: 24,
+    criticalCoverageMode: "one_per_deep_dive",
     purpose:
       "Mix placement, session-context, drill-selection and evidence scenarios so the Specialist must preserve the operating chain across subsystem boundaries.",
   },
@@ -129,6 +137,7 @@ export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] 
     minimumItemPoolSize: CUMULATIVE_MINIMUM_POOL_SIZE,
     passThresholdPercent: PASS_THRESHOLD_PERCENT,
     minimumDelayHours: 24,
+    criticalCoverageMode: "one_per_deep_dive",
     purpose:
       "Mix continuity, observability, evidence and session-flow failures so the Specialist must protect valid delivery before resuming or scoring work.",
   },

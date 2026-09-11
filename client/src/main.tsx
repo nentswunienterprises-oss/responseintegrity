@@ -22,6 +22,7 @@ if (loader) {
 if (rootElement) {
   const currentPath = window.location.pathname;
   const isCapabilityRoute =
+    currentPath === "/operational/specialist/capability-plan" ||
     currentPath.startsWith("/operational/specialist/capability/") ||
     currentPath === "/operational/specialist/capability-practicals" ||
     currentPath === "/operational/capability-review/practicals" ||

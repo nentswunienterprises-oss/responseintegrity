@@ -5,16 +5,25 @@ import {
   getRequiredCapabilityEvidenceCells,
   type CapabilityBlueprintEvidenceKind,
 } from "./capabilityBlueprint";
+import { getCapabilityMvpAssessmentPlanEntry } from "./capabilityAssessmentPlan";
+import { buildCapabilityCriticalBoundaryRequirements } from "./capabilityCriticalCoverage";
 
 export interface CapabilityBankCoverageItem {
   competencyKey: string;
   deepDiveKey: string;
+  kind?: "single_choice" | "multi_select" | "sequence";
+  correctOptionKeys?: string[];
+  criticalFailOptionKeys?: string[];
+  criticalBoundaryKeys?: string[];
 }
 
 export interface CapabilityBankCoverageAssessment {
   assessmentKey: string;
   assessmentDeepDiveKey: string;
   evidenceKind: CapabilityBlueprintEvidenceKind;
+  formSize?: number;
+  passThresholdPercent?: number;
+  enforceMvpPlan?: boolean;
   competencyBlueprint: Array<{
     competencyKey: string;
     deepDiveKey: string;
@@ -36,6 +45,12 @@ function unique(values: string[]) {
   return Array.from(new Set(values)).sort();
 }
 
+function sameStrings(left: string[], right: string[]) {
+  const a = unique(left);
+  const b = unique(right);
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
 function evidenceCellCode(deepDiveKey: string, evidenceKind: CapabilityBlueprintEvidenceKind) {
   return `deep_dive.${deepDiveKey}.${evidenceKind}`;
 }
@@ -49,6 +64,60 @@ function isKnownCompetency(deepDiveKey: string, competencyKey: string) {
       competencyKey as (typeof CAPABILITY_CROSS_CUTTING_COMPETENCIES)[number],
     )
   );
+}
+
+function validateCriticalBoundaryTags(assessment: CapabilityBankCoverageAssessment) {
+  for (const item of assessment.items) {
+    const blueprint = getCapabilityDeepDiveBlueprint(item.deepDiveKey);
+    if (!blueprint) continue;
+    const validBoundaryKeys = new Set(blueprint.criticalBoundaries.map((boundary) => boundary.key));
+    const criticalBoundaryKeys = item.criticalBoundaryKeys || [];
+
+    for (const boundaryKey of criticalBoundaryKeys) {
+      if (!validBoundaryKeys.has(boundaryKey)) {
+        throw new Error(
+          `Capability assessment ${assessment.assessmentKey} item tags unknown critical boundary ${item.deepDiveKey}:${boundaryKey}.`,
+        );
+      }
+    }
+
+    if (assessment.enforceMvpPlan && criticalBoundaryKeys.length > 0) {
+      if (item.kind === "sequence") {
+        throw new Error(
+          `Capability assessment ${assessment.assessmentKey} uses a sequence item for critical boundary ${criticalBoundaryKeys.join(", ")}; V1 critical-fail semantics require single-choice or multi-select items.`,
+        );
+      }
+      if (!(item.criticalFailOptionKeys || []).length) {
+        throw new Error(
+          `Capability assessment ${assessment.assessmentKey} critical-boundary item must define at least one critical-fail option.`,
+        );
+      }
+      const correct = new Set(item.correctOptionKeys || []);
+      const overlap = (item.criticalFailOptionKeys || []).filter((optionKey) => correct.has(optionKey));
+      if (overlap.length > 0) {
+        throw new Error(
+          `Capability assessment ${assessment.assessmentKey} critical-fail option cannot also be a correct option: ${overlap.join(", ")}.`,
+        );
+      }
+    }
+  }
+
+  if (!assessment.enforceMvpPlan) return;
+
+  for (const requirement of buildCapabilityCriticalBoundaryRequirements(assessment.assessmentKey)) {
+    const representedBoundaryKeys = new Set(
+      assessment.items
+        .filter((item) => item.deepDiveKey === requirement.deepDiveKey)
+        .flatMap((item) => item.criticalBoundaryKeys || [])
+        .filter((boundaryKey) => requirement.boundaryKeys.includes(boundaryKey)),
+    );
+
+    if (representedBoundaryKeys.size < requirement.minimumDistinctBoundaries) {
+      throw new Error(
+        `Capability assessment ${assessment.assessmentKey} has only ${representedBoundaryKeys.size} represented critical boundaries for ${requirement.deepDiveKey}; ${requirement.minimumDistinctBoundaries} are required.`,
+      );
+    }
+  }
 }
 
 export function validateCapabilityAssessmentAgainstBlueprint(
@@ -68,6 +137,38 @@ export function validateCapabilityAssessmentAgainstBlueprint(
 
   if (!referencedDeepDiveKeys.length) {
     throw new Error(`Capability assessment ${assessment.assessmentKey} has no Deep Dive coverage.`);
+  }
+
+  const plan = getCapabilityMvpAssessmentPlanEntry(assessment.assessmentKey);
+  if (plan && assessment.enforceMvpPlan) {
+    if (assessment.evidenceKind !== plan.evidenceKind) {
+      throw new Error(
+        `Capability assessment ${assessment.assessmentKey} must use ${plan.evidenceKind} evidence, not ${assessment.evidenceKind}.`,
+      );
+    }
+    if (!sameStrings(referencedDeepDiveKeys, plan.coveredDeepDiveKeys)) {
+      throw new Error(
+        `Capability assessment ${assessment.assessmentKey} does not match its planned Deep Dive coverage.`,
+      );
+    }
+    if (assessment.formSize !== undefined && assessment.formSize !== plan.formSize) {
+      throw new Error(
+        `Capability assessment ${assessment.assessmentKey} form size ${assessment.formSize} does not match planned size ${plan.formSize}.`,
+      );
+    }
+    if (
+      assessment.passThresholdPercent !== undefined &&
+      assessment.passThresholdPercent !== plan.passThresholdPercent
+    ) {
+      throw new Error(
+        `Capability assessment ${assessment.assessmentKey} threshold ${assessment.passThresholdPercent} does not match planned threshold ${plan.passThresholdPercent}.`,
+      );
+    }
+    if (assessment.items.length < plan.minimumItemPoolSize) {
+      throw new Error(
+        `Capability assessment ${assessment.assessmentKey} requires at least ${plan.minimumItemPoolSize} private items; ${assessment.items.length} were supplied.`,
+      );
+    }
   }
 
   for (const entry of assessment.competencyBlueprint) {
@@ -133,6 +234,8 @@ export function validateCapabilityAssessmentAgainstBlueprint(
       );
     }
   }
+
+  validateCriticalBoundaryTags(assessment);
 
   return {
     assessmentKey: assessment.assessmentKey,

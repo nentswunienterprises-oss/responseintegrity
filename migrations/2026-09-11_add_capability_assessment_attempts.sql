@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS private.specialist_capability_assessment_items (
   options jsonb NOT NULL,
   correct_option_keys jsonb NOT NULL,
   critical_fail_option_keys jsonb NOT NULL DEFAULT '[]'::jsonb,
+  critical_boundary_keys jsonb NOT NULL DEFAULT '[]'::jsonb,
   explanation text NOT NULL,
   active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -158,7 +159,7 @@ COMMENT ON TABLE private.specialist_capability_assessment_configs IS
   'Private live capability assessment configuration. Production answer content must not be sourced from the public repository.';
 
 COMMENT ON TABLE private.specialist_capability_assessment_items IS
-  'Private live capability assessment item bank, including scoring keys. Not exposed through the Supabase Data API.';
+  'Private live capability assessment item bank, including scoring keys and critical-boundary lineage. Not exposed through the Supabase Data API.';
 
 COMMENT ON TABLE specialist_capability_assessment_attempts IS
   'Immutable submitted Specialist capability evidence including exact bank version and deterministic form identity. Direct client table access is denied.';

@@ -14,9 +14,17 @@ function perfectResponses() {
   }));
 }
 
-test("Specialist assessment projection contains prompts and options but no scoring secrets", () => {
+test("Specialist assessment projection contains prompts and options but no scoring or boundary secrets", () => {
+  const taggedDefinition = {
+    ...CLARITY_MASTERY_ASSESSMENT,
+    questions: CLARITY_MASTERY_ASSESSMENT.questions.map((question, index) =>
+      index === 0
+        ? { ...question, criticalBoundaryKeys: ["clarity.internal_boundary"] }
+        : question,
+    ),
+  };
   const projected = projectCapabilityAssessmentForSpecialist({
-    definition: CLARITY_MASTERY_ASSESSMENT,
+    definition: taggedDefinition,
     formId: "form-proof-1",
     bankVersion: 1,
     attemptNumber: 1,
@@ -28,6 +36,8 @@ test("Specialist assessment projection contains prompts and options but no scori
   assert.match(serialized, /Clarity Mastery Check/);
   assert.doesNotMatch(serialized, /correctOptionKeys/);
   assert.doesNotMatch(serialized, /criticalFailOptionKeys/);
+  assert.doesNotMatch(serialized, /criticalBoundaryKeys/);
+  assert.doesNotMatch(serialized, /internal_boundary/);
   assert.doesNotMatch(serialized, /explanation/);
   assert.doesNotMatch(serialized, /competencyKey/);
 });
@@ -49,5 +59,6 @@ test("Specialist result projection exposes outcome but not answer or question-le
   assert.doesNotMatch(serialized, /questionResults/);
   assert.doesNotMatch(serialized, /criticalFailQuestionKeys/);
   assert.doesNotMatch(serialized, /correctOptionKeys/);
+  assert.doesNotMatch(serialized, /criticalBoundaryKeys/);
   assert.doesNotMatch(serialized, /explanation/);
 });
