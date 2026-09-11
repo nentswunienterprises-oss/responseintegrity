@@ -93,13 +93,7 @@ CREATE TABLE IF NOT EXISTS specialist_capability_practical_evidence (
   artifact_type varchar NOT NULL CHECK (artifact_type IN ('screen_voice', 'screen_video', 'video')),
   declaration jsonb NOT NULL,
   no_real_student_data_confirmed boolean NOT NULL CHECK (no_real_student_data_confirmed = true),
-  status varchar NOT NULL DEFAULT 'submitted' CHECK (status IN ('submitted', 'approved', 'repeat_required', 'integrity_review')),
-  reviewer_id varchar REFERENCES users(id),
-  reviewer_role varchar,
-  review_reason_code varchar,
-  reviewer_feedback text,
   submitted_at timestamptz NOT NULL DEFAULT now(),
-  reviewed_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (tutor_assignment_id, proof_key, proof_version, attempt_number)
 );
@@ -107,11 +101,26 @@ CREATE TABLE IF NOT EXISTS specialist_capability_practical_evidence (
 ALTER TABLE specialist_capability_practical_evidence ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE specialist_capability_practical_evidence FROM anon, authenticated;
 
+CREATE TABLE IF NOT EXISTS specialist_capability_practical_reviews (
+  id varchar PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  evidence_id varchar NOT NULL UNIQUE REFERENCES specialist_capability_practical_evidence(id) ON DELETE CASCADE,
+  reviewer_id varchar NOT NULL REFERENCES users(id),
+  reviewer_role varchar NOT NULL,
+  outcome varchar NOT NULL CHECK (outcome IN ('approved', 'repeat_required', 'integrity_review')),
+  reason_code varchar,
+  feedback text,
+  reviewed_at timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE specialist_capability_practical_reviews ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE specialist_capability_practical_reviews FROM anon, authenticated;
+
 CREATE INDEX IF NOT EXISTS idx_capability_practical_tutor
   ON specialist_capability_practical_evidence (tutor_assignment_id, submitted_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_capability_practical_review_queue
-  ON specialist_capability_practical_evidence (status, submitted_at ASC);
+CREATE INDEX IF NOT EXISTS idx_capability_practical_reviewed_at
+  ON specialist_capability_practical_reviews (reviewed_at DESC);
 
 COMMENT ON TABLE private.specialist_capability_assessment_configs IS
   'Private live capability assessment configuration. Production answer content must not be sourced from the public repository.';
@@ -123,4 +132,7 @@ COMMENT ON TABLE specialist_capability_assessment_attempts IS
   'Immutable submitted Specialist capability evidence including exact bank version and deterministic form identity. Direct client table access is denied.';
 
 COMMENT ON TABLE specialist_capability_practical_evidence IS
-  'Immutable Specialist practical evidence references and human review outcomes. Practical recordings must use sandbox scenarios and may not contain real student data.';
+  'Immutable Specialist practical evidence references. Recordings must use sandbox scenarios and may not contain real student data.';
+
+COMMENT ON TABLE specialist_capability_practical_reviews IS
+  'Immutable human review decisions for Specialist practical capability evidence.';
