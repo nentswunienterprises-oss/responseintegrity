@@ -7,6 +7,11 @@ import {
 import { CAPABILITY_PRACTICAL_PROOFS } from "@shared/capabilityPracticalEvidence";
 import { ORAL_DEFENSE_VERSION } from "@shared/capabilityOralDefense";
 import { selectCurrentCapabilityReadinessEvidence } from "@shared/capabilityEvidenceSelection";
+import {
+  canCapabilityReviewerAccessAssignment,
+  isCapabilityReviewerRole,
+  type CapabilityReviewerRole,
+} from "@shared/capabilityReviewerScope";
 
 function httpError(status: number, message: string, data?: Record<string, unknown>) {
   const error = new Error(message) as Error & { status?: number; data?: Record<string, unknown> };
@@ -15,9 +20,9 @@ function httpError(status: number, message: string, data?: Record<string, unknow
   return error;
 }
 
-export function normalizeCapabilityReviewerRole(role: string) {
+export function normalizeCapabilityReviewerRole(role: string): CapabilityReviewerRole {
   const normalized = String(role || "").toLowerCase();
-  if (!new Set(["td", "coo", "hr"]).has(normalized)) {
+  if (!isCapabilityReviewerRole(normalized)) {
     throw httpError(403, "Capability review access is restricted.");
   }
   return normalized;
@@ -62,7 +67,11 @@ export async function assertCapabilityReviewerAccessToAssignment(input: {
 
   const row = result.rows[0];
   if (!row) throw httpError(404, "Specialist assignment not found.");
-  if (reviewerRole === "td" && String(row.td_id || "") !== input.reviewerId) {
+  if (!canCapabilityReviewerAccessAssignment({
+    reviewerId: input.reviewerId,
+    reviewerRole,
+    assignmentTdId: row.td_id || null,
+  })) {
     throw httpError(403, "This Specialist is outside the reviewer's assigned pod scope.");
   }
 
