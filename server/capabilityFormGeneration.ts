@@ -1,8 +1,9 @@
 import { createHash, createHmac } from "node:crypto";
-import type {
-  CapabilityAssessmentDefinition,
-  CapabilityEvidenceKind,
-  CapabilityQuestionDefinition,
+import {
+  validateCapabilityAssessmentDefinition,
+  type CapabilityAssessmentDefinition,
+  type CapabilityEvidenceKind,
+  type CapabilityQuestionDefinition,
 } from "@shared/capabilityEngine";
 
 export interface CapabilityCompetencyBlueprintEntry {
@@ -119,7 +120,7 @@ export function generateDeterministicCapabilityForm(
   const ordered = [...selected].sort((left, right) => {
     const leftRank = stableRank(`${seed}:order`, left.key);
     const rightRank = stableRank(`${seed}:order`, right.key);
-    return leftRank.localeCompare(rightRank) || left.key.localeCompare(right.key);
+    return leftRank.localeCompare(rightRank) || left.key.localeCompare(rightRank);
   });
 
   const itemKeys = ordered.map((item) => item.key);
@@ -128,17 +129,21 @@ export function generateDeterministicCapabilityForm(
     .digest("hex")
     .slice(0, 24);
 
+  const definition: CapabilityAssessmentDefinition = {
+    key: config.assessmentKey,
+    deepDiveKey: config.assessmentDeepDiveKey,
+    title: config.title,
+    evidenceKind: config.evidenceKind,
+    passThresholdPercent: config.passThresholdPercent,
+    questions: ordered,
+  };
+
+  validateCapabilityAssessmentDefinition(definition);
+
   return {
     formId,
     bankVersion: config.bankVersion,
     itemKeys,
-    definition: {
-      key: config.assessmentKey,
-      deepDiveKey: config.assessmentDeepDiveKey,
-      title: config.title,
-      evidenceKind: config.evidenceKind,
-      passThresholdPercent: config.passThresholdPercent,
-      questions: ordered,
-    },
+    definition,
   };
 }
