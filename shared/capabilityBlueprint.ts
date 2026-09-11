@@ -28,10 +28,12 @@ export const CAPABILITY_BLUEPRINT_VERSION = 1;
 
 export const CAPABILITY_CROSS_CUTTING_COMPETENCIES = [
   "evidence.observation_vs_inference",
+  "evidence.contamination",
+  "evidence.logging_integrity",
   "evidence.condition_integrity",
-  "evidence.assistance_contamination",
   "evidence.rep_lineage",
   "evidence.observability_integrity",
+  "discernment.escalation_boundary",
   "system.authority",
 ] as const;
 
@@ -75,13 +77,20 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
     operatingCapability:
       "Build and verify a clear topic mental map before independent execution or pressure: vocabulary, method, reason, and immediate apply.",
     competencyKeys: [
-      "clarity.mental_map",
-      "clarity.observation_fields",
-      "clarity.modeling_vs_evidence",
-      "clarity.identification_constraint",
-      "clarity.light_apply_constraint",
+      "clarity.phase_purpose",
+      "clarity.recognition_boundary",
+      "clarity.light_apply_support",
+      "clarity.vmr_sequence",
+      "clarity.identification_set",
+      "clarity.modeling_set",
+      "clarity.progression",
+      "clarity.constraints",
+      "clarity.rep_purpose",
+      "clarity.transfer",
       "evidence.observation_vs_inference",
-      "evidence.assistance_contamination",
+      "evidence.contamination",
+      "evidence.logging_integrity",
+      "discernment.escalation_boundary",
       "system.authority",
     ],
     criticalBoundaries: [
@@ -108,13 +117,18 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
     operatingCapability:
       "Protect reliable, ordered, repeatable and independent execution of a method the student already understands.",
     competencyKeys: [
-      "structured_execution.method_ownership",
-      "structured_execution.observation_fields",
-      "structured_execution.required_structure_boundary",
-      "structured_execution.independent_execution_boundary",
-      "structured_execution.variation_control_boundary",
+      "structured_execution.phase_purpose",
+      "structured_execution.required_structure",
+      "structured_execution.independent_execution",
+      "structured_execution.variation_control",
+      "structured_execution.constraints",
+      "structured_execution.progression",
+      "structured_execution.recipe_sequence",
+      "structured_execution.repeatability",
+      "structured_execution.phase_boundary",
       "evidence.observation_vs_inference",
-      "evidence.assistance_contamination",
+      "evidence.contamination",
+      "discernment.escalation_boundary",
       "system.authority",
     ],
     criticalBoundaries: [
@@ -148,7 +162,8 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
       "controlled_discomfort.repeat_exposure_boundary",
       "controlled_discomfort.accessible_difficulty",
       "evidence.observation_vs_inference",
-      "evidence.assistance_contamination",
+      "evidence.contamination",
+      "discernment.escalation_boundary",
       "system.authority",
     ],
     criticalBoundaries: [
@@ -185,7 +200,7 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
       "time_pressure_stability.repeated_timed_execution",
       "time_pressure_stability.full_constraint",
       "time_pressure_stability.method_over_speed",
-      "evidence.assistance_contamination",
+      "evidence.contamination",
       "system.authority",
     ],
     criticalBoundaries: [
@@ -254,7 +269,7 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
       "intro.entry_lock_stop",
       "intro.diagnosis_vs_training",
       "evidence.observation_vs_inference",
-      "evidence.assistance_contamination",
+      "evidence.contamination",
       "system.authority",
     ],
     criticalBoundaries: [
@@ -285,7 +300,8 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
       "evidence.observation_vs_inference",
       "evidence.rep_lineage",
       "logging.raw_option_fidelity",
-      "evidence.assistance_contamination",
+      "evidence.contamination",
+      "evidence.logging_integrity",
       "logging.missing_evidence_recovery",
       "logging.downstream_claim_integrity",
       "system.authority",
