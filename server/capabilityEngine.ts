@@ -1,19 +1,15 @@
 import { pool } from "./db";
-import { CAPABILITY_ASSESSMENTS } from "@shared/capabilityAssessmentBank";
+import { buildCapabilityAttemptPlan, type CapabilityAttemptPlan } from "./capabilityBank";
 import {
   buildCapabilityLedger,
   evaluateCapabilityAssessment,
-  type CapabilityAssessmentDefinition,
   type CapabilityLedgerAttempt,
   type CapabilityQuestionResult,
   type CapabilityResponseInput,
 } from "@shared/capabilityEngine";
 
-export function getCapabilityAssessmentDefinition(assessmentKey: string): CapabilityAssessmentDefinition | null {
-  return CAPABILITY_ASSESSMENTS.find((assessment) => assessment.key === assessmentKey) || null;
-}
-
-export function buildPublicCapabilityAssessment(definition: CapabilityAssessmentDefinition) {
+export function buildPublicCapabilityAssessment(plan: CapabilityAttemptPlan) {
+  const definition = plan.form.definition;
   return {
     key: definition.key,
     deepDiveKey: definition.deepDiveKey,
@@ -21,6 +17,10 @@ export function buildPublicCapabilityAssessment(definition: CapabilityAssessment
     evidenceKind: definition.evidenceKind,
     passThresholdPercent: definition.passThresholdPercent,
     totalQuestions: definition.questions.length,
+    formId: plan.form.formId,
+    bankVersion: plan.form.bankVersion,
+    attemptNumber: plan.attemptNumber,
+    maxAttempts: plan.config.maxAttempts,
     questions: definition.questions.map((question) => ({
       key: question.key,
       competencyKey: question.competencyKey,
@@ -38,7 +38,7 @@ async function assertTutorAssignmentOwnership(tutorAssignmentId: string, tutorId
       WHERE id = $1
         AND tutor_id = $2
       LIMIT 1`,
-    [tutorAssignmentId, tutorId]
+    [tutorAssignmentId, tutorId],
   );
 
   if (!result.rowCount) {
@@ -50,68 +50,113 @@ async function assertTutorAssignmentOwnership(tutorAssignmentId: string, tutorId
   }
 }
 
+export async function prepareCapabilityAssessmentForm(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  assessmentKey: string;
+}) {
+  await assertTutorAssignmentOwnership(input.tutorAssignmentId, input.tutorId);
+  const plan = await buildCapabilityAttemptPlan({
+    tutorAssignmentId: input.tutorAssignmentId,
+    assessmentKey: input.assessmentKey,
+  });
+  return buildPublicCapabilityAssessment(plan);
+}
+
 export async function persistCapabilityAssessmentAttempt(input: {
   tutorAssignmentId: string;
   tutorId: string;
   assessmentKey: string;
+  formId: string;
+  bankVersion: number;
   responses: CapabilityResponseInput[];
 }) {
-  const definition = getCapabilityAssessmentDefinition(input.assessmentKey);
-  if (!definition) {
-    const error = new Error("Unknown capability assessment.") as Error & { status?: number };
-    error.status = 404;
+  await assertTutorAssignmentOwnership(input.tutorAssignmentId, input.tutorId);
+
+  const plan = await buildCapabilityAttemptPlan({
+    tutorAssignmentId: input.tutorAssignmentId,
+    assessmentKey: input.assessmentKey,
+  });
+
+  if (plan.form.formId !== input.formId || plan.form.bankVersion !== input.bankVersion) {
+    const error = new Error("Capability assessment form is stale or does not match the active attempt.") as Error & {
+      status?: number;
+    };
+    error.status = 409;
     throw error;
   }
 
-  await assertTutorAssignmentOwnership(input.tutorAssignmentId, input.tutorId);
-
+  const definition = plan.form.definition;
   const result = evaluateCapabilityAssessment(definition, input.responses);
 
-  const insertResult = await pool.query(
-    `INSERT INTO specialist_capability_assessment_attempts (
-       tutor_assignment_id,
-       tutor_id,
-       assessment_key,
-       assessment_deep_dive_key,
-       evidence_kind,
-       covered_deep_dive_keys,
-       pass_threshold_percent,
-       total_questions,
-       correct_questions,
-       percent,
-       has_critical_fail,
-       critical_fail_question_keys,
-       passed,
-       responses,
-       question_results
-     ) VALUES (
-       $1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12::jsonb, $13, $14::jsonb, $15::jsonb
-     )
-     RETURNING id, completed_at`,
-    [
-      input.tutorAssignmentId,
-      input.tutorId,
-      result.assessmentKey,
-      result.assessmentDeepDiveKey,
-      result.evidenceKind,
-      JSON.stringify(result.coveredDeepDiveKeys),
-      definition.passThresholdPercent,
-      result.totalQuestions,
-      result.correctQuestions,
-      result.percent,
-      result.hasCriticalFail,
-      JSON.stringify(result.criticalFailQuestionKeys),
-      result.passed,
-      JSON.stringify(input.responses),
-      JSON.stringify(result.questionResults),
-    ]
-  );
+  try {
+    const insertResult = await pool.query(
+      `INSERT INTO specialist_capability_assessment_attempts (
+         tutor_assignment_id,
+         tutor_id,
+         assessment_key,
+         bank_version,
+         attempt_number,
+         form_id,
+         form_item_keys,
+         assessment_deep_dive_key,
+         evidence_kind,
+         covered_deep_dive_keys,
+         pass_threshold_percent,
+         total_questions,
+         correct_questions,
+         percent,
+         has_critical_fail,
+         critical_fail_question_keys,
+         passed,
+         responses,
+         question_results
+       ) VALUES (
+         $1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10::jsonb,
+         $11, $12, $13, $14, $15, $16::jsonb, $17, $18::jsonb, $19::jsonb
+       )
+       RETURNING id, completed_at`,
+      [
+        input.tutorAssignmentId,
+        input.tutorId,
+        result.assessmentKey,
+        plan.form.bankVersion,
+        plan.attemptNumber,
+        plan.form.formId,
+        JSON.stringify(plan.form.itemKeys),
+        result.assessmentDeepDiveKey,
+        result.evidenceKind,
+        JSON.stringify(result.coveredDeepDiveKeys),
+        definition.passThresholdPercent,
+        result.totalQuestions,
+        result.correctQuestions,
+        result.percent,
+        result.hasCriticalFail,
+        JSON.stringify(result.criticalFailQuestionKeys),
+        result.passed,
+        JSON.stringify(input.responses),
+        JSON.stringify(result.questionResults),
+      ],
+    );
 
-  return {
-    attemptId: insertResult.rows[0]?.id,
-    completedAt: insertResult.rows[0]?.completed_at,
-    ...result,
-  };
+    return {
+      attemptId: insertResult.rows[0]?.id,
+      completedAt: insertResult.rows[0]?.completed_at,
+      bankVersion: plan.form.bankVersion,
+      attemptNumber: plan.attemptNumber,
+      formId: plan.form.formId,
+      ...result,
+    };
+  } catch (error) {
+    if ((error as { code?: string })?.code === "23505") {
+      const conflict = new Error("This capability assessment attempt has already been submitted.") as Error & {
+        status?: number;
+      };
+      conflict.status = 409;
+      throw conflict;
+    }
+    throw error;
+  }
 }
 
 export async function getCapabilityAssessmentHistory(input: {
@@ -131,6 +176,9 @@ export async function getCapabilityAssessmentHistory(input: {
   const result = await pool.query(
     `SELECT id,
             assessment_key,
+            bank_version,
+            attempt_number,
+            form_id,
             assessment_deep_dive_key,
             evidence_kind,
             covered_deep_dive_keys,
@@ -147,7 +195,7 @@ export async function getCapabilityAssessmentHistory(input: {
         AND tutor_id = $2
         ${assessmentFilter}
       ORDER BY completed_at DESC`,
-    params
+    params,
   );
 
   return result.rows;
@@ -170,7 +218,7 @@ export async function getSpecialistCapabilityLedger(input: {
       WHERE tutor_assignment_id = $1
         AND tutor_id = $2
       ORDER BY completed_at ASC`,
-    [input.tutorAssignmentId, input.tutorId]
+    [input.tutorAssignmentId, input.tutorId],
   );
 
   const attempts: CapabilityLedgerAttempt[] = result.rows.map((row) => ({
