@@ -32,10 +32,14 @@ function generate(attemptNumber: number, assignment = "assignment-1", bank = con
   });
 }
 
-test("same assignment, bank version and attempt always resolve to the same scenario and form id", () => {
+test("same assignment, bank version and attempt always resolve to the same scenario, option order and form id", () => {
   const first = generate(2);
   const second = generate(2);
   assert.equal(first.definition.key, second.definition.key);
+  assert.deepEqual(
+    first.definition.decisions.map((decision) => decision.options.map((option) => option.key)),
+    second.definition.decisions.map((decision) => decision.options.map((option) => option.key)),
+  );
   assert.equal(first.simulationFormId, second.simulationFormId);
 });
 
@@ -43,6 +47,21 @@ test("successive attempts rotate through the scenario pool before repeating", ()
   const firstCycle = [generate(1), generate(2), generate(3)].map((entry) => entry.definition.key);
   assert.equal(new Set(firstCycle).size, 3);
   assert.equal(generate(4).definition.key, generate(1).definition.key);
+});
+
+test("option presentation rotates deterministically between attempts even for the same scenario", () => {
+  const singleScenarioBank: SandboxSimulationBankConfig = {
+    ...config,
+    bankKey: "single_bank",
+    scenarios: [scenario("single")],
+  };
+  const first = generate(1, "assignment-1", singleScenarioBank);
+  const second = generate(2, "assignment-1", singleScenarioBank);
+
+  const firstOrder = first.definition.decisions[0].options.map((option) => option.key);
+  const secondOrder = second.definition.decisions[0].options.map((option) => option.key);
+  assert.notDeepEqual(firstOrder, secondOrder);
+  assert.notEqual(first.simulationFormId, second.simulationFormId);
 });
 
 test("bank-version rotation changes the deterministic selection namespace", () => {
