@@ -51,3 +51,56 @@ test("release-grade cumulative private pool must represent every canonical criti
     /private pool omits canonical clarity critical boundaries: clarity.no_manual_progression/,
   );
 });
+
+test("release-grade transfer prompts cannot reveal the tested Deep Dive label", () => {
+  const structuredItems = [
+    {
+      competencyKey: "structured_execution.independent_execution",
+      deepDiveKey: "structured_execution",
+      kind: "single_choice" as const,
+      correctOptionKeys: ["preserve"],
+      criticalFailOptionKeys: ["violate"],
+      criticalBoundaryKeys: ["structured_execution.prompted_not_independent"],
+    },
+    {
+      competencyKey: "structured_execution.constraints",
+      deepDiveKey: "structured_execution",
+      kind: "single_choice" as const,
+      correctOptionKeys: ["preserve"],
+      criticalFailOptionKeys: ["violate"],
+      criticalBoundaryKeys: ["structured_execution.no_support_independent_execution"],
+    },
+    {
+      competencyKey: "evidence.contamination",
+      deepDiveKey: "structured_execution",
+      kind: "single_choice" as const,
+      correctOptionKeys: ["preserve"],
+      criticalFailOptionKeys: ["violate"],
+      criticalBoundaryKeys: ["structured_execution.no_disguised_assistance"],
+    },
+  ];
+
+  assert.throws(
+    () =>
+      validateCapabilityAssessmentAgainstBlueprint({
+        assessmentKey: "test_phase_blind_transfer",
+        assessmentDeepDiveKey: "mixed",
+        evidenceKind: "transfer",
+        enforceMvpPlan: true,
+        competencyBlueprint: [
+          { competencyKey: "clarity.modeling_set", deepDiveKey: "clarity", count: 1 },
+          { competencyKey: "clarity.recognition_boundary", deepDiveKey: "clarity", count: 1 },
+          { competencyKey: "system.authority", deepDiveKey: "clarity", count: 1 },
+          { competencyKey: "structured_execution.independent_execution", deepDiveKey: "structured_execution", count: 1 },
+          { competencyKey: "structured_execution.constraints", deepDiveKey: "structured_execution", count: 1 },
+          { competencyKey: "evidence.contamination", deepDiveKey: "structured_execution", count: 1 },
+        ],
+        items: [
+          { ...baseItems[0], prompt: "The Clarity condition appears stable. What should happen next?" },
+          ...baseItems.slice(1),
+          ...structuredItems,
+        ],
+      }),
+    /prompt exposes tested Deep Dive label clarity/,
+  );
+});
