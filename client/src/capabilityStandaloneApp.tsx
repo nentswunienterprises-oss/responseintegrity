@@ -11,6 +11,7 @@ import SpecialistCapabilityPracticals from "@/pages/operational/tutor/capability
 import SpecialistCapabilitySandboxSimulation from "@/pages/operational/tutor/capability-sandbox-simulation";
 import CapabilityPracticalReview from "@/pages/operational/capability-practical-review";
 import CapabilityOralDefenseReview from "@/pages/operational/capability-oral-defense-review";
+import CapabilityShadowCohortReview from "@/pages/operational/capability-shadow-cohort";
 
 export function CapabilityStandaloneApp() {
   return (
@@ -58,6 +59,10 @@ export function CapabilityStandaloneApp() {
           <Route
             path="/operational/capability-review/oral-defense"
             element={<CapabilityOralDefenseReview />}
+          />
+          <Route
+            path="/operational/capability-review/shadow-cohort"
+            element={<CapabilityShadowCohortReview />}
           />
           <Route path="*" element={<Navigate to="/specialist/pod" replace />} />
         </Routes>
