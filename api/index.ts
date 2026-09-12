@@ -6,6 +6,7 @@ import { registerCapabilityEngineRoutes } from '../server/routes/capabilityEngin
 import { registerCapabilityPracticalEvidenceRoutes } from '../server/routes/capabilityPracticalEvidence';
 import { registerCapabilityOralDefenseRoutes } from '../server/routes/capabilityOralDefense';
 import { registerCapabilitySandboxSimulationRoutes } from '../server/routes/capabilitySandboxSimulation';
+import { registerCapabilityMockDossierRoutes } from '../server/routes/capabilityMockDossier';
 import { getSession } from '../server/supabaseAuth';
 import cors from 'cors';
 
@@ -48,6 +49,7 @@ registerCapabilityEngineRoutes(app);
 registerCapabilityPracticalEvidenceRoutes(app);
 registerCapabilityOralDefenseRoutes(app);
 registerCapabilitySandboxSimulationRoutes(app);
+registerCapabilityMockDossierRoutes(app);
 registerRoutes(app);
 
 // Catch-all for unhandled routes
