@@ -165,8 +165,14 @@ export function selectCurrentCapabilityReadinessEvidence(
   const currentPracticalVersions = new Map(
     input.currentPracticalVersions.map((version) => [version.proofKey, version.proofVersion]),
   );
+
+  // Practical attempt numbering also restarts when an immutable proof version
+  // changes. Filter to the current version before choosing the latest attempt.
+  const currentVersionPracticals = input.practicals.filter(
+    (record) => currentPracticalVersions.get(record.proofKey) === record.proofVersion,
+  );
   const latestPracticals = latestByKey(
-    input.practicals,
+    currentVersionPracticals,
     (record) => record.proofKey,
     (record) => record.attemptNumber,
     (record) => timestamp(record.reviewedAt || record.submittedAt),
@@ -184,24 +190,23 @@ export function selectCurrentCapabilityReadinessEvidence(
   const satisfiedEvidenceCells = evidenceCellStates.map((cell) => cell.code);
 
   const approvedPracticalProofKeys = Array.from(latestPracticals.values())
-    .filter(
-      (record) =>
-        record.outcome === "approved" &&
-        currentPracticalVersions.get(record.proofKey) === record.proofVersion,
-    )
+    .filter((record) => record.outcome === "approved")
     .map((record) => record.proofKey)
     .sort();
 
-  const latestOralDefense = [...input.oralDefenses].sort((left, right) => {
+  // Oral Defense attempt numbering is version-scoped as well. A historical V1
+  // attempt 4 must never outrank the current V2 attempt 1.
+  const currentVersionOralDefenses = input.oralDefenses.filter(
+    (record) => record.defenseVersion === input.currentOralDefenseVersion,
+  );
+  const latestOralDefense = [...currentVersionOralDefenses].sort((left, right) => {
     const attemptDelta = right.attemptNumber - left.attemptNumber;
     if (attemptDelta !== 0) return attemptDelta;
     return timestamp(right.completedAt) - timestamp(left.completedAt);
   })[0];
 
   const oralDefenseApproved = Boolean(
-    latestOralDefense &&
-      latestOralDefense.defenseVersion === input.currentOralDefenseVersion &&
-      latestOralDefense.outcome === "approved",
+    latestOralDefense && latestOralDefense.outcome === "approved",
   );
 
   return {
