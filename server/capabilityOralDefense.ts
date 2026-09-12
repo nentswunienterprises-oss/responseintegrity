@@ -2,7 +2,7 @@ import { pool } from "./db";
 import {
   evaluateOralDefenseProbes,
   ORAL_DEFENSE_VERSION,
-  type CapabilityOralDefenseProbe,
+  type CapabilityOralDefenseProbeObservation,
 } from "@shared/capabilityOralDefense";
 import {
   assertCapabilityReviewerAccessToAssignment,
@@ -121,7 +121,7 @@ async function loadPracticalRiskHistory(tutorAssignmentId: string) {
   return normalizePracticalRiskRows(result.rows);
 }
 
-async function getLatestOralDefense(tutorAssignmentId: string) {
+async function getLatestCurrentOralDefense(tutorAssignmentId: string) {
   const result = await pool.query(
     `SELECT id,
             defense_version,
@@ -131,9 +131,10 @@ async function getLatestOralDefense(tutorAssignmentId: string) {
             completed_at
        FROM specialist_capability_oral_defenses
       WHERE tutor_assignment_id = $1
+        AND defense_version = $2
       ORDER BY attempt_number DESC, completed_at DESC
       LIMIT 1`,
-    [tutorAssignmentId],
+    [tutorAssignmentId, ORAL_DEFENSE_VERSION],
   );
   return result.rows[0] || null;
 }
@@ -146,12 +147,12 @@ export async function buildOralDefenseBrief(input: {
   const assignment = await assertCapabilityReviewerAccessToAssignment(input);
   await assertPreOralCapabilityEvidenceReady(input.tutorAssignmentId);
 
-  const latestDefense = await getLatestOralDefense(input.tutorAssignmentId);
+  const latestDefense = await getLatestCurrentOralDefense(input.tutorAssignmentId);
   if (latestDefense?.outcome === "approved") {
-    throw httpError(409, "The Oral Integrity Defense has already been approved.");
+    throw httpError(409, "The current Oral Integrity Defense has already been approved.");
   }
   if (latestDefense?.outcome === "integrity_review") {
-    throw httpError(409, "The Oral Integrity Defense is under integrity review and cannot be repeated yet.");
+    throw httpError(409, "The current Oral Integrity Defense is under integrity review and cannot be repeated yet.");
   }
 
   const [assessments, practicals, readinessEvidence, specialistResult] = await Promise.all([
@@ -168,7 +169,15 @@ export async function buildOralDefenseBrief(input: {
   ]);
 
   const risks = buildCapabilityOralRiskSignals(assessments, practicals);
-  const probes = buildCapabilityOralProbeBriefs(risks);
+  let probes: CapabilityOralDefenseProbeBrief[];
+  try {
+    probes = buildCapabilityOralProbeBriefs(risks);
+  } catch (error) {
+    throw httpError(
+      409,
+      `The current capability evidence cannot produce a canonical Oral Defense brief: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
   const evidenceFingerprint = buildCapabilityEvidenceFingerprint(assessments, practicals);
   const attemptNumber = Number(latestDefense?.attempt_number || 0) + 1;
   const briefId = buildCapabilityOralBriefId({
@@ -201,7 +210,7 @@ export async function buildOralDefenseBrief(input: {
 
 function assertProbeSetMatchesBrief(
   expected: CapabilityOralDefenseProbeBrief[],
-  actual: CapabilityOralDefenseProbe[],
+  actual: CapabilityOralDefenseProbeObservation[],
 ) {
   const expectedIds = expected
     .map((probe) => `${probe.deepDiveKey}:${probe.focusKey}`)
@@ -225,7 +234,7 @@ export async function completeOralDefense(input: {
   briefId: string;
   defenseVersion: number;
   attemptNumber: number;
-  probes: CapabilityOralDefenseProbe[];
+  probes: CapabilityOralDefenseProbeObservation[];
   feedback?: string | null;
   sandboxScenarioConfirmed: boolean;
 }) {
@@ -241,11 +250,16 @@ export async function completeOralDefense(input: {
 
   const brief = await buildOralDefenseBrief(input);
   if (input.briefId !== brief.briefId || input.attemptNumber !== brief.attemptNumber) {
-    throw httpError(409, "The oral defense brief is stale because the Specialist's evidence state changed. Refresh the brief before continuing.");
+    throw httpError(409, "The oral defense brief is stale because the Specialist's evidence state or issued standard changed. Refresh the brief before continuing.");
   }
 
   assertProbeSetMatchesBrief(brief.probes, input.probes);
-  const evaluation = evaluateOralDefenseProbes(input.probes);
+  let evaluation;
+  try {
+    evaluation = evaluateOralDefenseProbes(brief.probes, input.probes);
+  } catch (error) {
+    throw httpError(400, error instanceof Error ? error.message : "Invalid Oral Integrity Defense evidence.");
+  }
   const feedback = String(input.feedback || "").trim();
 
   if (evaluation.outcome !== "approved" && feedback.length < 20) {
@@ -287,7 +301,7 @@ export async function completeOralDefense(input: {
         evaluation.clearCount,
         evaluation.partialCount,
         evaluation.failCount,
-        evaluation.integrityConcernCount,
+        evaluation.criticalFailCount,
         evaluation.outcome,
         feedback || null,
       ],
@@ -303,8 +317,9 @@ export async function completeOralDefense(input: {
         clear: evaluation.clearCount,
         partial: evaluation.partialCount,
         fail: evaluation.failCount,
-        integrityConcern: evaluation.integrityConcernCount,
+        criticalFail: evaluation.criticalFailCount,
       },
+      criticalFailProbeKeys: evaluation.criticalFailProbeKeys,
       completedAt: result.rows[0]?.completed_at,
     };
   } catch (error) {
@@ -320,7 +335,7 @@ export async function getSpecialistOralDefenseStatus(input: {
   tutorId: string;
 }) {
   await assertCapabilityTutorAssignmentOwnership(input.tutorAssignmentId, input.tutorId);
-  const latest = await getLatestOralDefense(input.tutorAssignmentId);
+  const latest = await getLatestCurrentOralDefense(input.tutorAssignmentId);
   if (!latest) return null;
 
   return {
@@ -373,16 +388,16 @@ export async function listOralDefenseCandidates(input: {
     );
     if (missingPreOral.length > 0) continue;
 
-    const latestDefense = await getLatestOralDefense(tutorAssignmentId);
-    if (latestDefense?.outcome === "approved" || latestDefense?.outcome === "integrity_review") continue;
+    const currentDefense = await getLatestCurrentOralDefense(tutorAssignmentId);
+    if (currentDefense?.outcome === "approved" || currentDefense?.outcome === "integrity_review") continue;
 
     candidates.push({
       tutorAssignmentId,
       tutorId: String(row.tutor_id),
       specialistName: [row.first_name, row.last_name].filter(Boolean).join(" ").trim(),
       podName: row.pod_name || null,
-      latestDefenseOutcome: latestDefense?.outcome || null,
-      nextAttemptNumber: Number(latestDefense?.attempt_number || 0) + 1,
+      latestDefenseOutcome: currentDefense?.outcome || null,
+      nextAttemptNumber: Number(currentDefense?.attempt_number || 0) + 1,
       readinessStatus: readiness.status,
       missingRequirementCodes: readiness.missingRequirementCodes,
     });
