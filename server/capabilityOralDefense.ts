@@ -121,7 +121,7 @@ async function loadPracticalRiskHistory(tutorAssignmentId: string) {
   return normalizePracticalRiskRows(result.rows);
 }
 
-async function getLatestOralDefense(tutorAssignmentId: string) {
+async function getLatestCurrentOralDefense(tutorAssignmentId: string) {
   const result = await pool.query(
     `SELECT id,
             defense_version,
@@ -131,9 +131,10 @@ async function getLatestOralDefense(tutorAssignmentId: string) {
             completed_at
        FROM specialist_capability_oral_defenses
       WHERE tutor_assignment_id = $1
+        AND defense_version = $2
       ORDER BY attempt_number DESC, completed_at DESC
       LIMIT 1`,
-    [tutorAssignmentId],
+    [tutorAssignmentId, ORAL_DEFENSE_VERSION],
   );
   return result.rows[0] || null;
 }
@@ -146,11 +147,11 @@ export async function buildOralDefenseBrief(input: {
   const assignment = await assertCapabilityReviewerAccessToAssignment(input);
   await assertPreOralCapabilityEvidenceReady(input.tutorAssignmentId);
 
-  const latestDefense = await getLatestOralDefense(input.tutorAssignmentId);
-  if (latestDefense?.outcome === "approved" && Number(latestDefense.defense_version) === ORAL_DEFENSE_VERSION) {
+  const latestDefense = await getLatestCurrentOralDefense(input.tutorAssignmentId);
+  if (latestDefense?.outcome === "approved") {
     throw httpError(409, "The current Oral Integrity Defense has already been approved.");
   }
-  if (latestDefense?.outcome === "integrity_review" && Number(latestDefense.defense_version) === ORAL_DEFENSE_VERSION) {
+  if (latestDefense?.outcome === "integrity_review") {
     throw httpError(409, "The current Oral Integrity Defense is under integrity review and cannot be repeated yet.");
   }
 
@@ -178,10 +179,7 @@ export async function buildOralDefenseBrief(input: {
     );
   }
   const evidenceFingerprint = buildCapabilityEvidenceFingerprint(assessments, practicals);
-  const currentVersionAttempt = Number(latestDefense?.defense_version) === ORAL_DEFENSE_VERSION
-    ? Number(latestDefense?.attempt_number || 0)
-    : 0;
-  const attemptNumber = currentVersionAttempt + 1;
+  const attemptNumber = Number(latestDefense?.attempt_number || 0) + 1;
   const briefId = buildCapabilityOralBriefId({
     tutorAssignmentId: input.tutorAssignmentId,
     defenseVersion: ORAL_DEFENSE_VERSION,
@@ -337,8 +335,8 @@ export async function getSpecialistOralDefenseStatus(input: {
   tutorId: string;
 }) {
   await assertCapabilityTutorAssignmentOwnership(input.tutorAssignmentId, input.tutorId);
-  const latest = await getLatestOralDefense(input.tutorAssignmentId);
-  if (!latest || Number(latest.defense_version) !== ORAL_DEFENSE_VERSION) return null;
+  const latest = await getLatestCurrentOralDefense(input.tutorAssignmentId);
+  if (!latest) return null;
 
   return {
     defenseVersion: Number(latest.defense_version),
@@ -390,8 +388,7 @@ export async function listOralDefenseCandidates(input: {
     );
     if (missingPreOral.length > 0) continue;
 
-    const latestDefense = await getLatestOralDefense(tutorAssignmentId);
-    const currentDefense = Number(latestDefense?.defense_version) === ORAL_DEFENSE_VERSION ? latestDefense : null;
+    const currentDefense = await getLatestCurrentOralDefense(tutorAssignmentId);
     if (currentDefense?.outcome === "approved" || currentDefense?.outcome === "integrity_review") continue;
 
     candidates.push({
