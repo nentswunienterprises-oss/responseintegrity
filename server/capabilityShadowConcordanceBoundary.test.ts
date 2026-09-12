@@ -17,6 +17,14 @@ const routeSource = fs.readFileSync(
 const serverIndexSource = fs.readFileSync(new URL("./index.ts", import.meta.url), "utf8");
 const apiIndexSource = fs.readFileSync(new URL("../api/index.ts", import.meta.url), "utf8");
 
+function sourceSection(source: string, startMarker: string, endMarker: string) {
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker, start + startMarker.length);
+  assert.ok(start >= 0, `Missing source marker: ${startMarker}`);
+  assert.ok(end > start, `Missing source end marker: ${endMarker}`);
+  return source.slice(start, end);
+}
+
 test("shadow concordance route is authenticated GET-only reviewer analysis", () => {
   assert.match(routeSource, /app\.get\(/);
   assert.match(routeSource, /isAuthenticated/);
@@ -65,7 +73,12 @@ test("shadow concordance uses current-version Capability evidence and keeps simu
   assert.match(serviceSource, /defense_version\) === ORAL_DEFENSE_VERSION/);
   assert.match(serviceSource, /activeSimulationBankVersion/);
   assert.match(coreSource, /capabilitySimulationEvidence: input\.capabilityEvidence\.sandboxSimulation/);
-  assert.doesNotMatch(coreSource, /sandboxSimulation.*evaluateCapabilityReadiness/s);
+  const capabilityOverallSection = sourceSection(
+    coreSource,
+    "function normalizeCapabilityOverallState",
+    "export function buildShadowSpecialistConcordance",
+  );
+  assert.doesNotMatch(capabilityOverallSection, /sandboxSimulation/);
 });
 
 test("shadow concordance is descriptive only with no hard-coded equivalence threshold or cutover authority", () => {
@@ -84,8 +97,18 @@ test("shadow concordance is descriptive only with no hard-coded equivalence thre
 
 test("Mock and Trial are observational targets rather than inputs to pathway state", () => {
   assert.match(coreSource, /outcomeTarget: input\.outcomeTarget/);
-  assert.doesNotMatch(coreSource, /outcomeTarget.*normalizeCapabilityOverallState/s);
-  assert.doesNotMatch(coreSource, /outcomeTarget.*aggregateOverallState/s);
+  const aggregateSection = sourceSection(
+    coreSource,
+    "function aggregateOverallState",
+    "function normalizeCapabilityOverallState",
+  );
+  const capabilityOverallSection = sourceSection(
+    coreSource,
+    "function normalizeCapabilityOverallState",
+    "export function buildShadowSpecialistConcordance",
+  );
+  assert.doesNotMatch(aggregateSection, /outcomeTarget/);
+  assert.doesNotMatch(capabilityOverallSection, /outcomeTarget/);
 });
 
 test("shadow concordance route is registered in Express and Vercel runtimes", () => {
