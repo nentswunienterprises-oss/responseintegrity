@@ -246,6 +246,18 @@ Focused tests cover:
 - exact 165-question runtime bank vs 93-question fallback mismatch is visible;
 - audit remains `authoritative: false` with `cutoverDecision: null` and no authority mutation path.
 
+## Verification status in this runtime
+
+The latest Sprint 17 Capability Engine CI run is `34686387089` at head `5bd4f37cab08a5a16ff28eddfbfb45e1941f4ba8`.
+
+Its only job (`103533982057`) completed with:
+
+- `runner_id: 0`;
+- empty runner name;
+- `steps: []`.
+
+Therefore the GitHub Actions failure happened before runner allocation. Sprint 17 does **not** claim that the focused tests or TypeScript check executed successfully in GitHub Actions.
+
 ## Deployment state
 
 - no merge to `main`;
