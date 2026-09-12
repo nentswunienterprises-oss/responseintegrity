@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { CapabilityMockDossierCard } from "@/components/sandbox/CapabilityMockDossierCard";
 import {
   SANDBOX_MOCK_CRITERIA,
   SANDBOX_REQUIRED_ACCOUNT_COUNT,
@@ -138,131 +139,135 @@ export function SandboxMockGateCard({
   if (!isSandbox) return null;
 
   return (
-    <Card className="border-sky-200 bg-sky-50/30 p-4 sm:p-5">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-sky-900">Sandbox Exit Gate</p>
-          <h3 className="mt-1 text-lg font-semibold text-foreground">Mock Readiness Assessment</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            This is the final assessment inside Sandbox, not a separate platform mode. Passing it unlocks Trial.
-          </p>
-        </div>
-        <Badge className="border-sky-200 bg-sky-100 text-sky-900">
-          {data?.latestMockAssessment?.decision === "passed" ? "Passed" : "Sandbox"}
-        </Badge>
-      </div>
+    <div className="space-y-4">
+      <CapabilityMockDossierCard tutorId={tutorId} />
 
-      {isLoading ? (
-        <p className="mt-4 text-sm text-muted-foreground">Loading readiness evidence...</p>
-      ) : (
-        <div className="mt-5 space-y-5">
-          <div className="grid gap-2 sm:grid-cols-3">
-            <div className="rounded-lg border bg-background p-3">
-              <p className="text-xs text-muted-foreground">Sandbox accounts</p>
-              <p className="mt-1 text-sm font-semibold">
-                {data?.sandboxAccountCount || 0}/{SANDBOX_REQUIRED_ACCOUNT_COUNT} available
-              </p>
-            </div>
-            <div className="rounded-lg border bg-background p-3">
-              <p className="text-xs text-muted-foreground">Standard deadline</p>
-              <p className="mt-1 text-sm font-semibold">{formatDate(data?.pathway?.standardEndsAt)}</p>
-            </div>
-            <div className="rounded-lg border bg-background p-3">
-              <p className="text-xs text-muted-foreground">Effective deadline</p>
-              <p className="mt-1 text-sm font-semibold">{formatDate(data?.pathway?.timeline.effectiveEndsAt)}</p>
-            </div>
+      <Card className="border-sky-200 bg-sky-50/30 p-4 sm:p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-sky-900">Sandbox Exit Gate</p>
+            <h3 className="mt-1 text-lg font-semibold text-foreground">Mock Readiness Assessment</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This is the final assessment inside Sandbox, not a separate platform mode. Passing it unlocks Trial.
+            </p>
           </div>
+          <Badge className="border-sky-200 bg-sky-100 text-sky-900">
+            {data?.latestMockAssessment?.decision === "passed" ? "Passed" : "Sandbox"}
+          </Badge>
+        </div>
 
-          {prerequisiteBlockers.length > 0 ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">Prerequisites still blocked</p>
-              <ul className="mt-2 space-y-1 text-sm text-amber-950">
-                {prerequisiteBlockers.map((blocker) => <li key={blocker}>- {blocker}</li>)}
-              </ul>
+        {isLoading ? (
+          <p className="mt-4 text-sm text-muted-foreground">Loading readiness evidence...</p>
+        ) : (
+          <div className="mt-5 space-y-5">
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="rounded-lg border bg-background p-3">
+                <p className="text-xs text-muted-foreground">Sandbox accounts</p>
+                <p className="mt-1 text-sm font-semibold">
+                  {data?.sandboxAccountCount || 0}/{SANDBOX_REQUIRED_ACCOUNT_COUNT} available
+                </p>
+              </div>
+              <div className="rounded-lg border bg-background p-3">
+                <p className="text-xs text-muted-foreground">Standard deadline</p>
+                <p className="mt-1 text-sm font-semibold">{formatDate(data?.pathway?.standardEndsAt)}</p>
+              </div>
+              <div className="rounded-lg border bg-background p-3">
+                <p className="text-xs text-muted-foreground">Effective deadline</p>
+                <p className="mt-1 text-sm font-semibold">{formatDate(data?.pathway?.timeline.effectiveEndsAt)}</p>
+              </div>
             </div>
-          ) : null}
 
-          {data?.pathway?.timeline.canApproveExtension && !data.pathway.timeline.canContinue ? (
-            <div className="rounded-lg border border-amber-200 bg-background p-3">
-              <Label htmlFor={`pathway-extension-${tutorId}`}>Documented 75 to 90 day extension reason</Label>
+            {prerequisiteBlockers.length > 0 ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">Prerequisites still blocked</p>
+                <ul className="mt-2 space-y-1 text-sm text-amber-950">
+                  {prerequisiteBlockers.map((blocker) => <li key={blocker}>- {blocker}</li>)}
+                </ul>
+              </div>
+            ) : null}
+
+            {data?.pathway?.timeline.canApproveExtension && !data.pathway.timeline.canContinue ? (
+              <div className="rounded-lg border border-amber-200 bg-background p-3">
+                <Label htmlFor={`pathway-extension-${tutorId}`}>Documented 75 to 90 day extension reason</Label>
+                <Textarea
+                  id={`pathway-extension-${tutorId}`}
+                  value={extensionReason}
+                  onChange={(event) => setExtensionReason(event.target.value)}
+                  className="mt-2"
+                  placeholder="Record the remediable gap and why an exception is justified."
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-2"
+                  disabled={!extensionReason.trim() || extensionMutation.isPending}
+                  onClick={() => extensionMutation.mutate()}
+                >
+                  {extensionMutation.isPending ? "Approving..." : "Approve extension to day 90"}
+                </Button>
+              </div>
+            ) : null}
+
+            <div className="space-y-3">
+              {SANDBOX_MOCK_CRITERIA.map((criterion) => (
+                <Label key={criterion.key} className="flex items-start gap-3 rounded-lg border bg-background p-3">
+                  <Checkbox
+                    checked={checklist[criterion.key]}
+                    onCheckedChange={(checked) => setChecklist((current) => ({
+                      ...current,
+                      [criterion.key]: checked === true,
+                    }))}
+                    className="mt-0.5"
+                  />
+                  <span className="text-sm font-normal text-foreground">{criterion.label}</span>
+                </Label>
+              ))}
+            </div>
+
+            <div>
+              <Label htmlFor={`mock-evidence-${tutorId}`}>COO evidence note</Label>
               <Textarea
-                id={`pathway-extension-${tutorId}`}
-                value={extensionReason}
-                onChange={(event) => setExtensionReason(event.target.value)}
+                id={`mock-evidence-${tutorId}`}
+                value={evidenceNote}
+                onChange={(event) => setEvidenceNote(event.target.value)}
                 className="mt-2"
-                placeholder="Record the remediable gap and why an exception is justified."
+                placeholder="Name the observed execution evidence and any remediation required."
               />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
-                variant="outline"
-                className="mt-2"
-                disabled={!extensionReason.trim() || extensionMutation.isPending}
-                onClick={() => extensionMutation.mutate()}
+                variant={decision === "remediation_required" ? "destructive" : "outline"}
+                onClick={() => setDecision("remediation_required")}
               >
-                {extensionMutation.isPending ? "Approving..." : "Approve extension to day 90"}
+                Remediation required
+              </Button>
+              <Button
+                type="button"
+                variant={decision === "passed" ? "default" : "outline"}
+                onClick={() => setDecision("passed")}
+              >
+                Pass Mock
+              </Button>
+              <Button
+                type="button"
+                className="sm:ml-auto"
+                disabled={
+                  assessmentMutation.isPending ||
+                  !evidenceNote.trim() ||
+                  prerequisiteBlockers.length > 0 ||
+                  !data?.pathway?.timeline.canContinue ||
+                  (decision === "passed" && !checklistComplete)
+                }
+                onClick={() => assessmentMutation.mutate()}
+              >
+                {assessmentMutation.isPending ? "Saving..." : "Record Sandbox Mock decision"}
               </Button>
             </div>
-          ) : null}
-
-          <div className="space-y-3">
-            {SANDBOX_MOCK_CRITERIA.map((criterion) => (
-              <Label key={criterion.key} className="flex items-start gap-3 rounded-lg border bg-background p-3">
-                <Checkbox
-                  checked={checklist[criterion.key]}
-                  onCheckedChange={(checked) => setChecklist((current) => ({
-                    ...current,
-                    [criterion.key]: checked === true,
-                  }))}
-                  className="mt-0.5"
-                />
-                <span className="text-sm font-normal text-foreground">{criterion.label}</span>
-              </Label>
-            ))}
           </div>
-
-          <div>
-            <Label htmlFor={`mock-evidence-${tutorId}`}>COO evidence note</Label>
-            <Textarea
-              id={`mock-evidence-${tutorId}`}
-              value={evidenceNote}
-              onChange={(event) => setEvidenceNote(event.target.value)}
-              className="mt-2"
-              placeholder="Name the observed execution evidence and any remediation required."
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant={decision === "remediation_required" ? "destructive" : "outline"}
-              onClick={() => setDecision("remediation_required")}
-            >
-              Remediation required
-            </Button>
-            <Button
-              type="button"
-              variant={decision === "passed" ? "default" : "outline"}
-              onClick={() => setDecision("passed")}
-            >
-              Pass Mock
-            </Button>
-            <Button
-              type="button"
-              className="sm:ml-auto"
-              disabled={
-                assessmentMutation.isPending ||
-                !evidenceNote.trim() ||
-                prerequisiteBlockers.length > 0 ||
-                !data?.pathway?.timeline.canContinue ||
-                (decision === "passed" && !checklistComplete)
-              }
-              onClick={() => assessmentMutation.mutate()}
-            >
-              {assessmentMutation.isPending ? "Saving..." : "Record Sandbox Mock decision"}
-            </Button>
-          </div>
-        </div>
-      )}
-    </Card>
+        )}
+      </Card>
+    </div>
   );
 }
