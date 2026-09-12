@@ -130,6 +130,30 @@ Each visible cohort member exposes:
 
 These are evidence-completeness facts, not readiness recommendations.
 
+## Overlapping Capability evidence-cell lineage
+
+Sprint 19 also hardens Sprint 18's persisted Capability lineage model.
+
+Some approved transfer assessments intentionally overlap the same Deep Dive. For example, more than one current transfer assessment can legitimately cover `logging_system.transfer` or `session_flow_control.transfer`.
+
+The production readiness selector already treats this as valid overlap rather than duplicate corruption. It resolves one canonical evidence-cell state from the current passing assessments.
+
+The persisted concordance snapshot now mirrors that contract instead of throwing when more than one current assessment resolves to one cell.
+
+For each evidence cell:
+
+1. if any current candidate contains a localized critical fail for that Deep Dive, the latest critical candidate is retained for integrity trace and the cell is not satisfied;
+2. otherwise, if one or more current candidates pass, the earliest passing candidate is retained, matching the production readiness selector's earliest-satisfaction behavior;
+3. otherwise the latest current failed observation is retained so the cell is observed but unsatisfied.
+
+This preserves three separate truths:
+
+- valid transfer overlap is allowed;
+- a passing current overlap can satisfy one canonical cell once;
+- current critical evidence is never hidden by another passing overlap.
+
+Focused tests now prove both the production selector overlap behavior and the persisted concordance mirror. Retired-bank overlap cannot outrank current-bank evidence.
+
 ## Filters
 
 The reviewer UI supports local read-only filtering by:
@@ -230,6 +254,15 @@ Shared cohort tests prove:
 - filters do not alter the stored cohort summary;
 - duplicate assignment identity fails closed;
 - authoritative/cutover-bearing comparison objects are rejected.
+
+Capability overlap tests prove:
+
+- two current passing transfer assessments may legitimately resolve to one canonical cell;
+- the production selector keeps one deterministic cell state;
+- the earliest passing current evidence supplies the satisfied-cell lineage;
+- retired-bank evidence cannot outrank current-bank evidence;
+- the persisted concordance service does not reintroduce a duplicate-cell failure;
+- localized critical evidence takes precedence over passing overlap in the analytical trace.
 
 Server boundary tests prove:
 
