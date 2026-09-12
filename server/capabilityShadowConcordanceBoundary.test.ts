@@ -10,6 +10,10 @@ const serviceSource = fs.readFileSync(
   new URL("./capabilityShadowConcordance.ts", import.meta.url),
   "utf8",
 );
+const selectorSource = fs.readFileSync(
+  new URL("../shared/capabilityEvidenceSelection.ts", import.meta.url),
+  "utf8",
+);
 const routeSource = fs.readFileSync(
   new URL("./routes/capabilityShadowConcordance.ts", import.meta.url),
   "utf8",
@@ -79,6 +83,17 @@ test("shadow concordance uses current-version Capability evidence and keeps simu
     "export function buildShadowSpecialistConcordance",
   );
   assert.doesNotMatch(capabilityOverallSection, /sandboxSimulation/);
+});
+
+test("overlapping current transfer assessments resolve to one cell instead of failing as duplicates", () => {
+  assert.match(selectorSource, /if \(!current \|\| timestamp\(next\.satisfiedAt\) < timestamp\(current\.satisfiedAt\)\)/);
+  assert.match(serviceSource, /const candidatesByCell = new Map<string, ShadowCapabilityCellEvidence\[\]>/);
+  assert.match(serviceSource, /candidates\.push\(lineage\)/);
+  assert.match(serviceSource, /const critical = latestByObservedAt\(candidates\.filter\(\(candidate\) => candidate\.hasCriticalFail\)\)/);
+  assert.match(serviceSource, /const passing = earliestByObservedAt/);
+  assert.match(serviceSource, /const chosen = critical \|\| passing \|\| latestByObservedAt\(candidates\)/);
+  assert.match(serviceSource, /if \(!critical && passing\) satisfied\.add\(code\)/);
+  assert.doesNotMatch(serviceSource, /Multiple current Capability assessments resolve to evidence cell/);
 });
 
 test("shadow concordance is descriptive only with no hard-coded equivalence threshold or cutover authority", () => {
