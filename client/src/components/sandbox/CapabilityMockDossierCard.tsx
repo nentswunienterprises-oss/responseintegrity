@@ -129,6 +129,14 @@ function statusLabel(value: string) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function evidenceCellLabel(code: string) {
+  return code
+    .replace(/^deep_dive\./, "")
+    .split(".")
+    .map(statusLabel)
+    .join(" - ");
+}
+
 export function CapabilityMockDossierCard({ tutorId }: { tutorId: string }) {
   const dossierQuery = useQuery<{ dossier: CapabilityMockDossier }>({
     queryKey: ["capability-mock-dossier", tutorId],
@@ -224,6 +232,18 @@ export function CapabilityMockDossierCard({ tutorId }: { tutorId: string }) {
 
       <div className="mt-5 grid gap-4 xl:grid-cols-2">
         <details className="rounded-lg border p-4">
+          <summary className="cursor-pointer font-semibold">33 capability evidence cells</summary>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {dossier.evidenceCellSummary.cells.map((cell) => (
+              <div key={cell.code} className="flex items-start justify-between gap-3 rounded-lg border p-3 text-xs">
+                <span className="text-muted-foreground">{evidenceCellLabel(cell.code)}</span>
+                <Badge variant="outline">{cell.satisfied ? "Satisfied" : "Missing"}</Badge>
+              </div>
+            ))}
+          </div>
+        </details>
+
+        <details className="rounded-lg border p-4">
           <summary className="cursor-pointer font-semibold">16 digital assessment records</summary>
           <div className="mt-4 space-y-3">
             {dossier.assessments.map((assessment) => (
@@ -234,7 +254,7 @@ export function CapabilityMockDossierCard({ tutorId }: { tutorId: string }) {
                 </div>
                 {assessment.latestCurrentAttempt ? (
                   <div className="mt-2 text-xs text-muted-foreground">
-                    Evidence {assessment.latestCurrentAttempt.evidenceId} - attempt {assessment.latestCurrentAttempt.attemptNumber} - {assessment.latestCurrentAttempt.percent}% - {formatDateTime(assessment.latestCurrentAttempt.completedAt)}
+                    Evidence {assessment.latestCurrentAttempt.evidenceId} - bank v{assessment.latestCurrentAttempt.bankVersion} - attempt {assessment.latestCurrentAttempt.attemptNumber} - {assessment.latestCurrentAttempt.percent}% - {formatDateTime(assessment.latestCurrentAttempt.completedAt)}
                     {assessment.latestCurrentAttempt.hasCriticalFail ? " - critical fail recorded" : ""}
                   </div>
                 ) : null}
@@ -255,9 +275,9 @@ export function CapabilityMockDossierCard({ tutorId }: { tutorId: string }) {
                 </div>
                 {practical.latestCurrentAttempt ? (
                   <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                    <p>Evidence {practical.latestCurrentAttempt.evidenceId} - attempt {practical.latestCurrentAttempt.attemptNumber} - rubric v{practical.latestCurrentAttempt.rubricVersion ?? "legacy"}</p>
+                    <p>Evidence {practical.latestCurrentAttempt.evidenceId} - proof v{practical.latestCurrentAttempt.proofVersion} - attempt {practical.latestCurrentAttempt.attemptNumber} - rubric v{practical.latestCurrentAttempt.rubricVersion ?? "legacy"}</p>
                     {practical.latestCurrentAttempt.counts ? <p>Clear {practical.latestCurrentAttempt.counts.clear}, Partial {practical.latestCurrentAttempt.counts.partial}, Fail {practical.latestCurrentAttempt.counts.fail}, Critical Fail {practical.latestCurrentAttempt.counts.criticalFail}</p> : null}
-                    <p>Reviewed {formatDateTime(practical.latestCurrentAttempt.reviewedAt)}</p>
+                    <p>Submitted {formatDateTime(practical.latestCurrentAttempt.submittedAt)} - reviewed {formatDateTime(practical.latestCurrentAttempt.reviewedAt)}</p>
                     {practical.latestCurrentAttempt.feedback ? <p>Reviewer feedback: {practical.latestCurrentAttempt.feedback}</p> : null}
                   </div>
                 ) : null}
@@ -283,6 +303,7 @@ export function CapabilityMockDossierCard({ tutorId }: { tutorId: string }) {
 
         <details className="rounded-lg border p-4">
           <summary className="cursor-pointer font-semibold">Sandbox simulation rehearsal</summary>
+          <p className="mt-2 text-xs text-muted-foreground">Active bank v{dossier.sandboxSimulation.activeBankVersion ?? "none"}. Rehearsal remains non-authoritative.</p>
           <div className="mt-4 space-y-3">
             {simulations.length === 0 ? <p className="text-sm text-muted-foreground">No attempts on the active simulation bank.</p> : null}
             {simulations.map((attempt) => (
