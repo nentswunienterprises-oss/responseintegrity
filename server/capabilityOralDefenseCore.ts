@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
-import { ORAL_DEFENSE_ALWAYS_PROBE } from "@shared/capabilityOralDefense";
+import {
+  buildCapabilityOralRiskProbeRubric,
+  ORAL_DEFENSE_ALWAYS_PROBE,
+  type CapabilityOralProbeRubric,
+} from "@shared/capabilityOralDefense";
 
 export type CapabilityRiskQuestionResult = {
   competencyKey: string;
@@ -43,6 +47,7 @@ export type CapabilityOralDefenseProbeBrief = {
   deepDiveKey: string;
   source: "evidence_risk" | "integrity_baseline";
   reviewerInstruction: string;
+  rubric: CapabilityOralProbeRubric;
   incorrectCount?: number;
   criticalFailCount?: number;
   practicalRepeatCount?: number;
@@ -135,6 +140,13 @@ function riskInstructionSuffix(risk?: CapabilityOralRiskSignal | null) {
     : "";
 }
 
+function copyRubric(rubric: CapabilityOralProbeRubric): CapabilityOralProbeRubric {
+  return {
+    ...rubric,
+    criticalBoundaryLinks: rubric.criticalBoundaryLinks.map((link) => ({ ...link })),
+  };
+}
+
 export function buildCapabilityOralProbeBriefs(
   risks: CapabilityOralRiskSignal[],
 ): CapabilityOralDefenseProbeBrief[] {
@@ -148,6 +160,7 @@ export function buildCapabilityOralProbeBriefs(
       deepDiveKey: probe.deepDiveKey,
       source: risk ? ("evidence_risk" as const) : ("integrity_baseline" as const),
       reviewerInstruction: `${probe.reviewerInstruction}${riskInstructionSuffix(risk)}`,
+      rubric: copyRubric(probe.rubric),
       incorrectCount: risk?.incorrectCount,
       criticalFailCount: risk?.criticalFailCount,
       practicalRepeatCount: risk?.practicalRepeatCount,
@@ -171,6 +184,11 @@ export function buildCapabilityOralProbeBriefs(
       reviewerInstruction:
         `Use a new fictional scenario to probe ${risk.focusKey}. Require the Specialist to reason aloud, preserve the active operating boundary, and defend the decision they would take.` +
         riskInstructionSuffix(risk),
+      rubric: buildCapabilityOralRiskProbeRubric({
+        focusKey: risk.focusKey,
+        deepDiveKey: risk.deepDiveKey,
+        hasHistoricalCriticalSignal: risk.criticalFailCount > 0 || risk.practicalIntegrityCount > 0,
+      }),
       _score: riskScore(risk),
       _order: ORAL_DEFENSE_ALWAYS_PROBE.length + index,
     }));
@@ -215,6 +233,13 @@ export function buildCapabilityOralBriefId(input: {
   evidenceFingerprint: string;
   probes: CapabilityOralDefenseProbeBrief[];
 }) {
+  const probeContract = input.probes.map((probe) => ({
+    deepDiveKey: probe.deepDiveKey,
+    focusKey: probe.focusKey,
+    source: probe.source,
+    rubric: probe.rubric,
+  }));
+
   return createHash("sha256")
     .update(
       [
@@ -222,7 +247,7 @@ export function buildCapabilityOralBriefId(input: {
         String(input.defenseVersion),
         String(input.attemptNumber),
         input.evidenceFingerprint,
-        input.probes.map((probe) => `${probe.deepDiveKey}:${probe.focusKey}:${probe.source}`).join("|"),
+        JSON.stringify(probeContract),
       ].join(":"),
     )
     .digest("hex")
