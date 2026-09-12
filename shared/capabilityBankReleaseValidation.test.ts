@@ -60,7 +60,7 @@ test("a 30-item mastery bank can still be rejected for shallow competency breadt
 
   assert.throws(
     () => validateCapabilityAssessmentAgainstBlueprint(bank),
-    /mastery blueprint is missing competencies/,
+    /omits declared clarity competencies/,
   );
 });
 

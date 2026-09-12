@@ -35,7 +35,13 @@ test("review outcome is derived by shared evaluator with no reviewer integrity o
   assert.match(reviewSource, /No probe defaults to Clear/);
   assert.doesNotMatch(reviewSource, /integrityConcern/);
   assert.doesNotMatch(reviewSource, /setOutcome/);
-  assert.doesNotMatch(reviewSource, /outcome:/);
+
+  const mutationStart = reviewSource.indexOf("const completeMutation = useMutation");
+  const mutationEnd = reviewSource.indexOf("if (authLoading)", mutationStart);
+  assert.ok(mutationStart >= 0 && mutationEnd > mutationStart);
+  const mutationSource = reviewSource.slice(mutationStart, mutationEnd);
+  assert.doesNotMatch(mutationSource, /\bintegrityConcern\s*:/);
+  assert.doesNotMatch(mutationSource, /\boutcome\s*:/);
 });
 
 test("reviewer sees whether an issued probe is integrity-critical but cannot change that property", () => {

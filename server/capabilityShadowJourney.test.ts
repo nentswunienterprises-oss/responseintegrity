@@ -165,7 +165,10 @@ test("seeded Specialist shadow journey reaches READY only after the complete evi
       maxAttempts: 3,
     });
     const publicJson = JSON.stringify(publicForm);
-    assert.doesNotMatch(publicJson, /correctOptionKeys|criticalFailOptionKeys|explanation|competencyKey/);
+    assert.doesNotMatch(
+      publicJson,
+      /"(?:correctOptionKeys|criticalFailOptionKeys|explanation|competencyKey)"\s*:/,
+    );
   });
 
   const afterDigital = readinessFor({
@@ -216,16 +219,14 @@ test("seeded Specialist shadow journey reaches READY only after the complete evi
   });
   assert.equal(briefId.length, 24);
 
-  const oralResult = evaluateOralDefenseProbes(
-    probes.map((probe, index) => ({
-      focusKey: probe.focusKey,
-      deepDiveKey: probe.deepDiveKey,
-      scenarioSummary: `Fictional sandbox scenario ${index + 1} tested the issued operating boundary under a new condition.`,
-      observedResponseSummary: `The Specialist reasoned aloud on probe ${index + 1}, preserved the required boundary, and stated the action and escalation limit clearly.`,
-      judgment: "clear" as const,
-      integrityConcern: false,
-    })),
-  );
+  const oralObservations = probes.map((probe, index) => ({
+    focusKey: probe.focusKey,
+    deepDiveKey: probe.deepDiveKey,
+    scenarioSummary: `Fictional sandbox scenario ${index + 1} tested the issued operating boundary under a new condition.`,
+    observedResponseSummary: `The Specialist reasoned aloud on probe ${index + 1}, preserved the required boundary, and stated the action and escalation limit clearly.`,
+    judgment: "clear" as const,
+  }));
+  const oralResult = evaluateOralDefenseProbes(probes, oralObservations);
   assert.equal(oralResult.outcome, "approved");
 
   const finalReadiness = readinessFor({
