@@ -12,10 +12,7 @@ import {
   type ShadowCapabilityPracticalOutcome,
   type ShadowOutcomeTarget,
 } from "@shared/capabilityShadowConcordance";
-import {
-  capabilityEvidenceCellCode,
-  type CapabilityAssessmentEvidenceSnapshot,
-} from "@shared/capabilityEvidenceSelection";
+import { capabilityEvidenceCellCode } from "@shared/capabilityEvidenceSelection";
 import {
   CAPABILITY_PRACTICAL_PROOFS,
   type CapabilityPracticalProofDefinition,
@@ -76,6 +73,14 @@ function latestByAttempt<T>(
     if (attemptDelta === 0 && timeOf(row) > timeOf(latest)) return row;
     return latest;
   }, null);
+}
+
+function earliestByObservedAt(rows: ShadowCapabilityCellEvidence[]) {
+  return [...rows].sort((left, right) => timestamp(left.observedAt) - timestamp(right.observedAt))[0] || null;
+}
+
+function latestByObservedAt(rows: ShadowCapabilityCellEvidence[]) {
+  return [...rows].sort((left, right) => timestamp(right.observedAt) - timestamp(left.observedAt))[0] || null;
 }
 
 function requireDeepDive(value: unknown, label: string): TutorBattleTestPhaseKey {
@@ -182,7 +187,7 @@ function buildCurrentAssessmentEvidence(input: {
     if (latest) latestCurrentAttempts.push(latest);
   }
 
-  const lineages = new Map<string, ShadowCapabilityCellEvidence>();
+  const candidatesByCell = new Map<string, ShadowCapabilityCellEvidence[]>();
   const satisfied = new Set<string>();
   const observed = new Set<string>();
   const criticalDeepDiveKeys = new Set<TutorBattleTestPhaseKey>();
@@ -211,9 +216,6 @@ function buildCurrentAssessmentEvidence(input: {
       const blueprint = getCapabilityDeepDiveBlueprint(deepDiveKey)!;
       if (!blueprint.requiredEvidenceKinds.includes(evidenceKind)) continue;
       const code = capabilityEvidenceCellCode(deepDiveKey, evidenceKind);
-      if (lineages.has(code)) {
-        throw httpError(409, `Multiple current Capability assessments resolve to evidence cell ${code}.`);
-      }
       const deepDiveHasCritical = criticalQuestionResults.some(
         (question) => String(question?.deepDiveKey || "") === deepDiveKey,
       );
@@ -229,10 +231,23 @@ function buildCurrentAssessmentEvidence(input: {
         hasCriticalFail: deepDiveHasCritical,
         observedAt: String(row.completed_at),
       };
-      lineages.set(code, lineage);
+      const candidates = candidatesByCell.get(code) || [];
+      candidates.push(lineage);
+      candidatesByCell.set(code, candidates);
       observed.add(code);
-      if (lineage.passed && !lineage.hasCriticalFail) satisfied.add(code);
     }
+  }
+
+  const lineages = new Map<string, ShadowCapabilityCellEvidence>();
+  for (const [code, candidates] of candidatesByCell) {
+    const critical = latestByObservedAt(candidates.filter((candidate) => candidate.hasCriticalFail));
+    const passing = earliestByObservedAt(
+      candidates.filter((candidate) => candidate.passed && !candidate.hasCriticalFail),
+    );
+    const chosen = critical || passing || latestByObservedAt(candidates);
+    if (!chosen) continue;
+    lineages.set(code, chosen);
+    if (!critical && passing) satisfied.add(code);
   }
 
   return {
@@ -408,7 +423,7 @@ async function loadCapabilityEvidence(tutorAssignmentId: string): Promise<Shadow
       ORDER BY bank_version DESC`,
     [DEFAULT_SANDBOX_SIMULATION_BANK_KEY],
   );
-  if (activeSimulationResult.rowCount > 1) {
+  if (Number(activeSimulationResult.rowCount || 0) > 1) {
     throw httpError(409, `Multiple active Sandbox simulation banks exist for ${DEFAULT_SANDBOX_SIMULATION_BANK_KEY}.`);
   }
   const activeSimulationBankVersion = activeSimulationResult.rows[0]
