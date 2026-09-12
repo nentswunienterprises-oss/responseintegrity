@@ -18,8 +18,7 @@ const oralProbeSchema = z.object({
   scenarioSummary: z.string().trim().min(30),
   observedResponseSummary: z.string().trim().min(30),
   judgment: z.enum(["clear", "partial", "fail"]),
-  integrityConcern: z.boolean(),
-});
+}).strict();
 
 const completeDefenseSchema = z.object({
   briefId: z.string().trim().min(16).max(128),
@@ -28,7 +27,7 @@ const completeDefenseSchema = z.object({
   probes: z.array(oralProbeSchema).min(3).max(5),
   feedback: z.string().trim().max(4000).optional().nullable(),
   sandboxScenarioConfirmed: z.literal(true),
-});
+}).strict();
 
 function requireSpecialist(req: Request, res: Response) {
   const user = (req as any).dbUser;
