@@ -9,6 +9,10 @@ const mappingSource = fs.readFileSync(
   new URL("../shared/capabilityBattleTestCoverage.ts", import.meta.url),
   "utf8",
 );
+const availabilitySource = fs.readFileSync(
+  new URL("../shared/capabilityBattleTestEvidenceAvailability.ts", import.meta.url),
+  "utf8",
+);
 const auditSource = fs.readFileSync(
   new URL("./capabilityBattleTestCoverageAudit.ts", import.meta.url),
   "utf8",
@@ -68,16 +72,21 @@ test("all current auto-critical Battle Test questions have canonical critical-bo
   }
 });
 
-test("observable and integrity mappings retain a human verification path", () => {
-  for (const entry of CAPABILITY_BATTLE_TEST_COVERAGE) {
-    if (!entry.humanVerificationRequired) continue;
-    assert.ok(
-      entry.evidenceKinds.includes("practical") ||
-      entry.evidenceKinds.includes("oral_defense") ||
-      entry.evidenceKinds.includes("human_mock"),
-      `${entry.deepDiveKey}:${entry.questionKey} lacks human verification evidence`,
-    );
-  }
+test("audit distinguishes direct semantic evidence from compressed human verification", () => {
+  const audit = buildCapabilityBattleTestCoverageAudit();
+  assert.equal(audit.directEvidenceChannelCounts.mastery, 165);
+  assert.ok(audit.directEvidenceChannelCounts.practical > 0);
+  assert.equal(audit.oralDefenseTargetableQuestionCount, 35);
+  assert.equal(audit.humanMockBackstopQuestionCount, 56);
+  assert.deepEqual(audit.humanRequiredWithoutHumanChannelIds, []);
+  assert.deepEqual(audit.unknownMockCriterionRefs, []);
+});
+
+test("public simulation fixture is not promoted into an unverified live private-bank coverage claim", () => {
+  const audit = buildCapabilityBattleTestCoverageAudit();
+  assert.ok(audit.sandboxSimulationDesignFixtureQuestionCount > 0);
+  assert.equal(audit.livePrivateSimulationCoverageAudited, false);
+  assert.equal(audit.evidenceAvailability.livePrivateSimulationCoverageAudited, false);
 });
 
 test("coverage metadata does not copy Battle Test answer keys or private evaluator content", () => {
@@ -101,7 +110,7 @@ test("coverage audit is advisory only and contains no authority mutation path", 
   const audit = buildCapabilityBattleTestCoverageAudit();
   assert.equal(audit.authoritative, false);
   assert.equal(audit.cutoverDecision, null);
-  for (const source of [mappingSource, auditSource]) {
+  for (const source of [mappingSource, availabilitySource, auditSource]) {
     assert.doesNotMatch(source, /INSERT\s+INTO/i);
     assert.doesNotMatch(source, /UPDATE\s+/i);
     assert.doesNotMatch(source, /DELETE\s+FROM/i);
