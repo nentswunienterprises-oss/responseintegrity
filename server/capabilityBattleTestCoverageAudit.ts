@@ -39,8 +39,18 @@ export function buildCapabilityBattleTestCoverageAudit() {
     phasesWithoutFifteenQuestions,
     coverage,
     evidenceAvailability,
+    directEvidenceChannelCounts: evidenceAvailability.questionsByDirectImplementedChannel,
+    oralDefenseTargetableQuestionCount: evidenceAvailability.oralDefenseTargetableQuestionCount,
+    sandboxSimulationDesignFixtureQuestionCount:
+      evidenceAvailability.sandboxSimulationDesignFixtureQuestionCount,
+    livePrivateSimulationCoverageAudited:
+      evidenceAvailability.livePrivateSimulationCoverageAudited,
+    humanMockBackstopQuestionCount: evidenceAvailability.humanMockBackstopQuestionCount,
+    humanMockCriterionCoverage: evidenceAvailability.humanMockCriterionCoverage,
     orphanQuestionIds: evidenceAvailability.orphanedQuestionIds,
-    humanRequiredWithoutHumanChannelIds: evidenceAvailability.humanRequiredWithoutHumanChannelIds,
+    humanRequiredWithoutHumanChannelIds:
+      evidenceAvailability.humanRequiredWithoutHumanChannelIds,
+    unknownMockCriterionRefs: evidenceAvailability.unknownMockCriterionRefs,
     mappedEntries: CAPABILITY_BATTLE_TEST_COVERAGE.length,
     cutoverDecision: null,
   };
