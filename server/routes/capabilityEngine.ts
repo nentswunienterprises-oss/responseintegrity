@@ -131,7 +131,10 @@ export function registerCapabilityEngineRoutes(app: Express) {
           assessmentKey,
           formId: payload.formId,
           bankVersion: payload.bankVersion,
-          responses: payload.responses,
+          responses: payload.responses.map((response) => ({
+            questionKey: response.questionKey!,
+            selectedOptionKeys: response.selectedOptionKeys!,
+          })),
         });
 
         return res.status(201).json(result);

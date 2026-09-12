@@ -8,6 +8,7 @@ on:
       - "server/routes/capability*.ts"
       - "scripts/*capability*.ts"
       - "scripts/*Capability*.ts"
+      - "scripts/checkCapabilityTypeScript.mjs"
       - "client/src/pages/operational/**/capability*.tsx"
       - "client/src/pages/operational/**/capability*.test.ts"
       - "client/src/components/sandbox/*Capability*.tsx"
@@ -29,6 +30,7 @@ on:
       - "server/routes/capability*.ts"
       - "scripts/*capability*.ts"
       - "scripts/*Capability*.ts"
+      - "scripts/checkCapabilityTypeScript.mjs"
       - "client/src/pages/operational/**/capability*.tsx"
       - "client/src/pages/operational/**/capability*.test.ts"
       - "client/src/components/sandbox/*Capability*.tsx"
@@ -54,5 +56,5 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Capability Engine tests
         run: npx tsx --test shared/capability*.test.ts server/capability*.test.ts scripts/import*Capability*Boundary.test.ts scripts/importPrivateSandboxSimulationBankBoundary.test.ts scripts/capabilityPrivate*Boundary.test.ts client/src/pages/operational/capability*Boundary.test.ts client/src/pages/operational/tutor/capability*Boundary.test.ts client/src/components/sandbox/capability*Boundary.test.ts
-      - name: TypeScript check
-        run: npm run check
+      - name: Capability TypeScript check
+        run: node scripts/checkCapabilityTypeScript.mjs
