@@ -14,6 +14,10 @@ const migrationSource = fs.readFileSync(
   new URL("../migrations/2026-09-11_add_capability_assessment_attempts.sql", import.meta.url),
   "utf8",
 );
+const v2MigrationSource = fs.readFileSync(
+  new URL("../migrations/2026-09-12_add_oral_defense_v2_critical_fail_lineage.sql", import.meta.url),
+  "utf8",
+);
 
 test("oral brief uses internal evidence risk but never exposes assessment answer keys", () => {
   assert.match(oralService, /question_results/);
@@ -97,6 +101,15 @@ test("integrity escalation is derived only from failed issued critical rubrics",
   assert.match(sharedOral, /"integrity_review"/);
   assert.match(oralService, /evaluation\.criticalFailCount/);
   assert.match(oralService, /evaluation\.criticalFailProbeKeys/);
+});
+
+test("V2 critical-fail storage has a semantic generated projection while preserving V1 history", () => {
+  assert.match(v2MigrationSource, /critical_fail_count integer/);
+  assert.match(v2MigrationSource, /GENERATED ALWAYS AS/);
+  assert.match(v2MigrationSource, /WHEN defense_version >= 2 THEN integrity_concern_count/);
+  assert.match(v2MigrationSource, /ELSE NULL/);
+  assert.match(v2MigrationSource, /no reviewer integrity flag exists in V2/);
+  assert.match(v2MigrationSource, /NULL for V1 history/);
 });
 
 test("non-approved defense requires actionable reviewer feedback", () => {
