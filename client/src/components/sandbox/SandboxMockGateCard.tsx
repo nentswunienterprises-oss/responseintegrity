@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { CapabilityMockDossierCard } from "@/components/sandbox/CapabilityMockDossierCard";
 import {
   SANDBOX_MOCK_CRITERIA,
   SANDBOX_REQUIRED_ACCOUNT_COUNT,
@@ -138,7 +139,9 @@ export function SandboxMockGateCard({
   if (!isSandbox) return null;
 
   return (
-    <Card className="border-sky-200 bg-sky-50/30 p-4 sm:p-5">
+    <>
+      <CapabilityMockDossierCard tutorId={tutorId} />
+      <Card className="border-sky-200 bg-sky-50/30 p-4 sm:p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-sky-900">Sandbox Exit Gate</p>
@@ -263,6 +266,7 @@ export function SandboxMockGateCard({
           </div>
         </div>
       )}
-    </Card>
+      </Card>
+    </>
   );
 }
