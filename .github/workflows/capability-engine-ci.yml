@@ -10,6 +10,9 @@ on:
       - "scripts/*Capability*.ts"
       - "client/src/pages/operational/**/capability*.tsx"
       - "client/src/pages/operational/**/capability*.test.ts"
+      - "client/src/components/sandbox/*Capability*.tsx"
+      - "client/src/components/sandbox/capability*.test.ts"
+      - "client/src/components/sandbox/SandboxMockGateCard.tsx"
       - "client/src/components/responseconditioning/DeepDiveDeterrent.tsx"
       - "client/src/capabilityStandaloneApp.tsx"
       - "client/src/main.tsx"
@@ -28,6 +31,9 @@ on:
       - "scripts/*Capability*.ts"
       - "client/src/pages/operational/**/capability*.tsx"
       - "client/src/pages/operational/**/capability*.test.ts"
+      - "client/src/components/sandbox/*Capability*.tsx"
+      - "client/src/components/sandbox/capability*.test.ts"
+      - "client/src/components/sandbox/SandboxMockGateCard.tsx"
       - "client/src/components/responseconditioning/DeepDiveDeterrent.tsx"
       - "client/src/capabilityStandaloneApp.tsx"
       - "client/src/main.tsx"
@@ -47,6 +53,6 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - name: Capability Engine tests
-        run: npx tsx --test shared/capability*.test.ts server/capability*.test.ts scripts/import*Capability*Boundary.test.ts scripts/importPrivateSandboxSimulationBankBoundary.test.ts scripts/capabilityPrivate*Boundary.test.ts client/src/pages/operational/capability*Boundary.test.ts client/src/pages/operational/tutor/capability*Boundary.test.ts
+        run: npx tsx --test shared/capability*.test.ts server/capability*.test.ts scripts/import*Capability*Boundary.test.ts scripts/importPrivateSandboxSimulationBankBoundary.test.ts scripts/capabilityPrivate*Boundary.test.ts client/src/pages/operational/capability*Boundary.test.ts client/src/pages/operational/tutor/capability*Boundary.test.ts client/src/components/sandbox/capability*Boundary.test.ts
       - name: TypeScript check
         run: npm run check
