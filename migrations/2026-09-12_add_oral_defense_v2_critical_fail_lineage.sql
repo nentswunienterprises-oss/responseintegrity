@@ -1,17 +1,14 @@
 ALTER TABLE specialist_capability_oral_defenses
-  ADD COLUMN IF NOT EXISTS critical_fail_count integer;
-
-UPDATE specialist_capability_oral_defenses
-   SET critical_fail_count = 0
- WHERE critical_fail_count IS NULL
-   AND defense_version >= 2;
-
-ALTER TABLE specialist_capability_oral_defenses
-  ADD CONSTRAINT specialist_capability_oral_defenses_critical_fail_count_nonnegative
-  CHECK (critical_fail_count IS NULL OR critical_fail_count >= 0);
+  ADD COLUMN IF NOT EXISTS critical_fail_count integer
+  GENERATED ALWAYS AS (
+    CASE
+      WHEN defense_version >= 2 THEN integrity_concern_count
+      ELSE NULL
+    END
+  ) STORED;
 
 COMMENT ON COLUMN specialist_capability_oral_defenses.integrity_concern_count IS
-  'Legacy Oral Defense V1 reviewer-selected integrity concern count. Retained for immutable historical evidence; V2 does not write or read this field.';
+  'Legacy Oral Defense V1 reviewer-selected integrity concern count. For V2+, the runtime writes the system-derived critical-Fail count here only as a backward-compatible storage slot; no reviewer integrity flag exists in V2.';
 
 COMMENT ON COLUMN specialist_capability_oral_defenses.critical_fail_count IS
-  'Oral Defense V2+ count of Fail judgments on issued probes whose frozen rubric marks critical_on_fail. System-derived; not reviewer-selected.';
+  'Generated semantic V2+ projection of the system-derived count of Fail judgments on issued probes whose frozen rubric marks critical_on_fail. NULL for V1 history.';
