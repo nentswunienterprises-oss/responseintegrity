@@ -46,6 +46,13 @@ test("shadow readiness uses current Oral Defense version and shared current-evid
   assert.match(sharedOral, /ORAL_DEFENSE_VERSION = 2/);
 });
 
+test("reviewer service selects latest attempt inside the current Oral Defense version", () => {
+  assert.match(oralService, /getLatestCurrentOralDefense/);
+  assert.match(oralService, /AND defense_version = \$2/);
+  assert.match(oralService, /\[tutorAssignmentId, ORAL_DEFENSE_VERSION\]/);
+  assert.doesNotMatch(oralService, /const currentVersionAttempt = Number\(latestDefense\?\.defense_version\)/);
+});
+
 test("issued oral brief is bound to current evidence, version, attempt, and rubric contract", () => {
   assert.match(oralService, /buildCapabilityEvidenceFingerprint/);
   assert.match(oralService, /buildCapabilityOralBriefId/);
