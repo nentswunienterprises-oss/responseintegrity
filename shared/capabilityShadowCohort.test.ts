@@ -245,10 +245,7 @@ test("duplicate assignment identity fails closed even when tutor identity differ
 
 test("cohort projection rejects authoritative or cutover-bearing comparison objects", () => {
   const invalid = candidate("a1", "agree_ready");
-  const comparisonObject = invalid.comparison as ShadowSpecialistConcordance & {
-    authoritative: boolean;
-    cutoverDecision: string | null;
-  };
+  const comparisonObject = invalid.comparison as any;
   comparisonObject.authoritative = true;
   comparisonObject.cutoverDecision = "cutover";
   assert.throws(
