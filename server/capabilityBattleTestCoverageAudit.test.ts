@@ -34,6 +34,18 @@ test("every exact runtime Battle Test question is mapped exactly once", () => {
   assert.equal(audit.coverage.valid, true);
 });
 
+test("replacement proof classes distinguish automated knowledge from human-observable evidence", () => {
+  const audit = buildCapabilityBattleTestCoverageAudit();
+  assert.deepEqual(audit.coverage.countsByProofClass, {
+    knowledge: 76,
+    discernment: 33,
+    observable_execution: 21,
+    integrity: 35,
+  });
+  assert.equal(audit.coverage.humanVerificationQuestionCount, 56);
+  assert.equal(audit.coverage.criticalBoundaryQuestionCount, 35);
+});
+
 test("all current auto-critical Battle Test questions have canonical critical-boundary lineage", () => {
   const audit = buildCapabilityBattleTestCoverageAudit();
   const autoCriticalIds = TUTOR_BATTLE_TEST_PHASES_EXACT.flatMap((phase) =>
