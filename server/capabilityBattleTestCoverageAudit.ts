@@ -2,6 +2,7 @@ import {
   CAPABILITY_BATTLE_TEST_COVERAGE,
   validateCapabilityBattleTestCoverage,
 } from "@shared/capabilityBattleTestCoverage";
+import { getBattleTestEvidenceAvailabilitySummary } from "@shared/capabilityBattleTestEvidenceAvailability";
 import { TUTOR_BATTLE_TEST_PHASES } from "@shared/battleTesting";
 import { TUTOR_BATTLE_TEST_PHASES_EXACT } from "./battleTestingBanks";
 
@@ -21,6 +22,7 @@ export function buildCapabilityBattleTestCoverageAudit() {
     0,
   );
   const coverage = validateCapabilityBattleTestCoverage(TUTOR_BATTLE_TEST_PHASES_EXACT);
+  const evidenceAvailability = getBattleTestEvidenceAvailabilitySummary();
   const phasesWithoutFifteenQuestions = TUTOR_BATTLE_TEST_PHASES_EXACT
     .filter((phase) => phase.questions.length !== 15)
     .map((phase) => ({ key: phase.key, questionCount: phase.questions.length }));
@@ -36,6 +38,9 @@ export function buildCapabilityBattleTestCoverageAudit() {
     fallbackDiffersFromExact: fallbackQuestionCount !== exactQuestionCount,
     phasesWithoutFifteenQuestions,
     coverage,
+    evidenceAvailability,
+    orphanQuestionIds: evidenceAvailability.orphanedQuestionIds,
+    humanRequiredWithoutHumanChannelIds: evidenceAvailability.humanRequiredWithoutHumanChannelIds,
     mappedEntries: CAPABILITY_BATTLE_TEST_COVERAGE.length,
     cutoverDecision: null,
   };
