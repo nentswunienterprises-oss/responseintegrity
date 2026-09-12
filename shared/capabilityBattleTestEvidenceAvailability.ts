@@ -23,24 +23,49 @@ const CURRENT_SANDBOX_SIMULATION_DEEP_DIVES = new Set<TutorBattleTestPhaseKey>([
   "session_flow_control",
 ]);
 
-function isCurrentEvidenceChannelAvailable(
-  entry: CapabilityBattleTestCoverageEntry,
-  kind: BattleTestReplacementEvidenceKind,
-) {
-  if (kind === "mastery" || kind === "retrieval" || kind === "transfer") return true;
-  if (kind === "practical") return CURRENT_PRACTICAL_DEEP_DIVES.has(entry.deepDiveKey);
-  if (kind === "simulation") return CURRENT_SANDBOX_SIMULATION_DEEP_DIVES.has(entry.deepDiveKey);
-  if (kind === "oral_defense") {
-    return entry.proofClass === "integrity";
-  }
-  if (kind === "human_mock") {
-    return entry.humanVerificationRequired;
-  }
-  return false;
+function uniqueKinds(kinds: BattleTestReplacementEvidenceKind[]) {
+  return Array.from(new Set(kinds));
 }
 
-export function getImplementedBattleTestEvidenceKinds(entry: CapabilityBattleTestCoverageEntry) {
-  return entry.evidenceKinds.filter((kind) => isCurrentEvidenceChannelAvailable(entry, kind));
+/**
+ * Question-level direct support is deliberately narrower than the architecture's
+ * 33-cell reinforcement model.
+ *
+ * Every release-grade mastery bank must declare every canonical competency in
+ * its Deep Dive and represent every canonical critical boundary. That makes
+ * mastery the direct semantic replacement anchor for all 165 mapped legacy
+ * requirements.
+ *
+ * Retrieval and transfer remain required 11+11 Deep-Dive evidence cells, but
+ * their cumulative banks are not claimed as direct re-tests of every legacy
+ * question. They therefore do not appear in this question-level direct list.
+ */
+export function getImplementedDirectBattleTestEvidenceKinds(entry: CapabilityBattleTestCoverageEntry) {
+  const kinds: BattleTestReplacementEvidenceKind[] = ["mastery"];
+
+  if (
+    entry.humanVerificationRequired &&
+    CURRENT_PRACTICAL_DEEP_DIVES.has(entry.deepDiveKey)
+  ) {
+    kinds.push("practical");
+  }
+
+  if (
+    entry.proofClass !== "knowledge" &&
+    CURRENT_SANDBOX_SIMULATION_DEEP_DIVES.has(entry.deepDiveKey)
+  ) {
+    kinds.push("simulation");
+  }
+
+  if (entry.proofClass === "integrity") {
+    kinds.push("oral_defense");
+  }
+
+  if (entry.humanVerificationRequired) {
+    kinds.push("human_mock");
+  }
+
+  return uniqueKinds(kinds);
 }
 
 export function buildImplementedBattleTestEvidenceAvailability() {
@@ -50,22 +75,22 @@ export function buildImplementedBattleTestEvidenceAvailability() {
     proofClass: entry.proofClass,
     humanVerificationRequired: entry.humanVerificationRequired,
     semanticEvidenceKinds: [...entry.evidenceKinds],
-    implementedEvidenceKinds: getImplementedBattleTestEvidenceKinds(entry),
+    implementedDirectEvidenceKinds: getImplementedDirectBattleTestEvidenceKinds(entry),
   }));
 }
 
 export function getBattleTestEvidenceAvailabilitySummary() {
   const rows = buildImplementedBattleTestEvidenceAvailability();
-  const orphaned = rows.filter((row) => row.implementedEvidenceKinds.length === 0);
+  const orphaned = rows.filter((row) => row.implementedDirectEvidenceKinds.length === 0);
   const humanRequiredWithoutHumanChannel = rows.filter(
-    (row) => row.humanVerificationRequired && !row.implementedEvidenceKinds.some(
+    (row) => row.humanVerificationRequired && !row.implementedDirectEvidenceKinds.some(
       (kind) => kind === "practical" || kind === "oral_defense" || kind === "human_mock",
     ),
   );
 
-  const questionsByImplementedChannel = Object.fromEntries(
-    (["mastery", "retrieval", "transfer", "practical", "oral_defense", "simulation", "human_mock"] as BattleTestReplacementEvidenceKind[])
-      .map((kind) => [kind, rows.filter((row) => row.implementedEvidenceKinds.includes(kind)).length]),
+  const questionsByDirectImplementedChannel = Object.fromEntries(
+    (["mastery", "practical", "oral_defense", "simulation", "human_mock"] as BattleTestReplacementEvidenceKind[])
+      .map((kind) => [kind, rows.filter((row) => row.implementedDirectEvidenceKinds.includes(kind)).length]),
   );
 
   return {
@@ -74,6 +99,10 @@ export function getBattleTestEvidenceAvailabilitySummary() {
     humanRequiredWithoutHumanChannelIds: humanRequiredWithoutHumanChannel.map(
       (row) => `${row.deepDiveKey}:${row.questionKey}`,
     ),
-    questionsByImplementedChannel,
+    questionsByDirectImplementedChannel,
+    deepDiveReinforcementCells: {
+      retrieval: 11,
+      transfer: 11,
+    },
   };
 }
