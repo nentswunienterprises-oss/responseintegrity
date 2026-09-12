@@ -89,6 +89,8 @@ A targeted risk probe is integrity-critical on Fail only when the stored evidenc
 
 An ordinary historical miss or practical repeat can still target the defense, but it remains an ordinary capability probe. Failing it requires a repeat rather than automatically creating an integrity escalation.
 
+Targeted probes are restricted to canonical RI competency identities. Unknown or stale competency identities fail brief generation rather than creating an improvised oral standard.
+
 ## Stale-brief protection
 
 The issued `briefId` is now bound to:
@@ -144,7 +146,16 @@ The existing immutable Oral Defense row continues to preserve:
 - sandbox-only confirmation;
 - completion timestamp.
 
-The legacy database column `integrity_concern_count` currently stores the derived V2 critical-Fail count. This is naming debt only - it is no longer sourced from reviewer input. Renaming it is deferred until an approved database migration window exists.
+V1 used the database column `integrity_concern_count` for the reviewer-selected concern count. V2 has no reviewer-selected integrity flag. For backward-compatible storage, the runtime places the **system-derived V2 critical-Fail count** into that existing numeric slot.
+
+The additive Sprint 15 migration introduces a generated semantic column, `critical_fail_count`:
+
+- V2+ rows project the derived count from the compatibility slot;
+- V1 rows expose `NULL` in the new semantic column;
+- V1 history is not rewritten;
+- no trigger or second mutable write path is introduced.
+
+The migration is branch-only and has not been applied to any database.
 
 ## Authority boundary
 
@@ -180,10 +191,11 @@ Focused tests now cover:
 - no default Clear;
 - observable-not-motive calibration;
 - actionable non-approved feedback;
+- generated V2 critical-Fail storage lineage without rewriting V1 history;
 - immutable/sandbox-only evidence;
 - non-authoritative authority boundary.
 
-Capability Engine CI now includes root operational capability boundary tests as well as tutor boundary tests.
+Capability Engine CI includes root operational capability boundary tests as well as tutor boundary tests.
 
 GitHub Actions has repeatedly failed before runner allocation with zero executed steps on this stack. A red workflow under that condition is not treated as a code-level test verdict.
 
