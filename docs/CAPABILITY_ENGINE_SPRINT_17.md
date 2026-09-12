@@ -55,12 +55,25 @@ The 165 current requirements are classified as:
 
 | Proof class | Questions | Replacement meaning |
 | --- | ---: | --- |
-| Knowledge | 76 | Can be proven through automated mastery, delayed retrieval and transfer evidence. |
-| Applied discernment | 33 | Requires choosing the correct operating response in context; automated transfer is central and simulation may add evidence where implemented. |
-| Observable execution | 21 | Must not be claimed from quiz performance alone; current evidence includes automated transfer plus retained human observation, with practical/simulation support where implemented. |
-| Integrity boundary | 35 | Protected RI boundary. Automated transfer/critical semantics are combined with targeted human verification rather than replaced by a score alone. |
+| Knowledge | 76 | The canonical competency can be tested directly in the release-grade Deep Dive mastery bank. |
+| Applied discernment | 33 | The mastery bank tests the canonical operating competency; cumulative transfer and simulation strengthen contextual evidence without being counted as 33 separate legacy-question replicas. |
+| Observable execution | 21 | Must not be claimed from automated evidence alone; mastery supplies semantic coverage while retained human observation remains required, with practical/simulation support where currently implemented. |
+| Integrity boundary | 35 | Protected RI boundary. The mastery release contract must represent the canonical critical boundary and targeted human verification remains part of the replacement evidence stack. |
 
 Therefore **56 of 165 requirements remain explicitly human-observable or integrity-sensitive**. Sprint 17 does not pretend those 56 became automated-only judgments.
+
+## Why mastery is the question-level semantic anchor
+
+The current release-grade private-bank validator requires each mastery assessment to:
+
+- cover exactly its declared Deep Dive;
+- declare every canonical competency in that Deep Dive;
+- provide enough private items for every declared competency slot; and
+- represent every canonical critical boundary in the private pool and generated form requirements.
+
+That makes the 11 mastery banks the defensible question-level semantic replacement anchor for the 165 legacy requirements after they are mapped to canonical competency/boundary identities.
+
+This is **not** a claim that the mastery item is the same question as the old Battle Test. It is a claim that the same canonical requirement cannot disappear from the release-grade mastery standard.
 
 ## Critical-boundary lineage
 
@@ -83,31 +96,50 @@ Examples of protected families include:
 - Handover cannot erase continuity or reopen training through personal judgment;
 - unobservable work/audio cannot be scored.
 
-## Semantic channels vs implemented channels
+## Direct question support vs 33-cell reinforcement
 
-The coverage matrix names the evidence channels that can contribute to proving each semantic requirement.
+Sprint 17 deliberately separates **direct semantic question support** from the Capability Engine's broader 33-cell evidence architecture.
 
-`shared/capabilityBattleTestEvidenceAvailability.ts` then filters those channels against the Capability Engine that actually exists today.
+At question level, the currently implemented direct support is:
 
-Current implemented coverage is intentionally conservative:
-
-| Evidence channel | Battle Test requirements with current support |
+| Direct evidence channel | Battle Test requirements with current support |
 | --- | ---: |
-| Mastery | 130 |
-| Delayed retrieval | 109 |
-| Transfer | 165 |
+| Release-grade Deep Dive mastery | 165 |
 | Practical evidence | 33 |
 | Targeted Oral Integrity Defense | 35 |
 | Sandbox simulation V1 | 45 |
 | Retained human Sandbox Mock | 56 |
 
-The asymmetry is intentional. For example, Sandbox simulation V1 currently covers Clarity, Structured Execution, Controlled Discomfort, Logging System and Session Flow Control. Sprint 17 does not claim simulation coverage for Handover, Tools, Intro, Drill Library, Topic Conditioning or Time Pressure Stability when the current private simulation bank does not implement those Deep Dives.
+Delayed retrieval and transfer are **not** counted as if each cumulative assessment separately re-tested all 165 legacy questions.
 
-Similarly, practical coverage is claimed only for Deep Dives represented by the current Prepare / Execute / Evidence rubrics.
+Instead, the approved Capability Engine keeps:
+
+- 11 delayed-retrieval evidence cells; and
+- 11 transfer evidence cells.
+
+Those are Deep-Dive-level reinforcement signals layered above the 11 mastery anchors. This avoids inflating a 2-bank retrieval layer or 3-bank transfer layer into false 165-question equivalence.
+
+## Current implementation boundaries
+
+`shared/capabilityBattleTestEvidenceAvailability.ts` filters semantic channels against what actually exists today.
+
+Sandbox simulation V1 currently covers:
+
+- Clarity;
+- Structured Execution;
+- Controlled Discomfort;
+- Logging System;
+- Session Flow Control.
+
+Sprint 17 therefore does not claim current simulation support for Time Pressure Stability, Topic Conditioning, Intro Session Structure, Drill Library, Handover Verification, or Tools Required.
+
+Practical evidence is claimed only for Deep Dives represented by the current Prepare / Execute / Evidence rubric lineage. It is not claimed for Time Pressure Stability, Intro Session Structure, Drill Library, or Handover Verification.
+
+The retained human Mock remains the direct human channel for every requirement classified as observable execution or integrity-sensitive. The targeted Oral Integrity Defense remains available for the 35 integrity-class requirements.
 
 ## Orphan rule
 
-A current Battle Test requirement is an orphan if the exact runtime question exists but the Capability Engine has no implemented replacement evidence channel for its semantic requirement.
+A current Battle Test requirement is an orphan if the exact runtime question exists but the Capability Engine has no currently implemented direct evidence channel for its canonical semantic requirement.
 
 The Sprint 17 contract requires:
 
@@ -117,7 +149,7 @@ The Sprint 17 contract requires:
 - no stale mappings;
 - no missing mappings;
 - no auto-critical question without canonical boundary lineage;
-- no current requirement with zero implemented evidence channels;
+- no current requirement with zero direct implemented evidence channels;
 - no human-required requirement without an implemented human-verification channel.
 
 The focused tests are written to fail closed if any of these conditions changes.
@@ -127,9 +159,11 @@ The focused tests are written to fail closed if any of these conditions changes.
 If the tests execute successfully, Sprint 17 establishes structural and semantic coverage:
 
 - every current runtime Battle Test question is known to the replacement model;
+- every mapped canonical competency/boundary is anchored in a release-grade mastery requirement;
 - every critical human-test boundary has canonical lineage;
-- automated-only claims are separated from observable/human claims;
-- implemented evidence-channel limitations are explicit rather than hidden;
+- automated semantic coverage is separated from observable/human verification;
+- implemented practical/simulation limitations are explicit rather than hidden;
+- retrieval and transfer are represented honestly as 11+11 Deep-Dive reinforcement cells rather than 165 direct question replicas;
 - no Battle Test question can silently disappear from the replacement map after a future source change.
 
 ## What this audit does NOT prove
@@ -164,7 +198,9 @@ Focused tests cover:
 - proof-class split = 76 / 33 / 21 / 35;
 - 35 current auto-critical questions all carry canonical boundary lineage;
 - 56 human-required requirements all retain a human channel;
-- implemented channel counts = 130 mastery / 109 retrieval / 165 transfer / 33 practical / 35 oral / 45 simulation / 56 human Mock;
+- all 165 mapped requirements retain direct mastery lineage;
+- direct current question-channel counts = 165 mastery / 33 practical / 35 oral / 45 simulation / 56 human Mock;
+- retrieval and transfer remain exactly 11+11 Deep-Dive reinforcement cells rather than being counted as direct question replicas;
 - no false simulation coverage outside the current simulation Deep Dives;
 - no false practical coverage outside current practical-rubric Deep Dives;
 - no copied answer keys/private evaluator content;
