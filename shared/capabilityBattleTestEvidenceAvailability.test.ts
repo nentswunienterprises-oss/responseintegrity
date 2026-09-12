@@ -4,6 +4,7 @@ import {
   buildImplementedBattleTestEvidenceAvailability,
   getBattleTestEvidenceAvailabilitySummary,
 } from "./capabilityBattleTestEvidenceAvailability";
+import { CAPABILITY_BATTLE_TEST_COVERAGE } from "./capabilityBattleTestCoverage";
 import { CAPABILITY_PRACTICAL_PROOFS } from "./capabilityPracticalEvidence";
 import { SANDBOX_SIMULATION_DESIGN_FIXTURE_V1 } from "./capabilitySandboxSimulationFixtures";
 import { SANDBOX_MOCK_CRITERIA } from "./sandboxReadiness";
@@ -14,11 +15,6 @@ function competencyId(deepDiveKey: string, competencyKey: string) {
 
 function boundaryId(deepDiveKey: string, boundaryKey: string) {
   return `${deepDiveKey}:${boundaryKey}`;
-}
-
-function entryCanonicalIds(row: ReturnType<typeof buildImplementedBattleTestEvidenceAvailability>[number]) {
-  const source = row.semanticEvidenceKinds;
-  return source;
 }
 
 const PRACTICAL_COMPETENCIES = new Set(
@@ -53,13 +49,12 @@ const FIXTURE_BOUNDARIES = new Set(
 );
 
 // Keep this helper intentionally local to the test. It verifies the availability
-// projection from the canonical Sprint 17 mapping rather than reusing its code.
+// projection from canonical Sprint 17 metadata rather than reusing its helper.
 function canonicalOverlap(
   row: ReturnType<typeof buildImplementedBattleTestEvidenceAvailability>[number],
   competencyIds: Set<string>,
   boundaryIds: Set<string>,
 ) {
-  const { CAPABILITY_BATTLE_TEST_COVERAGE } = require("./capabilityBattleTestCoverage") as typeof import("./capabilityBattleTestCoverage");
   const entry = CAPABILITY_BATTLE_TEST_COVERAGE.find(
     (candidate) =>
       candidate.deepDiveKey === row.deepDiveKey &&
