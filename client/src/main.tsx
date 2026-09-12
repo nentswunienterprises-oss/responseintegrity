@@ -27,7 +27,8 @@ if (rootElement) {
     currentPath === "/operational/specialist/capability-practicals" ||
     currentPath === "/operational/specialist/capability-sandbox-simulation" ||
     currentPath === "/operational/capability-review/practicals" ||
-    currentPath === "/operational/capability-review/oral-defense";
+    currentPath === "/operational/capability-review/oral-defense" ||
+    currentPath === "/operational/capability-review/shadow-cohort";
 
   const app = (
     <React.StrictMode>
