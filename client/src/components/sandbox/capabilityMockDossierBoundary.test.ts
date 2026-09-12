@@ -42,8 +42,8 @@ test("existing Mock card remains the separate human decision surface", () => {
   assert.match(mockSource, /sandbox-mock-assessment/);
 });
 
-test("capability dossier and human Mock are sibling cards rather than one inferred checklist", () => {
-  assert.match(mockSource, /<div className="space-y-4">\s*<CapabilityMockDossierCard tutorId=\{tutorId\} \/>\s*<Card/);
+test("capability dossier and human Mock are sibling surfaces rather than one inferred checklist", () => {
+  assert.match(mockSource, /<>\s*<CapabilityMockDossierCard tutorId=\{tutorId\} \/>\s*<Card/);
 });
 
 test("dossier exposes lineage flags and rehearsal evidence without authority claims", () => {
