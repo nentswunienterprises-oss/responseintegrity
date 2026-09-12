@@ -5,6 +5,7 @@ import { registerCapabilityEngineRoutes } from "./routes/capabilityEngine";
 import { registerCapabilityPracticalEvidenceRoutes } from "./routes/capabilityPracticalEvidence";
 import { registerCapabilityOralDefenseRoutes } from "./routes/capabilityOralDefense";
 import { registerCapabilitySandboxSimulationRoutes } from "./routes/capabilitySandboxSimulation";
+import { registerCapabilityMockDossierRoutes } from "./routes/capabilityMockDossier";
 import { setupAuth } from "./supabaseAuth";
 import cors from 'cors';
 
@@ -104,6 +105,7 @@ app.use((req, res, next) => {
   registerCapabilityPracticalEvidenceRoutes(app);
   registerCapabilityOralDefenseRoutes(app);
   registerCapabilitySandboxSimulationRoutes(app);
+  registerCapabilityMockDossierRoutes(app);
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
