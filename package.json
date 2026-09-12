@@ -22,6 +22,7 @@
     "check:ri-snapshot": "tsc --noEmit --skipLibCheck --allowImportingTsExtensions --moduleResolution bundler --module esnext --target es2022 --types node shared/responseSnapshot.ts shared/responseSnapshot.test.ts shared/responseIntegrityDrillRegistry.ts shared/responseIntegrityEvidenceLedger.ts shared/topicConditioningEngine.ts shared/observationScoring.ts shared/adaptiveDiagnosis.ts",
     "test:ri-snapshot": "node --import tsx --test shared/responseSnapshot.test.ts shared/responseIntegrityDrillRegistry.test.ts shared/responseIntegrityEvidenceLedger.test.ts",
     "test:unit": "tsx --test",
+    "check:proof-db": "node scripts/check-proof-database-parity.mjs",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
