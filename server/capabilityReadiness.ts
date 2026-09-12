@@ -4,6 +4,7 @@ import {
   evaluateCapabilityReadiness,
   type CapabilityReadinessResult,
 } from "@shared/capabilityReadiness";
+import { CAPABILITY_MVP_ASSESSMENT_PLAN_V1 } from "@shared/capabilityAssessmentPlan";
 import { CAPABILITY_PRACTICAL_PROOFS } from "@shared/capabilityPracticalEvidence";
 import { ORAL_DEFENSE_VERSION } from "@shared/capabilityOralDefense";
 import { selectCurrentCapabilityReadinessEvidence } from "@shared/capabilityEvidenceSelection";
@@ -137,6 +138,7 @@ export async function getCapabilityReadinessEvidence(tutorAssignmentId: string) 
       assessmentKey: String(row.assessment_key),
       bankVersion: Number(row.bank_version),
     })),
+    allowedAssessmentKeys: CAPABILITY_MVP_ASSESSMENT_PLAN_V1.map((entry) => entry.assessmentKey),
     practicals: practicalResult.rows.map((row) => ({
       proofKey: String(row.proof_key),
       proofVersion: Number(row.proof_version),

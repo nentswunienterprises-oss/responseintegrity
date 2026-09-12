@@ -151,7 +151,11 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
           reviewerId: String(user.id),
           reviewerRole: String(user.role),
           rubricVersion: payload.rubricVersion,
-          criterionJudgments: payload.criterionJudgments,
+          criterionJudgments: payload.criterionJudgments.map((criterion) => ({
+            criterionKey: criterion.criterionKey!,
+            judgment: criterion.judgment!,
+            evidenceNote: criterion.evidenceNote,
+          })),
           feedback: payload.feedback,
         });
 

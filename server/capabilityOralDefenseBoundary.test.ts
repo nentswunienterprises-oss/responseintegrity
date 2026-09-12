@@ -42,11 +42,14 @@ test("human oral defense cannot open before automated and practical prerequisite
   assert.match(readinessService, /missingRequirementCodes/);
 });
 
-test("shadow readiness uses current Oral Defense version and shared current-evidence selector", () => {
+test("shadow readiness uses current Oral Defense version, approved assessment plan, and shared current-evidence selector", () => {
   assert.match(readinessService, /selectCurrentCapabilityReadinessEvidence/);
   assert.match(readinessService, /ORAL_DEFENSE_VERSION/);
   assert.match(readinessService, /currentOralDefenseVersion: ORAL_DEFENSE_VERSION/);
-  assert.match(evidenceSelector, /latestOralDefense\.defenseVersion === input\.currentOralDefenseVersion/);
+  assert.match(readinessService, /CAPABILITY_MVP_ASSESSMENT_PLAN_V1/);
+  assert.match(readinessService, /allowedAssessmentKeys: CAPABILITY_MVP_ASSESSMENT_PLAN_V1\.map/);
+  assert.match(evidenceSelector, /const currentVersionOralDefenses = input\.oralDefenses\.filter/);
+  assert.match(evidenceSelector, /record\.defenseVersion === input\.currentOralDefenseVersion/);
   assert.match(sharedOral, /ORAL_DEFENSE_VERSION = 2/);
 });
 

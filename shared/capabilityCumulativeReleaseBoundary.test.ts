@@ -35,6 +35,15 @@ test("release-grade cumulative evidence requires at least two distinct competenc
 });
 
 test("release-grade cumulative private pool must represent every canonical critical boundary", () => {
+  const authorityWithoutBoundary = {
+    competencyKey: "system.authority",
+    deepDiveKey: "clarity",
+    kind: "single_choice" as const,
+    correctOptionKeys: ["preserve"],
+    criticalFailOptionKeys: [] as string[],
+    criticalBoundaryKeys: [] as string[],
+  };
+
   assert.throws(
     () =>
       validateCapabilityAssessmentAgainstBlueprint({
@@ -46,7 +55,7 @@ test("release-grade cumulative private pool must represent every canonical criti
           { competencyKey: "clarity.recognition_boundary", deepDiveKey: "clarity", count: 1 },
           { competencyKey: "system.authority", deepDiveKey: "clarity", count: 1 },
         ],
-        items: baseItems.slice(0, 2),
+        items: [baseItems[0], baseItems[1], authorityWithoutBoundary],
       }),
     /private pool omits canonical clarity critical boundaries: clarity.no_manual_progression/,
   );

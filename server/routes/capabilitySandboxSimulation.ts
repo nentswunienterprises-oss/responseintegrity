@@ -71,7 +71,10 @@ export function registerCapabilitySandboxSimulationRoutes(app: Express) {
           tutorId: String(dbUser.id),
           bankVersion: payload.bankVersion,
           simulationFormId: payload.simulationFormId,
-          responses: payload.responses,
+          responses: payload.responses.map((response) => ({
+            decisionKey: response.decisionKey!,
+            selectedOptionKeys: response.selectedOptionKeys!,
+          })),
         });
         return res.status(201).json(result);
       } catch (error) {

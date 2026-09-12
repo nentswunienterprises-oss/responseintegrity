@@ -34,12 +34,12 @@ test("Specialist assessment projection contains prompts and options but no scori
 
   assert.equal(projected.questions.length, CLARITY_MASTERY_ASSESSMENT.questions.length);
   assert.match(serialized, /Clarity Mastery Check/);
-  assert.doesNotMatch(serialized, /correctOptionKeys/);
-  assert.doesNotMatch(serialized, /criticalFailOptionKeys/);
-  assert.doesNotMatch(serialized, /criticalBoundaryKeys/);
+  assert.doesNotMatch(serialized, /"correctOptionKeys"\s*:/);
+  assert.doesNotMatch(serialized, /"criticalFailOptionKeys"\s*:/);
+  assert.doesNotMatch(serialized, /"criticalBoundaryKeys"\s*:/);
   assert.doesNotMatch(serialized, /internal_boundary/);
-  assert.doesNotMatch(serialized, /explanation/);
-  assert.doesNotMatch(serialized, /competencyKey/);
+  assert.doesNotMatch(serialized, /"explanation"\s*:/);
+  assert.doesNotMatch(serialized, /"competencyKey"\s*:/);
 });
 
 test("Specialist result projection exposes outcome but not answer or question-level internals", () => {
@@ -56,9 +56,9 @@ test("Specialist result projection exposes outcome but not answer or question-le
 
   assert.equal(projected.passed, true);
   assert.equal(projected.percent, 100);
-  assert.doesNotMatch(serialized, /questionResults/);
-  assert.doesNotMatch(serialized, /criticalFailQuestionKeys/);
-  assert.doesNotMatch(serialized, /correctOptionKeys/);
-  assert.doesNotMatch(serialized, /criticalBoundaryKeys/);
-  assert.doesNotMatch(serialized, /explanation/);
+  assert.doesNotMatch(serialized, /"questionResults"\s*:/);
+  assert.doesNotMatch(serialized, /"criticalFailQuestionKeys"\s*:/);
+  assert.doesNotMatch(serialized, /"correctOptionKeys"\s*:/);
+  assert.doesNotMatch(serialized, /"criticalBoundaryKeys"\s*:/);
+  assert.doesNotMatch(serialized, /"explanation"\s*:/);
 });

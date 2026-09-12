@@ -165,7 +165,13 @@ export function registerCapabilityOralDefenseRoutes(app: Express) {
           briefId: payload.briefId,
           defenseVersion: payload.defenseVersion,
           attemptNumber: payload.attemptNumber,
-          probes: payload.probes,
+          probes: payload.probes.map((probe) => ({
+            focusKey: probe.focusKey!,
+            deepDiveKey: probe.deepDiveKey!,
+            scenarioSummary: probe.scenarioSummary!,
+            observedResponseSummary: probe.observedResponseSummary!,
+            judgment: probe.judgment!,
+          })),
           feedback: payload.feedback,
           sandboxScenarioConfirmed: payload.sandboxScenarioConfirmed,
         });

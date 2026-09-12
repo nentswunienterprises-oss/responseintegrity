@@ -57,6 +57,7 @@ export interface CurrentCapabilityEvidenceSelectionInput {
   currentPracticalVersions: CapabilityCurrentPracticalVersion[];
   oralDefenses: CapabilityOralDefenseEvidenceSnapshot[];
   currentOralDefenseVersion: number;
+  allowedAssessmentKeys?: string[];
 }
 
 function timestamp(value: string | Date | null | undefined) {
@@ -107,16 +108,24 @@ export function capabilityEvidenceCellCode(
 export function selectCurrentPassingCapabilityAssessments(
   assessments: CapabilityAssessmentEvidenceSnapshot[],
   activeAssessmentVersions: CapabilityActiveAssessmentVersion[],
+  allowedAssessmentKeys?: string[],
 ) {
+  const allowed = allowedAssessmentKeys ? new Set(allowedAssessmentKeys) : null;
   const activeVersions = new Map(
-    activeAssessmentVersions.map((version) => [version.assessmentKey, version.bankVersion]),
+    activeAssessmentVersions
+      .filter((version) => !allowed || allowed.has(version.assessmentKey))
+      .map((version) => [version.assessmentKey, version.bankVersion]),
   );
 
   // Attempt numbering restarts for a new immutable bank version. Filter to the
   // active version before choosing the latest attempt so an old v1 attempt 3
-  // can never outrank the current v2 attempt 1.
+  // can never outrank the current v2 attempt 1. V2 callers may additionally
+  // restrict credit to the approved assessment plan so legacy shadow banks stay
+  // historically visible without minting current MVP capability cells.
   const activeVersionAttempts = assessments.filter(
-    (record) => activeVersions.get(record.assessmentKey) === record.bankVersion,
+    (record) =>
+      (!allowed || allowed.has(record.assessmentKey)) &&
+      activeVersions.get(record.assessmentKey) === record.bankVersion,
   );
   const latestAssessments = latestByKey(
     activeVersionAttempts,
@@ -181,6 +190,7 @@ export function selectCurrentCapabilityReadinessEvidence(
   const currentPassedAssessments = selectCurrentPassingCapabilityAssessments(
     input.assessments,
     input.activeAssessmentVersions,
+    input.allowedAssessmentKeys,
   );
   const evidenceCellStates = buildCurrentCapabilityEvidenceCellStates(currentPassedAssessments);
 
