@@ -25,8 +25,15 @@ test("full MVP coverage can be required without forcing incremental authoring to
   assert.match(source, /Missing \$\{coverage\.missingEvidenceCells\.length\} of 33 required evidence cells/);
 });
 
-test("database mutation still requires the explicit apply flag", () => {
+test("database mutation requires apply and imports banks inactive without rotating the active release", () => {
   assert.match(source, /args\.includes\("--apply"\)/);
   assert.match(source, /if \(!apply\)/);
-  assert.match(source, /activated \$\{assessment\.assessmentKey\}/);
+  assert.match(source, /staged inactive \$\{assessment\.assessmentKey\}/);
+  assert.match(source, /await client\.query\("BEGIN"\)/);
+  assert.match(source, /await client\.query\("COMMIT"\)/);
+  assert.match(source, /await client\.query\("ROLLBACK"\)/);
+  assert.match(source, /atomic import complete/);
+  assert.match(source, /No bank was activated or retired/);
+  assert.doesNotMatch(source, /SET active = false/);
+  assert.doesNotMatch(source, /SET active = true/);
 });
