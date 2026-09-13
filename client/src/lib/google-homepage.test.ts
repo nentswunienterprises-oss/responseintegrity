@@ -12,7 +12,12 @@ const trackingScript = homepage
   .trim();
 
 function landingSignupHrefs(search: string) {
-  const links = Array.from({ length: 3 }, () => ({ href: "/client/signup" }));
+  const links = Array.from({ length: 3 }, () => ({
+    href: "/client/signup",
+    setAttribute(name: string, value: string) {
+      if (name === "href") this.href = value;
+    },
+  }));
   const document = {
     getElementById: () => ({ textContent: "" }),
     querySelectorAll: () => links,
