@@ -13,6 +13,7 @@ import {
   type ShadowOutcomeTarget,
 } from "@shared/capabilityShadowConcordance";
 import { capabilityEvidenceCellCode } from "@shared/capabilityEvidenceSelection";
+import { CAPABILITY_MVP_ASSESSMENT_PLAN_V1 } from "@shared/capabilityAssessmentPlan";
 import {
   CAPABILITY_PRACTICAL_PROOFS,
   type CapabilityPracticalProofDefinition,
@@ -22,6 +23,10 @@ import { getCapabilityDeepDiveBlueprint } from "@shared/capabilityBlueprint";
 import type { CapabilityBlueprintEvidenceKind } from "@shared/capabilityBlueprint";
 import type { TutorBattleTestPhaseKey } from "@shared/battleTesting";
 import type { TrialCaseStatus, TrialCertificationDecision } from "@shared/trialCertification";
+
+const CAPABILITY_MVP_ASSESSMENT_KEYS = new Set(
+  CAPABILITY_MVP_ASSESSMENT_PLAN_V1.map((entry) => entry.assessmentKey),
+);
 
 function httpError(status: number, message: string) {
   const error = new Error(message) as Error & { status?: number };
@@ -160,9 +165,11 @@ function buildCurrentAssessmentEvidence(input: {
 }) {
   const seenConfigKeys = new Set<string>();
   const activeVersionMap = new Map<string, number>();
+  const v2ActiveVersions: Array<Record<string, any>> = [];
   for (const row of input.activeVersions) {
     const assessmentKey = String(row.assessment_key || "").trim();
     if (!assessmentKey) throw httpError(409, "Active Capability assessment config has no assessment key.");
+    if (!CAPABILITY_MVP_ASSESSMENT_KEYS.has(assessmentKey)) continue;
     if (seenConfigKeys.has(assessmentKey)) {
       throw httpError(409, `Multiple active Capability bank versions exist for ${assessmentKey}.`);
     }
@@ -172,6 +179,7 @@ function buildCurrentAssessmentEvidence(input: {
       throw httpError(409, `Capability assessment ${assessmentKey} has invalid active bank version.`);
     }
     activeVersionMap.set(assessmentKey, bankVersion);
+    v2ActiveVersions.push(row);
   }
 
   const latestCurrentAttempts: Array<Record<string, any>> = [];
@@ -251,7 +259,7 @@ function buildCurrentAssessmentEvidence(input: {
   }
 
   return {
-    activeAssessmentVersions: input.activeVersions.map((row) => ({
+    activeAssessmentVersions: v2ActiveVersions.map((row) => ({
       assessmentKey: String(row.assessment_key),
       bankVersion: Number(row.bank_version),
     })),
