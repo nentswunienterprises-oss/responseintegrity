@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import pg from "pg";
 import { createClient } from "@supabase/supabase-js";
 
-const PROOF_PROJECT_REF = "jftlxeacphvbnhbsbpxc";
+const PROOF_PROJECT_REF = "tzgkiaiwnhmnzznvmbfg";
 const PRODUCTION_PROJECT_REF = "yzcnavucvwgmulcxgxvw";
 
 const supabaseUrl = String(
@@ -24,7 +24,6 @@ if (!serviceRoleKey) {
   );
 }
 if (!databaseUrl) fail("DATABASE_URL is required.");
-
 if (supabaseUrl.includes(PRODUCTION_PROJECT_REF) || databaseUrl.includes(PRODUCTION_PROJECT_REF)) {
   fail("Refusing to seed because a production project reference was detected.");
 }
@@ -40,75 +39,34 @@ const password = String(process.env.PROOF_TEST_PASSWORD || generatedPassword);
 if (password.length < 12) fail("PROOF_TEST_PASSWORD must be at least 12 characters.");
 
 const actors = [
-  {
-    key: "coo",
-    email: "ri.proof.coo@example.com",
-    role: "coo",
-    firstName: "Proof",
-    lastName: "COO",
-    purpose: "Full Sprint 19 reviewer scope",
-  },
-  {
-    key: "hr",
-    email: "ri.proof.hr@example.com",
-    role: "hr",
-    firstName: "Proof",
-    lastName: "HR",
-    purpose: "Full Sprint 19 reviewer scope",
-  },
-  {
-    key: "td-inscope",
-    email: "ri.proof.td.inscope@example.com",
-    role: "td",
-    firstName: "Proof",
-    lastName: "TD In Scope",
-    purpose: "Owns the four-person proof cohort pod",
-  },
-  {
-    key: "td-outscope",
-    email: "ri.proof.td.outscope@example.com",
-    role: "td",
-    firstName: "Proof",
-    lastName: "TD Out Scope",
-    purpose: "Cross-pod denial control",
-  },
-  {
-    key: "specialist",
-    email: "ri.proof.specialist@example.com",
-    role: "tutor",
-    firstName: "Proof",
-    lastName: "Specialist",
-    purpose: "Non-reviewer / Specialist-facing payload control",
-  },
-  {
-    key: "ceo-control",
-    email: "ri.proof.ceo@example.com",
-    role: "ceo",
-    firstName: "Proof",
-    lastName: "CEO Control",
-    purpose: "Privileged-but-not-authorized reviewer control",
-  },
-];
+  ["coo", "ri.proof.coo@example.com", "coo", "COO", "Full Sprint 19 reviewer scope"],
+  ["hr", "ri.proof.hr@example.com", "hr", "HR", "Full Sprint 19 reviewer scope"],
+  ["td-inscope", "ri.proof.td.inscope@example.com", "td", "TD In Scope", "Owns the four-person proof cohort pod"],
+  ["td-outscope", "ri.proof.td.outscope@example.com", "td", "TD Out Scope", "Cross-pod denial control"],
+  ["specialist", "ri.proof.specialist@example.com", "tutor", "Specialist", "Non-reviewer / Specialist-facing payload control"],
+  ["ceo-control", "ri.proof.ceo@example.com", "ceo", "CEO Control", "Privileged-but-not-authorized reviewer control"],
+].map(([key, email, role, lastName, purpose]) => ({
+  key,
+  email,
+  role,
+  firstName: "Proof",
+  lastName,
+  purpose,
+}));
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
+  auth: { autoRefreshToken: false, persistSession: false },
 });
 
 async function listAllAuthUsers() {
   const users = [];
-  let page = 1;
-  while (true) {
+  for (let page = 1; ; page += 1) {
     const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
     if (error) throw error;
     const batch = data?.users || [];
     users.push(...batch);
-    if (batch.length < 1000) break;
-    page += 1;
+    if (batch.length < 1000) return users;
   }
-  return users;
 }
 
 async function ensureAuthUsers() {
@@ -117,21 +75,19 @@ async function ensureAuthUsers() {
   const ids = new Map();
 
   for (const actor of actors) {
-    const metadata = {
+    const userMetadata = {
       name: `${actor.firstName} ${actor.lastName}`,
       first_name: actor.firstName,
       last_name: actor.lastName,
       proof_fixture: "sprint19-shadow-validation",
     };
-    const appMetadata = {
-      proof_fixture: "sprint19-shadow-validation",
-    };
+    const appMetadata = { proof_fixture: "sprint19-shadow-validation" };
+    const found = byEmail.get(actor.email.toLowerCase());
 
-    const existingUser = byEmail.get(actor.email.toLowerCase());
-    if (existingUser) {
-      const { data, error } = await supabase.auth.admin.updateUserById(existingUser.id, {
+    if (found) {
+      const { data, error } = await supabase.auth.admin.updateUserById(found.id, {
         password,
-        user_metadata: metadata,
+        user_metadata: userMetadata,
         app_metadata: appMetadata,
       });
       if (error) throw error;
@@ -143,18 +99,16 @@ async function ensureAuthUsers() {
       email: actor.email,
       password,
       email_confirm: true,
-      user_metadata: metadata,
+      user_metadata: userMetadata,
       app_metadata: appMetadata,
     });
     if (error) throw error;
     ids.set(actor.key, data.user.id);
   }
-
   return ids;
 }
 
-const { Pool } = pg;
-const pool = new Pool({
+const pool = new pg.Pool({
   connectionString: databaseUrl,
   ssl: { rejectUnauthorized: false },
   max: 2,
@@ -169,9 +123,7 @@ async function seedRiProfiles(ids) {
       const id = ids.get(actor.key);
       if (!id) throw new Error(`Missing Auth user ID for ${actor.key}`);
       await client.query(
-        `INSERT INTO public.users (
-           id, email, first_name, last_name, role, name, verified
-         )
+        `INSERT INTO public.users (id, email, first_name, last_name, role, name, verified)
          VALUES ($1, $2, $3, $4, $5::public.role, $6, true)
          ON CONFLICT (id) DO UPDATE SET
            email = EXCLUDED.email,
@@ -181,14 +133,7 @@ async function seedRiProfiles(ids) {
            name = EXCLUDED.name,
            verified = true,
            updated_at = now()`,
-        [
-          id,
-          actor.email,
-          actor.firstName,
-          actor.lastName,
-          actor.role,
-          `${actor.firstName} ${actor.lastName}`,
-        ],
+        [id, actor.email, actor.firstName, actor.lastName, actor.role, `${actor.firstName} ${actor.lastName}`],
       );
     }
 
@@ -196,26 +141,17 @@ async function seedRiProfiles(ids) {
     const outScopeTdId = ids.get("td-outscope");
     const specialistId = ids.get("specialist");
 
-    await client.query(
-      `UPDATE public.pods
-          SET td_id = $1
-        WHERE id = 'proof-shadow-pod'`,
+    const podUpdate = await client.query(
+      `UPDATE public.pods SET td_id = $1 WHERE id = 'proof-shadow-pod'`,
       [inScopeTdId],
     );
+    if (podUpdate.rowCount !== 1) {
+      throw new Error("proof-shadow-pod is missing; seed the Sprint 19 evidence fixture first.");
+    }
 
     await client.query(
-      `INSERT INTO public.pods (
-         id, pod_name, pod_type, phase, td_id, status, vehicle
-       )
-       VALUES (
-         'proof-shadow-outscope-pod',
-         'Proof Out-of-Scope Control Pod',
-         'training',
-         'foundation',
-         $1,
-         'active',
-         '4_seater'
-       )
+      `INSERT INTO public.pods (id, pod_name, pod_type, phase, td_id, status, vehicle)
+       VALUES ('proof-shadow-outscope-pod', 'Proof Out-of-Scope Control Pod', 'training', 'foundation', $1, 'active', '4_seater')
        ON CONFLICT (id) DO UPDATE SET
          pod_name = EXCLUDED.pod_name,
          td_id = EXCLUDED.td_id,
@@ -225,17 +161,9 @@ async function seedRiProfiles(ids) {
     );
 
     await client.query(
-      `INSERT INTO public.tutor_assignments (
-         id, tutor_id, pod_id, student_count, certification_status, operational_mode
-       )
-       VALUES (
-         'proof-login-specialist-assignment',
-         $1,
-         'proof-shadow-outscope-pod',
-         0,
-         'pending',
-         'training'
-       )
+      `INSERT INTO public.tutor_assignments
+         (id, tutor_id, pod_id, student_count, certification_status, operational_mode)
+       VALUES ('proof-login-specialist-assignment', $1, 'proof-shadow-outscope-pod', 0, 'pending', 'training')
        ON CONFLICT (id) DO UPDATE SET
          tutor_id = EXCLUDED.tutor_id,
          pod_id = EXCLUDED.pod_id,
@@ -245,56 +173,37 @@ async function seedRiProfiles(ids) {
     );
 
     const cohort = await client.query(
-      `SELECT ta.id, ta.tutor_id, ta.pod_id
+      `SELECT ta.id
          FROM public.tutor_assignments ta
          JOIN public.users u ON u.id = ta.tutor_id
         WHERE ta.id LIKE 'proof-shadow-assignment-%'
           AND (
             EXISTS (
-              SELECT 1
-                FROM public.battle_test_runs b
-               WHERE b.tutor_assignment_id = ta.id
-                 AND b.subject_type = 'tutor'
+              SELECT 1 FROM public.battle_test_runs b
+               WHERE b.tutor_assignment_id = ta.id AND b.subject_type = 'tutor'
             )
             OR EXISTS (
-              SELECT 1
-                FROM public.specialist_capability_assessment_attempts a
+              SELECT 1 FROM public.specialist_capability_assessment_attempts a
                WHERE a.tutor_assignment_id = ta.id
             )
           )
         ORDER BY ta.id`,
     );
-
     if (cohort.rowCount !== 4) {
-      throw new Error(
-        `Expected the Sprint 19 synthetic cohort to remain 4 assignments, found ${cohort.rowCount}.`,
-      );
+      throw new Error(`Expected the Sprint 19 synthetic cohort to remain 4 assignments, found ${cohort.rowCount}.`);
     }
 
-    const loginAssignmentEvidence = await client.query(
+    const loginEvidence = await client.query(
       `SELECT
-         EXISTS (
-           SELECT 1 FROM public.battle_test_runs
-            WHERE tutor_assignment_id = 'proof-login-specialist-assignment'
-         ) AS has_battle,
-         EXISTS (
-           SELECT 1 FROM public.specialist_capability_assessment_attempts
-            WHERE tutor_assignment_id = 'proof-login-specialist-assignment'
-         ) AS has_capability`,
+         EXISTS (SELECT 1 FROM public.battle_test_runs WHERE tutor_assignment_id = 'proof-login-specialist-assignment') AS has_battle,
+         EXISTS (SELECT 1 FROM public.specialist_capability_assessment_attempts WHERE tutor_assignment_id = 'proof-login-specialist-assignment') AS has_capability`,
     );
-    const evidence = loginAssignmentEvidence.rows[0];
-    if (evidence?.has_battle || evidence?.has_capability) {
+    if (loginEvidence.rows[0]?.has_battle || loginEvidence.rows[0]?.has_capability) {
       throw new Error("The login-only Specialist assignment unexpectedly contains cohort evidence.");
     }
 
     await client.query("COMMIT");
-
-    return {
-      cohortIds: cohort.rows.map((row) => row.id),
-      inScopeTdId,
-      outScopeTdId,
-      specialistId,
-    };
+    return { cohortIds: cohort.rows.map((row) => row.id), inScopeTdId, outScopeTdId };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
