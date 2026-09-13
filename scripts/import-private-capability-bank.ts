@@ -50,12 +50,12 @@ const bankSchema = z.object({
 });
 
 type ParsedAssessment = z.infer<typeof assessmentSchema>;
+type DatabaseClient = {
+  query: (text: string, params?: unknown[]) => Promise<unknown>;
+};
 type DatabasePool = {
   query: (text: string, params?: unknown[]) => Promise<{ rowCount: number | null }>;
-  connect: () => Promise<{
-    query: (text: string, params?: unknown[]) => Promise<unknown>;
-    release: () => void;
-  }>;
+  connect: () => Promise<DatabaseClient & { release: () => void }>;
   end: () => Promise<void>;
 };
 
@@ -90,14 +90,8 @@ async function ensureVersionDoesNotExist(
   }
 }
 
-async function importAssessment(pool: DatabasePool, assessment: ParsedAssessment) {
-  await ensureVersionDoesNotExist(pool, assessment.assessmentKey, assessment.bankVersion);
-
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-
-    await client.query(
+async function importAssessment(client: DatabaseClient, assessment: ParsedAssessment) {
+  await client.query(
       `INSERT INTO private.specialist_capability_assessment_configs (
          assessment_key,
          bank_version,
@@ -123,10 +117,10 @@ async function importAssessment(pool: DatabasePool, assessment: ParsedAssessment
         assessment.retryCooldownHours,
         JSON.stringify(assessment.competencyBlueprint),
       ],
-    );
+  );
 
-    for (const item of assessment.items) {
-      await client.query(
+  for (const item of assessment.items) {
+    await client.query(
         `INSERT INTO private.specialist_capability_assessment_items (
            assessment_key,
            bank_version,
@@ -156,33 +150,7 @@ async function importAssessment(pool: DatabasePool, assessment: ParsedAssessment
           JSON.stringify(item.criticalBoundaryKeys),
           item.explanation,
         ],
-      );
-    }
-
-    await client.query(
-      `UPDATE private.specialist_capability_assessment_configs
-          SET active = false,
-              retired_at = COALESCE(retired_at, now())
-        WHERE assessment_key = $1
-          AND active = true`,
-      [assessment.assessmentKey],
     );
-
-    await client.query(
-      `UPDATE private.specialist_capability_assessment_configs
-          SET active = true,
-              retired_at = NULL
-        WHERE assessment_key = $1
-          AND bank_version = $2`,
-      [assessment.assessmentKey, assessment.bankVersion],
-    );
-
-    await client.query("COMMIT");
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
-  } finally {
-    client.release();
   }
 }
 
@@ -272,11 +240,32 @@ async function main() {
   const databasePool = pool as unknown as DatabasePool;
   try {
     for (const assessment of payload.assessments) {
-      await importAssessment(databasePool, assessment);
-      console.log(
-        `[CAPABILITY BANK] activated ${assessment.assessmentKey} v${assessment.bankVersion} (${assessment.items.length} items)`,
+      await ensureVersionDoesNotExist(
+        databasePool,
+        assessment.assessmentKey,
+        assessment.bankVersion,
       );
     }
+
+    const client = await databasePool.connect();
+    try {
+      await client.query("BEGIN");
+      for (const assessment of payload.assessments) {
+        await importAssessment(client, assessment);
+        console.log(
+          `[CAPABILITY BANK] staged inactive ${assessment.assessmentKey} v${assessment.bankVersion} (${assessment.items.length} items)`,
+        );
+      }
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+    console.log(
+      "[CAPABILITY BANK] atomic import complete. No bank was activated or retired; verify the complete persisted package before a separate activation step.",
+    );
   } finally {
     await databasePool.end();
   }
