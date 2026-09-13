@@ -70,8 +70,11 @@ test("shadow concordance service contains no authority write path", () => {
   }
 });
 
-test("shadow concordance uses current-version Capability evidence and keeps simulation contextual", () => {
+test("shadow concordance uses current-version V2 Capability evidence and keeps simulation contextual", () => {
   assert.match(serviceSource, /private\.specialist_capability_assessment_configs/);
+  assert.match(serviceSource, /CAPABILITY_MVP_ASSESSMENT_PLAN_V1/);
+  assert.match(serviceSource, /CAPABILITY_MVP_ASSESSMENT_KEYS\.has\(assessmentKey\)/);
+  assert.match(serviceSource, /activeAssessmentVersions: v2ActiveVersions\.map/);
   assert.match(serviceSource, /Number\(row\.bank_version\) === bankVersion/);
   assert.match(serviceSource, /proof_version\) === proof\.version/);
   assert.match(serviceSource, /defense_version\) === ORAL_DEFENSE_VERSION/);
