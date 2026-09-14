@@ -21,6 +21,7 @@ import {
   formatSnapshotResultText,
   type ResponseSnapshotV1,
 } from "@shared/responseSnapshot";
+import type { TopicReference, TopicReferenceContent } from "@shared/topicReference";
 import { useStudentWorkflowState } from "@/hooks/useStudentWorkflowState";
 import { supabase } from "@/lib/supabaseClient";
 import { API_URL } from "@/lib/config";
@@ -92,6 +93,20 @@ type StudentListEntry = {
   lastName?: string | null;
 };
 
+type TopicConditioningRow = {
+  topic: string;
+  phase: string;
+  stability: string;
+  topicReference?: TopicReference | null;
+};
+
+const EMPTY_TOPIC_REFERENCE: TopicReferenceContent = {
+  vocabulary: "",
+  method: "",
+  steps: "",
+  reason: "",
+};
+
 const PHASE_CONTEXT: Record<PhaseLabel, { purpose: string; constraints: string[] }> = {
   Clarity: {
     purpose: "Can the student see the problem clearly before solving? Clarity is naming what's there, recognizing the method, understanding why. If this fails - everything else collapses.",
@@ -113,7 +128,7 @@ const PHASE_CONTEXT: Record<PhaseLabel, { purpose: string; constraints: string[]
 
 // ---------------------------------------------------------------------------
 // DRILL SET CONFIGURATIONS
-// Each set carries: purpose (why), repInstruction (what tutor says/does),
+// Each set carries: purpose (why), repInstruction (what the Specialist says/does),
 // activeRules (constraints live during this set), and per-rep observation blocks.
 // ---------------------------------------------------------------------------
 const DIAGNOSIS_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
@@ -123,7 +138,7 @@ const DIAGNOSIS_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Student does NOT solve. Tests vocabulary, type recognition, and step awareness only.",
       repInstruction: "Show the problem. Ask student to name terms, identify type, and state the steps. Do not let them solve.",
-      activeRules: ["Student does not solve", "Recognition only - no execution", "No hints or steps from tutor"],
+      activeRules: ["Student does not solve", "Recognition only - no execution", "No hints or steps from Specialist"],
       repObservationBlocks: [
         [
           { key: "vocabulary", label: "Vocabulary (Rep 1 - Cold Name)", options: ["cannot name", "partial", "clear"] },
@@ -379,9 +394,9 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       setName: "Modeling",
       reps: 1,
       purpose: "Build the mental map before drilling.",
-      repInstruction: "Teach Vocabulary → Method → Reason, then ask the student to explain back.",
+      repInstruction: "Teach Vocabulary → Recognition / Method → Ordered Steps → Reason, then ask the student to explain back.",
       isModelingSet: true,
-      activeRules: ["Tutor models - student does NOT solve", "Vocab → Method → Reason sequence", "Ask student to explain back after each model"],
+      activeRules: ["Specialist models - student does NOT solve", "Vocabulary → Recognition / Method → Ordered Steps → Reason sequence", "Ask student to explain back after each model"],
     },
     {
       setName: "Identification",
@@ -467,7 +482,7 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Full independent execution without any help. Build consistent, repeatable execution.",
       repInstruction: "Solve independently.",
-      activeRules: ["No help from tutor", "Full independence expected", "Observe consistency and error handling"],
+      activeRules: ["No help from Specialist", "Full independence expected", "Observe consistency and error handling"],
       observationBlock: [
         { key: "independence", label: "Independence", options: ["needs help", "light support", "independent"] },
         { key: "repeatability", label: "Consistency", options: ["breaks", "inconsistent", "stable"] },
@@ -803,6 +818,14 @@ export default function IntroSessionDrillRunner() {
   const [prepReady, setPrepReady] = useState(false);
   const [prepChecks, setPrepChecks] = useState<Record<string, boolean>>({});
   const [showModeInstructions, setShowModeInstructions] = useState(true);
+  const [topicReferenceDraft, setTopicReferenceDraft] = useState<TopicReferenceContent>(EMPTY_TOPIC_REFERENCE);
+  const [topicReferenceSaving, setTopicReferenceSaving] = useState(false);
+  const [topicReferenceError, setTopicReferenceError] = useState<string | null>(null);
+  const [topicReferenceOpen, setTopicReferenceOpen] = useState(false);
+  const [savedTopicReferenceOverride, setSavedTopicReferenceOverride] = useState<{
+    topic: string;
+    reference: TopicReference;
+  } | null>(null);
 
   const requestedMode = searchParams.get("mode");
   const requestedContext = searchParams.get("context");
@@ -845,9 +868,9 @@ export default function IntroSessionDrillRunner() {
     return raw ? raw.split(',').map(t => decodeURIComponent(t).trim()).filter(Boolean) : [];
   }, [searchParams]);
 
-  const { data: topicData, isLoading: topicDataLoading } = useQuery<{ topics: Array<{ topic: string; phase: string; stability: string }> } | undefined>({
+  const { data: topicData, isLoading: topicDataLoading, refetch: refetchTopicData } = useQuery<{ topics: TopicConditioningRow[] } | undefined>({
     queryKey: ["/api/tutor/topic-conditioning", studentId],
-    enabled: isSessionMode && !!studentId,
+    enabled: (drillMode === "training" || isSessionMode) && !!studentId,
   });
 
   const currentSessionTopic = useMemo(() => {
@@ -861,6 +884,16 @@ export default function IntroSessionDrillRunner() {
   const currentTopicName = isSessionMode && sessionTopicIndex < sessionTopics.length 
     ? sessionTopics[sessionTopicIndex]
     : introTopic;
+  const currentTopicRecord = useMemo(
+    () => topicData?.topics?.find(
+      (topic) => topic.topic.trim().toLowerCase() === currentTopicName.trim().toLowerCase(),
+    ) || null,
+    [topicData, currentTopicName],
+  );
+  const activeTopicReference =
+    savedTopicReferenceOverride?.topic.trim().toLowerCase() === currentTopicName.trim().toLowerCase()
+      ? savedTopicReferenceOverride.reference
+      : currentTopicRecord?.topicReference || null;
   const { data: workflow, isLoading: workflowLoading } = useStudentWorkflowState(studentId || "");
   const assignmentAccepted = workflow?.assignmentAccepted ?? true;
   const diagnosisSessionKind = requestedContext === "training" ? "training" : "intro";
@@ -985,6 +1018,13 @@ export default function IntroSessionDrillRunner() {
   const isModelingSet = !!set?.isModelingSet;
   const isFirstRep = currentRep === 0;
   const isFirstSet = currentSet === 0;
+  const isTopicReferenceCaptureStep =
+    modeToUse === "training" &&
+    displayPhase === "Clarity" &&
+    isFirstSet &&
+    isFirstRep &&
+    set?.setName === "Modeling";
+  const shouldShowTopicReferenceCapture = isTopicReferenceCaptureStep && !activeTopicReference;
   const isLastRep = set ? currentRep === set.reps - 1 : false;
   const isLastSet = drillStructure ? currentSet === drillStructure.length - 1 : false;
   const showSessionInstructions = isSessionMode && sessionTopicIndex === 0 && isFirstSet;
@@ -1013,6 +1053,13 @@ export default function IntroSessionDrillRunner() {
     setPrepChecks({});
     setAdaptiveTransition(null);
   }, [drillMode, handoverReDiagnosisMode, phase, introTopic, sessionTopicIndex]);
+
+  useEffect(() => {
+    setTopicReferenceDraft(EMPTY_TOPIC_REFERENCE);
+    setTopicReferenceError(null);
+    setTopicReferenceOpen(false);
+    setSavedTopicReferenceOverride(null);
+  }, [studentId, currentTopicName]);
 
   useEffect(() => {
     if (!submitSuccess) return;
@@ -1088,6 +1135,51 @@ export default function IntroSessionDrillRunner() {
       ...prev,
       [`set${currentSet}_rep${currentRep}_${field}`]: value,
     }));
+  };
+
+  const handleTopicReferenceChange = (field: keyof TopicReferenceContent, value: string) => {
+    setTopicReferenceError(null);
+    setTopicReferenceDraft((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleSaveTopicReference = async () => {
+    if (!studentId || !currentTopicName) return;
+
+    const hasMissingField = Object.values(topicReferenceDraft).some((value) => !value.trim());
+    if (hasMissingField) {
+      setTopicReferenceError("Complete all four parts before saving the Topic Reference.");
+      return;
+    }
+
+    setTopicReferenceSaving(true);
+    setTopicReferenceError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+      const response = await fetch(`${API_URL}/api/tutor/topic-conditioning/${studentId}/topic-reference`, {
+        method: "PUT",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          topic: currentTopicName,
+          topicReference: topicReferenceDraft,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result?.message || `Failed to save Topic Reference (${response.status})`);
+      }
+
+      setSavedTopicReferenceOverride({ topic: currentTopicName, reference: result.topicReference });
+      setTopicReferenceOpen(true);
+      await refetchTopicData();
+    } catch (error: any) {
+      setTopicReferenceError(error?.message || "Failed to save the Topic Reference. Please try again.");
+    } finally {
+      setTopicReferenceSaving(false);
+    }
   };
 
   const handleContinueAdaptiveTransition = () => {
@@ -1225,6 +1317,11 @@ export default function IntroSessionDrillRunner() {
           ? "A confirmed Response Integrity intro session is required before running this drill."
           : "A launch-ready Response Integrity training lesson is required before running this drill."
       );
+      return;
+    }
+
+    if (shouldShowTopicReferenceCapture) {
+      setTopicReferenceError("Save the Topic Reference before starting the scored drill sets.");
       return;
     }
 
@@ -2048,13 +2145,98 @@ export default function IntroSessionDrillRunner() {
         </div>
       </div>}
 
+      {modeToUse === "training" && topicDataLoading && (
+        <div className="mb-4 rounded-xl border border-primary/15 bg-background p-3 text-sm text-muted-foreground">
+          Loading Topic Reference...
+        </div>
+      )}
+
+      {modeToUse === "training" && !topicDataLoading && activeTopicReference && (
+        <div className="mb-4 overflow-hidden rounded-xl border border-primary/20 bg-background">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-primary/5"
+            onClick={() => setTopicReferenceOpen((open) => !open)}
+            aria-expanded={topicReferenceOpen}
+          >
+            <span>
+              <span className="block text-sm font-semibold text-foreground">Topic Reference</span>
+              <span className="block text-xs text-muted-foreground">{currentTopicName}</span>
+            </span>
+            <span className="text-xs font-semibold text-primary">{topicReferenceOpen ? "Close" : "Open"}</span>
+          </button>
+          {topicReferenceOpen && (
+            <div className="space-y-3 border-t border-primary/15 px-4 py-4">
+              {[
+                ["Vocabulary", activeTopicReference.vocabulary],
+                ["Recognition / Method", activeTopicReference.method],
+                ["Ordered Steps", activeTopicReference.steps],
+                ["Reason", activeTopicReference.reason],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{value}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {shouldShowTopicReferenceCapture && (
+        <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
+          <div className="mb-1 text-sm font-bold text-foreground">Create Topic Reference Before Drilling</div>
+          <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+            Capture the mental map once for this student and topic. It will remain available to the Specialist throughout later drill phases.
+          </p>
+          <div className="space-y-4">
+            {([
+              ["vocabulary", "Vocabulary", "Define the important terms in clear, simple language."],
+              ["method", "Recognition / Method", "Explain how to recognize this problem type and which method applies."],
+              ["steps", "Ordered Steps", "Enter the exact step-by-step execution sequence, one step per line."],
+              ["reason", "Reason", "Explain why the method and steps work."],
+            ] as Array<[keyof TopicReferenceContent, string, string]>).map(([field, label, placeholder]) => (
+              <label key={field} className="block">
+                <span className="mb-1.5 block text-sm font-semibold text-foreground">{label}</span>
+                <textarea
+                  className="min-h-24 w-full rounded-md border border-primary/20 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  value={topicReferenceDraft[field]}
+                  onChange={(event) => handleTopicReferenceChange(field, event.target.value)}
+                  placeholder={placeholder}
+                  maxLength={4000}
+                  disabled={topicReferenceSaving}
+                />
+              </label>
+            ))}
+          </div>
+          {topicReferenceError && (
+            <p className="mt-3 text-sm font-medium text-destructive">{topicReferenceError}</p>
+          )}
+          {topicDataLoading && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Checking whether a Topic Reference already exists for this topic...
+            </p>
+          )}
+          <div className="mt-4 flex justify-end">
+            <button
+              type="button"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              onClick={handleSaveTopicReference}
+              disabled={topicReferenceSaving || topicDataLoading || Object.values(topicReferenceDraft).some((value) => !value.trim())}
+            >
+              {topicReferenceSaving ? "Saving..." : "Save Topic Reference"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Modeling session callout - shown only for Clarity Training Set 1 */}
       {set?.isModelingSet && (
         <div className="mb-4 p-4 rounded-xl border border-primary/25 bg-primary/10">
           <div className="font-bold text-foreground text-sm mb-1">MODELING STEP</div>
           <div className="text-muted-foreground text-xs leading-relaxed">
-            Tutor teaches first. Student does <strong>NOT</strong> solve yet.<br />
-            Run <strong>Vocabulary → Method → Reason</strong>, then ask the student to explain back.<br />
+            Specialist teaches first. Student does <strong>NOT</strong> solve yet.<br />
+            Run <strong>Vocabulary → Recognition / Method → Ordered Steps → Reason</strong>, then ask the student to explain back.<br />
             Sets 2 and 3 are the scored drill sets.
           </div>
         </div>
@@ -2125,7 +2307,7 @@ export default function IntroSessionDrillRunner() {
             submitSuccess ? "bg-primary cursor-default" : "bg-primary hover:bg-primary/90"
           }`}
           onClick={handleNext}
-          disabled={submitting || submitSuccess || (!isSessionMode && !hasIntroTopic) || (isSessionMode && topicDataLoading) || !drillStructure || !set}
+          disabled={submitting || submitSuccess || topicReferenceSaving || (!isSessionMode && !hasIntroTopic) || (modeToUse === "training" && topicDataLoading && !shouldShowTopicReferenceCapture) || !drillStructure || !set || shouldShowTopicReferenceCapture}
         >
           {submitSuccess
             ? "Submitted"
