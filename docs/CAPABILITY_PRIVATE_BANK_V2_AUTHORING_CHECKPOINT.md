@@ -4,12 +4,12 @@
 
 - Checkpoint date: 2026-09-14
 - Branch: `proof/capability-engine-shadow-validation`
-- Release status: candidate authoring; not approved for Proof import
+- Release status: mastery candidate authoring complete; not approved for Proof import
 - Production status: untouched
 
-The Transformation Phases mastery family has been rebuilt as private bank-version-2 candidate content. Evaluator prompts, answer keys, explanations, critical mappings, generators, and review ledgers remain outside the public repository.
+All eleven mastery assessment banks have been rebuilt as private bank-version-2 candidate content. Evaluator prompts, answer keys, explanations, critical mappings, generators, and review ledgers remain outside the public repository.
 
-## Candidate mastery banks
+## Transformation Phases mastery candidates
 
 | Assessment | Items | Competencies | Critical boundaries | Source SHA-256 | Status |
 | --- | ---: | ---: | ---: | --- | --- |
@@ -19,18 +19,33 @@ The Transformation Phases mastery family has been rebuilt as private bank-versio
 | `time_pressure_stability_mastery_v1` | 45 | 8/8 | 3/3 | `b114afc8b96db12c8487a37ab333148350f8baaa761f26ebfdc546430bb8fd71` | Awaiting human doctrine sign-off |
 | `topic_conditioning_mastery_v1` | 45 | 8/8 | 2/2 | `fc83fe24dd87667f446d473b65819f74dac544d0220fe5aed36e235d7728d070` | Awaiting human doctrine sign-off |
 
+## Session Infrastructure mastery candidates
+
+| Assessment | Items | Competencies | Critical boundaries | Source SHA-256 | Status |
+| --- | ---: | ---: | ---: | --- | --- |
+| `intro_session_structure_mastery_v1` | 45 | 8/8 | 3/3 | `b0a32fc05f64d22a58d13b54bb8409c6ba1b5c43283d311bca0b1d90d41ee2ef` | Awaiting human doctrine sign-off |
+| `logging_system_mastery_v1` | 45 | 9/9 | 5/5 | `4dc6f52b1724baf59b14489331dfc26621d3becb7a8d3576eca038d1f789be9b` | Awaiting human doctrine sign-off |
+| `session_flow_control_mastery_v1` | 45 | 7/7 | 2/2 | `400d2333c44ec6ecd4a124310c73f739b32d450d141bb7e7b080a881baffb1f4` | Awaiting human doctrine sign-off |
+| `drill_library_mastery_v1` | 45 | 8/8 | 4/4 | `fdf155f02cc7edd75f9730c9698f65e33aae6a5cad2c3e5f07613156fed34dea` | Awaiting human doctrine sign-off |
+| `handover_verification_mastery_v1` | 45 | 7/7 | 3/3 | `bdbabb9e9cc1cd7543c5b383cd107e7d902e51898ccefdb776c5d9de8d82f9ab` | Awaiting human doctrine sign-off |
+| `tools_required_mastery_v1` | 45 | 7/7 | 2/2 | `7700189c68fe3a08171f84f71d6efb2275f73bdc80d13160acba31a2fff1ff5c` | Awaiting human doctrine sign-off |
+
 ## Aggregate verification
 
-- candidate banks: 5/11 mastery banks;
-- candidate items: 225/495 mastery items;
-- unique item keys: 225/225;
+- mastery candidate banks: 11/11;
+- mastery candidate items: 495/495;
+- unique item keys: 495/495;
 - duplicate normalized prompts: 0;
-- maximum exact option-label reuse across the family: 1;
+- maximum exact option-label reuse across all mastery banks: 2;
 - every bank uses all four correct-answer positions;
 - longest-correct-answer rates remain at or below the 40% release ceiling;
 - 100 fictional identities and three attempts were sampled per bank;
 - deterministic replay passed for every sampled form;
-- every sampled form contained its required canonical critical boundaries.
+- every sampled form contained all required canonical critical boundaries.
+
+## Remaining private authoring
+
+The five cumulative Retrieval and Transfer banks remain unauthored: 400 items total. The overall V2 release therefore remains incomplete at 11/16 banks and 495/895 items.
 
 ## Release boundary
 
