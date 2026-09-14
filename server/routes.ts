@@ -60,6 +60,11 @@ import {
   type EvidenceDrillMode,
 } from "@shared/responseIntegrityDrillRegistry";
 import { buildResponseSnapshotV1, summarizeSnapshotObservedResponse } from "@shared/responseSnapshot";
+import {
+  normalizeTopicReferenceContent,
+  parseStoredTopicReference,
+  TOPIC_REFERENCE_SCHEMA_VERSION,
+} from "@shared/topicReference";
 import type { EvidenceLedgerProjectionInput } from "@shared/responseIntegrityEvidenceLedger";
 import {
   buildStartingPhaseRationale,
@@ -27762,6 +27767,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/tutor/topic-conditioning/:studentId/topic-reference", isAuthenticated, requireRole(["tutor"]), async (req: Request, res: Response) => {
+    try {
+      const tutorId = (req as any).dbUser.id;
+      const { studentId } = req.params;
+      const topic = String(req.body?.topic || "").trim();
+      const topicReferenceContent = normalizeTopicReferenceContent(req.body?.topicReference);
+
+      if (!studentId || !topic) {
+        return res.status(400).json({ message: "Student and topic are required." });
+      }
+      if (!topicReferenceContent) {
+        return res.status(400).json({
+          message: "Complete Vocabulary, Recognition / Method, Ordered Steps, and Reason before saving.",
+        });
+      }
+
+      const student = await storage.getStudent(studentId);
+      if (!student || student.tutorId !== tutorId) {
+        return res.status(403).json({ message: "Unauthorized: Student does not belong to this specialist." });
+      }
+
+      const conceptMastery: any =
+        student.conceptMastery && typeof student.conceptMastery === "object"
+          ? { ...(student.conceptMastery as any) }
+          : {};
+      const topicConditioningStore: any =
+        conceptMastery.topicConditioning && typeof conceptMastery.topicConditioning === "object"
+          ? { ...conceptMastery.topicConditioning }
+          : {};
+      const topicsStore: Record<string, any> =
+        topicConditioningStore.topics && typeof topicConditioningStore.topics === "object"
+          ? { ...topicConditioningStore.topics }
+          : {};
+      const topicKey = Object.keys(topicsStore).find(
+        (candidate) => candidate.trim().toLowerCase() === topic.toLowerCase(),
+      );
+
+      if (!topicKey || !topicsStore[topicKey] || typeof topicsStore[topicKey] !== "object") {
+        return res.status(404).json({ message: "This topic is not active for the student." });
+      }
+
+      const existingReference = parseStoredTopicReference(topicsStore[topicKey].topicReference);
+      if (existingReference) {
+        return res.json({ success: true, created: false, topicReference: existingReference });
+      }
+
+      const topicReference = {
+        ...topicReferenceContent,
+        schemaVersion: TOPIC_REFERENCE_SCHEMA_VERSION,
+        createdAt: new Date().toISOString(),
+        createdByTutorId: tutorId,
+      };
+      topicsStore[topicKey] = {
+        ...topicsStore[topicKey],
+        topicReference,
+      };
+      topicConditioningStore.topics = topicsStore;
+      topicConditioningStore.lastUpdatedAt = new Date().toISOString();
+      conceptMastery.topicConditioning = topicConditioningStore;
+
+      const updatedStudent = await storage.updateStudent(studentId, { conceptMastery });
+      if (!updatedStudent) {
+        return res.status(500).json({ message: "Failed to save the Topic Reference." });
+      }
+
+      res.status(201).json({ success: true, created: true, topicReference });
+    } catch (error) {
+      console.error("Error saving tutor topic reference:", error);
+      res.status(500).json({ message: "Failed to save the Topic Reference." });
+    }
+  });
+
   app.get("/api/tutor/topic-conditioning/:studentId", isAuthenticated, requireRole(["tutor"]), async (req: Request, res: Response) => {
     try {
       const tutorId = (req as any).dbUser.id;
@@ -27828,6 +27905,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             phase: latest.phase,
             stability: latest.stability,
             lastUpdated: latest.date,
+            topicReference: parseStoredTopicReference(entry?.topicReference),
           };
         })
         .filter((row): row is NonNullable<typeof row> => !!row)

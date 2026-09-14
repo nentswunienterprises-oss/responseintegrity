@@ -1209,6 +1209,31 @@ Active rules:
 - student does not solve yet
 - use the vocabulary, method, reason sequence
 
+#### Persistent Topic Reference
+
+The first time a Specialist opens `Clarity` training `Set 1: Modeling` for a student-topic, the drill runner requires a Topic Reference before the scored sets can begin.
+
+The Topic Reference captures:
+
+- vocabulary
+- recognition / method
+- ordered steps
+- reason
+
+It is stored once on that student-topic's conditioning state, not on an individual session or drill result. After it is saved, the Specialist can open it from a collapsed `Topic Reference` toggle during Clarity and every later training phase.
+
+Current visibility rule:
+
+- Specialist drill UI only
+- not exposed in the student UI
+- not exposed through parent topic-conditioning responses
+
+Current integrity rule:
+
+- the Topic Reference is instructional context, not scored evidence
+- saving it does not change phase, stability, score, or transition behavior
+- an existing reference is returned unchanged rather than silently overwritten
+
 #### Set 2: Identification
 
 Reps:
