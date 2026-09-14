@@ -2,12 +2,13 @@
 
 ## Status
 
-- Checkpoint date: 2026-09-14
+- Checkpoint date: `2026-09-14`
 - Branch: `proof/capability-engine-shadow-validation`
-- Release status: mastery candidate authoring complete; not approved for Proof import
+- Release status: complete 16-bank candidate package; awaiting human doctrine sign-off
+- Proof import status: not imported
 - Production status: untouched
 
-All eleven mastery assessment banks have been rebuilt as private bank-version-2 candidate content. Evaluator prompts, answer keys, explanations, critical mappings, generators, and review ledgers remain outside the public repository.
+All eleven mastery banks and five cumulative Retrieval/Transfer banks have been rebuilt as private bank-version-2 candidate content. Evaluator prompts, answer keys, explanations, critical mappings, generators, and review ledgers remain outside the public repository.
 
 ## Transformation Phases mastery candidates
 
@@ -30,23 +31,37 @@ All eleven mastery assessment banks have been rebuilt as private bank-version-2 
 | `handover_verification_mastery_v1` | 45 | 7/7 | 3/3 | `bdbabb9e9cc1cd7543c5b383cd107e7d902e51898ccefdb776c5d9de8d82f9ab` | Awaiting human doctrine sign-off |
 | `tools_required_mastery_v1` | 45 | 7/7 | 2/2 | `7700189c68fe3a08171f84f71d6efb2275f73bdc80d13160acba31a2fff1ff5c` | Awaiting human doctrine sign-off |
 
-## Aggregate verification
+## Cumulative Retrieval and Transfer candidates
 
-- mastery candidate banks: 11/11;
-- mastery candidate items: 495/495;
-- unique item keys: 495/495;
-- duplicate normalized prompts: 0;
-- maximum exact option-label reuse across all mastery banks: 2;
+| Assessment | Kind | Items | Covered Deep Dives | Source SHA-256 | Status |
+| --- | --- | ---: | ---: | --- | --- |
+| `transformation_phases_retrieval_v1` | Retrieval | 80 | 5 | `9806887c28af26c45da92e0f6edea3947c8bb16902f619b6eb91e5e561b3bc56` | Awaiting human doctrine sign-off |
+| `session_infrastructure_retrieval_v1` | Retrieval | 80 | 6 | `bc38bb43b119dc1e3449e6bd08338517c60c8949a599e0d60da02434785410d1` | Awaiting human doctrine sign-off |
+| `transformation_state_transfer_v1` | Transfer | 80 | 5 | `58d19fd0bf8b72c48a3b6167991e138d65acf49772b2aef37ec62a3d10b88c24` | Awaiting human doctrine sign-off |
+| `session_operation_transfer_v1` | Transfer | 80 | 4 | `d89d73a4c9d1ae2af9b84340ab28fbb273b057a0d55334c9a3380363e37c8938` | Awaiting human doctrine sign-off |
+| `continuity_delivery_transfer_v1` | Transfer | 80 | 4 | `71e593367fc3cc9cd999dc98f8bb6f97c9e216ba0549842bce898093a5c96ffd` | Awaiting human doctrine sign-off |
+
+## Complete package verification
+
+- candidate banks: 16/16;
+- candidate items: 895/895;
+- mastery items: 495/495;
+- cumulative Retrieval/Transfer items: 400/400;
+- required evidence cells: 33/33;
+- unique item keys: 895/895;
+- unique normalized prompts: 895/895;
+- maximum exact option-label reuse across the package: 2;
 - every bank uses all four correct-answer positions;
 - longest-correct-answer rates remain at or below the 40% release ceiling;
 - 100 fictional identities and three attempts were sampled per bank;
 - deterministic replay passed for every sampled form;
-- every sampled form contained all required canonical critical boundaries.
-
-## Remaining private authoring
-
-The five cumulative Retrieval and Transfer banks remain unauthored: 400 items total. The overall V2 release therefore remains incomplete at 11/16 banks and 495/895 items.
+- every sampled form met its canonical critical-boundary coverage contract;
+- transfer prompt blindness passed;
+- package source SHA-256: `37a41851957e1d83bcc4baa0dc9f2feaac91376fb965b5d2bfbce793be6229df`;
+- canonical package SHA-256: `35ae5a086128238dfd5177cc5c14483eb0e6678efeab954a25ec108e23a97f66`.
 
 ## Release boundary
 
-This checkpoint does not approve, import, activate, or deploy private evaluator content. The complete 16-bank, 895-item package must pass automated validation and human review before one atomic inactive import into Nenterprises RI Proof. No assessment may be activated independently during partial authoring.
+Automated validation establishes structural release readiness, not doctrinal correctness. Human review is still required before this candidate can be frozen. This checkpoint does not approve, import, activate, or deploy private evaluator content.
+
+After human doctrine sign-off, the complete package may proceed through one atomic inactive import into Nenterprises RI Proof, persisted-source verification, and a separately approved activation. No partial bank may be activated. Production remains outside this process.
