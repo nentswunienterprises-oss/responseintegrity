@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App.tsx";
+import { CapabilityStandaloneApp } from "./capabilityStandaloneApp";
 import "./index.css";
 
 console.log("main.tsx executing...");
@@ -19,10 +20,20 @@ if (loader) {
 }
 
 if (rootElement) {
+  const currentPath = window.location.pathname;
+  const isCapabilityRoute =
+    currentPath === "/operational/specialist/capability-plan" ||
+    currentPath.startsWith("/operational/specialist/capability/") ||
+    currentPath === "/operational/specialist/capability-practicals" ||
+    currentPath === "/operational/specialist/capability-sandbox-simulation" ||
+    currentPath === "/operational/capability-review/practicals" ||
+    currentPath === "/operational/capability-review/oral-defense" ||
+    currentPath === "/operational/capability-review/shadow-cohort";
+
   const app = (
     <React.StrictMode>
       <BrowserRouter>
-        <App />
+        {isCapabilityRoute ? <CapabilityStandaloneApp /> : <App />}
       </BrowserRouter>
     </React.StrictMode>
   );
