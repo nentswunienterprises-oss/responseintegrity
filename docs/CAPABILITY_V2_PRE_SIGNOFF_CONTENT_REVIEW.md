@@ -7,14 +7,15 @@
 - Baseline package: complete 16-bank V2 candidate preserved unchanged
 - Baseline decision: structurally valid, editorially blocked
 - Private remediation candidate: V2R7
-- V2R7 automated pre-signoff status: **passed structural and editorial gates**
+- V2R7 automated pre-signoff status: **passed current structural and editorial validator**
 - Human doctrine sign-off: **not granted yet**
+- Human review packets: **generated privately using blind-review / separate-key workflow**
 - Proof import: not authorised
 - Production: untouched
 
 The original 16-bank, 895-item package remains preserved as the rejected pre-signoff baseline. Its hashes continue to identify that exact package and must not be reused for revised content.
 
-A separate private V2R7 candidate has now completed automated remediation and validation. This does not replace the required item-by-item human doctrine review.
+A separate private V2R7 candidate has completed automated remediation and validation. This does not replace the required item-by-item human doctrine review.
 
 ## Original blockers
 
@@ -36,7 +37,7 @@ Some distractors contained explanatory commentary or repeated linguistic pattern
 
 ## V2R7 remediation completed privately
 
-The revised private candidate now preserves the same 16-bank / 895-item release shape while replacing the rejected content patterns.
+The revised private candidate preserves the same 16-bank / 895-item release shape while replacing the rejected content patterns.
 
 - 11 mastery banks: 495 items
 - 2 delayed Retrieval banks: 160 items
@@ -60,11 +61,11 @@ All three Transfer banks were rewritten as genuinely paired operating-condition 
 
 ### Editorial remediation
 
-Explicit evaluator commentary was removed from answer choices. Repeated answer-style cues were normalised, transfer grammar defects were repaired, and answer-length / answer-position patterns were rebalanced so the key is not discoverable from presentation style.
+Explicit evaluator commentary was removed from answer choices. Repeated answer-style cues were normalised, transfer grammar defects were repaired, and answer-length / answer-position patterns were rebalanced.
 
 ## Automated pre-signoff validation
 
-V2R7 passed the private automated gate across all 16 banks.
+V2R7 passed the current private automated gate across all 16 banks.
 
 - 4,800 deterministic forms validated: 100 fictional identities x 3 attempts x 16 banks
 - minimum distinct retry forms per identity: 3
@@ -73,16 +74,35 @@ V2R7 passed the private automated gate across all 16 banks.
 - all four answer positions are used in every bank
 - longest-correct-answer rate is at or below 35% across the revised package
 - transfer formal-label leakage: 0
-- explicit evaluator-cue options: 0
-- detected answer-style cue items: 0
+- explicit evaluator-cue options under the current validator: 0
+- style-cue items under the current validator: 0
 
-These checks validate structure, coverage, determinism and obvious assessment-quality failure modes. They do **not** establish doctrinal correctness by themselves.
+These checks validate structure, coverage, determinism and the failure modes encoded in the current validator. They do **not** establish doctrinal correctness or prove that no human-detectable test-taking cues remain.
+
+## Adversarial pre-human review
+
+A broader pre-human cue audit was run after the automated gate. It found residual lexical correlations that the current validator does not model. In particular, some words and permission/absolute constructions occur disproportionately in distractors. This is not proof that the keyed answers are doctrinally wrong, but it is a real assessment-quality risk that human reviewers must test rather than ignore.
+
+The same audit also found repeated generic rule-definition stems in the mastery family. Those items may still be doctrinally valid, but reviewers must decide whether they test operating judgment strongly enough or remain too easy / too templated for a private capability bank.
+
+This additional audit does not change the immutable V2R7 package. It changes the review standard applied to it.
+
+## Human review method
+
+Private review packets have been generated for all 16 banks using a blind-review workflow:
+
+1. the reviewer answers every item without opening the candidate key;
+2. the reviewer marks confidence and flags ambiguity, doctrine disputes, or copy issues;
+3. only after the bank is complete does an adjudicator open the separate key and reconcile mismatches;
+4. a reviewer/key mismatch is resolved against the current Deep Dive and live RI operating source of truth, not by automatically treating the reviewer as wrong.
+
+This prevents the human gate from becoming a confirmation exercise.
 
 ## Current release decision
 
-**V2R7 may proceed to delegated human doctrine review. It may not yet be frozen, imported, activated or used as real Specialist evidence.**
+**V2R7 may proceed through blind human doctrine review. It may not yet be frozen, imported, activated or used as real Specialist evidence.**
 
-The next gate is item-by-item review against the current Response Integrity operating doctrine and Deep Dive source material. Reviewers should approve, reject or flag each item. Genuine doctrine disputes should be escalated to the methodology owner rather than silently resolved by editing the assessment to fit reviewer preference.
+The review must judge doctrinal correctness, unique answer defensibility, ambiguity, realistic operating judgment, and residual test-taking cues. Genuine doctrine disputes should be escalated to the methodology owner rather than silently resolved by editing the assessment to fit reviewer preference.
 
 Only after all required human review is resolved may the candidate receive final frozen hashes and proceed through one atomic inactive import into Nenterprises RI Proof, persisted-source verification and separately approved activation.
 
