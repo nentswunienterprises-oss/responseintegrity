@@ -28,14 +28,25 @@ describe("topicConditioningEngine", () => {
     assert.equal(regressingLow > stableHigh, true);
   });
 
-  it("returns next action from engine", () => {
+  it("keeps High Maintenance in the current phase for the next drill", () => {
     assert.equal(nextActionFor("Clarity", "Low"), "Run Clarity drill");
+    assert.equal(
+      nextActionFor("Controlled Discomfort", "High Maintenance"),
+      "Run Controlled Discomfort High Maintenance drill",
+    );
     assert.equal(getNextActionData("Structured Execution", "High Maintenance").advanceTo, "Controlled Discomfort");
   });
 
-  it("recommends movement logic", () => {
+  it("recommends movement logic without skipping High Maintenance evidence", () => {
     assert.equal(nextMoveRecommendation("Clarity", "High"), "Run High Maintenance check before advancing");
-    assert.equal(nextMoveRecommendation("Clarity", "High Maintenance"), "Advance to Structured Execution");
+    assert.equal(
+      nextMoveRecommendation("Clarity", "High Maintenance"),
+      "Run Clarity High Maintenance check; strong evidence can advance to Structured Execution",
+    );
+    assert.equal(
+      nextMoveRecommendation("Controlled Discomfort", "High Maintenance"),
+      "Run Controlled Discomfort High Maintenance check; strong evidence can advance to Time Pressure Stability",
+    );
     assert.equal(nextMoveRecommendation("Controlled Discomfort", "Low").includes("Reinforce Structured Execution"), true);
   });
 
