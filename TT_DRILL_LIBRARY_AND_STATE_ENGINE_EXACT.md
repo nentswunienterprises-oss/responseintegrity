@@ -546,10 +546,10 @@ Per phase × stability, the engine provides:
   - Rules: `Do NOT phase advance yet`; `Prove repeatable stability first`
   - Next actions: `Run High Maintenance check in Clarity`; `Reduce modeling`; `Increase independent attempts`; `Validate consistency across full set volume`
 - High Maintenance:
-  - Primary action: `Run Structured Execution drill`
-  - Rules: `Do NOT stay in teaching mode`; `Move forward`
-  - Next actions: `Transition to Structured Execution`; `Reduce modeling`; `Increase independent attempts`
-  - `advanceTo`: `Structured Execution`
+  - Primary action: `Run Clarity High Maintenance drill`
+  - Rules: `Do NOT phase advance yet`; `High Maintenance evidence must hold before progression`
+  - Next actions: `Run High Maintenance check in Clarity`; `Confirm clarity remains stable at High Maintenance`; `Progress to Structured Execution only if the High Maintenance evidence qualifies`
+  - `advanceTo`: `Structured Execution` only after qualifying High Maintenance evidence
 
 ### Structured Execution
 
@@ -566,10 +566,10 @@ Per phase × stability, the engine provides:
   - Rules: `Do NOT phase advance yet`; `Prove repeatable stability first`
   - Next actions: `Run High Maintenance check in Structured Execution`; `Run Structured Execution drill`; `Confirm repeatable execution stability`
 - High Maintenance:
-  - Primary action: `Run Controlled Discomfort drill`
-  - Rules: `Do NOT keep repeating basic problems`; `Move forward`
-  - Next actions: `Transition to Controlled Discomfort`; `Introduce Boss Battles consistently`; `Focus on response under uncertainty`
-  - `advanceTo`: `Controlled Discomfort`
+  - Primary action: `Run Structured Execution High Maintenance drill`
+  - Rules: `Do NOT phase advance yet`; `High Maintenance evidence must hold before progression`
+  - Next actions: `Run High Maintenance check in Structured Execution`; `Confirm execution remains stable at High Maintenance`; `Progress to Controlled Discomfort only if the High Maintenance evidence qualifies`
+  - `advanceTo`: `Controlled Discomfort` only after qualifying High Maintenance evidence
 
 ### Controlled Discomfort
 
@@ -586,10 +586,10 @@ Per phase × stability, the engine provides:
   - Rules: `Do NOT phase advance yet`; `Prove repeatable stability first`
   - Next actions: `Run High Maintenance check in Controlled Discomfort`; `Increase difficulty consistency`; `Confirm composed starts under uncertainty`
 - High Maintenance:
-  - Primary action: `Run Time Pressure Stability drill`
-  - Rules: `Do NOT stay in comfort zone`; `Move forward`
-  - Next actions: `Transition to Time Pressure Stability`; `Introduce timed Boss Battles`; `Maintain structure under constraint`
-  - `advanceTo`: `Time Pressure Stability`
+  - Primary action: `Run Controlled Discomfort High Maintenance drill`
+  - Rules: `Do NOT phase advance yet`; `High Maintenance evidence must hold before progression`
+  - Next actions: `Run High Maintenance check in Controlled Discomfort`; `Confirm response under difficulty remains stable at High Maintenance`; `Progress to Time Pressure Stability only if the High Maintenance evidence qualifies`
+  - `advanceTo`: `Time Pressure Stability` only after qualifying High Maintenance evidence
 
 ### Time Pressure Stability
 
@@ -619,7 +619,7 @@ Source: `client/src/components/tutor/topicConditioningEngine.ts`
 - `nextAction`: the `primaryAction`
 - `transitionStatus`:
   - `High Maintenance`:
-    - non-final phase => `Advance to <next phase>`
+    - non-final phase => `Run the current phase High Maintenance check; strong evidence can progress to <next phase>`
     - final phase => `Maintain and transfer to new topics`
   - `High` => `Run High Maintenance check before advancing`
   - `Medium` => `Hold current phase - build stability before advancing`
@@ -689,7 +689,7 @@ This is the phase-specific parent dashboard matrix to use for `status`, `meaning
 - High Maintenance:
   - Status: `Your child has sustained strong clarity in this topic.`
   - Meaning: `They have held high performance consistently and are ready for progression decisions.`
-  - Focus: `We are now transitioning into Structured Execution training.`
+  - Focus: `We are confirming that this clarity remains stable before moving into Structured Execution.`
 
 ### Structured Execution
 
@@ -708,7 +708,7 @@ This is the phase-specific parent dashboard matrix to use for `status`, `meaning
 - High Maintenance:
   - Status: `Your child has sustained strong execution consistency in this topic.`
   - Meaning: `They have held high execution quality across sessions and are ready for progression decisions.`
-  - Focus: `We are now transitioning into Controlled Discomfort training.`
+  - Focus: `We are confirming that this execution remains stable before moving into Controlled Discomfort.`
 
 ### Controlled Discomfort
 
@@ -727,7 +727,7 @@ This is the phase-specific parent dashboard matrix to use for `status`, `meaning
 - High Maintenance:
   - Status: `Your child has sustained strong performance under challenge in this topic.`
   - Meaning: `They have held high stability in difficult work and are ready for progression decisions.`
-  - Focus: `We are now transitioning into Time Pressure Stability training.`
+  - Focus: `We are confirming that this response under difficulty remains stable before moving into Time Pressure Stability.`
 
 ### Time Pressure Stability
 
