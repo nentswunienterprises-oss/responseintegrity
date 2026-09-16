@@ -63,7 +63,17 @@ Resolved doctrine. One live Deep Dive sentence still needs synchronization befor
 
 Assessment review reference: Time Pressure Stability 4.
 
-## Open product decisions to resolve before final freeze
+### Reporting is deterministic, not Specialist-authored
+
+Resolved live-product rule.
+
+- Specialists capture observable drill evidence; they do not manually write the parent-facing performance conclusion.
+- Response Snapshot and downstream report language are generated deterministically from the stored evidence and state movement.
+- Capability questions must therefore test evidence integrity and downstream consequence, not a fictional manual report-writing workflow.
+
+Time Pressure Stability review item 42 was rejected in its original form because it described the Specialist writing a session-summary claim manually.
+
+## Open product decisions and implementation gaps to resolve before final freeze
 
 ### Record support permitted separately from support actually used
 
@@ -108,6 +118,43 @@ Before freeze, decide how the product should capture and surface an inherited-la
 - the student repeatedly sought rescue, which is still meaningful evidence about inherited independence
 
 Do not solve this by silently forcing rescue-seeking into an unrelated TPS field or by pretending it did not happen.
+
+### TPS timer instruction and execution infrastructure is not implemented
+
+Raised during Time Pressure Stability review items 38, 41, and 44.
+
+The current versioned drill registry stores categorical pressure levels (`light_timer`, `repeated_timer`, `full_constraint`) but no timer duration, timer source, or timing formula. The current runner contains qualitative instructions such as `Solve under short timer`, `Same timer`, and `Tighter timer`, but it does not provide an authoritative expected duration or an implemented countdown/timer-control contract.
+
+There is also no implemented authoritative pre-session timer field and no authorised workflow for a missing, contradictory, or failed timer instruction. Therefore Capability questions must not assess a Specialist against a workflow that does not exist.
+
+Before TPS can freeze, decide and implement at least:
+
+- where the timer duration comes from
+- whether timing is generated per problem, per set, or from another deterministic input
+- which surface is authoritative
+- how the Specialist receives and runs the timer
+- how the same-timer rule is preserved across Repeated Timed Execution
+- what `full_constraint` means in measurable timing terms
+- whether actual timer conditions are persisted with evidence
+- what happens when the timer instruction is missing, contradictory, or technically fails
+
+Original review items 41 and 44 are rejected rather than approved.
+
+### TPS final-state next action must not imply cross-topic phase transfer
+
+Raised during Time Pressure Stability review item 43.
+
+The core model is topic-specific: each topic has its own phase and stability, and a new topic gets its own state from its own diagnosis/activation evidence. A topic reaching Time Pressure Stability / High Maintenance does not transfer that phase or stability to a different topic.
+
+Current next-action and parent-copy language still includes phrases such as `Begin cross-topic conditioning`, `Prepare for transfer to new topics`, and `expanding transfer across related topics`. That wording is inconsistent with the topic-specific state model unless a separate cross-topic capability product is deliberately designed later.
+
+Before freeze, synchronize this language so that:
+
+- the mastered topic remains in its own TPS maintenance state
+- any newly activated topic gets its own independent state from its own evidence
+- no phase or stability is inherited merely because another topic reached TPS High Maintenance
+
+Original review item 43 is rejected as irrelevant to the current product flow.
 
 ## Final sweep rule
 
