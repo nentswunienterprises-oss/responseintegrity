@@ -11,6 +11,19 @@ It does not contain the private assessment corpus. Question numbers are included
 
 The rule for the final pre-freeze sweep is simple: no question that exposed a real product ambiguity is allowed to disappear just because the assessment wording was approved.
 
+## Human review checkpoint
+
+The four transformation-phase mastery banks have completed manual item-level human review:
+
+- Clarity: 45/45 approved
+- Structured Execution: 45/45 approved
+- Controlled Discomfort: 45/45 approved
+- Time Pressure Stability: 45/45 approved
+
+Time Pressure Stability items 41-44 were replaced after review exposed product assumptions that were not implemented. The replacements were approved. The original TPS item 38 was also withdrawn because it assumed timer-failure workflow infrastructure that does not exist; its replacement tests the implemented no-support boundary instead and was approved.
+
+Human approval does not freeze these banks. Product decisions and implementation gaps below must be resolved first, followed by source, coverage, duplicate, critical-boundary, and answer-position audits.
+
 ## Resolved doctrine and product decisions
 
 ### High Maintenance is a real state inside the current phase
@@ -49,7 +62,7 @@ Resolved doctrine. Product implementation follow-up remains open below.
 - Repeat Exposure remains strictly no-support.
 - This explains why Structured Execution can be stricter: Structured Execution proves ownership of the known method without help; Controlled Discomfort conditions that already-established response against difficulty and may temporarily permit a bounded response/recovery scaffold before returning to no-support verification.
 
-Assessment review references: Controlled Discomfort 6, 12, 13, 30.
+Assessment review references: Controlled Discomfort 6, 12, 13, 30; Time Pressure Stability revised item 38.
 
 ### Time Pressure Stability isolates the time condition
 
@@ -71,7 +84,17 @@ Resolved live-product rule.
 - Response Snapshot and downstream report language are generated deterministically from the stored evidence and state movement.
 - Capability questions must therefore test evidence integrity and downstream consequence, not a fictional manual report-writing workflow.
 
-Time Pressure Stability review item 42 was rejected in its original form because it described the Specialist writing a session-summary claim manually.
+Time Pressure Stability review item 42 was rejected in its original form because it described the Specialist writing a session-summary claim manually. The replacement tests upstream evidence integrity instead and was approved.
+
+### Topic states remain topic-specific
+
+Resolved core-model rule; derivative next-action/reporting wording still needs synchronization below.
+
+- Each mathematical topic has its own phase and stability state.
+- A new topic receives its own state from its own diagnosis/activation evidence.
+- One topic reaching Time Pressure Stability / High Maintenance does not assign, transfer, or imply the same phase or stability for another topic.
+
+Time Pressure Stability review item 43 was rejected in its original form and replaced with this topic-specific-state boundary. The replacement was approved.
 
 ## Open product decisions and implementation gaps to resolve before final freeze
 
@@ -138,7 +161,7 @@ Before TPS can freeze, decide and implement at least:
 - whether actual timer conditions are persisted with evidence
 - what happens when the timer instruction is missing, contradictory, or technically fails
 
-Original review items 41 and 44 are rejected rather than approved.
+The original TPS item 38 and original items 41 and 44 were rejected rather than approved. Their approved replacements do not assume this missing infrastructure.
 
 ### TPS final-state next action must not imply cross-topic phase transfer
 
@@ -154,7 +177,7 @@ Before freeze, synchronize this language so that:
 - any newly activated topic gets its own independent state from its own evidence
 - no phase or stability is inherited merely because another topic reached TPS High Maintenance
 
-Original review item 43 is rejected as irrelevant to the current product flow.
+The replacement TPS item 43 tests this topic-specific-state boundary and was approved.
 
 ## Final sweep rule
 
