@@ -1,0 +1,137 @@
+name: Proof High Maintenance Documentation Sync
+
+on:
+  push:
+    branches:
+      - proof/capability-engine-shadow-validation
+    paths:
+      - .github/workflows/proof-high-maintenance-doc-sync.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: proof/capability-engine-shadow-validation
+          fetch-depth: 0
+
+      - name: Synchronize High Maintenance documentation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly one match, found {count}")
+              return text.replace(old, new, 1)
+
+          canonical_path = Path("docs/response-integrity-os-implementation-source-of-truth.md")
+          canonical = canonical_path.read_text()
+
+          canonical = replace_once(
+              canonical,
+              "Last updated: 2026-09-03",
+              "Last updated: 2026-09-16",
+              "canonical last-updated date",
+          )
+
+          canonical_replacements = [
+              (
+                  "Clarity High Maintenance next action",
+                  "`High Maintenance`\n\n- primary action: `Run Structured Execution drill`\n- rules: `Do NOT stay in teaching mode`, `Move forward`\n- advanceTo: `Structured Execution`",
+                  "`High Maintenance`\n\n- primary action: `Run Clarity High Maintenance drill`\n- rules: `Do NOT phase advance yet`, `High Maintenance evidence must hold before progression`\n- advanceTo: `Structured Execution` only after qualifying High Maintenance evidence",
+              ),
+              (
+                  "Structured Execution High Maintenance next action",
+                  "`High Maintenance`\n\n- primary action: `Run Controlled Discomfort drill`\n- rules: `Do NOT keep repeating basic problems`, `Move forward`\n- advanceTo: `Controlled Discomfort`",
+                  "`High Maintenance`\n\n- primary action: `Run Structured Execution High Maintenance drill`\n- rules: `Do NOT phase advance yet`, `High Maintenance evidence must hold before progression`\n- advanceTo: `Controlled Discomfort` only after qualifying High Maintenance evidence",
+              ),
+              (
+                  "Controlled Discomfort High Maintenance next action",
+                  "`High Maintenance`\n\n- primary action: `Run Time Pressure Stability drill`\n- rules: `Do NOT stay in comfort zone`, `Move forward`\n- advanceTo: `Time Pressure Stability`",
+                  "`High Maintenance`\n\n- primary action: `Run Controlled Discomfort High Maintenance drill`\n- rules: `Do NOT phase advance yet`, `High Maintenance evidence must hold before progression`\n- advanceTo: `Time Pressure Stability` only after qualifying High Maintenance evidence",
+              ),
+              (
+                  "Clarity parent High Maintenance focus",
+                  "- focus: `We are now transitioning into Structured Execution training.`",
+                  "- focus: `We are confirming that this clarity remains stable before moving into Structured Execution.`",
+              ),
+              (
+                  "Structured Execution parent High Maintenance focus",
+                  "- focus: `We are now transitioning into Controlled Discomfort training.`",
+                  "- focus: `We are confirming that this execution remains stable before moving into Controlled Discomfort.`",
+              ),
+              (
+                  "Controlled Discomfort parent High Maintenance focus",
+                  "- focus: `We are now transitioning into Time Pressure Stability training.`",
+                  "- focus: `We are confirming that this response under difficulty remains stable before moving into Time Pressure Stability.`",
+              ),
+          ]
+          for label, old, new in canonical_replacements:
+              canonical = replace_once(canonical, old, new, label)
+
+          canonical_path.write_text(canonical)
+
+          exact_path = Path("TT_DRILL_LIBRARY_AND_STATE_ENGINE_EXACT.md")
+          exact = exact_path.read_text()
+
+          exact_replacements = [
+              (
+                  "TT Clarity High Maintenance next action",
+                  "- High Maintenance:\n  - Primary action: `Run Structured Execution drill`\n  - Rules: `Do NOT stay in teaching mode`; `Move forward`\n  - Next actions: `Transition to Structured Execution`; `Reduce modeling`; `Increase independent attempts`\n  - `advanceTo`: `Structured Execution`",
+                  "- High Maintenance:\n  - Primary action: `Run Clarity High Maintenance drill`\n  - Rules: `Do NOT phase advance yet`; `High Maintenance evidence must hold before progression`\n  - Next actions: `Run High Maintenance check in Clarity`; `Confirm clarity remains stable at High Maintenance`; `Progress to Structured Execution only if the High Maintenance evidence qualifies`\n  - `advanceTo`: `Structured Execution` only after qualifying High Maintenance evidence",
+              ),
+              (
+                  "TT Structured Execution High Maintenance next action",
+                  "- High Maintenance:\n  - Primary action: `Run Controlled Discomfort drill`\n  - Rules: `Do NOT keep repeating basic problems`; `Move forward`\n  - Next actions: `Transition to Controlled Discomfort`; `Introduce Boss Battles consistently`; `Focus on response under uncertainty`\n  - `advanceTo`: `Controlled Discomfort`",
+                  "- High Maintenance:\n  - Primary action: `Run Structured Execution High Maintenance drill`\n  - Rules: `Do NOT phase advance yet`; `High Maintenance evidence must hold before progression`\n  - Next actions: `Run High Maintenance check in Structured Execution`; `Confirm execution remains stable at High Maintenance`; `Progress to Controlled Discomfort only if the High Maintenance evidence qualifies`\n  - `advanceTo`: `Controlled Discomfort` only after qualifying High Maintenance evidence",
+              ),
+              (
+                  "TT Controlled Discomfort High Maintenance next action",
+                  "- High Maintenance:\n  - Primary action: `Run Time Pressure Stability drill`\n  - Rules: `Do NOT stay in comfort zone`; `Move forward`\n  - Next actions: `Transition to Time Pressure Stability`; `Introduce timed Boss Battles`; `Maintain structure under constraint`\n  - `advanceTo`: `Time Pressure Stability`",
+                  "- High Maintenance:\n  - Primary action: `Run Controlled Discomfort High Maintenance drill`\n  - Rules: `Do NOT phase advance yet`; `High Maintenance evidence must hold before progression`\n  - Next actions: `Run High Maintenance check in Controlled Discomfort`; `Confirm response under difficulty remains stable at High Maintenance`; `Progress to Time Pressure Stability only if the High Maintenance evidence qualifies`\n  - `advanceTo`: `Time Pressure Stability` only after qualifying High Maintenance evidence",
+              ),
+              (
+                  "TT interpreted High Maintenance state",
+                  "  - `High Maintenance`:\n    - non-final phase => `Advance to <next phase>`\n    - final phase => `Maintain and transfer to new topics`",
+                  "  - `High Maintenance`:\n    - non-final phase => `Run the current phase High Maintenance check; strong evidence can progress to <next phase>`\n    - final phase => `Maintain and transfer to new topics`",
+              ),
+              (
+                  "TT Clarity parent High Maintenance focus",
+                  "  - Focus: `We are now transitioning into Structured Execution training.`",
+                  "  - Focus: `We are confirming that this clarity remains stable before moving into Structured Execution.`",
+              ),
+              (
+                  "TT Structured Execution parent High Maintenance focus",
+                  "  - Focus: `We are now transitioning into Controlled Discomfort training.`",
+                  "  - Focus: `We are confirming that this execution remains stable before moving into Controlled Discomfort.`",
+              ),
+              (
+                  "TT Controlled Discomfort parent High Maintenance focus",
+                  "  - Focus: `We are now transitioning into Time Pressure Stability training.`",
+                  "  - Focus: `We are confirming that this response under difficulty remains stable before moving into Time Pressure Stability.`",
+              ),
+          ]
+          for label, old, new in exact_replacements:
+              exact = replace_once(exact, old, new, label)
+
+          exact_path.write_text(exact)
+          PY
+
+      - name: Verify and commit synchronized docs
+        shell: bash
+        run: |
+          git diff --check
+          git diff -- docs/response-integrity-os-implementation-source-of-truth.md TT_DRILL_LIBRARY_AND_STATE_ENGINE_EXACT.md
+          test -n "$(git status --porcelain -- docs/response-integrity-os-implementation-source-of-truth.md TT_DRILL_LIBRARY_AND_STATE_ENGINE_EXACT.md)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/response-integrity-os-implementation-source-of-truth.md TT_DRILL_LIBRARY_AND_STATE_ENGINE_EXACT.md
+          git commit -m "Synchronize High Maintenance documentation"
+          git push origin HEAD:proof/capability-engine-shadow-validation
