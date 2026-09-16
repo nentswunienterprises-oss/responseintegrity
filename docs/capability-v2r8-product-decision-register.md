@@ -51,6 +51,18 @@ Resolved doctrine. Product implementation follow-up remains open below.
 
 Assessment review references: Controlled Discomfort 6, 12, 13, 30.
 
+### Time Pressure Stability isolates the time condition
+
+Resolved doctrine. One live Deep Dive sentence still needs synchronization before freeze.
+
+- TPS does not increase mathematical difficulty while introducing time pressure.
+- TPS training keeps `difficultyLevel: normal`, `variationLevel: same_form`, and `supportLevel: none` across Structure Under Timer, Repeated Timed Execution, and Full Constraint.
+- What changes across the sequence is the time-pressure condition: light timer -> repeated timer -> full constraint.
+- A Specialist may not make the mathematics harder or change the problem form simply because the student looks strong.
+- The current Deep Dive phrase `unless the system explicitly directs otherwise` is too loose for this contract and must be removed or rewritten to state the fixed standard clearly.
+
+Assessment review reference: Time Pressure Stability 4.
+
 ## Open product decisions to resolve before final freeze
 
 ### Record support permitted separately from support actually used
@@ -83,6 +95,19 @@ The product currently makes the persistent Topic Reference available during Clar
 Raised during Clarity review.
 
 Clarify the allowed response-control/instructional boundary so `minimal` cannot quietly become step-by-step mathematical support or hidden rescue.
+
+### Preserve inherited-layer evidence when the current phase does not score that dimension directly
+
+Raised during Time Pressure Stability review item 24.
+
+TPS directly scores start under time, structure under time, pace control, and completion integrity. A student can nevertheless show a meaningful inherited-layer signal such as repeated rescue-seeking while the Specialist correctly preserves the no-support condition.
+
+Before freeze, decide how the product should capture and surface an inherited-layer break that is operationally important but is not one of the current phase's direct scored fields. The product should preserve the distinction between:
+
+- the Specialist gave no rescue, so the no-support condition remained valid
+- the student repeatedly sought rescue, which is still meaningful evidence about inherited independence
+
+Do not solve this by silently forcing rescue-seeking into an unrelated TPS field or by pretending it did not happen.
 
 ## Final sweep rule
 
