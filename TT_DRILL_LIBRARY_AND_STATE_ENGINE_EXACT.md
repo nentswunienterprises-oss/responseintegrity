@@ -57,6 +57,19 @@ Derived from:
   - `Timer is active`
   - `Structured response required - panic responding is logged as instability.`
 
+## Layer inheritance rule
+
+Progression adds a condition; it does not discard earlier capability.
+
+- `Clarity` establishes Vocabulary, Method, and Reason, with the required step sequence available to the student.
+- `Structured Execution` inherits Clarity and adds independent, ordered, repeatable execution.
+- `Controlled Discomfort` inherits Clarity plus Structured Execution and adds difficulty and uncertainty.
+- `Time Pressure Stability` inherits all earlier layers and adds urgency.
+
+When an error appears, locate the earliest layer that visibly broke. A wrong final answer alone does not identify that layer. An isolated calculation error may change the answer without proving that the mental map, method chain, independence, or current-phase response broke. Conversely, strong behavior in a later phase cannot excuse a visible break in an earlier layer.
+
+This does not create manual cross-phase movement. The Specialist records the evidence; the state engine owns movement.
+
 ## Drill library
 
 ## Diagnosis library

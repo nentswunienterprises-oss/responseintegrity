@@ -184,6 +184,20 @@ export default function ResponseConditioningTimePressureStability() {
           </ul>
         </Card>
 
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">What This Phase Inherits</h2>
+          <p className="text-muted-foreground">
+            Time Pressure Stability inherits the mental map, independent execution, and response under difficulty already built in the
+            earlier phases. The timer adds urgency; it does not replace those requirements.
+          </p>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li>A fast or correct final answer does not excuse lost method structure, random execution, or renewed rescue dependence.</li>
+            <li>If urgency exposes an earlier-layer break, record the layer that actually broke instead of calling every failure a time problem.</li>
+            <li>An isolated calculation error does not automatically prove the inherited layers failed.</li>
+            <li>The Specialist records the evidence. RI-OS still owns topic-state movement.</li>
+          </ul>
+        </Card>
+
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Time Pressure Training Recipe</h2>
           <p className="text-muted-foreground">

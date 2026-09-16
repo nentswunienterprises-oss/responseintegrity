@@ -386,6 +386,19 @@ The intended forward sequence is:
 
 - `Clarity` -> `Structured Execution` -> `Controlled Discomfort` -> `Time Pressure Stability`
 
+### Layer inheritance rule
+
+Progression adds a condition. It does not discard the capability built before it.
+
+- `Clarity` establishes the usable mental map: Vocabulary, Method, and Reason, with the required step sequence available to the student.
+- `Structured Execution` inherits that mental map and adds independent, ordered, repeatable execution.
+- `Controlled Discomfort` inherits Clarity and Structured Execution and adds meaningful difficulty and uncertainty.
+- `Time Pressure Stability` inherits all earlier layers and adds urgency through the timer condition.
+
+When an error appears, locate the earliest layer that visibly broke. A wrong final answer alone does not identify the broken layer. An isolated local calculation error can change the final answer without proving that Vocabulary, Method, Reason, the method chain, independence, or the current-phase response broke. The reverse also matters: calmness, persistence, speed, or a correct final answer cannot be used to excuse a visibly broken earlier layer.
+
+This inheritance rule does not give the Specialist authority to move a topic backward or forward manually. The Specialist records what actually happened, including any visible upstream-layer break; the deterministic state engine still owns movement.
+
 There is no cross-phase regression engine currently implemented inside the core transition function.
 
 Stability can regress inside the current phase.

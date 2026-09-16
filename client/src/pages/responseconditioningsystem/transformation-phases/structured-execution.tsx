@@ -185,6 +185,19 @@ export default function ResponseConditioningStructuredExecution() {
           </ul>
         </Card>
 
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">What This Phase Inherits</h2>
+          <p className="text-muted-foreground">
+            Progression adds a condition; it does not discard Clarity. Structured Execution inherits the student's Vocabulary, Method,
+            and Reason mental map and adds independent, ordered, repeatable execution.
+          </p>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li>If Vocabulary, Method, or Reason visibly breaks, record that break instead of letting a correct answer hide it.</li>
+            <li>An isolated calculation error does not automatically mean the mental map broke; locate where the error actually occurred.</li>
+            <li>The Specialist records the evidence. RI-OS still owns topic-state movement.</li>
+          </ul>
+        </Card>
+
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Structured Execution Training Recipe</h2>
           <p className="text-muted-foreground">
