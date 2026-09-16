@@ -50,7 +50,7 @@ Resolved and synchronized in the canonical source and live Deep Dives.
 
 ### Controlled Discomfort support semantics
 
-Resolved doctrine. Product implementation follow-up remains open below.
+Resolved doctrine. Product implementation follow-up remains before freeze.
 
 - Support levels are ceilings, not scripts.
 - Every rep begins without support.
@@ -96,20 +96,28 @@ Resolved core-model rule; derivative next-action/reporting wording still needs s
 
 Time Pressure Stability review item 43 was rejected in its original form and replaced with this topic-specific-state boundary. The replacement was approved.
 
+### Permitted support and actual support are separate evidence facts
+
+Approved product contract. Implementation requires a new versioned evidence contract before freeze.
+
+- `supportLevel` remains the set-level ceiling: the maximum support permitted by the assigned condition.
+- Actual Specialist support is captured separately as a rep-level source fact.
+- The rep-level `actualSupportUsed` values are:
+  - `none`
+  - `response_control_cue`
+  - `first_step_math_support`
+  - `beyond_permitted_boundary`
+- The system deterministically compares the support ceiling with the actual support used.
+- Support that remains inside the permitted ceiling can still produce legitimate evidence, but downstream language must reflect the support that actually occurred.
+- A recovery after first-step mathematical support cannot be described as independent through that intervention point.
+- Support that exceeds the permitted ceiling contaminates the evidence condition. It must not be disguised as weak student performance.
+- The student's subsequent observable behaviour remains part of the historical record, but a contaminated rep cannot count as clean proof of the assigned condition.
+- `actualSupportUsed` is stored once per rep as the source fact. Evidence-ledger projection may carry that rep-level fact alongside projected dimension rows for lineage, but it must not create four independent support facts merely because a rep has four scored fields.
+- The published V1 evidence contract remains immutable. This change must be introduced through a deliberate versioned schema/contract with compatibility and migration decisions.
+
+Assessment review references: Controlled Discomfort support review; Time Pressure Stability revised item 38.
+
 ## Open product decisions and implementation gaps to resolve before final freeze
-
-### Record support permitted separately from support actually used
-
-Current evidence stores the set constraint profile, which tells us what support was permitted. That is not the same fact as what support the Specialist actually used on a rep.
-
-The desired evidence distinction is conceptually:
-
-- none used
-- response-control cue used
-- first-step mathematical support used
-- support exceeded the permitted boundary
-
-Do not mutate the published V1 evidence contract casually. If implemented, this should be handled as a deliberate versioned evidence/schema change with migration and compatibility decisions.
 
 ### Post-submission inaccurate evidence correction path
 
