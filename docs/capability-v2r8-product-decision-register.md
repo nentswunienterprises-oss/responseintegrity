@@ -117,13 +117,25 @@ Approved product contract. Implementation requires a new versioned evidence cont
 
 Assessment review references: Controlled Discomfort support review; Time Pressure Stability revised item 38.
 
+### Submitted evidence is immutable and corrected by supersession
+
+Approved product contract. Implementation requires an auditable correction workflow before freeze.
+
+- Before final submission, the Specialist may edit the current capture normally.
+- After submission, the evidence record is historical and must not be silently edited or deleted.
+- A Specialist who discovers an inaccurate submission raises an Evidence Correction against the exact submitted drill, set, rep, and affected observation.
+- The correction preserves the original value and records the proposed corrected value, a structured reason, who raised it, and when.
+- The Specialist may initiate correction of their own submitted evidence but may not approve their own post-submission correction.
+- The assigned TD is the normal approval authority. COO is the escalation or fallback authority for exceptional cases.
+- When a correction is approved, the system appends a superseding correction event. The original evidence remains visible for audit but is superseded for active interpretation.
+- The system replays the affected topic lineage deterministically from immediately before the corrected submission: corrected evidence -> recomputed transition -> every later valid topic event in chronological order -> newly derived current state.
+- The Specialist never chooses the replacement phase or stability.
+- Dependent deterministic outputs such as Response Snapshot or parent/reporting artifacts are not manually rewritten. Their prior lineage is marked superseded where applicable and the output is regenerated from the corrected evidence chain.
+- There must be no product path that deletes a submitted drill or quietly edits submitted evidence in place.
+
+Assessment review reference: Clarity item 20.
+
 ## Open product decisions and implementation gaps to resolve before final freeze
-
-### Post-submission inaccurate evidence correction path
-
-Raised during Clarity review item 20.
-
-The doctrine is clear that inaccurate evidence makes resulting movement unreliable, but the authorised product workflow for correcting or escalating already-submitted inaccurate evidence still needs to be explicit before Clarity freezes.
 
 ### Topic Reference use during no-support or recognition conditions
 
