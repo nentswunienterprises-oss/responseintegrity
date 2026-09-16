@@ -247,7 +247,7 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     "High Maintenance": {
       status: "Your child has sustained strong clarity in this topic.",
       meaning: "They have held high performance consistently and are ready for progression decisions.",
-      focus: "We are now transitioning into Structured Execution training.",
+      focus: "We are confirming that this clarity remains stable before moving into Structured Execution.",
     },
   },
   "Structured Execution": {
@@ -269,7 +269,7 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     "High Maintenance": {
       status: "Your child has sustained strong execution consistency in this topic.",
       meaning: "They have held high execution quality across sessions and are ready for progression decisions.",
-      focus: "We are now transitioning into Controlled Discomfort training.",
+      focus: "We are confirming that this execution remains stable before moving into Controlled Discomfort.",
     },
   },
   "Controlled Discomfort": {
@@ -291,7 +291,7 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     "High Maintenance": {
       status: "Your child has sustained strong performance under challenge in this topic.",
       meaning: "They have held high stability in difficult work and are ready for progression decisions.",
-      focus: "We are now transitioning into Time Pressure Stability training.",
+      focus: "We are confirming that this response under difficulty remains stable before moving into Time Pressure Stability.",
     },
   },
   "Time Pressure Stability": {
@@ -375,12 +375,12 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       ],
     },
     "High Maintenance": {
-      primaryAction: "Run Structured Execution drill",
-      rules: ["Do NOT stay in teaching mode", "Move forward"],
+      primaryAction: "Run Clarity High Maintenance drill",
+      rules: ["Do NOT phase advance yet", "High Maintenance evidence must hold before progression"],
       nextActions: [
-        "Transition to Structured Execution",
-        "Reduce modeling",
-        "Increase independent attempts",
+        "Run High Maintenance check in Clarity",
+        "Confirm clarity remains stable at High Maintenance",
+        "Progress to Structured Execution only if the High Maintenance evidence qualifies",
       ],
       advanceTo: "Structured Execution",
     },
@@ -416,12 +416,12 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       ],
     },
     "High Maintenance": {
-      primaryAction: "Run Controlled Discomfort drill",
-      rules: ["Do NOT keep repeating basic problems", "Move forward"],
+      primaryAction: "Run Structured Execution High Maintenance drill",
+      rules: ["Do NOT phase advance yet", "High Maintenance evidence must hold before progression"],
       nextActions: [
-        "Transition to Controlled Discomfort",
-        "Introduce Boss Battles consistently",
-        "Focus on response under uncertainty",
+        "Run High Maintenance check in Structured Execution",
+        "Confirm execution remains stable at High Maintenance",
+        "Progress to Controlled Discomfort only if the High Maintenance evidence qualifies",
       ],
       advanceTo: "Controlled Discomfort",
     },
@@ -457,12 +457,12 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       ],
     },
     "High Maintenance": {
-      primaryAction: "Run Time Pressure Stability drill",
-      rules: ["Do NOT stay in comfort zone", "Move forward"],
+      primaryAction: "Run Controlled Discomfort High Maintenance drill",
+      rules: ["Do NOT phase advance yet", "High Maintenance evidence must hold before progression"],
       nextActions: [
-        "Transition to Time Pressure Stability",
-        "Introduce timed Boss Battles",
-        "Maintain structure under constraint",
+        "Run High Maintenance check in Controlled Discomfort",
+        "Confirm response under difficulty remains stable at High Maintenance",
+        "Progress to Time Pressure Stability only if the High Maintenance evidence qualifies",
       ],
       advanceTo: "Time Pressure Stability",
     },
