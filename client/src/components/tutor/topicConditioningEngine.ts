@@ -11,7 +11,7 @@ export function interpretTopicState(
     if (idx === PHASES.length - 1) {
       transitionStatus = "Maintain and transfer to new topics";
     } else {
-      transitionStatus = `Advance to ${PHASES[idx + 1]}`;
+      transitionStatus = `Run the ${phase} High Maintenance check. Strong evidence can progress to ${PHASES[idx + 1]}.`;
     }
   } else if (stability === "High") {
     transitionStatus = "Run High Maintenance check before advancing";
@@ -77,13 +77,13 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       rules: ["Do NOT phase advance yet", "Prove repeatable stability first"],
     },
     "High Maintenance": {
-      primaryAction: "Run Structured Execution drill",
+      primaryAction: "Run Clarity High Maintenance drill",
       nextActions: [
-        "Transition to Structured Execution",
-        "Reduce modeling",
-        "Increase independent attempts",
+        "Run High Maintenance check in Clarity",
+        "Confirm clarity remains stable at High Maintenance",
+        "Progress to Structured Execution only if the High Maintenance evidence qualifies",
       ],
-      rules: ["Do NOT stay in teaching mode", "Move forward"],
+      rules: ["Do NOT phase advance yet", "High Maintenance evidence must hold before progression"],
       advanceTo: "Structured Execution",
     },
   },
@@ -118,13 +118,13 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       rules: ["Do NOT phase advance yet", "Prove repeatable stability first"],
     },
     "High Maintenance": {
-      primaryAction: "Run Controlled Discomfort drill",
+      primaryAction: "Run Structured Execution High Maintenance drill",
       nextActions: [
-        "Transition to Controlled Discomfort",
-        "Introduce Boss Battles consistently",
-        "Focus on response under uncertainty",
+        "Run High Maintenance check in Structured Execution",
+        "Confirm execution remains stable at High Maintenance",
+        "Progress to Controlled Discomfort only if the High Maintenance evidence qualifies",
       ],
-      rules: ["Do NOT keep repeating basic problems", "Move forward"],
+      rules: ["Do NOT phase advance yet", "High Maintenance evidence must hold before progression"],
       advanceTo: "Controlled Discomfort",
     },
   },
@@ -159,13 +159,13 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       rules: ["Do NOT phase advance yet", "Prove repeatable stability first"],
     },
     "High Maintenance": {
-      primaryAction: "Run Time Pressure Stability drill",
+      primaryAction: "Run Controlled Discomfort High Maintenance drill",
       nextActions: [
-        "Transition to Time Pressure Stability",
-        "Introduce timed Boss Battles",
-        "Maintain structure under constraint",
+        "Run High Maintenance check in Controlled Discomfort",
+        "Confirm response under difficulty remains stable at High Maintenance",
+        "Progress to Time Pressure Stability only if the High Maintenance evidence qualifies",
       ],
-      rules: ["Do NOT stay in comfort zone", "Move forward"],
+      rules: ["Do NOT phase advance yet", "High Maintenance evidence must hold before progression"],
       advanceTo: "Time Pressure Stability",
     },
   },
@@ -283,7 +283,7 @@ export function nextMoveRecommendation(phase: PhaseLabel, stability: StabilityLa
   const idx = phaseIndex(phase);
   if (stability === "High Maintenance") {
     if (idx === PHASES.length - 1) return "Maintain and transfer to new topics";
-    return `Advance to ${PHASES[idx + 1]}`;
+    return `Run ${phase} High Maintenance check; strong evidence can advance to ${PHASES[idx + 1]}`;
   }
   if (stability === "High") {
     return "Run High Maintenance check before advancing";
