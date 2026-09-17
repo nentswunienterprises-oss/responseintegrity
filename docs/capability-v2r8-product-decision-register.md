@@ -50,7 +50,7 @@ Resolved and synchronized in the canonical source and live Deep Dives.
 
 ### Controlled Discomfort support semantics
 
-Resolved doctrine. Product implementation follow-up remains before freeze.
+Resolved and synchronized in the proof branch. Support ceilings, rep-level actual-support capture, and deterministic evidence-condition gating are implemented.
 
 - Support levels are ceilings, not scripts.
 - Every rep begins without support.
@@ -98,7 +98,7 @@ Time Pressure Stability review item 43 was rejected in its original form and rep
 
 ### Permitted support and actual support are separate evidence facts
 
-Approved product contract. Implementation requires a new versioned evidence contract before freeze.
+Resolved and implemented on the proof branch through the additive V2 operational evidence contract; the published V1 evidence contract remains immutable.
 
 - `supportLevel` remains the set-level ceiling: the maximum support permitted by the assigned condition.
 - Actual Specialist support is captured separately as a rep-level source fact.
@@ -115,13 +115,13 @@ Approved product contract. Implementation requires a new versioned evidence cont
 - `actualSupportUsed` is stored once per rep as the source fact. Evidence-ledger projection may carry that rep-level fact alongside projected dimension rows for lineage, but it must not create four independent support facts merely because a rep has four scored fields.
 - The published V1 evidence contract remains immutable. This change must be introduced through a deliberate versioned schema/contract with compatibility and migration decisions.
 
-A V2 type contract now exists in `shared/responseIntegrityEvidenceContractV2.ts`; runtime capture and persistence still need to be wired before freeze.
+The V2 operational evidence contract is now captured in the Specialist runner, serialized beside the immutable V1 drill payload, consumed by support-validity and inherited-layer logic, and projected into the proof evidence lineage.
 
 Assessment review references: Controlled Discomfort support review; Time Pressure Stability revised item 38.
 
 ### Submitted evidence is immutable and corrected by supersession
 
-Approved product contract. Implementation requires an auditable correction workflow before freeze.
+Approved product contract. The append-only correction schema and deterministic correction-overlay core are implemented, but the authenticated request/review runtime, deterministic topic replay, dependent report supersession/regeneration, and Timer Contract replay are still required before freeze.
 
 - Before final submission, the Specialist may edit the current capture normally.
 - After submission, the evidence record is historical and must not be silently edited or deleted.
@@ -139,7 +139,7 @@ Assessment review reference: Clarity item 20.
 
 ### Topic Reference is preparation, not an in-rep evidence aid
 
-Approved product contract. Runner and doctrine synchronization are required before freeze.
+Resolved and synchronized in the proof branch. Topic Reference is locked during scored evidence and remains available only during preparation, Modeling, and between closed reps.
 
 - Topic Reference is a teaching and preparation artifact built from Vocabulary, Method, Steps, and Reason.
 - During Modeling, the Specialist and student may use the Topic Reference freely. Modeling is preparation, not scored evidence.
@@ -156,7 +156,7 @@ Assessment review references: Clarity items 3, 34, and 42.
 
 ### `minimal` is response-control cueing only
 
-Approved global support-semantics contract. Clarity Deep Dive and runner wording require synchronization before freeze.
+Resolved and synchronized in the proof branch. `minimal` now means response-control cueing only across Specialist-facing scored-rep instructions; mathematical help is outside that ceiling.
 
 - `minimal` has one meaning across the product: it permits bounded response-control cueing only and never mathematical content.
 - Neutral task-launch instructions such as `Solve this and show me your steps` are part of running the rep and do not count as support.
@@ -171,7 +171,7 @@ Assessment review reference: Clarity Light Apply review.
 
 ### Inherited-layer evidence is supplemental and progression-gating
 
-Approved product contract. Implementation requires the new versioned evidence contract and deterministic verification routing before freeze.
+Resolved and implemented on the proof branch. Supplemental inherited-layer evidence is captured in V2 operational evidence, kept separate from the current-phase score, and deterministically gates positive movement.
 
 - Later-phase reps may capture supplemental inherited-layer observations when an earlier capability is visibly tested by the active condition.
 - Supplemental inherited evidence is stored at rep level separately from the current phase's scored dimensions.
@@ -187,7 +187,7 @@ Assessment review reference: Time Pressure Stability item 24 and the inherited-l
 
 ### Inherited-layer verification uses a hold before any cross-phase regression
 
-Approved product contract. Implementation requires a deterministic verification-hold state/flag and cross-phase consequence routing before freeze.
+Resolved and implemented on the proof branch. The inherited-verification hold, earlier-layer verification lane, clear/regress/re-diagnose consequences, and fresh-current-phase-evidence requirement are wired end to end.
 
 - A material inherited-layer break does not immediately regress the topic to an earlier phase.
 - RI-OS creates an `inherited_verification_required` hold targeting the earliest visibly broken earlier layer. This is a workflow hold, not a fifth stability state.
@@ -232,6 +232,12 @@ Implementation note: passive timings may accumulate even when a rep is not basel
 Assessment review references: Time Pressure Stability 4, original 38, original 41, and original 44; subsequent product-decision review.
 
 ## Open product decisions and implementation gaps to resolve before final freeze
+
+### Evidence correction runtime remains the unresolved cross-cutting blocker
+
+The human-review reconciliation against the proof-branch implementation is complete. The support contract, Topic Reference boundary, global `minimal` semantics, inherited-layer capture/hold/verification flow, topic-specific final-state behavior, and TPS Timer Contract runtime are implemented and covered by proof-branch tests.
+
+Evidence correction is not yet end to end. The branch has immutable correction/review/replay/report-supersession tables and a deterministic overlay core, but it still needs authenticated Specialist request submission, TD/COO review authority with self-approval blocked, chronological topic replay from the corrected source event, active topic-state replacement from that replay, dependent deterministic report supersession/regeneration, and TPS Timer Contract supersession/reconstruction when corrected baseline lineage is affected. These are implementation requirements, not open doctrine questions.
 
 ### TPS timer runtime implementation completed
 

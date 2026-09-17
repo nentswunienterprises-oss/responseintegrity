@@ -250,9 +250,9 @@ const DIAGNOSIS_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
     {
       setName: "Light Apply Probe",
       reps: 3,
-      purpose: "Student solves with minimal help. Tests start behavior, structure, and clarity carryover.",
-      repInstruction: "Ask student to solve. Minimal guidance only. Observe start behavior and step discipline.",
-      activeRules: ["Minimal guidance only", "No step-by-step help", "Observe independent start and execution"],
+      purpose: "Student solves with at most a response-control cue. Tests start behavior, structure, and clarity carryover without mathematical help.",
+      repInstruction: "Ask student to solve. If needed, use only a response-control cue such as pause, don't rush, or show me what you would do next.",
+      activeRules: ["Response-control cue only if needed", "No mathematical hints, steps, corrections, or correctness confirmation", "Observe independent start and execution"],
       repObservationBlocks: [
         [
           { key: "vocabulary", label: "Vocabulary in Context (Rep 1 - First Attempt)", options: ["incorrect", "partial", "correct"] },
