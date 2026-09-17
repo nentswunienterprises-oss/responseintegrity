@@ -91,9 +91,37 @@ const ACTUAL_SUPPORT_VALUES = new Set<ActualSupportUsedV2>([
 ]);
 const TIMING_MODES = new Set<RepTimingModeV2>(["passive_untimed", "tps_prescribed"]);
 const TIMING_VALIDITY_VALUES = new Set<RepTimingValidityV2>(["valid", "timing_invalid_technical"]);
+const INHERITED_DIMENSION_VALUES = new Set<InheritedEvidenceDimensionV2>([
+  "clarity.vocabulary",
+  "clarity.method",
+  "clarity.reason",
+  "clarity.immediate_apply",
+  "execution.start",
+  "execution.step_discipline",
+  "execution.repeatability",
+  "execution.independence",
+  "difficulty.initial_response",
+  "difficulty.first_step_control",
+  "difficulty.tolerance",
+  "difficulty.rescue_dependence",
+]);
+const OBSERVATION_LEVEL_VALUES = new Set<ObservationLevel>(["weak", "partial", "clear"]);
+const INHERITED_MATERIALITY_VALUES = new Set<SupplementalInheritedEvidenceV2["materiality"]>([
+  "informational",
+  "material",
+]);
 
 const isRecord = (value: unknown): value is Record<string, any> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+const isSupplementalInheritedEvidenceV2 = (value: unknown): value is SupplementalInheritedEvidenceV2 => {
+  if (!isRecord(value)) return false;
+  if (!INHERITED_DIMENSION_VALUES.has(value.dimensionId)) return false;
+  if (!String(value.rawObservation || "").trim()) return false;
+  if (!OBSERVATION_LEVEL_VALUES.has(value.normalizedLevel)) return false;
+  if (!INHERITED_MATERIALITY_VALUES.has(value.materiality)) return false;
+  return true;
+};
 
 /**
  * The live V1 semantic set validator already preserves unregistered rep metadata while validating
@@ -127,6 +155,7 @@ export const decodeRepOperationalEvidenceV2 = (value: unknown): RepOperationalEv
     return null;
   }
   if (!Array.isArray(evidence.inheritedEvidence)) return null;
+  if (!evidence.inheritedEvidence.every(isSupplementalInheritedEvidenceV2)) return null;
 
   const timing = evidence.timing;
   if (!isRecord(timing) || !TIMING_MODES.has(timing.mode) || !TIMING_VALIDITY_VALUES.has(timing.timingValidity)) {
