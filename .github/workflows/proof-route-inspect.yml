@@ -1,4 +1,4 @@
-name: Proof Route Inspect
+name: Proof Inherited Layer Stage 1 Runner
 
 on:
   push:
@@ -8,22 +8,38 @@ on:
       - .github/workflows/proof-route-inspect.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  inspect:
+  implement:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect training persistence anchors
+        with:
+          ref: proof/capability-engine-shadow-validation
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Apply proof implementation
+        run: python scripts/proof-inherited-layer-stage1.py
+      - name: Run focused doctrine tests
+        run: node --import tsx --test shared/responseIntegrityEvidenceContractV2.test.ts shared/inheritedLayerVerification.test.ts
+      - name: Build backend
+        run: npm run build:backend
+      - name: Build frontend
+        run: npm run build:frontend
+      - name: Commit proof implementation
         run: |
-          echo '=== route imports around topic conditioning engine ==='
-          grep -n -B8 -A18 'topicConditioningEngine' server/routes.ts | head -80
-          echo '=== computeTrainingSessionSummary full helper ==='
-          sed -n '4355,4505p' server/routes.ts
-          echo '=== training route start through summary ==='
-          sed -n '6995,7285p' server/routes.ts
-          echo '=== training persistence continuation ==='
-          sed -n '7285,7585p' server/routes.ts
-          echo '=== runner submit payload + result handling ==='
-          sed -n '1870,2105p' client/src/components/tutor/IntroSessionDrillRunner.tsx
+          git config user.name "nentswunienterprises-oss"
+          git config user.email "nentswunienterprises@gmail.com"
+          git add server/routes.ts client/src/components/tutor/IntroSessionDrillRunner.tsx client/src/components/tutor/StudentTopicConditioningDialog.tsx
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No implementation changes to commit"
+            exit 0
+          fi
+          git commit -m "Wire inherited-layer capture and progression hold"
+          git push origin HEAD:proof/capability-engine-shadow-validation
