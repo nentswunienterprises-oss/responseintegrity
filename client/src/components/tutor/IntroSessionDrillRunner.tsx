@@ -21,6 +21,12 @@ import {
   formatSnapshotResultText,
   type ResponseSnapshotV1,
 } from "@shared/responseSnapshot";
+import {
+  encodeRepOperationalEvidenceV2,
+  REP_OPERATIONAL_EVIDENCE_V2_WIRE_KEY,
+  type ActualSupportUsedV2,
+  type RepOperationalEvidenceV2,
+} from "@shared/responseIntegrityEvidenceContractV2";
 import type { TopicReference, TopicReferenceContent } from "@shared/topicReference";
 import { useStudentWorkflowState } from "@/hooks/useStudentWorkflowState";
 import { supabase } from "@/lib/supabaseClient";
@@ -106,6 +112,13 @@ const EMPTY_TOPIC_REFERENCE: TopicReferenceContent = {
   steps: "",
   reason: "",
 };
+
+const ACTUAL_SUPPORT_USED_OPTIONS: Array<{ value: ActualSupportUsedV2; label: string }> = [
+  { value: "none", label: "None used" },
+  { value: "response_control_cue", label: "Response-control cue used" },
+  { value: "first_step_math_support", label: "First-step mathematical support used" },
+  { value: "beyond_permitted_boundary", label: "Exceeded permitted boundary" },
+];
 
 const PHASE_CONTEXT: Record<PhaseLabel, { purpose: string; constraints: string[] }> = {
   Clarity: {
@@ -808,6 +821,10 @@ export default function IntroSessionDrillRunner() {
   const [currentSet, setCurrentSet] = useState(0);
   const [currentRep, setCurrentRep] = useState(0);
   const [observations, setObservations] = useState<any>({});
+  const [actualSupportUsedByRep, setActualSupportUsedByRep] = useState<Record<string, ActualSupportUsedV2>>({});
+  const actualSupportUsedRef = useRef<Record<string, ActualSupportUsedV2>>({});
+  const passiveRepStartRef = useRef<Record<string, { startedAt: string; startedAtMs: number }>>({});
+  const finalizedRepOperationalEvidenceRef = useRef<Record<string, RepOperationalEvidenceV2>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -1035,6 +1052,34 @@ export default function IntroSessionDrillRunner() {
       : scheduledSession?.type === "handover"
         ? "Handover"
         : "Unknown";
+  const operationalRepKeyFor = (topic: string, setIndex: number, repIndex: number) =>
+    `${scheduledSessionId || "session"}::${String(topic || "").trim().toLowerCase()}::${displayPhase.toLowerCase()}::set${setIndex}::rep${repIndex}`;
+  const currentOperationalRepKey = operationalRepKeyFor(currentTopicName, currentSet, currentRep);
+  const shouldCapturePassiveRepTiming =
+    modeToUse === "training" &&
+    displayPhase !== "Time Pressure Stability" &&
+    !!set &&
+    !isModelingSet;
+  const currentActualSupportUsed = actualSupportUsedByRep[currentOperationalRepKey] || null;
+
+  useEffect(() => {
+    actualSupportUsedRef.current = {};
+    passiveRepStartRef.current = {};
+    finalizedRepOperationalEvidenceRef.current = {};
+    setActualSupportUsedByRep({});
+  }, [studentId, scheduledSessionId]);
+
+  useEffect(() => {
+    if (!shouldCapturePassiveRepTiming) return;
+    if (finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey]) return;
+    if (passiveRepStartRef.current[currentOperationalRepKey]) return;
+    const startedAtMs = Date.now();
+    passiveRepStartRef.current[currentOperationalRepKey] = {
+      startedAtMs,
+      startedAt: new Date(startedAtMs).toISOString(),
+    };
+  }, [shouldCapturePassiveRepTiming, currentOperationalRepKey]);
+
 
   useEffect(() => {
     if (!drillStructure) return;
@@ -1135,6 +1180,59 @@ export default function IntroSessionDrillRunner() {
       ...prev,
       [`set${currentSet}_rep${currentRep}_${field}`]: value,
     }));
+  };
+
+  const handleActualSupportUsed = (value: ActualSupportUsedV2) => {
+    setSubmitError(null);
+    actualSupportUsedRef.current[currentOperationalRepKey] = value;
+    setActualSupportUsedByRep((current) => ({ ...current, [currentOperationalRepKey]: value }));
+    const finalized = finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey];
+    if (finalized) {
+      finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey] = {
+        ...finalized,
+        actualSupportUsed: value,
+      };
+    }
+  };
+
+  const finalizePassiveTimingForCurrentRep = () => {
+    if (!shouldCapturePassiveRepTiming || !set) return true;
+    const actualSupportUsed = actualSupportUsedRef.current[currentOperationalRepKey];
+    if (!actualSupportUsed) return false;
+
+    const existing = finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey];
+    if (existing) {
+      if (existing.actualSupportUsed !== actualSupportUsed) {
+        finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey] = {
+          ...existing,
+          actualSupportUsed,
+        };
+      }
+      return true;
+    }
+
+    const endedAtMs = Date.now();
+    const started = passiveRepStartRef.current[currentOperationalRepKey];
+    if (!started) return false;
+    const registrySet = getDrillSchemaDefinition("training", displayPhase).sets.find(
+      (candidate) => candidate.setName === set.setName,
+    );
+    const repId = registrySet?.repPurposeIds[currentRep] || `${registrySet?.setId || set.setName}.opportunity_${currentRep + 1}`;
+    finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey] = {
+      repId,
+      repNumber: currentRep + 1,
+      actualSupportUsed,
+      timing: {
+        mode: "passive_untimed",
+        startedAt: started.startedAt,
+        endedAt: new Date(endedAtMs).toISOString(),
+        elapsedMs: Math.max(1, endedAtMs - started.startedAtMs),
+        timingValidity: "valid",
+        pressureLevel: registrySet?.constraints.pressureLevel || "none",
+      },
+      inheritedEvidence: [],
+    };
+    return true;
   };
 
   const handleTopicReferenceChange = (field: keyof TopicReferenceContent, value: string) => {
@@ -1292,6 +1390,12 @@ export default function IntroSessionDrillRunner() {
             obs[`${block.key}_dimension_id`] = semanticIdentity.dimensionId;
           }
         });
+        const operationalEvidence = finalizedRepOperationalEvidenceRef.current[
+          operationalRepKeyFor(currentTopicName, setIndex, repIdx)
+        ];
+        if (operationalEvidence) {
+          obs[REP_OPERATIONAL_EVIDENCE_V2_WIRE_KEY] = encodeRepOperationalEvidenceV2(operationalEvidence);
+        }
         return obs;
       }),
     };
@@ -1328,6 +1432,15 @@ export default function IntroSessionDrillRunner() {
     const missingCurrent = getMissingFieldsForRep(currentSet, currentRep);
     if (missingCurrent.length > 0) {
       setSubmitError(`Complete all observation toggles before continuing. Missing: ${missingCurrent.map((field) => field.label).join(", ")}.`);
+      return;
+    }
+
+    if (shouldCapturePassiveRepTiming && !actualSupportUsedRef.current[currentOperationalRepKey]) {
+      setSubmitError("Record the support actually used on this rep before continuing.");
+      return;
+    }
+    if (shouldCapturePassiveRepTiming && !finalizePassiveTimingForCurrentRep()) {
+      setSubmitError("The rep timing record could not be finalized. Record support actually used and try again.");
       return;
     }
 
@@ -2286,6 +2399,32 @@ export default function IntroSessionDrillRunner() {
           </div>
         ))}
       </form>
+      {shouldCapturePassiveRepTiming && (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Support actually used</p>
+            <p className="text-xs text-muted-foreground">
+              Record what happened on this rep. This does not change the support ceiling assigned by the drill. Elapsed time is captured silently for future TPS calibration.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {ACTUAL_SUPPORT_USED_OPTIONS.map((option) => (
+              <button
+                type="button"
+                key={option.value}
+                className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                  currentActualSupportUsed === option.value
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-primary/20 bg-background text-foreground hover:bg-primary/5"
+                }`}
+                onClick={() => handleActualSupportUsed(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
         </>
         )
       )}
