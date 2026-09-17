@@ -1,3 +1,6 @@
+import { captureDemandParent } from "./demandCapture";
+import { registerDemandProductionRoutes } from "./demandProduction";
+import { demandAssignmentBlock, resolveEntryType } from "../shared/demandProduction";
 import type { Express, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { createHash } from "crypto";
@@ -3019,9 +3022,14 @@ async function getParentBillingModel(parentId: string) {
     .eq("user_id", parentId)
     .maybeSingle();
 
-  const onboardingType = String(data?.onboarding_type || "").trim().toLowerCase() === "pilot"
-    ? "pilot"
-    : "commercial";
+  let onboardingType = resolveEntryType(data);
+  // Preserve the former commercial fallback only for a proven pre-migration enrollment.
+  if (!data && !error) {
+    const legacy = await supabase.from("parent_enrollments").select("id")
+      .eq("user_id", parentId).eq("demand_flow_version", 0).limit(1).maybeSingle();
+    if (legacy.error) return { data: { onboardingType: null, affiliateCode: null, affiliateType: null }, error: legacy.error };
+    if (legacy.data) onboardingType = "commercial";
+  }
 
   return {
     data: {
@@ -3132,6 +3140,10 @@ async function ensurePremiumAccessForParent(parentId: string, studentId?: string
       status: 500,
       message: "Failed to resolve onboarding type for payment rules.",
     };
+  }
+
+  if (!billingModel.data.onboardingType || billingModel.data.onboardingType === "pending") {
+    return { allowed: false, status: 409, message: "Application review and entry selection must be completed before service." };
   }
 
   if (billingModel.data.onboardingType === "pilot") {
@@ -3713,6 +3725,7 @@ async function getPendingTrainingConfirmationSession(tutorId: string, studentId:
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  registerDemandProductionRoutes(app, { client: supabase, isAuthenticated, requireRole });
           const persistEvidenceLedgerShadow = async (input: EvidenceLedgerProjectionInput) => {
             const result = isEmergencyDbMode()
               ? await persistResponseIntegrityEvidenceLedgerShadowDirect(pool, input)
@@ -16195,18 +16208,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       requireRole(["coo"]),
       async (_req: Request, res: Response) => {
         try {
-          const [links, leads, applications, users, enrollments, assignments, trialCases, trialPlacements, closes] = await Promise.all([
+          const [links, leads, applications, users, enrollments, assignments, trialCases, trialPlacements, closes, parents, payments, proposals] = await Promise.all([
             supabase.from("affiliate_codes").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
             supabase.from("leads").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
             supabase.from("tutor_applications").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
-            supabase.from("users").select("id, name, first_name, last_name, email").then(({ data, error }) => { if (error) throw error; return data || []; }),
+            supabase.from("users").select("id, name, first_name, last_name, email, role, production_link_code, tracking_source, tracking_campaign, created_at").then(({ data, error }) => { if (error) throw error; return data || []; }),
             supabase.from("parent_enrollments").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
             supabase.from("tutor_assignments").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
             supabase.from("tutor_trial_cases").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
             supabase.from("tutor_trial_placements").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
             supabase.from("closes").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
+            supabase.from("parents").select("user_id, onboarding_type").then(({ data, error }) => { if (error) throw error; return data || []; }),
+            supabase.from("payment_transactions").select("enrollment_id, parent_id, proposal_id, provider, payment_status, paid_at, amount").then(({ data, error }) => { if (error) throw error; return data || []; }),
+            supabase.from("onboarding_proposals").select("id, enrollment_id, student_id, tutor_id, accepted_at").then(({ data, error }) => { if (error) throw error; return data || []; }),
           ]);
-          res.json(buildProductionEconomy({ links, leads, applications, users, enrollments, assignments, trialCases, trialPlacements, closes }));
+          res.json(buildProductionEconomy({ links, leads, applications, users, enrollments, assignments, trialCases, trialPlacements, closes, parents, payments, proposals }));
         } catch (error) {
           console.error("[COO PRODUCTION ECONOMY] Error:", error);
           res.status(500).json({ message: "Failed to load Production Economy" });
@@ -22227,6 +22243,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (enrollmentError || !enrollment) {
           return res.status(404).json({ message: "Enrollment not found" });
         }
+        const demandBlock = demandAssignmentBlock(enrollment);
+        if (demandBlock) return res.status(409).json({ message: demandBlock });
         if (isSandboxEnrollmentForTutor(enrollment, tutorId)) {
           return res.status(409).json({ message: "A sandbox account cannot be used as Trial evidence" });
         }
@@ -22328,6 +22346,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!tutorId) {
           return res.status(400).json({ message: "Tutor ID is required" });
         }
+
+        const { data: demandEnrollment, error: demandError } = await supabase.from("parent_enrollments").select("*").eq("id", enrollmentId).maybeSingle();
+        if (demandError) return res.status(500).json({ message: "Failed to verify Demand Production gate" });
+        const demandBlock = demandAssignmentBlock(demandEnrollment);
+        if (demandBlock) return res.status(409).json({ message: demandBlock });
 
         const tutorAssignment = await storage.getTutorAssignment(tutorId);
         if (!tutorAssignment) {
@@ -23684,6 +23707,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ status: "not_enrolled", debug: enrollmentDebug });
       }
 
+      if (enrollmentData.demand_flow_version === 1 && !enrollmentData.assigned_tutor_id) {
+        const billing = await getParentBillingModel(userId);
+        if (billing.error) return res.status(500).json({ message: "Failed to load application status" });
+        return res.json({ status: "awaiting_assignment", step: "application-review", onboardingType: billing.data.onboardingType,
+          freeSessionsRemaining: 0, plan: null, paymentStatus: null, paymentDate: null });
+      }
+
       let status = enrollmentData.status || "not_enrolled";
       let effectiveStep = enrollmentData.current_step;
       const operationalMode = await getParentAssignedTutorOperationalMode(userId);
@@ -23919,7 +23949,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Submit parent enrollment form
-  app.post("/api/parent/enroll", isAuthenticated, async (req: Request, res: Response) => {
+  app.post("/api/parent/enroll", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
     try {
       const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
       const dbUser = (req as any).dbUser;
@@ -23947,8 +23977,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parentMotivation,
         processAlignment,
         agreedToTerms,
-        onboardingType,
-        cohortCode,
         affiliateCode: bodyAffiliateCode
       } = req.body;
 
@@ -24034,82 +24062,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-      // Determine onboarding_type from affiliate code if present
-      // Determine onboarding_type and affiliate_type from affiliate code if present
-      // Only allow 'pilot' or 'commercial' as onboarding_type
-        // --- ONBOARDING LOGIC ---
-        // onboarding_type: 'pilot' or 'commercial' ONLY
-        // affiliate_type: 'person' or 'entity' ONLY
-        let resolvedOnboardingType = (onboardingType === 'pilot' || onboardingType === 'commercial') ? onboardingType : 'commercial';
-        let resolvedAffiliateType = null;
-        if (affiliateCode) {
-          // Always set onboarding_type to 'pilot' if code is provided
-          resolvedOnboardingType = 'pilot';
-          const { data: codeData, error: codeError } = await supabase
-            .from("affiliate_codes")
-            .select("type, affiliate_type")
-            .eq("code", affiliateCode)
-            .maybeSingle();
-          if (codeError) {
-            console.error('Error looking up affiliate code for onboarding_type/affiliate_type:', codeError);
-          }
-          if (codeData) {
-            // affiliate_type is for analytics/tracking, not onboarding flow
-            resolvedAffiliateType = codeData.affiliate_type || codeData.type || null;
-          }
-        }
-        // Ensure onboarding_type is never set to affiliate_type
-        if (resolvedOnboardingType !== 'pilot' && resolvedOnboardingType !== 'commercial') {
-          resolvedOnboardingType = 'commercial';
-        }
-        // --- END ONBOARDING LOGIC ---
-      // Insert or update onboarding type, affiliate type, and affiliate code in parents table
-      // Fetch full_name from public.users
-      let fullName = null;
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("first_name, last_name")
-        .eq("id", userId)
-        .maybeSingle();
-      if (userError) {
-        console.error("Error fetching first_name/last_name from users:", userError);
-      }
-      if (userData) {
-        const first = userData.first_name || '';
-        const last = userData.last_name || '';
-        fullName = (first + ' ' + last).trim();
-      }
-      // --- DEBUG LOGGING ---
-      console.log("[ENROLL] Preparing to upsert parent record:", {
-        user_id: userId,
-        onboarding_type: resolvedOnboardingType,
-        affiliate_type: resolvedAffiliateType,
-        affiliate_code: affiliateCode,
-        cohort_code: cohortCode,
-        full_name: fullName,
-      });
+      // Resolve the durable signup lineage; never derive entry type from a link or parent input.
       try {
-        const { data: parentUpserted, error: parentUpsertError } = await supabase
-          .from("parents")
-          .upsert({
-            user_id: userId,
-            onboarding_type: resolvedOnboardingType,
-            affiliate_type: resolvedAffiliateType,
-            affiliate_code: affiliateCode || cohortCode || null,
-            full_name: fullName,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'user_id' })
-          .select()
-          .single();
-        if (parentUpsertError) {
-          console.error("[ENROLL] Error upserting parent onboarding/affiliate type:", parentUpsertError);
-        } else {
-          console.log("[ENROLL] Parent upsert successful. Upserted row:", parentUpserted);
-        }
-      } catch (err) {
-        console.error("[ENROLL] Exception during parent upsert:", err);
+        await captureDemandParent(supabase, storage, {
+          userId, fullName: parentFullName, email: parentEmail,
+          code: affiliateCode, source: (req.session as any).trackingSource,
+          campaign: (req.session as any).trackingCampaign,
+        });
+      } catch (captureError) {
+        return res.status(409).json({ message: captureError instanceof Error ? captureError.message : "Could not preserve application source" });
       }
-      // --- END DEBUG LOGGING ---
 
       // Lead creation is now handled after signup, not enrollment.
 
@@ -24147,7 +24109,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           internet_access: internetAccess,
           parent_motivation: normalizedParentMotivation,
           status: "awaiting_assignment",
-          current_step: "awaiting-assignment",
+          current_step: "qualification-pending",
+          demand_flow_version: 1,
+          qualification_status: "pending",
           created_at: new Date().toISOString(),
         })
         .select();
@@ -24926,6 +24890,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const billingModel = await getParentBillingModel(parentId);
       if (billingModel.error) {
         return res.status(500).json({ message: "Failed to resolve onboarding type for billing." });
+      }
+
+      if (!billingModel.data.onboardingType || billingModel.data.onboardingType === "pending") {
+        return res.status(409).json({ message: "Application review and entry selection must be completed before proposal acceptance." });
       }
 
       const { data: paymentEnrollment, error: paymentEnrollmentError } = await supabase
