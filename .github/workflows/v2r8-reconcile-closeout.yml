@@ -1,0 +1,132 @@
+name: V2R8 Reconcile Closeout
+
+on:
+  push:
+    branches:
+      - proof/capability-engine-shadow-validation
+    paths:
+      - .github/workflows/v2r8-reconcile-closeout.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout proof branch
+        uses: actions/checkout@v4
+        with:
+          ref: proof/capability-engine-shadow-validation
+          fetch-depth: 0
+
+      - name: Reconcile implemented V2R8 decisions
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          runner_path = Path('client/src/components/tutor/IntroSessionDrillRunner.tsx')
+          runner = runner_path.read_text()
+          replacements = {
+              'purpose: "Student solves with minimal help. Tests start behavior, structure, and clarity carryover.",':
+                  'purpose: "Student solves with at most a response-control cue. Tests start behavior, structure, and clarity carryover without mathematical help.",',
+              'repInstruction: "Ask student to solve. Minimal guidance only. Observe start behavior and step discipline.",':
+                  'repInstruction: "Ask student to solve. If needed, use only a response-control cue such as pause, don\'t rush, or show me what you would do next.",',
+              'activeRules: ["Minimal guidance only", "No step-by-step help", "Observe independent start and execution"],':
+                  'activeRules: ["Response-control cue only if needed", "No mathematical hints, steps, corrections, or correctness confirmation", "Observe independent start and execution"],',
+          }
+          for old, new in replacements.items():
+              if old not in runner:
+                  raise SystemExit(f'Expected runner wording not found: {old}')
+              runner = runner.replace(old, new, 1)
+          runner_path.write_text(runner)
+
+          register_path = Path('docs/capability-v2r8-product-decision-register.md')
+          register = register_path.read_text()
+          status_replacements = {
+              'Resolved doctrine. Product implementation follow-up remains before freeze.':
+                  'Resolved and synchronized in the proof branch. Support ceilings, rep-level actual-support capture, and deterministic evidence-condition gating are implemented.',
+              'Approved product contract. Implementation requires a new versioned evidence contract before freeze.':
+                  'Resolved and implemented on the proof branch through the additive V2 operational evidence contract; the published V1 evidence contract remains immutable.',
+              'A V2 type contract now exists in `shared/responseIntegrityEvidenceContractV2.ts`; runtime capture and persistence still need to be wired before freeze.':
+                  'The V2 operational evidence contract is now captured in the Specialist runner, serialized beside the immutable V1 drill payload, consumed by support-validity and inherited-layer logic, and projected into the proof evidence lineage.',
+              'Approved product contract. Runner and doctrine synchronization are required before freeze.':
+                  'Resolved and synchronized in the proof branch. Topic Reference is locked during scored evidence and remains available only during preparation, Modeling, and between closed reps.',
+              'Approved global support-semantics contract. Clarity Deep Dive and runner wording require synchronization before freeze.':
+                  'Resolved and synchronized in the proof branch. `minimal` now means response-control cueing only across Specialist-facing scored-rep instructions; mathematical help is outside that ceiling.',
+              'Approved product contract. Implementation requires the new versioned evidence contract and deterministic verification routing before freeze.':
+                  'Resolved and implemented on the proof branch. Supplemental inherited-layer evidence is captured in V2 operational evidence, kept separate from the current-phase score, and deterministically gates positive movement.',
+              'Approved product contract. Implementation requires a deterministic verification-hold state/flag and cross-phase consequence routing before freeze.':
+                  'Resolved and implemented on the proof branch. The inherited-verification hold, earlier-layer verification lane, clear/regress/re-diagnose consequences, and fresh-current-phase-evidence requirement are wired end to end.',
+              'Approved product contract. Implementation requires an auditable correction workflow before freeze.':
+                  'Approved product contract. The append-only correction schema and deterministic correction-overlay core are implemented, but the authenticated request/review runtime, deterministic topic replay, dependent report supersession/regeneration, and Timer Contract replay are still required before freeze.',
+          }
+          for old, new in status_replacements.items():
+              if old not in register:
+                  raise SystemExit(f'Expected register status not found: {old}')
+              register = register.replace(old, new, 1)
+
+          heading = '## Open product decisions and implementation gaps to resolve before final freeze\n'
+          insert = '''## Open product decisions and implementation gaps to resolve before final freeze
+
+### Evidence correction runtime remains the unresolved cross-cutting blocker
+
+The human-review reconciliation against the proof-branch implementation is complete. The support contract, Topic Reference boundary, global `minimal` semantics, inherited-layer capture/hold/verification flow, topic-specific final-state behavior, and TPS Timer Contract runtime are implemented and covered by proof-branch tests.
+
+Evidence correction is not yet end to end. The branch has immutable correction/review/replay/report-supersession tables and a deterministic overlay core, but it still needs authenticated Specialist request submission, TD/COO review authority with self-approval blocked, chronological topic replay from the corrected source event, active topic-state replacement from that replay, dependent deterministic report supersession/regeneration, and TPS Timer Contract supersession/reconstruction when corrected baseline lineage is affected. These are implementation requirements, not open doctrine questions.
+'''
+          if heading not in register:
+              raise SystemExit('Open-gaps heading not found')
+          register = register.replace(heading, insert, 1)
+          register_path.write_text(register)
+          PY
+
+      - name: Assert stale implementation claims are gone
+        run: |
+          ! grep -q 'Minimal guidance only' client/src/components/tutor/IntroSessionDrillRunner.tsx
+          ! grep -q 'runtime capture and persistence still need to be wired before freeze' docs/capability-v2r8-product-decision-register.md
+          ! grep -q 'Runner and doctrine synchronization are required before freeze' docs/capability-v2r8-product-decision-register.md
+          ! grep -q 'Implementation requires a deterministic verification-hold' docs/capability-v2r8-product-decision-register.md
+          grep -q 'Evidence correction runtime remains the unresolved cross-cutting blocker' docs/capability-v2r8-product-decision-register.md
+          git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run affected deterministic tests
+        run: |
+          npx tsx --test \
+            shared/responseIntegrityEvidenceContractV2.test.ts \
+            shared/responseIntegritySupportValidity.test.ts \
+            shared/inheritedLayerVerification.test.ts \
+            shared/responseIntegrityEvidenceCorrection.test.ts \
+            shared/responseIntegrityEvidenceLedger.test.ts \
+            shared/topicConditioningEngine.test.ts \
+            shared/capabilityTpsTimerContract.test.ts \
+            shared/capabilityTpsTimerRuntime.test.ts
+
+      - name: Type-check affected runtime surface
+        run: |
+          npx tsc --noEmit --pretty false --skipLibCheck 2>&1 | tee /tmp/v2r8-reconcile-tsc.txt || true
+          if grep -E 'client/src/components/tutor/IntroSessionDrillRunner.tsx|shared/responseIntegrityEvidenceContractV2.ts|shared/responseIntegritySupportValidity.ts|shared/inheritedLayerVerification.ts|shared/responseIntegrityEvidenceCorrection.ts|shared/responseIntegrityEvidenceLedger.ts|shared/topicConditioningEngine.ts|shared/capabilityTpsTimerContract.ts|shared/capabilityTpsTimerRuntime.ts' /tmp/v2r8-reconcile-tsc.txt; then
+            exit 1
+          fi
+
+      - name: Build product surfaces
+        run: |
+          npm run build:backend
+          npm run build:frontend
+
+      - name: Commit reconciliation
+        run: |
+          if git diff --quiet; then
+            echo 'No reconciliation changes required.'
+            exit 0
+          fi
+          git config user.name 'nentswunienterprises-oss'
+          git config user.email 'nentswunienterprises@gmail.com'
+          git add client/src/components/tutor/IntroSessionDrillRunner.tsx docs/capability-v2r8-product-decision-register.md
+          git commit -m 'Reconcile V2R8 implementation status'
+          git push origin HEAD:proof/capability-engine-shadow-validation
