@@ -15,11 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect training transition implementation
+      - name: Inspect inherited verification route boundaries
         run: |
-          echo '=== imports 1-90 ==='
-          sed -n '1,90p' server/routes.ts
-          echo '=== training route 6980-7360 ==='
-          sed -n '6980,7360p' server/routes.ts
-          echo '=== summary transition helper 12120-12230 ==='
-          sed -n '12120,12230p' server/routes.ts
+          echo '=== training summary helper 4380-4525 ==='
+          sed -n '4380,4525p' server/routes.ts
+          echo '=== handover/verification 6400-7005 ==='
+          sed -n '6400,7005p' server/routes.ts
+          echo '=== handover summary helpers grep ==='
+          grep -n -E 'computeHandover|handoverSummary|verificationOutcome|handover verification|reDiagnosisRequired' server/routes.ts | head -120
+          echo '=== handover launch/client grep ==='
+          grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'mode=handover|rediagnosis=1|handover.*drill|verification' client/src | head -160
