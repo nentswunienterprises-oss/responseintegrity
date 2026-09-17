@@ -627,9 +627,6 @@ export class SupabaseStorage implements IStorage {
       phone: user.phone,
       bio: user.bio,
       profile_image_url: user.profileImageUrl,
-      production_link_code: user.productionLinkCode || null,
-      tracking_source: user.trackingSource || null,
-      tracking_campaign: user.trackingCampaign || null,
       name: [user.firstName, user.lastName].filter(Boolean).join(" ") || "User",
     };
     if (user.role) {
@@ -3292,7 +3289,7 @@ export class SupabaseStorage implements IStorage {
     affiliateId: string | null,
     parentId: string,
     encounterId?: string,
-    trackingData?: { trackingSource?: string; trackingCampaign?: string; leadType?: string; affiliateType?: string; affiliateName?: string; productionLinkCode?: string }
+    trackingData?: { trackingSource?: string; trackingCampaign?: string; leadType?: string; fullName?: string; affiliateType?: string; affiliateName?: string; productionLinkCode?: string }
   ): Promise<any> {
     if (trackingData?.productionLinkCode) {
       const firstAttributedLead = await this.getFirstProductionLeadByUser(parentId);
@@ -3358,7 +3355,7 @@ export class SupabaseStorage implements IStorage {
       tracking_source: trackingData?.trackingSource || 'affiliate',
       tracking_campaign: trackingData?.trackingCampaign || null,
       production_link_code: trackingData?.productionLinkCode || null,
-      onboarding_type: trackingData?.onboardingType || 'pilot',
+      onboarding_type: "pending",
       full_name: trackingData?.fullName || '',
     };
     if (trackingData?.leadType) {
