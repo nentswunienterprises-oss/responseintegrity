@@ -59,5 +59,11 @@ new = '''test("inherited verification snapshots use verification evidence while 
 count = text.count(old)
 if count != 1:
     raise SystemExit(f"expected one generated snapshot test block, found {count}")
-path.write_text(text.replace(old, new, 1))
+text = text.replace(old, new, 1)
+old_assert = '  assert.equal(diagnosisSnapshot.sets[0].setName, "Cold Start");'
+new_assert = '  assert.equal(diagnosisSnapshot.sets[0].setName, diagnosisSetName);'
+count = text.count(old_assert)
+if count != 1:
+    raise SystemExit(f"expected one generated diagnosis set assertion, found {count}")
+path.write_text(text.replace(old_assert, new_assert, 1))
 print("Stage 2 snapshot test fixture fixed")
