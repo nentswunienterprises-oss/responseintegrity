@@ -1,6 +1,7 @@
 import type { ObservationLevel } from "./observationScoring";
 
 export const RESPONSE_INTEGRITY_EVIDENCE_CONTRACT_VERSION = 2 as const;
+export const REP_OPERATIONAL_EVIDENCE_V2_WIRE_KEY = "_ri_operational_evidence_v2" as const;
 
 export type ActualSupportUsedV2 =
   | "none"
@@ -72,4 +73,64 @@ export type SubmittedEvidenceSetV2 = {
   constraintProfile: Record<string, unknown> | null;
   observations: Array<Record<string, string>>;
   repOperationalEvidence: RepOperationalEvidenceV2[];
+};
+
+type RepOperationalEvidenceWireV2 = {
+  evidenceContractVersion: typeof RESPONSE_INTEGRITY_EVIDENCE_CONTRACT_VERSION;
+  evidence: RepOperationalEvidenceV2;
+};
+
+const ACTUAL_SUPPORT_VALUES = new Set<ActualSupportUsedV2>([
+  "none",
+  "response_control_cue",
+  "first_step_math_support",
+  "beyond_permitted_boundary",
+]);
+const TIMING_MODES = new Set<RepTimingModeV2>(["passive_untimed", "tps_prescribed"]);
+const TIMING_VALIDITY_VALUES = new Set<RepTimingValidityV2>(["valid", "timing_invalid_technical"]);
+
+const isRecord = (value: unknown): value is Record<string, any> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+/**
+ * The live V1 semantic set validator already preserves unregistered rep metadata while validating
+ * every registered scored dimension. Until the full V2 set envelope is activated, the runner uses
+ * one reserved rep-level string field as an additive wire carrier. This keeps published V1 schema
+ * identity immutable while persisting the V2 operational source fact inside the authoritative drill
+ * payload. The codec is deterministic and version-stamped so the carrier can be retired cleanly once
+ * the full V2 envelope is activated.
+ */
+export const encodeRepOperationalEvidenceV2 = (evidence: RepOperationalEvidenceV2) =>
+  JSON.stringify({
+    evidenceContractVersion: RESPONSE_INTEGRITY_EVIDENCE_CONTRACT_VERSION,
+    evidence,
+  } satisfies RepOperationalEvidenceWireV2);
+
+export const decodeRepOperationalEvidenceV2 = (value: unknown): RepOperationalEvidenceV2 | null => {
+  let parsed: unknown = value;
+  if (typeof value === "string") {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  if (!isRecord(parsed) || parsed.evidenceContractVersion !== RESPONSE_INTEGRITY_EVIDENCE_CONTRACT_VERSION) {
+    return null;
+  }
+  const evidence = parsed.evidence;
+  if (!isRecord(evidence) || !ACTUAL_SUPPORT_VALUES.has(evidence.actualSupportUsed)) return null;
+  if (!String(evidence.repId || "").trim() || !Number.isInteger(evidence.repNumber) || evidence.repNumber <= 0) {
+    return null;
+  }
+  if (!Array.isArray(evidence.inheritedEvidence)) return null;
+
+  const timing = evidence.timing;
+  if (!isRecord(timing) || !TIMING_MODES.has(timing.mode) || !TIMING_VALIDITY_VALUES.has(timing.timingValidity)) {
+    return null;
+  }
+  if (!String(timing.startedAt || "").trim() || !String(timing.endedAt || "").trim()) return null;
+  if (!Number.isFinite(Number(timing.elapsedMs)) || Number(timing.elapsedMs) < 0) return null;
+
+  return evidence as RepOperationalEvidenceV2;
 };
