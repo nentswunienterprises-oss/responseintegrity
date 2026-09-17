@@ -121,7 +121,7 @@ Assessment review references: Controlled Discomfort support review; Time Pressur
 
 ### Submitted evidence is immutable and corrected by supersession
 
-Approved product contract. The append-only correction schema and deterministic correction-overlay core are implemented, but the authenticated request/review runtime, deterministic topic replay, dependent report supersession/regeneration, and Timer Contract replay are still required before freeze.
+Resolved and implemented on the proof branch. The append-only correction schema, authenticated Specialist request/review runtime, deterministic correction overlay and chronological topic replay, active topic-state recomputation, dependent report supersession/regeneration, and TPS Timer Contract invalidation/reconstruction are wired together. Original submitted evidence remains immutable.
 
 - Before final submission, the Specialist may edit the current capture normally.
 - After submission, the evidence record is historical and must not be silently edited or deleted.
@@ -233,11 +233,9 @@ Assessment review references: Time Pressure Stability 4, original 38, original 4
 
 ## Open product decisions and implementation gaps to resolve before final freeze
 
-### Evidence correction runtime remains the unresolved cross-cutting blocker
+No unresolved product-decision implementation blocker remains from the four reviewed transformation-phase banks. Evidence correction is now implemented end to end on the proof branch, including authenticated Specialist request submission, TD/COO review authority with self-approval blocked, chronological deterministic topic replay, active topic-state replacement, dependent deterministic report supersession/regeneration, and TPS Timer Contract invalidation/reconstruction when corrected baseline lineage is affected.
 
-The human-review reconciliation against the proof-branch implementation is complete. The support contract, Topic Reference boundary, global `minimal` semantics, inherited-layer capture/hold/verification flow, topic-specific final-state behavior, and TPS Timer Contract runtime are implemented and covered by proof-branch tests.
-
-Evidence correction is not yet end to end. The branch has immutable correction/review/replay/report-supersession tables and a deterministic overlay core, but it still needs authenticated Specialist request submission, TD/COO review authority with self-approval blocked, chronological topic replay from the corrected source event, active topic-state replacement from that replay, dependent deterministic report supersession/regeneration, and TPS Timer Contract supersession/reconstruction when corrected baseline lineage is affected. These are implementation requirements, not open doctrine questions.
+The remaining pre-freeze work is the final source, coverage, duplicate, critical-boundary, and answer-position audit of the four human-reviewed banks. That audit is a bank-integrity gate, not an unresolved product-policy decision.
 
 ### TPS timer runtime implementation completed
 
@@ -256,7 +254,7 @@ The approved Timer Contract V1 is now executed end to end on the proof branch an
 - missing or invalid Timer Contracts lock scored TPS rather than permitting a Specialist fallback
 - the dedicated proof-database timer tables are append-only and RLS-enabled
 
-The approved evidence-correction/supersession workflow remains a cross-cutting evidence-integrity implementation dependency. When that broader workflow is activated, it must replay Timer Contract lineage if a baseline source is superseded; this is not a remaining TPS timer-policy ambiguity.
+The evidence-correction/supersession workflow is now wired into TPS Timer Contract lineage: if an approved correction supersedes evidence used by an active baseline, that contract is invalidated for active use and RI-OS reconstructs a valid replacement from eligible evidence or returns to pre-TPS calibration when necessary. This closes the cross-cutting dependency without changing Timer Contract V1 policy.
 
 ### TPS final-state next action is topic-specific and synchronized
 
