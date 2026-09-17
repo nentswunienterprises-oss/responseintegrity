@@ -1,3 +1,4 @@
+// Triggered after workflow installation to apply the final TPS synchronization pass.
 import fs from "node:fs";
 
 function patch(path, replacements) {
