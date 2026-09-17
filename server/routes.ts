@@ -1,3 +1,5 @@
+import { registerResponseIntegrityEvidenceCorrectionRuntimeRoutes } from "./routes/responseIntegrityEvidenceCorrectionRuntime";
+import { reconcileTpsTimerContractAfterCorrection } from "./routes/capabilityTpsTimerRuntime";
 import type { Express, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { createHash } from "crypto";
@@ -28434,7 +28436,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           `SELECT pr.*, u.name AS tutor_name
              FROM public.parent_reports pr
              LEFT JOIN public.users u ON u.id = pr.tutor_id
-            WHERE pr.parent_id = $1
+             LEFT JOIN public.response_integrity_report_supersessions rs ON rs.superseded_report_id = pr.id
+            WHERE pr.parent_id = $1 AND rs.superseded_report_id IS NULL
             ORDER BY pr.sent_at DESC`,
           [parentId],
         );
@@ -28449,7 +28452,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (error) throw error;
 
-      const tutorIds = Array.from(new Set((reports || []).map((report: any) => report.tutor_id).filter(Boolean)));
+      const parentReportIds = (reports || []).map((report: any) => String(report.id)).filter(Boolean);
+      const { data: supersededRows, error: supersededError } = parentReportIds.length
+        ? await supabase
+            .from("response_integrity_report_supersessions")
+            .select("superseded_report_id")
+            .in("superseded_report_id", parentReportIds)
+        : { data: [] as any[], error: null as any };
+      if (supersededError) throw supersededError;
+      const supersededReportIds = new Set((supersededRows || []).map((row: any) => String(row.superseded_report_id)));
+      const activeReports = (reports || []).filter((report: any) => !supersededReportIds.has(String(report.id)));
+
+      const tutorIds = Array.from(new Set(activeReports.map((report: any) => report.tutor_id).filter(Boolean)));
       let tutorNameMap: Record<string, string> = {};
 
       if (tutorIds.length > 0) {
@@ -28804,6 +28818,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error sending parent communication:", error);
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to send message" });
     }
+  });
+
+  registerResponseIntegrityEvidenceCorrectionRuntimeRoutes(app, {
+    reconcileTpsTimerContract: reconcileTpsTimerContractAfterCorrection,
+    regenerateAffectedReports: async ({ correctionId, studentId, tutorId, sourceSubmittedAt, effectiveDrillRows }) => {
+      const sourceDate = new Date(sourceSubmittedAt);
+      const anchoredRows = await attachReportAnchorTimes(effectiveDrillRows as any[]);
+      const { data: reports, error: reportError } = await supabase
+        .from("parent_reports")
+        .select("*")
+        .eq("student_id", studentId)
+        .eq("tutor_id", tutorId)
+        .in("report_type", ["weekly", "monthly"])
+        .order("sent_at", { ascending: true });
+      if (reportError) throw reportError;
+      const reportIds = (reports || []).map((report: any) => String(report.id));
+      const { data: existingSupersessions, error: supersessionError } = reportIds.length
+        ? await supabase
+            .from("response_integrity_report_supersessions")
+            .select("superseded_report_id")
+            .in("superseded_report_id", reportIds)
+        : { data: [] as any[], error: null as any };
+      if (supersessionError) throw supersessionError;
+      const alreadySuperseded = new Set((existingSupersessions || []).map((row: any) => String(row.superseded_report_id)));
+      let regenerated = 0;
+
+      for (const report of reports || []) {
+        if (alreadySuperseded.has(String(report.id))) continue;
+        const structured = parseStructuredReportSummary(report.summary) || {};
+        const endDateText = report.report_type === "weekly" ? structured.weekEndDate : structured.monthEndDate;
+        const endDate = endDateText ? new Date(`${endDateText}T23:59:59.999Z`) : new Date(report.sent_at);
+        if (Number.isFinite(sourceDate.getTime()) && Number.isFinite(endDate.getTime()) && endDate < sourceDate) continue;
+        const sourceSessionIds = new Set(
+          (Array.isArray(structured.sourceSessionIds) ? structured.sourceSessionIds : [])
+            .map((id: unknown) => String(id || "").trim())
+            .filter(Boolean),
+        );
+        if (sourceSessionIds.size === 0) continue;
+        const windowRows = anchoredRows.filter((row: any) => sourceSessionIds.has(resolveReportSessionGroupId(row)));
+        if (windowRows.length === 0) continue;
+
+        const replacementStructured: any = report.report_type === "weekly"
+          ? createWeeklyStructuredDataFromDrills(windowRows)
+          : createMonthlyStructuredDataFromDrills(windowRows);
+        if (!replacementStructured) continue;
+        replacementStructured.correctionReplay = {
+          correctionId,
+          supersedesReportId: String(report.id),
+          regeneratedAt: new Date().toISOString(),
+        };
+        const baseWindowKey = report.report_window_key || buildDeterministicReportWindowKey(report.report_type, replacementStructured) || `${report.report_type}:${report.id}`;
+        const replacementWindowKey = `${baseWindowKey}::correction:${correctionId}`;
+        const parentId = String(report.parent_id || "");
+        const replacement = report.report_type === "weekly"
+          ? await insertDeterministicParentReport({
+              tutor_id: tutorId,
+              student_id: studentId,
+              parent_id: parentId,
+              report_type: "weekly",
+              week_number: getIsoWeekNumber(new Date(replacementStructured.weekStartDate)),
+              month_name: null,
+              summary: JSON.stringify(replacementStructured),
+              topics_learned: Array.isArray(replacementStructured.topicsWorkedOn) ? replacementStructured.topicsWorkedOn.join(", ") : "",
+              strengths: Array.isArray(replacementStructured.whatChanged) ? replacementStructured.whatChanged.join(" | ") : "",
+              areas_for_growth: Array.isArray(replacementStructured.breakdownPattern) ? replacementStructured.breakdownPattern.join(" | ") : "",
+              boss_battles_completed: Number(replacementStructured.bossBattlesCompletedThisWeek || 0),
+              solutions_unlocked: Number(replacementStructured.sessionsCompletedThisWeek || 0),
+              confidence_growth: null,
+              next_steps: Array.isArray(replacementStructured.nextMove) ? replacementStructured.nextMove.join(" | ") : "",
+              sent_at: new Date().toISOString(),
+            }, replacementWindowKey)
+          : await insertDeterministicParentReport({
+              tutor_id: tutorId,
+              student_id: studentId,
+              parent_id: parentId,
+              report_type: "monthly",
+              week_number: null,
+              month_name: formatMonthName(new Date(replacementStructured.monthStartDate)),
+              summary: JSON.stringify(replacementStructured),
+              topics_learned: Array.isArray(replacementStructured.topicsConditioned) ? replacementStructured.topicsConditioned.join(", ") : "",
+              strengths: Array.isArray(replacementStructured.whatBecameStronger) ? replacementStructured.whatBecameStronger.join(" | ") : "",
+              areas_for_growth: Array.isArray(replacementStructured.breakdownPattern) ? replacementStructured.breakdownPattern.join(" | ") : "",
+              boss_battles_completed: 0,
+              solutions_unlocked: Number(replacementStructured.totalSessionsCompletedThisMonth || 0),
+              confidence_growth: null,
+              next_steps: Array.isArray(replacementStructured.nextMonthMove) ? replacementStructured.nextMonthMove.join(" | ") : "",
+              sent_at: new Date().toISOString(),
+            }, replacementWindowKey);
+
+        const { error: lineageError } = await supabase.from("response_integrity_report_supersessions").insert({
+          supersession_id: `${correctionId}::${report.id}`,
+          correction_id: correctionId,
+          superseded_report_id: report.id,
+          replacement_report_id: replacement.id,
+          created_at: new Date().toISOString(),
+        });
+        if (lineageError && lineageError.code !== "23505") throw lineageError;
+        regenerated += 1;
+      }
+      return { regenerated };
+    },
   });
 
   registerExecutiveCommandRhythmRoutes(app, isAuthenticated);

@@ -213,7 +213,7 @@ export const replayCorrectedTopicLineage = ({
     const phaseBefore = currentPhase;
     const stabilityBefore = currentStability;
     const corrected = applyCorrectionsForEvent(event);
-    if (!corrected.ok) {
+    if ("error" in corrected) {
       throw new Error(`Correction replay failed for ${event.sourceDrillId}: ${corrected.error}`);
     }
     const sets = corrected.sets as LedgerEvidenceSet[];
@@ -380,8 +380,11 @@ export const replayCorrectedTopicLineage = ({
 
     currentPhase = inheritedGated.phase;
     currentStability = inheritedGated.stability;
-    inheritedHold = "inheritedVerificationHold" in inheritedGated
-      ? (inheritedGated.inheritedVerificationHold || null)
+    const gatedInheritedHold = "inheritedVerificationHold" in inheritedGated
+      ? inheritedGated.inheritedVerificationHold
+      : null;
+    inheritedHold = gatedInheritedHold && typeof gatedInheritedHold === "object"
+      ? gatedInheritedHold as InheritedVerificationHold
       : null;
     replayedEventCount += 1;
     lineage.push({

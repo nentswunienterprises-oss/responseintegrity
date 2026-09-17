@@ -292,7 +292,7 @@ const reviewerCanApprove = async (reviewer: any, correction: StoredCorrectionRow
 const eventKindFor = (drill: Record<string, any>): CorrectionReplayEvent["kind"] => {
   const drillType = clean(drill.drillType).toLowerCase();
   if (drillType === "training") return "training";
-  if (drillType === "inherited_verification") return "inherited_verification";
+  if (drillType === "inherited_verification" || drill.inheritedVerification === true || clean(drill.inheritedVerificationMode)) return "inherited_verification";
   if (drillType === "handover_verification") return "handover_verification";
   return "diagnosis";
 };
@@ -307,17 +307,17 @@ const observedPhaseFor = (drill: Record<string, any>): TopicPhase | null => tryP
   drill.summary?.phase,
 );
 
-const loadTopicDrillRows = async (studentId: string, topic: string): Promise<EffectiveCorrectionDrillRow[]> => {
+const loadStudentDrillRows = async (studentId: string): Promise<EffectiveCorrectionDrillRow[]> => {
   const { data, error } = await supabase
     .from("intro_session_drills")
     .select("id, student_id, tutor_id, submitted_at, scheduled_session_id, training_session_run_id, drill")
     .eq("student_id", studentId)
     .order("submitted_at", { ascending: true })
     .limit(2000);
-  if (error) throw new Error(`Failed to load topic lineage: ${error.message}`);
+  if (error) throw new Error(`Failed to load student drill lineage: ${error.message}`);
   return (data || [])
     .map((row: any) => ({ ...row, drill: parseDrill(row.drill) }))
-    .filter((row: any) => row.drill && topicKey(drillTopic(row.drill)) === topicKey(topic)) as EffectiveCorrectionDrillRow[];
+    .filter((row: any) => !!row.drill) as EffectiveCorrectionDrillRow[];
 };
 
 const correctionReplayStart = async (correction: StoredCorrectionRow, sourceDrill: any) => {
@@ -344,7 +344,8 @@ const buildReplayEvents = async ({
   correction: StoredCorrectionRow;
   currentCorrection: ApprovedEvidenceCorrection;
 }) => {
-  const rows = await loadTopicDrillRows(correction.student_id, correction.topic);
+  const allRows = await loadStudentDrillRows(correction.student_id);
+  const rows = allRows.filter((row) => topicKey(drillTopic(row.drill)) === topicKey(correction.topic));
   const sourceIndex = rows.findIndex((row) => row.id === correction.source_drill_id);
   if (sourceIndex < 0) throw new Error("The correction source drill is no longer available for replay.");
   const approved = await loadApprovedCorrections(correction.student_id, correction.topic);
@@ -378,7 +379,7 @@ const buildReplayEvents = async ({
           : null,
     };
   });
-  return { rows, replayRows, events, sourceRow: rows[sourceIndex] };
+  return { rows: allRows, replayRows, events, sourceRow: rows[sourceIndex] };
 };
 
 const updateEffectiveRowsFromReplay = ({

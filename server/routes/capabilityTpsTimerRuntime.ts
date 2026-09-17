@@ -152,6 +152,25 @@ const rowToContract = (row: TimerContractRow): PersistedTimerContract => ({
   supersedesContractId: row.supersedes_contract_id || null,
 });
 
+const isTimerContractInvalidated = async (contractId: string) => {
+  if (!contractId) return false;
+  if (isEmergencyDbMode()) {
+    const result = await pool.query(
+      `SELECT invalidation_id FROM public.capability_tps_timer_contract_invalidations WHERE contract_id = $1 LIMIT 1`,
+      [contractId],
+    );
+    return result.rows.length > 0;
+  }
+  const { data, error } = await supabase
+    .from("capability_tps_timer_contract_invalidations")
+    .select("invalidation_id")
+    .eq("contract_id", contractId)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`Failed to load TPS Timer Contract invalidation: ${error.message}`);
+  return !!data;
+};
+
 const loadLatestTimerContract = async (
   studentId: string,
   topicKey: string,
@@ -166,7 +185,9 @@ const loadLatestTimerContract = async (
         LIMIT 1`,
       [studentId, topicKey, conditioningEpochKey],
     );
-    return result.rows?.[0] ? rowToContract(result.rows[0]) : null;
+    const contract = result.rows?.[0] ? rowToContract(result.rows[0]) : null;
+    if (!contract) return null;
+    return await isTimerContractInvalidated(contract.contractId) ? null : contract;
   }
 
   const { data, error } = await supabase
@@ -179,7 +200,9 @@ const loadLatestTimerContract = async (
     .limit(1)
     .maybeSingle();
   if (error) throw new Error(`Failed to load TPS Timer Contract: ${error.message}`);
-  return data ? rowToContract(data as TimerContractRow) : null;
+  const contract = data ? rowToContract(data as TimerContractRow) : null;
+  if (!contract) return null;
+  return await isTimerContractInvalidated(contract.contractId) ? null : contract;
 };
 
 const insertTimerContract = async ({
@@ -559,6 +582,83 @@ const validateTpsDrillAgainstContract = async ({
     }
   }
   return null;
+};
+
+export const reconcileTpsTimerContractAfterCorrection = async ({
+  correctionId,
+  student,
+  studentId,
+  tutorId,
+  topic,
+  sourceDrillId,
+  effectiveDrillRows,
+}: {
+  correctionId: string;
+  student: any;
+  studentId: string;
+  tutorId: string;
+  topic: string;
+  sourceDrillId: string;
+  effectiveDrillRows: Array<{ id?: unknown; student_id?: unknown; tutor_id?: unknown; submitted_at?: unknown; drill?: unknown }>;
+}) => {
+  const conditioningEpochKey = deriveConditioningEpochKey(student, topic);
+  const normalizedTopicKey = topicKeyFor(topic);
+  const current = await loadLatestTimerContract(studentId, normalizedTopicKey, conditioningEpochKey);
+  if (!current) return { status: "no_active_contract" as const };
+
+  const sourcePrefix = `${sourceDrillId}::`;
+  const baselineDependsOnSource = current.baselineSampleRecordIds.some((id) => clean(id).startsWith(sourcePrefix));
+  if (!baselineDependsOnSource) return { status: "unaffected" as const, contract: current };
+
+  const invalidationId = randomUUID();
+  const invalidation = {
+    invalidation_id: invalidationId,
+    contract_id: current.contractId,
+    correction_id: correctionId,
+    student_id: studentId,
+    topic,
+    topic_key: normalizedTopicKey,
+    conditioning_epoch_key: conditioningEpochKey,
+    reason: "Approved evidence correction changed lineage used by the active TPS baseline.",
+    invalidated_at: new Date().toISOString(),
+  };
+  if (isEmergencyDbMode()) {
+    await pool.query(
+      `INSERT INTO public.capability_tps_timer_contract_invalidations
+        (invalidation_id, contract_id, correction_id, student_id, topic, topic_key, conditioning_epoch_key, reason, invalidated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (contract_id, correction_id) DO NOTHING`,
+      [invalidation.invalidation_id, invalidation.contract_id, invalidation.correction_id, invalidation.student_id, invalidation.topic, invalidation.topic_key, invalidation.conditioning_epoch_key, invalidation.reason, invalidation.invalidated_at],
+    );
+  } else {
+    const { error } = await supabase.from("capability_tps_timer_contract_invalidations").upsert(invalidation, {
+      onConflict: "contract_id,correction_id",
+      ignoreDuplicates: true,
+    });
+    if (error) throw new Error(`Failed to invalidate TPS Timer Contract after correction: ${error.message}`);
+  }
+
+  const runtime = buildTpsTimerRuntimeStatus({ rows: effectiveDrillRows, studentId, topic });
+  if (!runtime.contract) {
+    return {
+      status: "pre_tps_calibration_required" as const,
+      invalidatedContractId: current.contractId,
+      conditioningEpochKey,
+    };
+  }
+
+  const replacement = await insertTimerContract({
+    contract: runtime.contract,
+    conditioningEpochKey,
+    tutorId,
+    source: "historical_untimed",
+    supersedesContractId: current.contractId,
+  });
+  return {
+    status: "superseded" as const,
+    invalidatedContractId: current.contractId,
+    contract: replacement,
+    conditioningEpochKey,
+  };
 };
 
 export function registerCapabilityTpsTimerRuntimeRoutes(app: Express) {
