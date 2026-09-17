@@ -18,11 +18,13 @@ const operationalEvidence = ({
   elapsedMs,
   endedAt,
   actualSupportUsed = "none",
+  pressureLevel = "none",
 }: {
   repId: string;
   elapsedMs: number;
   endedAt: string;
   actualSupportUsed?: ActualSupportUsedV2;
+  pressureLevel?: "none" | "difficulty";
 }): RepOperationalEvidenceV2 => ({
   repId,
   repNumber: 1,
@@ -33,7 +35,7 @@ const operationalEvidence = ({
     endedAt,
     elapsedMs,
     timingValidity: "valid",
-    pressureLevel: "none",
+    pressureLevel,
   },
   inheritedEvidence: [],
 });
@@ -44,18 +46,27 @@ const drillRow = ({
   endedAt,
   actualSupportUsed = "none",
   level = "clear",
+  phase = "Structured Execution",
 }: {
   id: string;
   elapsedMs: number;
   endedAt: string;
   actualSupportUsed?: ActualSupportUsedV2;
   level?: "weak" | "partial" | "clear";
+  phase?: "Clarity" | "Structured Execution" | "Controlled Discomfort";
 }) => {
+  const isControlledDiscomfort = phase === "Controlled Discomfort";
+  const setId = isControlledDiscomfort
+    ? "controlled_discomfort.repeat_exposure"
+    : phase === "Clarity"
+      ? "clarity.light_apply"
+      : "structured_execution.independent_execution";
   const evidence = operationalEvidence({
-    repId: `structured_execution.independent_execution.${id}`,
+    repId: `${setId}.${id}`,
     elapsedMs,
     endedAt,
     actualSupportUsed,
+    pressureLevel: isControlledDiscomfort ? "difficulty" : "none",
   });
   return {
     id,
@@ -65,15 +76,20 @@ const drillRow = ({
     drill: {
       drillType: "training",
       trainingTopic: "Algebra",
+      phase,
       sets: [
         {
-          setId: "structured_execution.independent_execution",
-          setName: "Independent Execution",
+          setId,
+          setName: isControlledDiscomfort
+            ? "Repeat Exposure"
+            : phase === "Clarity"
+              ? "Light Apply"
+              : "Independent Execution",
           constraintProfile: {
             supportLevel: "none",
-            pressureLevel: "none",
+            pressureLevel: isControlledDiscomfort ? "difficulty" : "none",
             variationLevel: "same_form",
-            difficultyLevel: "normal",
+            difficultyLevel: isControlledDiscomfort ? "challenging" : "normal",
           },
           observations: [
             {
@@ -109,8 +125,20 @@ test("passive timing requires clear scored dimensions to count as a structurally
   assert.equal(isStructurallyValidPassiveCompletion({ _rep_id: "rep" }), false);
 });
 
-test("runtime status derives the TPS contract from the latest three eligible passive untimed reps", () => {
+test("runtime retains Structured Execution and Controlled Discomfort timing but baselines only comparable Structured Execution reps", () => {
   const rows = [
+    drillRow({
+      id: "clarity",
+      elapsedMs: 45_000,
+      endedAt: "2026-09-17T05:00:00.000Z",
+      phase: "Clarity",
+    }),
+    drillRow({
+      id: "cd",
+      elapsedMs: 120_000,
+      endedAt: "2026-09-17T04:30:00.000Z",
+      phase: "Controlled Discomfort",
+    }),
     drillRow({
       id: "support-used",
       elapsedMs: 50_000,
@@ -123,12 +151,19 @@ test("runtime status derives the TPS contract from the latest three eligible pas
   ];
 
   const records = collectPassiveTpsTimingRecords({ rows, studentId: "student-1", topic: "Algebra" });
-  assert.equal(records.length, 4);
+  assert.equal(records.length, 5);
+  assert.equal(records.some((record) => record.sourcePhase === "Clarity"), false);
+  assert.equal(records.some((record) => record.sourcePhase === "Controlled Discomfort"), true);
 
   const status = buildTpsTimerRuntimeStatus({ rows, studentId: "student-1", topic: "Algebra" });
-  assert.equal(status.passiveRecordCount, 4);
+  assert.equal(status.passiveRecordCount, 5);
+  assert.equal(status.structuredExecutionRecordCount, 4);
+  assert.equal(status.controlledDiscomfortRecordCount, 1);
   assert.equal(status.eligibleRecordCount, 3);
   assert.equal(status.calibrationRequired, false);
+  assert.equal(status.preTpsCalibrationRequired, false);
+  assert.equal(status.tpsEntryReady, true);
+  assert.equal(status.contract?.baselineSourcePhase, "Structured Execution");
   assert.equal(status.contract?.baselineSeconds, 70);
   assert.equal(status.contract?.structureUnderTimerSeconds, 70);
   assert.equal(status.contract?.repeatedTimedExecutionSeconds, 70);
@@ -140,13 +175,21 @@ test("runtime status derives the TPS contract from the latest three eligible pas
   ]);
 });
 
-test("runtime status stays in calibration-required state when clean passive evidence is insufficient", () => {
+test("runtime holds TPS entry for pre-TPS calibration when clean Structured Execution evidence is insufficient", () => {
   const rows = [
     drillRow({ id: "r1", elapsedMs: 60_000, endedAt: "2026-09-17T01:00:00.000Z" }),
     drillRow({ id: "partial", elapsedMs: 70_000, endedAt: "2026-09-17T02:00:00.000Z", level: "partial" }),
+    drillRow({
+      id: "cd",
+      elapsedMs: 95_000,
+      endedAt: "2026-09-17T03:00:00.000Z",
+      phase: "Controlled Discomfort",
+    }),
   ];
   const status = buildTpsTimerRuntimeStatus({ rows, studentId: "student-1", topic: "Algebra" });
   assert.equal(status.eligibleRecordCount, 1);
   assert.equal(status.calibrationRequired, true);
+  assert.equal(status.preTpsCalibrationRequired, true);
+  assert.equal(status.tpsEntryReady, false);
   assert.equal(status.contract, null);
 });
