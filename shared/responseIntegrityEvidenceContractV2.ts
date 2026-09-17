@@ -40,6 +40,9 @@ export type RepTimingEvidenceV2 = {
   endedAt: string;
   elapsedMs: number;
   timingValidity: RepTimingValidityV2;
+  attemptId?: string;
+  timerContractId?: string;
+  conditioningEpochKey?: string;
   timerContractVersion?: number;
   baselineSeconds?: number;
   prescribedSeconds?: number;
@@ -131,6 +134,15 @@ export const decodeRepOperationalEvidenceV2 = (value: unknown): RepOperationalEv
   }
   if (!String(timing.startedAt || "").trim() || !String(timing.endedAt || "").trim()) return null;
   if (!Number.isFinite(Number(timing.elapsedMs)) || Number(timing.elapsedMs) < 0) return null;
+
+  if (timing.mode === "tps_prescribed") {
+    if (!String(timing.attemptId || "").trim()) return null;
+    if (!String(timing.timerContractId || "").trim()) return null;
+    if (!String(timing.conditioningEpochKey || "").trim()) return null;
+    if (!Number.isFinite(Number(timing.timerContractVersion)) || Number(timing.timerContractVersion) <= 0) return null;
+    if (!Number.isFinite(Number(timing.baselineSeconds)) || Number(timing.baselineSeconds) <= 0) return null;
+    if (!Number.isFinite(Number(timing.prescribedSeconds)) || Number(timing.prescribedSeconds) <= 0) return null;
+  }
 
   return evidence as RepOperationalEvidenceV2;
 };
