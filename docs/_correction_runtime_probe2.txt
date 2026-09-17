@@ -1,0 +1,1584 @@
+=== report builders and inserts ===
+                enrollmentForStudent = enrollmentByParent;
+              }
+            }
+
+            return enrollmentForStudent?.status !== "awaiting_tutor_acceptance";
+          };
+
+          const createWeeklyStructuredDataFromDrills = (drillRows: any[]) => {
+            const deterministicSessions = mapDeterministicSessionsForReport(drillRows);
+            const groupedSessions = aggregateDeterministicSessions(drillRows || []);
+
+            if (!deterministicSessions.length) return null;
+
+            const sorted = [...deterministicSessions].sort(
+              (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+            );
+
+            const phaseRank = (phase: string) => {
+              if (phase === "Clarity") return 0;
+              if (phase === "Structured Execution") return 1;
+              if (phase === "Controlled Discomfort") return 2;
+              if (phase === "Time Pressure Stability") return 3;
+              return -1;
+            };
+            const stabilityRank = (stability: string) => {
+              if (stability === "Low") return 0;
+              if (stability === "Medium") return 1;
+              if (stability === "High") return 2;
+              if (stability === "High Maintenance") return 3;
+              return -1;
+            };
+            const scoreState = (state: { phase: string; stability: string }) =>
+              phaseRank(state.phase) * 10 + stabilityRank(state.stability);
+            const topicSnapshots = buildTopicSnapshots(sorted);
+
+            const topics = sortTopicsForReport(Object.keys(topicSnapshots), topicSnapshots);
+            const includeTopicLabels = topics.length > 1;
+
+            // Final weekly report structure
+            const topicsWorkedOn = topics;
+            const whatChanged = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              const line = buildWeeklyWhatChangedLine({
+                topic,
+                firstDrillState: snapshot.firstDrillState,
+                lastDrillState: snapshot.lastDrillState,
+                transitionReasons: snapshot.transitionReasons,
+                drillBehaviors: snapshot.drillBehaviors,
+                hasTrainingEvidence: snapshot.hasTrainingEvidence,
+              });
+              return includeTopicLabels ? line : formatSingleTopicMovementLine(line);
+            });
+
+            const breakdownPattern = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              const weakSignals = buildTopicWeakSignals(snapshot.allBehaviors);
+              const isInitialTopicBaseline = snapshot.drillCount <= 1;
+              return formatTopicScopedLine(
+                topic,
+                weakSignals.length > 0
+                  ? naturalJoin(weakSignals)
+                  : isInitialTopicBaseline
+                    ? "initial baseline established; no recurring breakdown pattern yet"
+                    : "no consistent breakdown pattern identified",
+                includeTopicLabels
+              );
+            });
+
+            const whatThisMeans = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              return formatTopicScopedLine(
+                topic,
+                buildParentMeaningForContext({
+                  phaseBefore: snapshot.firstDrillState.phase as TopicPhase,
+                  phaseAfter: snapshot.lastDrillState.phase as TopicPhase,
+                  stabilityAfter: snapshot.lastDrillState.stability as TopicStability,
+                  transitionReasons: snapshot.transitionReasons,
+                }),
+                includeTopicLabels
+              );
+            });
+
+            const nextMove = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              return formatTopicScopedLine(
+                topic,
+                buildParentNextMoveForContext({
+                  phaseBefore: snapshot.firstDrillState.phase as TopicPhase,
+                  phaseAfter: snapshot.lastDrillState.phase as TopicPhase,
+                  stabilityBefore: snapshot.firstDrillState.stability as TopicStability,
+                  stabilityAfter: snapshot.lastDrillState.stability as TopicStability,
+                  transitionReasons: snapshot.transitionReasons,
+                }),
+                includeTopicLabels
+              );
+            });
+
+            const startDate = sorted[0].date;
+            const endDate = sorted[sorted.length - 1].date;
+
+            return {
+              version: "weekly-v2-auto",
+              weekStartDate: new Date(startDate).toISOString().slice(0, 10),
+              weekEndDate: new Date(endDate).toISOString().slice(0, 10),
+              sessionsCompletedThisWeek: groupedSessions.length,
+              topicsWorkedOn,
+              whatChanged,
+              breakdownPattern: breakdownPattern.length > 0 ? breakdownPattern : ["No consistent breakdown pattern identified"],
+              whatThisMeans,
+              nextMove,
+              internalWeeklyTutorNote: "",
+              drillCount: deterministicSessions.length,
+              sourceSessionIds: groupedSessions.map((session) => session.id),
+            };
+          };
+
+          const createMonthlyStructuredDataFromDrills = (drillRows: any[]) => {
+            const deterministicSessions = mapDeterministicSessionsForReport(drillRows);
+            const groupedSessions = aggregateDeterministicSessions(drillRows || []);
+
+            if (!deterministicSessions.length) return null;
+
+            const sorted = [...deterministicSessions].sort(
+              (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+            );
+
+            const phaseRank = (phase: string) => {
+              if (phase === "Clarity") return 0;
+              if (phase === "Structured Execution") return 1;
+              if (phase === "Controlled Discomfort") return 2;
+              if (phase === "Time Pressure Stability") return 3;
+              return -1;
+            };
+            const stabilityRank = (stability: string) => {
+              if (stability === "Low") return 0;
+              if (stability === "Medium") return 1;
+              if (stability === "High") return 2;
+              if (stability === "High Maintenance") return 3;
+              return -1;
+            };
+            const scoreState = (state: { phase: string; stability: string }) =>
+              phaseRank(state.phase) * 10 + stabilityRank(state.stability);
+            const topicSnapshots = buildTopicSnapshots(sorted);
+
+            const topics = sortTopicsForReport(Object.keys(topicSnapshots), topicSnapshots);
+            const includeTopicLabels = topics.length > 1;
+
+            // Final monthly report structure
+            const topicsConditioned = topics;
+            const systemMovement = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              const line = buildMonthlyMovementLine({
+                topic,
+                firstDrillState: snapshot.firstDrillState,
+                lastDrillState: snapshot.lastDrillState,
+                transitionReasons: snapshot.transitionReasons,
+                hasTrainingEvidence: snapshot.hasTrainingEvidence,
+              });
+              return includeTopicLabels ? line : formatSingleTopicMovementLine(line);
+            });
+
+            const whatBecameStronger = topics
+              .map(topic => {
+                const snapshot = topicSnapshots[topic];
+                if (!snapshot.hasTrainingEvidence) {
+                  return formatTopicScopedLine(
+                    topic,
+                    "baseline established; no training strength claim made yet",
+                    includeTopicLabels,
+                  );
+                }
+                const strongSignals = buildTopicStrongSignals(snapshot.allBehaviors);
+                return buildMonthlyStrengthLine(topic, strongSignals, includeTopicLabels);
+              })
+              .filter(Boolean);
+
+            const breakdownPattern = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              const weakSignals = buildTopicWeakSignals(snapshot.allBehaviors);
+              const isInitialTopicBaseline = snapshot.drillCount <= 1;
+              return formatTopicScopedLine(
+                topic,
+                weakSignals.length > 0
+                  ? naturalJoin(weakSignals)
+                  : isInitialTopicBaseline
+                    ? "initial baseline established; no recurring breakdown pattern yet"
+                    : "no consistent breakdown pattern identified",
+                includeTopicLabels
+              );
+            });
+
+            const currentPosition = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              return {
+                topic,
+                state: `${snapshot.lastDrillState.phase} (${snapshot.lastDrillState.stability})`,
+                position: buildCurrentPositionText(
+                  snapshot.lastDrillState.phase as TopicPhase,
+                  snapshot.lastDrillState.stability as TopicStability
+                ),
+              };
+            });
+
+            const whatThisMeans = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              return formatTopicScopedLine(
+                topic,
+                buildParentMeaningForContext({
+                  phaseBefore: snapshot.firstDrillState.phase as TopicPhase,
+                  phaseAfter: snapshot.lastDrillState.phase as TopicPhase,
+                  stabilityAfter: snapshot.lastDrillState.stability as TopicStability,
+                  transitionReasons: snapshot.transitionReasons,
+                }),
+                includeTopicLabels
+              );
+            });
+
+            const nextMonthMove = topics.map(topic => {
+              const snapshot = topicSnapshots[topic];
+              return formatTopicScopedLine(
+                topic,
+                buildParentNextMove(
+                  snapshot.lastDrillState.phase as TopicPhase,
+                  snapshot.lastDrillState.stability as TopicStability
+                ),
+                includeTopicLabels
+              );
+            });
+
+            const startDate = sorted[0].date;
+            const endDate = sorted[sorted.length - 1].date;
+
+            return {
+              version: "monthly-v2-auto",
+              monthStartDate: new Date(startDate).toISOString().slice(0, 10),
+              monthEndDate: new Date(endDate).toISOString().slice(0, 10),
+              totalSessionsCompletedThisMonth: groupedSessions.length,
+              topicsConditioned,
+              systemMovement: systemMovement.length > 0 ? systemMovement : ["No clear system movement recorded this month"],
+              whatBecameStronger: whatBecameStronger.length > 0 ? whatBecameStronger : ["No consistent strength pattern recognized yet"],
+              breakdownPattern: breakdownPattern.length > 0 ? breakdownPattern : ["No consistent breakdown pattern identified"],
+              currentPosition,
+              whatThisMeans,
+              nextMonthMove,
+              drillCount: topics.reduce((sum, topic) => sum + topicSnapshots[topic].drillCount, 0),
+              monthRange: `${new Date(startDate).toISOString().slice(0, 10)} to ${new Date(endDate).toISOString().slice(0, 10)}`,
+              sourceSessionIds: groupedSessions.map((session) => session.id),
+            };
+          };
+
+
+          const resolveReportSessionGroupId = (row: any) => {
+            const mappedSession = mapDrillRowToDeterministicSession(row);
+            return String(
+              row?.report_scheduled_session_id ||
+                resolveScheduledSessionIdFromDrillRow(row) ||
+                mappedSession?.sessionGroupId ||
+                mappedSession?.id ||
+                row?.id ||
+                "",
+            ).trim();
+          };
+
+          const buildDeterministicReportWindowKey = (reportType: "weekly" | "monthly", structuredData: any) => {
+            const sourceSessionIds = Array.from(
+              new Set(
+                (Array.isArray(structuredData?.sourceSessionIds) ? structuredData.sourceSessionIds : [])
+                  .map((id: unknown) => String(id || "").trim())
+                  .filter(Boolean),
+              ),
+            ).sort();
+
+            if (sourceSessionIds.length === 0) return null;
+            return `${reportType}:${sourceSessionIds.join("|")}`;
+          };
+
+          const insertDeterministicParentReport = async (payload: Record<string, any>, reportWindowKey: string | null) => {
+            const insertPayload = reportWindowKey
+              ? { ...payload, report_window_key: reportWindowKey }
+              : payload;
+
+            const { data, error } = await supabase
+              .from("parent_reports")
+              .insert(insertPayload)
+              .select("id")
+              .single();
+
+            if (!error) return { ...data, created: true };
+
+            // A concurrent trigger may have inserted the same deterministic window.
+            if (error.code === "23505" && reportWindowKey) {
+              const { data: existing, error: existingError } = await supabase
+                .from("parent_reports")
+                .select("id")
+                .eq("tutor_id", payload.tutor_id)
+                .eq("student_id", payload.student_id)
+                .eq("report_type", payload.report_type)
+                .eq("report_window_key", reportWindowKey)
+                .maybeSingle();
+
+              if (!existingError && existing) return { ...existing, created: false };
+            }
+
+            throw error;
+          };
+
+          const insertWeeklyReport = async ({
+            tutorId,
+            studentId,
+            parentId,
+            structuredData,
+          }: {
+            tutorId: string;
+            studentId: string;
+            parentId: string;
+            structuredData: any;
+          }) => {
+            const weekNumber = getIsoWeekNumber(new Date(structuredData.weekStartDate));
+            const reportWindowKey = buildDeterministicReportWindowKey("weekly", structuredData);
+
+            return insertDeterministicParentReport({
+                tutor_id: tutorId,
+                student_id: studentId,
+                parent_id: parentId,
+                report_type: "weekly",
+                week_number: weekNumber,
+                month_name: null,
+                summary: JSON.stringify(structuredData),
+                topics_learned: Array.isArray(structuredData.topicsWorkedOn) ? structuredData.topicsWorkedOn.join(", ") : "",
+                strengths: Array.isArray(structuredData.whatChanged) ? structuredData.whatChanged.join(" | ") : "",
+                areas_for_growth: Array.isArray(structuredData.breakdownPattern) ? structuredData.breakdownPattern.join(" | ") : "",
+                boss_battles_completed: Number(structuredData.bossBattlesCompletedThisWeek || 0),
+                solutions_unlocked: Number(structuredData.sessionsCompletedThisWeek || 0),
+                confidence_growth: null,
+                next_steps: Array.isArray(structuredData.nextMove) ? structuredData.nextMove.join(" | ") : "",
+                sent_at: new Date().toISOString(),
+              }, reportWindowKey);
+          };
+
+          const insertMonthlyReport = async ({
+            tutorId,
+            studentId,
+            parentId,
+            structuredData,
+          }: {
+            tutorId: string;
+            studentId: string;
+            parentId: string;
+            structuredData: any;
+          }) => {
+            const monthName = formatMonthName(new Date(structuredData.monthStartDate));
+            const reportWindowKey = buildDeterministicReportWindowKey("monthly", structuredData);
+
+            return insertDeterministicParentReport({
+                tutor_id: tutorId,
+                student_id: studentId,
+                parent_id: parentId,
+                report_type: "monthly",
+                week_number: null,
+                month_name: monthName,
+                summary: JSON.stringify(structuredData),
+                topics_learned: Array.isArray(structuredData.topicsConditioned) ? structuredData.topicsConditioned.join(", ") : "",
+                strengths: Array.isArray(structuredData.whatBecameStronger) ? structuredData.whatBecameStronger.join(" | ") : "",
+                areas_for_growth: Array.isArray(structuredData.breakdownPattern) ? structuredData.breakdownPattern.join(" | ") : "",
+                boss_battles_completed: 0,
+                solutions_unlocked: Number(structuredData.totalSessionsCompletedThisMonth || 0),
+                confidence_growth: null,
+                next_steps: Array.isArray(structuredData.nextMonthMove) ? structuredData.nextMonthMove.join(" | ") : "",
+                sent_at: new Date().toISOString(),
+              }, reportWindowKey);
+          };
+
+          const maybeAutoSendDeterministicReports = async (studentId: string, tutorId: string) => {
+            const student = await storage.getStudent(studentId);
+            if (!student || student.tutorId !== tutorId) return;
+
+            const parentId = await resolveParentIdForStudent(student, tutorId);
+            if (!parentId) return;
+
+            const { data: drillRows, error: drillRowsError } = await supabase
+              .from("intro_session_drills")
+              .select("id, drill, submitted_at, scheduled_session_id")
+              .eq("student_id", studentId)
+              .eq("tutor_id", tutorId)
+              .order("submitted_at", { ascending: true });
+
+            if (drillRowsError || !drillRows || drillRows.length === 0) return;
+            const anchoredDrillRows = await attachReportAnchorTimes(drillRows || []);
+
+            const { data: existingWeeklyReports } = await supabase
+              .from("parent_reports")
+              .select("summary, report_window_key")
+              .eq("student_id", studentId)
+              .eq("tutor_id", tutorId)
+              .eq("report_type", "weekly")
+              .limit(1000);
+
+            const { data: existingMonthlyReports } = await supabase
+              .from("parent_reports")
+              .select("summary, report_window_key")
+              .eq("student_id", studentId)
+              .eq("tutor_id", tutorId)
+              .eq("report_type", "monthly")
+              .limit(1000);
+
+            const coveredSessionIds = (reports: any[] | null | undefined) => new Set(
+              (reports || []).flatMap((report: any) => {
+                let summary: any = {};
+                try {
+                  summary = typeof report?.summary === "string"
+                    ? JSON.parse(report.summary)
+                    : report?.summary || {};
+                } catch {
+                  summary = {};
+                }
+                return Array.isArray(summary?.sourceSessionIds)
+                  ? summary.sourceSessionIds.map((id: unknown) => String(id || "").trim()).filter(Boolean)
+                  : [];
+              }),
+            );
+
+            const weeklyCoveredSessionIds = coveredSessionIds(existingWeeklyReports);
+            const monthlyCoveredSessionIds = coveredSessionIds(existingMonthlyReports);
+            const weeklyPending = anchoredDrillRows.filter(
+              (row: any) => !weeklyCoveredSessionIds.has(resolveReportSessionGroupId(row))
+            );
+            const monthlyPending = anchoredDrillRows.filter(
+              (row: any) => !monthlyCoveredSessionIds.has(resolveReportSessionGroupId(row))
+            );
+
+            const weeklyWindows = buildSessionAwareWeeklyWindows(weeklyPending);
+            let weeklyReportsCreated = 0;
+            if (weeklyWindows.length > 0) {
+              for (const weeklyWindow of weeklyWindows) {
+                const structuredData = createWeeklyStructuredDataFromDrills(weeklyWindow);
+                if (structuredData) {
+                  const weeklyReport = await insertWeeklyReport({ tutorId, studentId, parentId, structuredData });
+                  if (weeklyReport.created !== false) {
+                    weeklyReportsCreated += 1;
+                  }
+                }
+              }
+            }
+
+            if (weeklyReportsCreated > 0) {
+              await safeSendPush(
+                parentId,
+                {
+                  title: weeklyReportsCreated === 1 ? "Conditioning update available" : "Conditioning updates available",
+                  body: weeklyReportsCreated === 1
+                    ? "A new two-session conditioning update is available for your child."
+                    : `${weeklyReportsCreated} two-session conditioning updates are available for your child.`,
+                  url: "/client/parent/progress",
+                  tag: "parent-weekly-report-catch-up",
+                },
+                "parent weekly report catch-up",
+              );
+            }
+
+            const monthlyWindows = buildSessionAwareMonthlyWindows(monthlyPending);
+            let monthlyReportsCreated = 0;
+            if (monthlyWindows.length > 0) {
+              for (const monthlyWindow of monthlyWindows) {
+                const structuredData = createMonthlyStructuredDataFromDrills(monthlyWindow);
+                if (structuredData) {
+                  const monthlyReport = await insertMonthlyReport({ tutorId, studentId, parentId, structuredData });
+                  if (monthlyReport.created !== false) {
+                    monthlyReportsCreated += 1;
+                  }
+                }
+              }
+            }
+
+            if (monthlyReportsCreated > 0) {
+              await safeSendPush(
+                parentId,
+                {
+                  title: monthlyReportsCreated === 1 ? "Eight-session report available" : "Eight-session reports available",
+                  body: monthlyReportsCreated === 1
+=== training submission core ===
+          app.post("/api/tutor/training-session-drill", isAuthenticated, requireRole(["tutor"]), async (req: Request, res: Response) => {
+            let emergencyDbClient: any = null;
+            try {
+              const tutorId = (req as any).dbUser.id;
+              const { studentId, sessionDrills, scheduledSessionId } = req.body;
+
+              if (!studentId || !Array.isArray(sessionDrills) || sessionDrills.length === 0) {
+                return res.status(400).json({ message: "Missing or invalid studentId or sessionDrills array" });
+              }
+
+              const student = await storage.getStudent(studentId);
+              if (!student || student.tutorId !== tutorId) {
+                return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+              }
+
+              const assignmentAccepted = await isTutorAssignmentAcceptedForStudent(student, tutorId);
+              if (!assignmentAccepted) {
+                return res.status(403).json({ message: "Accept this assignment before running drills for this student." });
+              }
+
+              const operationalMode = await getTutorOperationalMode(tutorId);
+              let scheduledSession: any = null;
+
+              if (isLiveSchedulingMode(operationalMode) || operationalMode === "training" || operationalMode === "sandbox") {
+                const { session: resolvedScheduledSession, error: scheduledSessionError } = await resolveTutorScheduledSession(
+                  tutorId,
+                  studentId,
+                  "training",
+                  typeof scheduledSessionId === "string" ? scheduledSessionId : null
+                );
+                if (scheduledSessionError) {
+                  return res.status(500).json({ message: "Failed to validate training session context" });
+                }
+                if (!resolvedScheduledSession) {
+                  return res.status(400).json({ message: "A Response Integrity training lesson must be attached before drill submission." });
+                }
+
+                if (operationalMode === "training" || operationalMode === "sandbox") {
+                  const status = String(resolvedScheduledSession.status || "").trim();
+                  const hasConfirmedSchedule =
+                    ["confirmed", "ready", "live"].includes(status) &&
+                    !!resolvedScheduledSession.parent_confirmed &&
+                    !!resolvedScheduledSession.tutor_confirmed;
+
+                  if (!hasConfirmedSchedule) {
+                    return res.status(400).json({
+                      message: "Training drills must submit from a tutor-confirmed weekly Response Integrity lesson.",
+                    });
+                  }
+                } else {
+                  const trainingLaunch = getSessionLaunchState(resolvedScheduledSession, "training");
+                  if (!trainingLaunch.canLaunch) {
+                    return res.status(400).json({ message: "Training drills must submit from an active or imminently scheduled Response Integrity lesson." });
+                  }
+                }
+
+                scheduledSession = resolvedScheduledSession;
+              }
+
+              emergencyDbClient = isEmergencyDbMode() ? await pool.connect() : null;
+              if (emergencyDbClient) await emergencyDbClient.query("BEGIN");
+              const pendingEmergencyLedgerInputs: EvidenceLedgerProjectionInput[] = [];
+
+              const conceptMastery: any =
+                student.conceptMastery && typeof student.conceptMastery === "object"
+                  ? { ...(student.conceptMastery as any) }
+                  : {};
+              const topicConditioningStore: any =
+                conceptMastery.topicConditioning && typeof conceptMastery.topicConditioning === "object"
+                  ? { ...conceptMastery.topicConditioning }
+                  : {};
+              const topicsStore: Record<string, any> =
+                topicConditioningStore.topics && typeof topicConditioningStore.topics === "object"
+                  ? { ...topicConditioningStore.topics }
+                  : {};
+
+              const sessionId = uuidv4();
+              const sessionStartTime = new Date().toISOString();
+              const drillResults = [];
+              const scheduledSessionRecordId = scheduledSession?.id || null;
+
+              const trainingRun = isEmergencyDbMode()
+                ? (await emergencyDbClient!.query(
+                    `INSERT INTO public.training_session_runs
+                      (id, scheduled_session_id, student_id, tutor_id, topic_count, started_at, status, created_at, updated_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, 'in_progress', $6, $6)
+                     RETURNING *`,
+                    [sessionId, scheduledSessionRecordId, studentId, tutorId, sessionDrills.length, sessionStartTime],
+                  )).rows[0]
+                : (await supabase
+                    .from("training_session_runs")
+                    .insert({
+                      id: sessionId,
+                      scheduled_session_id: scheduledSessionRecordId,
+                      student_id: studentId,
+                      tutor_id: tutorId,
+                      topic_count: sessionDrills.length,
+                      started_at: sessionStartTime,
+                      status: "in_progress",
+                      created_at: sessionStartTime,
+                      updated_at: sessionStartTime,
+                    })
+                    .select()
+                    .single()).data;
+
+              // Process each drill in the session
+              for (const drillData of sessionDrills) {
+                const { trainingTopic, drill, phase: rawPhase, previousStability: rawPreviousStability } = drillData;
+                const drillSets = normalizeIntroDrillSets(drill);
+                const observedPhase = parseAuthoritativePhase(rawPhase);
+                const normalizedTopic = String(trainingTopic || "").trim();
+
+                if (drillSets.length === 0) {
+                  throw new Error(`Missing drill data for topic ${normalizedTopic}`);
+                }
+                if (!observedPhase) {
+                  throw new Error(`Invalid or missing phase for topic ${normalizedTopic}`);
+                }
+                if (!normalizedTopic) {
+                  throw new Error("Training topic is required for each drill");
+                }
+
+                const drillValidationError = validateDrillStructure("training", observedPhase, drillSets);
+                if (drillValidationError) {
+                  throw new Error(`Validation error for ${normalizedTopic}: ${drillValidationError}`);
+                }
+
+                // Get current topic state
+                const existing = topicsStore[normalizedTopic] && typeof topicsStore[normalizedTopic] === "object"
+                  ? topicsStore[normalizedTopic]
+                  : {};
+                const activeInheritedVerificationHold = existing?.inheritedVerificationHold;
+                if (
+                  activeInheritedVerificationHold?.kind === "inherited_verification_required" &&
+                  ["verification_required", "targeted_re_diagnosis_required"].includes(String(activeInheritedVerificationHold?.status || ""))
+                ) {
+                  throw new Error(
+                    `Inherited-layer verification must be resolved for ${normalizedTopic} before normal training resumes.`
+                  );
+                }
+
+                const previousStability = normalizeStability(
+                  existing?.stability || rawPreviousStability || "Low"
+                );
+                // Score the drill against the phase that was actually run. If persisted topic
+                // state lags behind the launched drill, falling back to the stored phase turns
+                // every later-phase observation into a silent zero because the field aliases differ.
+                const effectivePhase = observedPhase;
+                const existingHistory = Array.isArray(existing.history) ? [...existing.history] : [];
+                let priorConsecutiveLows = 0;
+                if (existingHistory.length > 0) {
+                  for (let idx = existingHistory.length - 1; idx >= 0; idx -= 1) {
+                    const entryStability = normalizeStability(existingHistory[idx]?.stability || "");
+                    if (entryStability === "Low") {
+                      priorConsecutiveLows += 1;
+                    } else {
+                      break;
+                    }
+                  }
+                } else if (previousStability === "Low") {
+                  priorConsecutiveLows = 1;
+                }
+
+                const trainingSummary = computeTrainingSessionSummary(
+                  effectivePhase,
+                  previousStability,
+                  drillSets,
+                  priorConsecutiveLows
+                );
+
+                const drillId = uuidv4();
+                const responseSnapshot = buildResponseSnapshotV1({
+                  sourceDrillId: drillId,
+                  topic: normalizedTopic,
+                  mode: "training",
+                  phase: effectivePhase,
+                  sets: drillSets as any,
+                  drillScore: trainingSummary.sessionScore,
+                  setScores: trainingSummary.setScores,
+                  engineOutcomeRef: {
+                    phaseBefore: effectivePhase,
+                    stabilityBefore: previousStability,
+                    phaseAfter: trainingSummary.phase,
+                    stabilityAfter: trainingSummary.stability,
+                    transitionReason: trainingSummary.transitionReason,
+                  },
+                });
+                const drillPayload = {
+                  trainingTopic: normalizedTopic,
+                  phase: trainingSummary.observedPhase,
+                  previousStability: trainingSummary.previousStability,
+                  drillType: "training",
+                  sets: drillSets,
+                  summary: trainingSummary,
+                  responseSnapshot,
+                  sessionId: sessionId,
+                  scheduledSessionId: scheduledSessionRecordId,
+                };
+                const inserted = isEmergencyDbMode()
+                  ? (await emergencyDbClient!.query(
+                      `INSERT INTO public.intro_session_drills
+                        (id, student_id, tutor_id, drill, scheduled_session_id, training_session_run_id, submitted_at)
+                       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)
+                       RETURNING *`,
+                      [drillId, studentId, tutorId, JSON.stringify(drillPayload), scheduledSessionRecordId, trainingRun?.id || sessionId, sessionStartTime],
+                    )).rows[0]
+                  : (await supabase
+                      .from("intro_session_drills")
+                      .insert({
+                        id: drillId,
+                        student_id: studentId,
+                        tutor_id: tutorId,
+                        drill: JSON.stringify(drillPayload),
+                        scheduled_session_id: scheduledSessionRecordId,
+                        training_session_run_id: trainingRun?.id || sessionId,
+                        submitted_at: sessionStartTime,
+                      })
+                      .select()
+                      .single()).data;
+                const error = inserted ? null : new Error("Training drill insert returned no row");
+
+                if (error) {
+                  throw new Error(`Failed to store drill for ${normalizedTopic}`);
+                }
+
+                const ledgerInput: EvidenceLedgerProjectionInput = {
+                  sourceDrillId: String(inserted?.id || drillId),
+                  studentId: String(studentId),
+                  tutorId: String(tutorId),
+                  topic: normalizedTopic,
+                  scheduledSessionId: scheduledSessionRecordId,
+                  trainingSessionRunId: String(trainingRun?.id || sessionId),
+                  sessionGroupId: String(scheduledSessionRecordId || trainingRun?.id || sessionId),
+                  sessionContext: "active_training",
+                  drillType: "training",
+                  observedPhase: effectivePhase,
+                  statePhaseBefore: effectivePhase,
+                  stabilityBefore: previousStability,
+                  statePhaseAfter: trainingSummary.phase,
+                  stabilityAfter: trainingSummary.stability,
+                  transitionReason: trainingSummary.transitionReason,
+                  observedAt: String(inserted?.submitted_at || sessionStartTime),
+                  sets: drillSets as any,
+                };
+                if (isEmergencyDbMode()) {
+                  pendingEmergencyLedgerInputs.push(ledgerInput);
+                } else {
+                  await persistEvidenceLedgerShadow(ledgerInput);
+                }
+
+                // Update topic state
+                const nowIso = new Date().toISOString();
+                const updatedEntry = {
+                  ...existing,
+                  topic: normalizedTopic,
+                  phase: trainingSummary.phase,
+                  stability: trainingSummary.stability,
+                  inheritedVerificationHold: trainingSummary.inheritedVerificationHold || null,
+                  freshCurrentPhaseEvidenceRequired: false,
+                  lastUpdated: nowIso,
+                  nextAction: trainingSummary.nextAction,
+                  observationNotes: [
+                    `Training Drill Session Score: ${trainingSummary.sessionScore}`,
+                    `Decision: ${trainingSummary.transitionReason.toUpperCase()}`,
+                    trainingSummary.constraint ? `Constraint: ${trainingSummary.constraint}` : null,
+                    trainingSummary.inheritedVerificationHold
+                      ? `Inherited verification required: ${trainingSummary.inheritedVerificationHold.targetPhase}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" | "),
+                  history: [
+                    ...existingHistory,
+                    {
+                      date: nowIso,
+                      phase: trainingSummary.phase,
+                      stability: trainingSummary.stability,
+                      nextAction: trainingSummary.nextAction,
+                      observationNotes: `Training drill update. Session Score ${trainingSummary.sessionScore}.`,
+                      structuredObservation: {
+                        drillType: "training",
+                        observedPhase: trainingSummary.observedPhase,
+                        previousStability: trainingSummary.previousStability,
+                        transitionReason: trainingSummary.transitionReason,
+                        phaseDecision: trainingSummary.phaseDecision,
+                        sessionScore: trainingSummary.sessionScore,
+                        nextAction: trainingSummary.nextAction,
+                        constraint: trainingSummary.constraint,
+                        inheritedVerificationHold: trainingSummary.inheritedVerificationHold || null,
+                        transitionWithheld: trainingSummary.transitionWithheld || null,
+                      },
+                      drillId: inserted.id,
+                      sessionId: sessionId,
+                    },
+                  ].slice(-60),
+                };
+
+                topicsStore[normalizedTopic] = updatedEntry;
+
+                drillResults.push({
+                  drillId: inserted.id,
+                  topic: normalizedTopic,
+                  responseSnapshot,
+                  scoring: trainingSummary.repRows.map((row) => {
+                    const setIndex = trainingSummary.repRows.findIndex(
+                      (candidate) => candidate.set === row.set && candidate.rep === row.rep
+                    );
+                    const scoredSetIndex = Math.max(0, Math.floor(setIndex / 3));
+                    const setScore = trainingSummary.setScores[scoredSetIndex] ?? row.repScore;
+
+                    return {
+                      set: row.set,
+                      rep: row.rep,
+                      score: row.repScore,
+                      setScore,
+                      setPoints: setScore,
+                      setMaxPoints: 100,
+                      sessionScore: trainingSummary.sessionScore,
+                      phaseBefore: trainingSummary.observedPhase,
+                      phase: trainingSummary.phase,
+                      stabilityBefore: trainingSummary.previousStability,
+                      stability: trainingSummary.stability,
+                      transitionReason: trainingSummary.transitionReason,
+                      phaseDecision: trainingSummary.phaseDecision,
+                      nextAction: trainingSummary.nextAction,
+                      constraint: trainingSummary.constraint,
+                    };
+                  }),
+                  summary: trainingSummary,
+                });
+              }
+
+              // Update student concept mastery with all topic changes
+              topicConditioningStore.topics = topicsStore;
+              topicConditioningStore.lastUpdatedAt = new Date().toISOString();
+              conceptMastery.topicConditioning = topicConditioningStore;
+
+              if (isEmergencyDbMode()) {
+                await emergencyDbClient!.query(
+                  `UPDATE public.students
+                      SET concept_mastery = $1
+                    WHERE id = $2 AND tutor_id = $3`,
+                  [JSON.stringify(conceptMastery), studentId, tutorId],
+                );
+              } else {
+                await storage.updateStudent(studentId, { conceptMastery });
+              }
+
+              // Store session summary
+              const sessionDuration = 0; // Could be calculated if start/end times provided
+              const topicsTouched = Array.from(new Set(sessionDrills.map(d => d.trainingTopic)));
+
+              if (!isEmergencyDbMode()) {
+                try {
+                  await maybeAutoSendDeterministicReports(studentId, tutorId);
+                } catch (autoReportError) {
+                  console.error("Auto report generation failed after training session:", autoReportError);
+                }
+              }
+
+              const scoring = drillResults.flatMap((result) =>
+                Array.isArray(result.scoring)
+                  ? result.scoring.map((row) => ({ ...row, topic: result.topic }))
+                  : []
+              );
+
+              if (scheduledSession) {
+                if (isEmergencyDbMode()) {
+                  await emergencyDbClient!.query(
+                    `UPDATE public.scheduled_sessions
+                        SET status = 'completed', attendance_status = 'both_joined',
+                            recording_status = 'manual_not_tracked', transcript_status = 'manual_not_tracked', updated_at = NOW()
+                      WHERE id = $1 AND tutor_id = $2 AND student_id = $3`,
+                    [scheduledSession.id, tutorId, studentId],
+                  );
+                } else {
+=== parent report endpoints ===
+  };
+
+  const mapParentFacingReport = (report: any, tutorName?: string | null) => {
+    const structured = parseStructuredReportSummary(report.summary) || {};
+    const parentList = (value: unknown): string[] => {
+      if (Array.isArray(value)) {
+        return value
+          .map((item) => String(item || "").trim())
+          .filter(Boolean);
+      }
+
+      const text = String(value || "").trim();
+      if (!text) return [];
+
+      return text
+        .split(/\s*\|\s*|;\s+|\n+/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    };
+    const normalizeCurrentPosition = (value: unknown) => {
+      if (!Array.isArray(value)) return [];
+
+      return value
+        .map((row: any) => ({
+          topic: String(row?.topic || "").trim(),
+          state: String(row?.state || "").trim(),
+          position: String(row?.position || "").trim(),
+        }))
+        .filter((row: any) => row.topic.length > 0);
+    };
+
+    const base = {
+      id: report.id,
+      reportType: report.report_type,
+      sentAt: report.sent_at,
+      tutor: {
+        name: tutorName || "Tutor",
+      },
+      parentFeedback: report.parent_feedback || null,
+      parentFeedbackAt: report.parent_feedback_at || null,
+    };
+
+    if (report.report_type === "weekly") {
+      return {
+        ...base,
+        weekRange:
+          structured.weekStartDate && structured.weekEndDate
+            ? {
+                start: structured.weekStartDate,
+                end: structured.weekEndDate,
+              }
+            : null,
+        sessionsCompleted: Number(structured.sessionsCompletedThisWeek || report.solutions_unlocked || 0),
+        topicsWorkedOn: parentList(structured.topicsWorkedOn || report.topics_learned),
+        whatChanged: parentList(structured.whatChanged || report.strengths),
+        breakdownPattern: parentList(structured.breakdownPattern || report.areas_for_growth),
+        whatThisMeans: parentList(structured.whatThisMeans || structured.interpretationThisWeek),
+        nextMove: parentList(structured.nextMove || report.next_steps),
+      };
+    }
+
+    return {
+      ...base,
+      monthRange:
+        structured.monthStartDate && structured.monthEndDate
+            ? {
+                start: structured.monthStartDate,
+                end: structured.monthEndDate,
+              }
+            : null,
+      monthName: report.month_name || null,
+      totalSessionsCompleted: Number(structured.totalSessionsCompletedThisMonth || report.solutions_unlocked || 0),
+      topicsConditioned: parentList(structured.topicsConditioned || report.topics_learned),
+      systemMovement: parentList(structured.systemMovement || report.strengths),
+      whatBecameStronger: parentList(structured.whatBecameStronger || report.strengths),
+      breakdownPattern: parentList(structured.breakdownPattern || report.areas_for_growth),
+      currentPosition: normalizeCurrentPosition(structured.currentPosition),
+      whatThisMeans: parentList(structured.whatThisMeans || structured.interpretationThisMonth),
+      nextMonthMove: parentList(structured.nextMonthMove || report.next_steps),
+    };
+  };
+
+  // Get all reports created by tutor (optional student filter)
+  app.get(
+    "/api/tutor/reports",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = (req as any).dbUser.id;
+        const studentId = typeof req.query.studentId === "string" ? req.query.studentId : null;
+
+        let query = supabase
+          .from("parent_reports")
+          .select("*")
+          .eq("tutor_id", tutorId)
+          .order("sent_at", { ascending: false });
+
+        if (studentId) {
+          query = query.eq("student_id", studentId);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+          throw error;
+        }
+
+        const reports = (data || []).map((report: any) => ({
+          id: report.id,
+          tutorId: report.tutor_id,
+          studentId: report.student_id,
+          parentId: report.parent_id,
+          reportType: report.report_type,
+          weekNumber: report.week_number,
+          monthName: report.month_name,
+          summary: report.summary,
+          topicsLearned: report.topics_learned,
+          strengths: report.strengths,
+          areasForGrowth: report.areas_for_growth,
+          bossBattlesCompleted: report.boss_battles_completed,
+          solutionsUnlocked: report.solutions_unlocked,
+          confidenceGrowth: report.confidence_growth,
+          nextSteps: report.next_steps,
+          parentFeedback: report.parent_feedback,
+          parentFeedbackAt: report.parent_feedback_at,
+          sentAt: report.sent_at,
+          createdAt: report.created_at,
+          structuredData: parseStructuredReportSummary(report.summary),
+        }));
+
+        res.json(reports);
+      } catch (error) {
+        console.error("Error fetching tutor reports:", error);
+        res.status(500).json({ message: "Failed to fetch tutor reports" });
+      }
+    }
+  );
+
+  // Reports center data per student (sessions + weekly/monthly reports)
+  app.get(
+    "/api/tutor/students/:studentId/reports-center",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = (req as any).dbUser.id;
+        const { studentId } = req.params;
+
+        const student = await storage.getStudent(studentId);
+        if (!student || student.tutorId !== tutorId) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+
+        if (isEmergencyDbMode()) {
+          const drillResult = await pool.query(
+            `SELECT id, student_id, tutor_id, drill, submitted_at
+               FROM public.intro_session_drills
+              WHERE student_id = $1 AND tutor_id = $2
+              ORDER BY submitted_at DESC`,
+            [studentId, tutorId],
+          );
+          const reportResult = await pool.query(
+            `SELECT *
+               FROM public.parent_reports
+              WHERE student_id = $1 AND tutor_id = $2
+              ORDER BY sent_at DESC`,
+            [studentId, tutorId],
+          );
+          const enrichedReports = reportResult.rows.map((report: any) =>
+            mapEmergencyTutorParentReport(report, parseStructuredReportSummary(report.summary))
+          );
+          return res.json({
+            sessions: aggregateDeterministicSessions(drillResult.rows),
+            reports: enrichedReports,
+          });
+        }
+
+        const { data: drillRows, error: drillRowsError } = await supabase
+          .from("intro_session_drills")
+          .select("id, student_id, tutor_id, drill, submitted_at")
+          .eq("student_id", studentId)
+          .eq("tutor_id", tutorId)
+          .order("submitted_at", { ascending: false });
+
+        if (drillRowsError) {
+          throw drillRowsError;
+        }
+
+        const sessions = aggregateDeterministicSessions(drillRows || []);
+
+        const { data: reports, error: reportsError } = await supabase
+          .from("parent_reports")
+          .select("*")
+          .eq("student_id", studentId)
+          .eq("tutor_id", tutorId)
+          .order("sent_at", { ascending: false });
+
+        if (reportsError) {
+          throw reportsError;
+        }
+
+        const enrichedReports = (reports || []).map((report: any) => ({
+          id: report.id,
+          tutorId: report.tutor_id,
+          studentId: report.student_id,
+          parentId: report.parent_id,
+          reportType: report.report_type,
+          weekNumber: report.week_number,
+          monthName: report.month_name,
+          summary: report.summary,
+          topicsLearned: report.topics_learned,
+          strengths: report.strengths,
+          areasForGrowth: report.areas_for_growth,
+          bossBattlesCompleted: report.boss_battles_completed,
+          solutionsUnlocked: report.solutions_unlocked,
+          confidenceGrowth: report.confidence_growth,
+          nextSteps: report.next_steps,
+          parentFeedback: report.parent_feedback,
+          parentFeedbackAt: report.parent_feedback_at,
+          sentAt: report.sent_at,
+          createdAt: report.created_at,
+          structuredData: parseStructuredReportSummary(report.summary),
+        }));
+
+        res.json({
+          sessions,
+          reports: enrichedReports,
+        });
+      } catch (error) {
+        console.error("Error fetching reports center data:", error);
+        res.status(500).json({ message: "Failed to fetch reports center data" });
+      }
+    }
+  );
+
+  // Create weekly parent report
+  app.post(
+    "/api/tutor/reports/weekly",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = (req as any).dbUser.id;
+        const { studentId, weekStartDate, weekEndDate, internalWeeklyTutorNote } = req.body || {};
+
+        if (!studentId) {
+          return res.status(400).json({ message: "Missing required studentId" });
+        }
+
+        const student = await storage.getStudent(studentId);
+        if (!student || student.tutorId !== tutorId) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+
+        const parentId = await resolveParentIdForStudent(student, tutorId);
+
+        if (!parentId) {
+          return res.status(400).json({ message: "Unable to resolve parent for this student" });
+        }
+
+        let drillQuery = supabase
+          .from("intro_session_drills")
+          .select("id, drill, submitted_at")
+          .eq("student_id", studentId)
+          .eq("tutor_id", tutorId)
+          .order("submitted_at", { ascending: true });
+
+        if (weekStartDate) {
+          drillQuery = drillQuery.gte("submitted_at", `${weekStartDate}T00:00:00.000Z`);
+        }
+        if (weekEndDate) {
+          drillQuery = drillQuery.lte("submitted_at", `${weekEndDate}T23:59:59.999Z`);
+        }
+
+        const { data: drillRows, error: drillRowsError } = await drillQuery;
+        if (drillRowsError) throw drillRowsError;
+
+        if (!drillRows || drillRows.length === 0) {
+          return res.status(400).json({ message: "No drill sessions found for the selected week range" });
+        }
+
+        const structuredData = createWeeklyStructuredDataFromDrills(drillRows);
+        if (!structuredData) {
+          return res.status(400).json({ message: "Unable to generate weekly report from drill data" });
+        }
+        structuredData.internalWeeklyTutorNote = String(internalWeeklyTutorNote || "");
+
+        const inserted = await insertWeeklyReport({
+          tutorId,
+          studentId,
+          parentId,
+          structuredData,
+        });
+
+        res.json({
+          ...inserted,
+          structuredData,
+        });
+      } catch (error) {
+        console.error("Error creating weekly report:", error);
+        res.status(500).json({ message: "Failed to create weekly report" });
+      }
+    }
+  );
+
+  // Create monthly parent report
+  app.post(
+    "/api/tutor/reports/monthly",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = (req as any).dbUser.id;
+        const { studentId, monthStartDate, monthEndDate, internalMonthlyTutorNote } = req.body || {};
+
+        if (!studentId) {
+          return res.status(400).json({ message: "Missing required studentId" });
+        }
+
+        const student = await storage.getStudent(studentId);
+        if (!student || student.tutorId !== tutorId) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+
+        const parentId = await resolveParentIdForStudent(student, tutorId);
+
+        if (!parentId) {
+          return res.status(400).json({ message: "Unable to resolve parent for this student" });
+        }
+
+        let drillQuery = supabase
+          .from("intro_session_drills")
+          .select("id, drill, submitted_at")
+          .eq("student_id", studentId)
+          .eq("tutor_id", tutorId)
+          .order("submitted_at", { ascending: true });
+
+        if (monthStartDate) {
+          drillQuery = drillQuery.gte("submitted_at", `${monthStartDate}T00:00:00.000Z`);
+        }
+        if (monthEndDate) {
+          drillQuery = drillQuery.lte("submitted_at", `${monthEndDate}T23:59:59.999Z`);
+        }
+
+        const { data: drillRows, error: drillRowsError } = await drillQuery;
+        if (drillRowsError) throw drillRowsError;
+
+        if (!drillRows || drillRows.length === 0) {
+          return res.status(400).json({ message: "No drill sessions found for the selected month range" });
+        }
+
+        const structuredData = createMonthlyStructuredDataFromDrills(drillRows);
+        if (!structuredData) {
+          return res.status(400).json({ message: "Unable to generate monthly report from drill data" });
+        }
+        (structuredData as any).internalMonthlyTutorNote = String(internalMonthlyTutorNote || "");
+
+        const inserted = await insertMonthlyReport({
+          tutorId,
+          studentId,
+          parentId,
+          structuredData,
+        });
+
+        res.json({
+          ...inserted,
+          structuredData,
+        });
+      } catch (error) {
+        console.error("Error creating monthly report:", error);
+        res.status(500).json({ message: "Failed to create monthly report" });
+      }
+    }
+  );
+
+  // Get tutor's reflections
+  app.get(
+    "/api/tutor/reflections",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = (req as any).dbUser.id;
+        const reflections = await storage.getReflectionsByTutor(tutorId);
+        res.json(reflections);
+      } catch (error) {
+        console.error("Error fetching reflections:", error);
+        res.status(500).json({ message: "Failed to fetch reflections" });
+      }
+    }
+  );
+=== storage update student ===
+    // Transform snake_case to camelCase
+    return {
+      id: data.id,
+      tutorId: data.tutor_id,
+      podId: data.pod_id,
+      studentCount: data.student_count,
+      certificationStatus: data.certification_status,
+      operationalMode: data.operational_mode,
+      createdAt: data.created_at,
+    };
+  }
+
+  async getTutorAssignment(tutorId: string): Promise<(TutorAssignment & { pod: Pod }) | undefined> {
+    console.log("🔍 Looking for tutor assignment for tutorId:", tutorId);
+    if (isEmergencyDbMode()) {
+      const assignmentResult = await pool.query(
+        `SELECT id, tutor_id, pod_id, student_count, certification_status, operational_mode, created_at
+           FROM public.tutor_assignments
+          WHERE tutor_id = $1
+          LIMIT 1`,
+        [tutorId],
+      );
+      const assignment = assignmentResult.rows[0];
+      if (!assignment) return undefined;
+
+      const podResult = await pool.query(
+        `SELECT id, pod_name, pod_type, vehicle, phase, td_id, status, start_date, end_date, deleted_at, created_at
+           FROM public.pods
+          WHERE id = $1
+          LIMIT 1`,
+        [assignment.pod_id],
+      );
+      const pod = podResult.rows[0];
+      if (!pod) return undefined;
+
+      return {
+        id: assignment.id,
+        tutorId: assignment.tutor_id,
+        podId: assignment.pod_id,
+        studentCount: assignment.student_count,
+        certificationStatus: assignment.certification_status,
+        operationalMode: assignment.operational_mode,
+        createdAt: assignment.created_at,
+        pod: {
+          id: pod.id,
+          podName: pod.pod_name,
+          podType: pod.pod_type,
+          vehicle: pod.vehicle,
+          phase: pod.phase,
+          tdId: pod.td_id,
+          status: pod.status,
+          startDate: pod.start_date,
+          endDate: pod.end_date,
+          deletedAt: pod.deleted_at,
+          createdAt: pod.created_at,
+        },
+      };
+    }
+    const { data, error } = await supabase.from("tutor_assignments").select("*").eq("tutor_id", tutorId).maybeSingle();
+    if (error) {
+      console.log("ℹ️ No assignment found (expected for single()):", error.message);
+    }
+    if (!data) {
+      console.log("❌ No assignment data returned");
+      return undefined;
+    }
+    if (!data) return [];
+    return (data ?? [])
+      .filter(student => student.id && student.id.trim() !== "")
+      .map(student => transformSnakeToCamel(student));
+  }
+
+  async updateStudentProgress(id: string, sessionCount: number, confidenceDelta: number): Promise<void> {
+    const student = await this.getStudent(id);
+    if (!student) return;
+    await supabase.from("students").update({ session_progress: sessionCount, updated_at: new Date() }).eq("id", id);
+  }
+
+  async updateStudent(id: string, data: Partial<Student>): Promise<Student | undefined> {
+    // Convert camelCase keys to snake_case for database
+    const dbData: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (key === 'id' || key === 'createdAt') continue; // Skip readonly fields
+      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+      dbData[snakeKey] = value;
+    }
+
+    if (isEmergencyDbMode()) {
+      const allowedColumns = new Set([
+        "name", "grade", "session_progress", "concept_mastery", "confidence_score",
+        "parent_contact", "personal_profile", "emotional_insights", "academic_diagnosis",
+        "identity_sheet", "identity_sheet_completed_at", "tutor_id", "parent_id", "parent_enrollment_id",
+      ]);
+      const entries = Object.entries(dbData).filter(([key]) => allowedColumns.has(key));
+      if (entries.length === 0) return this.getStudent(id);
+      const assignments = entries.map(([key], index) => `"${key}" = $${index + 1}`).join(", ");
+      const values = entries.map(([, value]) => value);
+      values.push(id);
+      const result = await pool.query(
+        `UPDATE public.students SET ${assignments}, updated_at = NOW()
+          WHERE id = $${values.length}
+          RETURNING *`,
+        values,
+      );
+      return result.rows[0] ? transformSnakeToCamel(result.rows[0]) as Student : undefined;
+    }
+
+    const { data: updated, error } = await supabase
+      .from("students")
+      .update(dbData)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating student:", error);
+      return undefined;
+    }
+
+    return transformSnakeToCamel(updated);
+  }
+
+=== timer contract core ===
+const loadLatestTimerContract = async (
+  studentId: string,
+  topicKey: string,
+  conditioningEpochKey: string,
+): Promise<PersistedTimerContract | null> => {
+  if (isEmergencyDbMode()) {
+    const result = await pool.query(
+      `SELECT *
+         FROM public.capability_tps_timer_contracts
+        WHERE student_id = $1 AND topic_key = $2 AND conditioning_epoch_key = $3
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [studentId, topicKey, conditioningEpochKey],
+    );
+    return result.rows?.[0] ? rowToContract(result.rows[0]) : null;
+  }
+
+  const { data, error } = await supabase
+    .from("capability_tps_timer_contracts")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("topic_key", topicKey)
+    .eq("conditioning_epoch_key", conditioningEpochKey)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`Failed to load TPS Timer Contract: ${error.message}`);
+  return data ? rowToContract(data as TimerContractRow) : null;
+};
+
+const insertTimerContract = async ({
+  contract,
+  conditioningEpochKey,
+  tutorId,
+  source,
+  calibrationBatchId = null,
+  supersedesContractId = null,
+}: {
+  contract: TpsTimerContractV1;
+  conditioningEpochKey: string;
+  tutorId: string;
+  source: "historical_untimed" | "calibration";
+  calibrationBatchId?: string | null;
+  supersedesContractId?: string | null;
+}): Promise<PersistedTimerContract> => {
+  const contractId = randomUUID();
+  const row = {
+    contract_id: contractId,
+    contract_version: contract.version,
+    conditioning_epoch_key: conditioningEpochKey,
+    student_id: contract.studentId,
+    topic: contract.topic,
+    topic_key: topicKeyFor(contract.topic),
+    source,
+    baseline_source_phase: contract.baselineSourcePhase,
+    baseline_seconds: contract.baselineSeconds,
+    baseline_sample_ids: contract.baselineSampleRecordIds,
+    baseline_sample_elapsed_ms: contract.baselineSampleElapsedMs,
+    structure_under_timer_seconds: contract.structureUnderTimerSeconds,
+    repeated_timed_execution_seconds: contract.repeatedTimedExecutionSeconds,
+    full_constraint_seconds: contract.fullConstraintSeconds,
+    calibration_batch_id: calibrationBatchId,
+    created_by_tutor_id: tutorId,
+    supersedes_contract_id: supersedesContractId,
+    created_at: new Date().toISOString(),
+  };
+
+  if (isEmergencyDbMode()) {
+    const inserted = await pool.query(
+      `INSERT INTO public.capability_tps_timer_contracts
+        (contract_id, contract_version, conditioning_epoch_key, student_id, topic, topic_key,
+         source, baseline_source_phase, baseline_seconds, baseline_sample_ids,
+         baseline_sample_elapsed_ms, structure_under_timer_seconds,
+         repeated_timed_execution_seconds, full_constraint_seconds, calibration_batch_id,
+         created_by_tutor_id, supersedes_contract_id, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14,$15,$16,$17,$18)
+       RETURNING *`,
+      [
+        row.contract_id,
+        row.contract_version,
+        row.conditioning_epoch_key,
+        row.student_id,
+        row.topic,
+        row.topic_key,
+        row.source,
+        row.baseline_source_phase,
+        row.baseline_seconds,
+        JSON.stringify(row.baseline_sample_ids),
+        JSON.stringify(row.baseline_sample_elapsed_ms),
+        row.structure_under_timer_seconds,
+        row.repeated_timed_execution_seconds,
+        row.full_constraint_seconds,
+        row.calibration_batch_id,
+        row.created_by_tutor_id,
+        row.supersedes_contract_id,
+        row.created_at,
+      ],
+    );
+    return rowToContract(inserted.rows[0]);
+  }
+
+  const { data, error } = await supabase
+    .from("capability_tps_timer_contracts")
+    .insert(row)
+    .select("*")
+    .single();
+  if (error || !data) throw new Error(`Failed to persist TPS Timer Contract: ${error?.message || "no row"}`);
+  return rowToContract(data as TimerContractRow);
+};
+
+const loadCalibrationRows = async (studentId: string, topicKey: string, conditioningEpochKey: string) => {
+  if (isEmergencyDbMode()) {
+    const result = await pool.query(
+      `SELECT *
+         FROM public.capability_tps_timer_calibration_samples
+        WHERE student_id = $1 AND topic_key = $2 AND conditioning_epoch_key = $3
+        ORDER BY created_at ASC, attempt_number ASC`,
+      [studentId, topicKey, conditioningEpochKey],
+    );
+    return result.rows || [];
+  }
+  const { data, error } = await supabase
+    .from("capability_tps_timer_calibration_samples")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("topic_key", topicKey)
+    .eq("conditioning_epoch_key", conditioningEpochKey)
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(`Failed to load pre-TPS calibration: ${error.message}`);
+  return data || [];
+};
+
+const calibrationRecordsFor = (rows: any[], studentId: string, topic: string): PassiveRepTimingRecord[] => {
+  const records: PassiveRepTimingRecord[] = [];
+  for (const repNumber of [1, 2, 3]) {
+    const valid = [...rows]
+      .reverse()
+      .find((row) =>
+        Number(row?.rep_number) === repNumber &&
+        clean(row?.actual_support_used) === "none" &&
+        clean(row?.timing_validity) === "valid" &&
+        row?.structurally_valid === true,
+      );
+    if (!valid) continue;
+    records.push({
+      recordId: clean(valid.calibration_sample_id),
+      studentId,
+      topic,
+      completedAt: clean(valid.ended_at || valid.created_at),
+      elapsedMs: Number(valid.elapsed_ms),
+      sourcePhase: "pre_tps_calibration",
+      pressureLevel: "none",
+      variationLevel: "same_form",
+      difficultyLevel: "normal",
+      actualSupportUsed: "none",
+      structurallyValidCompletion: true,
+      timingValidity: "valid",
+      source: "calibration",
+    });
+  }
+  return records;
+};
+
+const calibrationStatusFor = (rows: any[], studentId: string, topic: string) => {
+  const records = calibrationRecordsFor(rows, studentId, topic);
+  const validRepNumbers = records.map((record) => {
+    const matching = rows.find((row) => clean(row.calibration_sample_id) === record.recordId);
+    return Number(matching?.rep_number || 0);
+  }).filter(Boolean);
+  const nextRepNumber = [1, 2, 3].find((rep) => !validRepNumbers.includes(rep)) || null;
+  return {
+    attemptCount: rows.length,
+    validRepNumbers,
+    validRepCount: validRepNumbers.length,
+    nextRepNumber,
+    records,
+  };
+};
+
+const ensureHistoricalContract = async ({
+  student,
+  studentId,
+  topic,
+  tutorId,
+}: {
+  student: any;
+  studentId: string;
+  topic: string;
+  tutorId: string;
+}) => {
+  const conditioningEpochKey = deriveConditioningEpochKey(student, topic);
+  const topicKey = topicKeyFor(topic);
+  const existing = await loadLatestTimerContract(studentId, topicKey, conditioningEpochKey);
+  if (existing) return { contract: existing, conditioningEpochKey, created: false };
+
+  const rows = await loadRecentDrillRows(studentId);
+  const runtime = buildTpsTimerRuntimeStatus({ rows, studentId, topic });
+  if (!runtime.contract) {
+    return { contract: null, conditioningEpochKey, created: false, runtime };
+  }
+
+  const contract = await insertTimerContract({
+    contract: runtime.contract,
+    conditioningEpochKey,
+    tutorId,
+    source: "historical_untimed",
+  });
+  return { contract, conditioningEpochKey, created: true, runtime };
+};
+
+const buildTimerStatus = async ({ student, studentId, topic }: { student: any; studentId: string; topic: string }) => {
