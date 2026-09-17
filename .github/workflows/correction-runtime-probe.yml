@@ -16,21 +16,19 @@ jobs:
       - name: Capture integration points
         run: |
           {
-            echo '=== routes report functions ==='
-            grep -n -C 12 -E 'maybeAutoSendDeterministicReports|createWeeklyStructuredDataFromDrills|insertWeeklyReport|insertMonthlyReport' server/routes.ts || true
-            echo '=== training route ==='
-            grep -n -C 35 -E 'training-session-drill' server/routes.ts || true
-            echo '=== updateStudent impl ==='
-            grep -n -C 20 -E 'async updateStudent\(' server/storage.ts || true
-            echo '=== tutor assignment impl ==='
-            grep -n -C 20 -E 'async getTutorAssignment\(' server/storage.ts || true
-            echo '=== timer contract supersession ==='
-            grep -n -C 20 -E 'supersedes_contract_id|insertTimerContract|persist.*Contract|capability_tps_timer_contracts' server/routes/capabilityTpsTimerRuntime.ts || true
-            echo '=== report schema references ==='
-            grep -R -n -C 10 -E 'parent_reports' server shared | head -n 500 || true
-          } > docs/_correction_runtime_probe.txt
+            echo '=== report builders and inserts ==='
+            sed -n '5810,6288p' server/routes.ts
+            echo '=== training submission core ==='
+            sed -n '7490,7865p' server/routes.ts
+            echo '=== parent report endpoints ==='
+            sed -n '13950,14340p' server/routes.ts
+            echo '=== storage update student ==='
+            sed -n '1000,1065p;1210,1265p' server/storage.ts
+            echo '=== timer contract core ==='
+            sed -n '155,365p' server/routes/capabilityTpsTimerRuntime.ts
+          } > docs/_correction_runtime_probe2.txt
           git config user.name 'nentswunienterprises-oss'
           git config user.email 'nentswunienterprises@gmail.com'
-          git add docs/_correction_runtime_probe.txt
-          git commit -m 'Capture correction runtime integration points'
+          git add docs/_correction_runtime_probe2.txt
+          git commit -m 'Expand correction runtime integration probe'
           git push origin HEAD:proof/capability-engine-shadow-validation
