@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/correction-runtime-closeout.yml
       - .github/scripts/correction-runtime-closeout.py
+      - .github/scripts/fix-correction-replay-types.py
   workflow_dispatch:
 
 permissions:
@@ -32,6 +33,7 @@ jobs:
             git push origin HEAD:proof/capability-engine-shadow-validation
             exit 1
           fi
+          python .github/scripts/fix-correction-replay-types.py
           rm -f docs/_correction_closeout_error.txt
 
       - name: Assert correction runtime wiring
@@ -102,5 +104,3 @@ jobs:
           git add server/routes.ts server/routes/capabilityTpsTimerRuntime.ts server/routes/responseIntegrityEvidenceCorrectionRuntime.ts shared/responseIntegrityCorrectionReplay.ts shared/responseIntegrityCorrectionReplay.test.ts migrations/2026-09-17_tps_timer_contract_correction_invalidations.sql
           git commit -m 'Complete evidence correction runtime integration'
           git push origin HEAD:proof/capability-engine-shadow-validation
-
-# rerun after correction replay test fix
