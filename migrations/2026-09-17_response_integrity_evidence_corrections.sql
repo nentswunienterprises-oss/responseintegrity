@@ -4,17 +4,21 @@
 
 CREATE TABLE IF NOT EXISTS public.response_integrity_evidence_corrections (
   correction_id text PRIMARY KEY,
-  source_evidence_id text NOT NULL REFERENCES public.response_integrity_evidence_ledger(evidence_id) ON DELETE CASCADE,
+  correction_kind varchar(32) NOT NULL CHECK (
+    correction_kind IN ('observation_option', 'actual_support_used')
+  ),
+  source_evidence_id text REFERENCES public.response_integrity_evidence_ledger(evidence_id) ON DELETE CASCADE,
   source_drill_id varchar(64) NOT NULL REFERENCES public.intro_session_drills(id) ON DELETE CASCADE,
   student_id varchar(64) NOT NULL,
   tutor_id varchar(64) NOT NULL,
   topic text NOT NULL,
+  block_order integer NOT NULL CHECK (block_order > 0),
   set_id text NOT NULL,
   set_order integer NOT NULL CHECK (set_order > 0),
   rep_id text NOT NULL,
   rep_number integer NOT NULL CHECK (rep_number > 0),
-  dimension_id text NOT NULL,
-  field_key text NOT NULL,
+  dimension_id text,
+  field_key text,
   drill_type varchar(20) NOT NULL CHECK (drill_type IN ('diagnosis', 'training', 'verification')),
   phase varchar(40) NOT NULL CHECK (
     phase IN ('Clarity', 'Structured Execution', 'Controlled Discomfort', 'Time Pressure Stability')
@@ -22,22 +26,68 @@ CREATE TABLE IF NOT EXISTS public.response_integrity_evidence_corrections (
   drill_schema_id text NOT NULL,
   drill_schema_version integer NOT NULL,
   drill_definition_hash text NOT NULL,
-  original_option_id text NOT NULL,
-  original_raw_option text NOT NULL,
-  original_normalized_level varchar(10) NOT NULL CHECK (original_normalized_level IN ('weak', 'partial', 'clear')),
-  proposed_option_id text NOT NULL,
-  proposed_raw_option text NOT NULL,
-  proposed_normalized_level varchar(10) NOT NULL CHECK (proposed_normalized_level IN ('weak', 'partial', 'clear')),
+  original_option_id text,
+  original_raw_option text,
+  original_normalized_level varchar(10) CHECK (
+    original_normalized_level IS NULL OR original_normalized_level IN ('weak', 'partial', 'clear')
+  ),
+  proposed_option_id text,
+  proposed_raw_option text,
+  proposed_normalized_level varchar(10) CHECK (
+    proposed_normalized_level IS NULL OR proposed_normalized_level IN ('weak', 'partial', 'clear')
+  ),
+  original_actual_support_used varchar(32) CHECK (
+    original_actual_support_used IS NULL OR original_actual_support_used IN (
+      'none', 'response_control_cue', 'first_step_math_support', 'beyond_permitted_boundary'
+    )
+  ),
+  proposed_actual_support_used varchar(32) CHECK (
+    proposed_actual_support_used IS NULL OR proposed_actual_support_used IN (
+      'none', 'response_control_cue', 'first_step_math_support', 'beyond_permitted_boundary'
+    )
+  ),
   reason_code text NOT NULL,
   reason_text text NOT NULL CHECK (length(trim(reason_text)) > 0),
   raised_by_user_id varchar(64) NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
   raised_by_role varchar(20) NOT NULL CHECK (raised_by_role IN ('tutor', 'td', 'coo')),
   supersedes_correction_id text REFERENCES public.response_integrity_evidence_corrections(correction_id) ON DELETE RESTRICT,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CHECK (
+    (
+      correction_kind = 'observation_option'
+      AND source_evidence_id IS NOT NULL
+      AND dimension_id IS NOT NULL
+      AND field_key IS NOT NULL
+      AND original_option_id IS NOT NULL
+      AND original_raw_option IS NOT NULL
+      AND original_normalized_level IS NOT NULL
+      AND proposed_option_id IS NOT NULL
+      AND proposed_raw_option IS NOT NULL
+      AND proposed_normalized_level IS NOT NULL
+      AND original_actual_support_used IS NULL
+      AND proposed_actual_support_used IS NULL
+    )
+    OR
+    (
+      correction_kind = 'actual_support_used'
+      AND original_actual_support_used IS NOT NULL
+      AND proposed_actual_support_used IS NOT NULL
+      AND original_option_id IS NULL
+      AND original_raw_option IS NULL
+      AND original_normalized_level IS NULL
+      AND proposed_option_id IS NULL
+      AND proposed_raw_option IS NULL
+      AND proposed_normalized_level IS NULL
+    )
+  )
 );
 
 CREATE INDEX IF NOT EXISTS idx_ri_evidence_corrections_source
-  ON public.response_integrity_evidence_corrections (source_evidence_id, created_at);
+  ON public.response_integrity_evidence_corrections (source_evidence_id, created_at)
+  WHERE source_evidence_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_ri_evidence_corrections_source_rep
+  ON public.response_integrity_evidence_corrections (source_drill_id, block_order, set_id, rep_id, created_at);
 
 CREATE INDEX IF NOT EXISTS idx_ri_evidence_corrections_student_topic
   ON public.response_integrity_evidence_corrections (student_id, topic, created_at);
@@ -136,7 +186,7 @@ ALTER TABLE public.response_integrity_topic_replay_runs ENABLE ROW LEVEL SECURIT
 ALTER TABLE public.response_integrity_report_supersessions ENABLE ROW LEVEL SECURITY;
 
 COMMENT ON TABLE public.response_integrity_evidence_corrections IS
-  'Immutable post-submission correction requests against exact Response Integrity evidence rows.';
+  'Immutable post-submission correction requests against exact Response Integrity scored or rep-operational source facts.';
 COMMENT ON TABLE public.response_integrity_evidence_correction_reviews IS
   'Immutable TD/COO approval or rejection events. A requester cannot approve their own correction.';
 COMMENT ON TABLE public.response_integrity_topic_replay_runs IS
