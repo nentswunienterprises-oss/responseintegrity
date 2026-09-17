@@ -1,4 +1,4 @@
-name: Fix Correction Replay Types
+name: Fix Correction Report Typing
 on:
   push:
     branches: [proof/capability-engine-shadow-validation]
@@ -13,44 +13,25 @@ jobs:
         with:
           ref: proof/capability-engine-shadow-validation
           fetch-depth: 0
-      - name: Fix targeted replay type errors and retrigger closeout
+      - name: Fix generated report regeneration typing and retrigger closeout
         run: |
           python - <<'PY'
           from pathlib import Path
-          p = Path('shared/responseIntegrityCorrectionReplay.ts')
+          p = Path('.github/scripts/correction-runtime-closeout.py')
           s = p.read_text()
-          old = '''    if (!corrected.ok) {
-      throw new Error(`Correction replay failed for ${event.sourceDrillId}: ${corrected.error}`);
-    }
-'''
-          new = '''    if (!corrected.ok) {
-      const correctionError = "error" in corrected ? corrected.error : "Unknown correction overlay failure";
-      throw new Error(`Correction replay failed for ${event.sourceDrillId}: ${correctionError}`);
-    }
-'''
+          old = '        const replacementStructured = report.report_type === "weekly"\n'
+          new = '        const replacementStructured: any = report.report_type === "weekly"\n'
           if old not in s:
-            raise SystemExit('correction overlay narrowing target not found')
-          s = s.replace(old, new, 1)
-          old = '''    inheritedHold = "inheritedVerificationHold" in inheritedGated
-      ? (inheritedGated.inheritedVerificationHold || null)
-      : null;
-'''
-          new = '''    inheritedHold = (
-      inheritedGated as { inheritedVerificationHold?: InheritedVerificationHold }
-    ).inheritedVerificationHold || null;
-'''
-          if old not in s:
-            raise SystemExit('inherited hold narrowing target not found')
+            raise SystemExit('replacementStructured target not found')
           s = s.replace(old, new, 1)
           p.write_text(s)
 
           wf = Path('.github/workflows/correction-runtime-closeout.yml')
-          w = wf.read_text().rstrip() + '\n# rerun: targeted correction replay type fixes applied\n'
-          wf.write_text(w)
+          wf.write_text(wf.read_text().rstrip() + '\n# rerun: correction report typing fixed\n')
           PY
           git diff --check
           git config user.name 'nentswunienterprises-oss'
           git config user.email 'nentswunienterprises@gmail.com'
-          git add shared/responseIntegrityCorrectionReplay.ts .github/workflows/correction-runtime-closeout.yml
-          git commit -m 'Fix correction replay type narrowing'
+          git add .github/scripts/correction-runtime-closeout.py .github/workflows/correction-runtime-closeout.yml
+          git commit -m 'Fix correction report regeneration typing'
           git push origin HEAD:proof/capability-engine-shadow-validation
