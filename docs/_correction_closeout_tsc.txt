@@ -187,9 +187,6 @@ server/supabaseAuth.ts(339,14): error TS2769: No overload matches this call.
   Overload 2 of 2, '(values: any[], options?: { onConflict?: string; ignoreDuplicates?: boolean; count?: "exact" | "planned" | "estimated"; defaultToNull?: boolean; }): PostgrestFilterBuilder<any, any, any, null, "parents", unknown, "POST">', gave the following error.
     Object literal may only specify known properties, and 'user_id' does not exist in type 'any[]'.
 server/tutorAssignmentProtection.ts(306,7): error TS2353: Object literal may only specify known properties, and 'channel' does not exist in type '{ title: string; message: string; recipientUserId: string; }'.
-shared/responseIntegrityCorrectionReplay.ts(217,89): error TS2339: Property 'error' does not exist on type '{ ok: false; error: string; } | { ok: true; sets: LedgerEvidenceSet[]; }'.
-  Property 'error' does not exist on type '{ ok: true; sets: LedgerEvidenceSet[]; }'.
-shared/responseIntegrityCorrectionReplay.ts(383,5): error TS2740: Type '{}' is missing the following properties from type 'InheritedVerificationHold': kind, targetPhase, triggeredFromPhase, resumePhase, and 4 more.
 shared/schema.ts(154,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
 shared/schema.ts(155,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
 shared/schema.ts(156,3): error TS2322: Type 'boolean' is not assignable to type 'never'.
