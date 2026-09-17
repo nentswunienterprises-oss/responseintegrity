@@ -15,13 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect inherited verification route boundaries
+      - name: Inspect inherited verification helpers and topic UI
         run: |
-          echo '=== training summary helper 4380-4525 ==='
-          sed -n '4380,4525p' server/routes.ts
-          echo '=== handover/verification 6400-7005 ==='
-          sed -n '6400,7005p' server/routes.ts
-          echo '=== handover summary helpers grep ==='
-          grep -n -E 'computeHandover|handoverSummary|verificationOutcome|handover verification|reDiagnosisRequired' server/routes.ts | head -120
-          echo '=== handover launch/client grep ==='
-          grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'mode=handover|rediagnosis=1|handover.*drill|verification' client/src | head -160
+          echo '=== handover summary helpers 4235-4375 ==='
+          sed -n '4235,4375p' server/routes.ts
+          echo '=== topic conditioning GET routes ==='
+          grep -n -E 'api/tutor/topic-conditioning|topic-conditioning/:studentId' server/routes.ts | head -40
+          echo '=== StudentTopicConditioningDialog topic definitions ==='
+          sed -n '1,360p' client/src/components/tutor/StudentTopicConditioningDialog.tsx
+          echo '=== StudentCard relevant topic dialog lines ==='
+          grep -n -E 'StudentTopicConditioningDialog|topicConditioning|Training|Run.*drill' client/src/components/tutor/StudentCard.tsx | head -140
