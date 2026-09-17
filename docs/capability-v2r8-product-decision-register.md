@@ -201,24 +201,33 @@ Approved product contract. Implementation requires a deterministic verification-
 
 Approved example: a Controlled Discomfort / High Maintenance topic that scores strongly but shows repeated rescue-seeking is held for Structured Execution verification. Strong Structured Execution verification keeps the topic in Controlled Discomfort and requires fresh Controlled Discomfort evidence; middling verification regresses the topic to Structured Execution / High; very weak verification starts targeted adaptive re-diagnosis from Structured Execution.
 
-### TPS timer contract is deterministic per student and topic
+### TPS timer contract is prepared before TPS and remains fixed for the TPS epoch
 
 Approved product contract. The pure Timer Contract V1 and test coverage are implemented on the proof branch in `shared/capabilityTpsTimerContract.ts` and `shared/capabilityTpsTimerContract.test.ts`. Runtime runner/server wiring remains an implementation gap below.
 
-- RI-OS passively records elapsed time on untimed scored reps before TPS. Passive measurement is not time pressure because the student is not shown a countdown or deadline.
-- A TPS historical baseline uses the latest three eligible reps for the same student and topic.
-- An eligible historical baseline rep must be `pressureLevel: none`, `variationLevel: same_form`, `difficultyLevel: normal`, `actualSupportUsed: none`, technically valid, and a structurally valid completion.
+- RI-OS begins passively recording elapsed time on scored training reps in Structured Execution and continues measuring reps through Controlled Discomfort. Passive measurement is not time pressure because the student is never shown a countdown, deadline, or time target in those phases.
+- Clarity is not part of the Timer Contract V1 baseline dataset. Recognition and mental-map formation are not comparable execution-time conditions.
+- Controlled Discomfort timing is retained as useful longitudinal evidence, but it is not Timer Contract V1 baseline evidence because the phase deliberately adds difficulty/uncertainty. Using those durations would mix mathematical difficulty with the time variable TPS is meant to isolate.
+- A TPS historical baseline therefore uses the latest three eligible Structured Execution reps for the same student and topic.
+- An eligible Structured Execution baseline rep must be `pressureLevel: none`, `variationLevel: same_form`, `difficultyLevel: normal`, `actualSupportUsed: none`, technically valid, and a structurally valid completion.
 - The baseline is the median elapsed duration of those three reps, rounded to whole seconds.
-- If three eligible historical reps do not exist, RI-OS runs a three-rep non-scored TPS Calibration under normal difficulty, same form, no support, and no visible countdown. Calibration measures time only and cannot change phase or stability.
+- The normal path is that the contract is already derivable before TPS entry. When Controlled Discomfort is ready to progress into TPS, RI-OS checks for a valid Timer Contract before activating TPS Low.
+- If three eligible historical Structured Execution reps do not exist, the transition into TPS is held and RI-OS runs a three-rep **pre-TPS calibration** under normal difficulty, same form, no support, and no visible countdown. Calibration is non-scored, cannot change phase or stability, and is not itself a TPS rep.
+- TPS is activated only after a valid Timer Contract exists. There is no normal flow in which the topic first enters TPS and then runs untimed baseline reps.
 - Timer Contract V1 assigns Structure Under Timer to `100%` of baseline, Repeated Timed Execution to the same `100%` baseline duration on every rep, and Full Constraint to `85%` of baseline.
 - The `85%` Full Constraint factor is a versioned V1 constant. Specialists cannot change it.
-- The runner is the sole timer authority. Specialists do not choose a duration or substitute a phone timer or stopwatch.
+- A Timer Contract is minted once for a student/topic TPS conditioning epoch and remains immutable throughout that epoch, across sessions, TPS stability changes, High Maintenance, and legitimate Specialist handovers.
+- New untimed evidence does not silently recalculate an active Timer Contract.
+- Leaving TPS and later earning re-entry, or an explicit system-owned re-diagnosis/reset that starts a new conditioning lineage, creates a new TPS epoch and a new contract from then-current eligible evidence or pre-TPS calibration.
+- If an approved evidence correction later invalidates baseline lineage used by an active contract, the original contract remains historical but is superseded. TPS progression is held, RI-OS reconstructs a valid contract from eligible evidence or calibration, and fresh TPS evidence is required. Prior timed attempts remain factual history but cannot continue authorizing progression from a condition later proven invalid.
+- High Maintenance does not continually tighten or re-baseline the timer. Any future progressive re-baselining would require an explicit later Timer Contract version.
+- The runner is the sole timer authority once TPS begins. Specialists do not choose a duration or substitute a phone timer or stopwatch.
 - Each timed rep must persist the timer-contract version, baseline duration, prescribed duration, actual elapsed duration, start/end timestamps, whether completion occurred before expiry, pressure level, baseline source, and technical validity.
 - A technical timer failure is `timing_invalid_technical`: it remains in history, is not student weakness, does not score or move state, is never manually estimated, and requires a linked replacement rep under the same timer contract.
 - Scored TPS cannot start without a valid timer contract. There is no Specialist fallback duration.
 - TPS keeps mathematics at normal difficulty, same form, and no support. Time is the controlled variable.
 
-Implementation note: elapsed timing records can begin accumulating before all records are baseline-eligible. Baseline eligibility must not assume no support until `actualSupportUsed` is captured through the V2 evidence contract.
+Implementation note: passive timings may accumulate even when a rep is not baseline-eligible. Eligibility is determined from the complete condition and actual support used, not from elapsed time alone.
 
 Assessment review references: Time Pressure Stability 4, original 38, original 41, and original 44; subsequent product-decision review.
 
@@ -226,13 +235,16 @@ Assessment review references: Time Pressure Stability 4, original 38, original 4
 
 ### TPS timer runtime wiring remains before TPS freeze
 
-The timer formula is no longer a product ambiguity, but the live runner and server do not yet execute the whole contract. Before TPS freezes:
+The timer formula and baseline timing semantics are no longer product ambiguities, but the live runner and server do not yet execute the whole contract. Before TPS freezes:
 
-- the runner must start and stop passive elapsed-time capture on scored untimed reps without displaying time pressure to the student
+- the runner must passively time scored Structured Execution and Controlled Discomfort reps without displaying time pressure to the student; Clarity must not contribute Timer Contract V1 baseline data
 - V2 rep evidence must capture `actualSupportUsed`, timing metadata, and inherited evidence without rewriting the published V1 contract
 - timing records must persist in the authoritative drill evidence lineage
-- the server must retrieve the latest three eligible same-student/same-topic baseline reps deterministically
-- the calibration lane must exist when historical eligibility is insufficient and must remain non-scored
+- the server must retain pre-TPS timing history while selecting only the latest three eligible comparable Structured Execution reps for the V1 baseline
+- the Controlled Discomfort -> TPS transition must refuse TPS activation until a valid Timer Contract exists
+- the fallback calibration lane must run before TPS activation when historical eligibility is insufficient, remain non-scored, and mint the contract before TPS Low begins
+- the persisted contract must carry conditioning-epoch lineage so it remains immutable across sessions, stability movement, High Maintenance, and handovers, while allowing an explicit new epoch after TPS exit/re-entry or system-owned reset
+- evidence-correction replay must be able to supersede a contract whose baseline lineage becomes invalid and require reconstructed timing plus fresh TPS evidence
 - TPS runner UI must load the Timer Contract, display and run the prescribed countdown, and prevent Specialist duration edits
 - Repeated Timed Execution must preserve the exact same prescribed duration across its reps
 - Full Constraint must use the versioned 85% duration
