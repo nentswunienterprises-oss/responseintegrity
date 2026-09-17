@@ -1,0 +1,40 @@
+name: Fix Correction Closeout Script
+on:
+  push:
+    branches: [proof/capability-engine-shadow-validation]
+    paths: [.github/workflows/fix-correction-closeout-script.yml]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: proof/capability-engine-shadow-validation
+          fetch-depth: 0
+      - name: Escape generated-code template interpolations
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.github/scripts/correction-runtime-closeout.mjs')
+          s = p.read_text()
+          replacements = {
+            '${sourceDrillId}::': r'\${sourceDrillId}::',
+            '${endDateText}T23:59:59.999Z': r'\${endDateText}T23:59:59.999Z',
+            '${report.report_window_key || buildDeterministicReportWindowKey(report.report_type, replacementStructured) || `${report.report_type}:${report.id}`}::correction:${correctionId}': r'\${report.report_window_key || buildDeterministicReportWindowKey(report.report_type, replacementStructured) || `\${report.report_type}:\${report.id}`}::correction:\${correctionId}',
+            '${correctionId}::${report.id}': r'\${correctionId}::\${report.id}',
+          }
+          for old, new in replacements.items():
+            if old not in s:
+              print('already escaped or absent:', old)
+              continue
+            s = s.replace(old, new)
+          p.write_text(s)
+          PY
+          node --check .github/scripts/correction-runtime-closeout.mjs
+          git config user.name 'nentswunienterprises-oss'
+          git config user.email 'nentswunienterprises@gmail.com'
+          git add .github/scripts/correction-runtime-closeout.mjs
+          git commit -m 'Fix correction closeout script interpolation'
+          git push origin HEAD:proof/capability-engine-shadow-validation
