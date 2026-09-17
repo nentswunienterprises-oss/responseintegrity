@@ -4,6 +4,7 @@ import {
   type PassiveRepTimingRecord,
   type TpsDifficultyLevel,
   type TpsPressureLevel,
+  type TpsTimingSourcePhase,
   type TpsVariationLevel,
 } from "./capabilityTpsTimerContract";
 import {
@@ -46,6 +47,11 @@ const isVariationLevel = (value: unknown): value is TpsVariationLevel =>
 const isDifficultyLevel = (value: unknown): value is TpsDifficultyLevel =>
   ["recognition", "normal", "challenging"].includes(clean(value));
 
+const isPreTpsPassiveTimingPhase = (value: unknown): value is Extract<
+  TpsTimingSourcePhase,
+  "Structured Execution" | "Controlled Discomfort"
+> => ["Structured Execution", "Controlled Discomfort"].includes(clean(value));
+
 export const isStructurallyValidPassiveCompletion = (observation: Record<string, unknown>) => {
   const levels = Object.entries(observation || {})
     .filter(([key]) => key.endsWith("_level"))
@@ -71,6 +77,13 @@ export const collectPassiveTpsTimingRecords = ({
     const parsed = parseDrill(row.drill);
     if (!parsed || clean(parsed.drillType).toLowerCase() !== "training") continue;
     if (normalizeTopic(parsed.trainingTopic) !== normalizedTopic) continue;
+
+    // V1 starts passive TPS preparation in Structured Execution and keeps measuring through
+    // Controlled Discomfort. Clarity is intentionally excluded: recognition / mental-map work is
+    // not a comparable execution-time condition. Controlled Discomfort timing remains useful
+    // longitudinal data, but its difficulty condition prevents it from becoming a V1 TPS baseline.
+    const sourcePhase = clean(parsed.phase);
+    if (!isPreTpsPassiveTimingPhase(sourcePhase)) continue;
 
     const sets = Array.isArray(parsed.sets) ? parsed.sets : [];
     for (let setIndex = 0; setIndex < sets.length; setIndex += 1) {
@@ -108,6 +121,7 @@ export const collectPassiveTpsTimingRecords = ({
           topic: clean(parsed.trainingTopic),
           completedAt: endedAt,
           elapsedMs,
+          sourcePhase,
           pressureLevel,
           variationLevel,
           difficultyLevel,
@@ -144,11 +158,21 @@ export const buildTpsTimerRuntimeStatus = ({
     topic,
     source: "historical_untimed",
   });
+  const structuredExecutionRecordCount = passiveRecords.filter(
+    (record) => record.sourcePhase === "Structured Execution",
+  ).length;
+  const controlledDiscomfortRecordCount = passiveRecords.filter(
+    (record) => record.sourcePhase === "Controlled Discomfort",
+  ).length;
 
   return {
     contract,
     calibrationRequired: contract === null,
+    preTpsCalibrationRequired: contract === null,
+    tpsEntryReady: contract !== null,
     passiveRecordCount: passiveRecords.length,
+    structuredExecutionRecordCount,
+    controlledDiscomfortRecordCount,
     eligibleRecordCount: eligibleRecords.length,
   };
 };
