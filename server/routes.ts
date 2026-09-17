@@ -47,6 +47,9 @@ import {
   type TransitionReason,
   type ObservationSignal,
 } from "@shared/topicConditioningEngine";
+import {
+  applyInheritedVerificationGate,
+} from "@shared/inheritedLayerVerification";
 import { normalizeObservationLevelValue } from "@shared/observationScoring";
 import {
   computeAdaptiveDiagnosisPhaseSummary,
@@ -4463,14 +4466,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const nextActionConfig = (NEXT_ACTION_ENGINE as any)?.[transition.next_phase]?.[transition.next_stability] || null;
 
-            return {
+            const baseSummary = {
               observedPhase,
               previousStability,
               phase: transition.next_phase,
               stability: transition.next_stability,
               transitionReason: normalizeTransitionReason(transition.transition_reason),
-              phaseDecision: transition.transition_reason === "phase progress" ? "advance" :
-                           transition.transition_reason === "stability regress" ? "regress" : "remain",
+              phaseDecision: (
+                transition.transition_reason === "phase progress" ? "advance" :
+                transition.transition_reason === "stability regress" ? "regress" : "remain"
+              ) as "advance" | "regress" | "remain",
               sessionScore,
               nextAction: nextActionConfig?.primaryAction || null,
               constraint: nextActionConfig?.rules?.[0] || null,
@@ -4479,6 +4484,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               highGuardPasses,
               lowStreakAfterSession: 0, // No longer used in new transition engine
             };
+
+            return applyInheritedVerificationGate(baseSummary, sets);
           };
 
           const mapDrillRowToDeterministicSession = (row: any) => {
@@ -7130,6 +7137,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const existing = topicsStore[normalizedTopic] && typeof topicsStore[normalizedTopic] === "object"
                   ? topicsStore[normalizedTopic]
                   : {};
+                const activeInheritedVerificationHold = existing?.inheritedVerificationHold;
+                if (
+                  activeInheritedVerificationHold?.kind === "inherited_verification_required" &&
+                  ["verification_required", "targeted_re_diagnosis_required"].includes(String(activeInheritedVerificationHold?.status || ""))
+                ) {
+                  throw new Error(
+                    `Inherited-layer verification must be resolved for ${normalizedTopic} before normal training resumes.`
+                  );
+                }
 
                 const previousStability = normalizeStability(
                   existing?.stability || rawPreviousStability || "Low"
@@ -7247,12 +7263,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   topic: normalizedTopic,
                   phase: trainingSummary.phase,
                   stability: trainingSummary.stability,
+                  inheritedVerificationHold: trainingSummary.inheritedVerificationHold || null,
+                  freshCurrentPhaseEvidenceRequired: false,
                   lastUpdated: nowIso,
                   nextAction: trainingSummary.nextAction,
                   observationNotes: [
                     `Training Drill Session Score: ${trainingSummary.sessionScore}`,
                     `Decision: ${trainingSummary.transitionReason.toUpperCase()}`,
                     trainingSummary.constraint ? `Constraint: ${trainingSummary.constraint}` : null,
+                    trainingSummary.inheritedVerificationHold
+                      ? `Inherited verification required: ${trainingSummary.inheritedVerificationHold.targetPhase}`
+                      : null,
                   ]
                     .filter(Boolean)
                     .join(" | "),
@@ -7273,6 +7294,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         sessionScore: trainingSummary.sessionScore,
                         nextAction: trainingSummary.nextAction,
                         constraint: trainingSummary.constraint,
+                        inheritedVerificationHold: trainingSummary.inheritedVerificationHold || null,
+                        transitionWithheld: trainingSummary.transitionWithheld || null,
                       },
                       drillId: inserted.id,
                       sessionId: sessionId,
@@ -27906,6 +27929,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             stability: latest.stability,
             lastUpdated: latest.date,
             topicReference: parseStoredTopicReference(entry?.topicReference),
+            inheritedVerificationHold: entry?.inheritedVerificationHold || null,
+            freshCurrentPhaseEvidenceRequired: !!entry?.freshCurrentPhaseEvidenceRequired,
           };
         })
         .filter((row): row is NonNullable<typeof row> => !!row)

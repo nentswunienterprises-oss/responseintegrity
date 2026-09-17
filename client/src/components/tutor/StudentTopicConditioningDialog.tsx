@@ -370,6 +370,15 @@ interface StudentTopicConditioningDialogProps {
       stability?: string | null;
       lastUpdated?: string | null;
       observationNotes?: string | null;
+      inheritedVerificationHold?: {
+        kind?: string | null;
+        targetPhase?: string | null;
+        triggeredFromPhase?: string | null;
+        resumePhase?: string | null;
+        resumeStability?: string | null;
+        status?: "verification_required" | "targeted_re_diagnosis_required" | string | null;
+      } | null;
+      freshCurrentPhaseEvidenceRequired?: boolean | null;
       history?: Array<{
         date?: string | null;
         phase?: string | null;
@@ -1036,10 +1045,30 @@ export default function StudentTopicConditioningDialog({
     const selectedTopics = Array.from(selectedSessionTopics);
     if (selectedTopics.length === 0) return;
 
+    const inheritedHoldForTopic = (topicName: string) => {
+      const normalized = normalizeTopicKey(topicName);
+      const entries = persistedTopicStates && typeof persistedTopicStates === "object"
+        ? Object.values(persistedTopicStates)
+        : [];
+      const entry = entries.find((candidate: any) => normalizeTopicKey(candidate?.topic) === normalized) as any;
+      const hold = entry?.inheritedVerificationHold;
+      return hold?.kind === "inherited_verification_required" ? hold : null;
+    };
+
     const selectedTopicStates = selectedTopics
       .map((topicName) => topics.find((topic) => topic.topic === topicName))
       .filter((topic): topic is TopicRow => !!topic);
+    const inheritedHeldTopics = selectedTopics
+      .map((topicName) => ({ topicName, hold: inheritedHoldForTopic(topicName) }))
+      .filter((entry) => !!entry.hold);
     const unobservedTopics = selectedTopicStates.filter((topic) => !topic.hasObservedState);
+
+    if (selectedTopics.length > 1 && inheritedHeldTopics.length > 0) {
+      setTrainingSessionMeetMessage(
+        `${inheritedHeldTopics[0].topicName} requires earlier-layer verification before mixed-topic training can continue.`
+      );
+      return;
+    }
 
     if (unobservedTopics.length > 1) {
       setTrainingSessionMeetMessage("Newly activated topics must be placed one at a time. Select a single unobserved topic and run diagnosis first.");
@@ -1059,6 +1088,14 @@ export default function StudentTopicConditioningDialog({
       const stabilityParam = encodeURIComponent(topicState.stability);
       const sessionParam = sessionId ? `&scheduledSessionId=${encodeURIComponent(sessionId)}` : "";
       setSessionTopicsModalOpen(false);
+      const inheritedHold = inheritedHoldForTopic(topicState.topic);
+      if (inheritedHold) {
+        const verificationPhaseParam = encodeURIComponent(normalizePhase(inheritedHold.targetPhase || topicState.phase));
+        const resumeStabilityParam = encodeURIComponent(normalizeStability(inheritedHold.resumeStability || topicState.stability));
+        const rediagnosisParam = inheritedHold.status === "targeted_re_diagnosis_required" ? "&rediagnosis=1" : "";
+        navigate(`/specialist/intro-session/${studentId}?mode=inherited-verification${rediagnosisParam}&topic=${topicParam}&phase=${verificationPhaseParam}&stability=${resumeStabilityParam}${sessionParam}`);
+        return;
+      }
       if (!topicState.hasObservedState) {
         navigate(`/specialist/intro-session/${studentId}?topic=${topicParam}&phase=${phaseParam}&stability=${stabilityParam}&context=training${sessionParam}`);
         return;

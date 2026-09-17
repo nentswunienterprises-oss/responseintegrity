@@ -25,7 +25,9 @@ import {
   encodeRepOperationalEvidenceV2,
   REP_OPERATIONAL_EVIDENCE_V2_WIRE_KEY,
   type ActualSupportUsedV2,
+  type InheritedEvidenceDimensionV2,
   type RepOperationalEvidenceV2,
+  type SupplementalInheritedEvidenceV2,
 } from "@shared/responseIntegrityEvidenceContractV2";
 import {
   getTpsPrescribedSeconds,
@@ -139,6 +141,44 @@ type TpsTimerRuntimeStatus = {
 };
 
 type TpsTimedPressureLevel = Exclude<TpsPressureLevel, "none" | "difficulty">;
+type InheritedBreakDraft = {
+  dimensionId: InheritedEvidenceDimensionV2 | "";
+  rawObservation: string;
+};
+
+const INHERITED_DIMENSION_OPTIONS: Record<PhaseLabel, Array<{ value: InheritedEvidenceDimensionV2; label: string }>> = {
+  Clarity: [],
+  "Structured Execution": [
+    { value: "clarity.vocabulary", label: "Clarity - vocabulary / problem recognition" },
+    { value: "clarity.method", label: "Clarity - method map" },
+    { value: "clarity.reason", label: "Clarity - reason / why" },
+    { value: "clarity.immediate_apply", label: "Clarity - immediate application" },
+  ],
+  "Controlled Discomfort": [
+    { value: "clarity.vocabulary", label: "Clarity - vocabulary / problem recognition" },
+    { value: "clarity.method", label: "Clarity - method map" },
+    { value: "clarity.reason", label: "Clarity - reason / why" },
+    { value: "clarity.immediate_apply", label: "Clarity - immediate application" },
+    { value: "execution.start", label: "Structured Execution - independent start" },
+    { value: "execution.step_discipline", label: "Structured Execution - step discipline" },
+    { value: "execution.repeatability", label: "Structured Execution - repeatability" },
+    { value: "execution.independence", label: "Structured Execution - independence" },
+  ],
+  "Time Pressure Stability": [
+    { value: "clarity.vocabulary", label: "Clarity - vocabulary / problem recognition" },
+    { value: "clarity.method", label: "Clarity - method map" },
+    { value: "clarity.reason", label: "Clarity - reason / why" },
+    { value: "clarity.immediate_apply", label: "Clarity - immediate application" },
+    { value: "execution.start", label: "Structured Execution - independent start" },
+    { value: "execution.step_discipline", label: "Structured Execution - step discipline" },
+    { value: "execution.repeatability", label: "Structured Execution - repeatability" },
+    { value: "execution.independence", label: "Structured Execution - independence" },
+    { value: "difficulty.initial_response", label: "Controlled Discomfort - initial response" },
+    { value: "difficulty.first_step_control", label: "Controlled Discomfort - first-step control" },
+    { value: "difficulty.tolerance", label: "Controlled Discomfort - difficulty tolerance" },
+    { value: "difficulty.rescue_dependence", label: "Controlled Discomfort - rescue dependence" },
+  ],
+};
 
 const EMPTY_TOPIC_REFERENCE: TopicReferenceContent = {
   vocabulary: "",
@@ -165,7 +205,7 @@ const PHASE_CONTEXT: Record<PhaseLabel, { purpose: string; constraints: string[]
   },
   "Controlled Discomfort": {
     purpose: "Test and stabilize behavior under uncertainty and difficulty. Does the student persist - or shut down?",
-    constraints: ["No full rescue", "Hold discomfort window", "One-step confirmation max"],
+    constraints: ["Support level is a ceiling, not a script", "Minimal = response-control cue only", "No mathematical hint or correctness confirmation"],
   },
   "Time Pressure Stability": {
     purpose: "Maintain method structure under urgency. Structure is the target - speed is secondary.",
@@ -475,9 +515,9 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
     {
       setName: "Light Apply",
       reps: 3,
-      purpose: "Test clarity under active solving. Minimal guidance only. Observe whether clarity holds when they execute.",
-      repInstruction: "Ask student to solve. Minimal guidance. Observe clarity under execution.",
-      activeRules: ["Minimal guidance only", "No step-by-step help", "Observe independent start and execution"],
+      purpose: "Test clarity under active solving. Minimal support means response-control cueing only; no mathematical help.",
+      repInstruction: "Ask student to solve. If needed, use only a response-control cue such as pause, don't rush, or show me what you would do next.",
+      activeRules: ["Response-control cue only if needed", "No mathematical hints, steps, corrections, or correctness confirmation", "Observe independent start and execution"],
       repObservationBlocks: [
         [
           { key: "vocabulary", label: "Vocabulary Usage (Rep 1)", options: ["incorrect", "partial", "correct"] },
@@ -857,6 +897,8 @@ export default function IntroSessionDrillRunner() {
   const [observations, setObservations] = useState<any>({});
   const [actualSupportUsedByRep, setActualSupportUsedByRep] = useState<Record<string, ActualSupportUsedV2>>({});
   const actualSupportUsedRef = useRef<Record<string, ActualSupportUsedV2>>({});
+  const [inheritedBreakByRep, setInheritedBreakByRep] = useState<Record<string, InheritedBreakDraft>>({});
+  const inheritedBreakByRepRef = useRef<Record<string, InheritedBreakDraft>>({});
   const passiveRepStartRef = useRef<Record<string, { startedAt: string; startedAtMs: number }>>({});
   const finalizedRepOperationalEvidenceRef = useRef<Record<string, RepOperationalEvidenceV2>>({});
   const tpsTimedRepStartRef = useRef<Record<string, {
@@ -1188,6 +1230,14 @@ export default function IntroSessionDrillRunner() {
     !!set &&
     !isModelingSet;
   const currentActualSupportUsed = actualSupportUsedByRep[currentOperationalRepKey] || null;
+  const currentInheritedBreakDraft = inheritedBreakByRep[currentOperationalRepKey] || { dimensionId: "", rawObservation: "" };
+  const shouldCaptureInheritedLayerEvidence =
+    modeToUse === "training" &&
+    displayPhase !== "Clarity" &&
+    !!set &&
+    !isModelingSet;
+  const topicReferenceLockedForScoredEvidence =
+    modeToUse === "training" && !!set && !isModelingSet;
   const isTpsTimedRep =
     modeToUse === "training" &&
     displayPhase === "Time Pressure Stability" &&
@@ -1227,6 +1277,8 @@ export default function IntroSessionDrillRunner() {
 
   useEffect(() => {
     actualSupportUsedRef.current = {};
+    inheritedBreakByRepRef.current = {};
+    setInheritedBreakByRep({});
     passiveRepStartRef.current = {};
     finalizedRepOperationalEvidenceRef.current = {};
     tpsTimedRepStartRef.current = {};
@@ -1238,6 +1290,12 @@ export default function IntroSessionDrillRunner() {
     setCalibrationStructurallyValid(null);
     setCalibrationMessage(null);
   }, [studentId, scheduledSessionId]);
+
+  useEffect(() => {
+    if (topicReferenceLockedForScoredEvidence && topicReferenceOpen) {
+      setTopicReferenceOpen(false);
+    }
+  }, [topicReferenceLockedForScoredEvidence, topicReferenceOpen]);
 
   useEffect(() => {
     if (!shouldCapturePassiveRepTiming) return;
@@ -1377,6 +1435,36 @@ export default function IntroSessionDrillRunner() {
     }
   };
 
+  const inheritedEvidenceForRep = (repKey: string): SupplementalInheritedEvidenceV2[] => {
+    const draft = inheritedBreakByRepRef.current[repKey];
+    if (!draft?.dimensionId || !draft.rawObservation.trim()) return [];
+    return [{
+      dimensionId: draft.dimensionId,
+      rawObservation: draft.rawObservation.trim(),
+      normalizedLevel: "weak",
+      materiality: "material",
+    }];
+  };
+
+  const updateInheritedBreakDraft = (patch: Partial<InheritedBreakDraft>) => {
+    setSubmitError(null);
+    const current = inheritedBreakByRepRef.current[currentOperationalRepKey] || {
+      dimensionId: "",
+      rawObservation: "",
+    };
+    const next = { ...current, ...patch };
+    if (!next.dimensionId) next.rawObservation = "";
+    inheritedBreakByRepRef.current[currentOperationalRepKey] = next;
+    setInheritedBreakByRep((all) => ({ ...all, [currentOperationalRepKey]: next }));
+    const finalized = finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey];
+    if (finalized) {
+      finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey] = {
+        ...finalized,
+        inheritedEvidence: inheritedEvidenceForRep(currentOperationalRepKey),
+      };
+    }
+  };
+
   const finalizePassiveTimingForCurrentRep = () => {
     if (!shouldCapturePassiveRepTiming || !set) return true;
     const actualSupportUsed = actualSupportUsedRef.current[currentOperationalRepKey];
@@ -1412,7 +1500,7 @@ export default function IntroSessionDrillRunner() {
         timingValidity: "valid",
         pressureLevel: registrySet?.constraints.pressureLevel || "none",
       },
-      inheritedEvidence: [],
+      inheritedEvidence: inheritedEvidenceForRep(currentOperationalRepKey),
     };
     return true;
   };
@@ -1564,7 +1652,7 @@ export default function IntroSessionDrillRunner() {
           baselineSource: activeTpsContract.baselineSource,
           replacementForAttemptId: attempt.replacementForAttemptId,
         },
-        inheritedEvidence: [],
+        inheritedEvidence: inheritedEvidenceForRep(currentOperationalRepKey),
       };
       return "ok";
     } catch (error: any) {
@@ -1833,6 +1921,15 @@ export default function IntroSessionDrillRunner() {
     const missingCurrent = getMissingFieldsForRep(currentSet, currentRep);
     if (missingCurrent.length > 0) {
       setSubmitError(`Complete all observation toggles before continuing. Missing: ${missingCurrent.map((field) => field.label).join(", ")}.`);
+      return;
+    }
+
+    if (
+      shouldCaptureInheritedLayerEvidence &&
+      currentInheritedBreakDraft.dimensionId &&
+      !currentInheritedBreakDraft.rawObservation.trim()
+    ) {
+      setSubmitError("Describe the observable earlier-layer break before continuing, or clear the inherited-layer selection.");
       return;
     }
 
@@ -2767,16 +2864,24 @@ export default function IntroSessionDrillRunner() {
           <button
             type="button"
             className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-primary/5"
-            onClick={() => setTopicReferenceOpen((open) => !open)}
-            aria-expanded={topicReferenceOpen}
+            onClick={() => {
+              if (!topicReferenceLockedForScoredEvidence) setTopicReferenceOpen((open) => !open);
+            }}
+            aria-expanded={topicReferenceOpen && !topicReferenceLockedForScoredEvidence}
+            disabled={topicReferenceLockedForScoredEvidence}
           >
             <span>
               <span className="block text-sm font-semibold text-foreground">Topic Reference</span>
               <span className="block text-xs text-muted-foreground">{currentTopicName}</span>
+              {topicReferenceLockedForScoredEvidence && (
+                <span className="block text-xs text-muted-foreground">Available between reps - unavailable during scored evidence.</span>
+              )}
             </span>
-            <span className="text-xs font-semibold text-primary">{topicReferenceOpen ? "Close" : "Open"}</span>
+            <span className="text-xs font-semibold text-primary">
+              {topicReferenceLockedForScoredEvidence ? "Locked" : topicReferenceOpen ? "Close" : "Open"}
+            </span>
           </button>
-          {topicReferenceOpen && (
+          {topicReferenceOpen && !topicReferenceLockedForScoredEvidence && (
             <div className="space-y-3 border-t border-primary/15 px-4 py-4">
               {[
                 ["Vocabulary", activeTopicReference.vocabulary],
@@ -2936,6 +3041,35 @@ export default function IntroSessionDrillRunner() {
           </div>
         ))}
       </form>
+      {shouldCaptureInheritedLayerEvidence && (
+        <div className="rounded-xl border border-primary/20 bg-background p-3 space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Earlier-layer integrity</p>
+            <p className="text-xs text-muted-foreground">
+              Optional: record a material earlier-layer break only when it is visibly present on this rep. This does not change the current-phase score; RI-OS uses it to gate progression and route verification.
+            </p>
+          </div>
+          <select
+            className="w-full rounded-md border border-primary/20 bg-background px-3 py-2 text-sm text-foreground"
+            value={currentInheritedBreakDraft.dimensionId}
+            onChange={(event) => updateInheritedBreakDraft({ dimensionId: event.target.value as InheritedEvidenceDimensionV2 | "" })}
+          >
+            <option value="">No material earlier-layer break recorded</option>
+            {INHERITED_DIMENSION_OPTIONS[displayPhase].map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+          {currentInheritedBreakDraft.dimensionId && (
+            <textarea
+              className="min-h-20 w-full rounded-md border border-primary/20 bg-background px-3 py-2 text-sm text-foreground"
+              value={currentInheritedBreakDraft.rawObservation}
+              onChange={(event) => updateInheritedBreakDraft({ rawObservation: event.target.value })}
+              placeholder="Describe only what was visibly observed, e.g. the known step order disappeared under the active condition."
+              maxLength={1000}
+            />
+          )}
+        </div>
+      )}
       {(shouldCapturePassiveRepTiming || isTpsTimedRep) && (
         <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
           <div>
