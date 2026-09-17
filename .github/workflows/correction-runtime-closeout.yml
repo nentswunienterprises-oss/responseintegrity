@@ -23,7 +23,16 @@ jobs:
           fetch-depth: 0
 
       - name: Apply correction-runtime integration patch
-        run: node .github/scripts/correction-runtime-closeout.mjs
+        run: |
+          if ! node .github/scripts/correction-runtime-closeout.mjs 2> docs/_correction_closeout_error.txt; then
+            git config user.name 'nentswunienterprises-oss'
+            git config user.email 'nentswunienterprises@gmail.com'
+            git add docs/_correction_closeout_error.txt
+            git commit -m 'Capture correction closeout patch error'
+            git push origin HEAD:proof/capability-engine-shadow-validation
+            exit 1
+          fi
+          rm -f docs/_correction_closeout_error.txt
 
       - name: Assert correction runtime wiring
         run: |
