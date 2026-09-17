@@ -1,4 +1,4 @@
-name: Proof Correction Replay Inspect
+name: Proof Correction Target Inspect
 
 on:
   push:
@@ -15,15 +15,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect scoring and replay seams
+      - name: Inspect support validity and correction seams
         run: |
-          echo '=== scoring helpers 3970-4525 ==='
-          sed -n '3970,4525p' server/routes.ts
-          echo '=== ledger projection parser 1-430 ==='
-          sed -n '1,430p' server/responseIntegrityEvidenceLedger.ts
-          echo '=== route report builders 5600-6190 ==='
-          sed -n '5600,6190p' server/routes.ts
-          echo '=== current TD scoped endpoints 15980-16640 ==='
-          sed -n '15980,16640p' server/routes.ts
-          echo '=== pod/access utility around 17000 ==='
-          sed -n '16980,17170p' server/routes.ts
+          echo '=== operational evidence codec usage ==='
+          grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'REP_OPERATIONAL_EVIDENCE_V2_WIRE_KEY|decodeRepOperationalEvidenceV2|actualSupportUsed|supportLevel' server shared client/src/components/tutor/IntroSessionDrillRunner.tsx | head -420
+          echo '=== semantic evidence validator ==='
+          grep -n -B80 -A220 'validateAndNormalizeSemanticEvidenceSet' server/routes.ts | head -420
+          echo '=== registry option identity helpers ==='
+          grep -n -B50 -A140 'getEvidenceSelectionIdentity' shared/responseIntegrityDrillRegistry.ts | head -260
+          echo '=== source drill immutability / migrations ==='
+          grep -R -n --include='*.sql' -E 'intro_session_drills|prevent.*drill|immutable|BEFORE UPDATE|BEFORE DELETE' migrations supabase 2>/dev/null | head -360 || true
+          echo '=== parent report uniqueness / supersession seams ==='
+          grep -R -n --include='*.sql' -E 'parent_reports|report_window_key|UNIQUE|supersed' migrations supabase 2>/dev/null | head -420 || true
