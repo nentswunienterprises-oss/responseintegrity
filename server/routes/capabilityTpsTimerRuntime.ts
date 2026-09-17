@@ -18,15 +18,15 @@ const requireSpecialist = (req: Request, res: Response) => {
   return dbUser;
 };
 
-const loadRecentDrillRows = async (studentId: string, tutorId: string): Promise<StoredTpsDrillRow[]> => {
+const loadRecentDrillRows = async (studentId: string): Promise<StoredTpsDrillRow[]> => {
   if (isEmergencyDbMode()) {
     const result = await pool.query(
       `SELECT id, student_id, tutor_id, submitted_at, drill
          FROM public.intro_session_drills
-        WHERE student_id = $1 AND tutor_id = $2
+        WHERE student_id = $1
         ORDER BY submitted_at DESC
         LIMIT 250`,
-      [studentId, tutorId],
+      [studentId],
     );
     return result.rows || [];
   }
@@ -35,7 +35,6 @@ const loadRecentDrillRows = async (studentId: string, tutorId: string): Promise<
     .from("intro_session_drills")
     .select("id, student_id, tutor_id, submitted_at, drill")
     .eq("student_id", studentId)
-    .eq("tutor_id", tutorId)
     .order("submitted_at", { ascending: false })
     .limit(250);
 
@@ -58,12 +57,15 @@ export function registerCapabilityTpsTimerRuntimeRoutes(app: Express) {
           return res.status(400).json({ message: "studentId and topic are required." });
         }
 
+        // Authorization follows the student's current assignment, while the timing lineage follows
+        // the student/topic itself. Historical eligible reps from a previous Specialist remain part
+        // of the same student's baseline after a legitimate handover.
         const student = await storage.getStudent(studentId);
         if (!student || String(student.tutorId || "") !== String(dbUser.id)) {
           return res.status(403).json({ message: "Unauthorized: Student does not belong to this Specialist." });
         }
 
-        const rows = await loadRecentDrillRows(studentId, String(dbUser.id));
+        const rows = await loadRecentDrillRows(studentId);
         const status = buildTpsTimerRuntimeStatus({
           rows,
           studentId,
