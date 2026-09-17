@@ -148,12 +148,12 @@ const PARENT_STATE_ENGINE: Record<PhaseLabel, Record<StabilityLabel, ParentState
     High: {
       status: "Your child is performing consistently under time pressure.",
       meaning: "They can solve problems accurately and maintain structure even under time constraints.",
-      focus: "We are maintaining performance and preparing them to transfer this skill to new topics.",
+      focus: "We are maintaining this topic's timed performance and confirming that the same structure remains stable across repeated work.",
     },
     "High Maintenance": {
       status: "Your child has sustained top stability under time pressure.",
       meaning: "They consistently maintain structure and accuracy under timed conditions.",
-      focus: "We are maintaining performance and expanding transfer across related topics.",
+      focus: "We are maintaining this topic's timed stability through periodic maintenance without assigning that state to other topics.",
     },
   },
 };

@@ -308,12 +308,12 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     High: {
       status: "Your child is performing consistently under time pressure.",
       meaning: "They can solve problems accurately and maintain structure even under time constraints.",
-      focus: "We are maintaining performance and preparing them to transfer this skill to new topics.",
+      focus: "We are maintaining this topic's timed performance and confirming that the same structure remains stable across repeated work.",
     },
     "High Maintenance": {
       status: "Your child has sustained top stability under time pressure.",
       meaning: "They consistently maintain structure and accuracy under timed conditions.",
-      focus: "We are maintaining performance and expanding transfer across related topics.",
+      focus: "We are maintaining this topic's timed stability through periodic maintenance without assigning that state to other topics.",
     },
   },
 };
@@ -492,17 +492,17 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       rules: ["Do NOT declare transfer yet", "Confirm sustained stability first"],
       nextActions: [
         "Run High Maintenance check under time pressure",
-        "Confirm structure under timed variation",
+        "Confirm structure under the same prescribed timed condition",
         "Sustain consistency across multiple sets",
       ],
     },
     "High Maintenance": {
       primaryAction: "Run Time Pressure Stability maintenance drill",
-      rules: ["Do not over-train same pattern", "Begin cross-topic conditioning"],
+      rules: ["Do not over-train the topic", "Keep final-phase maintenance topic-specific"],
       nextActions: [
-        "Run Time Pressure Stability maintenance drill",
-        "Introduce new variations of topic",
-        "Prepare for transfer to new topics",
+        "Run Time Pressure Stability maintenance drill for this topic",
+        "Confirm the same topic remains stable under its prescribed timed conditions",
+        "Keep other topics on their own independently derived phase and stability state",
       ],
     },
   },

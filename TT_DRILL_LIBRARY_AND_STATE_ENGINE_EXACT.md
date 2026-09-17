@@ -531,7 +531,7 @@ Phase progression rule:
 - Only legal when previous stability is `High Maintenance` and score is `>= 85`
 - `next_phase = getNextPhase(previous_phase)`
 - `next_stability = Low`
-- If already in final phase, `getNextPhase` returns current phase, so final-phase `High Maintenance` + `85+` produces the same phase at `Low` with `phase progress`
+- If already in final Time Pressure Stability, `High Maintenance` + `85+` remains `Time Pressure Stability / High Maintenance` with `remain`; the final phase never resets to Low because there is no next in-sequence phase.
 
 ## 2. Next-action engine
 
@@ -620,8 +620,8 @@ Per phase × stability, the engine provides:
   - Next actions: `Run High Maintenance check under time pressure`; `Confirm structure under timed variation`; `Sustain consistency across multiple sets`
 - High Maintenance:
   - Primary action: `Run Time Pressure Stability maintenance drill`
-  - Rules: `Do not over-train same pattern`; `Begin cross-topic conditioning`
-  - Next actions: `Run Time Pressure Stability maintenance drill`; `Introduce new variations of topic`; `Prepare for transfer to new topics`
+  - Rules: `Do not over-train the topic`; `Keep final-phase maintenance topic-specific`
+  - Next actions: `Run Time Pressure Stability maintenance drill for this topic`; `Confirm the same topic remains stable under its prescribed timed conditions`; `Keep other topics on their own independently derived phase and stability state`
 
 ## 3. Tutor-facing interpreted state
 
@@ -633,7 +633,7 @@ Source: `client/src/components/tutor/topicConditioningEngine.ts`
 - `transitionStatus`:
   - `High Maintenance`:
     - non-final phase => `Run the current phase High Maintenance check; strong evidence can progress to <next phase>`
-    - final phase => `Maintain and transfer to new topics`
+    - final phase => `Maintain this topic at final-phase High Maintenance`
   - `High` => `Run High Maintenance check before advancing`
   - `Medium` => `Hold current phase - build stability before advancing`
   - `Low`:
@@ -755,11 +755,11 @@ This is the phase-specific parent dashboard matrix to use for `status`, `meaning
 - High:
   - Status: `Your child is performing consistently under time pressure.`
   - Meaning: `They can solve problems accurately and maintain structure even under time constraints.`
-  - Focus: `We are maintaining performance and preparing them to transfer this skill to new topics.`
+  - Focus: `We are maintaining this topic's timed performance and confirming that the same structure remains stable across repeated work.`
 - High Maintenance:
   - Status: `Your child has sustained top stability under time pressure.`
   - Meaning: `They consistently maintain structure and accuracy under timed conditions.`
-  - Focus: `We are maintaining performance and expanding transfer across related topics.`
+  - Focus: `We are maintaining this topic's timed stability through periodic maintenance without assigning that state to other topics.`
 
 Generic shared translator still exists in `shared/topicConditioningEngine.ts`, but it is not the actual dashboard phase-specific meaning source.
 

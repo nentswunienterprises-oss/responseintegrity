@@ -66,13 +66,13 @@ Assessment review references: Controlled Discomfort 6, 12, 13, 30; Time Pressure
 
 ### Time Pressure Stability isolates the time condition
 
-Resolved doctrine. One live Deep Dive sentence still needs synchronization before freeze.
+Resolved and synchronized in the proof branch.
 
 - TPS does not increase mathematical difficulty while introducing time pressure.
 - TPS training keeps `difficultyLevel: normal`, `variationLevel: same_form`, and `supportLevel: none` across Structure Under Timer, Repeated Timed Execution, and Full Constraint.
 - What changes across the sequence is the time-pressure condition: light timer -> repeated timer -> full constraint.
 - A Specialist may not make the mathematics harder or change the problem form simply because the student looks strong.
-- The current Deep Dive phrase `unless the system explicitly directs otherwise` is too loose for this contract and must be removed or rewritten to state the fixed standard clearly.
+- The live Deep Dive now states the fixed condition directly: normal difficulty, same form, no support; timing is the only pressure variable that changes.
 
 Assessment review reference: Time Pressure Stability 4.
 
@@ -203,7 +203,7 @@ Approved example: a Controlled Discomfort / High Maintenance topic that scores s
 
 ### TPS timer contract is prepared before TPS and remains fixed for the TPS epoch
 
-Approved product contract. The pure Timer Contract V1 and test coverage are implemented on the proof branch in `shared/capabilityTpsTimerContract.ts` and `shared/capabilityTpsTimerContract.test.ts`. Runtime runner/server wiring remains an implementation gap below.
+Approved product contract and runtime implementation completed on the proof branch. The pure Timer Contract V1, deterministic tests, V2 timing evidence, server routes, Specialist runner countdown/calibration flow, append-only persistence schema, and proof-database migration are now wired together.
 
 - RI-OS begins passively recording elapsed time on scored training reps in Structured Execution and continues measuring reps through Controlled Discomfort. Passive measurement is not time pressure because the student is never shown a countdown, deadline, or time target in those phases.
 - Clarity is not part of the Timer Contract V1 baseline dataset. Recognition and mental-map formation are not comparable execution-time conditions.

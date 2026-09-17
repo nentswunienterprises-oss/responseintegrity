@@ -39,7 +39,7 @@ const TIME_SET_EXECUTION: Record<
     studentAction:
       "Begin under the timer and keep the known method visible. Speed matters, but structure must not disappear.",
     specialistAction:
-      "Run the timed attempt using the runner/prep-defined timer, withhold help, observe start, structure, pace, and completion, then log the response.",
+      "Run the timed attempt using the runner-owned duration from the active TPS Timer Contract, withhold help, observe start, structure, pace, and completion, then log the response.",
     preserve:
       "Method-first execution under an active timer. The target is not frantic completion; the target is controlled structure while time exists.",
     doNot: [
@@ -65,7 +65,7 @@ const TIME_SET_EXECUTION: Record<
     studentAction:
       "Work under the tightest defined time condition while preserving method structure, controlled pace, and completion integrity.",
     specialistAction:
-      "Run the full constraint exactly as defined by the runner/prep, withhold help, observe the full pressure response, and log the evidence.",
+      "Run Full Constraint at the runner-owned 85% Timer Contract duration, withhold help, observe the full pressure response, and log the evidence.",
     preserve:
       "Full time constraint. The set tests whether the student can keep structure and completion when the pressure is at the intended maximum.",
     doNot: [
@@ -87,7 +87,7 @@ const progressionBands = [
   "Low: run the Time Pressure Stability drill. Start with the defined timer condition and protect method before speed.",
   "Medium: remain in Time Pressure Stability and build consistency across repeated timed attempts.",
   "High: remain in Time Pressure Stability and prove repeatability. High does not finish the phase directly.",
-  "High Maintenance: qualifying evidence marks the topic as transfer-ready or ready for mixed maintenance work. The engine owns that decision.",
+  "High Maintenance: qualifying evidence keeps this topic at final-phase High Maintenance. Maintenance remains topic-specific; other topics keep their own independently derived states.",
 ];
 
 const constraintLabel = (set: EvidenceSetDefinition) => {
@@ -219,8 +219,8 @@ export default function ResponseConditioningTimePressureStability() {
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
           <p className="text-muted-foreground">
-            Use the active student topic and the Map/pre-session preparation direction. Problems should be normal difficulty unless the
-            system explicitly directs otherwise. The pressure comes from timing and repetition, not from secretly changing the topic demand.
+            Use the active student topic and the Map/pre-session preparation direction. TPS problems remain normal difficulty and same form across
+            the defined training sequence. The pressure variable is timing and repetition; mathematical difficulty and problem form do not change.
           </p>
           <div className="space-y-3">
             {trainingSchema.sets.map((set) => (
@@ -239,8 +239,8 @@ export default function ResponseConditioningTimePressureStability() {
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
             <p className="font-semibold">Timing boundary</p>
             <p className="text-sm text-muted-foreground">
-              This Deep Dive defines the recipe and pressure levels, but not a personal timer formula. Use the runner/pre-session timer
-              instruction. Do not invent a different timer and treat it as canon.
+              The runner uses the immutable TPS Timer Contract for this student and topic. Structure Under Timer and Repeated Timed Execution use 100% of the
+              baseline duration; Full Constraint uses 85%. Do not invent, loosen, or tighten a different timer.
             </p>
           </div>
         </Card>

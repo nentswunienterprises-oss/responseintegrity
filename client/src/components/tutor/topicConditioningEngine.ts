@@ -9,7 +9,7 @@ export function interpretTopicState(
   if (stability === "High Maintenance") {
     const idx = phaseIndex(phase);
     if (idx === PHASES.length - 1) {
-      transitionStatus = "Maintain and transfer to new topics";
+      transitionStatus = "Maintain this topic at final-phase High Maintenance";
     } else {
       transitionStatus = `Run the ${phase} High Maintenance check. Strong evidence can progress to ${PHASES[idx + 1]}.`;
     }
@@ -193,7 +193,7 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       primaryAction: "Run Time Pressure Stability High Maintenance drill",
       nextActions: [
         "Run High Maintenance check under time pressure",
-        "Confirm structure under timed variation",
+        "Confirm structure under the same prescribed timed condition",
         "Sustain consistency across multiple sets",
       ],
       rules: ["Do NOT declare transfer yet", "Confirm sustained stability first"],
@@ -201,11 +201,11 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
     "High Maintenance": {
       primaryAction: "Run Time Pressure Stability maintenance drill",
       nextActions: [
-        "Run Time Pressure Stability maintenance drill",
-        "Introduce new variations of topic",
-        "Prepare for transfer to new topics",
+        "Run Time Pressure Stability maintenance drill for this topic",
+        "Confirm the same topic remains stable under its prescribed timed conditions",
+        "Keep other topics on their own independently derived phase and stability state",
       ],
-      rules: ["Do not over-train same pattern", "Begin cross-topic conditioning"],
+      rules: ["Do not over-train the topic", "Keep final-phase maintenance topic-specific"],
     },
   },
 };
