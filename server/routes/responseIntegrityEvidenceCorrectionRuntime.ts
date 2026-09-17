@@ -4,14 +4,16 @@ import { isAuthenticated } from "../supabaseAuth";
 import { storage, supabase } from "../storage";
 import {
   applyApprovedEvidenceCorrections,
-  decodeRepOperationalEvidenceV2,
-  REP_OPERATIONAL_EVIDENCE_V2_WIRE_KEY,
   resolveObservationCorrectionProposal,
   validateActualSupportCorrection,
   type ApprovedEvidenceCorrection,
   type CorrectionSourceEvidenceRow,
 } from "../../shared/responseIntegrityEvidenceCorrection";
-import type { ActualSupportUsedV2 } from "../../shared/responseIntegrityEvidenceContractV2";
+import {
+  decodeRepOperationalEvidenceV2,
+  REP_OPERATIONAL_EVIDENCE_V2_WIRE_KEY,
+  type ActualSupportUsedV2,
+} from "../../shared/responseIntegrityEvidenceContractV2";
 import {
   replayCorrectedTopicLineage,
   type CorrectionReplayEvent,
