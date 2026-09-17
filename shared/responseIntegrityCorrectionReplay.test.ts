@@ -67,44 +67,27 @@ const buildTrainingSets = (phase: "Structured Execution" | "Controlled Discomfor
   }));
 };
 
-test("correction replay recomputes the source training transition and skips later phase evidence that is no longer valid", () => {
+test("correction replay recomputes the source training validity and skips later phase evidence that is no longer authorized", () => {
   const structured = buildTrainingSets("Structured Execution", 2);
   const firstScoredSet = structured.find((set) => set.observations.length > 0 && set.setName !== "Modeling")!;
   const rep = firstScoredSet.observations[0];
   const correction: ApprovedEvidenceCorrection = {
     correctionId: "correction-1",
-    correctionKind: "observation_option",
-    sourceEvidenceId: "evidence-1",
+    correctionKind: "actual_support_used",
+    sourceEvidenceId: null,
     sourceDrillId: "drill-1",
     blockOrder: Number(firstScoredSet.setOrder),
     setId: String(firstScoredSet.setId),
     setOrder: Number(firstScoredSet.setOrder),
     repId: String(rep._rep_id),
     repNumber: 1,
-    dimensionId: String(rep.startBehavior_dimension_id),
-    fieldKey: "startBehavior",
     drillType: "training",
     phase: "Structured Execution",
     drillSchemaId: String(firstScoredSet.drillSchemaId),
     drillSchemaVersion: Number(firstScoredSet.drillSchemaVersion),
     drillDefinitionHash: String(firstScoredSet.drillDefinitionHash),
-    originalOptionId: String(rep.startBehavior_option_id),
-    originalRawOption: String(rep.startBehavior),
-    originalNormalizedLevel: "clear",
-    proposedOptionId: getEvidenceSelectionIdentity({
-      mode: "training",
-      phase: "Structured Execution",
-      setName: firstScoredSet.setName,
-      repIndex: 0,
-      fieldKey: "startBehavior",
-      optionIndex: 0,
-    })!.optionId,
-    proposedRawOption: getFieldDefinitionForRep(
-      getDrillSchemaDefinition("training", "Structured Execution").sets[Number(firstScoredSet.setOrder) - 1],
-      0,
-      "startBehavior",
-    )!.optionLabels![0],
-    proposedNormalizedLevel: "weak",
+    originalActualSupportUsed: "none",
+    proposedActualSupportUsed: "beyond_permitted_boundary",
   };
 
   const result = replayCorrectedTopicLineage({
@@ -131,6 +114,7 @@ test("correction replay recomputes the source training transition and skips late
 
   assert.equal(result.resultingPhase, "Structured Execution");
   assert.equal(result.lineage[0].status, "replayed");
+  assert.match(result.lineage[0].reason, /^support_/);
   assert.equal(result.lineage[1].status, "skipped_invalid_after_correction");
   assert.equal(result.skippedEventCount, 1);
 });
