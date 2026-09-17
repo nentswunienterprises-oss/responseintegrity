@@ -152,13 +152,22 @@ Approved product contract. Runner and doctrine synchronization are required befo
 
 Assessment review references: Clarity items 3, 34, and 42.
 
+### `minimal` is response-control cueing only
+
+Approved global support-semantics contract. Clarity Deep Dive and runner wording require synchronization before freeze.
+
+- `minimal` has one meaning across the product: it permits bounded response-control cueing only and never mathematical content.
+- Neutral task-launch instructions such as `Solve this and show me your steps` are part of running the rep and do not count as support.
+- Once a scored rep is underway, an allowed `minimal` cue may regulate or re-engage the student without supplying mathematics, for example: `Pause`, `Don't rush`, `Use your own first step`, or `Show me what you would do next`.
+- `minimal` does not permit naming the method or operation, identifying the relevant mathematical feature, giving or suggesting a step, correcting a mathematical error, confirming correctness, using a leading mathematical question, showing a worked example, or exposing/redirecting to the Topic Reference.
+- First-step mathematical assistance exceeds a `minimal` ceiling even if the student completes the rest independently.
+- Exceeding the ceiling contaminates the rep; it must not be converted into weak student performance.
+- The live wording `minimal guidance` is too loose. Specialist-facing surfaces should state the ceiling explicitly: response-control cue only; no mathematical hints, steps, corrections, or correctness confirmation.
+- This global meaning aligns Clarity Light Apply with the approved Controlled Discomfort support taxonomy and the new `actualSupportUsed` evidence contract.
+
+Assessment review reference: Clarity Light Apply review.
+
 ## Open product decisions and implementation gaps to resolve before final freeze
-
-### Exact boundary of `minimal` guidance in Clarity Light Apply
-
-Raised during Clarity review.
-
-Clarify the allowed response-control/instructional boundary so `minimal` cannot quietly become step-by-step mathematical support or hidden rescue.
 
 ### Preserve inherited-layer evidence when the current phase does not score that dimension directly
 
