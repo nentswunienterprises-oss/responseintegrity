@@ -2,11 +2,6 @@ import { CommunicationInbox } from "@/components/communications/CommunicationInb
 import { NotificationInbox } from "@/components/notifications/NotificationInbox";
 
 export default function StudentUpdates() {
-  const requestedTab =
-    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tab") === "messages"
-      ? "messages"
-      : "updates";
-
   return (
     <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
       <CommunicationInbox
@@ -17,7 +12,6 @@ export default function StudentUpdates() {
         getPath="/api/student/communications"
         postPath="/api/student/communications"
         unreadCountPath="/api/student/communications/unread-count"
-        defaultTab={requestedTab}
         updatesContent={
           <NotificationInbox
             title="Updates"

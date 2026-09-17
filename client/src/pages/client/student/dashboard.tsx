@@ -1,9 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare } from "lucide-react";
 
 interface StudentStats {
   bossBattlesCompleted: number;
@@ -267,13 +265,6 @@ export default function StudentDashboard() {
     retry: false,
   });
 
-  const { data: communicationUnreadData } = useQuery<{ unreadCount: number }>({
-    queryKey: ["/api/student/communications/unread-count"],
-    queryFn: getQueryFn({ on401: "returnNull" }),
-    retry: false,
-    refetchInterval: 15000,
-  });
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -349,7 +340,6 @@ export default function StudentDashboard() {
   const hasStartedTraining = !allCoreMetricsZero;
 
   const updatedLabel = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleString() : "Pending sync";
-  const communicationUnreadCount = Number(communicationUnreadData?.unreadCount || 0);
 
   const quickActions = [
     {
@@ -372,39 +362,11 @@ export default function StudentDashboard() {
   return (
     <div className="space-y-5">
       <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-[-0.01em]">
-            Welcome back, {studentFirstName}
-          </h1>
-          {communicationUnreadCount > 0 && (
-            <Badge variant="destructive" className="gap-1">
-              <MessageSquare className="h-3 w-3" />
-              {communicationUnreadCount > 9 ? "9+" : communicationUnreadCount}
-            </Badge>
-          )}
-        </div>
+        <h1 className="text-2xl font-semibold tracking-[-0.01em]">
+          Welcome back, {studentFirstName}
+        </h1>
         <p className="mt-0.5 text-sm text-muted-foreground">Your training overview</p>
       </div>
-
-      {communicationUnreadCount > 0 && (
-        <Card
-          className="cursor-pointer border-primary/20 bg-primary/5 transition-colors hover:bg-primary/10"
-          onClick={() => navigate("/client/student/updates?tab=messages")}
-        >
-          <CardContent className="flex items-start justify-between gap-3 p-4">
-            <div className="flex min-w-0 items-start gap-3">
-              <MessageSquare className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground">New tutor message</p>
-                <p className="text-xs text-muted-foreground">Open Updates to read and reply inside the platform.</p>
-              </div>
-            </div>
-            <Badge variant="destructive" className="shrink-0">
-              {communicationUnreadCount > 9 ? "9+" : communicationUnreadCount}
-            </Badge>
-          </CardContent>
-        </Card>
-      )}
 
       <Card className="border-primary/20 bg-background shadow-sm">
         <CardHeader className="pb-3">
@@ -504,14 +466,7 @@ export default function StudentDashboard() {
             onClick={() => navigate(action.path)}
           >
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base font-medium tracking-[-0.01em]">
-                {action.title}
-                {action.title === "Updates" && communicationUnreadCount > 0 && (
-                  <Badge variant="destructive" className="text-[10px]">
-                    {communicationUnreadCount > 9 ? "9+" : communicationUnreadCount}
-                  </Badge>
-                )}
-              </CardTitle>
+              <CardTitle className="text-base font-medium tracking-[-0.01em]">{action.title}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">{action.description}</p>

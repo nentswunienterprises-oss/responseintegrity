@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   UserRound,
   LogOut,
-  MessageSquare,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
@@ -602,15 +601,6 @@ export default function ParentDashboard() {
   });
   const sessionsRemaining = trainingSessionsData?.monthlyQuota != null ? Number(trainingSessionsData.monthlyQuota.sessions_remaining ?? 0) : null;
 
-  const { data: communicationUnreadData } = useQuery<{ unreadCount: number }>({
-    queryKey: ["/api/parent/communications/unread-count"],
-    queryFn: getQueryFn({ on401: "returnNull" }),
-    refetchInterval: emergencyDbMode ? false : 15000,
-    refetchOnWindowFocus: !emergencyDbMode,
-    refetchOnReconnect: !emergencyDbMode,
-    retry: emergencyDbMode ? false : undefined,
-  });
-
   const { data: topicStatesData } = useQuery<ParentTopicState[]>({
     queryKey: ["/api/parent/topic-conditioning-states"],
     queryFn: getQueryFn({ on401: "returnNull" }),
@@ -671,7 +661,6 @@ export default function ParentDashboard() {
       !hasAccessCode
   );
   const firstParentName = user?.name?.split(" ")[0] || user?.email?.split("@")[0] || "Parent";
-  const communicationUnreadCount = Number(communicationUnreadData?.unreadCount || 0);
 
   const normalizedTopicStates = Array.from(
     (topicStatesData || [])
@@ -808,12 +797,6 @@ export default function ParentDashboard() {
           <div className="flex flex-wrap gap-2">
             {studentInfo?.grade && <Badge variant="outline" className="border-primary/30 bg-background/70">{formatParentGradeLabel(studentInfo.grade)}</Badge>}
             {studentInfo?.podName && <Badge className="bg-primary/90 text-primary-foreground">{studentInfo.podName}</Badge>}
-            {communicationUnreadCount > 0 && (
-              <Badge variant="destructive" className="gap-1">
-                <MessageSquare className="h-3 w-3" />
-                {communicationUnreadCount > 9 ? "9+" : communicationUnreadCount} message{communicationUnreadCount === 1 ? "" : "s"}
-              </Badge>
-            )}
           </div>
         </div>
       </div>
@@ -823,29 +806,6 @@ export default function ParentDashboard() {
         title="Enable out-of-app alerts"
         description="Turn on browser notifications so Response Integrity can alert you when reports are sent or when a tutor action needs your response."
       />
-
-      {communicationUnreadCount > 0 && (
-        <button
-          type="button"
-          onClick={() => navigate("/client/parent/updates?tab=messages")}
-          className="flex w-full items-start justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-left transition-colors hover:bg-primary/10"
-        >
-          <span className="flex min-w-0 items-start gap-3">
-            <MessageSquare className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold text-foreground">
-                New tutor message for {studentFirstName}
-              </span>
-              <span className="block text-xs text-muted-foreground">
-                Open the parent inbox to read and reply inside the platform.
-              </span>
-            </span>
-          </span>
-          <Badge variant="destructive" className="shrink-0">
-            {communicationUnreadCount > 9 ? "9+" : communicationUnreadCount}
-          </Badge>
-        </button>
-      )}
 
       {sessionsRemaining !== null && sessionsRemaining <= 2 && (
         <div

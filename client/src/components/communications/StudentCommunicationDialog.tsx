@@ -307,9 +307,6 @@ export default function StudentCommunicationDialog({
       setDrafts((current) => ({ ...current, [variables.audience]: "" }));
       setReplyTargets((current) => ({ ...current, [variables.audience]: null }));
       queryClient.invalidateQueries({ queryKey });
-      queryClient.invalidateQueries({
-        queryKey: ["/api/tutor/students", studentId, "communications", "unread-count"],
-      });
     },
   });
 
