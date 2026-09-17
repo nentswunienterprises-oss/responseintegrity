@@ -1,4 +1,3 @@
-// Triggered after workflow installation to apply the final TPS synchronization pass.
 import fs from "node:fs";
 
 function patch(path, replacements) {
@@ -11,132 +10,86 @@ function patch(path, replacements) {
   fs.writeFileSync(path, source);
 }
 
-patch("shared/topicConditioningEngine.ts", [
+const registerPath = "docs/capability-v2r8-product-decision-register.md";
+
+patch(registerPath, [
   [
-    'focus: "We are maintaining performance and preparing them to transfer this skill to new topics.",',
-    'focus: "We are maintaining this topic\'s timed performance and confirming that the same structure remains stable across repeated work.",',
-    "parent TPS High focus",
+    "Resolved core-model rule; derivative next-action/reporting wording still needs synchronization below.",
+    "Resolved and synchronized in the proof branch, including Specialist next-action and parent-facing final-state wording.",
+    "topic-specific state synchronization status",
   ],
   [
-    'focus: "We are maintaining performance and expanding transfer across related topics.",',
-    'focus: "We are maintaining this topic\'s timed stability through periodic maintenance without assigning that state to other topics.",',
-    "parent TPS HM focus",
+`### TPS timer runtime wiring remains before TPS freeze
+
+The timer formula and baseline timing semantics are no longer product ambiguities, but the live runner and server do not yet execute the whole contract. Before TPS freezes:
+
+- the runner must passively time scored Structured Execution and Controlled Discomfort reps without displaying time pressure to the student; Clarity must not contribute Timer Contract V1 baseline data
+- V2 rep evidence must capture \`actualSupportUsed\`, timing metadata, and inherited evidence without rewriting the published V1 contract
+- timing records must persist in the authoritative drill evidence lineage
+- the server must retain pre-TPS timing history while selecting only the latest three eligible comparable Structured Execution reps for the V1 baseline
+- the Controlled Discomfort -> TPS transition must refuse TPS activation until a valid Timer Contract exists
+- the fallback calibration lane must run before TPS activation when historical eligibility is insufficient, remain non-scored, and mint the contract before TPS Low begins
+- the persisted contract must carry conditioning-epoch lineage so it remains immutable across sessions, stability movement, High Maintenance, and handovers, while allowing an explicit new epoch after TPS exit/re-entry or system-owned reset
+- evidence-correction replay must be able to supersede a contract whose baseline lineage becomes invalid and require reconstructed timing plus fresh TPS evidence
+- TPS runner UI must load the Timer Contract, display and run the prescribed countdown, and prevent Specialist duration edits
+- Repeated Timed Execution must preserve the exact same prescribed duration across its reps
+- Full Constraint must use the versioned 85% duration
+- technical timer failures must persist as invalid attempts and generate linked replacement reps without student scoring or state movement
+- a missing or invalid Timer Contract must lock scored TPS rather than inviting a Specialist fallback
+
+The pure deterministic contract and automated tests are already implemented; this section tracks runtime wiring, not an unresolved timer policy.
+`,
+`### TPS timer runtime implementation completed
+
+The approved Timer Contract V1 is now executed end to end on the proof branch and proof database:
+
+- scored Structured Execution and Controlled Discomfort reps are passively timed without exposing a timer to the student; Clarity is excluded from the Timer Contract V1 dataset
+- V2 rep operational evidence persists actual support used and timing metadata beside the immutable V1 drill schema
+- the server retains passive timing history but selects only clean, comparable Structured Execution evidence for the latest-three baseline
+- Controlled Discomfort -> TPS progression is blocked until a Timer Contract exists
+- the fallback three-rep calibration lane runs before TPS activation, remains non-scored, and mints the contract before TPS Low can begin
+- the contract is persisted by student, topic, and conditioning epoch and remains fixed across TPS stability movement, sessions, High Maintenance, and legitimate Specialist handovers
+- the TPS runner owns the prescribed countdown; Specialists cannot edit durations
+- Structure Under Timer and Repeated Timed Execution use the same 100% baseline duration; Full Constraint uses the versioned 85% duration
+- every timed attempt persists prescribed and actual timing lineage
+- assisted TPS attempts and technical-invalid attempts are preserved historically but cannot score; the runner requires a linked replacement rep under the same contract
+- missing or invalid Timer Contracts lock scored TPS rather than permitting a Specialist fallback
+- the dedicated proof-database timer tables are append-only and RLS-enabled
+
+The approved evidence-correction/supersession workflow remains a cross-cutting evidence-integrity implementation dependency. When that broader workflow is activated, it must replay Timer Contract lineage if a baseline source is superseded; this is not a remaining TPS timer-policy ambiguity.
+`,
+    "TPS runtime closeout",
   ],
   [
-    '"Confirm structure under timed variation",',
-    '"Confirm structure under the same prescribed timed condition",',
-    "TPS High same-form action",
-  ],
-  [
-    'rules: ["Do not over-train same pattern", "Begin cross-topic conditioning"],\n      nextActions: [\n        "Run Time Pressure Stability maintenance drill",\n        "Introduce new variations of topic",\n        "Prepare for transfer to new topics",\n      ],',
-    'rules: ["Do not over-train the topic", "Keep final-phase maintenance topic-specific"],\n      nextActions: [\n        "Run Time Pressure Stability maintenance drill for this topic",\n        "Confirm the same topic remains stable under its prescribed timed conditions",\n        "Keep other topics on their own independently derived phase and stability state",\n      ],',
-    "TPS HM next actions",
+`### TPS final-state next action must not imply cross-topic phase transfer
+
+Raised during Time Pressure Stability review item 43.
+
+The core model is topic-specific: each topic has its own phase and stability, and a new topic gets its own state from its own diagnosis/activation evidence. A topic reaching Time Pressure Stability / High Maintenance does not transfer that phase or stability to a different topic.
+
+Current next-action and parent-copy language still includes phrases such as \`Begin cross-topic conditioning\`, \`Prepare for transfer to new topics\`, and \`expanding transfer across related topics\`. That wording is inconsistent with the topic-specific state model unless a separate cross-topic capability product is deliberately designed later.
+
+Before freeze, synchronize this language so that:
+
+- the mastered topic remains in its own TPS maintenance state
+- any newly activated topic gets its own independent state from its own evidence
+- no phase or stability is inherited merely because another topic reached TPS High Maintenance
+
+The replacement TPS item 43 tests this topic-specific-state boundary and was approved.
+`,
+`### TPS final-state next action is topic-specific and synchronized
+
+Resolved and synchronized in the proof branch.
+
+- a topic at Time Pressure Stability / High Maintenance remains in final-phase maintenance for that topic
+- Specialist next-action copy no longer instructs cross-topic phase transfer
+- parent-facing copy describes maintenance of the same topic rather than transferring its state elsewhere
+- any new or different topic still receives its own independently derived phase and stability from its own evidence
+
+The replacement TPS item 43 tests this topic-specific-state boundary and remains approved.
+`,
+    "TPS final-state closeout",
   ],
 ]);
 
-patch("client/src/components/tutor/topicConditioningEngine.ts", [
-  [
-    'transitionStatus = "Maintain and transfer to new topics";',
-    'transitionStatus = "Maintain this topic at final-phase High Maintenance";',
-    "tutor final TPS transition status",
-  ],
-  [
-    '"Confirm structure under timed variation",',
-    '"Confirm structure under the same prescribed timed condition",',
-    "tutor TPS High same-form action",
-  ],
-  [
-    'nextActions: [\n        "Run Time Pressure Stability maintenance drill",\n        "Introduce new variations of topic",\n        "Prepare for transfer to new topics",\n      ],\n      rules: ["Do not over-train same pattern", "Begin cross-topic conditioning"],',
-    'nextActions: [\n        "Run Time Pressure Stability maintenance drill for this topic",\n        "Confirm the same topic remains stable under its prescribed timed conditions",\n        "Keep other topics on their own independently derived phase and stability state",\n      ],\n      rules: ["Do not over-train the topic", "Keep final-phase maintenance topic-specific"],',
-    "tutor TPS HM next actions",
-  ],
-]);
-
-patch("client/src/pages/responseconditioningsystem/transformation-phases/time-pressure-stability.tsx", [
-  [
-    '"High Maintenance: qualifying evidence marks the topic as transfer-ready or ready for mixed maintenance work. The engine owns that decision.",',
-    '"High Maintenance: qualifying evidence keeps this topic at final-phase High Maintenance. Maintenance remains topic-specific; other topics keep their own independently derived states.",',
-    "TPS progression copy",
-  ],
-  [
-    'Use the active student topic and the Map/pre-session preparation direction. Problems should be normal difficulty unless the\n            system explicitly directs otherwise. The pressure comes from timing and repetition, not from secretly changing the topic demand.',
-    'Use the active student topic and the Map/pre-session preparation direction. TPS problems remain normal difficulty and same form across\n            the defined training sequence. The pressure variable is timing and repetition; mathematical difficulty and problem form do not change.',
-    "TPS fixed-condition prep copy",
-  ],
-  [
-    'This Deep Dive defines the recipe and pressure levels, but not a personal timer formula. Use the runner/pre-session timer\n              instruction. Do not invent a different timer and treat it as canon.',
-    'The runner uses the immutable TPS Timer Contract for this student and topic. Structure Under Timer and Repeated Timed Execution use 100% of the\n              baseline duration; Full Constraint uses 85%. Do not invent, loosen, or tighten a different timer.',
-    "TPS timer boundary copy",
-  ],
-  [
-    '"Run the timed attempt using the runner/prep-defined timer, withhold help, observe start, structure, pace, and completion, then log the response.",',
-    '"Run the timed attempt using the runner-owned duration from the active TPS Timer Contract, withhold help, observe start, structure, pace, and completion, then log the response.",',
-    "structure under timer specialist action",
-  ],
-  [
-    '"Run the full constraint exactly as defined by the runner/prep, withhold help, observe the full pressure response, and log the evidence.",',
-    '"Run Full Constraint at the runner-owned 85% Timer Contract duration, withhold help, observe the full pressure response, and log the evidence.",',
-    "full constraint specialist action",
-  ],
-]);
-
-patch("client/src/pages/client/parent/dashboard.tsx", [
-  [
-    'focus: "We are maintaining performance and preparing them to transfer this skill to new topics.",',
-    'focus: "We are maintaining this topic\'s timed performance and confirming that the same structure remains stable across repeated work.",',
-    "dashboard TPS High focus",
-  ],
-  [
-    'focus: "We are maintaining performance and expanding transfer across related topics.",',
-    'focus: "We are maintaining this topic\'s timed stability through periodic maintenance without assigning that state to other topics.",',
-    "dashboard TPS HM focus",
-  ],
-]);
-
-patch("TT_DRILL_LIBRARY_AND_STATE_ENGINE_EXACT.md", [
-  [
-    '- If already in final phase, `getNextPhase` returns current phase, so final-phase `High Maintenance` + `85+` produces the same phase at `Low` with `phase progress`',
-    '- If already in final Time Pressure Stability, `High Maintenance` + `85+` remains `Time Pressure Stability / High Maintenance` with `remain`; the final phase never resets to Low because there is no next in-sequence phase.',
-    "final TPS HM state rule",
-  ],
-  [
-    '- Rules: `Do not over-train same pattern`; `Begin cross-topic conditioning`\n  - Next actions: `Run Time Pressure Stability maintenance drill`; `Introduce new variations of topic`; `Prepare for transfer to new topics`',
-    '- Rules: `Do not over-train the topic`; `Keep final-phase maintenance topic-specific`\n  - Next actions: `Run Time Pressure Stability maintenance drill for this topic`; `Confirm the same topic remains stable under its prescribed timed conditions`; `Keep other topics on their own independently derived phase and stability state`',
-    "TT TPS HM next actions",
-  ],
-  [
-    '- final phase => `Maintain and transfer to new topics`',
-    '- final phase => `Maintain this topic at final-phase High Maintenance`',
-    "TT tutor final state copy",
-  ],
-  [
-    '- Focus: `We are maintaining performance and preparing them to transfer this skill to new topics.`',
-    '- Focus: `We are maintaining this topic\'s timed performance and confirming that the same structure remains stable across repeated work.`',
-    "TT parent TPS High focus",
-  ],
-  [
-    '- Focus: `We are maintaining performance and expanding transfer across related topics.`',
-    '- Focus: `We are maintaining this topic\'s timed stability through periodic maintenance without assigning that state to other topics.`',
-    "TT parent TPS HM focus",
-  ],
-]);
-
-patch("docs/capability-v2r8-product-decision-register.md", [
-  [
-    'Resolved doctrine. One live Deep Dive sentence still needs synchronization before freeze.',
-    'Resolved and synchronized in the proof branch.',
-    "TPS isolate status",
-  ],
-  [
-    '- The current Deep Dive phrase `unless the system explicitly directs otherwise` is too loose for this contract and must be removed or rewritten to state the fixed standard clearly.',
-    '- The live Deep Dive now states the fixed condition directly: normal difficulty, same form, no support; timing is the only pressure variable that changes.',
-    "TPS fixed-condition follow-up",
-  ],
-  [
-    'Approved product contract. The pure Timer Contract V1 and test coverage are implemented on the proof branch in `shared/capabilityTpsTimerContract.ts` and `shared/capabilityTpsTimerContract.test.ts`. Runtime runner/server wiring remains an implementation gap below.',
-    'Approved product contract and runtime implementation completed on the proof branch. The pure Timer Contract V1, deterministic tests, V2 timing evidence, server routes, Specialist runner countdown/calibration flow, append-only persistence schema, and proof-database migration are now wired together.',
-    "TPS runtime implementation status",
-  ],
-]);
-
-console.log("TPS synchronization patch applied.");
+console.log("TPS closeout register synchronization applied.");
