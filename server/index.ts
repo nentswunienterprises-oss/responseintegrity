@@ -8,6 +8,7 @@ import { registerCapabilitySandboxSimulationRoutes } from "./routes/capabilitySa
 import { registerCapabilityMockDossierRoutes } from "./routes/capabilityMockDossier";
 import { registerCapabilityShadowConcordanceRoutes } from "./routes/capabilityShadowConcordance";
 import { registerCapabilityShadowCohortRoutes } from "./routes/capabilityShadowCohort";
+import { registerCapabilityTpsTimerRuntimeRoutes } from "./routes/capabilityTpsTimerRuntime";
 import { setupAuth } from "./supabaseAuth";
 import cors from 'cors';
 
@@ -110,6 +111,7 @@ app.use((req, res, next) => {
   registerCapabilityMockDossierRoutes(app);
   registerCapabilityShadowConcordanceRoutes(app);
   registerCapabilityShadowCohortRoutes(app);
+  registerCapabilityTpsTimerRuntimeRoutes(app);
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
