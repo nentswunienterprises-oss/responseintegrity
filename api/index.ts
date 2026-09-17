@@ -9,6 +9,7 @@ import { registerCapabilitySandboxSimulationRoutes } from '../server/routes/capa
 import { registerCapabilityMockDossierRoutes } from '../server/routes/capabilityMockDossier';
 import { registerCapabilityShadowConcordanceRoutes } from '../server/routes/capabilityShadowConcordance';
 import { registerCapabilityShadowCohortRoutes } from '../server/routes/capabilityShadowCohort';
+import { registerCapabilityTpsTimerRuntimeRoutes } from '../server/routes/capabilityTpsTimerRuntime';
 import { getSession } from '../server/supabaseAuth';
 import cors from 'cors';
 
@@ -54,6 +55,7 @@ registerCapabilitySandboxSimulationRoutes(app);
 registerCapabilityMockDossierRoutes(app);
 registerCapabilityShadowConcordanceRoutes(app);
 registerCapabilityShadowCohortRoutes(app);
+registerCapabilityTpsTimerRuntimeRoutes(app);
 registerRoutes(app);
 
 // Catch-all for unhandled routes
