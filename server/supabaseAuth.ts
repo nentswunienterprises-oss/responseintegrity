@@ -9,7 +9,8 @@ import type {
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import pg from "pg";
-import { storage } from "./storage";
+import { storage, supabase as serverSupabase } from "./storage";
+import { captureDemandParent } from "./demandCapture";
 import {
   normalizeProductionLinkCode,
   normalizeProductionPipeline,
@@ -299,144 +300,12 @@ export async function setupAuth(app: Express) {
         }
       }
 
-      // --- PARENT RECORD UPSERT ON SIGNUP ---
-      if (user && user.role === "parent") {
-        // --- Robust onboarding_type and affiliate_type logic ---
-        // Use affiliate code from body or session
-        const effectiveAffiliateCode = affiliate_code || req.session.affiliateCode || null;
-        let resolvedOnboardingType = 'commercial';
-        let resolvedAffiliateType = null;
-        if (effectiveAffiliateCode) {
-          // Always set onboarding_type to 'pilot' if affiliate code is present
-          resolvedOnboardingType = 'pilot';
-          // Only set affiliate_type if code lookup succeeds
-          const { data: codeData, error: codeError } = await supabase
-            .from("affiliate_codes")
-            .select("type, affiliate_type")
-            .eq("code", effectiveAffiliateCode)
-            .maybeSingle();
-          if (codeError) {
-            console.error('[SIGNUP] Error looking up affiliate code for onboarding_type/affiliate_type:', codeError);
-          }
-          // Always set affiliate_type, even if null, for analytics/tracking
-          resolvedAffiliateType = (codeData && (codeData.affiliate_type || codeData.type)) || null;
-        }
-        // Debug log to confirm values before upsert
-        console.log("[SIGNUP][DEBUG] About to upsert parent record:", {
-          user_id: user.id,
-          onboarding_type: resolvedOnboardingType,
-          affiliate_type: resolvedAffiliateType,
-          affiliate_code: effectiveAffiliateCode,
-          first_name,
-          last_name,
-          email
+      if (user?.role === "parent") {
+        await captureDemandParent(serverSupabase, storage, {
+          userId: user.id, fullName: `${first_name} ${last_name}`.trim() || email.split("@")[0], email,
+          code: production_link_code || affiliate_code || req.session.affiliateCode,
+          source: tracking_source, campaign: tracking_campaign,
         });
-        const parentFullName = `${first_name} ${last_name}`.trim() || email.split("@")[0];
-        try {
-          // Upsert parent record with both onboarding_type and affiliate_type always present
-          const { data: parentUpserted, error: parentUpsertError } = await supabase
-            .from("parents")
-            .upsert({
-              user_id: user.id,
-              onboarding_type: resolvedOnboardingType,
-              affiliate_type: resolvedAffiliateType, // always included, even if null
-              affiliate_code: effectiveAffiliateCode,
-              full_name: parentFullName,
-              updated_at: new Date().toISOString(),
-            }, {
-              onConflict: 'user_id',
-              ignoreDuplicates: false,
-              update: [
-                'onboarding_type',
-                'affiliate_type',
-                'affiliate_code',
-                'full_name',
-                'updated_at'
-              ]
-            })
-            .select()
-            .single();
-          if (parentUpsertError) {
-            console.error("[SIGNUP] Error upserting parent onboarding/affiliate type:", parentUpsertError);
-          } else {
-            console.log("[SIGNUP] Parent upsert successful. Upserted row:", parentUpserted);
-          }
-        } catch (err) {
-          console.error("[SIGNUP] Exception during parent upsert:", err);
-        }
-      }
-
-      // If parent signed up with affiliate code, create a lead
-      const effectiveAffiliateCode = affiliate_code || req.session.affiliateCode || null;
-      if (user && user.role === "parent" && effectiveAffiliateCode) {
-        try {
-          console.log("📝 Processing production link:", effectiveAffiliateCode);
-          console.log("📧 Parent signup email:", email);
-          const onboardingType = 'pilot';
-          const fullName = `${first_name} ${last_name}`.trim() || email.split("@")[0];
-          // Get affiliate info from code
-          const affiliateInfo = await storage.getAffiliateByCode(effectiveAffiliateCode.toUpperCase());
-          if (affiliateInfo) {
-            console.log("✅ Found production owner for code:", affiliateInfo.owner_user_id || affiliateInfo.owner_name);
-            // Find the encounter by email (since parent_email matches the signup email)
-            const { data: encounter } = affiliateInfo.owner_user_id
-              ? await supabase
-                  .from("encounters")
-                  .select("id")
-                  .eq("affiliate_id", affiliateInfo.owner_user_id)
-                  .eq("parent_email", email)
-                  .order("created_at", { ascending: false })
-                  .maybeSingle()
-              : { data: null };
-            const leadData = {
-              trackingSource: tracking_source,
-              trackingCampaign: tracking_campaign,
-              leadType: 'parent',
-              onboardingType,
-              fullName,
-              affiliateType: affiliateInfo.affiliate_type,
-              affiliateName: affiliateInfo.affiliate_name,
-              productionLinkCode: affiliateInfo.production_link_code,
-            };
-            if (encounter) {
-              console.log("✅ Found encounter for parent email:", email, "encounter_id:", encounter.id);
-              // Create a lead linked to this encounter
-              await storage.createLead(affiliateInfo.owner_user_id, user.id, encounter.id, leadData);
-              console.log("✅ Lead created (with encounter) for affiliate:", affiliateInfo.affiliate_id, "encounter_id:", encounter.id);
-            } else {
-              console.log("ℹ️  No prior encounter found for parent email:", email);
-              // Still create a lead - parent is now a lead even without prior encounter
-              await storage.createLead(affiliateInfo.owner_user_id, user.id, undefined, leadData);
-              console.log("✅ Lead created (new signup) for affiliate:", affiliateInfo.affiliate_id, "user_id:", user.id);
-            }
-          } else {
-            console.warn("⚠️  Production link not found:", effectiveAffiliateCode);
-          }
-        } catch (error) {
-          console.error("❌ Error processing affiliate code:", error);
-          // Don't fail the signup if affiliate processing fails
-        }
-      }
-
-      // If no affiliate code (organic signup), still create a lead to track them
-      if (!effectiveAffiliateCode) {
-        try {
-          console.log("📊 Organic signup - creating organic lead");
-          const onboardingType = 'commercial';
-          const fullName = `${first_name} ${last_name}`.trim() || email.split("@")[0];
-          const leadData = {
-            trackingSource: tracking_source || 'organic',
-            trackingCampaign: tracking_campaign || null,
-            leadType: 'parent',
-            onboardingType,
-            fullName,
-          };
-          await storage.createLead(null, user.id, null, leadData);
-          console.log("✅ Organic lead created for user:", user.id);
-        } catch (error) {
-          console.error("❌ Error creating organic lead:", error);
-          // Don't fail signup if organic lead creation fails
-        }
       }
 
       // Set session with user data and token
@@ -813,25 +682,11 @@ export async function setupAuth(app: Express) {
             tracking_campaign,
           );
         }
-        if (existingUser.role === "parent" && effectiveAffiliateCode) {
-          const affiliateInfo = await storage.getAffiliateByCode(effectiveAffiliateCode.toUpperCase());
-          if (affiliateInfo) {
-            const existingLead = await storage.getFirstProductionLeadByUser(user_id);
-            if (existingLead?.production_link_code && existingLead.production_link_code !== affiliateInfo.production_link_code) {
-              return res.status(409).json({ message: "Existing parent Production Link attribution cannot be reassigned" });
-            }
-            if (existingLead) {
-              return res.json({ role: existingUser.role, message: "User already exists" });
-            }
-            await storage.createLead(affiliateInfo.owner_user_id, user_id, null, {
-              trackingSource: tracking_source,
-              trackingCampaign: tracking_campaign,
-              leadType: "parent",
-              productionLinkCode: affiliateInfo.production_link_code,
-              affiliateType: affiliateInfo.affiliate_type,
-              affiliateName: affiliateInfo.affiliate_name,
-            });
-          }
+        if (existingUser.role === "parent") {
+          await captureDemandParent(serverSupabase, storage, {
+            userId: user_id, fullName: existingUser.name || email, email,
+            code: effectiveAffiliateCode, source: tracking_source, campaign: tracking_campaign,
+          });
         }
         return res.json({ role: existingUser.role, message: "User already exists" });
       }
@@ -869,28 +724,11 @@ export async function setupAuth(app: Express) {
 
       console.log("✅ User profile created successfully");
 
-      // Handle affiliate code for parents
-      if (role === "parent" && effectiveAffiliateCode) {
-        try {
-          const affiliateInfo = await storage.getAffiliateByCode(effectiveAffiliateCode.toUpperCase());
-
-          if (affiliateInfo) {
-            console.log("🔗 Creating lead for parent with production link:", effectiveAffiliateCode);
-            await storage.createLead(affiliateInfo.owner_user_id, user_id, null, {
-              trackingSource: tracking_source,
-              trackingCampaign: tracking_campaign,
-              leadType: "parent",
-              productionLinkCode: affiliateInfo.production_link_code,
-              affiliateType: affiliateInfo.affiliate_type,
-              affiliateName: affiliateInfo.affiliate_name,
-            });
-          } else {
-            console.warn("⚠️  Affiliate code not found:", affiliate_code);
-          }
-        } catch (error) {
-          console.error("Error creating lead for OAuth parent:", error);
-          // Don't fail the whole request
-        }
+      if (role === "parent") {
+        await captureDemandParent(serverSupabase, storage, {
+          userId: user_id, fullName: `${first_name || ""} ${last_name || ""}`.trim() || email, email,
+          code: effectiveAffiliateCode, source: tracking_source, campaign: tracking_campaign,
+        });
       }
 
       res.json({ 
