@@ -7,16 +7,32 @@ on:
     paths:
       - .github/workflows/tps-proof-ci.yml
       - client/src/components/tutor/IntroSessionDrillRunner.tsx
+      - client/src/components/tutor/StudentTopicConditioningDialog.tsx
       - client/src/components/tutor/topicConditioningEngine.ts
       - client/src/pages/client/parent/dashboard.tsx
       - client/src/pages/responseconditioningsystem/transformation-phases/time-pressure-stability.tsx
       - server/index.ts
+      - server/routes.ts
       - server/routes/capabilityTpsTimerRuntime.ts
+      - server/responseIntegrityEvidenceLedger.ts
       - shared/capabilityTpsTimerContract.ts
       - shared/capabilityTpsTimerContract.test.ts
       - shared/capabilityTpsTimerRuntime.ts
       - shared/capabilityTpsTimerRuntime.test.ts
       - shared/responseIntegrityEvidenceContractV2.ts
+      - shared/responseIntegrityEvidenceContractV2.test.ts
+      - shared/inheritedLayerVerification.ts
+      - shared/inheritedLayerVerification.test.ts
+      - shared/responseIntegrityEvidenceCorrection.ts
+      - shared/responseIntegrityEvidenceCorrection.test.ts
+      - shared/responseIntegritySupportValidity.ts
+      - shared/responseIntegritySupportValidity.test.ts
+      - shared/responseIntegrityDrillRegistry.ts
+      - shared/responseIntegrityDrillRegistry.test.ts
+      - shared/responseIntegrityEvidenceLedger.ts
+      - shared/responseIntegrityEvidenceLedger.test.ts
+      - shared/responseSnapshot.ts
+      - shared/responseSnapshot.test.ts
       - shared/topicConditioningEngine.ts
       - shared/topicConditioningEngine.test.ts
       - shared/adaptiveDiagnosis.ts
@@ -29,14 +45,23 @@ on:
       - main
     paths:
       - client/src/components/tutor/IntroSessionDrillRunner.tsx
+      - client/src/components/tutor/StudentTopicConditioningDialog.tsx
       - client/src/components/tutor/topicConditioningEngine.ts
       - client/src/pages/client/parent/dashboard.tsx
       - client/src/pages/responseconditioningsystem/transformation-phases/time-pressure-stability.tsx
       - server/index.ts
+      - server/routes.ts
       - server/routes/capabilityTpsTimerRuntime.ts
+      - server/responseIntegrityEvidenceLedger.ts
       - shared/capabilityTpsTimerContract.ts
       - shared/capabilityTpsTimerRuntime.ts
       - shared/responseIntegrityEvidenceContractV2.ts
+      - shared/inheritedLayerVerification.ts
+      - shared/responseIntegrityEvidenceCorrection.ts
+      - shared/responseIntegritySupportValidity.ts
+      - shared/responseIntegrityDrillRegistry.ts
+      - shared/responseIntegrityEvidenceLedger.ts
+      - shared/responseSnapshot.ts
       - shared/topicConditioningEngine.ts
       - shared/adaptiveDiagnosis.ts
       - migrations/2026-09-17_add_tps_timer_calibration_and_contract_store.sql
@@ -59,20 +84,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run TPS and state-engine tests
+      - name: Run TPS closeout tests
         run: |
           npx tsx --test \
             shared/capabilityTpsTimerContract.test.ts \
             shared/capabilityTpsTimerRuntime.test.ts \
             shared/topicConditioningEngine.test.ts \
-            shared/adaptiveDiagnosis.test.ts
+            shared/adaptiveDiagnosis.test.ts \
+            shared/responseIntegrityEvidenceContractV2.test.ts \
+            shared/inheritedLayerVerification.test.ts \
+            shared/responseIntegrityEvidenceCorrection.test.ts \
+            shared/responseIntegritySupportValidity.test.ts \
+            shared/responseSnapshot.test.ts \
+            shared/responseIntegrityDrillRegistry.test.ts \
+            shared/responseIntegrityEvidenceLedger.test.ts
 
-      - name: Type-check TPS runtime surface
+      - name: Type-check TPS and evidence runtime surface
         run: |
           npx tsc --noEmit --pretty false --skipLibCheck 2>&1 | tee /tmp/tps-proof-tsc.txt || true
-          if grep -E 'client/src/components/tutor/IntroSessionDrillRunner.tsx|client/src/components/tutor/topicConditioningEngine.ts|client/src/pages/client/parent/dashboard.tsx|client/src/pages/responseconditioningsystem/transformation-phases/time-pressure-stability.tsx|server/routes/capabilityTpsTimerRuntime.ts|shared/capabilityTpsTimerContract.ts|shared/capabilityTpsTimerRuntime.ts|shared/responseIntegrityEvidenceContractV2.ts|shared/topicConditioningEngine.ts|shared/adaptiveDiagnosis.ts' /tmp/tps-proof-tsc.txt; then
+          if grep -E 'client/src/components/tutor/IntroSessionDrillRunner.tsx|client/src/components/tutor/StudentTopicConditioningDialog.tsx|client/src/components/tutor/topicConditioningEngine.ts|client/src/pages/client/parent/dashboard.tsx|client/src/pages/responseconditioningsystem/transformation-phases/time-pressure-stability.tsx|server/routes.ts|server/routes/capabilityTpsTimerRuntime.ts|server/responseIntegrityEvidenceLedger.ts|shared/capabilityTpsTimerContract.ts|shared/capabilityTpsTimerRuntime.ts|shared/responseIntegrityEvidenceContractV2.ts|shared/inheritedLayerVerification.ts|shared/responseIntegrityEvidenceCorrection.ts|shared/responseIntegritySupportValidity.ts|shared/responseIntegrityDrillRegistry.ts|shared/responseIntegrityEvidenceLedger.ts|shared/responseSnapshot.ts|shared/topicConditioningEngine.ts|shared/adaptiveDiagnosis.ts' /tmp/tps-proof-tsc.txt; then
             exit 1
           fi
+
+      - name: Build backend
+        run: npm run build:backend
+
+      - name: Build frontend
+        run: npm run build:frontend
 
       - name: Assert TPS doctrine/runtime closeout
         run: |
