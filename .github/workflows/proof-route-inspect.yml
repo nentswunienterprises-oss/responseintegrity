@@ -15,11 +15,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect inherited verification launch anchors
+      - name: Inspect training persistence anchors
         run: |
-          echo '=== training launch function context ==='
-          grep -n -B35 -A55 'mode=training&topic' client/src/components/tutor/StudentTopicConditioningDialog.tsx
-          echo '=== topic row construction persisted state context ==='
-          grep -n -B25 -A90 'persistedEntries.forEach' client/src/components/tutor/StudentTopicConditioningDialog.tsx
-          echo '=== topic-conditioning GET ==='
-          sed -n '27830,27935p' server/routes.ts
+          echo '=== route imports around topic conditioning engine ==='
+          grep -n -B8 -A18 'topicConditioningEngine' server/routes.ts | head -80
+          echo '=== computeTrainingSessionSummary full helper ==='
+          sed -n '4355,4505p' server/routes.ts
+          echo '=== training route start through summary ==='
+          sed -n '6995,7285p' server/routes.ts
+          echo '=== training persistence continuation ==='
+          sed -n '7285,7585p' server/routes.ts
+          echo '=== runner submit payload + result handling ==='
+          sed -n '1870,2105p' client/src/components/tutor/IntroSessionDrillRunner.tsx
