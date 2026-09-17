@@ -1,0 +1,1171 @@
+=== routes report functions ===
+5805-                  .select("status")
+5806-                  .eq("assigned_tutor_id", tutorId)
+5807-                  .eq("user_id", parentId)
+5808-                  .eq("status", "awaiting_tutor_acceptance")
+5809-                  .maybeSingle();
+5810-                enrollmentForStudent = enrollmentByParent;
+5811-              }
+5812-            }
+5813-
+5814-            return enrollmentForStudent?.status !== "awaiting_tutor_acceptance";
+5815-          };
+5816-
+5817:          const createWeeklyStructuredDataFromDrills = (drillRows: any[]) => {
+5818-            const deterministicSessions = mapDeterministicSessionsForReport(drillRows);
+5819-            const groupedSessions = aggregateDeterministicSessions(drillRows || []);
+5820-
+5821-            if (!deterministicSessions.length) return null;
+5822-
+5823-            const sorted = [...deterministicSessions].sort(
+5824-              (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+5825-            );
+5826-
+5827-            const phaseRank = (phase: string) => {
+5828-              if (phase === "Clarity") return 0;
+5829-              if (phase === "Structured Execution") return 1;
+--
+6104-                .eq("tutor_id", payload.tutor_id)
+6105-                .eq("student_id", payload.student_id)
+6106-                .eq("report_type", payload.report_type)
+6107-                .eq("report_window_key", reportWindowKey)
+6108-                .maybeSingle();
+6109-
+6110-              if (!existingError && existing) return { ...existing, created: false };
+6111-            }
+6112-
+6113-            throw error;
+6114-          };
+6115-
+6116:          const insertWeeklyReport = async ({
+6117-            tutorId,
+6118-            studentId,
+6119-            parentId,
+6120-            structuredData,
+6121-          }: {
+6122-            tutorId: string;
+6123-            studentId: string;
+6124-            parentId: string;
+6125-            structuredData: any;
+6126-          }) => {
+6127-            const weekNumber = getIsoWeekNumber(new Date(structuredData.weekStartDate));
+6128-            const reportWindowKey = buildDeterministicReportWindowKey("weekly", structuredData);
+--
+6137-                summary: JSON.stringify(structuredData),
+6138-                topics_learned: Array.isArray(structuredData.topicsWorkedOn) ? structuredData.topicsWorkedOn.join(", ") : "",
+6139-                strengths: Array.isArray(structuredData.whatChanged) ? structuredData.whatChanged.join(" | ") : "",
+6140-                areas_for_growth: Array.isArray(structuredData.breakdownPattern) ? structuredData.breakdownPattern.join(" | ") : "",
+6141-                boss_battles_completed: Number(structuredData.bossBattlesCompletedThisWeek || 0),
+6142-                solutions_unlocked: Number(structuredData.sessionsCompletedThisWeek || 0),
+6143-                confidence_growth: null,
+6144-                next_steps: Array.isArray(structuredData.nextMove) ? structuredData.nextMove.join(" | ") : "",
+6145-                sent_at: new Date().toISOString(),
+6146-              }, reportWindowKey);
+6147-          };
+6148-
+6149:          const insertMonthlyReport = async ({
+6150-            tutorId,
+6151-            studentId,
+6152-            parentId,
+6153-            structuredData,
+6154-          }: {
+6155-            tutorId: string;
+6156-            studentId: string;
+6157-            parentId: string;
+6158-            structuredData: any;
+6159-          }) => {
+6160-            const monthName = formatMonthName(new Date(structuredData.monthStartDate));
+6161-            const reportWindowKey = buildDeterministicReportWindowKey("monthly", structuredData);
+--
+6170-                summary: JSON.stringify(structuredData),
+6171-                topics_learned: Array.isArray(structuredData.topicsConditioned) ? structuredData.topicsConditioned.join(", ") : "",
+6172-                strengths: Array.isArray(structuredData.whatBecameStronger) ? structuredData.whatBecameStronger.join(" | ") : "",
+6173-                areas_for_growth: Array.isArray(structuredData.breakdownPattern) ? structuredData.breakdownPattern.join(" | ") : "",
+6174-                boss_battles_completed: 0,
+6175-                solutions_unlocked: Number(structuredData.totalSessionsCompletedThisMonth || 0),
+6176-                confidence_growth: null,
+6177-                next_steps: Array.isArray(structuredData.nextMonthMove) ? structuredData.nextMonthMove.join(" | ") : "",
+6178-                sent_at: new Date().toISOString(),
+6179-              }, reportWindowKey);
+6180-          };
+6181-
+6182:          const maybeAutoSendDeterministicReports = async (studentId: string, tutorId: string) => {
+6183-            const student = await storage.getStudent(studentId);
+6184-            if (!student || student.tutorId !== tutorId) return;
+6185-
+6186-            const parentId = await resolveParentIdForStudent(student, tutorId);
+6187-            if (!parentId) return;
+6188-
+6189-            const { data: drillRows, error: drillRowsError } = await supabase
+6190-              .from("intro_session_drills")
+6191-              .select("id, drill, submitted_at, scheduled_session_id")
+6192-              .eq("student_id", studentId)
+6193-              .eq("tutor_id", tutorId)
+6194-              .order("submitted_at", { ascending: true });
+--
+6232-            const monthlyCoveredSessionIds = coveredSessionIds(existingMonthlyReports);
+6233-            const weeklyPending = anchoredDrillRows.filter(
+6234-              (row: any) => !weeklyCoveredSessionIds.has(resolveReportSessionGroupId(row))
+6235-            );
+6236-            const monthlyPending = anchoredDrillRows.filter(
+6237-              (row: any) => !monthlyCoveredSessionIds.has(resolveReportSessionGroupId(row))
+6238-            );
+6239-
+6240-            const weeklyWindows = buildSessionAwareWeeklyWindows(weeklyPending);
+6241-            let weeklyReportsCreated = 0;
+6242-            if (weeklyWindows.length > 0) {
+6243-              for (const weeklyWindow of weeklyWindows) {
+6244:                const structuredData = createWeeklyStructuredDataFromDrills(weeklyWindow);
+6245-                if (structuredData) {
+6246:                  const weeklyReport = await insertWeeklyReport({ tutorId, studentId, parentId, structuredData });
+6247-                  if (weeklyReport.created !== false) {
+6248-                    weeklyReportsCreated += 1;
+6249-                  }
+6250-                }
+6251-              }
+6252-            }
+6253-
+6254-            if (weeklyReportsCreated > 0) {
+6255-              await safeSendPush(
+6256-                parentId,
+6257-                {
+6258-                  title: weeklyReportsCreated === 1 ? "Conditioning update available" : "Conditioning updates available",
+--
+6263-                  tag: "parent-weekly-report-catch-up",
+6264-                },
+6265-                "parent weekly report catch-up",
+6266-              );
+6267-            }
+6268-
+6269-            const monthlyWindows = buildSessionAwareMonthlyWindows(monthlyPending);
+6270-            let monthlyReportsCreated = 0;
+6271-            if (monthlyWindows.length > 0) {
+6272-              for (const monthlyWindow of monthlyWindows) {
+6273-                const structuredData = createMonthlyStructuredDataFromDrills(monthlyWindow);
+6274-                if (structuredData) {
+6275:                  const monthlyReport = await insertMonthlyReport({ tutorId, studentId, parentId, structuredData });
+6276-                  if (monthlyReport.created !== false) {
+6277-                    monthlyReportsCreated += 1;
+6278-                  }
+6279-                }
+6280-              }
+6281-            }
+6282-
+6283-            if (monthlyReportsCreated > 0) {
+6284-              await safeSendPush(
+6285-                parentId,
+6286-                {
+6287-                  title: monthlyReportsCreated === 1 ? "Eight-session report available" : "Eight-session reports available",
+--
+6640-              };
+6641-
+6642-              topicConditioningStore.topic = normalizedIntroTopic;
+6643-              topicConditioningStore.entry_phase = diagnosisSummary.phase;
+6644-              topicConditioningStore.stability = diagnosisSummary.stability;
+6645-              topicConditioningStore.lastUpdatedAt = nowIso;
+6646-              topicConditioningStore.topics = topicsStore;
+6647-              conceptMastery.topicConditioning = topicConditioningStore;
+6648-
+6649-              await storage.updateStudent(studentId, { conceptMastery });
+6650-
+6651-              try {
+6652:                await maybeAutoSendDeterministicReports(studentId, tutorId);
+6653-              } catch (autoReportError) {
+6654-                console.error("Auto report generation failed after intro drill:", autoReportError);
+6655-              }
+6656-
+6657-              if (diagnosisSessionKind === "intro" && scheduledSession) {
+6658-                if (isEmergencyDbMode()) {
+6659-                  await pool.query(
+6660-                    `UPDATE public.scheduled_sessions
+6661-                        SET status = 'completed', attendance_status = 'both_joined',
+6662-                            recording_status = 'manual_not_tracked',
+6663-                            transcript_status = 'manual_not_tracked', updated_at = NOW()
+6664-                      WHERE id = $1 AND tutor_id = $2`,
+--
+7450-                    updated_at: new Date().toISOString(),
+7451-                  })
+7452-                  .eq("id", scheduledSessionRecordId);
+7453-                await supabase
+7454-                  .from("training_session_runs")
+7455-                  .update({
+7456-                    status: "submitted",
+7457-                    submitted_at: new Date().toISOString(),
+7458-                    updated_at: new Date().toISOString(),
+7459-                  })
+7460-                  .eq("id", verificationRunId);
+7461-                try {
+7462:                  await maybeAutoSendDeterministicReports(studentId, tutorId);
+7463-                } catch (autoReportError) {
+7464-                  console.error("Auto report generation failed after inherited-layer verification:", autoReportError);
+7465-                }
+7466-              }
+7467-
+7468-              res.json({
+7469-                success: true,
+7470-                id: inserted.id,
+7471-                trainingTopic: normalizedTopic,
+7472-                summary: verificationSummary,
+7473-                scoring,
+7474-                responseSnapshot,
+--
+7832-                  [JSON.stringify(conceptMastery), studentId, tutorId],
+7833-                );
+7834-              } else {
+7835-                await storage.updateStudent(studentId, { conceptMastery });
+7836-              }
+7837-
+7838-              // Store session summary
+7839-              const sessionDuration = 0; // Could be calculated if start/end times provided
+7840-              const topicsTouched = Array.from(new Set(sessionDrills.map(d => d.trainingTopic)));
+7841-
+7842-              if (!isEmergencyDbMode()) {
+7843-                try {
+7844:                  await maybeAutoSendDeterministicReports(studentId, tutorId);
+7845-                } catch (autoReportError) {
+7846-                  console.error("Auto report generation failed after training session:", autoReportError);
+7847-                }
+7848-              }
+7849-
+7850-              const scoring = drillResults.flatMap((result) =>
+7851-                Array.isArray(result.scoring)
+7852-                  ? result.scoring.map((row) => ({ ...row, topic: result.topic }))
+7853-                  : []
+7854-              );
+7855-
+7856-              if (scheduledSession) {
+--
+14219-        }
+14220-        if (weekEndDate) {
+14221-          drillQuery = drillQuery.lte("submitted_at", `${weekEndDate}T23:59:59.999Z`);
+14222-        }
+14223-
+14224-        const { data: drillRows, error: drillRowsError } = await drillQuery;
+14225-        if (drillRowsError) throw drillRowsError;
+14226-
+14227-        if (!drillRows || drillRows.length === 0) {
+14228-          return res.status(400).json({ message: "No drill sessions found for the selected week range" });
+14229-        }
+14230-
+14231:        const structuredData = createWeeklyStructuredDataFromDrills(drillRows);
+14232-        if (!structuredData) {
+14233-          return res.status(400).json({ message: "Unable to generate weekly report from drill data" });
+14234-        }
+14235-        structuredData.internalWeeklyTutorNote = String(internalWeeklyTutorNote || "");
+14236-
+14237:        const inserted = await insertWeeklyReport({
+14238-          tutorId,
+14239-          studentId,
+14240-          parentId,
+14241-          structuredData,
+14242-        });
+14243-
+14244-        res.json({
+14245-          ...inserted,
+14246-          structuredData,
+14247-        });
+14248-      } catch (error) {
+14249-        console.error("Error creating weekly report:", error);
+--
+14295-        if (drillRowsError) throw drillRowsError;
+14296-
+14297-        if (!drillRows || drillRows.length === 0) {
+14298-          return res.status(400).json({ message: "No drill sessions found for the selected month range" });
+14299-        }
+14300-
+14301-        const structuredData = createMonthlyStructuredDataFromDrills(drillRows);
+14302-        if (!structuredData) {
+14303-          return res.status(400).json({ message: "Unable to generate monthly report from drill data" });
+14304-        }
+14305-        (structuredData as any).internalMonthlyTutorNote = String(internalMonthlyTutorNote || "");
+14306-
+14307:        const inserted = await insertMonthlyReport({
+14308-          tutorId,
+14309-          studentId,
+14310-          parentId,
+14311-          structuredData,
+14312-        });
+14313-
+14314-        res.json({
+14315-          ...inserted,
+14316-          structuredData,
+14317-        });
+14318-      } catch (error) {
+14319-        console.error("Error creating monthly report:", error);
+=== training route ===
+7455-                  .update({
+7456-                    status: "submitted",
+7457-                    submitted_at: new Date().toISOString(),
+7458-                    updated_at: new Date().toISOString(),
+7459-                  })
+7460-                  .eq("id", verificationRunId);
+7461-                try {
+7462-                  await maybeAutoSendDeterministicReports(studentId, tutorId);
+7463-                } catch (autoReportError) {
+7464-                  console.error("Auto report generation failed after inherited-layer verification:", autoReportError);
+7465-                }
+7466-              }
+7467-
+7468-              res.json({
+7469-                success: true,
+7470-                id: inserted.id,
+7471-                trainingTopic: normalizedTopic,
+7472-                summary: verificationSummary,
+7473-                scoring,
+7474-                responseSnapshot,
+7475-              });
+7476-            } catch (err) {
+7477-              if (emergencyDbClient) {
+7478-                try {
+7479-                  await emergencyDbClient.query("ROLLBACK");
+7480-                } finally {
+7481-                  emergencyDbClient.release();
+7482-                  emergencyDbClient = null;
+7483-                }
+7484-              }
+7485-              console.error("Exception in inherited-layer verification submission:", err);
+7486-              res.status(500).json({ message: "Internal server error" });
+7487-            }
+7488-          });
+7489-
+7490:          app.post("/api/tutor/training-session-drill", isAuthenticated, requireRole(["tutor"]), async (req: Request, res: Response) => {
+7491-            let emergencyDbClient: any = null;
+7492-            try {
+7493-              const tutorId = (req as any).dbUser.id;
+7494-              const { studentId, sessionDrills, scheduledSessionId } = req.body;
+7495-
+7496-              if (!studentId || !Array.isArray(sessionDrills) || sessionDrills.length === 0) {
+7497-                return res.status(400).json({ message: "Missing or invalid studentId or sessionDrills array" });
+7498-              }
+7499-
+7500-              const student = await storage.getStudent(studentId);
+7501-              if (!student || student.tutorId !== tutorId) {
+7502-                return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+7503-              }
+7504-
+7505-              const assignmentAccepted = await isTutorAssignmentAcceptedForStudent(student, tutorId);
+7506-              if (!assignmentAccepted) {
+7507-                return res.status(403).json({ message: "Accept this assignment before running drills for this student." });
+7508-              }
+7509-
+7510-              const operationalMode = await getTutorOperationalMode(tutorId);
+7511-              let scheduledSession: any = null;
+7512-
+7513-              if (isLiveSchedulingMode(operationalMode) || operationalMode === "training" || operationalMode === "sandbox") {
+7514-                const { session: resolvedScheduledSession, error: scheduledSessionError } = await resolveTutorScheduledSession(
+7515-                  tutorId,
+7516-                  studentId,
+7517-                  "training",
+7518-                  typeof scheduledSessionId === "string" ? scheduledSessionId : null
+7519-                );
+7520-                if (scheduledSessionError) {
+7521-                  return res.status(500).json({ message: "Failed to validate training session context" });
+7522-                }
+7523-                if (!resolvedScheduledSession) {
+7524-                  return res.status(400).json({ message: "A Response Integrity training lesson must be attached before drill submission." });
+7525-                }
+=== updateStudent impl ===
+1202-        "SELECT * FROM public.students WHERE tutor_id = $1 ORDER BY created_at ASC",
+1203-        [tutorId],
+1204-      );
+1205-      return result.rows
+1206-        .filter((student: any) => student.id && String(student.id).trim() !== "")
+1207-        .map((student: any) => transformSnakeToCamel(student) as Student);
+1208-    }
+1209-    const { data } = await supabase.from("students").select("*").eq("tutor_id", tutorId);
+1210-    if (!data) return [];
+1211-    return (data ?? [])
+1212-      .filter(student => student.id && student.id.trim() !== "")
+1213-      .map(student => transformSnakeToCamel(student));
+1214-  }
+1215-
+1216-  async updateStudentProgress(id: string, sessionCount: number, confidenceDelta: number): Promise<void> {
+1217-    const student = await this.getStudent(id);
+1218-    if (!student) return;
+1219-    await supabase.from("students").update({ session_progress: sessionCount, updated_at: new Date() }).eq("id", id);
+1220-  }
+1221-
+1222:  async updateStudent(id: string, data: Partial<Student>): Promise<Student | undefined> {
+1223-    // Convert camelCase keys to snake_case for database
+1224-    const dbData: any = {};
+1225-    for (const [key, value] of Object.entries(data)) {
+1226-      if (key === 'id' || key === 'createdAt') continue; // Skip readonly fields
+1227-      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+1228-      dbData[snakeKey] = value;
+1229-    }
+1230-
+1231-    if (isEmergencyDbMode()) {
+1232-      const allowedColumns = new Set([
+1233-        "name", "grade", "session_progress", "concept_mastery", "confidence_score",
+1234-        "parent_contact", "personal_profile", "emotional_insights", "academic_diagnosis",
+1235-        "identity_sheet", "identity_sheet_completed_at", "tutor_id", "parent_id", "parent_enrollment_id",
+1236-      ]);
+1237-      const entries = Object.entries(dbData).filter(([key]) => allowedColumns.has(key));
+1238-      if (entries.length === 0) return this.getStudent(id);
+1239-      const assignments = entries.map(([key], index) => `"${key}" = $${index + 1}`).join(", ");
+1240-      const values = entries.map(([, value]) => value);
+1241-      values.push(id);
+1242-      const result = await pool.query(
+=== tutor assignment impl ===
+992-      tutor_id: assignment.tutorId,
+993-      pod_id: assignment.podId,
+994-      student_count: assignment.studentCount || 0,
+995-      certification_status: assignment.certificationStatus,
+996-      operational_mode: assignment.operationalMode || "training",
+997-    };
+998-    const { data } = await supabase.from("tutor_assignments").insert(dbAssignment).select().single();
+999-    if (!data) throw new Error("Failed to create tutor assignment");
+1000-    // Transform snake_case to camelCase
+1001-    return {
+1002-      id: data.id,
+1003-      tutorId: data.tutor_id,
+1004-      podId: data.pod_id,
+1005-      studentCount: data.student_count,
+1006-      certificationStatus: data.certification_status,
+1007-      operationalMode: data.operational_mode,
+1008-      createdAt: data.created_at,
+1009-    };
+1010-  }
+1011-
+1012:  async getTutorAssignment(tutorId: string): Promise<(TutorAssignment & { pod: Pod }) | undefined> {
+1013-    console.log("🔍 Looking for tutor assignment for tutorId:", tutorId);
+1014-    if (isEmergencyDbMode()) {
+1015-      const assignmentResult = await pool.query(
+1016-        `SELECT id, tutor_id, pod_id, student_count, certification_status, operational_mode, created_at
+1017-           FROM public.tutor_assignments
+1018-          WHERE tutor_id = $1
+1019-          LIMIT 1`,
+1020-        [tutorId],
+1021-      );
+1022-      const assignment = assignmentResult.rows[0];
+1023-      if (!assignment) return undefined;
+1024-
+1025-      const podResult = await pool.query(
+1026-        `SELECT id, pod_name, pod_type, vehicle, phase, td_id, status, start_date, end_date, deleted_at, created_at
+1027-           FROM public.pods
+1028-          WHERE id = $1
+1029-          LIMIT 1`,
+1030-        [assignment.pod_id],
+1031-      );
+1032-      const pod = podResult.rows[0];
+=== timer contract supersession ===
+106-  return (data || []) as StoredTpsDrillRow[];
+107-};
+108-
+109-type TimerContractRow = {
+110-  contract_id: string;
+111-  contract_version: number;
+112-  conditioning_epoch_key: string;
+113-  student_id: string;
+114-  topic: string;
+115-  topic_key: string;
+116-  source: "historical_untimed" | "calibration";
+117-  baseline_source_phase: "Structured Execution" | "pre_tps_calibration";
+118-  baseline_seconds: number;
+119-  baseline_sample_ids: string[];
+120-  baseline_sample_elapsed_ms: number[];
+121-  structure_under_timer_seconds: number;
+122-  repeated_timed_execution_seconds: number;
+123-  full_constraint_seconds: number;
+124-  calibration_batch_id?: string | null;
+125-  created_by_tutor_id: string;
+126:  supersedes_contract_id?: string | null;
+127-  created_at?: string;
+128-};
+129-
+130-type PersistedTimerContract = TpsTimerContractV1 & {
+131-  contractId: string;
+132-  conditioningEpochKey: string;
+133-  createdAt?: string;
+134-  supersedesContractId?: string | null;
+135-};
+136-
+137-const rowToContract = (row: TimerContractRow): PersistedTimerContract => ({
+138-  version: 1,
+139-  contractId: row.contract_id,
+140-  conditioningEpochKey: row.conditioning_epoch_key,
+141-  studentId: row.student_id,
+142-  topic: row.topic,
+143-  baselineSource: row.source === "calibration" ? "calibration" : "historical_eligible",
+144-  baselineSourcePhase: row.baseline_source_phase,
+145-  baselineSampleRecordIds: Array.isArray(row.baseline_sample_ids) ? row.baseline_sample_ids : [],
+146-  baselineSampleElapsedMs: Array.isArray(row.baseline_sample_elapsed_ms) ? row.baseline_sample_elapsed_ms : [],
+147-  baselineSeconds: Number(row.baseline_seconds),
+148-  structureUnderTimerSeconds: Number(row.structure_under_timer_seconds),
+149-  repeatedTimedExecutionSeconds: Number(row.repeated_timed_execution_seconds),
+150-  fullConstraintSeconds: Number(row.full_constraint_seconds),
+151-  createdAt: row.created_at,
+152:  supersedesContractId: row.supersedes_contract_id || null,
+153-});
+154-
+155-const loadLatestTimerContract = async (
+156-  studentId: string,
+157-  topicKey: string,
+158-  conditioningEpochKey: string,
+159-): Promise<PersistedTimerContract | null> => {
+160-  if (isEmergencyDbMode()) {
+161-    const result = await pool.query(
+162-      `SELECT *
+163:         FROM public.capability_tps_timer_contracts
+164-        WHERE student_id = $1 AND topic_key = $2 AND conditioning_epoch_key = $3
+165-        ORDER BY created_at DESC
+166-        LIMIT 1`,
+167-      [studentId, topicKey, conditioningEpochKey],
+168-    );
+169-    return result.rows?.[0] ? rowToContract(result.rows[0]) : null;
+170-  }
+171-
+172-  const { data, error } = await supabase
+173:    .from("capability_tps_timer_contracts")
+174-    .select("*")
+175-    .eq("student_id", studentId)
+176-    .eq("topic_key", topicKey)
+177-    .eq("conditioning_epoch_key", conditioningEpochKey)
+178-    .order("created_at", { ascending: false })
+179-    .limit(1)
+180-    .maybeSingle();
+181-  if (error) throw new Error(`Failed to load TPS Timer Contract: ${error.message}`);
+182-  return data ? rowToContract(data as TimerContractRow) : null;
+183-};
+184-
+185:const insertTimerContract = async ({
+186-  contract,
+187-  conditioningEpochKey,
+188-  tutorId,
+189-  source,
+190-  calibrationBatchId = null,
+191-  supersedesContractId = null,
+192-}: {
+193-  contract: TpsTimerContractV1;
+194-  conditioningEpochKey: string;
+195-  tutorId: string;
+196-  source: "historical_untimed" | "calibration";
+197-  calibrationBatchId?: string | null;
+198-  supersedesContractId?: string | null;
+199-}): Promise<PersistedTimerContract> => {
+200-  const contractId = randomUUID();
+201-  const row = {
+202-    contract_id: contractId,
+203-    contract_version: contract.version,
+204-    conditioning_epoch_key: conditioningEpochKey,
+205-    student_id: contract.studentId,
+206-    topic: contract.topic,
+207-    topic_key: topicKeyFor(contract.topic),
+208-    source,
+209-    baseline_source_phase: contract.baselineSourcePhase,
+210-    baseline_seconds: contract.baselineSeconds,
+211-    baseline_sample_ids: contract.baselineSampleRecordIds,
+212-    baseline_sample_elapsed_ms: contract.baselineSampleElapsedMs,
+213-    structure_under_timer_seconds: contract.structureUnderTimerSeconds,
+214-    repeated_timed_execution_seconds: contract.repeatedTimedExecutionSeconds,
+215-    full_constraint_seconds: contract.fullConstraintSeconds,
+216-    calibration_batch_id: calibrationBatchId,
+217-    created_by_tutor_id: tutorId,
+218:    supersedes_contract_id: supersedesContractId,
+219-    created_at: new Date().toISOString(),
+220-  };
+221-
+222-  if (isEmergencyDbMode()) {
+223-    const inserted = await pool.query(
+224:      `INSERT INTO public.capability_tps_timer_contracts
+225-        (contract_id, contract_version, conditioning_epoch_key, student_id, topic, topic_key,
+226-         source, baseline_source_phase, baseline_seconds, baseline_sample_ids,
+227-         baseline_sample_elapsed_ms, structure_under_timer_seconds,
+228-         repeated_timed_execution_seconds, full_constraint_seconds, calibration_batch_id,
+229:         created_by_tutor_id, supersedes_contract_id, created_at)
+230-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12,$13,$14,$15,$16,$17,$18)
+231-       RETURNING *`,
+232-      [
+233-        row.contract_id,
+234-        row.contract_version,
+235-        row.conditioning_epoch_key,
+236-        row.student_id,
+237-        row.topic,
+238-        row.topic_key,
+239-        row.source,
+240-        row.baseline_source_phase,
+241-        row.baseline_seconds,
+242-        JSON.stringify(row.baseline_sample_ids),
+243-        JSON.stringify(row.baseline_sample_elapsed_ms),
+244-        row.structure_under_timer_seconds,
+245-        row.repeated_timed_execution_seconds,
+246-        row.full_constraint_seconds,
+247-        row.calibration_batch_id,
+248-        row.created_by_tutor_id,
+249:        row.supersedes_contract_id,
+250-        row.created_at,
+251-      ],
+252-    );
+253-    return rowToContract(inserted.rows[0]);
+254-  }
+255-
+256-  const { data, error } = await supabase
+257:    .from("capability_tps_timer_contracts")
+258-    .insert(row)
+259-    .select("*")
+260-    .single();
+261:  if (error || !data) throw new Error(`Failed to persist TPS Timer Contract: ${error?.message || "no row"}`);
+262-  return rowToContract(data as TimerContractRow);
+263-};
+264-
+265-const loadCalibrationRows = async (studentId: string, topicKey: string, conditioningEpochKey: string) => {
+266-  if (isEmergencyDbMode()) {
+267-    const result = await pool.query(
+268-      `SELECT *
+269-         FROM public.capability_tps_timer_calibration_samples
+270-        WHERE student_id = $1 AND topic_key = $2 AND conditioning_epoch_key = $3
+271-        ORDER BY created_at ASC, attempt_number ASC`,
+272-      [studentId, topicKey, conditioningEpochKey],
+273-    );
+274-    return result.rows || [];
+275-  }
+276-  const { data, error } = await supabase
+277-    .from("capability_tps_timer_calibration_samples")
+278-    .select("*")
+279-    .eq("student_id", studentId)
+280-    .eq("topic_key", topicKey)
+281-    .eq("conditioning_epoch_key", conditioningEpochKey)
+--
+336-  studentId,
+337-  topic,
+338-  tutorId,
+339-}: {
+340-  student: any;
+341-  studentId: string;
+342-  topic: string;
+343-  tutorId: string;
+344-}) => {
+345-  const conditioningEpochKey = deriveConditioningEpochKey(student, topic);
+346-  const topicKey = topicKeyFor(topic);
+347-  const existing = await loadLatestTimerContract(studentId, topicKey, conditioningEpochKey);
+348-  if (existing) return { contract: existing, conditioningEpochKey, created: false };
+349-
+350-  const rows = await loadRecentDrillRows(studentId);
+351-  const runtime = buildTpsTimerRuntimeStatus({ rows, studentId, topic });
+352-  if (!runtime.contract) {
+353-    return { contract: null, conditioningEpochKey, created: false, runtime };
+354-  }
+355-
+356:  const contract = await insertTimerContract({
+357-    contract: runtime.contract,
+358-    conditioningEpochKey,
+359-    tutorId,
+360-    source: "historical_untimed",
+361-  });
+362-  return { contract, conditioningEpochKey, created: true, runtime };
+363-};
+364-
+365-const buildTimerStatus = async ({ student, studentId, topic }: { student: any; studentId: string; topic: string }) => {
+366-  const conditioningEpochKey = deriveConditioningEpochKey(student, topic);
+367-  const topicKey = topicKeyFor(topic);
+368-  const rows = await loadRecentDrillRows(studentId);
+369-  const runtime = buildTpsTimerRuntimeStatus({ rows, studentId, topic });
+370-  const contract = await loadLatestTimerContract(studentId, topicKey, conditioningEpochKey);
+371-  const calibrationRows = await loadCalibrationRows(studentId, topicKey, conditioningEpochKey);
+372-  const calibration = calibrationStatusFor(calibrationRows, studentId, topic);
+373-  const topicState = getTopicState(student, topic);
+374-  return {
+375-    conditioningEpochKey,
+376-    currentPhase: clean(topicState?.phase) || null,
+--
+685-          started_at: startedAt,
+686-          ended_at: endedAt,
+687-          elapsed_ms: Math.max(1, Math.round(elapsedMs)),
+688-          timing_validity: timingValidity,
+689-          structurally_valid: structurallyValid,
+690-          replacement_for_sample_id: replacementForSampleId,
+691-          created_at: new Date().toISOString(),
+692-        });
+693-
+694-        const rows = await loadCalibrationRows(studentId, topicKey, conditioningEpochKey);
+695-        const calibration = calibrationStatusFor(rows, studentId, topic);
+696-        let contract: PersistedTimerContract | null = null;
+697-        if (calibration.validRepCount === 3) {
+698-          const derived = deriveTpsTimerContractV1({
+699-            records: calibration.records,
+700-            studentId,
+701-            topic,
+702-            source: "calibration",
+703-          });
+704-          if (derived) {
+705:            contract = await insertTimerContract({
+706-              contract: derived,
+707-              conditioningEpochKey,
+708-              tutorId: String(dbUser.id),
+709-              source: "calibration",
+710-              calibrationBatchId,
+711-            });
+712-          }
+713-        }
+714-
+715-        return res.json({
+716-          success: true,
+717-          calibrationSampleId,
+718-          acceptedAsBaseline: actualSupportUsed === "none" && structurallyValid && timingValidity === "valid",
+719-          calibrationComplete: !!contract,
+720-          validRepNumbers: calibration.validRepNumbers,
+721-          nextRepNumber: contract ? null : calibration.nextRepNumber,
+722-          contract,
+723-          conditioningEpochKey,
+724-        });
+725-      } catch (error) {
+=== report schema references ===
+server/routes.js-1353-                                            .from("scheduled_sessions")
+server/routes.js-1354-                                            .select("id, scheduled_time, status, parent_confirmed, tutor_confirmed, created_at, updated_at")
+server/routes.js-1355-                                            .eq("tutor_id", tutorId)
+server/routes.js-1356-                                            .eq("parent_id", student.parentId)
+server/routes.js-1357-                                            .eq("type", "intro")
+server/routes.js-1358-                                            .order("created_at", { ascending: false })
+server/routes.js-1359-                                            .maybeSingle()];
+server/routes.js-1360-                                case 2:
+server/routes.js-1361-                                    _a = _d.sent(), session = _a.data, sessionError = _a.error;
+server/routes.js-1362-                                    return [4 /*yield*/, supabase
+server/routes.js:1363:                                            .from("parent_reports")
+server/routes.js-1364-                                            .select("*")
+server/routes.js-1365-                                            .eq("student_id", studentId)
+server/routes.js-1366-                                            .order("created_at", { ascending: false })];
+server/routes.js-1367-                                case 3:
+server/routes.js-1368-                                    _b = _d.sent(), parentReports = _b.data, reportsError = _b.error;
+server/routes.js-1369-                                    if (reportsError) {
+server/routes.js-1370-                                        console.error("Error fetching parent reports:", reportsError);
+server/routes.js-1371-                                    }
+server/routes.js-1372-                                    return [4 /*yield*/, supabase
+server/routes.js-1373-                                            .from("weekly_check_ins")
+--
+server/routes.js-2677-                                        return [2 /*return*/, res.status(404).json({ message: "Student not found" })];
+server/routes.js-2678-                                    }
+server/routes.js-2679-                                    return [4 /*yield*/, supabase
+server/routes.js-2680-                                            .from("tutoring_sessions")
+server/routes.js-2681-                                            .select("*")
+server/routes.js-2682-                                            .eq("student_id", studentId)
+server/routes.js-2683-                                            .order("session_date", { ascending: false })];
+server/routes.js-2684-                                case 2:
+server/routes.js-2685-                                    _a = _d.sent(), sessions = _a.data, sessionsError = _a.error;
+server/routes.js-2686-                                    return [4 /*yield*/, supabase
+server/routes.js:2687:                                            .from("parent_reports")
+server/routes.js-2688-                                            .select("*")
+server/routes.js-2689-                                            .eq("student_id", studentId)
+server/routes.js-2690-                                            .order("created_at", { ascending: false })];
+server/routes.js-2691-                                case 3:
+server/routes.js-2692-                                    _b = _d.sent(), parentReports = _b.data, reportsError = _b.error;
+server/routes.js-2693-                                    return [4 /*yield*/, supabase
+server/routes.js-2694-                                            .from("td_feedback")
+server/routes.js-2695-                                            .select("*")
+server/routes.js-2696-                                            .eq("student_id", studentId)
+server/routes.js-2697-                                            .order("created_at", { ascending: false })];
+--
+server/routes.js-6613-                    }); });
+server/routes.js-6614-                    // Get parent reports
+server/routes.js-6615-                    app.get("/api/parent/reports", isAuthenticated, requireRole(["parent"]), function (req, res) { return __awaiter(_this, void 0, void 0, function () {
+server/routes.js-6616-                        var parentId, _a, reports, error, error_151;
+server/routes.js-6617-                        return __generator(this, function (_b) {
+server/routes.js-6618-                            switch (_b.label) {
+server/routes.js-6619-                                case 0:
+server/routes.js-6620-                                    _b.trys.push([0, 2, , 3]);
+server/routes.js-6621-                                    parentId = req.dbUser.id;
+server/routes.js-6622-                                    return [4 /*yield*/, supabase
+server/routes.js:6623:                                            .from("parent_reports")
+server/routes.js-6624-                                            .select("*")
+server/routes.js-6625-                                            .eq("parent_id", parentId)
+server/routes.js-6626-                                            .order("sent_at", { ascending: false })];
+server/routes.js-6627-                                case 1:
+server/routes.js-6628-                                    _a = _b.sent(), reports = _a.data, error = _a.error;
+server/routes.js-6629-                                    if (error)
+server/routes.js-6630-                                        throw error;
+server/routes.js-6631-                                    res.json(reports || []);
+server/routes.js-6632-                                    return [3 /*break*/, 3];
+server/routes.js-6633-                                case 2:
+--
+server/routes.js-6642-                    // Submit parent feedback on report
+server/routes.js-6643-                    app.post("/api/parent/reports/:id/feedback", isAuthenticated, requireRole(["parent"]), function (req, res) { return __awaiter(_this, void 0, void 0, function () {
+server/routes.js-6644-                        var id, feedback, _a, report, error, error_152;
+server/routes.js-6645-                        return __generator(this, function (_b) {
+server/routes.js-6646-                            switch (_b.label) {
+server/routes.js-6647-                                case 0:
+server/routes.js-6648-                                    _b.trys.push([0, 2, , 3]);
+server/routes.js-6649-                                    id = req.params.id;
+server/routes.js-6650-                                    feedback = req.body.feedback;
+server/routes.js-6651-                                    return [4 /*yield*/, supabase
+server/routes.js:6652:                                            .from("parent_reports")
+server/routes.js-6653-                                            .update({
+server/routes.js-6654-                                            parent_feedback: feedback,
+server/routes.js-6655-                                            parent_feedback_at: new Date().toISOString(),
+server/routes.js-6656-                                        })
+server/routes.js-6657-                                            .eq("id", id)
+server/routes.js-6658-                                            .select()
+server/routes.js-6659-                                            .single()];
+server/routes.js-6660-                                case 1:
+server/routes.js-6661-                                    _a = _b.sent(), report = _a.data, error = _a.error;
+server/routes.js-6662-                                    if (error)
+--
+server/routes.ts-6082-            if (sourceSessionIds.length === 0) return null;
+server/routes.ts-6083-            return `${reportType}:${sourceSessionIds.join("|")}`;
+server/routes.ts-6084-          };
+server/routes.ts-6085-
+server/routes.ts-6086-          const insertDeterministicParentReport = async (payload: Record<string, any>, reportWindowKey: string | null) => {
+server/routes.ts-6087-            const insertPayload = reportWindowKey
+server/routes.ts-6088-              ? { ...payload, report_window_key: reportWindowKey }
+server/routes.ts-6089-              : payload;
+server/routes.ts-6090-
+server/routes.ts-6091-            const { data, error } = await supabase
+server/routes.ts:6092:              .from("parent_reports")
+server/routes.ts-6093-              .insert(insertPayload)
+server/routes.ts-6094-              .select("id")
+server/routes.ts-6095-              .single();
+server/routes.ts-6096-
+server/routes.ts-6097-            if (!error) return { ...data, created: true };
+server/routes.ts-6098-
+server/routes.ts-6099-            // A concurrent trigger may have inserted the same deterministic window.
+server/routes.ts-6100-            if (error.code === "23505" && reportWindowKey) {
+server/routes.ts-6101-              const { data: existing, error: existingError } = await supabase
+server/routes.ts:6102:                .from("parent_reports")
+server/routes.ts-6103-                .select("id")
+server/routes.ts-6104-                .eq("tutor_id", payload.tutor_id)
+server/routes.ts-6105-                .eq("student_id", payload.student_id)
+server/routes.ts-6106-                .eq("report_type", payload.report_type)
+server/routes.ts-6107-                .eq("report_window_key", reportWindowKey)
+server/routes.ts-6108-                .maybeSingle();
+server/routes.ts-6109-
+server/routes.ts-6110-              if (!existingError && existing) return { ...existing, created: false };
+server/routes.ts-6111-            }
+server/routes.ts-6112-
+--
+server/routes.ts-6190-              .from("intro_session_drills")
+server/routes.ts-6191-              .select("id, drill, submitted_at, scheduled_session_id")
+server/routes.ts-6192-              .eq("student_id", studentId)
+server/routes.ts-6193-              .eq("tutor_id", tutorId)
+server/routes.ts-6194-              .order("submitted_at", { ascending: true });
+server/routes.ts-6195-
+server/routes.ts-6196-            if (drillRowsError || !drillRows || drillRows.length === 0) return;
+server/routes.ts-6197-            const anchoredDrillRows = await attachReportAnchorTimes(drillRows || []);
+server/routes.ts-6198-
+server/routes.ts-6199-            const { data: existingWeeklyReports } = await supabase
+server/routes.ts:6200:              .from("parent_reports")
+server/routes.ts-6201-              .select("summary, report_window_key")
+server/routes.ts-6202-              .eq("student_id", studentId)
+server/routes.ts-6203-              .eq("tutor_id", tutorId)
+server/routes.ts-6204-              .eq("report_type", "weekly")
+server/routes.ts-6205-              .limit(1000);
+server/routes.ts-6206-
+server/routes.ts-6207-            const { data: existingMonthlyReports } = await supabase
+server/routes.ts:6208:              .from("parent_reports")
+server/routes.ts-6209-              .select("summary, report_window_key")
+server/routes.ts-6210-              .eq("student_id", studentId)
+server/routes.ts-6211-              .eq("tutor_id", tutorId)
+server/routes.ts-6212-              .eq("report_type", "monthly")
+server/routes.ts-6213-              .limit(1000);
+server/routes.ts-6214-
+server/routes.ts-6215-            const coveredSessionIds = (reports: any[] | null | undefined) => new Set(
+server/routes.ts-6216-              (reports || []).flatMap((report: any) => {
+server/routes.ts-6217-                let summary: any = {};
+server/routes.ts-6218-                try {
+--
+server/routes.ts-14033-  app.get(
+server/routes.ts-14034-    "/api/tutor/reports",
+server/routes.ts-14035-    isAuthenticated,
+server/routes.ts-14036-    requireRole(["tutor"]),
+server/routes.ts-14037-    async (req: Request, res: Response) => {
+server/routes.ts-14038-      try {
+server/routes.ts-14039-        const tutorId = (req as any).dbUser.id;
+server/routes.ts-14040-        const studentId = typeof req.query.studentId === "string" ? req.query.studentId : null;
+server/routes.ts-14041-
+server/routes.ts-14042-        let query = supabase
+server/routes.ts:14043:          .from("parent_reports")
+server/routes.ts-14044-          .select("*")
+server/routes.ts-14045-          .eq("tutor_id", tutorId)
+server/routes.ts-14046-          .order("sent_at", { ascending: false });
+server/routes.ts-14047-
+server/routes.ts-14048-        if (studentId) {
+server/routes.ts-14049-          query = query.eq("student_id", studentId);
+server/routes.ts-14050-        }
+server/routes.ts-14051-
+server/routes.ts-14052-        const { data, error } = await query;
+server/routes.ts-14053-        if (error) {
+--
+server/routes.ts-14103-        if (isEmergencyDbMode()) {
+server/routes.ts-14104-          const drillResult = await pool.query(
+server/routes.ts-14105-            `SELECT id, student_id, tutor_id, drill, submitted_at
+server/routes.ts-14106-               FROM public.intro_session_drills
+server/routes.ts-14107-              WHERE student_id = $1 AND tutor_id = $2
+server/routes.ts-14108-              ORDER BY submitted_at DESC`,
+server/routes.ts-14109-            [studentId, tutorId],
+server/routes.ts-14110-          );
+server/routes.ts-14111-          const reportResult = await pool.query(
+server/routes.ts-14112-            `SELECT *
+server/routes.ts:14113:               FROM public.parent_reports
+server/routes.ts-14114-              WHERE student_id = $1 AND tutor_id = $2
+server/routes.ts-14115-              ORDER BY sent_at DESC`,
+server/routes.ts-14116-            [studentId, tutorId],
+server/routes.ts-14117-          );
+server/routes.ts-14118-          const enrichedReports = reportResult.rows.map((report: any) =>
+server/routes.ts-14119-            mapEmergencyTutorParentReport(report, parseStructuredReportSummary(report.summary))
+server/routes.ts-14120-          );
+server/routes.ts-14121-          return res.json({
+server/routes.ts-14122-            sessions: aggregateDeterministicSessions(drillResult.rows),
+server/routes.ts-14123-            reports: enrichedReports,
+--
+server/routes.ts-14131-          .eq("tutor_id", tutorId)
+server/routes.ts-14132-          .order("submitted_at", { ascending: false });
+server/routes.ts-14133-
+server/routes.ts-14134-        if (drillRowsError) {
+server/routes.ts-14135-          throw drillRowsError;
+server/routes.ts-14136-        }
+server/routes.ts-14137-
+server/routes.ts-14138-        const sessions = aggregateDeterministicSessions(drillRows || []);
+server/routes.ts-14139-
+server/routes.ts-14140-        const { data: reports, error: reportsError } = await supabase
+server/routes.ts:14141:          .from("parent_reports")
+server/routes.ts-14142-          .select("*")
+server/routes.ts-14143-          .eq("student_id", studentId)
+server/routes.ts-14144-          .eq("tutor_id", tutorId)
+server/routes.ts-14145-          .order("sent_at", { ascending: false });
+server/routes.ts-14146-
+server/routes.ts-14147-        if (reportsError) {
+server/routes.ts-14148-          throw reportsError;
+server/routes.ts-14149-        }
+server/routes.ts-14150-
+server/routes.ts-14151-        const enrichedReports = (reports || []).map((report: any) => ({
+--
+server/routes.ts-15788-        const { data: sessions, error: sessionError } = await supabase
+server/routes.ts-15789-          .from("scheduled_sessions")
+server/routes.ts-15790-          .select("id, scheduled_time, status, parent_confirmed, tutor_confirmed, created_at, updated_at")
+server/routes.ts-15791-          .eq("tutor_id", tutorId)
+server/routes.ts-15792-          .eq("parent_id", (student as any).parentId)
+server/routes.ts-15793-          .eq("type", "intro")
+server/routes.ts-15794-          .order("created_at", { ascending: false });
+server/routes.ts-15795-
+server/routes.ts-15796-        // Get parent reports
+server/routes.ts-15797-        const { data: parentReports, error: reportsError } = await supabase
+server/routes.ts:15798:          .from("parent_reports")
+server/routes.ts-15799-          .select("*")
+server/routes.ts-15800-          .eq("student_id", studentId)
+server/routes.ts-15801-          .order("created_at", { ascending: false });
+server/routes.ts-15802-
+server/routes.ts-15803-        if (reportsError) {
+server/routes.ts-15804-          console.error("Error fetching parent reports:", reportsError);
+server/routes.ts-15805-        }
+server/routes.ts-15806-
+server/routes.ts-15807-        // Get TD weekly check-ins (feedback)
+server/routes.ts-15808-        const { data: tdFeedback, error: feedbackError } = await supabase
+--
+server/routes.ts-16366-          .eq("student_id", studentId)
+server/routes.ts-16367-          .order("submitted_at", { ascending: false });
+server/routes.ts-16368-
+server/routes.ts-16369-        if (drillRowsError) {
+server/routes.ts-16370-          throw drillRowsError;
+server/routes.ts-16371-        }
+server/routes.ts-16372-
+server/routes.ts-16373-        const sessions = aggregateDeterministicSessions(drillRows || []);
+server/routes.ts-16374-
+server/routes.ts-16375-        const { data: reports, error: reportsError } = await supabase
+server/routes.ts:16376:          .from("parent_reports")
+server/routes.ts-16377-          .select("*")
+server/routes.ts-16378-          .eq("student_id", studentId)
+server/routes.ts-16379-          .order("sent_at", { ascending: false });
+server/routes.ts-16380-
+server/routes.ts-16381-        if (reportsError) {
+server/routes.ts-16382-          throw reportsError;
+server/routes.ts-16383-        }
+server/routes.ts-16384-
+server/routes.ts-16385-        const enrichedReports = (reports || []).map((report: any) => ({
+server/routes.ts-16386-          id: report.id,
+--
+server/routes.ts-16430-        if (authorized.status === 404) {
+server/routes.ts-16431-          return res.status(404).json({ message: "Student not found" });
+server/routes.ts-16432-        }
+server/routes.ts-16433-        if (authorized.status !== 200) {
+server/routes.ts-16434-          return res.status(403).json({ message: "Unauthorized student access" });
+server/routes.ts-16435-        }
+server/routes.ts-16436-
+server/routes.ts-16437-        const sessions = await getTTScheduledSessionsByStudent(studentId);
+server/routes.ts-16438-
+server/routes.ts-16439-        const { data: parentReports, error: reportsError } = await supabase
+server/routes.ts:16440:          .from("parent_reports")
+server/routes.ts-16441-          .select("*")
+server/routes.ts-16442-          .eq("student_id", studentId)
+server/routes.ts-16443-          .order("created_at", { ascending: false });
+server/routes.ts-16444-
+server/routes.ts-16445-        const { data: tdFeedback, error: feedbackError } = await supabase
+server/routes.ts-16446-          .from("td_feedback")
+server/routes.ts-16447-          .select("*")
+server/routes.ts-16448-          .eq("student_id", studentId)
+server/routes.ts-16449-          .order("created_at", { ascending: false });
+server/routes.ts-16450-
+--
+server/routes.ts-18503-          .eq("student_id", studentId)
+server/routes.ts-18504-          .order("submitted_at", { ascending: false });
+server/routes.ts-18505-
+server/routes.ts-18506-        if (drillRowsError) {
+server/routes.ts-18507-          throw drillRowsError;
+server/routes.ts-18508-        }
+server/routes.ts-18509-
+server/routes.ts-18510-        const sessions = aggregateDeterministicSessions(drillRows || []);
+server/routes.ts-18511-
+server/routes.ts-18512-        const { data: reports, error: reportsError } = await supabase
+server/routes.ts:18513:          .from("parent_reports")
+server/routes.ts-18514-          .select("*")
+server/routes.ts-18515-          .eq("student_id", studentId)
+server/routes.ts-18516-          .order("sent_at", { ascending: false });
+server/routes.ts-18517-
+server/routes.ts-18518-        if (reportsError) {
+server/routes.ts-18519-          throw reportsError;
+server/routes.ts-18520-        }
+server/routes.ts-18521-
+server/routes.ts-18522-        const enrichedReports = (reports || []).map((report: any) => ({
+server/routes.ts-18523-          id: report.id,
+--
+server/routes.ts-18564-        const student = await storage.getStudent(studentId);
+server/routes.ts-18565-        
+server/routes.ts-18566-        if (!student) {
+server/routes.ts-18567-          return res.status(404).json({ message: "Student not found" });
+server/routes.ts-18568-        }
+server/routes.ts-18569-
+server/routes.ts-18570-        const sessions = await getTTScheduledSessionsByStudent(studentId);
+server/routes.ts-18571-
+server/routes.ts-18572-        // Get parent reports
+server/routes.ts-18573-        const { data: parentReports, error: reportsError } = await supabase
+server/routes.ts:18574:          .from("parent_reports")
+server/routes.ts-18575-          .select("*")
+server/routes.ts-18576-          .eq("student_id", studentId)
+server/routes.ts-18577-          .order("created_at", { ascending: false });
+server/routes.ts-18578-
+server/routes.ts-18579-        // Get TD feedback
+server/routes.ts-18580-        const { data: tdFeedback, error: feedbackError } = await supabase
+server/routes.ts-18581-          .from("td_feedback")
+server/routes.ts-18582-          .select("*")
+server/routes.ts-18583-          .eq("student_id", studentId)
+server/routes.ts-18584-          .order("created_at", { ascending: false });
+--
+server/routes.ts-28425-  });
+server/routes.ts-28426-
+server/routes.ts-28427-  // Get parent reports
+server/routes.ts-28428-  app.get("/api/parent/reports", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+server/routes.ts-28429-    try {
+server/routes.ts-28430-      const parentId = (req as any).dbUser.id;
+server/routes.ts-28431-
+server/routes.ts-28432-      if (isEmergencyDbMode()) {
+server/routes.ts-28433-        const reportResult = await pool.query(
+server/routes.ts-28434-          `SELECT pr.*, u.name AS tutor_name
+server/routes.ts:28435:             FROM public.parent_reports pr
+server/routes.ts-28436-             LEFT JOIN public.users u ON u.id = pr.tutor_id
+server/routes.ts-28437-            WHERE pr.parent_id = $1
+server/routes.ts-28438-            ORDER BY pr.sent_at DESC`,
+server/routes.ts-28439-          [parentId],
+server/routes.ts-28440-        );
+server/routes.ts-28441-        return res.json(reportResult.rows.map((report: any) => mapParentFacingReport(report, report.tutor_name)));
+server/routes.ts-28442-      }
+server/routes.ts-28443-
+server/routes.ts-28444-      const { data: reports, error } = await supabase
+server/routes.ts:28445:        .from("parent_reports")
+server/routes.ts-28446-        .select("*")
+server/routes.ts-28447-        .eq("parent_id", parentId)
+server/routes.ts-28448-        .order("sent_at", { ascending: false });
+server/routes.ts-28449-
+server/routes.ts-28450-      if (error) throw error;
+server/routes.ts-28451-
+server/routes.ts-28452-      const tutorIds = Array.from(new Set((reports || []).map((report: any) => report.tutor_id).filter(Boolean)));
+server/routes.ts-28453-      let tutorNameMap: Record<string, string> = {};
+server/routes.ts-28454-
+server/routes.ts-28455-      if (tutorIds.length > 0) {
+--
+server/routes.ts-28479-    }
+server/routes.ts-28480-  });
+server/routes.ts-28481-
+server/routes.ts-28482-  // Submit parent feedback on report
+server/routes.ts-28483-  app.post("/api/parent/reports/:id/feedback", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+server/routes.ts-28484-    try {
+server/routes.ts-28485-      const { id } = req.params;
+server/routes.ts-28486-      const { feedback } = req.body;
+server/routes.ts-28487-
+server/routes.ts-28488-      const { data: existingReport, error: existingReportError } = await supabase
+server/routes.ts:28489:        .from("parent_reports")
+server/routes.ts-28490-        .select("id, parent_id, report_type")
+server/routes.ts-28491-        .eq("id", id)
+server/routes.ts-28492-        .single();
+server/routes.ts-28493-
+server/routes.ts-28494-      if (existingReportError) throw existingReportError;
+server/routes.ts-28495-      if (!existingReport || existingReport.parent_id !== (req as any).dbUser.id) {
+server/routes.ts-28496-        return res.status(404).json({ message: "Report not found" });
+server/routes.ts-28497-      }
+server/routes.ts-28498-      if (existingReport.report_type !== "monthly") {
+server/routes.ts-28499-        return res.status(400).json({ message: "Feedback is only available for monthly reports" });
+server/routes.ts-28500-      }
+server/routes.ts-28501-
+server/routes.ts-28502-      const { data: report, error } = await supabase
+server/routes.ts:28503:        .from("parent_reports")
+server/routes.ts-28504-        .update({
+server/routes.ts-28505-          parent_feedback: feedback,
+server/routes.ts-28506-          parent_feedback_at: new Date().toISOString(),
+server/routes.ts-28507-        })
+server/routes.ts-28508-        .eq("id", id)
+server/routes.ts-28509-        .select()
+server/routes.ts-28510-        .single();
+server/routes.ts-28511-
+server/routes.ts-28512-      if (error) throw error;
+server/routes.ts-28513-      res.json(report);
+--
+server/trialCertification.ts-84-    if (drillError) {
+server/trialCertification.ts-85-      throw new Error(`Failed to load Trial session logs: ${drillError.message}`);
+server/trialCertification.ts-86-    }
+server/trialCertification.ts-87-
+server/trialCertification.ts-88-    loggedSessionIds = new Set(
+server/trialCertification.ts-89-      (drillRows || []).map((row: any) => String(row.scheduled_session_id || "").trim()).filter(Boolean),
+server/trialCertification.ts-90-    );
+server/trialCertification.ts-91-  }
+server/trialCertification.ts-92-
+server/trialCertification.ts-93-  const { data: reportRows, error: reportError } = await supabase
+server/trialCertification.ts:94:    .from("parent_reports")
+server/trialCertification.ts-95-    .select("id, report_type, report_window_key, summary, sent_at")
+server/trialCertification.ts-96-    .eq("tutor_id", placement.tutor_id)
+server/trialCertification.ts-97-    .eq("student_id", placement.student_id)
+server/trialCertification.ts-98-    .gte("sent_at", placement.started_at)
+server/trialCertification.ts-99-    .order("sent_at", { ascending: true });
+server/trialCertification.ts-100-
+server/trialCertification.ts-101-  if (reportError) {
+server/trialCertification.ts-102-    throw new Error(`Failed to load Trial reports: ${reportError.message}`);
+server/trialCertification.ts-103-  }
+server/trialCertification.ts-104-
+--
+shared/schema.js-843-export var insertAssignmentSchema = createInsertSchema(assignments).omit({
+shared/schema.js-844-    id: true,
+shared/schema.js-845-    createdAt: true,
+shared/schema.js-846-    completedAt: true,
+shared/schema.js-847-    isCompleted: true,
+shared/schema.js-848-});
+shared/schema.js-849-// ============================================
+shared/schema.js-850-// PARENT REPORTS TABLE
+shared/schema.js-851-// ============================================
+shared/schema.js-852-// Weekly/Monthly reports sent by tutor to parent
+shared/schema.js:853:export var parentReports = pgTable("parent_reports", {
+shared/schema.js-854-    id: varchar("id").primaryKey().default(sql(templateObject_28 || (templateObject_28 = __makeTemplateObject(["gen_random_uuid()"], ["gen_random_uuid()"])))),
+shared/schema.js-855-    tutorId: varchar("tutor_id")
+shared/schema.js-856-        .notNull()
+shared/schema.js-857-        .references(function () { return users.id; }),
+shared/schema.js-858-    studentId: varchar("student_id")
+shared/schema.js-859-        .notNull()
+shared/schema.js-860-        .references(function () { return students.id; }),
+shared/schema.js-861-    parentId: varchar("parent_id")
+shared/schema.js-862-        .notNull()
+shared/schema.js-863-        .references(function () { return users.id; }),
+--
+shared/schema.ts-1657-  createdAt: true,
+shared/schema.ts-1658-  completedAt: true,
+shared/schema.ts-1659-  isCompleted: true,
+shared/schema.ts-1660-});
+shared/schema.ts-1661-
+shared/schema.ts-1662-// ============================================
+shared/schema.ts-1663-// PARENT REPORTS TABLE
+shared/schema.ts-1664-// ============================================
+shared/schema.ts-1665-// Weekly/Monthly reports sent by tutor to parent
+shared/schema.ts-1666-
+shared/schema.ts:1667:export const parentReports = pgTable("parent_reports", {
+shared/schema.ts-1668-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+shared/schema.ts-1669-  tutorId: varchar("tutor_id")
+shared/schema.ts-1670-    .notNull()
+shared/schema.ts-1671-    .references(() => users.id),
+shared/schema.ts-1672-  studentId: varchar("student_id")
+shared/schema.ts-1673-    .notNull()
+shared/schema.ts-1674-    .references(() => students.id),
+shared/schema.ts-1675-  parentId: varchar("parent_id")
+shared/schema.ts-1676-    .notNull()
+shared/schema.ts-1677-    .references(() => users.id),
