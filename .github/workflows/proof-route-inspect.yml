@@ -1,4 +1,4 @@
-name: Proof Inherited Verification Stage 2 Retry
+name: Proof Evidence Correction Inspect
 
 on:
   push:
@@ -8,40 +8,27 @@ on:
       - .github/workflows/proof-route-inspect.yml
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  implement:
+  inspect:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: proof/capability-engine-shadow-validation
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - name: Apply inherited verification stage two
+      - name: Inspect correction authority and replay anchors
         run: |
-          python scripts/proof-inherited-verification-stage2.py
-          python scripts/proof-inherited-verification-stage2-fix.py
-      - name: Run focused doctrine and lineage tests
-        run: node --import tsx --test shared/responseIntegrityEvidenceContractV2.test.ts shared/inheritedLayerVerification.test.ts shared/responseSnapshot.test.ts server/responseIntegrityEvidenceLedger.test.ts
-      - name: Build backend
-        run: npm run build:backend
-      - name: Build frontend
-        run: npm run build:frontend
-      - name: Commit proof implementation
-        run: |
-          git config user.name "nentswunienterprises-oss"
-          git config user.email "nentswunienterprises@gmail.com"
-          git add server/routes.ts server/responseIntegrityEvidenceLedger.ts server/responseIntegrityEvidenceLedger.test.ts shared/responseSnapshot.ts shared/responseSnapshot.test.ts client/src/components/tutor/IntroSessionDrillRunner.tsx
-          git diff --cached --check
-          if git diff --cached --quiet; then
-            echo "No implementation changes to commit"
-            exit 0
-          fi
-          git commit -m "Implement inherited-layer verification flow"
-          git push origin HEAD:proof/capability-engine-shadow-validation
+          echo '=== role/auth conventions ==='
+          grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'requireRole\(|role.?===|role.?==|role:|territory.?director|Territory Director' server shared | head -260
+          echo '=== TD and COO API routes ==='
+          grep -n -E 'app\.(get|post|put|patch|delete)\("/api/(td|coo|operational/td)|requireRole\(\[[^]]*(td|coo)' server/routes.ts | head -260
+          echo '=== pod / assignment relationships ==='
+          grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'td_id|territory_director|territoryDirector|assigned.*td|pod.*td|td.*pod|tutor_assignment|assigned_tutor' server shared | head -320
+          echo '=== evidence and drill identifiers / replay helpers ==='
+          grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'intro_session_drills|response_integrity_evidence_ledger|supersed|correction|replay|topicConditioning.*history|conceptMastery.*topicConditioning|maybeAutoSendDeterministicReports|buildResponseSnapshotV1' server shared | head -420
+          echo '=== migrations relevant tables / RLS patterns ==='
+          find . -maxdepth 4 -type f \( -path './migrations/*' -o -path './supabase/migrations/*' -o -path './db/migrations/*' \) -print | sort | tail -120
+          grep -R -n --include='*.sql' -E 'response_integrity_evidence|intro_session_drills|training_session_runs|ENABLE ROW LEVEL SECURITY|CREATE POLICY|pod|territory' migrations supabase db 2>/dev/null | head -420 || true
+          echo '=== report regeneration helpers context ==='
+          grep -n -B20 -A80 'maybeAutoSendDeterministicReports' server/routes.ts | head -260
+          echo '=== student/topic state helper context ==='
+          grep -n -B30 -A100 -E 'topicConditioningStore|topicsStore\[' server/routes.ts | head -520
