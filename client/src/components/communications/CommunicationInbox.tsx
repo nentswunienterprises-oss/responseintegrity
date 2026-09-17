@@ -218,6 +218,7 @@ export function CommunicationInbox({
   });
 
   const unreadCount = Number(unreadCountData?.unreadCount || 0);
+  const audienceLabel = audience === "parent" ? "parent" : "student";
 
   const { data, isLoading, error, refetch: refetchThread } = useQuery<CommunicationInboxResponse>({
     queryKey,
@@ -397,7 +398,32 @@ export function CommunicationInbox({
           </Card>
         </TabsContent>
 
-        <TabsContent value="updates">{updatesContent}</TabsContent>
+        <TabsContent value="updates">
+          <div className="space-y-4">
+            {unreadCount > 0 && (
+              <Card className="border-l-4 border-l-primary bg-primary/5">
+                <CardHeader>
+                  <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+                    <MessageSquare className="h-4 w-4" />
+                    New tutor message
+                    <Badge variant="default">{unreadCount > 9 ? "9+" : unreadCount} New</Badge>
+                  </CardTitle>
+                  <CardDescription>
+                    {unreadCount === 1
+                      ? `There is 1 unread message in the ${audienceLabel} tutor thread.`
+                      : `There are ${unreadCount} unread messages in the ${audienceLabel} tutor thread.`}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button type="button" variant="outline" onClick={() => setActiveTab("messages")}>
+                    Open messages
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+            {updatesContent}
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
   );

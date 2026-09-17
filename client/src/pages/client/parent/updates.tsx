@@ -23,7 +23,6 @@ export default function ParentUpdates() {
             title="Updates"
             description="Action-required items and informational notifications for parents."
             emptyMessage="No notifications yet. You'll see action-required and informational updates here."
-            excludeEntityTypes={["student_communication"]}
           />
         }
       />

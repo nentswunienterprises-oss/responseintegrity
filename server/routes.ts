@@ -13028,6 +13028,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } as any);
     }
 
+    if (senderRole === "tutor" && audience === "parent" && parentId) {
+      await storage.createNotification({
+        recipientUserId: parentId,
+        actorUserId: senderUserId || undefined,
+        channel: "informational",
+        title: `Message from ${senderLabel}`,
+        message,
+        link: "/client/parent/updates?tab=messages",
+        entityType: "student_communication",
+        entityId: inserted.id,
+      } as any);
+    }
+
     return inserted;
   };
 
