@@ -1,0 +1,52 @@
+name: TPS Final Copy Sync
+
+on:
+  push:
+    branches:
+      - proof/capability-engine-shadow-validation
+    paths:
+      - scripts/finalize-tps-copy-and-register.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout proof branch
+        uses: actions/checkout@v4
+        with:
+          ref: proof/capability-engine-shadow-validation
+          fetch-depth: 0
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Apply TPS final synchronization
+        run: node scripts/finalize-tps-copy-and-register.mjs
+
+      - name: Assert stale TPS phrases are gone
+        run: |
+          ! grep -R "final-phase .*same phase at .*Low.*phase progress" -n TT_DRILL_LIBRARY_AND_STATE_ENGINE_EXACT.md
+          ! grep -R "Begin cross-topic conditioning" -n shared/topicConditioningEngine.ts client/src/components/tutor/topicConditioningEngine.ts TT_DRILL_LIBRARY_AND_STATE_ENGINE_EXACT.md
+          ! grep -R "preparing them to transfer this skill to new topics" -n shared/topicConditioningEngine.ts client/src/pages/client/parent/dashboard.tsx TT_DRILL_LIBRARY_AND_STATE_ENGINE_EXACT.md
+          ! grep -R "expanding transfer across related topics" -n shared/topicConditioningEngine.ts client/src/pages/client/parent/dashboard.tsx TT_DRILL_LIBRARY_AND_STATE_ENGINE_EXACT.md
+          ! grep -R "unless the system explicitly directs otherwise" -n client/src/pages/responseconditioningsystem/transformation-phases/time-pressure-stability.tsx
+
+      - name: Run TPS deterministic tests
+        run: npx tsx --test shared/capabilityTpsTimerContract.test.ts shared/capabilityTpsTimerRuntime.test.ts
+
+      - name: Commit TPS synchronization
+        run: |
+          if git diff --quiet; then
+            echo "No synchronization changes required."
+            exit 0
+          fi
+          git config user.name "nentswunienterprises-oss"
+          git config user.email "nentswunienterprises@gmail.com"
+          git add shared/topicConditioningEngine.ts client/src/components/tutor/topicConditioningEngine.ts client/src/pages/client/parent/dashboard.tsx client/src/pages/responseconditioningsystem/transformation-phases/time-pressure-stability.tsx TT_DRILL_LIBRARY_AND_STATE_ENGINE_EXACT.md docs/capability-v2r8-product-decision-register.md
+          git commit -m "Synchronize final TPS doctrine and runtime copy"
+          git push origin HEAD:proof/capability-engine-shadow-validation
