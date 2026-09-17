@@ -84,3 +84,5 @@ jobs:
           git add server/routes.ts server/routes/capabilityTpsTimerRuntime.ts server/routes/responseIntegrityEvidenceCorrectionRuntime.ts shared/responseIntegrityCorrectionReplay.ts shared/responseIntegrityCorrectionReplay.test.ts migrations/2026-09-17_tps_timer_contract_correction_invalidations.sql
           git commit -m 'Complete evidence correction runtime integration'
           git push origin HEAD:proof/capability-engine-shadow-validation
+
+# rerun: interpolation fix applied
