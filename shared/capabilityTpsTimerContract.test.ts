@@ -18,6 +18,7 @@ const baseRecord = (overrides: Partial<PassiveRepTimingRecord> = {}): PassiveRep
   topic: "Fractions",
   completedAt: "2026-09-17T10:00:00.000Z",
   elapsedMs: 82_000,
+  sourcePhase: "Structured Execution",
   pressureLevel: "none",
   variationLevel: "same_form",
   difficultyLevel: "normal",
@@ -28,7 +29,7 @@ const baseRecord = (overrides: Partial<PassiveRepTimingRecord> = {}): PassiveRep
   ...overrides,
 });
 
-test("TPS baseline is the median of the latest three eligible untimed reps", () => {
+test("TPS baseline is the median of the latest three eligible Structured Execution reps", () => {
   const records = [
     baseRecord({ recordId: "older", completedAt: "2026-09-17T08:00:00.000Z", elapsedMs: 140_000 }),
     baseRecord({ recordId: "r1", completedAt: "2026-09-17T09:00:00.000Z", elapsedMs: 84_000 }),
@@ -46,6 +47,7 @@ test("TPS baseline is the median of the latest three eligible untimed reps", () 
 
   const contract = deriveTpsTimerContractV1({ records, studentId: "student-1", topic: "Fractions" });
   assert.ok(contract);
+  assert.equal(contract.baselineSourcePhase, "Structured Execution");
   assert.equal(contract.baselineSeconds, 82);
   assert.equal(contract.structureUnderTimerSeconds, 82);
   assert.equal(contract.repeatedTimedExecutionSeconds, 82);
@@ -55,6 +57,9 @@ test("TPS baseline is the median of the latest three eligible untimed reps", () 
 
 test("TPS baseline excludes reps that do not preserve the approved baseline condition", () => {
   const variants: Array<Partial<PassiveRepTimingRecord>> = [
+    { sourcePhase: "Clarity" },
+    { sourcePhase: "Controlled Discomfort" },
+    { sourcePhase: "Time Pressure Stability" },
     { pressureLevel: "difficulty" },
     { pressureLevel: "light_timer" },
     { variationLevel: "changed_form" },
@@ -79,7 +84,27 @@ test("TPS baseline excludes reps that do not preserve the approved baseline cond
   });
 });
 
-test("fewer than three eligible historical reps requires calibration", () => {
+test("Controlled Discomfort timing can remain in history without becoming TPS baseline evidence", () => {
+  const controlledDiscomfortRecord = baseRecord({
+    recordId: "cd-1",
+    sourcePhase: "Controlled Discomfort",
+    pressureLevel: "difficulty",
+    difficultyLevel: "challenging",
+    elapsedMs: 118_000,
+  });
+
+  assert.equal(
+    isEligibleTpsBaselineRecord(
+      controlledDiscomfortRecord,
+      "student-1",
+      "Fractions",
+      "historical_untimed",
+    ),
+    false,
+  );
+});
+
+test("fewer than three eligible historical reps requires pre-TPS calibration", () => {
   const records = [
     baseRecord({ recordId: "r1", completedAt: "2026-09-17T09:00:00.000Z" }),
     baseRecord({ recordId: "r2", completedAt: "2026-09-17T10:00:00.000Z" }),
@@ -89,11 +114,29 @@ test("fewer than three eligible historical reps requires calibration", () => {
   assert.equal(deriveTpsTimerContractV1({ records, studentId: "student-1", topic: "Fractions" }), null);
 });
 
-test("three non-scored calibration reps can deterministically create the timer contract", () => {
+test("three non-scored pre-TPS calibration reps can deterministically create the timer contract", () => {
   const records = [
-    baseRecord({ recordId: "c1", source: "calibration", completedAt: "2026-09-17T09:00:00.000Z", elapsedMs: 78_000 }),
-    baseRecord({ recordId: "c2", source: "calibration", completedAt: "2026-09-17T10:00:00.000Z", elapsedMs: 92_000 }),
-    baseRecord({ recordId: "c3", source: "calibration", completedAt: "2026-09-17T11:00:00.000Z", elapsedMs: 83_000 }),
+    baseRecord({
+      recordId: "c1",
+      source: "calibration",
+      sourcePhase: "pre_tps_calibration",
+      completedAt: "2026-09-17T09:00:00.000Z",
+      elapsedMs: 78_000,
+    }),
+    baseRecord({
+      recordId: "c2",
+      source: "calibration",
+      sourcePhase: "pre_tps_calibration",
+      completedAt: "2026-09-17T10:00:00.000Z",
+      elapsedMs: 92_000,
+    }),
+    baseRecord({
+      recordId: "c3",
+      source: "calibration",
+      sourcePhase: "pre_tps_calibration",
+      completedAt: "2026-09-17T11:00:00.000Z",
+      elapsedMs: 83_000,
+    }),
   ];
 
   const contract = deriveTpsTimerContractV1({
@@ -104,8 +147,21 @@ test("three non-scored calibration reps can deterministically create the timer c
   });
   assert.ok(contract);
   assert.equal(contract.baselineSource, "calibration");
+  assert.equal(contract.baselineSourcePhase, "pre_tps_calibration");
   assert.equal(contract.baselineSeconds, 83);
   assert.equal(contract.fullConstraintSeconds, 71);
+});
+
+test("calibration records cannot masquerade as historical Structured Execution evidence", () => {
+  const calibration = baseRecord({
+    recordId: "calibration",
+    source: "calibration",
+    sourcePhase: "pre_tps_calibration",
+  });
+  assert.equal(
+    isEligibleTpsBaselineRecord(calibration, "student-1", "Fractions", "historical_untimed"),
+    false,
+  );
 });
 
 test("prescribed duration is determined only by the versioned timer contract", () => {
