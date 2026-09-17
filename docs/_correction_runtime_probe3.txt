@@ -1,0 +1,420 @@
+=== routes tail ===
+            createdAt: row.created_at,
+            readByTutorAt: row.read_by_tutor_at,
+            readByParentAt: row.read_by_parent_at,
+            readByStudentAt: row.read_by_student_at,
+          };
+        });
+
+        await pool.query(
+          `UPDATE public.student_communication_messages
+              SET read_by_parent_at = NOW()
+            WHERE thread_id = $1 AND student_id = $2 AND parent_id = $3
+              AND audience = 'parent' AND read_by_parent_at IS NULL`,
+          [thread.id, student.id, parentId],
+        );
+
+        return res.json({
+          student: { id: student.id, name: student.name, grade: student.grade || null },
+          tutor: { id: student.tutor_id, name: tutorName },
+          parent: { id: parentId, name: parentName, available: !!parentResult.rows[0] },
+          thread: { threadId: thread.id, audience: "parent", messages },
+        });
+      }
+
+      const { data: enrollment, error } = await selectLatestParentEnrollment({
+        parentId,
+        primarySelect: "id, user_id, assigned_tutor_id, assigned_student_id, student_full_name, student_grade, parent_email",
+        fallbackSelect: "id, user_id, assigned_tutor_id, student_full_name, student_grade, parent_email",
+      });
+
+      if (error) throw error;
+      if (!enrollment) {
+        return res.status(404).json({ message: "No active enrollment found" });
+      }
+
+      const student = await resolveCanonicalStudentForEnrollment(enrollment);
+      if (!student || !student.tutorId) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      const bundle = await buildStudentCommunicationBundle({ student, parentId });
+      await markCommunicationThreadRead({ studentId: student.id, audience: "parent", viewerRole: "parent" });
+      res.json({
+        student: bundle.student,
+        tutor: bundle.tutor,
+        parent: bundle.parent,
+        thread: bundle.threads.parent,
+      });
+    } catch (error) {
+      console.error("Error fetching parent communications:", error);
+      res.status(500).json({ message: "Failed to fetch communications" });
+    }
+  });
+
+  app.get("/api/parent/communications/unread-count", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+    try {
+      const parentId = (req as any).dbUser.id;
+
+      if (isEmergencyDbMode()) {
+        const enrollmentResult = await pool.query(
+          `SELECT id, assigned_tutor_id, student_full_name
+             FROM public.parent_enrollments
+            WHERE user_id = $1
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [parentId],
+        );
+        const enrollment = enrollmentResult.rows[0] || null;
+        if (!enrollment?.assigned_tutor_id) return res.json({ unreadCount: 0 });
+
+        const studentResult = await pool.query(
+          `SELECT id, tutor_id
+             FROM public.students
+            WHERE parent_enrollment_id = $1
+            ORDER BY created_at DESC
+            LIMIT 1`,
+           [enrollment.id],
+        );
+        const student = studentResult.rows[0] || null;
+        if (!student || String(student.tutor_id) !== String(enrollment.assigned_tutor_id)) {
+          return res.json({ unreadCount: 0 });
+        }
+
+        const unreadResult = await pool.query(
+          `SELECT count(*)::int AS count
+             FROM public.student_communication_messages
+            WHERE student_id = $1
+              AND parent_id = $2
+              AND audience = 'parent'
+              AND read_by_parent_at IS NULL
+              AND sender_role <> 'parent'`,
+          [student.id, parentId],
+        );
+        return res.json({ unreadCount: Number(unreadResult.rows[0]?.count || 0) });
+      }
+
+      const { data: enrollment, error } = await selectLatestParentEnrollment({
+        parentId,
+        primarySelect: "id, user_id, assigned_tutor_id, assigned_student_id, student_full_name, student_grade, parent_email",
+        fallbackSelect: "id, user_id, assigned_tutor_id, student_full_name, student_grade, parent_email",
+      });
+
+      if (error) throw error;
+      if (!enrollment) {
+        return res.json({ unreadCount: 0 });
+      }
+
+      const student = await resolveCanonicalStudentForEnrollment(enrollment);
+      if (!student || !student.tutorId) {
+        return res.json({ unreadCount: 0 });
+      }
+
+      const thread = await ensureStudentCommunicationThread({
+        studentId: student.id,
+        tutorId: student.tutorId,
+        parentId,
+        audience: "parent",
+      });
+
+      const { data, error: unreadError } = await supabase
+        .from("student_communication_messages")
+        .select("id")
+        .eq("thread_id", thread.id)
+        .neq("sender_role", "parent")
+        .is("read_by_parent_at", null);
+
+      if (unreadError) throw unreadError;
+
+      res.json({ unreadCount: (data || []).length });
+    } catch (error) {
+      console.error("Error fetching parent communication unread count:", error);
+      res.status(500).json({ message: "Failed to fetch unread count" });
+    }
+  });
+
+  app.post("/api/parent/communications", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+    try {
+      const parentId = (req as any).dbUser.id;
+      const parsed = insertStudentCommunicationMessageSchema.parse({ ...(req.body || {}), audience: "parent" });
+      const { data: enrollment, error } = await selectLatestParentEnrollment({
+        parentId,
+        primarySelect: "id, user_id, assigned_tutor_id, assigned_student_id, student_full_name, student_grade, parent_email",
+        fallbackSelect: "id, user_id, assigned_tutor_id, student_full_name, student_grade, parent_email",
+      });
+
+      if (error) throw error;
+      if (!enrollment) {
+        return res.status(404).json({ message: "No active enrollment found" });
+      }
+
+      const student = await resolveCanonicalStudentForEnrollment(enrollment);
+      if (!student || !student.tutorId) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      const inserted = await createStudentCommunicationMessage({
+        student,
+        parentId,
+        audience: "parent",
+        senderRole: "parent",
+        senderUserId: parentId,
+        replyToMessageId: parsed.replyToMessageId,
+        message: parsed.message,
+      });
+
+      res.json({
+        id: inserted.id,
+        audience: inserted.audience,
+        createdAt: inserted.created_at,
+      });
+    } catch (error) {
+      console.error("Error sending parent communication:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to send message" });
+    }
+  });
+
+  registerExecutiveCommandRhythmRoutes(app, isAuthenticated);
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
+=== parent report map route ===
+13907-          drillCounts[studentId] = 0;
+13908-        }
+13909-        hasTrainingRunsByStudent.add(studentId);
+13910-
+13911-        const key = scheduledId || runId;
+13912-        const seenKey = `${studentId}:${key}`;
+13913-        if (countedSessionKeys.has(seenKey)) return;
+13914-        countedSessionKeys.add(seenKey);
+13915-        drillCounts[studentId] += 1;
+13916-      });
+13917-
+13918-      const { data: drills } = await supabase
+13919-        .from("intro_session_drills")
+13920-        .select("id, student_id, scheduled_session_id, training_session_run_id, drill")
+13921-        .eq("tutor_id", tutorId)
+13922-        .in("student_id", studentIds);
+13923-
+13924-      (drills || []).forEach((row: any) => {
+13925-        const id = String(row.student_id || "");
+13926-        if (!id) return;
+13927-        if (hasTrainingRunsByStudent.has(id)) return;
+13928-        if (!isTrainingDrillRecord(row)) return;
+13929-
+13930-        const scheduledId = String(row?.scheduled_session_id || "").trim();
+13931-        const runId = String(row?.training_session_run_id || "").trim();
+13932-        const drillId = String(row?.id || "").trim();
+13933-        const key = scheduledId || runId || drillId;
+13934-        if (!key) return;
+13935-
+13936-        if (!drillCounts[id]) {
+13937-          drillCounts[id] = 0;
+13938-        }
+13939-        const seenKey = `${id}:${key}`;
+13940-        if (countedSessionKeys.has(seenKey)) return;
+13941-        countedSessionKeys.add(seenKey);
+13942-        drillCounts[id] += 1;
+13943-      });
+13944-    }
+13945-
+13946-    return students.map((student) => ({
+13947-      ...student,
+13948-      sessionProgress: drillCounts[String(student.id)] || 0,
+13949-    }));
+13950-  };
+13951-
+13952:  const mapParentFacingReport = (report: any, tutorName?: string | null) => {
+13953-    const structured = parseStructuredReportSummary(report.summary) || {};
+13954-    const parentList = (value: unknown): string[] => {
+13955-      if (Array.isArray(value)) {
+13956-        return value
+13957-          .map((item) => String(item || "").trim())
+13958-          .filter(Boolean);
+13959-      }
+13960-
+13961-      const text = String(value || "").trim();
+13962-      if (!text) return [];
+13963-
+13964-      return text
+13965-        .split(/\s*\|\s*|;\s+|\n+/)
+13966-        .map((item) => item.trim())
+13967-        .filter(Boolean);
+13968-    };
+13969-    const normalizeCurrentPosition = (value: unknown) => {
+13970-      if (!Array.isArray(value)) return [];
+13971-
+13972-      return value
+13973-        .map((row: any) => ({
+13974-          topic: String(row?.topic || "").trim(),
+13975-          state: String(row?.state || "").trim(),
+13976-          position: String(row?.position || "").trim(),
+13977-        }))
+13978-        .filter((row: any) => row.topic.length > 0);
+13979-    };
+13980-
+13981-    const base = {
+13982-      id: report.id,
+13983-      reportType: report.report_type,
+13984-      sentAt: report.sent_at,
+13985-      tutor: {
+13986-        name: tutorName || "Tutor",
+13987-      },
+13988-      parentFeedback: report.parent_feedback || null,
+13989-      parentFeedbackAt: report.parent_feedback_at || null,
+13990-    };
+13991-
+13992-    if (report.report_type === "weekly") {
+13993-      return {
+13994-        ...base,
+13995-        weekRange:
+13996-          structured.weekStartDate && structured.weekEndDate
+13997-            ? {
+--
+28383-          const topic = sanitizeTopic(topicKey) || sanitizeTopic(entry?.topic) || null;
+28384-          if (!topic) return null;
+28385-
+28386-          const latestPhase = tryParsePhase(entry?.phase) || tryParsePhase(topicConditioningStore.entry_phase);
+28387-          if (!latestPhase) return null;
+28388-          const latestStability = normalizeStability(entry?.stability || topicConditioningStore.stability || "Low");
+28389-
+28390-          const normalizedHistory = Array.isArray(entry?.history)
+28391-            ? entry.history
+28392-                .map((item: any) => ({
+28393-                  phase: tryParsePhase(item?.phase) || latestPhase,
+28394-                  stability: normalizeStability(item?.stability || latestStability),
+28395-                  date: String(item?.date || "").trim(),
+28396-                }))
+28397-                .filter((item: any) => !!item.date)
+28398-                .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+28399-            : [];
+28400-
+28401-          const latest = normalizedHistory[normalizedHistory.length - 1] || {
+28402-            phase: latestPhase,
+28403-            stability: latestStability,
+28404-            date: entry?.lastUpdated || topicConditioningStore.lastUpdatedAt || new Date().toISOString(),
+28405-          };
+28406-
+28407-          return {
+28408-            topic,
+28409-            phase: latest.phase,
+28410-            stability: latest.stability,
+28411-            lastUpdated: latest.date,
+28412-            topicReference: parseStoredTopicReference(entry?.topicReference),
+28413-            inheritedVerificationHold: entry?.inheritedVerificationHold || null,
+28414-            freshCurrentPhaseEvidenceRequired: !!entry?.freshCurrentPhaseEvidenceRequired,
+28415-          };
+28416-        })
+28417-        .filter((row): row is NonNullable<typeof row> => !!row)
+28418-        .sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime());
+28419-
+28420-      res.json({ topics });
+28421-    } catch (error) {
+28422-      console.error("Error fetching tutor topic conditioning states:", error);
+28423-      res.status(500).json({ message: "Failed to fetch topic conditioning states" });
+28424-    }
+28425-  });
+28426-
+28427-  // Get parent reports
+28428:  app.get("/api/parent/reports", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+28429-    try {
+28430-      const parentId = (req as any).dbUser.id;
+28431-
+28432-      if (isEmergencyDbMode()) {
+28433-        const reportResult = await pool.query(
+28434-          `SELECT pr.*, u.name AS tutor_name
+28435-             FROM public.parent_reports pr
+28436-             LEFT JOIN public.users u ON u.id = pr.tutor_id
+28437-            WHERE pr.parent_id = $1
+28438-            ORDER BY pr.sent_at DESC`,
+28439-          [parentId],
+28440-        );
+28441:        return res.json(reportResult.rows.map((report: any) => mapParentFacingReport(report, report.tutor_name)));
+28442-      }
+28443-
+28444-      const { data: reports, error } = await supabase
+28445-        .from("parent_reports")
+28446-        .select("*")
+28447-        .eq("parent_id", parentId)
+28448-        .order("sent_at", { ascending: false });
+28449-
+28450-      if (error) throw error;
+28451-
+28452-      const tutorIds = Array.from(new Set((reports || []).map((report: any) => report.tutor_id).filter(Boolean)));
+28453-      let tutorNameMap: Record<string, string> = {};
+28454-
+28455-      if (tutorIds.length > 0) {
+28456-        const { data: tutors, error: tutorError } = await supabase
+28457-          .from("users")
+28458-          .select("id, name")
+28459-          .in("id", tutorIds);
+28460-
+28461-        if (tutorError) {
+28462-          console.error("Error fetching tutor names for parent reports:", tutorError);
+28463-        } else {
+28464-          tutorNameMap = (tutors || []).reduce((acc: Record<string, string>, tutor: any) => {
+28465-            acc[tutor.id] = tutor.name || "Tutor";
+28466-            return acc;
+28467-          }, {});
+28468-        }
+28469-      }
+28470-
+28471-      const parentFacingReports = (reports || []).map((report: any) =>
+28472:        mapParentFacingReport(report, tutorNameMap[report.tutor_id])
+28473-      );
+28474-
+28475-      res.json(parentFacingReports);
+28476-    } catch (error) {
+28477-      console.error("Error fetching reports:", error);
+28478-      res.status(500).json({ message: "Failed to fetch reports" });
+28479-    }
+28480-  });
+28481-
+28482-  // Submit parent feedback on report
+28483:  app.post("/api/parent/reports/:id/feedback", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+28484-    try {
+28485-      const { id } = req.params;
+28486-      const { feedback } = req.body;
+28487-
+28488-      const { data: existingReport, error: existingReportError } = await supabase
+28489-        .from("parent_reports")
+28490-        .select("id, parent_id, report_type")
+28491-        .eq("id", id)
+28492-        .single();
+28493-
+28494-      if (existingReportError) throw existingReportError;
+28495-      if (!existingReport || existingReport.parent_id !== (req as any).dbUser.id) {
+28496-        return res.status(404).json({ message: "Report not found" });
+28497-      }
+28498-      if (existingReport.report_type !== "monthly") {
+28499-        return res.status(400).json({ message: "Feedback is only available for monthly reports" });
+28500-      }
+28501-
+28502-      const { data: report, error } = await supabase
+28503-        .from("parent_reports")
+28504-        .update({
+28505-          parent_feedback: feedback,
+28506-          parent_feedback_at: new Date().toISOString(),
+28507-        })
+28508-        .eq("id", id)
+28509-        .select()
+28510-        .single();
+28511-
+28512-      if (error) throw error;
+28513-      res.json(report);
+28514-    } catch (error) {
+28515-      console.error("Error submitting feedback:", error);
+28516-      res.status(500).json({ message: "Failed to submit feedback" });
+28517-    }
+28518-  });
+28519-
+28520-  // Get parent broadcasts (filter for parents)
+28521-  app.get("/api/parent/broadcasts", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+28522-    try {
+28523-      const userCreatedAt = (req as any).dbUser?.createdAt;
+28524-      let query = supabase
+28525-        .from("broadcasts")
+28526-        .select("*")
+28527-        .contains("target_roles", ["parent"])
+28528-        .order("created_at", { ascending: false });
