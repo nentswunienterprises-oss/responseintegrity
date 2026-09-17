@@ -57,7 +57,7 @@ export type ResponseSnapshotV1 = {
     schemaVersion: number | null;
     definitionHash: string | null;
     topic: string;
-    mode: "training" | "diagnosis" | "handover_verification" | "handover_rediagnosis";
+    mode: "training" | "diagnosis" | "handover_verification" | "handover_rediagnosis" | "inherited_verification" | "inherited_rediagnosis";
     observedPhase: TopicPhase;
   };
   drill: {
@@ -89,7 +89,7 @@ type BuildResponseSnapshotInput = {
   generatedBy?: ResponseSnapshotV1["generatedBy"];
   generatedAt?: string;
   topic: string;
-  mode: EvidenceDrillMode | "handover_verification" | "handover_rediagnosis";
+  mode: EvidenceDrillMode | "handover_verification" | "handover_rediagnosis" | "inherited_verification" | "inherited_rediagnosis";
   phase: TopicPhase;
   sets: SubmittedEvidenceSet[];
   drillScore?: number | null;
@@ -697,8 +697,11 @@ const buildRepResultText = (
   return `This rep checked whether ${repPurposeText}. No scored evidence was available for this rep.`;
 };
 
-const drillModeForRegistry = (mode: BuildResponseSnapshotInput["mode"]): EvidenceDrillMode =>
-  mode === "handover_verification" || mode === "handover_rediagnosis" ? "verification" : mode;
+const drillModeForRegistry = (mode: BuildResponseSnapshotInput["mode"]): EvidenceDrillMode => {
+  if (mode === "handover_verification" || mode === "inherited_verification") return "verification";
+  if (mode === "handover_rediagnosis" || mode === "inherited_rediagnosis") return "diagnosis";
+  return mode;
+};
 
 const schemaForSubmittedSet = (
   mode: EvidenceDrillMode,

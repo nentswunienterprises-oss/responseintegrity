@@ -172,3 +172,78 @@ test("stored handover verification rows build projection input as verification e
   assert.equal(result.input.statePhaseBefore, "Clarity");
   assert.equal(result.input.transitionReason, "hold");
 });
+
+
+test("stored inherited verification rows build active-training verification lineage", () => {
+  const input = buildProjectionInput();
+  const row = {
+    id: input.sourceDrillId,
+    student_id: input.studentId,
+    tutor_id: input.tutorId,
+    scheduled_session_id: input.scheduledSessionId,
+    training_session_run_id: "66666666-6666-4666-8666-666666666666",
+    submitted_at: input.observedAt,
+    drill: {
+      trainingTopic: input.topic,
+      targetPhase: "Clarity",
+      resumePhase: "Controlled Discomfort",
+      resumeStability: "High Maintenance",
+      drillType: "inherited_verification",
+      inheritedVerificationMode: "verification",
+      sets: input.sets,
+      summary: {
+        targetPhase: "Clarity",
+        resumePhase: "Controlled Discomfort",
+        resumeStability: "High Maintenance",
+        resultingPhase: "Controlled Discomfort",
+        resultingStability: "High Maintenance",
+        verificationOutcome: "verification_cleared",
+      },
+    },
+  };
+
+  const result = buildEvidenceLedgerProjectionInputFromStoredDrillRow(row);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.input.sessionContext, "active_training");
+  assert.equal(result.input.drillType, "verification");
+  assert.equal(result.input.observedPhase, "Clarity");
+  assert.equal(result.input.statePhaseBefore, "Controlled Discomfort");
+  assert.equal(result.input.stabilityBefore, "High Maintenance");
+  assert.equal(result.input.trainingSessionRunId, "66666666-6666-4666-8666-666666666666");
+});
+
+test("stored inherited targeted re-diagnosis rows project as diagnosis evidence", () => {
+  const input = buildProjectionInput();
+  const row = {
+    id: input.sourceDrillId,
+    student_id: input.studentId,
+    tutor_id: input.tutorId,
+    scheduled_session_id: input.scheduledSessionId,
+    training_session_run_id: "77777777-7777-4777-8777-777777777777",
+    submitted_at: input.observedAt,
+    drill: {
+      trainingTopic: input.topic,
+      targetPhase: "Structured Execution",
+      resumePhase: "Time Pressure Stability",
+      resumeStability: "High",
+      drillType: "inherited_verification",
+      inheritedVerificationMode: "targeted_re_diagnosis",
+      sets: input.sets,
+      summary: {
+        targetPhase: "Structured Execution",
+        resultingPhase: "Controlled Discomfort",
+        resultingStability: "Low",
+        verificationOutcome: "targeted_re_diagnosis_completed",
+      },
+    },
+  };
+
+  const result = buildEvidenceLedgerProjectionInputFromStoredDrillRow(row);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.input.sessionContext, "active_training");
+  assert.equal(result.input.drillType, "diagnosis");
+  assert.equal(result.input.observedPhase, "Structured Execution");
+  assert.equal(result.input.statePhaseAfter, "Controlled Discomfort");
+});

@@ -40,7 +40,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { API_URL } from "@/lib/config";
 
 type PhaseLabel = "Clarity" | "Structured Execution" | "Controlled Discomfort" | "Time Pressure Stability";
-type DrillMode = "diagnosis" | "training" | "session" | "handover";
+type DrillMode = "diagnosis" | "training" | "session" | "handover" | "inherited-verification";
 type ObservationField = {
   key: string;
   label: string;
@@ -720,7 +720,7 @@ function buildDrillStructure(mode: DrillMode, phase: PhaseLabel) {
   if (mode === "training") {
     return TRAINING_SETS_BY_PHASE[phase];
   }
-  if (mode === "handover") {
+  if (mode === "handover" || mode === "inherited-verification") {
     return [ADAPTIVE_DIAGNOSIS_BLOCK_BY_PHASE[phase]];
   }
   return DIAGNOSIS_SETS_BY_PHASE[phase];
@@ -728,7 +728,7 @@ function buildDrillStructure(mode: DrillMode, phase: PhaseLabel) {
 
 function buildVerificationPrepSpec(
   phase: PhaseLabel,
-  mode: "diagnosis" | "handover" | "handover_rediagnosis"
+  mode: "diagnosis" | "handover" | "handover_rediagnosis" | "inherited_verification" | "inherited_rediagnosis"
 ): VerificationPrepSpec {
   const diagnosisBlock = ADAPTIVE_DIAGNOSIS_BLOCK_BY_PHASE[phase];
   const trainingSets = TRAINING_SETS_BY_PHASE[phase];
@@ -774,22 +774,29 @@ function buildVerificationPrepSpec(
     };
   }
 
-  if (mode === "handover") {
+  if (mode === "handover" || mode === "inherited_verification") {
+    const inheritedLayer = mode === "inherited_verification";
     return {
-      title: "Handover Prep",
-      objective: `Verify whether the inherited ${phase} topic-state is still trustworthy. ${phasePurpose}`,
-      problemPlan: `Prepare exactly ${diagnosisBlock.reps} clean verification problems at the inherited ${phase} level. Keep the same phase target, but do not open the full training drill.`,
+      title: inheritedLayer ? "Earlier-Layer Verification Prep" : "Handover Prep",
+      objective: inheritedLayer
+        ? `Verify whether the earlier ${phase} layer still holds before positive movement can resume. ${phasePurpose}`
+        : `Verify whether the inherited ${phase} topic-state is still trustworthy. ${phasePurpose}`,
+      problemPlan: `Prepare exactly ${diagnosisBlock.reps} clean verification problems at the ${phase} level. Keep the same phase target, but do not open the full training drill.`,
       tutorRules: [
         ...verificationRules,
         ...phaseRules,
-        "Do not reteach from scratch.",
-        "Do not progress the student during verification.",
+        inheritedLayer ? "Verify the flagged earlier layer only; the system owns the resulting topic state." : "Do not reteach from scratch.",
+        "Do not progress the student manually during verification.",
       ],
-      derivedFrom: `Derived from the ${phase} training lane and reduced to the ${diagnosisBlock.setName} continuity-check block. Training reference: ${trainingReference}.`,
+      derivedFrom: `Derived from the ${phase} training lane and reduced to the ${diagnosisBlock.setName} verification block. Training reference: ${trainingReference}.`,
       checklist: [
-        `I reviewed the inherited ${phase} / ${phase === "Clarity" ? "concept-entry" : "response-state"} before starting.`,
+        inheritedLayer
+          ? `I prepared exactly ${diagnosisBlock.reps} clean ${phase} earlier-layer verification problems.`
+          : `I reviewed the inherited ${phase} / ${phase === "Clarity" ? "concept-entry" : "response-state"} before starting.`,
         `I prepared exactly ${diagnosisBlock.reps} clean ${phase} verification problems.`,
-        "I will verify continuity only and will not restart or train forward.",
+        inheritedLayer
+          ? "I will record what happens and let RI-OS decide clear, regression, or targeted re-diagnosis."
+          : "I will verify continuity only and will not restart or train forward.",
       ],
     };
   }
@@ -939,6 +946,7 @@ export default function IntroSessionDrillRunner() {
   const requestedMode = searchParams.get("mode");
   const requestedContext = searchParams.get("context");
   const handoverReDiagnosisMode = requestedMode === "handover" && searchParams.get("rediagnosis") === "1";
+  const inheritedReDiagnosisMode = requestedMode === "inherited-verification" && searchParams.get("rediagnosis") === "1";
   const drillMode: DrillMode =
     requestedMode === "training"
       ? "training"
@@ -946,7 +954,9 @@ export default function IntroSessionDrillRunner() {
         ? "session"
         : requestedMode === "handover"
           ? "handover"
-          : "diagnosis";
+          : requestedMode === "inherited-verification"
+            ? "inherited-verification"
+            : "diagnosis";
   const isSessionMode = drillMode === "session";
   const scheduledSessionId = searchParams.get("scheduledSessionId") || "";
   const rawPhase = searchParams.get("phase");
@@ -979,7 +989,7 @@ export default function IntroSessionDrillRunner() {
 
   const { data: topicData, isLoading: topicDataLoading, refetch: refetchTopicData } = useQuery<{ topics: TopicConditioningRow[] } | undefined>({
     queryKey: ["/api/tutor/topic-conditioning", studentId],
-    enabled: (drillMode === "training" || isSessionMode) && !!studentId,
+    enabled: (drillMode === "training" || drillMode === "inherited-verification" || isSessionMode) && !!studentId,
   });
 
   const currentSessionTopic = useMemo(() => {
@@ -1011,7 +1021,7 @@ export default function IntroSessionDrillRunner() {
 
   useEffect(() => {
     setShowModeInstructions(true);
-  }, [drillMode, handoverReDiagnosisMode, currentTopicName, activeDiagnosisPhase, studentId]);
+  }, [drillMode, handoverReDiagnosisMode, inheritedReDiagnosisMode, currentTopicName, activeDiagnosisPhase, studentId]);
 
   const {
     data: drillSessionAccess,
@@ -1045,9 +1055,14 @@ export default function IntroSessionDrillRunner() {
   const modeToUse: DrillMode = isSessionMode ? "training" : drillMode;
   const isAdaptiveDiagnosisMode = modeToUse === "diagnosis";
   const isHandoverMode = modeToUse === "handover";
-  const isAdaptiveVerificationFlow = isAdaptiveDiagnosisMode || (isHandoverMode && handoverReDiagnosisMode);
+  const isInheritedVerificationMode = modeToUse === "inherited-verification";
+  const isAdaptiveVerificationFlow =
+    isAdaptiveDiagnosisMode ||
+    (isHandoverMode && handoverReDiagnosisMode) ||
+    (isInheritedVerificationMode && inheritedReDiagnosisMode);
   const evidenceModeForSubmission: EvidenceDrillMode =
-    isHandoverMode && !handoverReDiagnosisMode
+    (isHandoverMode && !handoverReDiagnosisMode) ||
+    (isInheritedVerificationMode && !inheritedReDiagnosisMode)
       ? "verification"
       : modeToUse === "training"
         ? "training"
@@ -1169,11 +1184,15 @@ export default function IntroSessionDrillRunner() {
         displayPhase,
         isAdaptiveDiagnosisMode
           ? "diagnosis"
-          : handoverReDiagnosisMode
-            ? "handover_rediagnosis"
-            : "handover"
+          : isInheritedVerificationMode
+            ? inheritedReDiagnosisMode
+              ? "inherited_rediagnosis"
+              : "inherited_verification"
+            : handoverReDiagnosisMode
+              ? "handover_rediagnosis"
+              : "handover"
       ),
-    [displayPhase, isAdaptiveDiagnosisMode, handoverReDiagnosisMode]
+    [displayPhase, isAdaptiveDiagnosisMode, isInheritedVerificationMode, inheritedReDiagnosisMode, handoverReDiagnosisMode]
   );
 
   const hasIntroTopic = !!introTopic;
@@ -2005,14 +2024,22 @@ export default function IntroSessionDrillRunner() {
               scheduledSessionId,
               rediagnosis: true,
             }
-          : {
-              studentId,
-              introTopic,
-              startingPhase: phase,
-              adaptiveBlocks: finalAdaptiveBlocks,
-              scheduledSessionId,
-              sessionContextKind: diagnosisSessionKind,
-            };
+          : isInheritedVerificationMode
+            ? {
+                studentId,
+                trainingTopic: introTopic,
+                adaptiveBlocks: finalAdaptiveBlocks,
+                scheduledSessionId,
+                rediagnosis: true,
+              }
+            : {
+                studentId,
+                introTopic,
+                startingPhase: phase,
+                adaptiveBlocks: finalAdaptiveBlocks,
+                scheduledSessionId,
+                sessionContextKind: diagnosisSessionKind,
+              };
         const { data: { session } } = await supabase.auth.getSession();
         const headers: HeadersInit = {
           "Content-Type": "application/json",
@@ -2020,7 +2047,11 @@ export default function IntroSessionDrillRunner() {
         if (session?.access_token) {
           headers.Authorization = `Bearer ${session.access_token}`;
         }
-        const adaptiveEndpoint = isHandoverMode ? "/api/tutor/handover-verification-drill" : "/api/tutor/intro-session-drill";
+        const adaptiveEndpoint = isHandoverMode
+          ? "/api/tutor/handover-verification-drill"
+          : isInheritedVerificationMode
+            ? "/api/tutor/inherited-layer-verification-drill"
+            : "/api/tutor/intro-session-drill";
         const adaptiveResponse = await fetch(`${API_URL}${adaptiveEndpoint}`, {
           method: "POST",
           headers,
@@ -2063,7 +2094,9 @@ export default function IntroSessionDrillRunner() {
         setAdaptiveDiagnosisMessage(
           isHandoverMode
             ? `${phaseSummary.phaseScore}/100 in ${activeDiagnosisPhase}. Targeted re-diagnosis resolved to ${res.data?.summary?.resultingPhase || activeDiagnosisPhase}.`
-            : `${phaseSummary.phaseScore}/100 in ${activeDiagnosisPhase}. Diagnosis locked at ${res.data?.summary?.phase || activeDiagnosisPhase}.`
+            : isInheritedVerificationMode
+              ? `${phaseSummary.phaseScore}/100 in ${activeDiagnosisPhase}. Earlier-layer re-diagnosis resolved to ${res.data?.summary?.resultingPhase || activeDiagnosisPhase}.`
+              : `${phaseSummary.phaseScore}/100 in ${activeDiagnosisPhase}. Diagnosis locked at ${res.data?.summary?.phase || activeDiagnosisPhase}.`
         );
         setSubmitSuccess(true);
         setScoring(res.data?.scoring || null);
@@ -2132,7 +2165,9 @@ export default function IntroSessionDrillRunner() {
         // completed payload is either a handover verification or a training session.
         const endpoint = isHandoverMode
           ? "/api/tutor/handover-verification-drill"
-          : "/api/tutor/training-session-drill";
+          : isInheritedVerificationMode
+            ? "/api/tutor/inherited-layer-verification-drill"
+            : "/api/tutor/training-session-drill";
         const payload = isHandoverMode
           ? {
                 studentId,
@@ -2142,11 +2177,19 @@ export default function IntroSessionDrillRunner() {
                 stability: currentDrill.previousStability,
                 scheduledSessionId,
             }
-          : {
-              studentId,
-              sessionDrills: allDrills,
-              scheduledSessionId,
-            };
+          : isInheritedVerificationMode
+            ? {
+                studentId,
+                drill: currentDrill.drill,
+                trainingTopic: currentDrill.trainingTopic,
+                scheduledSessionId,
+                rediagnosis: false,
+              }
+            : {
+                studentId,
+                sessionDrills: allDrills,
+                scheduledSessionId,
+              };
         const { data: { session } } = await supabase.auth.getSession();
         const headers: HeadersInit = {
           "Content-Type": "application/json",
@@ -2259,12 +2302,12 @@ export default function IntroSessionDrillRunner() {
           </div>
         </div>
       )}
-      {(drillMode === "training" || isSessionMode) && workflowLoading && (
+      {(drillMode === "training" || drillMode === "inherited-verification" || isSessionMode) && workflowLoading && (
         <div className="mb-4 p-3 rounded-md border border-primary/20 bg-primary/5">
           <p className="text-sm">Checking assignment access...</p>
         </div>
       )}
-      {(drillMode === "training" || isSessionMode) && !workflowLoading && !assignmentAccepted && (
+      {(drillMode === "training" || drillMode === "inherited-verification" || isSessionMode) && !workflowLoading && !assignmentAccepted && (
         <div className="space-y-4">
           <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-900">
             <p className="font-semibold">Training access is locked</p>
@@ -2283,7 +2326,7 @@ export default function IntroSessionDrillRunner() {
           </div>
         </div>
       )}
-      {!drillSessionAccessLoading && canUseScheduledSession && !((drillMode === "training" || isSessionMode) && !workflowLoading && !assignmentAccepted) && (
+      {!drillSessionAccessLoading && canUseScheduledSession && !((drillMode === "training" || drillMode === "inherited-verification" || isSessionMode) && !workflowLoading && !assignmentAccepted) && (
       <>
       <div ref={resultTopRef} />
       {(!drillStructure || (isSessionMode && topicDataLoading)) && (
@@ -2838,6 +2881,27 @@ export default function IntroSessionDrillRunner() {
                 ? "Run adaptive diagnosis only for this flagged topic until the correct current phase is clear."
                 : "Run the single verification block exactly as shown, score it honestly, and let the system decide whether the inherited state holds."}
             </li>
+          </ul>
+        </div>
+      )}
+
+      {drillMode === "inherited-verification" && showModeInstructions && (
+        <div className="mb-4 rounded-md border border-primary/20 bg-primary/5 p-3">
+          <div className="mb-2 flex items-start justify-between gap-3">
+            <p className="font-semibold">Earlier-Layer Verification</p>
+            <button
+              type="button"
+              className="text-xs font-medium text-muted-foreground hover:text-foreground"
+              onClick={() => setShowModeInstructions(false)}
+            >
+              Dismiss
+            </button>
+          </div>
+          <ul className="list-disc pl-5 text-sm text-foreground/90 space-y-1">
+            <li>{inheritedReDiagnosisMode ? "This is targeted adaptive re-diagnosis from the flagged earlier layer." : "This is verification of a material earlier-layer break observed during later-phase work."}</li>
+            <li>Run the system-provided block exactly as shown. Do not turn this into normal training.</li>
+            <li>The Specialist records evidence only; RI-OS decides whether the hold clears, the topic regresses, or deeper re-diagnosis is required.</li>
+            <li>A cleared hold never restores a previously withheld upward transition. Fresh current-phase evidence is required.</li>
           </ul>
         </div>
       )}

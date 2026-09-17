@@ -160,6 +160,54 @@ export const buildEvidenceLedgerProjectionInputFromStoredDrillRow = (
     };
   }
 
+  if (normalizedDrillType === "inherited_verification") {
+    const verificationMode = cleanString(parsed.inheritedVerificationMode).toLowerCase();
+    const isTargetedRediagnosis = verificationMode === "targeted_re_diagnosis";
+    const observedPhase = tryParsePhase(
+      parsed.targetPhase || parsed.summary?.targetPhase || parsed.startingPhase || parsed.phase,
+    );
+    const statePhaseBefore = tryParsePhase(
+      parsed.resumePhase || parsed.summary?.resumePhase || parsed.statePhaseBefore || parsed.phase,
+    );
+    const statePhaseAfter = tryParsePhase(
+      parsed.summary?.resultingPhase || parsed.summary?.phase || statePhaseBefore,
+    );
+    if (!observedPhase || !statePhaseBefore || !statePhaseAfter) {
+      return {
+        ok: false,
+        issue: { code: "missing_identity", message: "Inherited verification drill is missing a valid phase" },
+      };
+    }
+    return {
+      ok: true,
+      input: {
+        sourceDrillId,
+        studentId,
+        tutorId,
+        topic: cleanString(parsed.trainingTopic || parsed.inheritedTopic || parsed.introTopic),
+        scheduledSessionId,
+        trainingSessionRunId,
+        sessionGroupId: cleanString(scheduledSessionId || trainingSessionRunId || sourceDrillId),
+        sessionContext: "active_training",
+        drillType: isTargetedRediagnosis ? "diagnosis" : "verification",
+        observedPhase,
+        statePhaseBefore,
+        stabilityBefore: normalizeStability(
+          parsed.resumeStability || parsed.summary?.resumeStability || parsed.previousStability || "Low",
+        ),
+        statePhaseAfter,
+        stabilityAfter: normalizeStability(
+          parsed.summary?.resultingStability || parsed.summary?.stability || "Low",
+        ),
+        transitionReason: cleanString(
+          parsed.summary?.verificationOutcome || parsed.summary?.transitionReason,
+        ) || null,
+        observedAt,
+        sets,
+      },
+    };
+  }
+
   if (normalizedDrillType === "handover_verification") {
     const handoverMode = cleanString(parsed.handoverMode).toLowerCase();
     const isTargetedRediagnosis = handoverMode === "targeted_re_diagnosis";

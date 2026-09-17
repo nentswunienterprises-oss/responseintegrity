@@ -49,6 +49,8 @@ import {
 } from "@shared/topicConditioningEngine";
 import {
   applyInheritedVerificationGate,
+  resolveInheritedVerification,
+  type InheritedVerificationHold,
 } from "@shared/inheritedLayerVerification";
 import { normalizeObservationLevelValue } from "@shared/observationScoring";
 import {
@@ -7002,6 +7004,485 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             } catch (err) {
               console.error("Exception in handover verification submission:", err);
+              res.status(500).json({ message: "Internal server error" });
+            }
+          });
+
+          app.post("/api/tutor/inherited-layer-verification-drill", isAuthenticated, requireRole(["tutor"]), async (req: Request, res: Response) => {
+            let emergencyDbClient: any = null;
+            try {
+              const tutorId = (req as any).dbUser.id;
+              const {
+                studentId,
+                trainingTopic,
+                drill,
+                adaptiveBlocks: rawAdaptiveBlocks,
+                scheduledSessionId,
+                rediagnosis,
+              } = req.body;
+              const normalizedTopic = String(trainingTopic || "").trim();
+
+              if (!studentId || !normalizedTopic) {
+                return res.status(400).json({ message: "Student and inherited-verification topic are required." });
+              }
+
+              const student = await storage.getStudent(studentId);
+              if (!student || String(student.tutorId || "") !== String(tutorId)) {
+                return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+              }
+
+              const assignmentAccepted = await isTutorAssignmentAcceptedForStudent(student, tutorId);
+              if (!assignmentAccepted) {
+                return res.status(403).json({ message: "Accept this assignment before running inherited-layer verification." });
+              }
+
+              const conceptMastery: any =
+                student.conceptMastery && typeof student.conceptMastery === "object"
+                  ? { ...(student.conceptMastery as any) }
+                  : {};
+              const topicConditioningStore: any =
+                conceptMastery.topicConditioning && typeof conceptMastery.topicConditioning === "object"
+                  ? { ...conceptMastery.topicConditioning }
+                  : {};
+              const topicsStore: Record<string, any> =
+                topicConditioningStore.topics && typeof topicConditioningStore.topics === "object"
+                  ? { ...topicConditioningStore.topics }
+                  : {};
+              const topicKey = Object.keys(topicsStore).find(
+                (candidate) => candidate.trim().toLowerCase() === normalizedTopic.toLowerCase(),
+              );
+              const existingTopic = topicKey && topicsStore[topicKey] && typeof topicsStore[topicKey] === "object"
+                ? topicsStore[topicKey]
+                : null;
+              const hold = existingTopic?.inheritedVerificationHold as InheritedVerificationHold | null | undefined;
+
+              if (!existingTopic || hold?.kind !== "inherited_verification_required") {
+                return res.status(400).json({ message: "This topic does not currently require inherited-layer verification." });
+              }
+
+              const targetPhase = parseAuthoritativePhase(hold.targetPhase);
+              const resumePhase = parseAuthoritativePhase(hold.resumePhase || existingTopic.phase);
+              const resumeStability = normalizeStability(hold.resumeStability || existingTopic.stability || "Low");
+              if (!targetPhase || !resumePhase) {
+                return res.status(400).json({ message: "Inherited verification hold is missing an authoritative phase." });
+              }
+
+              const isTargetedRediagnosis = !!rediagnosis;
+              if (hold.status === "verification_required" && isTargetedRediagnosis) {
+                return res.status(400).json({ message: "Run the inherited-layer verification block before targeted re-diagnosis." });
+              }
+              if (hold.status === "targeted_re_diagnosis_required" && !isTargetedRediagnosis) {
+                return res.status(400).json({ message: "This hold now requires targeted adaptive re-diagnosis from the earlier layer." });
+              }
+
+              const operationalMode = await getTutorOperationalMode(tutorId);
+              const { session: scheduledSession, error: scheduledSessionError } = await resolveTutorScheduledSession(
+                tutorId,
+                studentId,
+                "training",
+                typeof scheduledSessionId === "string" ? scheduledSessionId : null,
+              );
+              if (scheduledSessionError) {
+                return res.status(500).json({ message: "Failed to validate inherited-verification lesson context." });
+              }
+              if (!scheduledSession) {
+                return res.status(400).json({ message: "A Response Integrity training lesson must be attached before inherited-layer verification." });
+              }
+
+              if (operationalMode === "training" || operationalMode === "sandbox") {
+                const status = String(scheduledSession.status || "").trim();
+                const hasConfirmedSchedule =
+                  ["confirmed", "ready", "live"].includes(status) &&
+                  !!scheduledSession.parent_confirmed &&
+                  !!scheduledSession.tutor_confirmed;
+                if (!hasConfirmedSchedule) {
+                  return res.status(400).json({ message: "Inherited-layer verification must run inside a tutor-confirmed Response Integrity training lesson." });
+                }
+              } else if (isLiveSchedulingMode(operationalMode)) {
+                const launch = getSessionLaunchState(scheduledSession, "training");
+                if (!launch.canLaunch) {
+                  return res.status(400).json({ message: "Inherited-layer verification must run inside an active or imminently scheduled training lesson." });
+                }
+              }
+
+              const verificationBlocks = isTargetedRediagnosis
+                ? normalizeAdaptiveDiagnosisBlocks(rawAdaptiveBlocks)
+                : normalizeAdaptiveDiagnosisBlocks(
+                    Array.isArray(drill)
+                      ? drill.map((set: any) => ({ ...set, phase: targetPhase }))
+                      : [],
+                  );
+
+              if (verificationBlocks.length === 0) {
+                return res.status(400).json({ message: "Inherited-layer verification evidence is required." });
+              }
+              if (!isTargetedRediagnosis && verificationBlocks.length !== 1) {
+                return res.status(400).json({ message: "Inherited-layer verification must submit exactly one verification block." });
+              }
+
+              const validationError = isTargetedRediagnosis
+                ? validateAdaptiveDiagnosisBlocks(verificationBlocks, "diagnosis")
+                : validateAdaptiveDiagnosisBlocks(verificationBlocks, "verification");
+              if (validationError) {
+                return res.status(400).json({ message: validationError });
+              }
+
+              let verificationSummary: any;
+              let scoring: any[];
+              let resultingHold: InheritedVerificationHold | null = null;
+
+              if (isTargetedRediagnosis) {
+                const diagnosisSummary = computeAdaptiveDiagnosisSummary(targetPhase, verificationBlocks);
+                const adaptivePathError = validateAdaptiveDiagnosisPath(targetPhase, diagnosisSummary);
+                if (adaptivePathError) {
+                  return res.status(400).json({ message: adaptivePathError });
+                }
+                const resultingStability = normalizeStability(diagnosisSummary.stability || "Low");
+                verificationSummary = {
+                  targetPhase,
+                  resumePhase,
+                  resumeStability,
+                  verificationScore: Number(diagnosisSummary.diagnosisScore || 0),
+                  verificationOutcome: "targeted_re_diagnosis_completed",
+                  verificationOutcomeLabel: "Targeted re-diagnosis completed",
+                  resultingPhase: diagnosisSummary.phase,
+                  resultingStability,
+                  reDiagnosisRequired: false,
+                  freshCurrentPhaseEvidenceRequired: false,
+                  nextAction: diagnosisSummary.nextAction || null,
+                  constraint: diagnosisSummary.constraint || null,
+                  startingPhase: diagnosisSummary.startingPhase,
+                  pathLength: diagnosisSummary.pathLength,
+                  phaseChecks: diagnosisSummary.phaseChecks,
+                  finalBand: diagnosisSummary.finalBand,
+                  finalBandLabel: diagnosisSummary.finalBandLabel,
+                  repRows: diagnosisSummary.phaseChecks.flatMap((check: any) => check.repRows),
+                };
+                scoring = diagnosisSummary.phaseChecks.flatMap((check: any) =>
+                  check.repRows.map((row: any) => ({
+                    set: check.setName,
+                    rep: row.rep,
+                    score: row.repScore,
+                    setScore: check.phaseScore,
+                    setPoints: check.phaseScore,
+                    setMaxPoints: 100,
+                    sessionScore: diagnosisSummary.diagnosisScore,
+                    phase: check.phase,
+                    stability: resultingStability,
+                    verificationOutcome: "targeted_re_diagnosis_completed",
+                    nextAction: diagnosisSummary.nextAction || null,
+                    constraint: diagnosisSummary.constraint || null,
+                  })),
+                );
+              } else {
+                const phaseSummary = computeAdaptiveDiagnosisPhaseSummary(
+                  targetPhase,
+                  verificationBlocks[0].observations,
+                );
+                const resolution = resolveInheritedVerification(hold, phaseSummary.phaseScore);
+                if (!resolution.holdCleared) {
+                  resultingHold = {
+                    ...hold,
+                    status: "targeted_re_diagnosis_required",
+                    freshCurrentPhaseEvidenceRequired: false,
+                  };
+                }
+                const outcomeLabel =
+                  resolution.outcome === "verification_cleared"
+                    ? "Earlier layer verified"
+                    : resolution.outcome === "regress_to_earlier_phase"
+                      ? "Earlier-layer regression confirmed"
+                      : "Targeted re-diagnosis required";
+                const nextAction =
+                  resolution.outcome === "verification_cleared"
+                    ? `Return to ${resolution.resultingPhase} at ${resolution.resultingStability} and collect fresh current-phase evidence before any upward movement.`
+                    : resolution.outcome === "regress_to_earlier_phase"
+                      ? `Resume training in ${resolution.resultingPhase} at High.`
+                      : `Run targeted adaptive re-diagnosis from ${hold.targetPhase} before normal training resumes.`;
+                const constraint =
+                  resolution.outcome === "verification_cleared"
+                    ? "The earlier layer is cleared, but the previously withheld positive movement is not restored retroactively."
+                    : resolution.outcome === "regress_to_earlier_phase"
+                      ? `The material ${hold.targetPhase} break is confirmed; continue from that earlier layer.`
+                      : `Normal training remains blocked until targeted re-diagnosis resolves placement from ${hold.targetPhase}.`;
+                verificationSummary = {
+                  targetPhase,
+                  resumePhase,
+                  resumeStability,
+                  verificationScore: resolution.verificationScore,
+                  verificationOutcome: resolution.outcome,
+                  verificationOutcomeLabel: outcomeLabel,
+                  resultingPhase: resolution.resultingPhase,
+                  resultingStability: resolution.resultingStability,
+                  reDiagnosisRequired: resolution.outcome === "targeted_re_diagnosis_required",
+                  freshCurrentPhaseEvidenceRequired: resolution.freshCurrentPhaseEvidenceRequired,
+                  targetedRediagnosisStartingPhase: resolution.targetedRediagnosisStartingPhase,
+                  nextAction,
+                  constraint,
+                  repRows: phaseSummary.repRows,
+                  phaseChecks: [{
+                    phase: targetPhase,
+                    setName: verificationBlocks[0].setName,
+                    phaseScore: phaseSummary.phaseScore,
+                    repRows: phaseSummary.repRows,
+                  }],
+                };
+                scoring = phaseSummary.repRows.map((row: any) => ({
+                  set: verificationBlocks[0].setName,
+                  rep: row.rep,
+                  score: row.repScore,
+                  setScore: phaseSummary.phaseScore,
+                  setPoints: phaseSummary.phaseScore,
+                  setMaxPoints: 100,
+                  sessionScore: phaseSummary.phaseScore,
+                  phase: targetPhase,
+                  stability: resolution.resultingStability,
+                  verificationOutcome: resolution.outcome,
+                  verificationOutcomeLabel: outcomeLabel,
+                  reDiagnosisRequired: resolution.outcome === "targeted_re_diagnosis_required",
+                  nextAction,
+                  constraint,
+                }));
+              }
+
+              const verificationRunId = uuidv4();
+              const drillId = uuidv4();
+              const submittedAt = new Date().toISOString();
+              const scheduledSessionRecordId = scheduledSession.id || null;
+              const responseSnapshot = buildResponseSnapshotV1({
+                sourceDrillId: drillId,
+                topic: normalizedTopic,
+                mode: isTargetedRediagnosis ? "inherited_rediagnosis" : "inherited_verification",
+                phase: targetPhase,
+                sets: verificationBlocks as any,
+                drillScore: Number(verificationSummary.verificationScore || 0),
+                setScores: isTargetedRediagnosis
+                  ? (verificationSummary.phaseChecks || []).map((check: any) => Number(check.phaseScore || 0))
+                  : [Number(verificationSummary.verificationScore || 0)],
+                engineOutcomeRef: {
+                  phaseBefore: resumePhase,
+                  stabilityBefore: resumeStability,
+                  phaseAfter: verificationSummary.resultingPhase,
+                  stabilityAfter: verificationSummary.resultingStability,
+                  transitionReason: verificationSummary.verificationOutcome,
+                },
+              });
+              const drillPayload = {
+                trainingTopic: normalizedTopic,
+                targetPhase,
+                resumePhase,
+                resumeStability,
+                drillType: "inherited_verification",
+                inheritedVerificationMode: isTargetedRediagnosis ? "targeted_re_diagnosis" : "verification",
+                scheduledSessionId: scheduledSessionRecordId,
+                sessionId: verificationRunId,
+                sets: verificationBlocks,
+                summary: verificationSummary,
+                responseSnapshot,
+              };
+
+              emergencyDbClient = isEmergencyDbMode() ? await pool.connect() : null;
+              if (emergencyDbClient) await emergencyDbClient.query("BEGIN");
+
+              const trainingRun = isEmergencyDbMode()
+                ? (await emergencyDbClient!.query(
+                    `INSERT INTO public.training_session_runs
+                      (id, scheduled_session_id, student_id, tutor_id, topic_count, started_at, status, created_at, updated_at)
+                     VALUES ($1, $2, $3, $4, 1, $5, 'in_progress', $5, $5)
+                     RETURNING *`,
+                    [verificationRunId, scheduledSessionRecordId, studentId, tutorId, submittedAt],
+                  )).rows[0]
+                : (await supabase
+                    .from("training_session_runs")
+                    .insert({
+                      id: verificationRunId,
+                      scheduled_session_id: scheduledSessionRecordId,
+                      student_id: studentId,
+                      tutor_id: tutorId,
+                      topic_count: 1,
+                      started_at: submittedAt,
+                      status: "in_progress",
+                      created_at: submittedAt,
+                      updated_at: submittedAt,
+                    })
+                    .select()
+                    .single()).data;
+
+              if (!trainingRun) {
+                throw new Error("Failed to create inherited-verification training run.");
+              }
+
+              const inserted = isEmergencyDbMode()
+                ? (await emergencyDbClient!.query(
+                    `INSERT INTO public.intro_session_drills
+                      (id, student_id, tutor_id, drill, scheduled_session_id, training_session_run_id, submitted_at)
+                     VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)
+                     RETURNING *`,
+                    [drillId, studentId, tutorId, JSON.stringify(drillPayload), scheduledSessionRecordId, verificationRunId, submittedAt],
+                  )).rows[0]
+                : (await supabase
+                    .from("intro_session_drills")
+                    .insert({
+                      id: drillId,
+                      student_id: studentId,
+                      tutor_id: tutorId,
+                      drill: JSON.stringify(drillPayload),
+                      scheduled_session_id: scheduledSessionRecordId,
+                      training_session_run_id: verificationRunId,
+                      submitted_at: submittedAt,
+                    })
+                    .select()
+                    .single()).data;
+              if (!inserted) {
+                throw new Error("Failed to store inherited-layer verification evidence.");
+              }
+
+              const ledgerInput: EvidenceLedgerProjectionInput = {
+                sourceDrillId: String(inserted.id || drillId),
+                studentId: String(studentId),
+                tutorId: String(tutorId),
+                topic: normalizedTopic,
+                scheduledSessionId: String(scheduledSessionRecordId || "") || null,
+                trainingSessionRunId: verificationRunId,
+                sessionGroupId: String(scheduledSessionRecordId || verificationRunId),
+                sessionContext: "active_training",
+                drillType: isTargetedRediagnosis ? "diagnosis" : "verification",
+                observedPhase: targetPhase,
+                statePhaseBefore: resumePhase,
+                stabilityBefore: resumeStability,
+                statePhaseAfter: verificationSummary.resultingPhase,
+                stabilityAfter: verificationSummary.resultingStability,
+                transitionReason: verificationSummary.verificationOutcome,
+                observedAt: String(inserted.submitted_at || submittedAt),
+                sets: verificationBlocks as any,
+              };
+
+              const existingHistory = Array.isArray(existingTopic.history) ? [...existingTopic.history] : [];
+              const updatedEntry = {
+                ...existingTopic,
+                topic: normalizedTopic,
+                phase: verificationSummary.resultingPhase,
+                stability: verificationSummary.resultingStability,
+                inheritedVerificationHold: resultingHold,
+                freshCurrentPhaseEvidenceRequired: !!verificationSummary.freshCurrentPhaseEvidenceRequired,
+                lastUpdated: submittedAt,
+                nextAction: verificationSummary.nextAction,
+                observationNotes: [
+                  `Inherited Verification Score: ${verificationSummary.verificationScore}`,
+                  `Outcome: ${verificationSummary.verificationOutcomeLabel}`,
+                  verificationSummary.constraint ? `Constraint: ${verificationSummary.constraint}` : null,
+                ].filter(Boolean).join(" | "),
+                history: [
+                  ...existingHistory,
+                  {
+                    date: submittedAt,
+                    phase: verificationSummary.resultingPhase,
+                    stability: verificationSummary.resultingStability,
+                    nextAction: verificationSummary.nextAction,
+                    observationNotes: `Inherited-layer verification update. Score ${verificationSummary.verificationScore}.`,
+                    structuredObservation: {
+                      drillType: "inherited_verification",
+                      inheritedVerificationMode: isTargetedRediagnosis ? "targeted_re_diagnosis" : "verification",
+                      targetPhase,
+                      resumePhase,
+                      resumeStability,
+                      verificationScore: verificationSummary.verificationScore,
+                      verificationOutcome: verificationSummary.verificationOutcome,
+                      verificationOutcomeLabel: verificationSummary.verificationOutcomeLabel,
+                      resultingPhase: verificationSummary.resultingPhase,
+                      resultingStability: verificationSummary.resultingStability,
+                      reDiagnosisRequired: verificationSummary.reDiagnosisRequired,
+                      freshCurrentPhaseEvidenceRequired: verificationSummary.freshCurrentPhaseEvidenceRequired,
+                      nextAction: verificationSummary.nextAction,
+                      constraint: verificationSummary.constraint,
+                    },
+                    drillId: inserted.id,
+                    sessionId: verificationRunId,
+                  },
+                ].slice(-60),
+              };
+              topicsStore[topicKey || normalizedTopic] = updatedEntry;
+              topicConditioningStore.topics = topicsStore;
+              topicConditioningStore.lastUpdatedAt = submittedAt;
+              conceptMastery.topicConditioning = topicConditioningStore;
+
+              if (isEmergencyDbMode()) {
+                await emergencyDbClient!.query(
+                  `UPDATE public.students
+                      SET concept_mastery = $1
+                    WHERE id = $2 AND tutor_id = $3`,
+                  [JSON.stringify(conceptMastery), studentId, tutorId],
+                );
+                await emergencyDbClient!.query(
+                  `UPDATE public.scheduled_sessions
+                      SET status = 'completed', attendance_status = 'both_joined',
+                          recording_status = 'manual_not_tracked', transcript_status = 'manual_not_tracked', updated_at = NOW()
+                    WHERE id = $1 AND tutor_id = $2 AND student_id = $3`,
+                  [scheduledSessionRecordId, tutorId, studentId],
+                );
+                await emergencyDbClient!.query(
+                  `UPDATE public.training_session_runs
+                      SET status = 'submitted', submitted_at = NOW(), updated_at = NOW()
+                    WHERE id = $1 AND student_id = $2 AND tutor_id = $3`,
+                  [verificationRunId, studentId, tutorId],
+                );
+                await emergencyDbClient!.query("COMMIT");
+                emergencyDbClient.release();
+                emergencyDbClient = null;
+                const projection = await persistEvidenceLedgerShadow(ledgerInput);
+                if (projection.status === "persistence_failed" || projection.status === "projection_invalid") {
+                  console.warn("[RI_EVIDENCE_LEDGER_SHADOW_DEGRADED]", {
+                    sourceDrillId: ledgerInput.sourceDrillId,
+                    sessionGroupId: ledgerInput.sessionGroupId,
+                    status: projection.status,
+                  });
+                }
+              } else {
+                await persistEvidenceLedgerShadow(ledgerInput);
+                await storage.updateStudent(studentId, { conceptMastery });
+                await supabase
+                  .from("scheduled_sessions")
+                  .update({
+                    status: "completed",
+                    attendance_status: "both_joined",
+                    recording_status: "manual_not_tracked",
+                    transcript_status: "manual_not_tracked",
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", scheduledSessionRecordId);
+                await supabase
+                  .from("training_session_runs")
+                  .update({
+                    status: "submitted",
+                    submitted_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", verificationRunId);
+                try {
+                  await maybeAutoSendDeterministicReports(studentId, tutorId);
+                } catch (autoReportError) {
+                  console.error("Auto report generation failed after inherited-layer verification:", autoReportError);
+                }
+              }
+
+              res.json({
+                success: true,
+                id: inserted.id,
+                trainingTopic: normalizedTopic,
+                summary: verificationSummary,
+                scoring,
+                responseSnapshot,
+              });
+            } catch (err) {
+              if (emergencyDbClient) {
+                try {
+                  await emergencyDbClient.query("ROLLBACK");
+                } finally {
+                  emergencyDbClient.release();
+                  emergencyDbClient = null;
+                }
+              }
+              console.error("Exception in inherited-layer verification submission:", err);
               res.status(500).json({ message: "Internal server error" });
             }
           });
