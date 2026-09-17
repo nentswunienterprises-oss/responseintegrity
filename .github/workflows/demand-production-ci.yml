@@ -1,0 +1,32 @@
+name: Demand Production CI
+on:
+  pull_request:
+    paths:
+      - 'server/**'
+      - 'shared/**'
+      - 'client/src/components/executive/DemandReview.tsx'
+      - 'client/src/pages/executive/coo/track-leads.tsx'
+      - 'client/src/pages/client/parent/gateway.tsx'
+      - 'migrations/**'
+      - 'package*.json'
+      - '.github/workflows/demand-production-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - 'shared/**'
+      - 'migrations/**'
+      - 'package*.json'
+      - '.github/workflows/demand-production-ci.yml'
+jobs:
+  demand-production:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run test:demand-production
+      - run: node --import tsx --test shared/servicePackages.test.ts shared/trialCertification.test.ts
