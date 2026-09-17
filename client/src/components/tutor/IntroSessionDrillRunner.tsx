@@ -27,6 +27,11 @@ import {
   type ActualSupportUsedV2,
   type RepOperationalEvidenceV2,
 } from "@shared/responseIntegrityEvidenceContractV2";
+import {
+  getTpsPrescribedSeconds,
+  type TpsPressureLevel,
+  type TpsTimerContractV1,
+} from "@shared/capabilityTpsTimerContract";
 import type { TopicReference, TopicReferenceContent } from "@shared/topicReference";
 import { useStudentWorkflowState } from "@/hooks/useStudentWorkflowState";
 import { supabase } from "@/lib/supabaseClient";
@@ -105,6 +110,35 @@ type TopicConditioningRow = {
   stability: string;
   topicReference?: TopicReference | null;
 };
+
+type ActiveTpsTimerContract = TpsTimerContractV1 & {
+  contractId: string;
+  conditioningEpochKey: string;
+  createdAt?: string;
+};
+
+type TpsTimerRuntimeStatus = {
+  conditioningEpochKey: string;
+  currentPhase: string | null;
+  currentStability: string | null;
+  contract: ActiveTpsTimerContract | null;
+  historicalCandidate: TpsTimerContractV1 | null;
+  historicalCandidateReady: boolean;
+  tpsEntryReady: boolean;
+  preTpsCalibrationRequired: boolean;
+  passiveRecordCount: number;
+  eligibleRecordCount: number;
+  structuredExecutionRecordCount: number;
+  controlledDiscomfortRecordCount: number;
+  calibration: {
+    attemptCount: number;
+    validRepNumbers: number[];
+    validRepCount: number;
+    nextRepNumber: number | null;
+  };
+};
+
+type TpsTimedPressureLevel = Exclude<TpsPressureLevel, "none" | "difficulty">;
 
 const EMPTY_TOPIC_REFERENCE: TopicReferenceContent = {
   vocabulary: "",
@@ -825,6 +859,22 @@ export default function IntroSessionDrillRunner() {
   const actualSupportUsedRef = useRef<Record<string, ActualSupportUsedV2>>({});
   const passiveRepStartRef = useRef<Record<string, { startedAt: string; startedAtMs: number }>>({});
   const finalizedRepOperationalEvidenceRef = useRef<Record<string, RepOperationalEvidenceV2>>({});
+  const tpsTimedRepStartRef = useRef<Record<string, {
+    attemptId: string;
+    startedAt: string;
+    startedAtMs: number;
+    replacementForAttemptId: string | null;
+  }>>({});
+  const tpsReplacementAttemptRef = useRef<Record<string, string | null>>({});
+  const tpsEnsureInFlightRef = useRef(false);
+  const [tpsClockNow, setTpsClockNow] = useState(Date.now());
+  const [tpsRuntimeNonce, setTpsRuntimeNonce] = useState(0);
+  const [calibrationRunning, setCalibrationRunning] = useState(false);
+  const [calibrationStart, setCalibrationStart] = useState<{ startedAt: string; startedAtMs: number } | null>(null);
+  const [calibrationSupportUsed, setCalibrationSupportUsed] = useState<ActualSupportUsedV2 | null>(null);
+  const [calibrationStructurallyValid, setCalibrationStructurallyValid] = useState<boolean | null>(null);
+  const [calibrationSubmitting, setCalibrationSubmitting] = useState(false);
+  const [calibrationMessage, setCalibrationMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -972,6 +1022,83 @@ export default function IntroSessionDrillRunner() {
   const displayPhase: PhaseLabel = isAdaptiveVerificationFlow
     ? activeDiagnosisPhase
     : ((isSessionMode ? currentTopicPhase : phase) as PhaseLabel);
+
+  const shouldLoadTpsTimerRuntime =
+    modeToUse === "training" &&
+    !!studentId &&
+    !!currentTopicName &&
+    (
+      displayPhase === "Time Pressure Stability" ||
+      (displayPhase === "Controlled Discomfort" && currentTopicStability === "High Maintenance")
+    );
+  const {
+    data: tpsTimerStatus,
+    isLoading: tpsTimerStatusLoading,
+    refetch: refetchTpsTimerStatus,
+  } = useQuery<TpsTimerRuntimeStatus>({
+    queryKey: [
+      "/api/tutor/tps-timer-contract",
+      studentId,
+      currentTopicName,
+      displayPhase,
+      currentTopicStability,
+      tpsRuntimeNonce,
+    ],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = {};
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const params = new URLSearchParams({ topic: currentTopicName });
+      const response = await fetch(
+        `${API_URL}/api/tutor/students/${studentId}/tps-timer-contract?${params.toString()}`,
+        { headers, credentials: "include" },
+      );
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result?.message || `Failed to load TPS timer status (${response.status})`);
+      return result as TpsTimerRuntimeStatus;
+    },
+    enabled: shouldLoadTpsTimerRuntime,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (!shouldLoadTpsTimerRuntime || !tpsTimerStatus?.historicalCandidateReady || tpsTimerStatus.contract) return;
+    if (tpsEnsureInFlightRef.current) return;
+    tpsEnsureInFlightRef.current = true;
+    void (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: HeadersInit = { "Content-Type": "application/json" };
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        const response = await fetch(
+          `${API_URL}/api/tutor/students/${studentId}/tps-timer-contract/ensure`,
+          {
+            method: "POST",
+            headers,
+            credentials: "include",
+            body: JSON.stringify({ topic: currentTopicName }),
+          },
+        );
+        if (!response.ok && response.status !== 409) {
+          const result = await response.json().catch(() => ({}));
+          throw new Error(result?.message || "Failed to prepare TPS Timer Contract.");
+        }
+        await refetchTpsTimerStatus();
+      } catch (error: any) {
+        setSubmitError(error?.message || "Failed to prepare TPS Timer Contract.");
+      } finally {
+        tpsEnsureInFlightRef.current = false;
+      }
+    })();
+  }, [
+    shouldLoadTpsTimerRuntime,
+    tpsTimerStatus?.historicalCandidateReady,
+    tpsTimerStatus?.contract,
+    studentId,
+    currentTopicName,
+    refetchTpsTimerStatus,
+  ]);
+
   const getLiveObservationBlockForRep = (setConfig: DrillSetConfig, repIndex: number): ObservationField[] => {
     const configuredFields = getObservationBlockForRep(setConfig, repIndex);
     const registeredSet = getDrillSchemaDefinition(evidenceModeForSubmission, displayPhase).sets.find(
@@ -1057,16 +1184,59 @@ export default function IntroSessionDrillRunner() {
   const currentOperationalRepKey = operationalRepKeyFor(currentTopicName, currentSet, currentRep);
   const shouldCapturePassiveRepTiming =
     modeToUse === "training" &&
-    displayPhase !== "Time Pressure Stability" &&
+    (displayPhase === "Structured Execution" || displayPhase === "Controlled Discomfort") &&
     !!set &&
     !isModelingSet;
   const currentActualSupportUsed = actualSupportUsedByRep[currentOperationalRepKey] || null;
+  const isTpsTimedRep =
+    modeToUse === "training" &&
+    displayPhase === "Time Pressure Stability" &&
+    !!set &&
+    !isModelingSet;
+  const activeTpsContract = tpsTimerStatus?.contract || null;
+  const currentRegisteredSet = set
+    ? getDrillSchemaDefinition(evidenceModeForSubmission, displayPhase).sets.find(
+        (candidate) => candidate.setName === set.setName,
+      ) || null
+    : null;
+  const rawTpsPressureLevel = String(currentRegisteredSet?.constraints?.pressureLevel || "");
+  const currentTpsPressureLevel: TpsTimedPressureLevel | null =
+    ["light_timer", "repeated_timer", "full_constraint"].includes(rawTpsPressureLevel)
+      ? (rawTpsPressureLevel as TpsTimedPressureLevel)
+      : null;
+  const currentTpsPrescribedSeconds =
+    isTpsTimedRep && activeTpsContract && currentTpsPressureLevel
+      ? getTpsPrescribedSeconds(activeTpsContract, currentTpsPressureLevel)
+      : null;
+  const currentTpsRepStarted = !!tpsTimedRepStartRef.current[currentOperationalRepKey];
+  const currentTpsStart = tpsTimedRepStartRef.current[currentOperationalRepKey] || null;
+  const currentTpsElapsedMs = currentTpsStart ? Math.max(0, tpsClockNow - currentTpsStart.startedAtMs) : 0;
+  const currentTpsRemainingSeconds = currentTpsPrescribedSeconds == null
+    ? null
+    : Math.max(0, Math.ceil((currentTpsPrescribedSeconds * 1000 - currentTpsElapsedMs) / 1000));
+  const tpsTimerGateLoading = shouldLoadTpsTimerRuntime && (
+    tpsTimerStatusLoading ||
+    !tpsTimerStatus ||
+    (!tpsTimerStatus.contract && tpsTimerStatus.historicalCandidateReady)
+  );
+  const tpsCalibrationGateActive =
+    shouldLoadTpsTimerRuntime &&
+    !!tpsTimerStatus &&
+    !tpsTimerStatus.contract &&
+    tpsTimerStatus.preTpsCalibrationRequired;
 
   useEffect(() => {
     actualSupportUsedRef.current = {};
     passiveRepStartRef.current = {};
     finalizedRepOperationalEvidenceRef.current = {};
+    tpsTimedRepStartRef.current = {};
+    tpsReplacementAttemptRef.current = {};
     setActualSupportUsedByRep({});
+    setCalibrationRunning(false);
+    setCalibrationStart(null);
+    setCalibrationSupportUsed(null);
+    setCalibrationStructurallyValid(null);
+    setCalibrationMessage(null);
   }, [studentId, scheduledSessionId]);
 
   useEffect(() => {
@@ -1079,6 +1249,14 @@ export default function IntroSessionDrillRunner() {
       startedAt: new Date(startedAtMs).toISOString(),
     };
   }, [shouldCapturePassiveRepTiming, currentOperationalRepKey]);
+
+  useEffect(() => {
+    if (!isTpsTimedRep || !currentTpsRepStarted) return;
+    if (finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey]) return;
+    setTpsClockNow(Date.now());
+    const interval = window.setInterval(() => setTpsClockNow(Date.now()), 250);
+    return () => window.clearInterval(interval);
+  }, [isTpsTimedRep, currentTpsRepStarted, currentOperationalRepKey]);
 
 
   useEffect(() => {
@@ -1128,6 +1306,10 @@ export default function IntroSessionDrillRunner() {
 
   const handleBackStep = () => {
     if (submitting || submitSuccess) return;
+    if (isTpsTimedRep && currentTpsRepStarted && !finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey]) {
+      setSubmitError("Finish this timed rep or record a technical timer failure before leaving it.");
+      return;
+    }
     if (adaptiveTransition) {
       setAdaptiveTransition(null);
       setAdaptiveDiagnosisMessage(null);
@@ -1233,6 +1415,225 @@ export default function IntroSessionDrillRunner() {
       inheritedEvidence: [],
     };
     return true;
+  };
+
+  const createRuntimeId = (prefix: string) => {
+    const cryptoApi = globalThis.crypto as Crypto | undefined;
+    if (cryptoApi?.randomUUID) return `${prefix}-${cryptoApi.randomUUID()}`;
+    return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  };
+
+  const handleStartTpsTimedRep = () => {
+    if (!isTpsTimedRep || !activeTpsContract || !currentTpsPressureLevel || !currentTpsPrescribedSeconds) {
+      setSubmitError("TPS is locked until a valid Timer Contract is available.");
+      return;
+    }
+    if (tpsTimedRepStartRef.current[currentOperationalRepKey]) return;
+    const startedAtMs = Date.now();
+    tpsTimedRepStartRef.current[currentOperationalRepKey] = {
+      attemptId: createRuntimeId("tps-attempt"),
+      startedAt: new Date(startedAtMs).toISOString(),
+      startedAtMs,
+      replacementForAttemptId: tpsReplacementAttemptRef.current[currentOperationalRepKey] || null,
+    };
+    setTpsClockNow(startedAtMs);
+    setSubmitError(null);
+  };
+
+  const resetCurrentTpsRepForReplacement = (attemptId: string) => {
+    const prefix = `set${currentSet}_rep${currentRep}_`;
+    setObservations((current: Record<string, string>) =>
+      Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(prefix))),
+    );
+    delete actualSupportUsedRef.current[currentOperationalRepKey];
+    setActualSupportUsedByRep((current) => {
+      const next = { ...current };
+      delete next[currentOperationalRepKey];
+      return next;
+    });
+    delete finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey];
+    delete tpsTimedRepStartRef.current[currentOperationalRepKey];
+    tpsReplacementAttemptRef.current[currentOperationalRepKey] = attemptId;
+    setTpsClockNow(Date.now());
+  };
+
+  const postTpsTimedAttempt = async ({
+    timingValidity,
+    actualSupportUsed,
+  }: {
+    timingValidity: "valid" | "timing_invalid_technical";
+    actualSupportUsed: ActualSupportUsedV2;
+  }) => {
+    if (!studentId || !set || !activeTpsContract || !currentTpsPressureLevel || !currentTpsPrescribedSeconds) {
+      throw new Error("TPS Timer Contract is not ready.");
+    }
+    const started = tpsTimedRepStartRef.current[currentOperationalRepKey];
+    if (!started) throw new Error("Start the timed rep before recording it.");
+    const endedAtMs = Date.now();
+    const elapsedMs = Math.max(0, endedAtMs - started.startedAtMs);
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const response = await fetch(
+      `${API_URL}/api/tutor/students/${studentId}/tps-timed-attempt`,
+      {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          topic: currentTopicName,
+          attemptId: started.attemptId,
+          timerContractId: activeTpsContract.contractId,
+          conditioningEpochKey: activeTpsContract.conditioningEpochKey,
+          setId: currentRegisteredSet?.setId || set.setName,
+          setName: set.setName,
+          repNumber: currentRep + 1,
+          pressureLevel: currentTpsPressureLevel,
+          actualSupportUsed,
+          baselineSeconds: activeTpsContract.baselineSeconds,
+          prescribedSeconds: currentTpsPrescribedSeconds,
+          startedAt: started.startedAt,
+          endedAt: new Date(endedAtMs).toISOString(),
+          elapsedMs,
+          timingValidity,
+          replacementForAttemptId: started.replacementForAttemptId,
+        }),
+      },
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result?.message || `Failed to record TPS timed attempt (${response.status})`);
+    return {
+      attemptId: started.attemptId,
+      startedAt: started.startedAt,
+      endedAt: new Date(endedAtMs).toISOString(),
+      elapsedMs,
+      completedBeforeExpiry: !!result.completedBeforeExpiry,
+      replacementForAttemptId: started.replacementForAttemptId,
+    };
+  };
+
+  const handleTpsTechnicalFailure = async () => {
+    const actualSupportUsed = actualSupportUsedRef.current[currentOperationalRepKey];
+    if (!actualSupportUsed) {
+      setSubmitError("Record the support actually used before preserving a technical timer failure.");
+      return;
+    }
+    try {
+      const attempt = await postTpsTimedAttempt({
+        timingValidity: "timing_invalid_technical",
+        actualSupportUsed,
+      });
+      resetCurrentTpsRepForReplacement(attempt.attemptId);
+      setSubmitError("Timer failure preserved. This attempt will not score. Run the replacement rep under the same Timer Contract.");
+    } catch (error: any) {
+      setSubmitError(error?.message || "Failed to preserve the technical timer failure.");
+    }
+  };
+
+  const finalizeTpsTimingForCurrentRep = async (): Promise<"ok" | "replacement_required" | "error"> => {
+    if (!isTpsTimedRep || !set || !activeTpsContract || !currentTpsPressureLevel || !currentTpsPrescribedSeconds) return "error";
+    const actualSupportUsed = actualSupportUsedRef.current[currentOperationalRepKey];
+    if (!actualSupportUsed) return "error";
+    try {
+      const attempt = await postTpsTimedAttempt({ timingValidity: "valid", actualSupportUsed });
+      if (actualSupportUsed !== "none") {
+        resetCurrentTpsRepForReplacement(attempt.attemptId);
+        setSubmitError("TPS requires no support. The assisted attempt was preserved but cannot score. Run a fresh replacement rep.");
+        return "replacement_required";
+      }
+      const registrySet = currentRegisteredSet;
+      const repId = registrySet?.repPurposeIds[currentRep] || `${registrySet?.setId || set.setName}.opportunity_${currentRep + 1}`;
+      finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey] = {
+        repId,
+        repNumber: currentRep + 1,
+        actualSupportUsed,
+        timing: {
+          mode: "tps_prescribed",
+          attemptId: attempt.attemptId,
+          timerContractId: activeTpsContract.contractId,
+          conditioningEpochKey: activeTpsContract.conditioningEpochKey,
+          startedAt: attempt.startedAt,
+          endedAt: attempt.endedAt,
+          elapsedMs: attempt.elapsedMs,
+          timingValidity: "valid",
+          timerContractVersion: activeTpsContract.version,
+          baselineSeconds: activeTpsContract.baselineSeconds,
+          prescribedSeconds: currentTpsPrescribedSeconds,
+          completedBeforeExpiry: attempt.completedBeforeExpiry,
+          pressureLevel: currentTpsPressureLevel,
+          baselineSource: activeTpsContract.baselineSource,
+          replacementForAttemptId: attempt.replacementForAttemptId,
+        },
+        inheritedEvidence: [],
+      };
+      return "ok";
+    } catch (error: any) {
+      setSubmitError(error?.message || "The TPS timed attempt could not be finalized.");
+      return "error";
+    }
+  };
+
+  const handleStartCalibrationRep = () => {
+    const startedAtMs = Date.now();
+    setCalibrationStart({ startedAt: new Date(startedAtMs).toISOString(), startedAtMs });
+    setCalibrationRunning(true);
+    setCalibrationSupportUsed(null);
+    setCalibrationStructurallyValid(null);
+    setCalibrationMessage(null);
+  };
+
+  const handleRecordCalibrationRep = async () => {
+    const repNumber = tpsTimerStatus?.calibration?.nextRepNumber;
+    if (!studentId || !repNumber || !calibrationStart) return;
+    if (!calibrationSupportUsed || calibrationStructurallyValid === null) {
+      setCalibrationMessage("Record support used and whether the rep was a structurally valid completion.");
+      return;
+    }
+    setCalibrationSubmitting(true);
+    setCalibrationMessage(null);
+    try {
+      const endedAtMs = Date.now();
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const response = await fetch(
+        `${API_URL}/api/tutor/students/${studentId}/tps-calibration/sample`,
+        {
+          method: "POST",
+          headers,
+          credentials: "include",
+          body: JSON.stringify({
+            topic: currentTopicName,
+            repNumber,
+            actualSupportUsed: calibrationSupportUsed,
+            structurallyValid: calibrationStructurallyValid,
+            timingValidity: "valid",
+            startedAt: calibrationStart.startedAt,
+            endedAt: new Date(endedAtMs).toISOString(),
+            elapsedMs: Math.max(1, endedAtMs - calibrationStart.startedAtMs),
+          }),
+        },
+      );
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result?.message || `Failed to record calibration rep (${response.status})`);
+      setCalibrationRunning(false);
+      setCalibrationStart(null);
+      setCalibrationSupportUsed(null);
+      setCalibrationStructurallyValid(null);
+      if (result.calibrationComplete) {
+        setCalibrationMessage("Timer Contract created. TPS readiness is now unlocked for this topic epoch.");
+      } else if (result.acceptedAsBaseline) {
+        setCalibrationMessage(`Calibration rep ${repNumber} accepted. Continue to the next silent calibration rep.`);
+      } else {
+        setCalibrationMessage(`Calibration attempt preserved but did not qualify. Repeat rep ${repNumber} cleanly.`);
+      }
+      setTpsRuntimeNonce((value) => value + 1);
+      await refetchTpsTimerStatus();
+    } catch (error: any) {
+      setCalibrationMessage(error?.message || "Failed to record the calibration rep.");
+    } finally {
+      setCalibrationSubmitting(false);
+    }
   };
 
   const handleTopicReferenceChange = (field: keyof TopicReferenceContent, value: string) => {
@@ -1442,6 +1843,18 @@ export default function IntroSessionDrillRunner() {
     if (shouldCapturePassiveRepTiming && !finalizePassiveTimingForCurrentRep()) {
       setSubmitError("The rep timing record could not be finalized. Record support actually used and try again.");
       return;
+    }
+    if (isTpsTimedRep) {
+      if (!currentTpsRepStarted) {
+        setSubmitError("Start the prescribed TPS timer before completing this rep.");
+        return;
+      }
+      if (!actualSupportUsedRef.current[currentOperationalRepKey]) {
+        setSubmitError("Record the support actually used on this TPS rep before continuing.");
+        return;
+      }
+      const tpsFinalizeResult = await finalizeTpsTimingForCurrentRep();
+      if (tpsFinalizeResult !== "ok") return;
     }
 
     if (!isLastRep) {
@@ -2151,7 +2564,92 @@ export default function IntroSessionDrillRunner() {
           </div>
         </div>
       )}
-      {drillStructure && set && (
+      {tpsTimerGateLoading && (
+        <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <p className="text-sm font-semibold text-foreground">Preparing TPS timing condition</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            RI-OS is checking the student/topic timing lineage and minting the immutable Timer Contract where eligible.
+          </p>
+        </div>
+      )}
+      {tpsCalibrationGateActive && (
+        <div className="mb-4 rounded-xl border border-primary/25 bg-primary/5 p-5 space-y-4">
+          <div>
+            <p className="text-sm font-bold text-foreground">Pre-TPS Calibration</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              TPS has not started. Run three normal-difficulty, same-form, no-support reps. RI-OS measures elapsed time silently; do not show a countdown or time target to the student.
+            </p>
+          </div>
+          <div className="rounded-lg border border-primary/15 bg-background p-3 text-sm space-y-1">
+            <p><span className="font-medium">Topic:</span> {currentTopicName}</p>
+            <p><span className="font-medium">Accepted calibration reps:</span> {tpsTimerStatus?.calibration.validRepCount || 0} / 3</p>
+            <p><span className="font-medium">Current rep:</span> {tpsTimerStatus?.calibration.nextRepNumber || "Complete"}</p>
+            <p className="text-xs text-muted-foreground">The measurement remains hidden from the student. Calibration does not score or move topic state.</p>
+          </div>
+          {!calibrationRunning && tpsTimerStatus?.calibration.nextRepNumber && (
+            <button
+              type="button"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+              onClick={handleStartCalibrationRep}
+            >
+              Start Calibration Rep {tpsTimerStatus.calibration.nextRepNumber}
+            </button>
+          )}
+          {calibrationRunning && (
+            <div className="space-y-3 rounded-lg border border-primary/15 bg-background p-4">
+              <p className="text-sm font-semibold">Calibration rep is running - timing is hidden</p>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Support actually used</p>
+                <div className="flex flex-wrap gap-2">
+                  {ACTUAL_SUPPORT_USED_OPTIONS.map((option) => (
+                    <button
+                      type="button"
+                      key={option.value}
+                      className={`rounded-md border px-3 py-1.5 text-xs ${
+                        calibrationSupportUsed === option.value
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-primary/20 bg-background text-foreground hover:bg-primary/5"
+                      }`}
+                      onClick={() => setCalibrationSupportUsed(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Completion integrity</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className={`rounded-md border px-3 py-1.5 text-xs ${calibrationStructurallyValid === true ? "border-primary bg-primary text-primary-foreground" : "border-primary/20"}`}
+                    onClick={() => setCalibrationStructurallyValid(true)}
+                  >
+                    Structurally valid completion
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded-md border px-3 py-1.5 text-xs ${calibrationStructurallyValid === false ? "border-primary bg-primary text-primary-foreground" : "border-primary/20"}`}
+                    onClick={() => setCalibrationStructurallyValid(false)}
+                  >
+                    Not a valid completion
+                  </button>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                onClick={handleRecordCalibrationRep}
+                disabled={calibrationSubmitting || !calibrationSupportUsed || calibrationStructurallyValid === null}
+              >
+                {calibrationSubmitting ? "Recording..." : "Record Calibration Attempt"}
+              </button>
+            </div>
+          )}
+          {calibrationMessage && <p className="text-sm text-foreground">{calibrationMessage}</p>}
+        </div>
+      )}
+      {drillStructure && set && !tpsTimerGateLoading && !tpsCalibrationGateActive && (
         !((isAdaptiveDiagnosisMode || isHandoverMode) && !submitSuccess && (!prepReady || !!adaptiveTransition)) && (
         <>
           <h2 className="text-xl font-bold sm:text-2xl mb-2">
@@ -2375,6 +2873,44 @@ export default function IntroSessionDrillRunner() {
         </div>
       </div>
 
+      {isTpsTimedRep && activeTpsContract && currentTpsPrescribedSeconds && (
+        <div className="mb-4 rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-bold text-foreground">Timer Contract V{activeTpsContract.version}</p>
+              <p className="text-xs text-muted-foreground">Baseline: {activeTpsContract.baselineSeconds}s · Prescribed for this rep: {currentTpsPrescribedSeconds}s</p>
+            </div>
+            <p className="text-xs font-semibold text-muted-foreground">{activeTpsContract.conditioningEpochKey}</p>
+          </div>
+          {!currentTpsRepStarted ? (
+            <button
+              type="button"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+              onClick={handleStartTpsTimedRep}
+            >
+              Start Timed Rep
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <p className={`text-2xl font-bold ${currentTpsRemainingSeconds === 0 ? "text-destructive" : "text-foreground"}`}>
+                {currentTpsRemainingSeconds === 0 ? "Time expired" : `${currentTpsRemainingSeconds}s`}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {currentTpsRemainingSeconds === 0
+                  ? "Do not add relief or extra time. Let the student finish if needed, record the actual outcome, and RI-OS will preserve whether completion occurred after expiry."
+                  : "The runner owns this countdown. Keep the mathematical condition unchanged and give no support."}
+              </p>
+              <button
+                type="button"
+                className="rounded-md border border-destructive/30 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/5"
+                onClick={handleTpsTechnicalFailure}
+              >
+                Record Technical Timer Failure
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       <form className="space-y-4">
         {getLiveObservationBlockForRep(set, currentRep).length === 0 && (
           <div className="p-3 rounded-md border border-primary/20 bg-primary/5 text-sm">
@@ -2391,6 +2927,7 @@ export default function IntroSessionDrillRunner() {
                   key={option}
                   className={`px-2 sm:px-3 py-1 rounded-md border text-xs sm:text-sm transition-colors whitespace-nowrap ${observations[`set${currentSet}_rep${currentRep}_${obs.key}`] === option ? "bg-primary text-primary-foreground border-primary" : "bg-background border-primary/20 hover:bg-primary/5"}`}
                   onClick={() => handleObservation(obs.key, option)}
+                  disabled={isTpsTimedRep && !currentTpsRepStarted}
                 >
                   {option}
                 </button>
@@ -2399,12 +2936,14 @@ export default function IntroSessionDrillRunner() {
           </div>
         ))}
       </form>
-      {shouldCapturePassiveRepTiming && (
+      {(shouldCapturePassiveRepTiming || isTpsTimedRep) && (
         <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
           <div>
             <p className="text-sm font-semibold text-foreground">Support actually used</p>
             <p className="text-xs text-muted-foreground">
-              Record what happened on this rep. This does not change the support ceiling assigned by the drill. Elapsed time is captured silently for future TPS calibration.
+              {isTpsTimedRep
+                ? "TPS is a no-support scored condition. Any support used is preserved as historical evidence but contaminates the attempt and requires a fresh replacement rep."
+                : "Record what happened on this rep. This does not change the support ceiling assigned by the drill. Elapsed time is captured silently for later TPS readiness."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -2446,7 +2985,7 @@ export default function IntroSessionDrillRunner() {
             submitSuccess ? "bg-primary cursor-default" : "bg-primary hover:bg-primary/90"
           }`}
           onClick={handleNext}
-          disabled={submitting || submitSuccess || topicReferenceSaving || (!isSessionMode && !hasIntroTopic) || (modeToUse === "training" && topicDataLoading && !shouldShowTopicReferenceCapture) || !drillStructure || !set || shouldShowTopicReferenceCapture}
+          disabled={submitting || submitSuccess || topicReferenceSaving || (!isSessionMode && !hasIntroTopic) || (modeToUse === "training" && topicDataLoading && !shouldShowTopicReferenceCapture) || !drillStructure || !set || shouldShowTopicReferenceCapture || tpsTimerGateLoading || tpsCalibrationGateActive || (isTpsTimedRep && !currentTpsRepStarted)}
         >
           {submitSuccess
             ? "Submitted"
