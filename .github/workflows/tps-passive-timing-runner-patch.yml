@@ -1,0 +1,134 @@
+name: Apply TPS Passive Timing Runner Patch
+
+on:
+  push:
+    branches:
+      - proof/capability-engine-shadow-validation
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.head_commit.message == 'Run TPS passive timing runner patch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: proof/capability-engine-shadow-validation
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Patch live drill runner
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("client/src/components/tutor/IntroSessionDrillRunner.tsx")
+          text = path.read_text()
+
+          def insert_before_once(marker: str, insertion: str, label: str, already: str | None = None):
+              global text
+              if already and already in text:
+                  return
+              count = text.count(marker)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly 1 marker, found {count}")
+              text = text.replace(marker, insertion + marker, 1)
+
+          def insert_after_once(marker: str, insertion: str, label: str, already: str | None = None):
+              global text
+              if already and already in text:
+                  return
+              count = text.count(marker)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly 1 marker, found {count}")
+              text = text.replace(marker, marker + insertion, 1)
+
+          def replace_once(old: str, new: str, label: str, already: str | None = None):
+              global text
+              if already and already in text:
+                  return
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly 1 match, found {count}")
+              text = text.replace(old, new, 1)
+
+          insert_before_once(
+              'import type { TopicReference, TopicReferenceContent } from "@shared/topicReference";',
+              '''import {\n  encodeRepOperationalEvidenceV2,\n  REP_OPERATIONAL_EVIDENCE_V2_WIRE_KEY,\n  type ActualSupportUsedV2,\n  type RepOperationalEvidenceV2,\n} from "@shared/responseIntegrityEvidenceContractV2";\n''',
+              "V2 evidence imports",
+              'REP_OPERATIONAL_EVIDENCE_V2_WIRE_KEY',
+          )
+
+          insert_before_once(
+              'const PHASE_CONTEXT: Record<PhaseLabel, { purpose: string; constraints: string[] }> = {',
+              '''const ACTUAL_SUPPORT_USED_OPTIONS: Array<{ value: ActualSupportUsedV2; label: string }> = [\n  { value: "none", label: "None used" },\n  { value: "response_control_cue", label: "Response-control cue used" },\n  { value: "first_step_math_support", label: "First-step mathematical support used" },\n  { value: "beyond_permitted_boundary", label: "Exceeded permitted boundary" },\n];\n\n''',
+              "support options",
+              'const ACTUAL_SUPPORT_USED_OPTIONS',
+          )
+
+          insert_after_once(
+              '  const [observations, setObservations] = useState<any>({});\n',
+              '''  const [actualSupportUsedByRep, setActualSupportUsedByRep] = useState<Record<string, ActualSupportUsedV2>>({});\n  const actualSupportUsedRef = useRef<Record<string, ActualSupportUsedV2>>({});\n  const passiveRepStartRef = useRef<Record<string, { startedAt: string; startedAtMs: number }>>({});\n  const finalizedRepOperationalEvidenceRef = useRef<Record<string, RepOperationalEvidenceV2>>({});\n''',
+              "operational evidence state",
+              'const [actualSupportUsedByRep',
+          )
+
+          schedule_marker = '''  const scheduledSessionTypeLabel = scheduledSession?.type === "training"\n    ? "Training"\n    : scheduledSession?.type === "intro"\n      ? "Intro Adaptive Diagnosis"\n      : scheduledSession?.type === "handover"\n        ? "Handover"\n        : "Unknown";\n'''
+          insert_after_once(
+              schedule_marker,
+              '''  const operationalRepKeyFor = (topic: string, setIndex: number, repIndex: number) =>\n    `${scheduledSessionId || "session"}::${String(topic || "").trim().toLowerCase()}::${displayPhase.toLowerCase()}::set${setIndex}::rep${repIndex}`;\n  const currentOperationalRepKey = operationalRepKeyFor(currentTopicName, currentSet, currentRep);\n  const shouldCapturePassiveRepTiming =\n    modeToUse === "training" &&\n    displayPhase !== "Time Pressure Stability" &&\n    !!set &&\n    !isModelingSet;\n  const currentActualSupportUsed = actualSupportUsedByRep[currentOperationalRepKey] || null;\n\n  useEffect(() => {\n    actualSupportUsedRef.current = {};\n    passiveRepStartRef.current = {};\n    finalizedRepOperationalEvidenceRef.current = {};\n    setActualSupportUsedByRep({});\n  }, [studentId, scheduledSessionId]);\n\n  useEffect(() => {\n    if (!shouldCapturePassiveRepTiming) return;\n    if (finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey]) return;\n    if (passiveRepStartRef.current[currentOperationalRepKey]) return;\n    const startedAtMs = Date.now();\n    passiveRepStartRef.current[currentOperationalRepKey] = {\n      startedAtMs,\n      startedAt: new Date(startedAtMs).toISOString(),\n    };\n  }, [shouldCapturePassiveRepTiming, currentOperationalRepKey]);\n\n''',
+              "passive timing lifecycle",
+              'const operationalRepKeyFor',
+          )
+
+          insert_before_once(
+              '  const handleTopicReferenceChange = (field: keyof TopicReferenceContent, value: string) => {',
+              '''  const handleActualSupportUsed = (value: ActualSupportUsedV2) => {\n    setSubmitError(null);\n    actualSupportUsedRef.current[currentOperationalRepKey] = value;\n    setActualSupportUsedByRep((current) => ({ ...current, [currentOperationalRepKey]: value }));\n    const finalized = finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey];\n    if (finalized) {\n      finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey] = {\n        ...finalized,\n        actualSupportUsed: value,\n      };\n    }\n  };\n\n  const finalizePassiveTimingForCurrentRep = () => {\n    if (!shouldCapturePassiveRepTiming || !set) return true;\n    const actualSupportUsed = actualSupportUsedRef.current[currentOperationalRepKey];\n    if (!actualSupportUsed) return false;\n\n    const existing = finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey];\n    if (existing) {\n      if (existing.actualSupportUsed !== actualSupportUsed) {\n        finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey] = {\n          ...existing,\n          actualSupportUsed,\n        };\n      }\n      return true;\n    }\n\n    const endedAtMs = Date.now();\n    const started = passiveRepStartRef.current[currentOperationalRepKey];\n    if (!started) return false;\n    const registrySet = getDrillSchemaDefinition("training", displayPhase).sets.find(\n      (candidate) => candidate.setName === set.setName,\n    );\n    const repId = registrySet?.repPurposeIds[currentRep] || `${registrySet?.setId || set.setName}.opportunity_${currentRep + 1}`;\n    finalizedRepOperationalEvidenceRef.current[currentOperationalRepKey] = {\n      repId,\n      repNumber: currentRep + 1,\n      actualSupportUsed,\n      timing: {\n        mode: "passive_untimed",\n        startedAt: started.startedAt,\n        endedAt: new Date(endedAtMs).toISOString(),\n        elapsedMs: Math.max(1, endedAtMs - started.startedAtMs),\n        timingValidity: "valid",\n        pressureLevel: registrySet?.constraints.pressureLevel || "none",\n      },\n      inheritedEvidence: [],\n    };\n    return true;\n  };\n\n''',
+              "support capture and timing finalization",
+              'const handleActualSupportUsed',
+          )
+
+          replace_once(
+              '''        });\n        return obs;\n      }),''',
+              '''        });\n        const operationalEvidence = finalizedRepOperationalEvidenceRef.current[\n          operationalRepKeyFor(currentTopicName, setIndex, repIdx)\n        ];\n        if (operationalEvidence) {\n          obs[REP_OPERATIONAL_EVIDENCE_V2_WIRE_KEY] = encodeRepOperationalEvidenceV2(operationalEvidence);\n        }\n        return obs;\n      }),''',
+              "operational evidence serialization",
+              'obs[REP_OPERATIONAL_EVIDENCE_V2_WIRE_KEY]',
+          )
+
+          insert_before_once(
+              '    if (!isLastRep) {',
+              '''    if (shouldCapturePassiveRepTiming && !actualSupportUsedRef.current[currentOperationalRepKey]) {\n      setSubmitError("Record the support actually used on this rep before continuing.");\n      return;\n    }\n    if (shouldCapturePassiveRepTiming && !finalizePassiveTimingForCurrentRep()) {\n      setSubmitError("The rep timing record could not be finalized. Record support actually used and try again.");\n      return;\n    }\n\n''',
+              "rep completion gate",
+              'Record the support actually used on this rep before continuing.',
+          )
+
+          replace_once(
+              '''      </form>\n        </>''',
+              '''      </form>\n      {shouldCapturePassiveRepTiming && (\n        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">\n          <div>\n            <p className="text-sm font-semibold text-foreground">Support actually used</p>\n            <p className="text-xs text-muted-foreground">\n              Record what happened on this rep. This does not change the support ceiling assigned by the drill. Elapsed time is captured silently for future TPS calibration.\n            </p>\n          </div>\n          <div className="flex flex-wrap gap-2">\n            {ACTUAL_SUPPORT_USED_OPTIONS.map((option) => (\n              <button\n                type="button"\n                key={option.value}\n                className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${\n                  currentActualSupportUsed === option.value\n                    ? "border-primary bg-primary text-primary-foreground"\n                    : "border-primary/20 bg-background text-foreground hover:bg-primary/5"\n                }`}\n                onClick={() => handleActualSupportUsed(option.value)}\n              >\n                {option.label}\n              </button>\n            ))}\n          </div>\n        </div>\n      )}\n        </>''',
+              "support UI",
+              '>Support actually used</p>',
+          )
+
+          path.write_text(text)
+          PY
+
+      - run: npm ci --ignore-scripts
+      - name: TPS runtime helper tests
+        run: npx tsx --test shared/capabilityTpsTimerRuntime.test.ts shared/capabilityTpsTimerContract.test.ts
+      - name: Frontend build validation
+        run: npm run build:frontend
+
+      - name: Commit runner implementation
+        run: |
+          git config user.name "nentswunienterprises-oss"
+          git config user.email "nentswunienterprises@gmail.com"
+          git add client/src/components/tutor/IntroSessionDrillRunner.tsx
+          git diff --cached --check
+          git commit -m "Capture passive rep timing and actual support in training runner"
+          git push origin HEAD:proof/capability-engine-shadow-validation

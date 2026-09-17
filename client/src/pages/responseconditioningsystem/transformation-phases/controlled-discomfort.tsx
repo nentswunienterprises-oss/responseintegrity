@@ -184,6 +184,20 @@ export default function ResponseConditioningControlledDiscomfort() {
           </ul>
         </Card>
 
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">What This Phase Inherits</h2>
+          <p className="text-muted-foreground">
+            Controlled Discomfort does not replace Clarity or Structured Execution. It asks whether that existing mental map and
+            independent method execution stay intact after meaningful difficulty is added.
+          </p>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li>Calmness or persistence cannot turn a wrong method, abandoned structure, or random execution into strong evidence.</li>
+            <li>When something goes wrong, locate the earliest visible break: mental map, execution, or response under difficulty.</li>
+            <li>A local calculation error can change the final answer without proving an inherited layer collapsed.</li>
+            <li>Record the actual break without manually changing the student's phase; RI-OS owns movement.</li>
+          </ul>
+        </Card>
+
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Controlled Discomfort Training Recipe</h2>
           <p className="text-muted-foreground">

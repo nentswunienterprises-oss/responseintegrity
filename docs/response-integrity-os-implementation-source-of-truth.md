@@ -1,6 +1,6 @@
 # Response Integrity-OS Live Implementation Source of Truth
 
-Last updated: 2026-09-03
+Last updated: 2026-09-16
 Status: Canonical implementation spec
 
 ## Purpose
@@ -385,6 +385,19 @@ It remains in:
 The intended forward sequence is:
 
 - `Clarity` -> `Structured Execution` -> `Controlled Discomfort` -> `Time Pressure Stability`
+
+### Layer inheritance rule
+
+Progression adds a condition. It does not discard the capability built before it.
+
+- `Clarity` establishes the usable mental map: Vocabulary, Method, and Reason, with the required step sequence available to the student.
+- `Structured Execution` inherits that mental map and adds independent, ordered, repeatable execution.
+- `Controlled Discomfort` inherits Clarity and Structured Execution and adds meaningful difficulty and uncertainty.
+- `Time Pressure Stability` inherits all earlier layers and adds urgency through the timer condition.
+
+When an error appears, locate the earliest layer that visibly broke. A wrong final answer alone does not identify the broken layer. An isolated local calculation error can change the final answer without proving that Vocabulary, Method, Reason, the method chain, independence, or the current-phase response broke. The reverse also matters: calmness, persistence, speed, or a correct final answer cannot be used to excuse a visibly broken earlier layer.
+
+This inheritance rule does not give the Specialist authority to move a topic backward or forward manually. The Specialist records what actually happened, including any visible upstream-layer break; the deterministic state engine still owns movement.
 
 There is no cross-phase regression engine currently implemented inside the core transition function.
 
@@ -1763,9 +1776,9 @@ Each state stores:
 
 `High Maintenance`
 
-- primary action: `Run Structured Execution drill`
-- rules: `Do NOT stay in teaching mode`, `Move forward`
-- advanceTo: `Structured Execution`
+- primary action: `Run Clarity High Maintenance drill`
+- rules: `Do NOT phase advance yet`, `High Maintenance evidence must hold before progression`
+- advanceTo: `Structured Execution` only after qualifying High Maintenance evidence
 
 #### Structured Execution
 
@@ -1786,9 +1799,9 @@ Each state stores:
 
 `High Maintenance`
 
-- primary action: `Run Controlled Discomfort drill`
-- rules: `Do NOT keep repeating basic problems`, `Move forward`
-- advanceTo: `Controlled Discomfort`
+- primary action: `Run Structured Execution High Maintenance drill`
+- rules: `Do NOT phase advance yet`, `High Maintenance evidence must hold before progression`
+- advanceTo: `Controlled Discomfort` only after qualifying High Maintenance evidence
 
 #### Controlled Discomfort
 
@@ -1809,9 +1822,9 @@ Each state stores:
 
 `High Maintenance`
 
-- primary action: `Run Time Pressure Stability drill`
-- rules: `Do NOT stay in comfort zone`, `Move forward`
-- advanceTo: `Time Pressure Stability`
+- primary action: `Run Controlled Discomfort High Maintenance drill`
+- rules: `Do NOT phase advance yet`, `High Maintenance evidence must hold before progression`
+- advanceTo: `Time Pressure Stability` only after qualifying High Maintenance evidence
 
 #### Time Pressure Stability
 
@@ -2012,7 +2025,7 @@ Implementation:
 
 - status: `Your child has sustained strong clarity in this topic.`
 - meaning: `They have held high performance consistently and are ready for progression decisions.`
-- focus: `We are now transitioning into Structured Execution training.`
+- focus: `We are confirming that this clarity remains stable before moving into Structured Execution.`
 
 #### Structured Execution
 
@@ -2038,7 +2051,7 @@ Implementation:
 
 - status: `Your child has sustained strong execution consistency in this topic.`
 - meaning: `They have held high execution quality across sessions and are ready for progression decisions.`
-- focus: `We are now transitioning into Controlled Discomfort training.`
+- focus: `We are confirming that this execution remains stable before moving into Controlled Discomfort.`
 
 #### Controlled Discomfort
 
@@ -2064,7 +2077,7 @@ Implementation:
 
 - status: `Your child has sustained strong performance under challenge in this topic.`
 - meaning: `They have held high stability in difficult work and are ready for progression decisions.`
-- focus: `We are now transitioning into Time Pressure Stability training.`
+- focus: `We are confirming that this response under difficulty remains stable before moving into Time Pressure Stability.`
 
 #### Time Pressure Stability
 
