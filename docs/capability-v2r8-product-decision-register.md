@@ -135,13 +135,24 @@ Approved product contract. Implementation requires an auditable correction workf
 
 Assessment review reference: Clarity item 20.
 
+### Topic Reference is preparation, not an in-rep evidence aid
+
+Approved product contract. Runner and doctrine synchronization are required before freeze.
+
+- Topic Reference is a teaching and preparation artifact built from Vocabulary, Method, Steps, and Reason.
+- During Modeling, the Specialist and student may use the Topic Reference freely. Modeling is preparation, not scored evidence.
+- Before or between scored reps, the Specialist may consult it and the student may review it as teaching once the previous rep is closed and before a fresh rep starts.
+- During every currently defined scored rep, the student does not consult the Topic Reference. This applies to Identification, Light Apply, Structured Execution, Controlled Discomfort, and Time Pressure Stability.
+- A Specialist may privately consult the Topic Reference for fidelity during a rep, but may not convert its contents into a hint, method reminder, mathematical step, correctness confirmation, or redirection for the student.
+- If the student asks to see the Topic Reference during a scored rep, the Specialist does not expose it. The request itself may remain useful observed evidence.
+- Specialist redirection to the Topic Reference, or exposing its contents as assistance during a scored rep, contaminates that rep. Closing the reference afterward does not restore the same rep.
+- A later fresh rep can still produce legitimate evidence after teaching between reps, provided the reference is closed and the assigned support condition is restored before that rep begins.
+- `minimal` support does not implicitly permit Topic Reference consultation. If a future scored condition permits reference use, that permission must be represented explicitly in the drill contract rather than inferred from `minimal`.
+- The runner should lock or collapse Topic Reference while a scored rep is active and communicate that it is available between reps but unavailable during scored evidence.
+
+Assessment review references: Clarity items 3, 34, and 42.
+
 ## Open product decisions and implementation gaps to resolve before final freeze
-
-### Topic Reference use during no-support or recognition conditions
-
-Raised during Clarity review items 3, 34, and 42.
-
-The product currently makes the persistent Topic Reference available during Clarity and later phases, while some sets have strict support conditions. Before freeze, define exactly when a Specialist may redirect a student to the Topic Reference, when the student may consult it independently, and when either action would contaminate the evidence condition.
 
 ### Exact boundary of `minimal` guidance in Clarity Light Apply
 
