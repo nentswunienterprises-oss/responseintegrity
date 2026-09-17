@@ -16,19 +16,13 @@ jobs:
       - name: Capture integration points
         run: |
           {
-            echo '=== report builders and inserts ==='
-            sed -n '5810,6288p' server/routes.ts
-            echo '=== training submission core ==='
-            sed -n '7490,7865p' server/routes.ts
-            echo '=== parent report endpoints ==='
-            sed -n '13950,14340p' server/routes.ts
-            echo '=== storage update student ==='
-            sed -n '1000,1065p;1210,1265p' server/storage.ts
-            echo '=== timer contract core ==='
-            sed -n '155,365p' server/routes/capabilityTpsTimerRuntime.ts
-          } > docs/_correction_runtime_probe2.txt
+            echo '=== routes tail ==='
+            tail -n 180 server/routes.ts
+            echo '=== parent report map route ==='
+            grep -n -C 45 -E 'mapParentFacingReport|api/parent/reports' server/routes.ts | tail -n 500
+          } > docs/_correction_runtime_probe3.txt
           git config user.name 'nentswunienterprises-oss'
           git config user.email 'nentswunienterprises@gmail.com'
-          git add docs/_correction_runtime_probe2.txt
-          git commit -m 'Expand correction runtime integration probe'
+          git add docs/_correction_runtime_probe3.txt
+          git commit -m 'Probe correction route registration tail'
           git push origin HEAD:proof/capability-engine-shadow-validation
