@@ -6,7 +6,7 @@ on:
       - proof/capability-engine-shadow-validation
     paths:
       - .github/workflows/correction-runtime-closeout.yml
-      - .github/scripts/correction-runtime-closeout.mjs
+      - .github/scripts/correction-runtime-closeout.py
   workflow_dispatch:
 
 permissions:
@@ -24,7 +24,7 @@ jobs:
 
       - name: Apply correction-runtime integration patch
         run: |
-          if ! node .github/scripts/correction-runtime-closeout.mjs 2> docs/_correction_closeout_error.txt; then
+          if ! python .github/scripts/correction-runtime-closeout.py 2> docs/_correction_closeout_error.txt; then
             git config user.name 'nentswunienterprises-oss'
             git config user.email 'nentswunienterprises@gmail.com'
             git add docs/_correction_closeout_error.txt
@@ -48,6 +48,7 @@ jobs:
 
       - name: Run correction and state integrity tests
         run: |
+          set +e
           npx tsx --test \
             shared/responseIntegrityEvidenceCorrection.test.ts \
             shared/responseIntegrityCorrectionReplay.test.ts \
@@ -58,14 +59,31 @@ jobs:
             shared/topicConditioningEngine.test.ts \
             shared/adaptiveDiagnosis.test.ts \
             shared/capabilityTpsTimerContract.test.ts \
-            shared/capabilityTpsTimerRuntime.test.ts
+            shared/capabilityTpsTimerRuntime.test.ts > docs/_correction_closeout_tests.txt 2>&1
+          status=$?
+          cat docs/_correction_closeout_tests.txt
+          if [ $status -ne 0 ]; then
+            git config user.name 'nentswunienterprises-oss'
+            git config user.email 'nentswunienterprises@gmail.com'
+            git add docs/_correction_closeout_tests.txt
+            git commit -m 'Capture correction closeout test failure'
+            git push origin HEAD:proof/capability-engine-shadow-validation
+            exit $status
+          fi
+          rm docs/_correction_closeout_tests.txt
 
       - name: Type-check correction runtime surface
         run: |
-          npx tsc --noEmit --pretty false --skipLibCheck 2>&1 | tee /tmp/correction-runtime-tsc.txt || true
-          if grep -E 'server/routes/responseIntegrityEvidenceCorrectionRuntime.ts|shared/responseIntegrityCorrectionReplay.ts|shared/responseIntegrityEvidenceCorrection.ts|server/routes/capabilityTpsTimerRuntime.ts|server/routes.ts' /tmp/correction-runtime-tsc.txt; then
+          npx tsc --noEmit --pretty false --skipLibCheck 2>&1 | tee docs/_correction_closeout_tsc.txt || true
+          if grep -E 'server/routes/responseIntegrityEvidenceCorrectionRuntime.ts|shared/responseIntegrityCorrectionReplay.ts|shared/responseIntegrityEvidenceCorrection.ts|server/routes/capabilityTpsTimerRuntime.ts|server/routes.ts' docs/_correction_closeout_tsc.txt; then
+            git config user.name 'nentswunienterprises-oss'
+            git config user.email 'nentswunienterprises@gmail.com'
+            git add docs/_correction_closeout_tsc.txt
+            git commit -m 'Capture correction closeout typecheck failure'
+            git push origin HEAD:proof/capability-engine-shadow-validation
             exit 1
           fi
+          rm docs/_correction_closeout_tsc.txt
 
       - name: Build backend
         run: npm run build:backend
@@ -84,5 +102,3 @@ jobs:
           git add server/routes.ts server/routes/capabilityTpsTimerRuntime.ts server/routes/responseIntegrityEvidenceCorrectionRuntime.ts shared/responseIntegrityCorrectionReplay.ts shared/responseIntegrityCorrectionReplay.test.ts migrations/2026-09-17_tps_timer_contract_correction_invalidations.sql
           git commit -m 'Complete evidence correction runtime integration'
           git push origin HEAD:proof/capability-engine-shadow-validation
-
-# rerun: interpolation fix applied
