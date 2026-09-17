@@ -38,3 +38,5 @@ jobs:
           git add .github/scripts/correction-runtime-closeout.mjs
           git commit -m 'Fix correction closeout script interpolation'
           git push origin HEAD:proof/capability-engine-shadow-validation
+
+# trigger fixer
