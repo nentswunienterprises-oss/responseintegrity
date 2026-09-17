@@ -24,7 +24,9 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Apply inherited verification stage two
-        run: python scripts/proof-inherited-verification-stage2.py
+        run: |
+          python scripts/proof-inherited-verification-stage2.py
+          python scripts/proof-inherited-verification-stage2-fix.py
       - name: Run focused doctrine and lineage tests
         run: node --import tsx --test shared/responseIntegrityEvidenceContractV2.test.ts shared/inheritedLayerVerification.test.ts shared/responseSnapshot.test.ts server/responseIntegrityEvidenceLedger.test.ts
       - name: Build backend
