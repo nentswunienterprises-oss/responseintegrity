@@ -1,4 +1,4 @@
-name: Proof Inherited Verification Stage 2 Runner
+name: Proof Inherited Verification Stage 2 Retry
 
 on:
   push:
