@@ -15,11 +15,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Locate training runtime
+      - name: Inspect training transition implementation
         run: |
-          echo '=== training-session-drill ==='
-          grep -R -n --exclude-dir=node_modules --exclude-dir=.git 'training-session-drill' . || true
-          echo '=== computeTransition server references ==='
-          grep -R -n --exclude-dir=node_modules --exclude-dir=.git 'computeTransition' server api | head -80 || true
-          echo '=== conceptMastery training references ==='
-          grep -R -n --exclude-dir=node_modules --exclude-dir=.git 'conceptMastery' server api | head -120 || true
+          echo '=== imports 1-90 ==='
+          sed -n '1,90p' server/routes.ts
+          echo '=== training route 6980-7360 ==='
+          sed -n '6980,7360p' server/routes.ts
+          echo '=== summary transition helper 12120-12230 ==='
+          sed -n '12120,12230p' server/routes.ts
