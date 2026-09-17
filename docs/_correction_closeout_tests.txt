@@ -1,0 +1,342 @@
+TAP version 13
+# Subtest: adaptive diagnosis de-escalates on low scores
+ok 1 - adaptive diagnosis de-escalates on low scores
+  ---
+  duration_ms: 1.714256
+  type: 'test'
+  ...
+# Subtest: adaptive diagnosis places on middle-band scores
+ok 2 - adaptive diagnosis places on middle-band scores
+  ---
+  duration_ms: 0.403643
+  type: 'test'
+  ...
+# Subtest: adaptive diagnosis accepts raw observation labels when explicit *_level fields are absent
+ok 3 - adaptive diagnosis accepts raw observation labels when explicit *_level fields are absent
+  ---
+  duration_ms: 0.500263
+  type: 'test'
+  ...
+# Subtest: adaptive diagnosis escalates on high scores
+ok 4 - adaptive diagnosis escalates on high scores
+  ---
+  duration_ms: 0.319505
+  type: 'test'
+  ...
+# Subtest: adjacent phase lookup respects boundaries
+ok 5 - adjacent phase lookup respects boundaries
+  ---
+  duration_ms: 0.389937
+  type: 'test'
+  ...
+# Subtest: TPS baseline is the median of the latest three eligible Structured Execution reps
+ok 6 - TPS baseline is the median of the latest three eligible Structured Execution reps
+  ---
+  duration_ms: 2.882244
+  type: 'test'
+  ...
+# Subtest: TPS baseline excludes reps that do not preserve the approved baseline condition
+ok 7 - TPS baseline excludes reps that do not preserve the approved baseline condition
+  ---
+  duration_ms: 0.491927
+  type: 'test'
+  ...
+# Subtest: Controlled Discomfort timing can remain in history without becoming TPS baseline evidence
+ok 8 - Controlled Discomfort timing can remain in history without becoming TPS baseline evidence
+  ---
+  duration_ms: 0.194292
+  type: 'test'
+  ...
+# Subtest: fewer than three eligible historical reps requires pre-TPS calibration
+ok 9 - fewer than three eligible historical reps requires pre-TPS calibration
+  ---
+  duration_ms: 0.233646
+  type: 'test'
+  ...
+# Subtest: three non-scored pre-TPS calibration reps can deterministically create the timer contract
+ok 10 - three non-scored pre-TPS calibration reps can deterministically create the timer contract
+  ---
+  duration_ms: 0.281505
+  type: 'test'
+  ...
+# Subtest: calibration records cannot masquerade as historical Structured Execution evidence
+ok 11 - calibration records cannot masquerade as historical Structured Execution evidence
+  ---
+  duration_ms: 0.17139
+  type: 'test'
+  ...
+# Subtest: prescribed duration is determined only by the versioned timer contract
+ok 12 - prescribed duration is determined only by the versioned timer contract
+  ---
+  duration_ms: 0.249405
+  type: 'test'
+  ...
+# Subtest: technical timer failures remain historical but are never scorable TPS attempts
+ok 13 - technical timer failures remain historical but are never scorable TPS attempts
+  ---
+  duration_ms: 0.409183
+  type: 'test'
+  ...
+# Subtest: V2 rep operational evidence wire codec round-trips a versioned source fact
+ok 14 - V2 rep operational evidence wire codec round-trips a versioned source fact
+  ---
+  duration_ms: 3.191912
+  type: 'test'
+  ...
+# Subtest: passive timing requires clear scored dimensions to count as a structurally valid completion
+ok 15 - passive timing requires clear scored dimensions to count as a structurally valid completion
+  ---
+  duration_ms: 0.308996
+  type: 'test'
+  ...
+# Subtest: runtime retains Structured Execution and Controlled Discomfort timing but baselines only comparable Structured Execution reps
+ok 16 - runtime retains Structured Execution and Controlled Discomfort timing but baselines only comparable Structured Execution reps
+  ---
+  duration_ms: 2.041567
+  type: 'test'
+  ...
+# Subtest: runtime holds TPS entry for pre-TPS calibration when clean Structured Execution evidence is insufficient
+ok 17 - runtime holds TPS entry for pre-TPS calibration when clean Structured Execution evidence is insufficient
+  ---
+  duration_ms: 0.387783
+  type: 'test'
+  ...
+# Subtest: material TPS independence break withholds positive movement without changing score
+ok 18 - material TPS independence break withholds positive movement without changing score
+  ---
+  duration_ms: 3.529693
+  type: 'test'
+  ...
+# Subtest: earliest visibly broken inherited layer wins verification target
+ok 19 - earliest visibly broken inherited layer wins verification target
+  ---
+  duration_ms: 0.401138
+  type: 'test'
+  ...
+# Subtest: informational or non-weak inherited observations do not create a hold
+ok 20 - informational or non-weak inherited observations do not create a hold
+  ---
+  duration_ms: 0.317121
+  type: 'test'
+  ...
+# Subtest: downward current-phase movement survives an inherited verification hold
+ok 21 - downward current-phase movement survives an inherited verification hold
+  ---
+  duration_ms: 0.268271
+  type: 'test'
+  ...
+# Subtest: verification 60-100 clears hold without regression and requires fresh later-phase evidence
+ok 22 - verification 60-100 clears hold without regression and requires fresh later-phase evidence
+  ---
+  duration_ms: 0.276155
+  type: 'test'
+  ...
+# Subtest: verification 40-59 regresses to earlier phase at High
+ok 23 - verification 40-59 regresses to earlier phase at High
+  ---
+  duration_ms: 0.180516
+  type: 'test'
+  ...
+# Subtest: verification 0-39 routes targeted adaptive re-diagnosis from earlier phase
+ok 24 - verification 0-39 routes targeted adaptive re-diagnosis from earlier phase
+  ---
+  duration_ms: 0.170308
+  type: 'test'
+  ...
+# Subtest: correction replay recomputes the source training transition and skips later phase evidence that is no longer valid
+not ok 25 - correction replay recomputes the source training transition and skips later phase evidence that is no longer valid
+  ---
+  duration_ms: 11.6207
+  type: 'test'
+  location: '/home/runner/work/responseintegrity/responseintegrity/shared/responseIntegrityCorrectionReplay.test.ts:1:2067'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'Controlled Discomfort'
+    - 'Structured Execution'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'Structured Execution'
+  actual: 'Controlled Discomfort'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/responseintegrity/responseintegrity/shared/responseIntegrityCorrectionReplay.test.ts:132:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: clean strong replay keeps deterministic topic movement system-owned
+ok 26 - clean strong replay keeps deterministic topic movement system-owned
+  ---
+  duration_ms: 2.011131
+  type: 'test'
+  ...
+# Subtest: V2 codec accepts canonical inherited-layer evidence
+ok 27 - V2 codec accepts canonical inherited-layer evidence
+  ---
+  duration_ms: 2.123339
+  type: 'test'
+  ...
+# Subtest: V2 decoder rejects an unknown inherited dimension
+ok 28 - V2 decoder rejects an unknown inherited dimension
+  ---
+  duration_ms: 0.286584
+  type: 'test'
+  ...
+# Subtest: V2 decoder rejects empty inherited observations
+ok 29 - V2 decoder rejects empty inherited observations
+  ---
+  duration_ms: 0.237293
+  type: 'test'
+  ...
+# Subtest: V2 decoder rejects invalid inherited materiality and levels
+ok 30 - V2 decoder rejects invalid inherited materiality and levels
+  ---
+  duration_ms: 0.238945
+  type: 'test'
+  ...
+# Subtest: observation correction proposal resolves against retained schema semantics
+ok 31 - observation correction proposal resolves against retained schema semantics
+  ---
+  duration_ms: 3.363973
+  type: 'test'
+  ...
+# Subtest: approved observation correction overlays only the exact submitted source fact
+ok 32 - approved observation correction overlays only the exact submitted source fact
+  ---
+  duration_ms: 0.841169
+  type: 'test'
+  ...
+# Subtest: approved support correction updates only V2 actual-support source fact
+ok 33 - approved support correction updates only V2 actual-support source fact
+  ---
+  duration_ms: 0.76133
+  type: 'test'
+  ...
+# Subtest: correction overlay rejects stale original identity instead of mutating history
+ok 34 - correction overlay rejects stale original identity instead of mutating history
+  ---
+  duration_ms: 2.116096
+  type: 'test'
+  ...
+# Subtest: ledger projection preserves one weak and eight clear opportunities without deduplication
+ok 35 - ledger projection preserves one weak and eight clear opportunities without deduplication
+  ---
+  duration_ms: 5.643023
+  type: 'test'
+  ...
+# Subtest: ledger projection retains state, session, constraint, and score lineage
+ok 36 - ledger projection retains state, session, constraint, and score lineage
+  ---
+  duration_ms: 0.785505
+  type: 'test'
+  ...
+# Subtest: ledger projection is deterministic across retries
+ok 37 - ledger projection is deterministic across retries
+  ---
+  duration_ms: 2.818135
+  type: 'test'
+  ...
+# Subtest: fully legacy evidence remains readable by current engines but is not silently promoted into the ledger
+ok 38 - fully legacy evidence remains readable by current engines but is not silently promoted into the ledger
+  ---
+  duration_ms: 0.291824
+  type: 'test'
+  ...
+# Subtest: adaptive diagnosis blocks retain the phase in which each observation occurred
+ok 39 - adaptive diagnosis blocks retain the phase in which each observation occurred
+  ---
+  duration_ms: 1.111693
+  type: 'test'
+  ...
+# Subtest: support ceilings allow only the approved support range
+ok 40 - support ceilings allow only the approved support range
+  ---
+  duration_ms: 1.674642
+  type: 'test'
+  ...
+# Subtest: modeling is excluded and clean scored support remains valid
+ok 41 - modeling is excluded and clean scored support remains valid
+  ---
+  duration_ms: 2.495604
+  type: 'test'
+  ...
+# Subtest: support above a minimal ceiling contaminates evidence without changing student observations
+ok 42 - support above a minimal ceiling contaminates evidence without changing student observations
+  ---
+  duration_ms: 0.629323
+  type: 'test'
+  ...
+# Subtest: explicit beyond-boundary support is always contaminated
+ok 43 - explicit beyond-boundary support is always contaminated
+  ---
+  duration_ms: 0.571676
+  type: 'test'
+  ...
+# Subtest: missing rep-level support evidence cannot silently count as clean proof
+ok 44 - missing rep-level support evidence cannot silently count as clean proof
+  ---
+  duration_ms: 0.481208
+  type: 'test'
+  ...
+# Subtest: invalid support condition freezes state movement while preserving projected outcome and score
+ok 45 - invalid support condition freezes state movement while preserving projected outcome and score
+  ---
+  duration_ms: 0.519779
+  type: 'test'
+  ...
+# Subtest: invalid support condition also prevents evidence-driven regression
+ok 46 - invalid support condition also prevents evidence-driven regression
+  ---
+  duration_ms: 0.350003
+  type: 'test'
+  ...
+# Subtest: computeTransition promotes High to High Maintenance at 85+
+ok 47 - computeTransition promotes High to High Maintenance at 85+
+  ---
+  duration_ms: 0.905188
+  type: 'test'
+  ...
+# Subtest: computeTransition phase progresses only from High Maintenance and enters next phase at Low
+ok 48 - computeTransition phase progresses only from High Maintenance and enters next phase at Low
+  ---
+  duration_ms: 0.158806
+  type: 'test'
+  ...
+# Subtest: computeTransition keeps final phase in High Maintenance on a strong maintenance score
+ok 49 - computeTransition keeps final phase in High Maintenance on a strong maintenance score
+  ---
+  duration_ms: 0.134962
+  type: 'test'
+  ...
+# Subtest: mapObservationsToBehavior maps weak and clear observation labels deterministically
+ok 50 - mapObservationsToBehavior maps weak and clear observation labels deterministically
+  ---
+  duration_ms: 0.906
+  type: 'test'
+  ...
+# Subtest: normalizePhase falls back conservatively to Clarity
+ok 51 - normalizePhase falls back conservatively to Clarity
+  ---
+  duration_ms: 0.278199
+  type: 'test'
+  ...
+# Subtest: tryParsePhase rejects unknown values
+ok 52 - tryParsePhase rejects unknown values
+  ---
+  duration_ms: 0.163955
+  type: 'test'
+  ...
+1..52
+# tests 52
+# suites 0
+# pass 51
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1433.101867
