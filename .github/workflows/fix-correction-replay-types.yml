@@ -19,19 +19,28 @@ jobs:
           from pathlib import Path
           p = Path('.github/scripts/correction-runtime-closeout.py')
           s = p.read_text()
-          old = '        const replacementStructured = report.report_type === "weekly"\n'
-          new = '        const replacementStructured: any = report.report_type === "weekly"\n'
-          if old not in s:
-            raise SystemExit('replacementStructured target not found')
-          s = s.replace(old, new, 1)
-          p.write_text(s)
+          if 'const replacementStructured: any =' not in s:
+            if 'const replacementStructured =' not in s:
+              raise SystemExit('replacementStructured target not found')
+            s = s.replace('const replacementStructured =', 'const replacementStructured: any =', 1)
+            p.write_text(s)
 
           wf = Path('.github/workflows/correction-runtime-closeout.yml')
-          wf.write_text(wf.read_text().rstrip() + '\n# rerun: correction report typing fixed\n')
+          marker = '# rerun: correction report typing fixed'
+          w = wf.read_text().rstrip()
+          if marker not in w:
+            w += '\n' + marker
+          wf.write_text(w + '\n')
           PY
           git diff --check
+          git diff -- .github/scripts/correction-runtime-closeout.py .github/workflows/correction-runtime-closeout.yml
+          if git diff --quiet; then
+            echo 'No changes needed.'
+            exit 0
+          fi
           git config user.name 'nentswunienterprises-oss'
           git config user.email 'nentswunienterprises@gmail.com'
           git add .github/scripts/correction-runtime-closeout.py .github/workflows/correction-runtime-closeout.yml
           git commit -m 'Fix correction report regeneration typing'
+          git pull --rebase origin proof/capability-engine-shadow-validation
           git push origin HEAD:proof/capability-engine-shadow-validation
