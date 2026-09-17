@@ -1,0 +1,77 @@
+name: Evidence Correction Runtime Closeout
+
+on:
+  push:
+    branches:
+      - proof/capability-engine-shadow-validation
+    paths:
+      - .github/workflows/correction-runtime-closeout.yml
+      - .github/scripts/correction-runtime-closeout.mjs
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  closeout:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout proof branch
+        uses: actions/checkout@v4
+        with:
+          ref: proof/capability-engine-shadow-validation
+          fetch-depth: 0
+
+      - name: Apply correction-runtime integration patch
+        run: node .github/scripts/correction-runtime-closeout.mjs
+
+      - name: Assert correction runtime wiring
+        run: |
+          grep -q 'registerResponseIntegrityEvidenceCorrectionRuntimeRoutes(app' server/routes.ts
+          grep -q 'reconcileTpsTimerContractAfterCorrection' server/routes/capabilityTpsTimerRuntime.ts
+          grep -q 'capability_tps_timer_contract_invalidations' server/routes/capabilityTpsTimerRuntime.ts
+          grep -q 'response_integrity_report_supersessions' server/routes.ts
+          grep -q 'activeReports' server/routes.ts
+          git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run correction and state integrity tests
+        run: |
+          npx tsx --test \
+            shared/responseIntegrityEvidenceCorrection.test.ts \
+            shared/responseIntegrityCorrectionReplay.test.ts \
+            shared/responseIntegrityEvidenceContractV2.test.ts \
+            shared/responseIntegritySupportValidity.test.ts \
+            shared/inheritedLayerVerification.test.ts \
+            shared/responseIntegrityEvidenceLedger.test.ts \
+            shared/topicConditioningEngine.test.ts \
+            shared/adaptiveDiagnosis.test.ts \
+            shared/capabilityTpsTimerContract.test.ts \
+            shared/capabilityTpsTimerRuntime.test.ts
+
+      - name: Type-check correction runtime surface
+        run: |
+          npx tsc --noEmit --pretty false --skipLibCheck 2>&1 | tee /tmp/correction-runtime-tsc.txt || true
+          if grep -E 'server/routes/responseIntegrityEvidenceCorrectionRuntime.ts|shared/responseIntegrityCorrectionReplay.ts|shared/responseIntegrityEvidenceCorrection.ts|server/routes/capabilityTpsTimerRuntime.ts|server/routes.ts' /tmp/correction-runtime-tsc.txt; then
+            exit 1
+          fi
+
+      - name: Build backend
+        run: npm run build:backend
+
+      - name: Build frontend
+        run: npm run build:frontend
+
+      - name: Commit correction runtime closeout
+        run: |
+          if git diff --quiet; then
+            echo 'No integration changes required.'
+            exit 0
+          fi
+          git config user.name 'nentswunienterprises-oss'
+          git config user.email 'nentswunienterprises@gmail.com'
+          git add server/routes.ts server/routes/capabilityTpsTimerRuntime.ts server/routes/responseIntegrityEvidenceCorrectionRuntime.ts shared/responseIntegrityCorrectionReplay.ts shared/responseIntegrityCorrectionReplay.test.ts migrations/2026-09-17_tps_timer_contract_correction_invalidations.sql
+          git commit -m 'Complete evidence correction runtime integration'
+          git push origin HEAD:proof/capability-engine-shadow-validation
