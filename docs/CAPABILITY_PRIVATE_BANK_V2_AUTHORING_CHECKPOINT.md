@@ -1,5 +1,7 @@
 # Capability Private Bank V2 Authoring Checkpoint
 
+> **Historical generated-candidate checkpoint.** This file records the earlier 2026-09-14 generated V2 candidate package and is not the current V2R8 manual-authoring source of truth. For the current checkpoint, including five completed manually authored mastery banks and the Intro Session Structure pause caused by the evidence-complete diagnosis redesign, read `docs/CAPABILITY_V2R8_MANUAL_AUTHORING_CHECKPOINT_2026-09-17.md`.
+
 ## Status
 
 - Checkpoint date: `2026-09-14`
