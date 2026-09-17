@@ -18,6 +18,12 @@ export type TpsPressureLevel =
 export type TpsVariationLevel = "same_form" | "changed_form";
 export type TpsDifficultyLevel = "recognition" | "normal" | "challenging";
 export type TpsBaselineRecordSource = "historical_untimed" | "calibration";
+export type TpsTimingSourcePhase =
+  | "Clarity"
+  | "Structured Execution"
+  | "Controlled Discomfort"
+  | "Time Pressure Stability"
+  | "pre_tps_calibration";
 
 export type PassiveRepTimingRecord = {
   recordId: string;
@@ -25,6 +31,7 @@ export type PassiveRepTimingRecord = {
   topic: string;
   completedAt: string;
   elapsedMs: number;
+  sourcePhase: TpsTimingSourcePhase;
   pressureLevel: TpsPressureLevel;
   variationLevel: TpsVariationLevel;
   difficultyLevel: TpsDifficultyLevel;
@@ -39,6 +46,7 @@ export type TpsTimerContractV1 = {
   studentId: string;
   topic: string;
   baselineSource: RepTimingBaselineSourceV2;
+  baselineSourcePhase: "Structured Execution" | "pre_tps_calibration";
   baselineSampleRecordIds: string[];
   baselineSampleElapsedMs: number[];
   baselineSeconds: number;
@@ -68,6 +76,14 @@ const parsedTimestamp = (value: string) => {
   return Number.isFinite(timestamp) ? timestamp : null;
 };
 
+const preservesBaselinePhase = (
+  record: PassiveRepTimingRecord,
+  source: TpsBaselineRecordSource,
+) =>
+  source === "calibration"
+    ? record.sourcePhase === "pre_tps_calibration"
+    : record.sourcePhase === "Structured Execution";
+
 export const isEligibleTpsBaselineRecord = (
   record: PassiveRepTimingRecord,
   studentId: string,
@@ -79,6 +95,7 @@ export const isEligibleTpsBaselineRecord = (
     record.studentId === studentId &&
     normalizeTopic(record.topic) === normalizeTopic(topic) &&
     record.source === source &&
+    preservesBaselinePhase(record, source) &&
     record.pressureLevel === "none" &&
     record.variationLevel === "same_form" &&
     record.difficultyLevel === "normal" &&
@@ -143,6 +160,7 @@ export const deriveTpsTimerContractV1 = ({
     studentId,
     topic: topic.trim(),
     baselineSource: source === "calibration" ? "calibration" : "historical_eligible",
+    baselineSourcePhase: source === "calibration" ? "pre_tps_calibration" : "Structured Execution",
     baselineSampleRecordIds: samples.map((sample) => sample.recordId),
     baselineSampleElapsedMs: samples.map((sample) => sample.elapsedMs),
     baselineSeconds,
