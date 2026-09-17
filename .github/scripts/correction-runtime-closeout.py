@@ -247,7 +247,7 @@ hook = '''  registerResponseIntegrityEvidenceCorrectionRuntimeRoutes(app, {
         const windowRows = anchoredRows.filter((row: any) => sourceSessionIds.has(resolveReportSessionGroupId(row)));
         if (windowRows.length === 0) continue;
 
-        const replacementStructured = report.report_type === "weekly"
+        const replacementStructured: any = report.report_type === "weekly"
           ? createWeeklyStructuredDataFromDrills(windowRows)
           : createMonthlyStructuredDataFromDrills(windowRows);
         if (!replacementStructured) continue;
