@@ -1,0 +1,85 @@
+name: TPS Proof CI
+
+on:
+  push:
+    branches:
+      - proof/capability-engine-shadow-validation
+    paths:
+      - .github/workflows/tps-proof-ci.yml
+      - client/src/components/tutor/IntroSessionDrillRunner.tsx
+      - client/src/components/tutor/topicConditioningEngine.ts
+      - client/src/pages/client/parent/dashboard.tsx
+      - client/src/pages/responseconditioningsystem/transformation-phases/time-pressure-stability.tsx
+      - server/index.ts
+      - server/routes/capabilityTpsTimerRuntime.ts
+      - shared/capabilityTpsTimerContract.ts
+      - shared/capabilityTpsTimerContract.test.ts
+      - shared/capabilityTpsTimerRuntime.ts
+      - shared/capabilityTpsTimerRuntime.test.ts
+      - shared/responseIntegrityEvidenceContractV2.ts
+      - shared/topicConditioningEngine.ts
+      - shared/topicConditioningEngine.test.ts
+      - shared/adaptiveDiagnosis.ts
+      - shared/adaptiveDiagnosis.test.ts
+      - migrations/2026-09-17_add_tps_timer_calibration_and_contract_store.sql
+      - TT_DRILL_LIBRARY_AND_STATE_ENGINE_EXACT.md
+      - docs/capability-v2r8-product-decision-register.md
+  pull_request:
+    branches:
+      - main
+    paths:
+      - client/src/components/tutor/IntroSessionDrillRunner.tsx
+      - client/src/components/tutor/topicConditioningEngine.ts
+      - client/src/pages/client/parent/dashboard.tsx
+      - client/src/pages/responseconditioningsystem/transformation-phases/time-pressure-stability.tsx
+      - server/index.ts
+      - server/routes/capabilityTpsTimerRuntime.ts
+      - shared/capabilityTpsTimerContract.ts
+      - shared/capabilityTpsTimerRuntime.ts
+      - shared/responseIntegrityEvidenceContractV2.ts
+      - shared/topicConditioningEngine.ts
+      - shared/adaptiveDiagnosis.ts
+      - migrations/2026-09-17_add_tps_timer_calibration_and_contract_store.sql
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TPS and state-engine tests
+        run: |
+          npx tsx --test \
+            shared/capabilityTpsTimerContract.test.ts \
+            shared/capabilityTpsTimerRuntime.test.ts \
+            shared/topicConditioningEngine.test.ts \
+            shared/adaptiveDiagnosis.test.ts
+
+      - name: Type-check TPS runtime surface
+        run: |
+          npx tsc --noEmit --pretty false --skipLibCheck 2>&1 | tee /tmp/tps-proof-tsc.txt || true
+          if grep -E 'client/src/components/tutor/IntroSessionDrillRunner.tsx|client/src/components/tutor/topicConditioningEngine.ts|client/src/pages/client/parent/dashboard.tsx|client/src/pages/responseconditioningsystem/transformation-phases/time-pressure-stability.tsx|server/routes/capabilityTpsTimerRuntime.ts|shared/capabilityTpsTimerContract.ts|shared/capabilityTpsTimerRuntime.ts|shared/responseIntegrityEvidenceContractV2.ts|shared/topicConditioningEngine.ts|shared/adaptiveDiagnosis.ts' /tmp/tps-proof-tsc.txt; then
+            exit 1
+          fi
+
+      - name: Assert TPS doctrine/runtime closeout
+        run: |
+          grep -q 'TPS timer runtime implementation completed' docs/capability-v2r8-product-decision-register.md
+          grep -q 'TPS final-state next action is topic-specific and synchronized' docs/capability-v2r8-product-decision-register.md
+          ! grep -R 'Begin cross-topic conditioning' -n shared/topicConditioningEngine.ts client/src/components/tutor/topicConditioningEngine.ts TT_DRILL_LIBRARY_AND_STATE_ENGINE_EXACT.md
+          ! grep -R 'unless the system explicitly directs otherwise' -n client/src/pages/responseconditioningsystem/transformation-phases/time-pressure-stability.tsx
+          grep -q 'registerCapabilityTpsTimerRuntimeRoutes(app)' server/index.ts
+          grep -q 'capability_tps_timer_contracts' migrations/2026-09-17_add_tps_timer_calibration_and_contract_store.sql
+          git diff --check
