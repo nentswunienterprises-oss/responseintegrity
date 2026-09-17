@@ -291,6 +291,95 @@ The public branch may contain:
 
 The exact private evaluator corpus must remain in the approved private artifact path until a deliberate private-bank freeze/import step.
 
+## Specialist Development pathway context
+
+The current Specialist Development architecture is:
+
+**Application → Training → Sandbox → Practicals → Trial → Certification → Certified Live**
+
+These are separate capability stages and should not be allowed to overlap conceptually in future implementation or assessment authoring.
+
+### Application
+
+Application is selection and eligibility only. It determines whether the person meets requirements and should enter Specialist Development. It is not a training or capability-validation stage.
+
+### Training
+
+Training is where the Specialist learns and demonstrates understanding of the Response Integrity operating system.
+
+Training includes:
+
+- the live Deep Dives;
+- repeated study and reference;
+- interactive Capability Checks;
+- scenario-based application of doctrine;
+- deterministic feedback and evaluation;
+- mastery evidence across the required capabilities.
+
+**The Capability Engine belongs in Training.** The interactive Capability work already built on this proof branch remains useful, but older descriptions that call those checks `Sandbox`, `simulations`, or Sandbox-style validation are stale architecture and should be reconciled.
+
+This is also the intended answer to the old auditor-burden problem: as much repeated mastery validation as is safely possible should happen deterministically and independently during Training, while human judgment is concentrated later where observation of actual conduct adds more value.
+
+### Sandbox
+
+Sandbox is not another knowledge assessment. It is a deterministic simulation environment for practising **observation, discernment, and operation of the real RI delivery system**.
+
+A simulation should provide predefined, versioned student behaviour across realistic drill situations. The Specialist observes the simulated response and logs what they believe happened using the same evidence logic used in delivery. The system can then compare:
+
+**canonical simulated student behaviour**
+
+against
+
+**the Specialist's interpretation and recorded evidence**.
+
+This makes patterns such as over-crediting late recovery, missing earlier weak responses, or misclassifying observable behaviour detectable before real-family exposure.
+
+The MVP should remain deterministic and inexpensive. A bounded starting proof may use one phase, one drill type, a small scenario matrix, predefined rep outcomes, persistent simulation evidence, evaluator visibility, and the real RI drill/state machinery wherever practical rather than a separate toy workflow.
+
+### Practicals
+
+Practicals are a separate visible-execution stage between Sandbox and Trial.
+
+Training can establish understanding. Sandbox can establish simulated observation and operation. Neither proves how the Specialist actually conducts themselves.
+
+The Practical principle is:
+
+> **Do not merely tell us what you would do. Show us.**
+
+Practical submissions may eventually require Specialists to demonstrate concept breakdown using the RI lens, Vocabulary-Method-Reason / mental-map use, opening and conducting a drill, understanding what phases/sets/reps mean and exist for, and defined session sections from start to finish. Video evidence can expose communication, pacing, explanation, and delivery weaknesses before a real family is involved.
+
+### Trial
+
+Trial is governed real-family validation. By the time a Specialist reaches Trial, they should already have demonstrated:
+
+- understanding through Training;
+- observation and system operation through Sandbox;
+- visible execution through Practicals.
+
+Trial validates whether those capabilities survive repeated live delivery with real students and parents. It should not be the first place the organization discovers that someone cannot conduct a drill or explain the RI method.
+
+### Certification and Certified Live
+
+These are distinct.
+
+- **Certification** is the final decision gate.
+- **Certified Live** is the operating state granted after the certification decision passes.
+
+### Capability-authoring implication
+
+V2R8 mastery/retrieval/transfer work belongs to **Training**. It should certify understanding, doctrine application, and scenario reasoning. It must not silently expand until it is trying to certify the things that properly belong to Sandbox or Practicals.
+
+That means future cumulative banks can test transfer of RI understanding across scenarios, but they should not pretend that a multiple-choice/scenario assessment proves live observation, system operation in simulation, visible delivery, communication, pacing, or real-family execution.
+
+During later source-of-truth reconciliation, search for and correct older references that blur:
+
+- Training and Sandbox;
+- Capability Checks and simulations;
+- Sandbox and mock trial;
+- manual repeated auditing and deterministic Training mastery;
+- Trial and first-time execution validation;
+- Certification and Certified Live.
+
 ## Resume sequence after diagnosis migration
 
 When PR #47's live diagnosis migration is genuinely complete:
@@ -336,4 +425,4 @@ Only after this human audit should automated release validation, private artifac
 
 If this work is resumed in a new session, the shortest correct summary is:
 
-**Five mastery banks are manually authored and approved: Clarity, Structured Execution, Controlled Discomfort, Time Pressure Stability, and Topic Conditioning. Topic Conditioning is 45/45 and is the current distractor-quality benchmark. Intro Session Structure started but authoring is paused because PR #47 is replacing fixed rep/phase-block diagnosis with an evidence-complete diagnosis engine. Keep only the concepts from Intro draft items 1-2, discard old items 3-5, and do not resume until the new diagnosis flow is live, persisted, server-reproducible, documented, and end-to-end proven. Then author Intro from the final truthful Specialist experience.**
+**Five mastery banks are manually authored and approved: Clarity, Structured Execution, Controlled Discomfort, Time Pressure Stability, and Topic Conditioning. Topic Conditioning is 45/45 and is the current distractor-quality benchmark. Intro Session Structure started but authoring is paused because PR #47 is replacing fixed rep/phase-block diagnosis with an evidence-complete diagnosis engine. Keep only the concepts from Intro draft items 1-2, discard old items 3-5, and do not resume until the new diagnosis flow is live, persisted, server-reproducible, documented, and end-to-end proven. The Specialist Development pathway is Application → Training → Sandbox → Practicals → Trial → Certification → Certified Live; Capability Engine/V2R8 assessment work belongs in Training, Sandbox is deterministic simulated observation/operation, Practicals are visible execution, Trial is governed real-family validation, Certification is the gate, and Certified Live is the resulting operating state. Then author Intro from the final truthful Specialist experience.**
