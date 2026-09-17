@@ -1,4 +1,4 @@
-name: Proof Inherited Verification Inspect
+name: Proof Inherited Verification Stage 2 Runner
 
 on:
   push:
@@ -8,21 +8,38 @@ on:
       - .github/workflows/proof-route-inspect.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  inspect:
+  implement:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect inherited verification insertion anchors
+        with:
+          ref: proof/capability-engine-shadow-validation
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Apply inherited verification stage two
+        run: python scripts/proof-inherited-verification-stage2.py
+      - name: Run focused doctrine and lineage tests
+        run: node --import tsx --test shared/responseIntegrityEvidenceContractV2.test.ts shared/inheritedLayerVerification.test.ts shared/responseSnapshot.test.ts server/responseIntegrityEvidenceLedger.test.ts
+      - name: Build backend
+        run: npm run build:backend
+      - name: Build frontend
+        run: npm run build:frontend
+      - name: Commit proof implementation
         run: |
-          echo '=== imports and helper references ==='
-          grep -n -B8 -A20 'inheritedLayerVerification' server/routes.ts | head -80
-          grep -n -B15 -A35 'resolveTutorScheduledSession' server/routes.ts | head -180
-          echo '=== handover endpoint through training route opening ==='
-          sed -n '6720,7115p' server/routes.ts
-          echo '=== training route core and persistence ==='
-          sed -n '7115,7525p' server/routes.ts
-          echo '=== training route tail ==='
-          sed -n '7525,7665p' server/routes.ts
+          git config user.name "nentswunienterprises-oss"
+          git config user.email "nentswunienterprises@gmail.com"
+          git add server/routes.ts server/responseIntegrityEvidenceLedger.ts server/responseIntegrityEvidenceLedger.test.ts shared/responseSnapshot.ts shared/responseSnapshot.test.ts client/src/components/tutor/IntroSessionDrillRunner.tsx
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No implementation changes to commit"
+            exit 0
+          fi
+          git commit -m "Implement inherited-layer verification flow"
+          git push origin HEAD:proof/capability-engine-shadow-validation
