@@ -183,22 +183,23 @@ Approved product contract. Implementation requires the new versioned evidence co
 
 Assessment review reference: Time Pressure Stability item 24 and the inherited-layer review.
 
+### Inherited-layer verification uses a hold before any cross-phase regression
+
+Approved product contract. Implementation requires a deterministic verification-hold state/flag and cross-phase consequence routing before freeze.
+
+- A material inherited-layer break does not immediately regress the topic to an earlier phase.
+- RI-OS creates an `inherited_verification_required` hold targeting the earliest visibly broken earlier layer. This is a workflow hold, not a fifth stability state.
+- The triggering current-phase drill is still processed conservatively: a downward stability result may apply and a `remain` result remains, but any positive movement is withheld while inherited verification is unresolved.
+- RI-OS runs the existing verification mode at the suspected earlier phase to test whether that capability still holds in its native condition.
+- Verification `60-100` clears the inherited hold with no cross-phase regression. The topic returns to its current phase at the current-phase stability that survived the triggering drill, and a fresh current-phase rep is required before any upward movement can occur. The earlier positive movement is not restored retroactively.
+- Verification `40-59` confirms that the earlier capability has weakened enough to require regression. The topic moves to that earlier phase at `High` so the previously established capability is rebuilt toward High Maintenance rather than treated as a brand-new Low state.
+- Verification `0-39` is too weak for a simple maintenance regression. RI-OS starts targeted adaptive re-diagnosis beginning at that earlier phase, and adaptive diagnosis determines whether the topic belongs there or must step farther backward.
+- A strong earlier-phase verification can show that the earlier capability still exists in its native condition even though it broke under the later condition. In that case, the topic remains in the later phase and resumes training there.
+- Specialists record the evidence and run the directed verification; they never choose the regression destination or restore withheld progression manually.
+
+Approved example: a Controlled Discomfort / High Maintenance topic that scores strongly but shows repeated rescue-seeking is held for Structured Execution verification. Strong Structured Execution verification keeps the topic in Controlled Discomfort and requires fresh Controlled Discomfort evidence; middling verification regresses the topic to Structured Execution / High; very weak verification starts targeted adaptive re-diagnosis from Structured Execution.
+
 ## Open product decisions and implementation gaps to resolve before final freeze
-
-### Exact cross-phase state consequence after inherited-layer verification
-
-The inherited-layer evidence contract now requires deterministic earlier-layer verification when a material upstream break is observed. The exact state consequence after that verification is still unresolved.
-
-Before freeze, define:
-
-- whether the topic state changes immediately when the inherited signal is first observed or enters a verification hold
-- how the triggering current-phase transition interacts with the verification gate
-- which existing verification thresholds or diagnosis rules determine whether the topic stays in its current phase or regresses
-- what stability a topic receives if it returns to an earlier phase
-- when targeted adaptive re-diagnosis is required because the earlier-layer verification is too weak for a simple stability adjustment
-- whether a strong earlier-layer verification may retroactively restore positive movement from the triggering later-phase rep, or whether a fresh current-phase rep is required
-
-There is no cross-phase regression engine currently implemented in `computeTransition`, so this must be introduced deliberately rather than inferred from the current within-phase stability logic.
 
 ### TPS timer instruction and execution infrastructure is not implemented
 
