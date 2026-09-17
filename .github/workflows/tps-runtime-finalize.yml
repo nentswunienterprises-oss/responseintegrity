@@ -1,0 +1,48 @@
+name: TPS Runtime Finalize
+
+on:
+  push:
+    branches:
+      - proof/capability-engine-shadow-validation
+    paths:
+      - .github/workflows/tps-runtime-finalize.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.event.head_commit.message == 'Install TPS runtime finalizer'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout proof branch
+        uses: actions/checkout@v4
+        with:
+          ref: proof/capability-engine-shadow-validation
+          fetch-depth: 0
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply TPS runtime runner patch
+        run: node scripts/apply-tps-runtime-runner-finalization.mjs
+
+      - name: Run TPS deterministic tests
+        run: npx tsx --test shared/capabilityTpsTimerContract.test.ts shared/capabilityTpsTimerRuntime.test.ts
+
+      - name: Type-check touched runtime files
+        run: npx tsc --noEmit --pretty false --skipLibCheck 2>&1 | tee /tmp/tps-tsc.txt; ! grep -E 'client/src/components/tutor/IntroSessionDrillRunner.tsx|server/routes/capabilityTpsTimerRuntime.ts|shared/capabilityTpsTimerContract.ts|shared/capabilityTpsTimerRuntime.ts|shared/responseIntegrityEvidenceContractV2.ts' /tmp/tps-tsc.txt
+
+      - name: Commit TPS runtime runner
+        run: |
+          git config user.name "nentswunienterprises-oss"
+          git config user.email "nentswunienterprises@gmail.com"
+          git add client/src/components/tutor/IntroSessionDrillRunner.tsx
+          git diff --cached --check
+          git commit -m "Finalize TPS timer runner runtime"
+          git push origin HEAD:proof/capability-engine-shadow-validation
