@@ -1,0 +1,56 @@
+name: Fix Correction Replay Types
+on:
+  push:
+    branches: [proof/capability-engine-shadow-validation]
+    paths: [.github/workflows/fix-correction-replay-types.yml]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: proof/capability-engine-shadow-validation
+          fetch-depth: 0
+      - name: Fix targeted replay type errors and retrigger closeout
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('shared/responseIntegrityCorrectionReplay.ts')
+          s = p.read_text()
+          old = '''    if (!corrected.ok) {
+      throw new Error(`Correction replay failed for ${event.sourceDrillId}: ${corrected.error}`);
+    }
+'''
+          new = '''    if (!corrected.ok) {
+      const correctionError = "error" in corrected ? corrected.error : "Unknown correction overlay failure";
+      throw new Error(`Correction replay failed for ${event.sourceDrillId}: ${correctionError}`);
+    }
+'''
+          if old not in s:
+            raise SystemExit('correction overlay narrowing target not found')
+          s = s.replace(old, new, 1)
+          old = '''    inheritedHold = "inheritedVerificationHold" in inheritedGated
+      ? (inheritedGated.inheritedVerificationHold || null)
+      : null;
+'''
+          new = '''    inheritedHold = (
+      inheritedGated as { inheritedVerificationHold?: InheritedVerificationHold }
+    ).inheritedVerificationHold || null;
+'''
+          if old not in s:
+            raise SystemExit('inherited hold narrowing target not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+
+          wf = Path('.github/workflows/correction-runtime-closeout.yml')
+          w = wf.read_text().rstrip() + '\n# rerun: targeted correction replay type fixes applied\n'
+          wf.write_text(w)
+          PY
+          git diff --check
+          git config user.name 'nentswunienterprises-oss'
+          git config user.email 'nentswunienterprises@gmail.com'
+          git add shared/responseIntegrityCorrectionReplay.ts .github/workflows/correction-runtime-closeout.yml
+          git commit -m 'Fix correction replay type narrowing'
+          git push origin HEAD:proof/capability-engine-shadow-validation
