@@ -20,7 +20,7 @@ The four transformation-phase mastery banks have completed manual item-level hum
 - Controlled Discomfort: 45/45 approved
 - Time Pressure Stability: 45/45 approved
 
-Time Pressure Stability items 41-44 were replaced after review exposed product assumptions that were not implemented. The replacements were approved. The original TPS item 38 was also withdrawn because it assumed timer-failure workflow infrastructure that does not exist; its replacement tests the implemented no-support boundary instead and was approved.
+Time Pressure Stability items 41-44 were replaced after review exposed product assumptions that were not implemented. The replacements were approved. The original TPS item 38 was also withdrawn because it assumed timer-failure workflow infrastructure that did not exist; its replacement tests the implemented no-support boundary instead and was approved.
 
 Human approval does not freeze these banks. Product decisions and implementation gaps below must be resolved first, followed by source, coverage, duplicate, critical-boundary, and answer-position audits.
 
@@ -115,6 +115,8 @@ Approved product contract. Implementation requires a new versioned evidence cont
 - `actualSupportUsed` is stored once per rep as the source fact. Evidence-ledger projection may carry that rep-level fact alongside projected dimension rows for lineage, but it must not create four independent support facts merely because a rep has four scored fields.
 - The published V1 evidence contract remains immutable. This change must be introduced through a deliberate versioned schema/contract with compatibility and migration decisions.
 
+A V2 type contract now exists in `shared/responseIntegrityEvidenceContractV2.ts`; runtime capture and persistence still need to be wired before freeze.
+
 Assessment review references: Controlled Discomfort support review; Time Pressure Stability revised item 38.
 
 ### Submitted evidence is immutable and corrected by supersession
@@ -199,28 +201,45 @@ Approved product contract. Implementation requires a deterministic verification-
 
 Approved example: a Controlled Discomfort / High Maintenance topic that scores strongly but shows repeated rescue-seeking is held for Structured Execution verification. Strong Structured Execution verification keeps the topic in Controlled Discomfort and requires fresh Controlled Discomfort evidence; middling verification regresses the topic to Structured Execution / High; very weak verification starts targeted adaptive re-diagnosis from Structured Execution.
 
+### TPS timer contract is deterministic per student and topic
+
+Approved product contract. The pure Timer Contract V1 and test coverage are implemented on the proof branch in `shared/capabilityTpsTimerContract.ts` and `shared/capabilityTpsTimerContract.test.ts`. Runtime runner/server wiring remains an implementation gap below.
+
+- RI-OS passively records elapsed time on untimed scored reps before TPS. Passive measurement is not time pressure because the student is not shown a countdown or deadline.
+- A TPS historical baseline uses the latest three eligible reps for the same student and topic.
+- An eligible historical baseline rep must be `pressureLevel: none`, `variationLevel: same_form`, `difficultyLevel: normal`, `actualSupportUsed: none`, technically valid, and a structurally valid completion.
+- The baseline is the median elapsed duration of those three reps, rounded to whole seconds.
+- If three eligible historical reps do not exist, RI-OS runs a three-rep non-scored TPS Calibration under normal difficulty, same form, no support, and no visible countdown. Calibration measures time only and cannot change phase or stability.
+- Timer Contract V1 assigns Structure Under Timer to `100%` of baseline, Repeated Timed Execution to the same `100%` baseline duration on every rep, and Full Constraint to `85%` of baseline.
+- The `85%` Full Constraint factor is a versioned V1 constant. Specialists cannot change it.
+- The runner is the sole timer authority. Specialists do not choose a duration or substitute a phone timer or stopwatch.
+- Each timed rep must persist the timer-contract version, baseline duration, prescribed duration, actual elapsed duration, start/end timestamps, whether completion occurred before expiry, pressure level, baseline source, and technical validity.
+- A technical timer failure is `timing_invalid_technical`: it remains in history, is not student weakness, does not score or move state, is never manually estimated, and requires a linked replacement rep under the same timer contract.
+- Scored TPS cannot start without a valid timer contract. There is no Specialist fallback duration.
+- TPS keeps mathematics at normal difficulty, same form, and no support. Time is the controlled variable.
+
+Implementation note: elapsed timing records can begin accumulating before all records are baseline-eligible. Baseline eligibility must not assume no support until `actualSupportUsed` is captured through the V2 evidence contract.
+
+Assessment review references: Time Pressure Stability 4, original 38, original 41, and original 44; subsequent product-decision review.
+
 ## Open product decisions and implementation gaps to resolve before final freeze
 
-### TPS timer instruction and execution infrastructure is not implemented
+### TPS timer runtime wiring remains before TPS freeze
 
-Raised during Time Pressure Stability review items 38, 41, and 44.
+The timer formula is no longer a product ambiguity, but the live runner and server do not yet execute the whole contract. Before TPS freezes:
 
-The current versioned drill registry stores categorical pressure levels (`light_timer`, `repeated_timer`, `full_constraint`) but no timer duration, timer source, or timing formula. The current runner contains qualitative instructions such as `Solve under short timer`, `Same timer`, and `Tighter timer`, but it does not provide an authoritative expected duration or an implemented countdown/timer-control contract.
+- the runner must start and stop passive elapsed-time capture on scored untimed reps without displaying time pressure to the student
+- V2 rep evidence must capture `actualSupportUsed`, timing metadata, and inherited evidence without rewriting the published V1 contract
+- timing records must persist in the authoritative drill evidence lineage
+- the server must retrieve the latest three eligible same-student/same-topic baseline reps deterministically
+- the calibration lane must exist when historical eligibility is insufficient and must remain non-scored
+- TPS runner UI must load the Timer Contract, display and run the prescribed countdown, and prevent Specialist duration edits
+- Repeated Timed Execution must preserve the exact same prescribed duration across its reps
+- Full Constraint must use the versioned 85% duration
+- technical timer failures must persist as invalid attempts and generate linked replacement reps without student scoring or state movement
+- a missing or invalid Timer Contract must lock scored TPS rather than inviting a Specialist fallback
 
-There is also no implemented authoritative pre-session timer field and no authorised workflow for a missing, contradictory, or failed timer instruction. Therefore Capability questions must not assess a Specialist against a workflow that does not exist.
-
-Before TPS can freeze, decide and implement at least:
-
-- where the timer duration comes from
-- whether timing is generated per problem, per set, or from another deterministic input
-- which surface is authoritative
-- how the Specialist receives and runs the timer
-- how the same-timer rule is preserved across Repeated Timed Execution
-- what `full_constraint` means in measurable timing terms
-- whether actual timer conditions are persisted with evidence
-- what happens when the timer instruction is missing, contradictory, or technically fails
-
-The original TPS item 38 and original items 41 and 44 were rejected rather than approved. Their approved replacements do not assume this missing infrastructure.
+The pure deterministic contract and automated tests are already implemented; this section tracks runtime wiring, not an unresolved timer policy.
 
 ### TPS final-state next action must not imply cross-topic phase transfer
 
