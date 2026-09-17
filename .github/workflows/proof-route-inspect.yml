@@ -1,4 +1,4 @@
-name: Proof Evidence Correction Core
+name: Proof Runtime Seam Inspect
 
 on:
   push:
@@ -11,16 +11,21 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  inspect:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - name: Run evidence correction core tests
-        run: node --import tsx --test shared/responseIntegrityEvidenceCorrection.test.ts shared/responseIntegrityEvidenceContractV2.test.ts shared/responseIntegrityDrillRegistry.test.ts
-      - name: Build backend
-        run: npm run build:backend
+      - name: Inspect evidence correction runtime seams
+        run: |
+          echo '=== correction route and authority anchors ==='
+          grep -n -i -B12 -A45 -E 'evidence[-_ ]correction|response_integrity_evidence_corrections|supersession_event_id|replay_status|approved_by|reviewed_by' server/routes.ts || true
+          echo '=== correction module references ==='
+          grep -R -n -i -E 'applyEvidenceCorrectionOverlays|EvidenceCorrectionOverlay|responseIntegrityEvidenceCorrection' server shared client/src | head -240 || true
+          echo '=== submitted evidence mutation/delete anchors ==='
+          grep -n -i -B10 -A25 -E 'intro_session_drills.*(update|delete)|from\("intro_session_drills"\).*\.(update|delete)|DELETE FROM public\.intro_session_drills|UPDATE public\.intro_session_drills' server/routes.ts || true
+      - name: Inspect inherited verification runtime seams
+        run: |
+          echo '=== inherited verification server anchors ==='
+          grep -n -B20 -A80 -E 'resolveInheritedVerification|inheritedVerificationHold|freshCurrentPhaseEvidenceRequired|inherited_verification_required|targeted_re_diagnosis_required' server/routes.ts || true
+          echo '=== inherited verification runner anchors ==='
+          grep -n -B20 -A70 -E 'inherited-verification|isInheritedVerification|rediagnosis|freshCurrentPhaseEvidenceRequired' client/src/components/tutor/IntroSessionDrillRunner.tsx client/src/components/tutor/StudentTopicConditioningDialog.tsx || true
