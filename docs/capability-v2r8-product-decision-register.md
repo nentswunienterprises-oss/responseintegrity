@@ -167,20 +167,38 @@ Approved global support-semantics contract. Clarity Deep Dive and runner wording
 
 Assessment review reference: Clarity Light Apply review.
 
+### Inherited-layer evidence is supplemental and progression-gating
+
+Approved product contract. Implementation requires the new versioned evidence contract and deterministic verification routing before freeze.
+
+- Later-phase reps may capture supplemental inherited-layer observations when an earlier capability is visibly tested by the active condition.
+- Supplemental inherited evidence is stored at rep level separately from the current phase's scored dimensions.
+- It reuses canonical earlier-phase dimension identities such as `clarity.method`, `execution.independence`, `execution.step_discipline`, or `difficulty.rescue_dependence` rather than inventing a second taxonomy.
+- `actualSupportUsed` and inherited student behavior remain separate facts. A Specialist may preserve a no-support condition while the student still shows rescue-seeking or another inherited-layer weakness.
+- Supplemental inherited evidence does not alter or get silently weighted into the current phase's numeric score.
+- A material inherited-layer break cannot be ignored merely because the current-phase score is strong.
+- A material inherited-layer break blocks advancement / High-Maintenance qualification from that evidence and requires RI-OS to route deterministic earlier-layer verification.
+- The triggering later-phase rep remains part of the evidence history; the inherited signal is not forced into an unrelated current-phase field.
+- The Specialist records the observable inherited-layer evidence but never manually rephases the topic.
+
+Assessment review reference: Time Pressure Stability item 24 and the inherited-layer review.
+
 ## Open product decisions and implementation gaps to resolve before final freeze
 
-### Preserve inherited-layer evidence when the current phase does not score that dimension directly
+### Exact cross-phase state consequence after inherited-layer verification
 
-Raised during Time Pressure Stability review item 24.
+The inherited-layer evidence contract now requires deterministic earlier-layer verification when a material upstream break is observed. The exact state consequence after that verification is still unresolved.
 
-TPS directly scores start under time, structure under time, pace control, and completion integrity. A student can nevertheless show a meaningful inherited-layer signal such as repeated rescue-seeking while the Specialist correctly preserves the no-support condition.
+Before freeze, define:
 
-Before freeze, decide how the product should capture and surface an inherited-layer break that is operationally important but is not one of the current phase's direct scored fields. The product should preserve the distinction between:
+- whether the topic state changes immediately when the inherited signal is first observed or enters a verification hold
+- how the triggering current-phase transition interacts with the verification gate
+- which existing verification thresholds or diagnosis rules determine whether the topic stays in its current phase or regresses
+- what stability a topic receives if it returns to an earlier phase
+- when targeted adaptive re-diagnosis is required because the earlier-layer verification is too weak for a simple stability adjustment
+- whether a strong earlier-layer verification may retroactively restore positive movement from the triggering later-phase rep, or whether a fresh current-phase rep is required
 
-- the Specialist gave no rescue, so the no-support condition remained valid
-- the student repeatedly sought rescue, which is still meaningful evidence about inherited independence
-
-Do not solve this by silently forcing rescue-seeking into an unrelated TPS field or by pretending it did not happen.
+There is no cross-phase regression engine currently implemented in `computeTransition`, so this must be introduced deliberately rather than inferred from the current within-phase stability logic.
 
 ### TPS timer instruction and execution infrastructure is not implemented
 
