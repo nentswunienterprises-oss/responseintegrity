@@ -120,9 +120,9 @@ test("repeated phase-critical breakdown cannot be averaged away by otherwise sup
     phase: "Structured Execution",
     optionIndexFor: ({ setId, repIndex, fieldKey, optionLabels }) => {
       if (
-        setId === "structured_execution.required_structure" &&
+        setId === "structured_execution.variation_control" &&
         fieldKey === "stepExecution" &&
-        repIndex < 2
+        repIndex >= 1
       ) {
         return 0;
       }
