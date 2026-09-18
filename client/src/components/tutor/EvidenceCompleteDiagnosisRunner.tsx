@@ -207,10 +207,11 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const topic = String(searchParams.get("topic") || "").trim();
   const startingPhase = tryParsePhase(searchParams.get("phase")) || "Clarity";
   const scheduledSessionId = String(searchParams.get("scheduledSessionId") || "").trim() || null;
-  const sessionContextKind =
-    String(searchParams.get("sessionContextKind") || "").trim().toLowerCase() === "training"
-      ? "training"
-      : "intro";
+  const requestedSessionContext =
+    String(searchParams.get("sessionContextKind") || searchParams.get("context") || "")
+      .trim()
+      .toLowerCase();
+  const sessionContextKind = requestedSessionContext === "training" ? "training" : "intro";
 
   const storageKey = useMemo(
     () => buildStorageKey(studentId, topic, scheduledSessionId),
