@@ -5,7 +5,6 @@ import { registerRoutes } from '../server/routes';
 import { registerEvidenceCompleteDiagnosisRoutes } from '../server/evidenceCompleteDiagnosisRoutes';
 import { setupAuth } from '../server/supabaseAuth';
 import cors from 'cors';
-import { resolvePreviewRequestUrl } from './previewRequestUrl';
 
 const app = express();
 
@@ -54,15 +53,6 @@ app.use((req, res) => {
 
 // Vercel serverless handler
 export default function handler(req: VercelRequest, res: VercelResponse) {
-  const resolvedPreviewUrl = resolvePreviewRequestUrl(
-    req.url,
-    req.query as Record<string, unknown> | undefined,
-  );
-
-  if (resolvedPreviewUrl) {
-    req.url = resolvedPreviewUrl;
-  }
-
   console.log(`[Vercel Handler] ${req.method} ${req.url}`);
   return app(req as any, res as any);
 }
