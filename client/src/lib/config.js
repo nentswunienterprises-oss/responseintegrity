@@ -1,15 +1,15 @@
 // Runtime configuration for API URL
-var RENDER_URL = 'https://api.responseintegrity.co.za';
+var PRODUCTION_API_URL = "https://api.responseintegrity.co.za";
 export function getApiUrl() {
-    if (typeof window !== 'undefined') {
-        var hostname = window.location.hostname;
-        // Local development
-        if (hostname === 'localhost' || hostname === '127.0.0.1') {
-            return 'http://localhost:5000';
+    if (typeof window !== "undefined") {
+        var hostname = window.location.hostname.toLowerCase();
+        if (hostname === "localhost" || hostname === "127.0.0.1") {
+            return "http://localhost:5000";
+        }
+        if (hostname.endsWith(".vercel.app")) {
+            return "";
         }
     }
-    // Production: use the custom API domain
-    return RENDER_URL;
+    return PRODUCTION_API_URL;
 }
-// Use the getter function to ensure runtime evaluation
 export var API_URL = getApiUrl();
