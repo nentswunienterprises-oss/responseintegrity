@@ -114,7 +114,7 @@ test("repeated phase-critical breakdown cannot be averaged away by otherwise sup
     optionIndexFor: ({ setId, repIndex, fieldKey, optionLabels }) => {
       if (
         setId === "structured_execution.required_structure" &&
-        fieldKey === "startBehavior" &&
+        fieldKey === "stepExecution" &&
         repIndex < 2
       ) {
         return 0;
@@ -124,9 +124,11 @@ test("repeated phase-critical breakdown cannot be averaged away by otherwise sup
   });
 
   const result = evaluate("Structured Execution", "High", sets);
-  const start = result.dimensions.find((item) => item.dimensionId === "execution.start");
+  const stepDiscipline = result.dimensions.find(
+    (item) => item.dimensionId === "execution.step_discipline",
+  );
 
-  assert.equal(start?.state, "BREAKDOWN");
+  assert.equal(stepDiscipline?.state, "BREAKDOWN");
   assert.equal(result.observedStability, "Low");
   assert.equal(result.predictedTransition.nextStability, "Medium");
   assert.equal(result.predictedTransition.transitionReason, "stability regress");
@@ -178,11 +180,7 @@ test("near-stable evidence can support High but cannot mint High Maintenance", (
   const sets = buildTrainingSets({
     phase: "Time Pressure Stability",
     optionIndexFor: ({ setId, repIndex, fieldKey, optionLabels }) => {
-      if (
-        setId === "time_pressure.repeated_timed_execution" &&
-        fieldKey === "paceControl" &&
-        repIndex === 1
-      ) {
+      if (fieldKey === "paceControl") {
         return 1;
       }
       return optionLabels.length - 1;
