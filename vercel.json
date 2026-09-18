@@ -334,7 +334,7 @@
       "has": [
         {
           "type": "host",
-          "value": ".*\\\\.vercel\\\\.app"
+          "value": ".*\\.vercel\\.app"
         }
       ],
       "destination": "/api/index?__previewPath=:path*"
