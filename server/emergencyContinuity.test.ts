@@ -72,6 +72,14 @@ test("emergency evidence ledger normalizes browser timezone timestamps to UTC IS
   );
 });
 
+test("runtime PostgreSQL uses Supabase transaction pooler instead of session mode", () => {
+  const dbSource = readFileSync(resolve(process.cwd(), "server/db.ts"), "utf8");
+
+  assert.match(dbSource, /pooler\\\.supabase\\\.com\):5432/);
+  assert.match(dbSource, /"\$1:6543"/);
+  assert.match(dbSource, /connectionString:\s*runtimeDatabaseUrl/);
+});
+
 test("PostgreSQL session storage reuses the bounded application pool", () => {
   const dbSource = readFileSync(resolve(process.cwd(), "server/db.ts"), "utf8");
   const authSource = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
