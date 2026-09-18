@@ -3,7 +3,7 @@ import express from 'express';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { registerRoutes } from '../server/routes';
 import { registerEvidenceCompleteDiagnosisRoutes } from '../server/evidenceCompleteDiagnosisRoutes';
-import { getSession } from '../server/supabaseAuth';
+import { setupAuth } from '../server/supabaseAuth';
 import cors from 'cors';
 import { resolvePreviewRequestUrl } from './previewRequestUrl';
 
@@ -32,8 +32,9 @@ app.options('*', (req, res) => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
-// Attach session middleware BEFORE routes
-app.use(getSession());
+// Register auth first. setupAuth installs the session middleware and the
+// /api/auth/* endpoints before all protected application routes.
+await setupAuth(app);
 
 // Debug middleware to log incoming requests
 app.use((req, res, next) => {
