@@ -12554,12 +12554,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const assignedStudent = await storage.getStudent(enrollment.assigned_student_id);
         if (assignedStudent) return normalizeStudentRecord(assignedStudent);
       }
+
+      // Proof/emergency databases may intentionally omit the legacy
+      // students.parent_enrollment_id column. Resolve the pre-assignment fallback
+      // from fields that are present in the reduced compatibility schema instead.
+      if (!tutorId || !enrollment.student_full_name) return null;
       const result = await pool.query(
         `SELECT * FROM public.students
-          WHERE parent_enrollment_id = $1
+          WHERE tutor_id = $1
+            AND LOWER(BTRIM(name)) = LOWER(BTRIM($2))
           ORDER BY created_at DESC
           LIMIT 1`,
-        [enrollment.id],
+        [tutorId, enrollment.student_full_name],
       );
       return result.rows[0] ? normalizeStudentRecord(result.rows[0]) : null;
     }
@@ -27370,26 +27376,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (isEmergencyDbMode()) {
         const enrollmentResult = await pool.query(
-          `SELECT id, assigned_tutor_id, user_id, student_full_name FROM public.parent_enrollments
+          `SELECT id, assigned_tutor_id, assigned_student_id, user_id, student_full_name FROM public.parent_enrollments
             WHERE user_id = $1
             ORDER BY updated_at DESC
             LIMIT 1`,
           [parentId],
         );
         const enrollment = enrollmentResult.rows[0];
-        const studentResult = await pool.query(
-          `SELECT id
-             FROM public.students
-            WHERE parent_enrollment_id = $1
-            ORDER BY created_at DESC
-            LIMIT 1`,
-           [enrollment?.id || null],
-        );
-        const studentId = studentResult.rows[0]?.id || null;
+        const student = await resolveCanonicalStudentForEnrollment(enrollment);
+        const studentId = student?.id || null;
         if (!studentId) {
           return res.json(buildEmergencyParentStudentStats());
         }
-        const [scheduledSessionResult, drillResult, trainingRunResult, commitmentResult, streakResult] = await Promise.all([
+        const [scheduledSessionResult, drillResult, trainingRunResult] = await Promise.all([
           pool.query(
             `SELECT id, type, status, parent_confirmed, tutor_confirmed
                FROM public.scheduled_sessions
@@ -27410,9 +27409,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ORDER BY submitted_at DESC`,
             [studentId],
           ),
-          pool.query("SELECT count(*)::int AS count FROM public.student_commitments WHERE student_id = $1 AND is_active = true", [studentId]),
-          pool.query("SELECT COALESCE(MAX(streak_count), 0)::int AS streak_count FROM public.student_commitments WHERE student_id = $1 AND is_active = true", [studentId]),
         ]);
+
+        let commitmentCount = 0;
+        let currentStreak = 0;
+        try {
+          const commitmentResult = await pool.query(
+            `SELECT count(*)::int AS count,
+                    COALESCE(MAX(streak_count), 0)::int AS streak_count
+               FROM public.student_commitments
+              WHERE student_id = $1 AND is_active = true`,
+            [studentId],
+          );
+          commitmentCount = Number(commitmentResult.rows[0]?.count || 0);
+          currentStreak = Number(commitmentResult.rows[0]?.streak_count || 0);
+        } catch (error: any) {
+          // student_commitments is not part of the reduced Proof compatibility
+          // schema yet. Its absence must not make the parent dashboard unavailable.
+          if (error?.code !== "42P01") throw error;
+          console.warn("[EMERGENCY PARENT STATS] student_commitments unavailable; using zero values");
+        }
 
         const parseDrillPayload = (value: unknown) => {
           if (typeof value !== "string") return null;
@@ -27450,8 +27466,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const derivedSolutionsUnlocked = trainingRuns.length;
         return res.json(buildEmergencyParentStudentStats({
           sessionCount: completedSessionKeys.size,
-          commitmentCount: Number(commitmentResult.rows[0]?.count || 0),
-          currentStreak: Number(streakResult.rows[0]?.streak_count || 0),
+          commitmentCount,
+          currentStreak,
           introDiagnosisCount: introDrills.length,
           trainingSessionCount: completedTrainingSessions.length || trainingRuns.length,
           bossBattlesCompleted: derivedBossBattles,
