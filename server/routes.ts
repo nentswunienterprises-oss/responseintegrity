@@ -25999,19 +25999,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/student/signup", async (req: Request, res: Response) => {
     try {
       const { email, password, firstName, lastName, parentCode } = req.body;
-      console.log("🎓 Student signup request:", { email, firstName, lastName, parentCode });
+      const normalizedEmail = String(email || "").trim().toLowerCase();
+      const normalizedParentCode = String(parentCode || "").trim().toUpperCase();
+      console.log("🎓 Student signup request:", {
+        email: normalizedEmail,
+        firstName,
+        lastName,
+        parentCode: normalizedParentCode,
+      });
 
-      if (!email || !password || !parentCode) {
+      if (!normalizedEmail || !password || !normalizedParentCode) {
         return res.status(400).json({ message: "Email, password, and parent code are required" });
       }
 
-      // Validate parent code
-      console.log("🔍 Validating parent code:", parentCode.toUpperCase());
-      const { data: proposal, error: proposalError } = await supabase
-        .from("onboarding_proposals")
-        .select("id, student_id, accepted_at, parent_code")
-        .eq("parent_code", parentCode.toUpperCase())
-        .maybeSingle();
+      console.log("🔍 Validating parent code:", normalizedParentCode);
+
+      let proposal: any = null;
+      let proposalError: any = null;
+
+      if (isEmergencyDbMode()) {
+        try {
+          const proposalResult = await pool.query(
+            `SELECT
+                id::text,
+                student_id::text,
+                accepted_at,
+                parent_code,
+                tutor_id::text,
+                enrollment_id::text
+               FROM public.onboarding_proposals
+              WHERE upper(parent_code) = $1
+              LIMIT 1`,
+            [normalizedParentCode],
+          );
+          proposal = proposalResult.rows[0] || null;
+        } catch (error) {
+          proposalError = error;
+        }
+      } else {
+        const proposalResult = await supabase
+          .from("onboarding_proposals")
+          .select("id, student_id, accepted_at, parent_code, tutor_id, enrollment_id")
+          .eq("parent_code", normalizedParentCode)
+          .maybeSingle();
+
+        proposal = proposalResult.data;
+        proposalError = proposalResult.error;
+      }
 
       console.log("📋 Proposal found:", proposal, "Error:", proposalError);
 
@@ -26025,82 +26059,204 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Parent has not yet accepted the proposal for this code" });
       }
 
-      // Check if code already used
       console.log("🔍 Checking if code already used...");
-      const { data: existingStudent, error: checkError } = await supabase
-        .from("student_users")
-        .select("id")
-        .eq("parent_code", parentCode.toUpperCase())
-        .maybeSingle();
+      let existingStudent: any = null;
+      let checkError: any = null;
+
+      if (isEmergencyDbMode()) {
+        try {
+          const existingResult = await pool.query(
+            `SELECT id::text
+               FROM public.student_users
+              WHERE upper(parent_code) = $1
+              LIMIT 1`,
+            [normalizedParentCode],
+          );
+          existingStudent = existingResult.rows[0] || null;
+        } catch (error) {
+          checkError = error;
+        }
+      } else {
+        const existingResult = await supabase
+          .from("student_users")
+          .select("id")
+          .eq("parent_code", normalizedParentCode)
+          .maybeSingle();
+
+        existingStudent = existingResult.data;
+        checkError = existingResult.error;
+      }
 
       console.log("👥 Existing student:", existingStudent, "Check error:", checkError);
+
+      if (checkError) {
+        console.error("❌ Failed to verify parent code usage:", checkError);
+        return res.status(500).json({ message: "Failed to verify parent code" });
+      }
 
       if (existingStudent) {
         console.log("❌ Code already used");
         return res.status(400).json({ message: "This parent code has already been used" });
       }
 
-      // Hash password using bcrypt
       console.log("🔐 Hashing password...");
       const { hash } = await import("bcryptjs");
       const hashedPassword = await hash(password, 10);
 
-      // Create student user
       console.log("💾 Creating student user in database...");
-      const { data: studentUser, error: insertError } = await supabase
-        .from("student_users")
-        .insert({
-          email,
-          password: hashedPassword,
-          first_name: firstName,
-          last_name: lastName,
-          student_id: proposal.student_id,
-          parent_code: parentCode.toUpperCase(),
-        })
-        .select()
-        .single();
+      let studentUser: any = null;
+      let insertError: any = null;
 
-      if (insertError) {
-        console.error("❌ Error creating student user:", insertError);
-        console.error("❌ Insert error details:", JSON.stringify(insertError, null, 2));
-        return res.status(500).json({ message: "Failed to create student account", error: insertError.message });
+      if (isEmergencyDbMode()) {
+        try {
+          const insertResult = await pool.query(
+            `INSERT INTO public.student_users (
+                email,
+                password,
+                first_name,
+                last_name,
+                student_id,
+                parent_code
+              )
+              VALUES ($1, $2, $3, $4, $5, $6)
+              RETURNING
+                id::text,
+                email,
+                first_name,
+                last_name,
+                student_id::text,
+                parent_code,
+                created_at,
+                last_login`,
+            [
+              normalizedEmail,
+              hashedPassword,
+              firstName || null,
+              lastName || null,
+              proposal.student_id || null,
+              normalizedParentCode,
+            ],
+          );
+          studentUser = insertResult.rows[0] || null;
+        } catch (error: any) {
+          insertError = error;
+        }
+      } else {
+        const insertResult = await supabase
+          .from("student_users")
+          .insert({
+            email: normalizedEmail,
+            password: hashedPassword,
+            first_name: firstName,
+            last_name: lastName,
+            student_id: proposal.student_id,
+            parent_code: normalizedParentCode,
+          })
+          .select()
+          .single();
+
+        studentUser = insertResult.data;
+        insertError = insertResult.error;
       }
 
-      console.log("✅ Student user created:", studentUser);
+      if (insertError || !studentUser) {
+        console.error("❌ Error creating student user:", insertError);
+        if (insertError?.code === "23505") {
+          return res.status(400).json({ message: "A student account already exists for this email or parent code" });
+        }
+        return res.status(500).json({
+          message: "Failed to create student account",
+          error: insertError?.message || "Student account was not created",
+        });
+      }
 
-      // Patch: Link intro session(s) to student_id after signup
-      if (proposal.student_id) {
-        // Find all intro sessions for this parent/tutor with student_id null
-        const { data: introSessions, error: sessionFetchError } = await supabase
-          .from("scheduled_sessions")
-          .select("id")
-          .eq("parent_id", req.body.parentId || null)
-          .eq("tutor_id", (proposal as any).tutor_id)
-          .is("student_id", null)
-          .eq("type", "intro");
-        if (sessionFetchError) {
-          console.error("❌ Error fetching intro sessions for student linkage:", sessionFetchError);
-        } else if (introSessions && introSessions.length > 0) {
-          const sessionIds = introSessions.map(s => s.id);
-          const { error: updateSessionError } = await supabase
-            .from("scheduled_sessions")
-            .update({ student_id: proposal.student_id, updated_at: new Date().toISOString() })
-            .in("id", sessionIds);
-          if (updateSessionError) {
-            console.error("❌ Error updating intro sessions with student_id:", updateSessionError);
-          } else {
-            console.log("✅ Linked intro sessions to student_id:", sessionIds);
+      console.log("✅ Student user created:", {
+        id: studentUser.id,
+        email: studentUser.email,
+        studentId: studentUser.student_id,
+      });
+
+      // Keep any unlinked intro session attached to the canonical student.
+      if (proposal.student_id && proposal.tutor_id) {
+        if (isEmergencyDbMode()) {
+          try {
+            let parentId: string | null = null;
+            if (proposal.enrollment_id) {
+              const enrollmentResult = await pool.query(
+                `SELECT user_id::text
+                   FROM public.parent_enrollments
+                  WHERE id = $1
+                  LIMIT 1`,
+                [proposal.enrollment_id],
+              );
+              parentId = enrollmentResult.rows[0]?.user_id || null;
+            }
+
+            if (parentId) {
+              const linkResult = await pool.query(
+                `UPDATE public.scheduled_sessions
+                    SET student_id = $1::uuid,
+                        updated_at = NOW()
+                  WHERE parent_id = $2
+                    AND tutor_id = $3
+                    AND student_id IS NULL
+                    AND type = 'intro'
+                  RETURNING id::text`,
+                [proposal.student_id, parentId, proposal.tutor_id],
+              );
+              if (linkResult.rows.length > 0) {
+                console.log("✅ Linked intro sessions to student_id:", linkResult.rows.map((row: any) => row.id));
+              }
+            }
+          } catch (linkError) {
+            console.error("❌ Error linking intro sessions to student_id:", linkError);
+          }
+        } else {
+          let parentId = String(req.body.parentId || "").trim() || null;
+
+          if (!parentId && proposal.enrollment_id) {
+            const { data: enrollment } = await supabase
+              .from("parent_enrollments")
+              .select("user_id")
+              .eq("id", proposal.enrollment_id)
+              .maybeSingle();
+            parentId = String(enrollment?.user_id || "").trim() || null;
+          }
+
+          if (parentId) {
+            const { data: introSessions, error: sessionFetchError } = await supabase
+              .from("scheduled_sessions")
+              .select("id")
+              .eq("parent_id", parentId)
+              .eq("tutor_id", proposal.tutor_id)
+              .is("student_id", null)
+              .eq("type", "intro");
+
+            if (sessionFetchError) {
+              console.error("❌ Error fetching intro sessions for student linkage:", sessionFetchError);
+            } else if (introSessions && introSessions.length > 0) {
+              const sessionIds = introSessions.map((session: any) => session.id);
+              const { error: updateSessionError } = await supabase
+                .from("scheduled_sessions")
+                .update({ student_id: proposal.student_id, updated_at: new Date().toISOString() })
+                .in("id", sessionIds);
+
+              if (updateSessionError) {
+                console.error("❌ Error updating intro sessions with student_id:", updateSessionError);
+              } else {
+                console.log("✅ Linked intro sessions to student_id:", sessionIds);
+              }
+            }
           }
         }
       }
 
-      // Create session for student
       (req.session as any).studentUserId = studentUser.id;
       (req.session as any).studentEmail = studentUser.email;
       req.session.touch();
 
       console.log("✅ Student signup successful!");
-      res.json({
+      return res.json({
         message: "Student account created successfully",
         user: {
           id: studentUser.id,
@@ -26113,7 +26269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("❌ Student signup error:", error);
       console.error("❌ Error stack:", error.stack);
-      res.status(500).json({ message: "Failed to create student account", error: error.message });
+      return res.status(500).json({ message: "Failed to create student account", error: error.message });
     }
   });
 
@@ -26121,23 +26277,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/student/signin", async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
+      const normalizedEmail = String(email || "").trim().toLowerCase();
 
-      if (!email || !password) {
+      if (!normalizedEmail || !password) {
         return res.status(400).json({ message: "Email and password are required" });
       }
 
-      // Find student user
-      const { data: studentUser, error } = await supabase
-        .from("student_users")
-        .select("*")
-        .eq("email", email)
-        .maybeSingle();
+      let studentUser: any = null;
+      let lookupError: any = null;
 
-      if (error || !studentUser) {
+      if (isEmergencyDbMode()) {
+        try {
+          const userResult = await pool.query(
+            `SELECT
+                id::text,
+                email,
+                password,
+                first_name,
+                last_name,
+                student_id::text,
+                created_at,
+                last_login
+               FROM public.student_users
+              WHERE lower(email) = $1
+              LIMIT 1`,
+            [normalizedEmail],
+          );
+          studentUser = userResult.rows[0] || null;
+        } catch (error) {
+          lookupError = error;
+        }
+      } else {
+        const userResult = await supabase
+          .from("student_users")
+          .select("*")
+          .eq("email", normalizedEmail)
+          .maybeSingle();
+
+        studentUser = userResult.data;
+        lookupError = userResult.error;
+      }
+
+      if (lookupError || !studentUser) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      // Verify password
       const { compare } = await import("bcryptjs");
       const passwordMatch = await compare(password, studentUser.password);
 
@@ -26145,18 +26329,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      // Update last login
-      await supabase
-        .from("student_users")
-        .update({ last_login: new Date().toISOString() })
-        .eq("id", studentUser.id);
+      if (isEmergencyDbMode()) {
+        await pool.query(
+          `UPDATE public.student_users
+              SET last_login = NOW()
+            WHERE id = $1`,
+          [studentUser.id],
+        );
+      } else {
+        await supabase
+          .from("student_users")
+          .update({ last_login: new Date().toISOString() })
+          .eq("id", studentUser.id);
+      }
 
-      // Create session
       (req.session as any).studentUserId = studentUser.id;
       (req.session as any).studentEmail = studentUser.email;
       req.session.touch();
 
-      res.json({
+      return res.json({
         message: "Signed in successfully",
         user: {
           id: studentUser.id,
@@ -26168,7 +26359,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Student signin error:", error);
-      res.status(500).json({ message: "Failed to sign in" });
+      return res.status(500).json({ message: "Failed to sign in" });
     }
   });
 
@@ -26181,40 +26372,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      const { data: studentUser, error } = await supabase
-        .from("student_users")
-        .select("id, email, first_name, last_name, student_id, created_at, last_login")
-        .eq("id", studentUserId)
-        .single();
+      let studentUser: any = null;
+      let lookupError: any = null;
 
-      if (error || !studentUser) {
+      if (isEmergencyDbMode()) {
+        try {
+          const userResult = await pool.query(
+            `SELECT
+                id::text,
+                email,
+                first_name,
+                last_name,
+                student_id::text,
+                created_at,
+                last_login
+               FROM public.student_users
+              WHERE id = $1
+              LIMIT 1`,
+            [studentUserId],
+          );
+          studentUser = userResult.rows[0] || null;
+        } catch (error) {
+          lookupError = error;
+        }
+      } else {
+        const userResult = await supabase
+          .from("student_users")
+          .select("id, email, first_name, last_name, student_id, created_at, last_login")
+          .eq("id", studentUserId)
+          .single();
+
+        studentUser = userResult.data;
+        lookupError = userResult.error;
+      }
+
+      if (lookupError || !studentUser) {
         return res.status(404).json({ message: "Student user not found" });
       }
 
-      // Get the student's tutor's pod if available
       let podName = null;
-      if (studentUser.student_id) {
-        const { data: student } = await supabase
-          .from("students")
-          .select("tutor_id")
-          .eq("id", studentUser.student_id)
-          .maybeSingle();
 
-        if (student?.tutor_id) {
-          const { data: tutorAssignment } = await supabase
-            .from("tutor_assignments")
-            .select("pod:pods(pod_name)")
-            .eq("tutor_id", student.tutor_id)
+      if (studentUser.student_id) {
+        if (isEmergencyDbMode()) {
+          const podResult = await pool.query(
+            `SELECT p.pod_name
+               FROM public.students s
+               LEFT JOIN public.tutor_assignments ta
+                 ON ta.tutor_id = s.tutor_id
+               LEFT JOIN public.pods p
+                 ON p.id = ta.pod_id
+              WHERE s.id = $1
+              LIMIT 1`,
+            [studentUser.student_id],
+          );
+          podName = podResult.rows[0]?.pod_name || null;
+        } else {
+          const { data: student } = await supabase
+            .from("students")
+            .select("tutor_id")
+            .eq("id", studentUser.student_id)
             .maybeSingle();
 
-          const pod = tutorAssignment?.pod as { pod_name?: string } | null;
-          if (pod) {
-            podName = pod.pod_name || null;
+          if (student?.tutor_id) {
+            const { data: tutorAssignment } = await supabase
+              .from("tutor_assignments")
+              .select("pod:pods(pod_name)")
+              .eq("tutor_id", student.tutor_id)
+              .maybeSingle();
+
+            const pod = tutorAssignment?.pod as { pod_name?: string } | null;
+            if (pod) {
+              podName = pod.pod_name || null;
+            }
           }
         }
       }
 
-      res.json({
+      return res.json({
         id: studentUser.id,
         email: studentUser.email,
         firstName: studentUser.first_name,
@@ -26222,11 +26456,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         studentId: studentUser.student_id,
         createdAt: studentUser.created_at,
         lastLogin: studentUser.last_login,
-        podName: podName,
+        podName,
       });
     } catch (error) {
       console.error("Error fetching student user:", error);
-      res.status(500).json({ message: "Failed to fetch student user" });
+      return res.status(500).json({ message: "Failed to fetch student user" });
     }
   });
 
