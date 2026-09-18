@@ -1,13 +1,11 @@
 import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
 import {
   createEvidenceCompleteDiagnosisState,
-  DIAGNOSIS_DIMENSIONS,
   DIAGNOSIS_PROBES,
   evaluateEvidenceCompleteDiagnosis,
   getDiagnosisProbeOpportunityPurpose,
   recordEvidenceCompleteDiagnosisProbe,
   type DiagnosisDimensionId,
-  type DiagnosisObservationLevel,
   type DiagnosisProbeDefinition,
   type DiagnosisProbeId,
   type DiagnosisProbeResult,
@@ -15,14 +13,18 @@ import {
   type EvidenceCompleteDiagnosisDecision,
   type EvidenceCompleteDiagnosisState,
 } from "./evidenceCompleteDiagnosis";
+import {
+  DIAGNOSIS_OBSERVATION_MATRIX,
+  getDiagnosisObservationOption,
+  type DiagnosisBehaviorClass,
+} from "./diagnosisObservationMatrix";
 
-export const EVIDENCE_COMPLETE_DIAGNOSIS_SCHEMA_ID = "ri.diagnosis.evidence_complete";
-export const EVIDENCE_COMPLETE_DIAGNOSIS_SCHEMA_VERSION = 1;
+export const EVIDENCE_COMPLETE_DIAGNOSIS_SCHEMA_ID = "ri.diagnosis.evidence_native";
+export const EVIDENCE_COMPLETE_DIAGNOSIS_SCHEMA_VERSION = 2;
 export const EVIDENCE_COMPLETE_DIAGNOSIS_DEFINITION_HASH =
-  "2cad905cc4ea26584370f2c9ff1081820721e64e796b451a58fea7dab1bf2ff6";
+  "d5af9c66f1b8e807b325e898884416662a0c743ad1b82f446b08ff34f16d9de2";
 export const MAX_EVIDENCE_COMPLETE_DIAGNOSIS_PROBES = 12;
 
-const OBSERVATION_LEVELS = new Set<DiagnosisObservationLevel>(["weak", "partial", "clear"]);
 const SUPPORT_EVENTS = new Set<DiagnosisSupportEvent>([
   "none",
   "neutral_clarification",
@@ -57,16 +59,20 @@ const cleanProbeResult = (value: unknown): DiagnosisProbeResult | null => {
     if (!raw || typeof raw !== "object") return null;
     const row = raw as Record<string, unknown>;
     const dimensionId = String(row.dimensionId || "").trim() as DiagnosisDimensionId;
-    const level = String(row.level || "").trim() as DiagnosisObservationLevel;
-    if (!(dimensionId in DIAGNOSIS_DIMENSIONS) || !OBSERVATION_LEVELS.has(level)) return null;
-    return { dimensionId, level };
+    const behaviorId = String(row.behaviorId || "").trim();
+    if (!(dimensionId in DIAGNOSIS_OBSERVATION_MATRIX)) return null;
+    if (!getDiagnosisObservationOption(dimensionId, behaviorId)) return null;
+    return { dimensionId, behaviorId };
   });
 
   if (observations.some((row) => !row)) return null;
   return {
     probeId,
     supportEvent,
-    observations: observations as Array<{ dimensionId: DiagnosisDimensionId; level: DiagnosisObservationLevel }>,
+    observations: observations as Array<{
+      dimensionId: DiagnosisDimensionId;
+      behaviorId: string;
+    }>,
   };
 };
 
@@ -101,7 +107,7 @@ const validateExactProbeDimensions = (
 };
 
 export function replayEvidenceCompleteDiagnosis(
-  startingPhase: TopicPhase,
+  startingPhase: TopicPhase | null,
   rawProbeHistory: unknown,
 ): EvidenceCompleteDiagnosisReplay {
   if (!Array.isArray(rawProbeHistory)) {
@@ -138,7 +144,7 @@ export function replayEvidenceCompleteDiagnosis(
       return {
         ok: false,
         failedAtProbeIndex: index,
-        error: `Probe ${index + 1} has an invalid evidence payload`,
+        error: `Probe ${index + 1} has an invalid behavioral evidence payload`,
       };
     }
 
@@ -206,16 +212,13 @@ export type EvidenceCompleteDiagnosisLedgerRow = {
   dimension_order: number;
   field_key: DiagnosisDimensionId;
   option_id: string;
-  raw_option: DiagnosisObservationLevel;
-  normalized_level: DiagnosisObservationLevel;
+  raw_option: string;
+  normalized_level: DiagnosisBehaviorClass;
   score_contribution: number;
   score_contribution_max: number;
   constraint_profile: Record<string, unknown>;
   observed_at: string;
 };
-
-const scoreContribution = (weight: number, level: DiagnosisObservationLevel) =>
-  level === "clear" ? weight : level === "partial" ? Math.round(weight * 0.6) : 0;
 
 export function buildEvidenceCompleteDiagnosisLedgerRows(input: {
   sourceDrillId: string;
@@ -240,12 +243,22 @@ export function buildEvidenceCompleteDiagnosisLedgerRows(input: {
     const occurrence = (occurrenceByProbe.get(result.probeId) || 0) + 1;
     occurrenceByProbe.set(result.probeId, occurrence);
     const supportEvent = result.supportEvent || "none";
-    const isContaminated = supportEvent === "first_step_confirmation" || supportEvent === "teaching";
+    const isContaminated =
+      supportEvent === "first_step_confirmation" || supportEvent === "teaching";
     const repId = `${result.probeId}.opportunity_${occurrence}`;
     const blockOrder = blockIndex + 1;
 
     return result.observations.map((observation) => {
-      const dimension = DIAGNOSIS_DIMENSIONS[observation.dimensionId];
+      const dimension = DIAGNOSIS_OBSERVATION_MATRIX[observation.dimensionId];
+      const behavior = getDiagnosisObservationOption(
+        observation.dimensionId,
+        observation.behaviorId,
+      );
+      if (!behavior) {
+        throw new Error(
+          `Cannot project unknown behavior ${observation.behaviorId} for ${observation.dimensionId}`,
+        );
+      }
       const dimensionOrder = definition.dimensions.indexOf(observation.dimensionId) + 1;
 
       return {
@@ -256,14 +269,15 @@ export function buildEvidenceCompleteDiagnosisLedgerRows(input: {
           repId,
           observation.dimensionId,
         ].join("::"),
-        projection_version: 1,
+        projection_version: 2,
         source_drill_id: input.sourceDrillId,
         student_id: input.studentId,
         tutor_id: input.tutorId,
         topic: input.topic,
         scheduled_session_id: input.scheduledSessionId || null,
         training_session_run_id: null,
-        session_group_id: input.sessionGroupId || input.scheduledSessionId || input.sourceDrillId,
+        session_group_id:
+          input.sessionGroupId || input.scheduledSessionId || input.sourceDrillId,
         session_context: input.sessionContext,
         drill_type: "diagnosis",
         drill_schema_id: EVIDENCE_COMPLETE_DIAGNOSIS_SCHEMA_ID,
@@ -274,7 +288,7 @@ export function buildEvidenceCompleteDiagnosisLedgerRows(input: {
         stability_before: null,
         state_phase_after: input.decision.placementPhase!,
         stability_after: input.decision.stability!,
-        transition_reason: "evidence_complete_diagnosis",
+        transition_reason: "evidence_native_diagnosis",
         block_order: blockOrder,
         set_id: result.probeId,
         set_order: blockOrder,
@@ -283,18 +297,28 @@ export function buildEvidenceCompleteDiagnosisLedgerRows(input: {
         dimension_id: observation.dimensionId,
         dimension_order: dimensionOrder,
         field_key: observation.dimensionId,
-        option_id: `${observation.dimensionId}.${observation.level}`,
-        raw_option: observation.level,
-        normalized_level: observation.level,
-        score_contribution: scoreContribution(dimension.weight, observation.level),
-        score_contribution_max: dimension.weight,
+        option_id: observation.behaviorId,
+        raw_option: behavior.label,
+        normalized_level: behavior.behaviorClass,
+        // Numeric score fields remain zeroed for ledger schema compatibility only.
+        // They have no decision authority in evidence-native diagnosis.
+        score_contribution: 0,
+        score_contribution_max: 0,
         constraint_profile: {
           ...definition.constraints,
           probeId: result.probeId,
           evidenceQuestion: definition.evidenceQuestion,
-          opportunityPurpose: getDiagnosisProbeOpportunityPurpose(result.probeId, occurrence),
+          opportunityPurpose: getDiagnosisProbeOpportunityPurpose(
+            result.probeId,
+            occurrence,
+          ),
           supportEvent,
           contaminated: isContaminated,
+          behaviorId: observation.behaviorId,
+          behaviorLabel: behavior.label,
+          behaviorClass: behavior.behaviorClass,
+          decisionAuthority: "behavioral_evidence",
+          scoreAuthority: false,
         },
         observed_at: input.observedAt,
       };

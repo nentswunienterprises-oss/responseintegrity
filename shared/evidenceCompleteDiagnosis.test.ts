@@ -5,177 +5,266 @@ import {
   evaluateEvidenceCompleteDiagnosis,
   recordEvidenceCompleteDiagnosisProbe,
   type DiagnosisDimensionId,
-  type DiagnosisObservationLevel,
   type DiagnosisProbeId,
 } from "./evidenceCompleteDiagnosis";
+import {
+  DIAGNOSIS_OBSERVATION_MATRIX,
+  type DiagnosisBehaviorClass,
+} from "./diagnosisObservationMatrix";
 
-const levels = (values: Partial<Record<DiagnosisDimensionId, DiagnosisObservationLevel>>) =>
-  Object.entries(values).map(([dimensionId, level]) => ({
+const behavior = (
+  values: Partial<Record<DiagnosisDimensionId, string>>,
+) =>
+  Object.entries(values).map(([dimensionId, behaviorId]) => ({
     dimensionId: dimensionId as DiagnosisDimensionId,
-    level: level as DiagnosisObservationLevel,
+    behaviorId: String(behaviorId),
   }));
 
-const clarityClear = {
-  "clarity.vocabulary": "clear",
-  "clarity.method": "clear",
-  "clarity.reason": "clear",
-  "clarity.immediate_apply": "clear",
+const claritySupported = {
+  "clarity.vocabulary": "accurate_recognition",
+  "clarity.method": "correct_method_cleanly",
+  "clarity.reason": "clear_reason",
+  "clarity.immediate_apply": "engages_cleanly",
 } as const;
-const executionClear = {
-  "execution.start": "clear",
-  "execution.step_discipline": "clear",
-  "execution.repeatability": "clear",
-  "execution.independence": "clear",
+
+const executionImmediateSupported = {
+  "execution.start": "valid_independent_start",
+  "execution.step_discipline": "structure_maintained",
+  "execution.independence": "independent_throughout",
 } as const;
-const difficultyClear = {
-  "difficulty.initial_response": "clear",
-  "difficulty.first_step_control": "clear",
-  "difficulty.tolerance": "clear",
-  "difficulty.rescue_dependence": "clear",
+
+const executionSupported = {
+  ...executionImmediateSupported,
+  "execution.repeatability": "repeat_clean",
 } as const;
-const timeClear = {
-  "time.start": "clear",
-  "time.structure": "clear",
-  "time.pace": "clear",
-  "time.completion_integrity": "clear",
+
+const difficultySupported = {
+  "difficulty.initial_response": "controlled_attempt",
+  "difficulty.first_step_control": "controlled_independent_step",
+  "difficulty.tolerance": "holds_and_recovers",
+  "difficulty.rescue_dependence": "no_rescue",
+} as const;
+
+const timeSupported = {
+  "time.start": "timed_controlled_start",
+  "time.structure": "timed_structure_maintained",
+  "time.pace": "controlled_pace",
+  "time.completion_integrity": "complete_with_structure",
 } as const;
 
 function run(
   state: ReturnType<typeof createEvidenceCompleteDiagnosisState>,
   probeId: DiagnosisProbeId,
-  values: Partial<Record<DiagnosisDimensionId, DiagnosisObservationLevel>>,
+  values: Partial<Record<DiagnosisDimensionId, string>>,
   supportEvent: "none" | "teaching" = "none",
 ) {
   return recordEvidenceCompleteDiagnosisProbe(state, {
     probeId,
-    observations: levels(values),
+    observations: behavior(values),
     supportEvent,
   });
 }
 
-test("starts at the probe matching the system recommendation", () => {
+test("every dimension exposes concrete decision-relevant behavior options", () => {
+  for (const definition of Object.values(DIAGNOSIS_OBSERVATION_MATRIX)) {
+    const ids = new Set(definition.options.map((item) => item.id));
+    const classes = new Set<DiagnosisBehaviorClass>(
+      definition.options.map((item) => item.behaviorClass),
+    );
+    assert.equal(ids.size, definition.options.length);
+    assert.ok(classes.has("breakdown"));
+    assert.ok(classes.has("conditional"));
+    assert.ok(classes.has("near_stable"));
+    assert.ok(classes.has("supported"));
+    assert.ok(classes.has("not_observed"));
+    assert.ok(classes.has("confounded"));
+  }
+});
+
+test("no starting signal uses a neutral independent baseline", () => {
+  const decision = evaluateEvidenceCompleteDiagnosis(
+    createEvidenceCompleteDiagnosisState(null),
+  );
+  assert.equal(decision.nextProbeId, "stack.normal_independent");
+  assert.match(decision.reason, /No starting signal/);
+});
+
+test("starting signals route the first question but do not decide placement", () => {
   assert.equal(
-    evaluateEvidenceCompleteDiagnosis(createEvidenceCompleteDiagnosisState("Clarity")).nextProbeId,
+    evaluateEvidenceCompleteDiagnosis(
+      createEvidenceCompleteDiagnosisState("Clarity"),
+    ).nextProbeId,
     "clarity.recognition",
   );
   assert.equal(
-    evaluateEvidenceCompleteDiagnosis(createEvidenceCompleteDiagnosisState("Time Pressure Stability")).nextProbeId,
+    evaluateEvidenceCompleteDiagnosis(
+      createEvidenceCompleteDiagnosisState("Time Pressure Stability"),
+    ).nextProbeId,
     "stack.timed_challenge",
   );
 });
 
-test("decisive clean clarity breakdown can finish after one opportunity", () => {
+test("decisive clarity breakdown places Low from behavior, not a score", () => {
   let state = createEvidenceCompleteDiagnosisState("Clarity");
   state = run(state, "clarity.recognition", {
-    "clarity.vocabulary": "weak",
-    "clarity.method": "weak",
-    "clarity.reason": "partial",
-    "clarity.immediate_apply": "weak",
+    "clarity.vocabulary": "no_recognition",
+    "clarity.method": "no_method",
+    "clarity.reason": "no_reason",
+    "clarity.immediate_apply": "cannot_engage",
   });
+
   const decision = evaluateEvidenceCompleteDiagnosis(state);
   assert.equal(decision.complete, true);
   assert.equal(decision.placementPhase, "Clarity");
   assert.equal(decision.stability, "Low");
+  assert.equal(decision.decisionAuthority, "behavioral_evidence");
+  assert.equal("score" in (decision.phaseStates[0] as any), false);
 });
 
-test("diagnosis is not structurally wired to Medium", () => {
-  let medium = createEvidenceCompleteDiagnosisState("Clarity");
-  medium = run(medium, "clarity.recognition", {
-    "clarity.vocabulary": "partial",
-    "clarity.method": "partial",
-    "clarity.reason": "partial",
-    "clarity.immediate_apply": "partial",
+test("conditional behavior derives Medium without numeric thresholds", () => {
+  let state = createEvidenceCompleteDiagnosisState("Clarity");
+  state = run(state, "clarity.recognition", {
+    ...claritySupported,
+    "clarity.reason": "partial_reason",
   });
-  assert.equal(evaluateEvidenceCompleteDiagnosis(medium).stability, "Medium");
 
-  let high = createEvidenceCompleteDiagnosisState("Controlled Discomfort");
-  high = run(high, "stack.challenge_no_timer", {
-    ...clarityClear,
-    ...executionClear,
-    "difficulty.initial_response": "clear",
-    "difficulty.first_step_control": "clear",
-    "difficulty.tolerance": "partial",
-    "difficulty.rescue_dependence": "clear",
-  });
-  high = run(high, "execution.repeatability", { ...executionClear });
-  const highDecision = evaluateEvidenceCompleteDiagnosis(high);
-  assert.equal(highDecision.placementPhase, "Controlled Discomfort");
-  assert.equal(highDecision.stability, "High");
-});
-
-test("one clean execution response cannot prove repeatability", () => {
-  let state = createEvidenceCompleteDiagnosisState("Structured Execution");
-  state = run(state, "stack.normal_independent", { ...clarityClear, ...executionClear });
   const decision = evaluateEvidenceCompleteDiagnosis(state);
-  assert.equal(decision.complete, false);
-  assert.equal(decision.nextProbeId, "execution.repeatability");
+  assert.equal(decision.placementPhase, "Clarity");
+  assert.equal(decision.stability, "Medium");
 });
 
-test("timed failure does not automatically condemn lower phases", () => {
-  let state = createEvidenceCompleteDiagnosisState("Time Pressure Stability");
-  state = run(state, "stack.timed_challenge", {
-    ...clarityClear,
-    ...executionClear,
-    ...difficultyClear,
-    "time.start": "weak",
-    "time.structure": "weak",
-    "time.pace": "weak",
-    "time.completion_integrity": "weak",
+test("near-stable behavior derives High without numeric thresholds", () => {
+  let state = createEvidenceCompleteDiagnosisState("Clarity");
+  state = run(state, "clarity.recognition", {
+    ...claritySupported,
+    "clarity.reason": "correct_reason_imprecise",
   });
-  const decision = evaluateEvidenceCompleteDiagnosis(state);
-  assert.equal(decision.complete, false);
-  assert.equal(decision.nextProbeId, "execution.repeatability");
-});
 
-test("after lower layers are supported, timed breakdown places Time Pressure Stability", () => {
-  let state = createEvidenceCompleteDiagnosisState("Time Pressure Stability");
-  state = run(state, "stack.timed_challenge", {
-    ...clarityClear,
-    ...executionClear,
-    ...difficultyClear,
-    "time.start": "weak",
-    "time.structure": "partial",
-    "time.pace": "weak",
-    "time.completion_integrity": "partial",
-  });
-  state = run(state, "execution.repeatability", { ...executionClear });
-  state = run(state, "difficulty.recovery", { ...difficultyClear });
   const decision = evaluateEvidenceCompleteDiagnosis(state);
-  assert.equal(decision.complete, true);
-  assert.equal(decision.placementPhase, "Time Pressure Stability");
-  assert.equal(decision.stability, "Low");
-});
-
-test("all-clear response still requires temporal confirmation before High time placement", () => {
-  let state = createEvidenceCompleteDiagnosisState("Time Pressure Stability");
-  state = run(state, "stack.timed_challenge", {
-    ...clarityClear,
-    ...executionClear,
-    ...difficultyClear,
-    ...timeClear,
-  });
-  state = run(state, "execution.repeatability", { ...executionClear });
-  state = run(state, "difficulty.recovery", { ...difficultyClear });
-  assert.equal(evaluateEvidenceCompleteDiagnosis(state).nextProbeId, "time.consistency");
-
-  state = run(state, "time.consistency", { ...timeClear });
-  const decision = evaluateEvidenceCompleteDiagnosis(state);
-  assert.equal(decision.complete, true);
-  assert.equal(decision.placementPhase, "Time Pressure Stability");
+  assert.equal(decision.placementPhase, "Clarity");
   assert.equal(decision.stability, "High");
 });
 
-test("teaching-contaminated observations cannot determine placement", () => {
+test("not observed remains unresolved and is never converted into weakness", () => {
   let state = createEvidenceCompleteDiagnosisState("Clarity");
   state = run(state, "clarity.recognition", {
-    "clarity.vocabulary": "weak",
-    "clarity.method": "weak",
-    "clarity.reason": "weak",
-    "clarity.immediate_apply": "weak",
-  }, "teaching");
+    ...claritySupported,
+    "clarity.reason": "not_observed",
+  });
+
+  const decision = evaluateEvidenceCompleteDiagnosis(state);
+  assert.equal(decision.complete, false);
+  assert.equal(decision.placementPhase, null);
+  assert.equal(decision.nextProbeId, "clarity.recognition");
+});
+
+test("teaching-contaminated behavior cannot determine placement", () => {
+  let state = createEvidenceCompleteDiagnosisState("Clarity");
+  state = run(
+    state,
+    "clarity.recognition",
+    {
+      "clarity.vocabulary": "no_recognition",
+      "clarity.method": "no_method",
+      "clarity.reason": "no_reason",
+      "clarity.immediate_apply": "cannot_engage",
+    },
+    "teaching",
+  );
+
   const decision = evaluateEvidenceCompleteDiagnosis(state);
   assert.equal(decision.complete, false);
   assert.equal(decision.placementPhase, null);
   assert.equal(decision.nextProbeId, "clarity.recognition");
   assert.equal(decision.contaminatedProbeCount, 1);
+});
+
+test("one execution opportunity cannot claim repeatability", () => {
+  let state = createEvidenceCompleteDiagnosisState("Structured Execution");
+  state = run(state, "stack.normal_independent", {
+    ...claritySupported,
+    ...executionImmediateSupported,
+  });
+
+  const decision = evaluateEvidenceCompleteDiagnosis(state);
+  assert.equal(decision.complete, false);
+  assert.equal(decision.nextProbeId, "execution.repeatability");
+});
+
+test("repeatability behavior can place Structured Execution at High", () => {
+  let state = createEvidenceCompleteDiagnosisState("Structured Execution");
+  state = run(state, "stack.normal_independent", {
+    ...claritySupported,
+    ...executionImmediateSupported,
+  });
+  state = run(state, "execution.repeatability", {
+    ...executionImmediateSupported,
+    "execution.repeatability": "repeat_with_minor_drift",
+  });
+
+  const decision = evaluateEvidenceCompleteDiagnosis(state);
+  assert.equal(decision.complete, true);
+  assert.equal(decision.placementPhase, "Structured Execution");
+  assert.equal(decision.stability, "High");
+});
+
+test("timed failure does not automatically condemn lower phases", () => {
+  let state = createEvidenceCompleteDiagnosisState("Time Pressure Stability");
+  state = run(state, "stack.timed_challenge", {
+    ...claritySupported,
+    ...executionImmediateSupported,
+    ...difficultySupported,
+    "time.start": "timed_freeze",
+    "time.structure": "timed_structure_collapse",
+    "time.pace": "panic_pace",
+    "time.completion_integrity": "timed_non_completion",
+  });
+
+  const decision = evaluateEvidenceCompleteDiagnosis(state);
+  assert.equal(decision.complete, false);
+  assert.equal(decision.placementPhase, null);
+  assert.equal(decision.nextProbeId, "execution.repeatability");
+});
+
+test("lower-layer confirmation isolates a Time Pressure breakdown", () => {
+  let state = createEvidenceCompleteDiagnosisState("Time Pressure Stability");
+  state = run(state, "stack.timed_challenge", {
+    ...claritySupported,
+    ...executionImmediateSupported,
+    ...difficultySupported,
+    "time.start": "timed_freeze",
+    "time.structure": "timed_structure_collapse",
+    "time.pace": "panic_pace",
+    "time.completion_integrity": "timed_non_completion",
+  });
+  state = run(state, "execution.repeatability", executionSupported);
+  state = run(state, "difficulty.recovery", difficultySupported);
+
+  const decision = evaluateEvidenceCompleteDiagnosis(state);
+  assert.equal(decision.complete, true);
+  assert.equal(decision.placementPhase, "Time Pressure Stability");
+  assert.equal(decision.stability, "Low");
+});
+
+test("all-clear diagnosis requires repeated temporal evidence and never mints High Maintenance", () => {
+  let state = createEvidenceCompleteDiagnosisState("Time Pressure Stability");
+  state = run(state, "stack.timed_challenge", {
+    ...claritySupported,
+    ...executionImmediateSupported,
+    ...difficultySupported,
+    ...timeSupported,
+  });
+  state = run(state, "execution.repeatability", executionSupported);
+  state = run(state, "difficulty.recovery", difficultySupported);
+
+  assert.equal(
+    evaluateEvidenceCompleteDiagnosis(state).nextProbeId,
+    "time.consistency",
+  );
+
+  state = run(state, "time.consistency", timeSupported);
+  const decision = evaluateEvidenceCompleteDiagnosis(state);
+  assert.equal(decision.complete, true);
+  assert.equal(decision.placementPhase, "Time Pressure Stability");
+  assert.equal(decision.stability, "High");
 });

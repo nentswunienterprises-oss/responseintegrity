@@ -6,35 +6,32 @@ import {
 } from "./evidenceCompleteDiagnosisSubmission";
 import type {
   DiagnosisDimensionId,
-  DiagnosisObservationLevel,
   DiagnosisProbeId,
   DiagnosisProbeResult,
 } from "./evidenceCompleteDiagnosis";
 
-const observations = (
-  values: Partial<Record<DiagnosisDimensionId, DiagnosisObservationLevel>>,
-) => Object.entries(values).map(([dimensionId, level]) => ({
-  dimensionId: dimensionId as DiagnosisDimensionId,
-  level: level as DiagnosisObservationLevel,
-}));
+const observations = (values: Partial<Record<DiagnosisDimensionId, string>>) =>
+  Object.entries(values).map(([dimensionId, behaviorId]) => ({
+    dimensionId: dimensionId as DiagnosisDimensionId,
+    behaviorId: String(behaviorId),
+  }));
 
-const clarityClear = {
-  "clarity.vocabulary": "clear",
-  "clarity.method": "clear",
-  "clarity.reason": "clear",
-  "clarity.immediate_apply": "clear",
+const claritySupported = {
+  "clarity.vocabulary": "accurate_recognition",
+  "clarity.method": "correct_method_cleanly",
+  "clarity.reason": "clear_reason",
+  "clarity.immediate_apply": "engages_cleanly",
 } as const;
 
-const executionClear = {
-  "execution.start": "clear",
-  "execution.step_discipline": "clear",
-  "execution.repeatability": "clear",
-  "execution.independence": "clear",
+const executionImmediateSupported = {
+  "execution.start": "valid_independent_start",
+  "execution.step_discipline": "structure_maintained",
+  "execution.independence": "independent_throughout",
 } as const;
 
 const full = (
   probeId: DiagnosisProbeId,
-  values: Partial<Record<DiagnosisDimensionId, DiagnosisObservationLevel>>,
+  values: Partial<Record<DiagnosisDimensionId, string>>,
   supportEvent: DiagnosisProbeResult["supportEvent"] = "none",
 ): DiagnosisProbeResult => ({
   probeId,
@@ -44,7 +41,7 @@ const full = (
 
 test("authoritative replay rejects a client-selected probe", () => {
   const replay = replayEvidenceCompleteDiagnosis("Structured Execution", [
-    full("clarity.recognition", clarityClear),
+    full("clarity.recognition", claritySupported),
   ]);
 
   assert.equal(replay.ok, false);
@@ -53,27 +50,27 @@ test("authoritative replay rejects a client-selected probe", () => {
   }
 });
 
-test("authoritative replay rejects a probe with incomplete evidence dimensions", () => {
+test("authoritative replay rejects unknown behavior IDs", () => {
   const replay = replayEvidenceCompleteDiagnosis("Clarity", [
     full("clarity.recognition", {
-      "clarity.vocabulary": "clear",
-      "clarity.method": "clear",
+      ...claritySupported,
+      "clarity.reason": "made_up_behavior",
     }),
   ]);
 
   assert.equal(replay.ok, false);
   if (!replay.ok) {
-    assert.match(replay.error, /must record exactly 4 evidence dimensions/);
+    assert.match(replay.error, /invalid behavioral evidence payload/);
   }
 });
 
-test("server replay can finish a Low Clarity placement after one valid opportunity", () => {
+test("server replay can finish a Low Clarity placement from behavior", () => {
   const replay = replayEvidenceCompleteDiagnosis("Clarity", [
     full("clarity.recognition", {
-      "clarity.vocabulary": "weak",
-      "clarity.method": "weak",
-      "clarity.reason": "partial",
-      "clarity.immediate_apply": "weak",
+      "clarity.vocabulary": "no_recognition",
+      "clarity.method": "no_method",
+      "clarity.reason": "no_reason",
+      "clarity.immediate_apply": "cannot_engage",
     }),
   ]);
 
@@ -82,14 +79,14 @@ test("server replay can finish a Low Clarity placement after one valid opportuni
   assert.equal(replay.decision.complete, true);
   assert.equal(replay.decision.placementPhase, "Clarity");
   assert.equal(replay.decision.stability, "Low");
-  assert.equal(replay.nextProbe, null);
+  assert.equal(replay.decision.decisionAuthority, "behavioral_evidence");
 });
 
-test("server replay requires repeatability before clearing Structured Execution", () => {
+test("server replay requires a dedicated repeatability observation", () => {
   const replay = replayEvidenceCompleteDiagnosis("Structured Execution", [
     full("stack.normal_independent", {
-      ...clarityClear,
-      ...executionClear,
+      ...claritySupported,
+      ...executionImmediateSupported,
     }),
   ]);
 
@@ -99,20 +96,17 @@ test("server replay requires repeatability before clearing Structured Execution"
   assert.equal(replay.decision.nextProbeId, "execution.repeatability");
 });
 
-test("ledger projection is deterministic and preserves contamination metadata", () => {
+test("ledger stores behavior IDs and zeroes numeric decision fields", () => {
   const history: DiagnosisProbeResult[] = [
-    full("clarity.recognition", {
-      "clarity.vocabulary": "weak",
-      "clarity.method": "weak",
-      "clarity.reason": "partial",
-      "clarity.immediate_apply": "weak",
-    }, "teaching"),
-    full("clarity.recognition", {
-      "clarity.vocabulary": "weak",
-      "clarity.method": "weak",
-      "clarity.reason": "partial",
-      "clarity.immediate_apply": "weak",
-    }),
+    full(
+      "clarity.recognition",
+      {
+        "clarity.vocabulary": "no_recognition",
+        "clarity.method": "no_method",
+        "clarity.reason": "partial_reason",
+        "clarity.immediate_apply": "cannot_engage",
+      },
+    ),
   ];
   const replay = replayEvidenceCompleteDiagnosis("Clarity", history);
 
@@ -132,14 +126,12 @@ test("ledger projection is deterministic and preserves contamination metadata", 
     decision: replay.decision,
   };
 
-  const first = buildEvidenceCompleteDiagnosisLedgerRows(input);
-  const second = buildEvidenceCompleteDiagnosisLedgerRows(input);
-
-  assert.deepEqual(first, second);
-  assert.equal(first.length, 8);
-  assert.equal(first[0].constraint_profile.contaminated, true);
-  assert.equal(first[4].constraint_profile.contaminated, false);
-  assert.equal(new Set(first.map((row) => row.evidence_id)).size, first.length);
-  assert.equal(first[0].state_phase_after, "Clarity");
-  assert.equal(first[0].stability_after, "Low");
+  const rows = buildEvidenceCompleteDiagnosisLedgerRows(input);
+  assert.equal(rows.length, 4);
+  assert.equal(rows[0].option_id, "no_recognition");
+  assert.equal(rows[0].normalized_level, "breakdown");
+  assert.equal(rows[0].score_contribution, 0);
+  assert.equal(rows[0].score_contribution_max, 0);
+  assert.equal(rows[0].constraint_profile.decisionAuthority, "behavioral_evidence");
+  assert.equal(new Set(rows.map((row) => row.evidence_id)).size, rows.length);
 });

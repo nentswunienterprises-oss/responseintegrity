@@ -66,17 +66,28 @@ If an earlier phase is unresolved or confounded, a higher-phase failure cannot b
 
 ## Starting stability
 
-Diagnosis must not be structurally wired to `Medium`.
+Diagnosis must not use a numeric score to decide stability.
 
-Starting stability is derived from the clean evidence score inside the final entry phase:
+The Specialist records concrete behavior. Each decision-relevant behavior is classified internally as one of:
 
-- `0-44` -> Low
-- `45-79` -> Medium
-- `80-100` -> High
+- `breakdown` - phase-defining capability is substantially absent;
+- `conditional` - capability exists but is materially inconsistent, dependent, or unstable;
+- `near_stable` - capability is substantially present but not clean enough to clear the layer;
+- `supported` - the behavior meets the support contract;
+- `not_observed` - no valid opportunity existed to observe it;
+- `confounded` - the observation cannot be interpreted cleanly.
 
-Diagnosis never mints `High Maintenance`. High Maintenance remains a training-earned state that requires sustained evidence under the operating progression rules.
+Starting stability is then derived categorically from the unsupported behavior that defines the entry phase:
 
-A phase can therefore be the correct entry phase at High when the capability is strong but not sufficiently clean/repeatable to clear that layer.
+- any clean `breakdown` evidence -> Low;
+- otherwise any clean `conditional` evidence -> Medium;
+- otherwise `near_stable` evidence -> High.
+
+No percentage threshold participates in that decision.
+
+Diagnosis never mints `High Maintenance`. High Maintenance remains the fourth stability state, but it is training-earned: the capability has already been demonstrated strongly and is being verified for sustained progression.
+
+A phase can therefore be the correct entry phase at High when its phase-defining behavior is substantially present but a decision-relevant behavior has not yet become clean enough to clear the layer.
 
 ## Repetition law
 
@@ -264,3 +275,45 @@ The evidence-complete engine is ready for live use only when all of the followin
 - client and server reproduce the same decision from the same evidence;
 - multi-topic diagnosis uses the same engine independently per topic;
 - the response snapshot/evidence ledger can explain why every probe was run and why diagnosis stopped.
+
+
+## Observation-language contract
+
+The Specialist does not select `Weak`, `Partial`, `Clear`, Low, Medium, High, or a score.
+
+For every exposed evidence dimension, the UI must present concrete behavioral descriptions. The Specialist answers only: **what actually happened?**
+
+Every dimension must include explicit escape states:
+
+- `not_observed` when the situation did not create a valid observation opportunity;
+- `confounded` when intervention, content exposure, task design, or another condition prevents clean interpretation.
+
+Missing evidence must never be converted into weakness.
+
+The canonical behavior-option matrix lives in `shared/diagnosisObservationMatrix.ts`.
+
+The matrix is decision-exhaustive rather than linguistically exhaustive: it must distinguish every behavior that would change diagnosis or the next probe, without attempting to enumerate every possible human action.
+
+## Decision authority
+
+The evidence-native diagnosis path has one authority chain:
+
+`concrete observed behavior -> evidence state -> earliest unsupported layer -> behavior-derived stability -> next action`
+
+Numeric score fields may remain zeroed or analytics-only for schema compatibility, but they cannot decide placement, stability, probe selection, or completion.
+
+The evidence ledger must preserve the exact behavior option ID and label that produced each evidence state.
+
+## No-signal start
+
+A parent or prior-system signal routes the first diagnostic question only.
+
+When no trustworthy starting signal exists, diagnosis begins with the neutral `stack.normal_independent` probe rather than assuming Clarity. That baseline can observe Clarity and Structured Execution without adding difficulty or time. The resulting behavior then determines whether the system stops, strips downward, or escalates.
+
+## Content-exposure protection
+
+A response must not be called a Clarity breakdown merely because the student has never learned the mathematical content.
+
+The observation matrix therefore allows the Specialist to record that a behavior was not meaningfully observable or was confounded by uncertain content exposure. Such evidence remains unresolved/confounded rather than being converted into Low.
+
+A dedicated content-readiness workflow may later make this precondition explicit before diagnosis begins; until then the engine must block rather than invent a response-conditioning placement from unavailable content.

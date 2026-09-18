@@ -9,13 +9,15 @@ import {
   type TopicPhase,
 } from "@shared/topicConditioningEngine";
 import {
-  DIAGNOSIS_DIMENSIONS,
   DIAGNOSIS_PROBES,
   getDiagnosisProbeOpportunityPurpose,
   type DiagnosisDimensionId,
-  type DiagnosisProbeId,
   type DiagnosisProbeResult,
 } from "@shared/evidenceCompleteDiagnosis";
+import {
+  behaviorClassToLegacyLevel,
+  getDiagnosisObservationOption,
+} from "@shared/diagnosisObservationMatrix";
 import {
   EVIDENCE_COMPLETE_DIAGNOSIS_DEFINITION_HASH,
   EVIDENCE_COMPLETE_DIAGNOSIS_SCHEMA_ID,
@@ -387,10 +389,19 @@ const buildCompatibilitySets = (history: DiagnosisProbeResult[]) =>
       },
       observations: [
         Object.fromEntries(
-          result.observations.map((observation) => [
-            `${LEGACY_FIELD_BY_DIMENSION[observation.dimensionId]}_level`,
-            observation.level,
-          ]),
+          result.observations.flatMap((observation) => {
+            const behavior = getDiagnosisObservationOption(
+              observation.dimensionId,
+              observation.behaviorId,
+            );
+            if (!behavior) return [];
+            const legacyLevel = behaviorClassToLegacyLevel(behavior.behaviorClass);
+            if (!legacyLevel) return [];
+            return [[
+              `${LEGACY_FIELD_BY_DIMENSION[observation.dimensionId]}_level`,
+              legacyLevel,
+            ]];
+          }),
         ),
       ],
     };
@@ -411,14 +422,12 @@ async function ensureIntroDrill(input: {
     throw new Error("Cannot finalize an incomplete diagnosis");
   }
 
-  const placementState = decision.phaseStates.find((item) => item.phase === decision.placementPhase);
-  const diagnosisScore = Number(placementState?.score ?? 0);
   const nextActionConfig = NEXT_ACTION_ENGINE[decision.placementPhase][decision.stability];
   const nextAction = nextActionConfig?.primaryAction || "Begin conditioning from the diagnosed entry state.";
   const constraint = nextActionConfig?.rules?.[0] || null;
   const sets = buildCompatibilitySets(state.probeHistory);
   const responseSnapshot = {
-    schemaVersion: "evidence-complete-v1",
+    schemaVersion: "evidence-native-v2",
     sourceDrillId: input.runId,
     topic: input.topic,
     mode: "diagnosis",
@@ -442,10 +451,12 @@ async function ensureIntroDrill(input: {
   const summary = {
     phase: decision.placementPhase,
     stability: decision.stability,
-    diagnosisScore,
+    diagnosisScore: null,
+    decisionAuthority: "behavioral_evidence",
+    placementEvidence: decision.placementEvidence,
     nextAction,
     constraint,
-    diagnosisEngine: "evidence_complete_v1",
+    diagnosisEngine: "evidence_native_v2",
     confidence: decision.confidence,
     reason: decision.reason,
     pathLength: state.probeHistory.length,
@@ -459,8 +470,8 @@ async function ensureIntroDrill(input: {
     phase: decision.placementPhase,
     startingPhase: input.startingPhase,
     drillType: "diagnosis",
-    diagnosisMode: "evidence_complete",
-    diagnosisEngine: "evidence_complete_v1",
+    diagnosisMode: "evidence_native",
+    diagnosisEngine: "evidence_native_v2",
     scheduledSessionId: input.scheduledSessionId,
     sessionContextKind: input.sessionKind,
     sets,
@@ -562,11 +573,12 @@ async function ensureIntroDrill(input: {
       observationNotes: `Evidence-complete diagnosis. ${decision.reason}`,
       structuredObservation: {
         drillType: "diagnosis",
-        diagnosisMode: "evidence_complete",
-        diagnosisEngine: "evidence_complete_v1",
+        diagnosisMode: "evidence_native",
+        diagnosisEngine: "evidence_native_v2",
+        decisionAuthority: "behavioral_evidence",
         startingPhase: input.startingPhase,
         placementPhase: decision.placementPhase,
-        diagnosisScore,
+        placementEvidence: decision.placementEvidence,
         confidence: decision.confidence,
         pathLength: state.probeHistory.length,
         cleanProbeCount: decision.cleanProbeCount,
@@ -585,7 +597,9 @@ async function ensureIntroDrill(input: {
     lastUpdated: observedAt,
     nextAction,
     observationNotes: `Evidence-complete diagnosis. ${decision.reason}`,
-    diagnosisEngine: "evidence_complete_v1",
+    diagnosisEngine: "evidence_native_v2",
+    diagnosisDecisionAuthority: "behavioral_evidence",
+    diagnosisPlacementEvidence: decision.placementEvidence,
     diagnosisConfidence: decision.confidence,
     history: existingHistory.slice(-60),
   };
