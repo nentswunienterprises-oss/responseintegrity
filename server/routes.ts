@@ -140,6 +140,11 @@ import {
   persistResponseIntegrityEvidenceLedgerShadowDirect,
 } from "./responseIntegrityEvidenceLedger";
 import {
+  persistTrainingEvidenceShadowComparison,
+  persistTrainingEvidenceShadowComparisonDirect,
+  type TrainingEvidenceShadowDatasetInput,
+} from "./trainingEvidenceShadowComparison";
+import {
   createTrialCase,
   createTrialPlacement,
   decideTrialCase,
@@ -3737,6 +3742,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return result;
           };
 
+          const persistTrainingShadowComparison = async (
+            input: TrainingEvidenceShadowDatasetInput,
+          ) => {
+            const result = isEmergencyDbMode()
+              ? await persistTrainingEvidenceShadowComparisonDirect(pool, input)
+              : await persistTrainingEvidenceShadowComparison(supabase as any, input);
+            if (result.status === "persistence_failed") {
+              console.warn("[RI_TRAINING_EVIDENCE_SHADOW] comparison not persisted", {
+                sourceDrillId: input.sourceDrillId,
+                comparisonId: result.comparisonId,
+                errorCode: result.errorCode || null,
+                message: result.message || null,
+              });
+            } else {
+              console.info("[RI_TRAINING_EVIDENCE_SHADOW] comparison persisted", {
+                sourceDrillId: input.sourceDrillId,
+                comparisonId: result.comparisonId,
+              });
+            }
+            return result;
+          };
+
           type NormalizedEvidenceSet = {
             setName: string;
             setId?: string;
@@ -7080,6 +7107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               emergencyDbClient = isEmergencyDbMode() ? await pool.connect() : null;
               if (emergencyDbClient) await emergencyDbClient.query("BEGIN");
               const pendingEmergencyLedgerInputs: EvidenceLedgerProjectionInput[] = [];
+              const pendingEmergencyShadowComparisons: TrainingEvidenceShadowDatasetInput[] = [];
 
               const conceptMastery: any =
                 student.conceptMastery && typeof student.conceptMastery === "object"
@@ -7257,6 +7285,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   pendingEmergencyLedgerInputs.push(ledgerInput);
                 } else {
                   await persistEvidenceLedgerShadow(ledgerInput);
+                }
+
+                const shadowComparisonInput: TrainingEvidenceShadowDatasetInput = {
+                  sourceDrillId: String(inserted?.id || drillId),
+                  studentId: String(studentId),
+                  tutorId: String(tutorId),
+                  topic: normalizedTopic,
+                  scheduledSessionId: scheduledSessionRecordId,
+                  trainingSessionRunId: String(trainingRun?.id || sessionId),
+                  phase: effectivePhase,
+                  previousStability,
+                  observedAt: String(inserted?.submitted_at || sessionStartTime),
+                  evidenceShadow: trainingSummary.evidenceShadow,
+                  comparison: trainingSummary.evidenceShadowComparison,
+                };
+                if (isEmergencyDbMode()) {
+                  pendingEmergencyShadowComparisons.push(shadowComparisonInput);
+                } else {
+                  await persistTrainingShadowComparison(shadowComparisonInput);
                 }
 
                 // Update topic state
@@ -7446,7 +7493,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       status: projection.status,
                     });
                   }
+                }                for (const comparisonInput of pendingEmergencyShadowComparisons) {
+                  const comparisonResult = await persistTrainingShadowComparison(comparisonInput);
+                  if (comparisonResult.status === "persistence_failed") {
+                    console.warn("[RI_TRAINING_EVIDENCE_SHADOW_DEGRADED]", {
+                      sourceDrillId: comparisonInput.sourceDrillId,
+                      comparisonId: comparisonResult.comparisonId,
+                    });
+                  }
                 }
+
               }
 
               res.json({

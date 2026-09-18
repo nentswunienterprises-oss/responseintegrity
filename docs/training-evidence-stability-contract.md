@@ -556,3 +556,39 @@ And the stability ladder means:
 > High Maintenance = High has repeated in a later qualifying session and the topic is now awaiting exit confirmation.
 >
 > Phase progression = a later High Maintenance confirmation proves the phase remains supported under its exit conditions.
+
+
+## 19. Shadow proof dataset
+
+Every new versioned training drill produces an immutable comparison row containing:
+
+- the legacy compatibility score and transition;
+- the evidence-native observed stability and predicted transition;
+- whether the two paths diverged;
+- High Maintenance entry qualification;
+- exit qualification;
+- intervention events;
+- ineligible evidence count;
+- the evaluator version and contract version;
+- the complete shadow evaluation payload.
+
+The dataset is proof-only and protected by RLS with no direct client policies. It cannot authorize live topic state.
+
+A new evaluator or contract version must create a new comparison identity rather than rewriting prior proof. Historical comparisons are evidence about a particular engine version and remain immutable.
+
+### Authority-cutover evidence
+
+No single divergence rate is sufficient to authorize cutover.
+
+Before evidence becomes live authority, the proof set must demonstrate:
+
+- representation across all four phases;
+- representation across Low, Medium, High, and High Maintenance histories;
+- recovery, deterioration, support/intervention, not-observed, and confounded cases;
+- stable replay results for the same evaluator/contract version;
+- every divergence classified as either a legacy-score failure, evidence-engine defect, capture insufficiency, or an intentionally conservative difference;
+- no unexplained state movement;
+- exact source evidence for every evidence-native transition;
+- parent/report claims remaining downstream of the same evidence authority.
+
+Until those conditions are met, the comparison dataset is observational only.
