@@ -341,7 +341,13 @@
     },
     {
       "source": "/api/:path*",
-      "destination": "https://api.responseintegrity.co.za/api/:path*"
+      "destination": "https://api.responseintegrity.co.za/api/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "^(?:(?:www|app)\\\\.)?responseintegrity\\\\.co\\\\.za$"
+        }
+      ]
     },
     {
       "source": "/",
