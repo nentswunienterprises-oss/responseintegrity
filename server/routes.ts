@@ -13049,23 +13049,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     };
 
-    const { data: drillRows } = await supabase
-      .from("intro_session_drills")
-      .select("id, scheduled_session_id, training_session_run_id, submitted_at, drill")
-      .eq("student_id", studentId)
-      .order("submitted_at", { ascending: false });
+    let drillRows: any[] = [];
+    let trainingRuns: any[] = [];
 
-    const { data: trainingRuns } = await supabase
-      .from("training_session_runs")
-      .select("id, scheduled_session_id, topic_count, submitted_at, status")
-      .eq("student_id", studentId)
-      .order("submitted_at", { ascending: false });
+    if (isEmergencyDbMode()) {
+      const [drillResult, trainingResult] = await Promise.all([
+        pool.query(
+          `SELECT id, scheduled_session_id, training_session_run_id, submitted_at, drill
+             FROM public.intro_session_drills
+            WHERE student_id = $1
+            ORDER BY submitted_at DESC`,
+          [studentId],
+        ),
+        pool.query(
+          `SELECT id, scheduled_session_id, topic_count, submitted_at, status
+             FROM public.training_session_runs
+            WHERE student_id = $1
+            ORDER BY submitted_at DESC`,
+          [studentId],
+        ),
+      ]);
+      drillRows = drillResult.rows;
+      trainingRuns = trainingResult.rows;
+    } else {
+      const [drillResult, trainingResult] = await Promise.all([
+        supabase
+          .from("intro_session_drills")
+          .select("id, scheduled_session_id, training_session_run_id, submitted_at, drill")
+          .eq("student_id", studentId)
+          .order("submitted_at", { ascending: false }),
+        supabase
+          .from("training_session_runs")
+          .select("id, scheduled_session_id, topic_count, submitted_at, status")
+          .eq("student_id", studentId)
+          .order("submitted_at", { ascending: false }),
+      ]);
+      drillRows = drillResult.data || [];
+      trainingRuns = trainingResult.data || [];
+    }
 
-    const normalizedTrainingRuns = (trainingRuns || []).filter((row: any) =>
+    const normalizedTrainingRuns = trainingRuns.filter((row: any) =>
       ["submitted", "completed"].includes(String(row?.status || "").toLowerCase())
     );
 
-    const parsedDrills = (drillRows || []).map((row: any) => {
+    const parsedDrills = drillRows.map((row: any) => {
       const payload = parseDrillPayload(row?.drill);
       const inferredType =
         payload?.drillType ||
@@ -13116,15 +13143,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         trainingDrills.map((row) => row.trainingSessionRunId || row.id).filter(Boolean)
       ).size;
 
-    const { data: commitments } = await supabase
-      .from("student_commitments")
-      .select("streak_count")
-      .eq("student_id", studentId)
-      .eq("is_active", true)
-      .order("streak_count", { ascending: false })
-      .limit(1);
-
-    const currentStreak = Number(commitments?.[0]?.streak_count || 0);
+    let currentStreak = 0;
+    if (isEmergencyDbMode()) {
+      const commitmentResult = await pool.query(
+        `SELECT COALESCE(MAX(streak_count), 0)::int AS streak_count
+           FROM public.student_commitments
+          WHERE student_id = $1
+            AND is_active = true`,
+        [studentId],
+      );
+      currentStreak = Number(commitmentResult.rows[0]?.streak_count || 0);
+    } else {
+      const { data: commitments } = await supabase
+        .from("student_commitments")
+        .select("streak_count")
+        .eq("student_id", studentId)
+        .eq("is_active", true)
+        .order("streak_count", { ascending: false })
+        .limit(1);
+      currentStreak = Number(commitments?.[0]?.streak_count || 0);
+    }
 
     return {
       introDiagnosisCompleted: introDrills.length,
@@ -26662,6 +26700,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================
 
   // Get student stats (gamified dashboard)
+  const resolveStudentIdForPortalSession = async (studentUserId: string) => {
+    if (isEmergencyDbMode()) {
+      const result = await pool.query(
+        `SELECT student_id::text
+           FROM public.student_users
+          WHERE id = $1
+          LIMIT 1`,
+        [studentUserId],
+      );
+      return String(result.rows[0]?.student_id || "").trim() || null;
+    }
+
+    const { data: studentUser } = await supabase
+      .from("student_users")
+      .select("student_id")
+      .eq("id", studentUserId)
+      .single();
+
+    return String(studentUser?.student_id || "").trim() || null;
+  };
+
   app.get("/api/student/stats", async (req: Request, res: Response) => {
     try {
       const studentUserId = (req.session as any).studentUserId;
@@ -26669,18 +26728,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      // Get student_id from student_users table
-      const { data: studentUser } = await supabase
-        .from("student_users")
-        .select("student_id")
-        .eq("id", studentUserId)
-        .single();
+      const studentId = await resolveStudentIdForPortalSession(studentUserId);
 
-      if (!studentUser?.student_id) {
+      if (!studentId) {
         return res.status(404).json({ message: "Student not found" });
       }
 
-      const stats = await getStudentDashboardStats(studentUser.student_id);
+      const stats = await getStudentDashboardStats(studentId);
       res.json(stats);
     } catch (error) {
       console.error("Error fetching student stats:", error);
@@ -27265,17 +27319,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      const { data: studentUser } = await supabase
-        .from("student_users")
-        .select("student_id")
-        .eq("id", studentUserId)
-        .single();
+      const studentId = await resolveStudentIdForPortalSession(studentUserId);
 
-      if (!studentUser?.student_id) {
+      if (!studentId) {
         return res.status(404).json({ message: "Student not found" });
       }
 
-      const student = await storage.getStudent(studentUser.student_id);
+      const student = await storage.getStudent(studentId);
 
       if (!student?.tutorId) {
         return res.json({
@@ -27387,13 +27437,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .pop() || null;
 
       if (!latest) {
-        const { data: activations } = await supabase
-          .from("topic_conditioning_activations")
-          .select("topic, created_at")
-          .eq("student_id", student.id)
-          .order("created_at", { ascending: true });
+        let activations: any[] = [];
+        if (isEmergencyDbMode()) {
+          const activationResult = await pool.query(
+            `SELECT topic, created_at
+               FROM public.topic_conditioning_activations
+              WHERE student_id = $1
+              ORDER BY created_at ASC`,
+            [student.id],
+          );
+          activations = activationResult.rows;
+        } else {
+          const { data } = await supabase
+            .from("topic_conditioning_activations")
+            .select("topic, created_at")
+            .eq("student_id", student.id)
+            .order("created_at", { ascending: true });
+          activations = data || [];
+        }
 
-        const activation = (activations || [])
+        const activation = activations
           .map((row: any) => ({
             topic: sanitizeTopic(row?.topic),
             date: String(row?.created_at || "").trim(),
@@ -27444,17 +27507,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      const { data: studentUser } = await supabase
-        .from("student_users")
-        .select("student_id")
-        .eq("id", studentUserId)
-        .single();
+      const studentId = await resolveStudentIdForPortalSession(studentUserId);
 
-      if (!studentUser?.student_id) {
+      if (!studentId) {
         return res.status(404).json({ message: "Student not found" });
       }
 
-      const student = await storage.getStudent(studentUser.student_id);
+      const student = await storage.getStudent(studentId);
       if (!student?.tutorId) {
         return res.json([]);
       }
