@@ -53,6 +53,29 @@ app.use((req, res) => {
 
 // Vercel serverless handler
 export default function handler(req: VercelRequest, res: VercelResponse) {
+  const previewPathRaw = req.query?.__previewPath;
+  const previewPath = Array.isArray(previewPathRaw)
+    ? previewPathRaw.join("/")
+    : String(previewPathRaw || "").trim();
+
+  if (previewPath) {
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(req.query || {})) {
+      if (key === "__previewPath" || value === undefined) continue;
+      if (Array.isArray(value)) {
+        for (const item of value) search.append(key, String(item));
+      } else {
+        search.append(key, String(value));
+      }
+    }
+
+    const normalizedPath = previewPath.startsWith("api/")
+      ? `/${previewPath}`
+      : `/api/${previewPath}`;
+    const queryString = search.toString();
+    req.url = queryString ? `${normalizedPath}?${queryString}` : normalizedPath;
+  }
+
   console.log(`[Vercel Handler] ${req.method} ${req.url}`);
   return app(req as any, res as any);
 }
