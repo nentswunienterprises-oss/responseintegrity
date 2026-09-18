@@ -220,19 +220,28 @@ const resolveDimension = (
   const breakdownCount = decisionEvidence.filter((item) => item.evidenceClass === "breakdown").length;
   const last = decisionEvidence[decisionEvidence.length - 1];
 
+  let trailingSupportedCount = 0;
+  for (let index = decisionEvidence.length - 1; index >= 0; index -= 1) {
+    if (decisionEvidence[index].evidenceClass !== "supported") break;
+    trailingSupportedCount += 1;
+  }
+
+  // Earlier instability can be repaired by later clean comparable evidence.
+  // A prior breakdown requires one extra clean confirmation beyond the normal
+  // dimension minimum; conditional/near-stable behavior requires the normal
+  // minimum. This keeps recovery authoritative without letting one clean rep
+  // erase a genuine break.
+  const recoverySupportedRequirement =
+    minimumValidOpportunities + (breakdownCount > 0 ? 1 : 0);
+
   let state: TrainingDimensionState = "UNRESOLVED";
 
-  if (breakdownCount >= 2 || last?.evidenceClass === "breakdown") {
-    state = "BREAKDOWN";
-  } else if (decisionEvidence.length < minimumValidOpportunities) {
+  if (decisionEvidence.length < minimumValidOpportunities) {
     state = "UNRESOLVED";
-  } else if (
-    supportedCount >= minimumValidOpportunities &&
-    last?.evidenceClass === "supported" &&
-    breakdownCount === 0 &&
-    conditionalCount === 0
-  ) {
+  } else if (trailingSupportedCount >= recoverySupportedRequirement) {
     state = "SUPPORTED";
+  } else if (last?.evidenceClass === "breakdown" || breakdownCount >= 2) {
+    state = "BREAKDOWN";
   } else if (
     breakdownCount === 0 &&
     conditionalCount === 0 &&

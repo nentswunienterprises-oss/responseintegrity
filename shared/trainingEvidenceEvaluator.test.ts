@@ -302,3 +302,68 @@ test("score-vs-evidence divergence is explicitly preserved for proof analysis", 
   assert.equal(comparison.legacy.score, 98);
   assert.notEqual(comparison.evidence?.nextStability, "High Maintenance");
 });
+
+
+test("later clean Clarity evidence can resolve earlier conditional evidence", () => {
+  const sets = buildTrainingSets({
+    phase: "Clarity",
+    optionIndexFor: ({ setId, fieldKey, optionLabels }) => {
+      if (fieldKey === "reason" && setId === "clarity.identification") {
+        return 1; // weak / conditional
+      }
+      return optionLabels.length - 1;
+    },
+  });
+
+  const result = evaluate("Clarity", "Low", sets);
+  const reason = result.dimensions.find((item) => item.dimensionId === "clarity.reason");
+
+  assert.equal(reason?.state, "SUPPORTED");
+  assert.equal(result.observedStability, "High");
+  assert.equal(result.predictedTransition.nextStability, "High");
+});
+
+test("persistent conditional Clarity evidence cannot be averaged into High Maintenance", () => {
+  const sets = buildTrainingSets({
+    phase: "Clarity",
+    optionIndexFor: ({ fieldKey, optionLabels }) => {
+      if (fieldKey === "reason") return 1;
+      return optionLabels.length - 1;
+    },
+  });
+
+  const result = evaluate("Clarity", "High", sets);
+  const reason = result.dimensions.find((item) => item.dimensionId === "clarity.reason");
+
+  assert.equal(reason?.state, "CONDITIONAL");
+  assert.equal(result.observedStability, "Medium");
+  assert.equal(result.highMaintenanceEntryQualified, false);
+  assert.equal(result.predictedTransition.nextStability, "Medium");
+});
+
+test("High Maintenance exit can use a clean recovery run inside the designated exit context", () => {
+  const sets = buildTrainingSets({
+    phase: "Clarity",
+    optionIndexFor: ({ setId, repIndex, fieldKey, optionLabels }) => {
+      if (setId === "clarity.identification") {
+        if (fieldKey === "vocabulary") return 1; // hesitant / near-stable
+        if (fieldKey === "reason") return 1; // weak / conditional
+        if (fieldKey === "immediateApply") return 1; // unsure but tries / near-stable
+      }
+      if (setId === "clarity.light_apply" && repIndex === 0) {
+        if (fieldKey === "vocabulary") return 1; // partial / conditional
+        if (fieldKey === "reason") return 1; // weak / conditional
+        if (fieldKey === "immediateApply") return 1; // hesitant / near-stable
+      }
+      return optionLabels.length - 1;
+    },
+  });
+
+  const result = evaluate("Clarity", "High Maintenance", sets);
+
+  assert.equal(result.observedStability, "High");
+  assert.equal(result.exitQualified, true);
+  assert.equal(result.predictedTransition.nextPhase, "Structured Execution");
+  assert.equal(result.predictedTransition.nextStability, "Low");
+  assert.equal(result.predictedTransition.transitionReason, "phase progress");
+});

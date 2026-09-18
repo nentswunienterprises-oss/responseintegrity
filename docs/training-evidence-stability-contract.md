@@ -102,11 +102,13 @@ Only decision-eligible evidence is considered.
 
 ### 6.1 SUPPORTED
 
-A dimension is `SUPPORTED` when:
+A dimension is `SUPPORTED` when either:
 
-- it has enough valid supported occurrences to meet that dimension's temporal requirement,
-- the required set coverage is present,
-- and there is no unresolved later breakdown in a comparable opportunity.
+- it has enough valid supported occurrences to meet that dimension's temporal requirement with no unresolved later deterioration; or
+- earlier conditional / near-stable behavior is followed by at least the normal minimum number of consecutive clean supported comparable opportunities; or
+- an earlier breakdown is followed by at least one additional clean supported comparable opportunity beyond the normal minimum.
+
+This recovery suffix is authoritative. Earlier instability is historical evidence, but it does not permanently poison a dimension after the student has cleanly demonstrated recovery.
 
 ### 6.2 NEAR_STABLE
 
@@ -128,10 +130,10 @@ A dimension is `CONDITIONAL` when:
 
 A dimension is `BREAKDOWN` when either:
 
-- two or more valid comparable opportunities show breakdown behavior, or
-- the final valid comparable opportunity ends in breakdown and no later valid opportunity demonstrates recovery.
+- the final valid comparable opportunity ends in breakdown; or
+- repeated breakdown has occurred and the required later recovery sequence has not been completed.
 
-A single early breakdown followed by clean supported recovery is not automatically a dimension breakdown. Recovery is evidence.
+A breakdown history can be superseded only by a stronger recovery sequence: at least one more consecutive supported comparable opportunity than the dimension's normal minimum. Recovery is evidence, but one isolated clean rep cannot erase a genuine break.
 
 ### 6.5 UNRESOLVED
 
