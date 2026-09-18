@@ -1,6 +1,6 @@
-# Ignore server files - backend is on Railway
-server/
-api/
+# Vercel preview deploys include api/ and server/ so branch API code is
+# packaged with the preview. Production custom hosts still proxy to the
+# production API through vercel.json.
 *.sql
 *.bundle
 migrations/
