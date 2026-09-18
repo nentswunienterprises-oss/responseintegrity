@@ -86,6 +86,31 @@ test("Render emergency runtime shares a bounded PostgreSQL pool and uses transac
   assert.match(authSource, /new PgSession\(\{[\s\S]*?pool,/);
 });
 
+test("emergency student auth reads and writes the production database directly", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+
+  const signupStart = routesSource.indexOf('app.post("/api/student/signup"');
+  const signinStart = routesSource.indexOf('app.post("/api/student/signin"', signupStart);
+  const meStart = routesSource.indexOf('app.get("/api/student/me"', signinStart);
+  const communicationsStart = routesSource.indexOf('app.get("/api/student/communications"', meStart);
+
+  const signupSource = routesSource.slice(signupStart, signinStart);
+  const signinSource = routesSource.slice(signinStart, meStart);
+  const meSource = routesSource.slice(meStart, communicationsStart);
+
+  assert.match(signupSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(signupSource, /FROM public\.onboarding_proposals/);
+  assert.match(signupSource, /INSERT INTO public\.student_users/);
+  assert.match(signupSource, /upper\(parent_code\) = \$1/);
+
+  assert.match(signinSource, /FROM public\.student_users/);
+  assert.match(signinSource, /UPDATE public\.student_users/);
+
+  assert.match(meSource, /FROM public\.student_users/);
+  assert.match(meSource, /LEFT JOIN public\.tutor_assignments/);
+  assert.match(meSource, /LEFT JOIN public\.pods/);
+});
+
 test("emergency parent student stats return stable zero-value contract when no canonical student is linked", () => {
   assert.deepEqual(buildEmergencyParentStudentStats({ sessionCount: 0, commitmentCount: 0 }), {
     introDiagnosisCompleted: 0,
