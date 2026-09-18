@@ -611,32 +611,10 @@ async function ensureIntroDrill(input: {
     personalProfile: { ...existingProfile, workflow },
   } as any);
 
-  if (input.sessionKind === "intro" && input.scheduledSessionId) {
-    if (isEmergencyDbMode()) {
-      await pool.query(
-        `UPDATE public.scheduled_sessions
-            SET status = 'completed', attendance_status = 'both_joined',
-                recording_status = 'manual_not_tracked',
-                transcript_status = 'manual_not_tracked', updated_at = NOW()
-          WHERE id = $1 AND tutor_id = $2 AND student_id = $3`,
-        [input.scheduledSessionId, input.tutorId, input.studentId],
-      );
-    } else {
-      const { error } = await supabase
-        .from("scheduled_sessions")
-        .update({
-          status: "completed",
-          attendance_status: "both_joined",
-          recording_status: "manual_not_tracked",
-          transcript_status: "manual_not_tracked",
-          updated_at: observedAt,
-        })
-        .eq("id", input.scheduledSessionId)
-        .eq("tutor_id", input.tutorId)
-        .eq("student_id", input.studentId);
-      if (error) throw new Error(`Failed to complete intro session: ${error.message}`);
-    }
-  }
+  // Topic diagnosis completion must not complete the scheduled intro shell.
+  // One intro session may diagnose several topics; closing the session after the first
+  // completed topic would block the remaining topic-scoped diagnosis runs.
+
 
   return { summary, responseSnapshot, observedAt };
 }
