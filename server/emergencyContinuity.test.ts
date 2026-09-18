@@ -106,6 +106,43 @@ test("emergency parent student stats keep canonical drill and training counts", 
   });
 });
 
+test("emergency parent resolution does not require legacy students.parent_enrollment_id", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const resolverStart = routesSource.indexOf("const resolveCanonicalStudentForEnrollment");
+  const resolverEnd = routesSource.indexOf("const resolveAcceptedStudentForEnrollment", resolverStart);
+  const resolverSource = routesSource.slice(resolverStart, resolverEnd);
+  const emergencyStart = resolverSource.indexOf("if (isEmergencyDbMode())");
+  const normalBranchStart = resolverSource.indexOf("\n\n    if (enrollment.assigned_student_id)", emergencyStart);
+  const emergencySource = resolverSource.slice(emergencyStart, normalBranchStart);
+
+  assert.match(emergencySource, /assigned_student_id/);
+  assert.match(emergencySource, /tutor_id = \$1/);
+  assert.doesNotMatch(emergencySource, /parent_enrollment_id/);
+});
+
+test("emergency parent stats degrades safely when optional commitments storage is absent", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const statsStart = routesSource.indexOf('app.get("/api/parent/student-stats"');
+  const statsEnd = routesSource.indexOf("// Get parent's student info", statsStart);
+  const statsSource = routesSource.slice(statsStart, statsEnd);
+
+  assert.match(statsSource, /resolveCanonicalStudentForEnrollment\(enrollment\)/);
+  assert.match(statsSource, /error\?\.code !== "42P01"/);
+  assert.match(statsSource, /student_commitments unavailable; using zero values/);
+});
+
+test("notification inbox roles do not trigger legacy broadcast layout reads", () => {
+  const layoutSource = readFileSync(
+    resolve(process.cwd(), "client/src/components/layout/dashboard-layout.tsx"),
+    "utf8",
+  );
+  const gateStart = layoutSource.indexOf("const usesBroadcastInbox");
+  const gateEnd = layoutSource.indexOf("// Fetch unread broadcast count", gateStart);
+  const gateSource = layoutSource.slice(gateStart, gateEnd);
+
+  assert.match(gateSource, /!usesNotificationInbox/);
+});
+
 test("emergency Updates contracts preserve notification history and role visibility", () => {
   assert.deepEqual(mapEmergencyNotification({
     id: "notification-1",
