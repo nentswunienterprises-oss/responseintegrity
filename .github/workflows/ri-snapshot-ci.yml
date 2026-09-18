@@ -12,6 +12,15 @@ on:
       - "shared/adaptiveDiagnosis.ts"
       - "shared/evidenceCompleteDiagnosis.ts"
       - "shared/evidenceCompleteDiagnosis.test.ts"
+      - "shared/evidenceCompleteDiagnosisSubmission.ts"
+      - "shared/evidenceCompleteDiagnosisSubmission.test.ts"
+      - "server/evidenceCompleteDiagnosisRoutes.ts"
+      - "server/index.ts"
+      - "api/index.ts"
+      - "client/src/components/tutor/EvidenceCompleteDiagnosisRunner.tsx"
+      - "client/src/components/tutor/IntroSessionRoute.tsx"
+      - "client/src/App.tsx"
+      - "migrations/2026-09-18_evidence_complete_diagnosis_runs.sql"
       - "docs/evidence-complete-diagnosis-contract.md"
       - "server/routes.ts"
       - "client/src/components/tutor/IntroSessionDrillRunner.tsx"
@@ -32,6 +41,15 @@ on:
       - "shared/adaptiveDiagnosis.ts"
       - "shared/evidenceCompleteDiagnosis.ts"
       - "shared/evidenceCompleteDiagnosis.test.ts"
+      - "shared/evidenceCompleteDiagnosisSubmission.ts"
+      - "shared/evidenceCompleteDiagnosisSubmission.test.ts"
+      - "server/evidenceCompleteDiagnosisRoutes.ts"
+      - "server/index.ts"
+      - "api/index.ts"
+      - "client/src/components/tutor/EvidenceCompleteDiagnosisRunner.tsx"
+      - "client/src/components/tutor/IntroSessionRoute.tsx"
+      - "client/src/App.tsx"
+      - "migrations/2026-09-18_evidence_complete_diagnosis_runs.sql"
       - "docs/evidence-complete-diagnosis-contract.md"
       - "server/routes.ts"
       - "client/src/components/tutor/IntroSessionDrillRunner.tsx"
@@ -57,5 +75,3 @@ jobs:
 
       - run: npm run test:ri-snapshot
 
-      - name: Evidence-complete diagnosis tests
-        run: node --import tsx --test shared/evidenceCompleteDiagnosis.test.ts
