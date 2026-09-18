@@ -7,7 +7,14 @@ import {
   getFieldDefinitionForRep,
   type SubmittedEvidenceSet,
 } from "./responseIntegrityDrillRegistry";
-import { evaluateTrainingEvidenceShadow } from "./trainingEvidenceEvaluator";
+import {
+  compareTrainingEvidenceShadowToLegacy,
+  evaluateTrainingEvidenceShadow,
+} from "./trainingEvidenceEvaluator";
+import {
+  TRAINING_INTERVENTION_FIELD,
+  trainingEvidenceStatusKey,
+} from "./trainingEvidenceCapture";
 import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
 
 const buildTrainingSets = ({
@@ -217,4 +224,81 @@ test("shadow evaluator refuses incomplete versioned training evidence", () => {
 
   assert.equal(result.status, "unavailable");
   assert.match(result.reason, /Missing training set/i);
+});
+
+
+test("explicit not-observed evidence is excluded from capability authority", () => {
+  const sets = buildTrainingSets({ phase: "Clarity" });
+  for (const set of sets) {
+    for (const rep of set.observations) {
+      if ("reason" in rep) {
+        rep[trainingEvidenceStatusKey("reason")] = "not_observed";
+      }
+    }
+  }
+
+  const result = evaluate("Clarity", "High", sets);
+  const reason = result.dimensions.find((item) => item.dimensionId === "clarity.reason");
+
+  assert.equal(reason?.state, "UNRESOLVED");
+  assert.equal(result.observedStability, "Medium");
+  assert.ok(result.ineligibleEvidenceCount > 0);
+});
+
+test("recorded intervention confounds only the dimensions it supplied", () => {
+  const sets = buildTrainingSets({ phase: "Controlled Discomfort" });
+  for (const set of sets) {
+    for (const rep of set.observations) {
+      rep[TRAINING_INTERVENTION_FIELD] = "first_step_confirmation";
+    }
+  }
+
+  const result = evaluate("Controlled Discomfort", "High", sets);
+  const firstStep = result.dimensions.find(
+    (item) => item.dimensionId === "difficulty.first_step_control",
+  );
+  const tolerance = result.dimensions.find(
+    (item) => item.dimensionId === "difficulty.tolerance",
+  );
+
+  assert.equal(firstStep?.state, "UNRESOLVED");
+  assert.equal(tolerance?.state, "SUPPORTED");
+  assert.equal(result.observedStability, "Medium");
+  assert.ok(result.interventionEvents.includes("first_step_confirmation"));
+});
+
+test("score-vs-evidence divergence is explicitly preserved for proof analysis", () => {
+  const sets = buildTrainingSets({
+    phase: "Structured Execution",
+    optionIndexFor: ({ setId, repIndex, fieldKey, optionLabels }) => {
+      if (
+        setId === "structured_execution.variation_control" &&
+        fieldKey === "stepExecution" &&
+        repIndex >= 1
+      ) {
+        return 0;
+      }
+      return optionLabels.length - 1;
+    },
+  });
+  const shadow = evaluateTrainingEvidenceShadow({
+    phase: "Structured Execution",
+    previousStability: "High",
+    sets,
+  });
+
+  const comparison = compareTrainingEvidenceShadowToLegacy({
+    sessionScore: 98,
+    legacyTransition: {
+      nextPhase: "Structured Execution",
+      nextStability: "High Maintenance",
+      transitionReason: "stability advance",
+    },
+    evidenceShadow: shadow,
+  });
+
+  assert.equal(comparison.available, true);
+  assert.equal(comparison.diverged, true);
+  assert.equal(comparison.legacy.score, 98);
+  assert.notEqual(comparison.evidence?.nextStability, "High Maintenance");
 });

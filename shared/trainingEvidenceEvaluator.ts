@@ -14,6 +14,13 @@ import {
   type TrainingObservedStability,
 } from "./trainingEvidenceContract";
 import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
+import {
+  readTrainingEvidenceStatus,
+  readTrainingInterventionEvent,
+  resolveTrainingEvidenceEligibility,
+  type TrainingEvidenceStatus,
+  type TrainingInterventionEvent,
+} from "./trainingEvidenceCapture";
 
 export type TrainingEvidenceOccurrence = {
   setId: string;
@@ -22,6 +29,9 @@ export type TrainingEvidenceOccurrence = {
   repNumber: number;
   dimensionId: TrainingDimensionId;
   rawOption: string;
+  explicitEvidenceStatus: TrainingEvidenceStatus;
+  interventionEvent: TrainingInterventionEvent;
+  eligibilityReason: string | null;
   evidenceClass: TrainingEvidenceClass;
 };
 
@@ -47,6 +57,8 @@ export type TrainingEvidenceEvaluation =
       highMaintenanceEntryQualified: boolean;
       exitQualified: boolean;
       predictedTransition: ReturnType<typeof transitionTrainingStateFromEvidence>;
+      ineligibleEvidenceCount: number;
+      interventionEvents: TrainingInterventionEvent[];
       prerequisiteContradiction: {
         status: "not_evaluable_with_current_training_capture";
         reason: string;
@@ -320,9 +332,21 @@ export const evaluateTrainingEvidenceShadow = ({
         const field = getFieldDefinitionForRep(definition, repIndex, baseField.fieldKey) || baseField;
         const dimensionId = field.dimensionId as TrainingDimensionId;
         const rawOption = String(rep[field.fieldKey] || "").trim();
-        const evidenceClass = trainingEvidenceClassForRawBehavior(dimensionId, rawOption);
-
-        if (!evidenceClass) return;
+        const explicitEvidenceStatus = readTrainingEvidenceStatus(rep, field.fieldKey);
+        const interventionEvent = readTrainingInterventionEvent(rep);
+        const eligibility = resolveTrainingEvidenceEligibility({
+          phase,
+          dimensionId,
+          explicitStatus: explicitEvidenceStatus,
+          interventionEvent,
+        });
+        const rawEvidenceClass = trainingEvidenceClassForRawBehavior(dimensionId, rawOption);
+        const evidenceClass: TrainingEvidenceClass =
+          eligibility.status === "not_observed"
+            ? "not_observed"
+            : eligibility.status === "confounded"
+              ? "confounded"
+              : rawEvidenceClass || "confounded";
 
         occurrences.push({
           setId: definition.setId,
@@ -331,6 +355,13 @@ export const evaluateTrainingEvidenceShadow = ({
           repNumber: repIndex + 1,
           dimensionId,
           rawOption,
+          explicitEvidenceStatus,
+          interventionEvent,
+          eligibilityReason:
+            eligibility.reason ||
+            (rawEvidenceClass
+              ? null
+              : "The raw training behavior is not mapped into the evidence-native shadow contract."),
           evidenceClass,
         });
       });
@@ -380,10 +411,100 @@ export const evaluateTrainingEvidenceShadow = ({
       highMaintenanceEntryQualified,
       exitQualified,
     }),
+    ineligibleEvidenceCount: occurrences.filter(
+      (item) => item.evidenceClass === "not_observed" || item.evidenceClass === "confounded",
+    ).length,
+    interventionEvents: Array.from(
+      new Set(
+        occurrences
+          .map((item) => item.interventionEvent)
+          .filter((event) => event !== "none"),
+      ),
+    ),
     prerequisiteContradiction: {
       status: "not_evaluable_with_current_training_capture",
       reason:
         "Current same-phase training fields cannot reliably distinguish an earlier-layer prerequisite loss from a current-layer breakdown. Targeted cross-layer sentinels must be added before automatic re-diagnosis routing is authorized.",
     },
+  };
+};
+
+
+export type TrainingEvidenceShadowComparison = {
+  authority: "shadow_only";
+  available: boolean;
+  diverged: boolean | null;
+  legacy: {
+    score: number;
+    nextPhase: TopicPhase;
+    nextStability: TopicStability;
+    transitionReason: string;
+  };
+  evidence: null | {
+    observedStability: TrainingObservedStability;
+    nextPhase: TopicPhase;
+    nextStability: TopicStability;
+    transitionReason: string;
+    highMaintenanceEntryQualified: boolean;
+    exitQualified: boolean;
+    ineligibleEvidenceCount: number;
+  };
+  reason: string;
+};
+
+export const compareTrainingEvidenceShadowToLegacy = ({
+  sessionScore,
+  legacyTransition,
+  evidenceShadow,
+}: {
+  sessionScore: number;
+  legacyTransition: {
+    nextPhase: TopicPhase;
+    nextStability: TopicStability;
+    transitionReason: string;
+  };
+  evidenceShadow: TrainingEvidenceEvaluation;
+}): TrainingEvidenceShadowComparison => {
+  const legacy = {
+    score: sessionScore,
+    nextPhase: legacyTransition.nextPhase,
+    nextStability: legacyTransition.nextStability,
+    transitionReason: legacyTransition.transitionReason,
+  };
+
+  if (evidenceShadow.status !== "evaluated") {
+    return {
+      authority: "shadow_only",
+      available: false,
+      diverged: null,
+      legacy,
+      evidence: null,
+      reason: evidenceShadow.reason,
+    };
+  }
+
+  const evidence = {
+    observedStability: evidenceShadow.observedStability,
+    nextPhase: evidenceShadow.predictedTransition.nextPhase,
+    nextStability: evidenceShadow.predictedTransition.nextStability,
+    transitionReason: evidenceShadow.predictedTransition.transitionReason,
+    highMaintenanceEntryQualified: evidenceShadow.highMaintenanceEntryQualified,
+    exitQualified: evidenceShadow.exitQualified,
+    ineligibleEvidenceCount: evidenceShadow.ineligibleEvidenceCount,
+  };
+  const diverged =
+    legacy.nextPhase !== evidence.nextPhase ||
+    legacy.nextStability !== evidence.nextStability ||
+    legacy.transitionReason !== evidence.transitionReason;
+
+  return {
+    authority: "shadow_only",
+    available: true,
+    diverged,
+    legacy,
+    evidence,
+    reason: diverged
+      ? "The legacy score transition and evidence-native shadow transition disagree."
+      : "The legacy score transition and evidence-native shadow transition agree.",
   };
 };

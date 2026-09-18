@@ -59,7 +59,10 @@ import {
   validateAndNormalizeSemanticEvidenceSet,
   type EvidenceDrillMode,
 } from "@shared/responseIntegrityDrillRegistry";
-import { evaluateTrainingEvidenceShadow } from "@shared/trainingEvidenceEvaluator";
+import {
+  compareTrainingEvidenceShadowToLegacy,
+  evaluateTrainingEvidenceShadow,
+} from "@shared/trainingEvidenceEvaluator";
 import { buildResponseSnapshotV1, summarizeSnapshotObservedResponse } from "@shared/responseSnapshot";
 import {
   normalizeTopicReferenceContent,
@@ -4469,6 +4472,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             // The legacy score transition remains authoritative during shadow validation.
             const transition = computeTransition(observedPhase, previousStability, sessionScore);
+            const evidenceShadowComparison = compareTrainingEvidenceShadowToLegacy({
+              sessionScore,
+              legacyTransition: transition,
+              evidenceShadow,
+            });
 
             const nextActionConfig = (NEXT_ACTION_ENGINE as any)?.[transition.next_phase]?.[transition.next_stability] || null;
 
@@ -4487,6 +4495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               setScores,
               highGuardPasses,
               evidenceShadow,
+              evidenceShadowComparison,
               lowStreakAfterSession: 0, // No longer used in new transition engine
             };
           };
