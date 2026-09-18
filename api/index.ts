@@ -5,6 +5,7 @@ import { registerRoutes } from '../server/routes';
 import { registerEvidenceCompleteDiagnosisRoutes } from '../server/evidenceCompleteDiagnosisRoutes';
 import { getSession } from '../server/supabaseAuth';
 import cors from 'cors';
+import { resolvePreviewRequestUrl } from './previewRequestUrl';
 
 const app = express();
 
@@ -52,27 +53,13 @@ app.use((req, res) => {
 
 // Vercel serverless handler
 export default function handler(req: VercelRequest, res: VercelResponse) {
-  const previewPathRaw = req.query?.__previewPath;
-  const previewPath = Array.isArray(previewPathRaw)
-    ? previewPathRaw.join("/")
-    : String(previewPathRaw || "").trim();
+  const resolvedPreviewUrl = resolvePreviewRequestUrl(
+    req.url,
+    req.query as Record<string, unknown> | undefined,
+  );
 
-  if (previewPath) {
-    const search = new URLSearchParams();
-    for (const [key, value] of Object.entries(req.query || {})) {
-      if (key === "__previewPath") continue;
-      if (Array.isArray(value)) {
-        for (const item of value) search.append(key, String(item));
-      } else if (value !== undefined) {
-        search.append(key, String(value));
-      }
-    }
-
-    const normalizedPath = previewPath.startsWith("api/")
-      ? `/${previewPath}`
-      : `/api/${previewPath}`;
-    const queryString = search.toString();
-    req.url = queryString ? `${normalizedPath}?${queryString}` : normalizedPath;
+  if (resolvedPreviewUrl) {
+    req.url = resolvedPreviewUrl;
   }
 
   console.log(`[Vercel Handler] ${req.method} ${req.url}`);
