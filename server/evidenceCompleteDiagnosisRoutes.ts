@@ -745,6 +745,21 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           if (identityMismatch) {
             return res.status(409).json({ message: "Diagnosis run identity cannot be reassigned" });
           }
+          if (
+            scheduledSessionId &&
+            existingRun.scheduled_session_id &&
+            String(existingRun.scheduled_session_id) !== scheduledSessionId
+          ) {
+            return res.status(409).json({ message: "Diagnosis run session lineage cannot be reassigned" });
+          }
+          const submittedContext = String(req.body?.sessionContextKind || "").trim().toLowerCase();
+          if (
+            submittedContext &&
+            ((existingRun.session_context === "active_training" && submittedContext !== "training") ||
+              (existingRun.session_context === "intro" && submittedContext !== "intro"))
+          ) {
+            return res.status(409).json({ message: "Diagnosis run session context cannot be reassigned" });
+          }
 
           if (existingRun.status === "completed") {
             const storedHistory = parseJsonValue<DiagnosisProbeResult[]>(existingRun.probe_history, []);
@@ -775,11 +790,20 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           if (prefixError) return res.status(409).json({ message: prefixError });
         }
 
+        const effectiveScheduledSessionId =
+          String(existingRun?.scheduled_session_id || scheduledSessionId || "").trim() || null;
+        const effectiveRequestedKind =
+          existingRun?.session_context === "active_training"
+            ? "training" as const
+            : existingRun?.session_context === "intro"
+              ? "intro" as const
+              : requestedKind;
+
         const sessionResult = await resolveSessionContext({
           tutorId,
           studentId,
-          scheduledSessionId,
-          requestedKind,
+          scheduledSessionId: effectiveScheduledSessionId,
+          requestedKind: effectiveRequestedKind,
         });
         if (sessionResult.error) {
           return res.status(400).json({ message: sessionResult.error });
