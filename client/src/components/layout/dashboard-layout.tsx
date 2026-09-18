@@ -260,7 +260,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   console.log("👨‍👩‍👧 Parent student info:", parentStudentInfo);
 
-  const usesBroadcastInbox = effectiveIsAuth && !!effectiveUser && effectiveUser.role !== "student";
+  const usesBroadcastInbox =
+    effectiveIsAuth &&
+    !!effectiveUser &&
+    effectiveUser.role !== "student" &&
+    !usesNotificationInbox;
 
   // Fetch unread broadcast count
   const { data: unreadData } = useQuery<{ unreadCount: number }>({
