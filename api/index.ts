@@ -52,7 +52,29 @@ app.use((req, res) => {
 
 // Vercel serverless handler
 export default function handler(req: VercelRequest, res: VercelResponse) {
-  // Routes are registered with /api prefix, so pass through as-is
+  const previewPathRaw = req.query?.__previewPath;
+  const previewPath = Array.isArray(previewPathRaw)
+    ? previewPathRaw.join("/")
+    : String(previewPathRaw || "").trim();
+
+  if (previewPath) {
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(req.query || {})) {
+      if (key === "__previewPath") continue;
+      if (Array.isArray(value)) {
+        for (const item of value) search.append(key, String(item));
+      } else if (value !== undefined) {
+        search.append(key, String(value));
+      }
+    }
+
+    const normalizedPath = previewPath.startsWith("api/")
+      ? `/${previewPath}`
+      : `/api/${previewPath}`;
+    const queryString = search.toString();
+    req.url = queryString ? `${normalizedPath}?${queryString}` : normalizedPath;
+  }
+
   console.log(`[Vercel Handler] ${req.method} ${req.url}`);
   return app(req as any, res as any);
 }
