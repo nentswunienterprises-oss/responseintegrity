@@ -16,19 +16,43 @@ if (!process.env.DATABASE_URL) {
 // 5432 to transaction mode; direct database URLs and non-Supabase hosts are left
 // untouched.
 export function normalizeRuntimeDatabaseUrl(databaseUrl: string) {
+  // PostgreSQL defaults to 5432 when the port is omitted, so treat a shared
+  // Supabase pooler URL with no explicit port as session mode too.
   return databaseUrl.replace(
-    /(\.pooler\.supabase\.com):5432(?=\/|\?|$)/i,
+    /(\.pooler\.supabase\.com)(?::5432)?(?=\/|\?|$)/i,
     "$1:6543",
   );
 }
 
+export function describeRuntimeDatabaseTarget(databaseUrl: string) {
+  try {
+    const parsed = new URL(databaseUrl);
+    const effectivePort = parsed.port || "5432";
+    const mode =
+      parsed.hostname.toLowerCase().endsWith(".pooler.supabase.com")
+        ? (effectivePort === "6543" ? "transaction" : "session")
+        : "direct-or-custom";
+    return {
+      host: parsed.hostname,
+      port: effectivePort,
+      mode,
+    };
+  } catch {
+    return { host: "unparseable", port: "unknown", mode: "unknown" };
+  }
+}
+
 const configuredDatabaseUrl = process.env.DATABASE_URL;
 const runtimeDatabaseUrl = normalizeRuntimeDatabaseUrl(configuredDatabaseUrl);
-const usingSupabaseTransactionPooler = runtimeDatabaseUrl !== configuredDatabaseUrl;
 
-if (usingSupabaseTransactionPooler) {
-  console.log("[DB] Supabase shared pooler: transaction mode (6543)");
-}
+// Keep every runtime consumer on the same normalized target. A few legacy
+// maintenance paths still read DATABASE_URL directly instead of importing pool.
+process.env.DATABASE_URL = runtimeDatabaseUrl;
+
+const runtimeTarget = describeRuntimeDatabaseTarget(runtimeDatabaseUrl);
+console.log(
+  `[DB] PostgreSQL target ${runtimeTarget.host}:${runtimeTarget.port} mode=${runtimeTarget.mode}`,
+);
 
 const parsedPoolMax = Number.parseInt(process.env.DB_POOL_MAX || "5", 10);
 const poolMax =
@@ -42,6 +66,7 @@ export const pool = new Pool({
   max: poolMax,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 10_000,
+  application_name: "response-integrity-api",
 });
 
 export const db = drizzle(pool, { schema });
