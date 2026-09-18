@@ -7567,6 +7567,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Topic is required" });
         }
 
+        const student = await storage.getStudent(studentId);
+        if (!student || String(student.tutorId) !== String(tutorId)) {
+          return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+        }
+
+        if (isEmergencyDbMode()) {
+          const existingResult = await pool.query(
+            `SELECT id, student_id, tutor_id, topic, reason, created_at
+               FROM public.topic_conditioning_activations
+              WHERE student_id = $1 AND tutor_id = $2
+              ORDER BY created_at DESC`,
+            [studentId, tutorId],
+          );
+
+          const existingActivation = (existingResult.rows || []).find(
+            (entry: any) => String(entry?.topic || "").trim().toLowerCase() === normalizedTopic
+          );
+
+          if (existingActivation) {
+            return res.json({ activation: existingActivation, duplicate: true });
+          }
+
+          const inserted = await pool.query(
+            `INSERT INTO public.topic_conditioning_activations
+              (student_id, tutor_id, topic, reason)
+             VALUES ($1, $2, $3, $4)
+             RETURNING id, student_id, tutor_id, topic, reason, created_at`,
+            [studentId, tutorId, String(topic).trim(), reason],
+          );
+
+          return res.json({ activation: inserted.rows[0] });
+        }
+
         const { data: existingActivations, error: existingError } = await supabase
           .from("topic_conditioning_activations")
           .select("id, student_id, tutor_id, topic, reason, created_at")
@@ -7597,16 +7630,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
           .select()
           .single();
+
         if (error) {
           console.error("Error inserting topic activation:", error);
           return res.status(500).json({ message: "Failed to activate topic" });
         }
-        res.json({ activation: data });
+
+        return res.json({ activation: data });
       } catch (err) {
         console.error("Exception in topic activation:", err);
-        res.status(500).json({ message: "Internal server error" });
+        return res.status(500).json({ message: "Internal server error" });
       }
     });
+
   ensureStudentForEnrollment = async (enrollment: any, tutorIdOverride?: string) => {
     const tutorId = tutorIdOverride || enrollment?.assigned_tutor_id;
     if (!enrollment || !tutorId || !enrollment.user_id || !enrollment.student_full_name || !enrollment.student_grade) {
