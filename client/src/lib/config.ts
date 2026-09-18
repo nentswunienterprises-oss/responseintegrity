@@ -1,21 +1,24 @@
 // Runtime configuration for API URL
 
-
-// Use the custom API domain for production
-const RENDER_URL = 'https://api.responseintegrity.co.za';
-
+// Custom production API. Vercel preview deployments deliberately use their
+// own same-origin serverless API so branch code and Preview environment data
+// are exercised instead of silently proxying to production.
+const PRODUCTION_API_URL = "https://api.responseintegrity.co.za";
 
 export function getApiUrl(): string {
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    // Local development
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:5000';
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname.toLowerCase();
+
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return "http://localhost:5000";
+    }
+
+    if (hostname.endsWith(".vercel.app")) {
+      return "";
     }
   }
-  // Production: use Render backend
-  return RENDER_URL;
+
+  return PRODUCTION_API_URL;
 }
 
-// Use a getter function to ensure runtime evaluation
 export const API_URL = getApiUrl();
