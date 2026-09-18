@@ -423,10 +423,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
               <p className="mt-2 text-sm leading-6">{decision.reason}</p>
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
-              Placement was produced from {decision.cleanProbeCount} clean evidence opportunity
-              {decision.cleanProbeCount === 1 ? "" : "ies"}
+              Placement was produced from {decision.cleanProbeCount} clean evidence {decision.cleanProbeCount === 1 ? "opportunity" : "opportunities"}
               {decision.contaminatedProbeCount
-                ? ` and ${decision.contaminatedProbeCount} contaminated opportunity${decision.contaminatedProbeCount === 1 ? "" : "ies"} kept for audit only`
+                ? ` and ${decision.contaminatedProbeCount} contaminated ${decision.contaminatedProbeCount === 1 ? "opportunity" : "opportunities"} kept for audit only`
                 : ""}.
             </p>
             <button
