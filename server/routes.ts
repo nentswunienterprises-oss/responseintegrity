@@ -59,6 +59,7 @@ import {
   validateAndNormalizeSemanticEvidenceSet,
   type EvidenceDrillMode,
 } from "@shared/responseIntegrityDrillRegistry";
+import { evaluateTrainingEvidenceShadow } from "@shared/trainingEvidenceEvaluator";
 import { buildResponseSnapshotV1, summarizeSnapshotObservedResponse } from "@shared/responseSnapshot";
 import {
   normalizeTopicReferenceContent,
@@ -4458,7 +4459,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ? Math.round(weighted.sum / weighted.weight)
               : 0;
 
-            // Use the locked transition engine from Response Integrity Drift Correction Spec
+            // Shadow-only evidence-native evaluation. This is persisted beside the legacy
+            // score-driven result for proof comparison and has zero live state authority.
+            const evidenceShadow = evaluateTrainingEvidenceShadow({
+              phase: observedPhase,
+              previousStability,
+              sets: sets as any,
+            });
+
+            // The legacy score transition remains authoritative during shadow validation.
             const transition = computeTransition(observedPhase, previousStability, sessionScore);
 
             const nextActionConfig = (NEXT_ACTION_ENGINE as any)?.[transition.next_phase]?.[transition.next_stability] || null;
@@ -4477,6 +4486,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               repRows,
               setScores,
               highGuardPasses,
+              evidenceShadow,
               lowStreakAfterSession: 0, // No longer used in new transition engine
             };
           };
