@@ -331,16 +331,6 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": ".*\\.vercel\\.app"
-        }
-      ],
-      "destination": "/api/index?__previewPath=:path*"
-    },
-    {
-      "source": "/api/:path*",
       "destination": "https://api.responseintegrity.co.za/api/:path*",
       "has": [
         {
