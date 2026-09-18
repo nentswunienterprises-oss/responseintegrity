@@ -72,6 +72,20 @@ test("emergency evidence ledger normalizes browser timezone timestamps to UTC IS
   );
 });
 
+test("Render emergency runtime shares a bounded PostgreSQL pool and uses transaction-mode Supabase pooling", () => {
+  const dbSource = readFileSync(resolve(process.cwd(), "server/db.ts"), "utf8");
+  const authSource = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
+
+  assert.match(dbSource, /DB_POOL_MAX/);
+  assert.match(dbSource, /max:\s*poolMax/);
+  assert.match(dbSource, /pooler\\\.supabase\\\.com\)\(\?:\:5432\)\?/);
+  assert.match(dbSource, /"\$1:6543"/);
+  assert.match(dbSource, /process\.env\.DATABASE_URL\s*=\s*runtimeDatabaseUrl/);
+  assert.match(dbSource, /application_name:\s*"response-integrity-api"/);
+  assert.doesNotMatch(authSource, /new\s+pg\.Pool/);
+  assert.match(authSource, /new PgSession\(\{[\s\S]*?pool,/);
+});
+
 test("emergency parent student stats return stable zero-value contract when no canonical student is linked", () => {
   assert.deepEqual(buildEmergencyParentStudentStats({ sessionCount: 0, commitmentCount: 0 }), {
     introDiagnosisCompleted: 0,
