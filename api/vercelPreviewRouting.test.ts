@@ -31,3 +31,28 @@ test("Vercel preview API uses the native catch-all function, not an /api/index r
   assert.match(catchAll, /import handler from "\.\/index"/);
   assert.match(catchAll, /export default handler/);
 });
+
+
+test("Vercel preview packages the API and server source", () => {
+  const ignore = readFileSync(resolve(process.cwd(), ".vercelignore"), "utf8")
+    .split(/\r?\n/)
+    .map((line) => line.trim());
+
+  assert.equal(ignore.includes("api/"), false);
+  assert.equal(ignore.includes("server/"), false);
+});
+
+test("Vercel preview registers the real auth routes before protected routes", () => {
+  const apiIndex = readFileSync(resolve(process.cwd(), "api/index.ts"), "utf8");
+
+  assert.match(apiIndex, /import \{ setupAuth \} from ['"]\.\.\/server\/supabaseAuth['"]/);
+  assert.match(apiIndex, /await setupAuth\(app\)/);
+  assert.doesNotMatch(apiIndex, /app\.use\(getSession\(\)\)/);
+});
+
+test("Vercel preview sessions stay host-only on the preview hostname", () => {
+  const authSource = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
+
+  assert.match(authSource, /process\.env\.VERCEL_ENV === "preview"/);
+  assert.match(authSource, /isProduction && !isVercelPreview \? "\.responseintegrity\.co\.za" : undefined/);
+});
