@@ -86,6 +86,33 @@ test("Render emergency runtime shares a bounded PostgreSQL pool and uses transac
   assert.match(authSource, /new PgSession\(\{[\s\S]*?pool,/);
 });
 
+test("emergency student dashboard reads canonical student state from production PostgreSQL", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+
+  const statsStart = routesSource.indexOf('app.get("/api/student/stats"');
+  const commitmentsStart = routesSource.indexOf('app.get("/api/student/commitments"', statsStart);
+  const topicStateStart = routesSource.indexOf('app.get("/api/student/topic-conditioning-state"');
+  const topicStatesStart = routesSource.indexOf('app.get("/api/student/topic-conditioning-states"', topicStateStart);
+  const parentStart = routesSource.indexOf("// PARENT PORTAL ROUTES", topicStatesStart);
+
+  const statsSource = routesSource.slice(statsStart, commitmentsStart);
+  const topicStateSource = routesSource.slice(topicStateStart, topicStatesStart);
+  const topicStatesSource = routesSource.slice(topicStatesStart, parentStart);
+
+  assert.match(routesSource, /const resolveStudentIdForPortalSession/);
+  assert.match(statsSource, /resolveStudentIdForPortalSession\(studentUserId\)/);
+  assert.match(topicStateSource, /resolveStudentIdForPortalSession\(studentUserId\)/);
+  assert.match(topicStatesSource, /resolveStudentIdForPortalSession\(studentUserId\)/);
+  assert.match(topicStateSource, /FROM public\.topic_conditioning_activations/);
+
+  const helperStart = routesSource.indexOf("const getStudentDashboardStats");
+  const helperEnd = routesSource.indexOf("const getTTScheduledSessionsByStudent", helperStart);
+  const helperSource = routesSource.slice(helperStart, helperEnd);
+  assert.match(helperSource, /FROM public\.intro_session_drills/);
+  assert.match(helperSource, /FROM public\.training_session_runs/);
+  assert.match(helperSource, /FROM public\.student_commitments/);
+});
+
 test("emergency student auth reads and writes the production database directly", () => {
   const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
 
