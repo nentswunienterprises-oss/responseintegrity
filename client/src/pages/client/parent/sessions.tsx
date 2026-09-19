@@ -16,6 +16,27 @@ import {
   buildTrainingSessionCancellationNote,
 } from "@/lib/trainingSessionCancellation";
 
+const PAYFAST_MERCHANT_REFERENCE_STORAGE_KEY = "parent-gateway:payfast-merchant-reference";
+const PAYFAST_RETURN_PATH_STORAGE_KEY = "parent-payfast:return-path";
+
+function submitExternalPaymentForm(action: string, fields: Record<string, string>) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = action;
+  form.style.display = "none";
+
+  Object.entries(fields).forEach(([key, value]) => {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = key;
+    input.value = value;
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
+}
+
 type ParentTrainingSession = {
   id: string;
   scheduled_time: string;
@@ -52,6 +73,7 @@ export default function ParentSessions() {
   const [slotTwoDate, setSlotTwoDate] = useState<Date | undefined>(undefined);
   const [slotTwoTime, setSlotTwoTime] = useState("17:00");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPreparingSandboxPayment, setIsPreparingSandboxPayment] = useState(false);
   const [confirmingSessionId, setConfirmingSessionId] = useState<string | null>(null);
   const [adjustingSessionId, setAdjustingSessionId] = useState<string | null>(null);
   const [cancellingSessionId, setCancellingSessionId] = useState<string | null>(null);
@@ -176,6 +198,67 @@ export default function ParentSessions() {
     refetchInterval: 10000,
   });
 
+  const handleSandboxPackagePayment = async () => {
+    setIsPreparingSandboxPayment(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
+      const response = await fetch(`${API_URL}/api/parent/proposal/accept`, {
+        method: "POST",
+        credentials: "include",
+        headers,
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.message || "Failed to prepare Sandbox package payment.");
+      }
+
+      if (payload?.paymentStatus === "PAID" || payload?.paymentStatus === "FREE_ACCESS") {
+        toast({
+          title: "Package Access Active",
+          description: "This package is already active. Refreshing your scheduling access.",
+        });
+        await queryClient.invalidateQueries({ queryKey: ["/api/parent/training-sessions"] });
+        return;
+      }
+
+      if (!payload?.checkoutUrl || !payload?.formFields) {
+        throw new Error("PayFast Sandbox checkout details were not returned.");
+      }
+
+      if (payload?.merchantReference) {
+        window.sessionStorage.setItem(
+          PAYFAST_MERCHANT_REFERENCE_STORAGE_KEY,
+          String(payload.merchantReference),
+        );
+      }
+      window.sessionStorage.setItem(
+        PAYFAST_RETURN_PATH_STORAGE_KEY,
+        "/client/parent/sessions",
+      );
+
+      toast({
+        title: "Opening PayFast Sandbox",
+        description: `Complete the R${Number(payload?.amount || 0).toLocaleString("en-ZA")} Sandbox package checkout. No real money is charged.`,
+      });
+
+      submitExternalPaymentForm(payload.checkoutUrl, payload.formFields);
+    } catch (error) {
+      toast({
+        title: "Sandbox Payment Error",
+        description: error instanceof Error ? error.message : "Failed to prepare Sandbox payment.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPreparingSandboxPayment(false);
+    }
+  };
+
   const handleScheduleWeek = async () => {
     const slotOne = combineDateAndTime(slotOneDate, slotOneTime);
     const slotTwo = combineDateAndTime(slotTwoDate, slotTwoTime);
@@ -224,11 +307,15 @@ export default function ParentSessions() {
       if (!response.ok) {
         if (response.status === 402) {
           toast({
-            title: "Monthly Payment Required",
-            description: payload?.message || "A new monthly payment is required to schedule more sessions.",
+            title: data?.operationalMode === "sandbox" ? "Sandbox Package Payment Required" : "Monthly Payment Required",
+            description: payload?.message || "A package payment is required before more sessions can be scheduled.",
             variant: "destructive",
           });
-          navigate("/client/parent/gateway");
+          if (data?.operationalMode === "sandbox") {
+            await handleSandboxPackagePayment();
+          } else {
+            navigate("/client/parent/gateway");
+          }
           return;
         }
         throw new Error(payload?.message || "Failed to schedule this week's sessions");
@@ -447,6 +534,7 @@ export default function ParentSessions() {
   const renewalAmount = Number(data?.monthlyQuota?.package_amount_zar ?? quotaTotal * Number(data?.monthlyQuota?.session_price ?? 200));
   const quotaExhausted = data?.monthlyQuota != null && quotaRemaining <= 0;
   const renewalBlocked = paymentRequired || quotaExhausted;
+  const sandboxPaymentRequired = data?.operationalMode === "sandbox" && paymentRequired;
   const trainingModeScheduling = ["training", "sandbox"].includes(String(data?.operationalMode || ""));
   const scheduleWeekDescription = trainingModeScheduling
     ? "Choose two Monday-to-Saturday training session times in the same week. Your tutor must confirm both dates before Response Integrity locks the sessions into the training flow."
@@ -479,16 +567,23 @@ export default function ParentSessions() {
                 {paymentRequired ? "Monthly Payment Required" : "Monthly Quota Exhausted"}
               </h2>
               <p className="text-sm text-rose-600 mt-1">
-                {paymentRequired
-                  ? "Training session booking is disabled until the monthly renewal is completed."
-                  : `All ${quotaTotal || "package"} sessions for this month have been used. Renew now to unlock the next ${quotaTotal || "monthly"} package.`}
+                {sandboxPaymentRequired
+                  ? "This Sandbox family has not activated its current package yet. Complete the PayFast Sandbox checkout to unlock scheduling. No real money is charged."
+                  : paymentRequired
+                    ? "Training session booking is disabled until the monthly renewal is completed."
+                    : `All ${quotaTotal || "package"} sessions for this month have been used. Renew now to unlock the next ${quotaTotal || "monthly"} package.`}
               </p>
             </div>
             <Button
-              onClick={() => navigate("/client/parent/gateway")}
+              onClick={sandboxPaymentRequired ? handleSandboxPackagePayment : () => navigate("/client/parent/gateway")}
+              disabled={sandboxPaymentRequired && isPreparingSandboxPayment}
               className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white"
             >
-              Go to Renewal{renewalAmount > 0 ? ` - R${renewalAmount.toLocaleString("en-ZA")}` : ""}
+              {sandboxPaymentRequired
+                ? isPreparingSandboxPayment
+                  ? "Preparing Sandbox Payment..."
+                  : `Complete Sandbox Payment${renewalAmount > 0 ? ` - R${renewalAmount.toLocaleString("en-ZA")}` : ""}`
+                : `Go to Renewal${renewalAmount > 0 ? ` - R${renewalAmount.toLocaleString("en-ZA")}` : ""}`}
             </Button>
           </div>
         ) : null}

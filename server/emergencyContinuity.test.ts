@@ -798,3 +798,22 @@ test("specialist High Maintenance prep stays in the current phase until confirma
     /Confirm it in a later qualifying Controlled Discomfort drill before progressing into Time Pressure Stability\./,
   );
 });
+
+test("Sandbox payment gate stays actionable from Parent Sessions and returns there after checkout", () => {
+  const sessionsSource = readFileSync(
+    resolve(process.cwd(), "client/src/pages/client/parent/sessions.tsx"),
+    "utf8",
+  );
+  const gatewaySource = readFileSync(
+    resolve(process.cwd(), "client/src/pages/client/parent/gateway.tsx"),
+    "utf8",
+  );
+
+  assert.match(sessionsSource, /\/api\/parent\/proposal\/accept/);
+  assert.match(sessionsSource, /Complete Sandbox Payment/);
+  assert.match(sessionsSource, /submitExternalPaymentForm\(payload\.checkoutUrl, payload\.formFields\)/);
+  assert.match(sessionsSource, /PAYFAST_RETURN_PATH_STORAGE_KEY/);
+  assert.match(sessionsSource, /"\/client\/parent\/sessions"/);
+  assert.match(gatewaySource, /const returnPath = window\.sessionStorage\.getItem\(PAYFAST_RETURN_PATH_STORAGE_KEY\)/);
+  assert.match(gatewaySource, /navigate\(returnPath, \{ replace: true \}\)/);
+});

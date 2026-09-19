@@ -123,6 +123,7 @@ function submitExternalPaymentForm(action: string, fields: Record<string, string
 }
 
 const PAYFAST_MERCHANT_REFERENCE_STORAGE_KEY = "parent-gateway:payfast-merchant-reference";
+const PAYFAST_RETURN_PATH_STORAGE_KEY = "parent-payfast:return-path";
 
 export default function ParentGateway() {
   const [justBooked, setJustBooked] = useState(false);
@@ -203,13 +204,19 @@ export default function ParentGateway() {
             if (data?.parentCode) {
               setParentCode(data.parentCode);
             }
+            const returnPath = window.sessionStorage.getItem(PAYFAST_RETURN_PATH_STORAGE_KEY);
             window.sessionStorage.removeItem(PAYFAST_MERCHANT_REFERENCE_STORAGE_KEY);
+            window.sessionStorage.removeItem(PAYFAST_RETURN_PATH_STORAGE_KEY);
             await Promise.all([
               queryClient.invalidateQueries({ queryKey: ["/api/parent/enrollment-status"] }),
               queryClient.invalidateQueries({ queryKey: ["/api/parent/proposal"] }),
               queryClient.invalidateQueries({ queryKey: ["/api/parent/intro-session-confirmation"] }),
               queryClient.invalidateQueries({ queryKey: ["/api/parent/training-sessions"] }),
             ]);
+            if (returnPath?.startsWith("/client/parent/")) {
+              navigate(returnPath, { replace: true });
+              return;
+            }
           } else if (!cancelled) {
             toast({
               title: "Payment Submitted",
@@ -244,7 +251,7 @@ export default function ParentGateway() {
     return () => {
       cancelled = true;
     };
-  }, [authLoading, queryClient, toast, user]);
+  }, [authLoading, navigate, queryClient, toast, user]);
 
   // Fetch enrollment status
   const { data: enrollmentStatus } = useQuery<EnrollmentStatus>({
