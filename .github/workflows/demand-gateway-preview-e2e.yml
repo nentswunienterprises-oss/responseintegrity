@@ -33,7 +33,7 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           const base = process.env.SMOKE_BASE_URL.replace(/\/$/, "");
-          const url = base + "/api/__proof/environment";
+          const url = base + "/api/proof-environment";
           let last = null;
           for (let attempt = 1; attempt <= 18; attempt += 1) {
             try {
