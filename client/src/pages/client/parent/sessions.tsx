@@ -30,7 +30,7 @@ type ParentTrainingSession = {
 
 type ParentTrainingSessionsResponse = {
   sessions: ParentTrainingSession[];
-  operationalMode?: "training" | "trial" | "certified_live";
+  operationalMode?: "training" | "sandbox" | "trial" | "certified_live";
   sessionSchedulingEnabled?: boolean;
   paymentRequired?: boolean;
   paymentStatus?: string;
@@ -445,7 +445,7 @@ export default function ParentSessions() {
   const renewalAmount = Number(data?.monthlyQuota?.package_amount_zar ?? quotaTotal * Number(data?.monthlyQuota?.session_price ?? 200));
   const quotaExhausted = data?.monthlyQuota != null && quotaRemaining <= 0;
   const renewalBlocked = paymentRequired || quotaExhausted;
-  const trainingModeScheduling = data?.operationalMode === "training";
+  const trainingModeScheduling = ["training", "sandbox"].includes(String(data?.operationalMode || ""));
   const scheduleWeekDescription = trainingModeScheduling
     ? "Choose two Monday-to-Saturday training session times in the same week. Your tutor must confirm both dates before Response Integrity locks the sessions into the training flow."
     : "Choose two Monday-to-Saturday training session times in the same week. Your tutor must confirm both dates before Response Integrity creates the Meet links.";
