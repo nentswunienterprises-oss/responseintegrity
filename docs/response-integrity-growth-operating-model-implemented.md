@@ -1,3 +1,11 @@
+> **STATUS — SUPERSEDED AS CURRENT OPERATING AUTHORITY (19 September 2026)**
+>
+> This file is preserved as implementation and historical context. It must not direct new company or product decisions where it conflicts with the current **Response Integrity - Universal Canonical Source of Truth**.
+>
+> Current Specialist Development law is **Application -> Training -> Sandbox -> Practicals -> Trial -> Certification -> Certified Live**. The Capability Engine belongs in Training. Sandbox is deterministic practice in observation and system operation. Practicals is the visible-execution stage. Trial is governed real-family validation. Certification is the final decision gate. Exact Live Trial cadence / session mathematics remain **OPEN** until separately reconciled and approved.
+>
+> Any references below to **Sandbox Mock Gate**, old Trial mathematics as settled law, or pathway diagrams that omit Practicals / Certification are superseded and retained only to explain prior implementation state.
+
 # Response Integrity Growth Operating Model
 
 Implementation-aligned version (holistic operating model).
