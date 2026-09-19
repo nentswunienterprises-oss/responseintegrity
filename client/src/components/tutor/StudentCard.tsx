@@ -359,13 +359,8 @@ export function StudentCard({
       ...(workflow || {}),
     };
 
-    return {
-      ...baseWorkflow,
-      assignmentAccepted: student.pendingTutorAcceptance
-        ? false
-        : baseWorkflow.assignmentAccepted,
-    };
-  }, [workflow, student.pendingTutorAcceptance]);
+    return baseWorkflow;
+  }, [workflow]);
 
   // Fetch topic activations for this student (must be at the top of the function body)
   const { data: activationsData } = useQuery({
