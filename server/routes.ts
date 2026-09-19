@@ -12908,9 +12908,1867 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     return {
       student: {
-        id: stud
-... 71792 bytes omitted ...
-("updated_at", { ascending: false })
+        id: student.id,
+        name: student.name,
+        grade: student.grade || null,
+      },
+      tutor: tutor
+        ? {
+            id: tutor.id,
+            name: getDisplayNameForUser(tutor, "Tutor"),
+          }
+        : null,
+      parent: parentId
+        ? {
+            id: parentId,
+            name: getDisplayNameForUser(parent, "Parent"),
+            available: !!parent,
+          }
+        : {
+            id: null,
+            name: "Parent unavailable",
+            available: false,
+          },
+      threads: {
+        parent: {
+          threadId: threadsByAudience.parent.id,
+          audience: "parent",
+          messages: messagesByAudience.parent,
+        },
+        student: {
+          threadId: threadsByAudience.student.id,
+          audience: "student",
+          messages: messagesByAudience.student,
+        },
+      },
+    };
+  };
+
+  const createStudentCommunicationMessage = async ({
+    student,
+    parentId,
+    audience,
+    senderRole,
+    senderUserId,
+    senderStudentUserId,
+    replyToMessageId,
+    message,
+  }: {
+    student: any;
+    parentId: string | null;
+    audience: CommunicationAudience;
+    senderRole: "tutor" | "parent" | "student";
+    senderUserId?: string | null;
+    senderStudentUserId?: string | null;
+    replyToMessageId?: string | null;
+    message: string;
+  }) => {
+    const thread = await ensureStudentCommunicationThread({
+      studentId: student.id,
+      tutorId: student.tutorId,
+      parentId,
+      audience,
+    });
+
+    let normalizedReplyToMessageId: string | null = null;
+    if (replyToMessageId) {
+      const { data: replyTarget, error: replyTargetError } = await supabase
+        .from("student_communication_messages")
+        .select("id")
+        .eq("id", replyToMessageId)
+        .eq("thread_id", thread.id)
+        .eq("student_id", student.id)
+        .eq("audience", audience)
+        .maybeSingle();
+
+      if (replyTargetError) throw replyTargetError;
+      if (!replyTarget) {
+        throw new Error("Reply target is no longer available");
+      }
+
+      normalizedReplyToMessageId = replyTarget.id;
+    }
+
+    const timestamp = new Date().toISOString();
+    const payload: Record<string, any> = {
+      thread_id: thread.id,
+      student_id: student.id,
+      tutor_id: student.tutorId,
+      parent_id: parentId,
+      audience,
+      sender_role: senderRole,
+      sender_user_id: senderUserId || null,
+      sender_student_user_id: senderStudentUserId || null,
+      reply_to_message_id: normalizedReplyToMessageId,
+      message,
+    };
+
+    if (senderRole === "tutor") payload.read_by_tutor_at = timestamp;
+    if (senderRole === "parent") payload.read_by_parent_at = timestamp;
+    if (senderRole === "student") payload.read_by_student_at = timestamp;
+
+    const { data: inserted, error: insertError } = await supabase
+      .from("student_communication_messages")
+      .insert(payload)
+      .select("*")
+      .single();
+
+    if (insertError) throw insertError;
+
+    await supabase
+      .from("student_communication_threads")
+      .update({ updated_at: timestamp, parent_id: parentId, tutor_id: student.tutorId })
+      .eq("id", thread.id);
+
+    const tutor = student?.tutorId ? await storage.getUser(student.tutorId) : null;
+    const senderLabel =
+      senderRole === "tutor"
+        ? getDisplayNameForUser(tutor, "Tutor")
+        : senderRole === "parent"
+          ? "Parent"
+          : String(student?.name || "Student").trim() || "Student";
+
+    if ((senderRole === "parent" || senderRole === "student") && student?.tutorId) {
+      await storage.createNotification({
+        recipientUserId: student.tutorId,
+        actorUserId: senderUserId || undefined,
+        channel: "informational",
+        title: `Message from ${senderLabel}`,
+        message,
+        link: "/operational/tutor/my-pod",
+        entityType: "student_communication",
+        entityId: inserted.id,
+      } as any);
+    }
+
+    return inserted;
+  };
+
+  const getStudentDashboardStats = async (studentId: string) => {
+    const student = await storage.getStudent(studentId);
+    if (!student) {
+      return {
+        introDiagnosisCompleted: 0,
+        bossBattlesCompleted: 0,
+        solutionsUnlocked: 0,
+        currentStreak: 0,
+        totalSessions: 0,
+        trainingSessionsCompleted: 0,
+        confidenceLevel: 50,
+      };
+    }
+
+    const parseDrillPayload = (value: unknown) => {
+      if (typeof value !== "string") return null;
+      try {
+        return JSON.parse(value);
+      } catch {
+        return null;
+      }
+    };
+
+    let drillRows: any[] = [];
+    let trainingRuns: any[] = [];
+
+    if (isEmergencyDbMode()) {
+      const [drillResult, trainingResult] = await Promise.all([
+        pool.query(
+          `SELECT id, scheduled_session_id, training_session_run_id, submitted_at, drill
+             FROM public.intro_session_drills
+            WHERE student_id = $1
+            ORDER BY submitted_at DESC`,
+          [studentId],
+        ),
+        pool.query(
+          `SELECT id, scheduled_session_id, topic_count, submitted_at, status
+             FROM public.training_session_runs
+            WHERE student_id = $1
+            ORDER BY submitted_at DESC`,
+          [studentId],
+        ),
+      ]);
+      drillRows = drillResult.rows;
+      trainingRuns = trainingResult.rows;
+    } else {
+      const [drillResult, trainingResult] = await Promise.all([
+        supabase
+          .from("intro_session_drills")
+          .select("id, scheduled_session_id, training_session_run_id, submitted_at, drill")
+          .eq("student_id", studentId)
+          .order("submitted_at", { ascending: false }),
+        supabase
+          .from("training_session_runs")
+          .select("id, scheduled_session_id, topic_count, submitted_at, status")
+          .eq("student_id", studentId)
+          .order("submitted_at", { ascending: false }),
+      ]);
+      drillRows = drillResult.data || [];
+      trainingRuns = trainingResult.data || [];
+    }
+
+    const normalizedTrainingRuns = trainingRuns.filter((row: any) =>
+      ["submitted", "completed"].includes(String(row?.status || "").toLowerCase())
+    );
+
+    const parsedDrills = drillRows.map((row: any) => {
+      const payload = parseDrillPayload(row?.drill);
+      const inferredType =
+        payload?.drillType ||
+        (row?.training_session_run_id ? "training" : "diagnosis");
+
+      return {
+        id: String(row?.id || ""),
+        scheduledSessionId: String(row?.scheduled_session_id || "").trim() || null,
+        trainingSessionRunId: String(row?.training_session_run_id || "").trim() || null,
+        submittedAt: String(row?.submitted_at || "").trim() || null,
+        drillType: String(inferredType || "").trim().toLowerCase(),
+      };
+    });
+
+    const introDrills = parsedDrills.filter((row) => row.drillType === "diagnosis");
+    const trainingDrills = parsedDrills.filter((row) => row.drillType === "training");
+
+    const completedSessionKeys = new Set<string>();
+    introDrills.forEach((row) => {
+      completedSessionKeys.add(row.scheduledSessionId ? `intro:${row.scheduledSessionId}` : `intro:${row.id}`);
+    });
+    normalizedTrainingRuns.forEach((row: any) => {
+      const runId = String(row?.id || "").trim();
+      const scheduledId = String(row?.scheduled_session_id || "").trim();
+      if (scheduledId) {
+        completedSessionKeys.add(`training:${scheduledId}`);
+      } else if (runId) {
+        completedSessionKeys.add(`training:${runId}`);
+      }
+    });
+
+    if (normalizedTrainingRuns.length === 0) {
+      const groupedTrainingRunIds = new Set(
+        trainingDrills
+          .map((row) => row.trainingSessionRunId)
+          .filter((value): value is string => !!value)
+      );
+      groupedTrainingRunIds.forEach((runId) => completedSessionKeys.add(`training:${runId}`));
+    }
+
+    const derivedBossBattles =
+      normalizedTrainingRuns.length > 0
+        ? normalizedTrainingRuns.reduce((sum: number, row: any) => sum + Number(row?.topic_count || 0), 0)
+        : trainingDrills.length;
+
+    const derivedSolutionsUnlocked =
+      normalizedTrainingRuns.length > 0 ? normalizedTrainingRuns.length : new Set(
+        trainingDrills.map((row) => row.trainingSessionRunId || row.id).filter(Boolean)
+      ).size;
+
+    let currentStreak = 0;
+    if (isEmergencyDbMode()) {
+      const commitmentResult = await pool.query(
+        `SELECT COALESCE(MAX(streak_count), 0)::int AS streak_count
+           FROM public.student_commitments
+          WHERE student_id = $1
+            AND is_active = true`,
+        [studentId],
+      );
+      currentStreak = Number(commitmentResult.rows[0]?.streak_count || 0);
+    } else {
+      const { data: commitments } = await supabase
+        .from("student_commitments")
+        .select("streak_count")
+        .eq("student_id", studentId)
+        .eq("is_active", true)
+        .order("streak_count", { ascending: false })
+        .limit(1);
+      currentStreak = Number(commitments?.[0]?.streak_count || 0);
+    }
+
+    return {
+      introDiagnosisCompleted: introDrills.length,
+      bossBattlesCompleted: derivedBossBattles,
+      solutionsUnlocked: derivedSolutionsUnlocked,
+      currentStreak,
+      totalSessions: completedSessionKeys.size,
+      trainingSessionsCompleted:
+        normalizedTrainingRuns.length > 0
+          ? normalizedTrainingRuns.length
+          : new Set(
+              trainingDrills.map((row) => row.trainingSessionRunId || row.id).filter(Boolean)
+            ).size,
+      confidenceLevel: 50,
+    };
+  };
+
+  const getTTScheduledSessionsByStudent = async (studentId: string) => {
+    const { data: sessions } = await supabase
+      .from("scheduled_sessions")
+      .select(SCHEDULED_SESSION_SELECT)
+      .eq("student_id", studentId)
+      .in("status", ["completed", "ready", "live", "confirmed"])
+      .order("scheduled_time", { ascending: false });
+
+    return sessions || [];
+  };
+
+  const getTTScheduledSessionsByTutor = async (tutorId: string) => {
+    const { data: sessions } = await supabase
+      .from("scheduled_sessions")
+      .select(SCHEDULED_SESSION_SELECT)
+      .eq("tutor_id", tutorId)
+      .in("status", ["completed", "ready", "live", "confirmed"])
+      .order("scheduled_time", { ascending: false });
+
+    return sessions || [];
+  };
+
+  const getTTScheduledSessionsByTutors = async (tutorIds: string[]) => {
+    if (!tutorIds.length) return [];
+
+    const { data: sessions } = await supabase
+      .from("scheduled_sessions")
+      .select(SCHEDULED_SESSION_SELECT)
+      .in("tutor_id", tutorIds)
+      .in("status", ["completed", "ready", "live", "confirmed"])
+      .order("scheduled_time", { ascending: false });
+
+    return sessions || [];
+  };
+
+  const getTutorSessionFeed = async (tutorId: string, studentId?: string | null) => {
+    if (isEmergencyDbMode()) {
+      const values: unknown[] = [tutorId, ["completed", "ready", "live", "confirmed"]];
+      const studentFilter = studentId ? ` AND student_id = $3` : "";
+      if (studentId) values.push(studentId);
+      const scheduledResult = await pool.query(
+        `SELECT ${SCHEDULED_SESSION_SELECT}
+           FROM public.scheduled_sessions
+          WHERE tutor_id = $1
+            AND status = ANY($2::text[])${studentFilter}
+          ORDER BY scheduled_time DESC`,
+        values,
+      );
+      const scheduledRows = scheduledResult.rows;
+      const scheduledIds = scheduledRows.map((row: any) => row.id).filter(Boolean);
+      const trainingResult = await pool.query(
+        `SELECT id, scheduled_session_id, topic_count, submitted_at, status
+           FROM public.training_session_runs
+          WHERE tutor_id = $1${studentId ? " AND student_id = $2" : ""}`,
+        studentId ? [tutorId, studentId] : [tutorId],
+      );
+      const drillsResult = await pool.query(
+        `SELECT id, student_id, scheduled_session_id, training_session_run_id, submitted_at, drill
+           FROM public.intro_session_drills
+          WHERE tutor_id = $1${studentId ? " AND student_id = $2" : ""}`,
+        studentId ? [tutorId, studentId] : [tutorId],
+      );
+      const runsByScheduledId = new Map<string, any>();
+      trainingResult.rows.forEach((row: any) => {
+        if (row.scheduled_session_id) runsByScheduledId.set(String(row.scheduled_session_id), row);
+      });
+      const drillsByScheduledId = new Map<string, any[]>();
+      drillsResult.rows.forEach((row: any) => {
+        if (!row.scheduled_session_id) return;
+        const bucket = drillsByScheduledId.get(String(row.scheduled_session_id)) || [];
+        let parsed = null;
+        if (typeof row.drill === "string") {
+          try { parsed = JSON.parse(row.drill); } catch { parsed = null; }
+        }
+        bucket.push({ ...row, parsed });
+        drillsByScheduledId.set(String(row.scheduled_session_id), bucket);
+      });
+      return scheduledRows.map((session: any) => {
+        const sessionDrills = drillsByScheduledId.get(String(session.id)) || [];
+        const trainingRun = runsByScheduledId.get(String(session.id)) || null;
+        const dateText = String(session.scheduled_time || session.created_at || new Date().toISOString());
+        const startMs = new Date(dateText).getTime();
+        const endMs = new Date(String(session.scheduled_end || "")).getTime();
+        const duration = Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs
+          ? Math.round((endMs - startMs) / 60000)
+          : session.type === "training" ? TRAINING_SESSION_DURATION_MINUTES : INTRO_SESSION_DURATION_MINUTES;
+        const primaryDrill = sessionDrills[sessionDrills.length - 1]?.parsed || null;
+        const topicCount = session.type === "training"
+          ? Number(trainingRun?.topic_count || sessionDrills.length || 0)
+          : sessionDrills.length > 0 ? 1 : 0;
+        const activeTopic = primaryDrill?.trainingTopic || primaryDrill?.introTopic || primaryDrill?.summary?.topic || null;
+        return {
+          id: String(session.id),
+          tutorId: String(session.tutor_id || tutorId),
+          studentId: String(session.student_id || studentId || ""),
+          date: dateText,
+          duration,
+          notes: `${session.type === "training" ? "Response Integrity Training Session" : "Response Integrity Intro Session"}${activeTopic ? ` | Active Topic: ${activeTopic}` : ""} | Status: ${session.status || "completed"}`,
+          vocabularyNotes: session.type === "training" ? "Response Integrity training execution recorded." : "Response Integrity intro diagnosis recorded.",
+          methodNotes: activeTopic ? `Active Topic: ${activeTopic}` : null,
+          reasonNotes: primaryDrill?.summary?.nextAction || null,
+          studentResponse: primaryDrill?.summary?.phase && primaryDrill?.summary?.stability
+            ? `Phase: ${primaryDrill.summary.phase} | Stability: ${primaryDrill.summary.stability}` : null,
+          tutorGrowthReflection: null,
+          bossBattlesDone: topicCount > 0 ? String(topicCount) : null,
+          practiceProblems: null,
+          createdAt: String(session.created_at || dateText),
+        };
+      }).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
+    let scheduledQuery = supabase
+      .from("scheduled_sessions")
+      .select(SCHEDULED_SESSION_SELECT)
+      .eq("tutor_id", tutorId)
+      .in("status", ["completed", "ready", "live", "confirmed"])
+      .order("scheduled_time", { ascending: false });
+
+    if (studentId) {
+      scheduledQuery = scheduledQuery.eq("student_id", studentId);
+    }
+
+    const { data: scheduledSessions } = await scheduledQuery;
+    const scheduledRows = scheduledSessions || [];
+    const scheduledIds = scheduledRows.map((row: any) => String(row.id || "")).filter(Boolean);
+
+    let trainingRunsQuery = supabase
+      .from("training_session_runs")
+      .select("id, scheduled_session_id, topic_count, submitted_at, status")
+      .eq("tutor_id", tutorId);
+    if (studentId) {
+      trainingRunsQuery = trainingRunsQuery.eq("student_id", studentId);
+    }
+    const { data: trainingRuns } = await trainingRunsQuery;
+
+    let drillRowsQuery = supabase
+      .from("intro_session_drills")
+      .select("id, student_id, scheduled_session_id, training_session_run_id, submitted_at, drill")
+      .eq("tutor_id", tutorId);
+    if (studentId) {
+      drillRowsQuery = drillRowsQuery.eq("student_id", studentId);
+    }
+    const { data: drillRows } = await drillRowsQuery;
+
+    const parseDrillPayload = (value: unknown) => {
+      if (typeof value !== "string") return null;
+      try {
+        return JSON.parse(value);
+      } catch {
+        return null;
+      }
+    };
+
+    const runsByScheduledId = new Map<string, any>();
+    (trainingRuns || []).forEach((row: any) => {
+      const key = String(row?.scheduled_session_id || "").trim();
+      if (key) runsByScheduledId.set(key, row);
+    });
+
+    const drillsByScheduledId = new Map<string, any[]>();
+    (drillRows || []).forEach((row: any) => {
+      const key = String(row?.scheduled_session_id || "").trim();
+      if (!key) return;
+      const bucket = drillsByScheduledId.get(key) || [];
+      bucket.push({
+        ...row,
+        parsed: parseDrillPayload(row?.drill),
+      });
+      drillsByScheduledId.set(key, bucket);
+    });
+
+    const normalized = scheduledRows.map((session: any) => {
+      const scheduledId = String(session?.id || "");
+      const sessionDrills = drillsByScheduledId.get(scheduledId) || [];
+      const trainingRun = runsByScheduledId.get(scheduledId) || null;
+      const dateText = String(session?.scheduled_time || session?.created_at || new Date().toISOString());
+      const startMs = new Date(dateText).getTime();
+      const endMs = new Date(String(session?.scheduled_end || "")).getTime();
+      const duration =
+        Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs
+          ? Math.round((endMs - startMs) / 60000)
+          : session?.type === "training"
+          ? TRAINING_SESSION_DURATION_MINUTES
+          : INTRO_SESSION_DURATION_MINUTES;
+
+      const drillType = session?.type === "training" ? "training" : "diagnosis";
+      const topicCount =
+        session?.type === "training"
+          ? Number(trainingRun?.topic_count || sessionDrills.length || 0)
+          : sessionDrills.length > 0
+          ? 1
+          : 0;
+
+      const primaryDrill = sessionDrills[sessionDrills.length - 1]?.parsed || null;
+      const activeTopic =
+        primaryDrill?.trainingTopic ||
+        primaryDrill?.introTopic ||
+        primaryDrill?.summary?.topic ||
+        null;
+
+      const sessionLabel = session?.type === "training" ? "Response Integrity Training Session" : "Response Integrity Intro Session";
+      const status = String(session?.status || "").trim() || "completed";
+
+      return {
+        id: scheduledId,
+        tutorId: String(session?.tutor_id || tutorId),
+        studentId: String(session?.student_id || studentId || ""),
+        date: dateText,
+        duration,
+        notes: `${sessionLabel}${activeTopic ? ` | Active Topic: ${activeTopic}` : ""} | Status: ${status}`,
+        vocabularyNotes: session?.type === "training" ? "Response Integrity training execution recorded." : "Response Integrity intro diagnosis recorded.",
+        methodNotes: activeTopic ? `Active Topic: ${activeTopic}` : null,
+        reasonNotes: primaryDrill?.summary?.nextAction || null,
+        studentResponse:
+          primaryDrill?.summary?.phase && primaryDrill?.summary?.stability
+            ? `Phase: ${primaryDrill.summary.phase} | Stability: ${primaryDrill.summary.stability}`
+            : null,
+        tutorGrowthReflection: null,
+        bossBattlesDone: topicCount > 0 ? String(topicCount) : null,
+        practiceProblems: null,
+        createdAt: String(session?.created_at || dateText),
+      };
+    });
+
+    return normalized.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  };
+
+  const hydrateStudentsWithSessionProgress = async (tutorId: string, students: any[]) => {
+    const studentIds = students.map((student) => student.id).filter(Boolean);
+    const drillCounts: Record<string, number> = {};
+    const countedSessionKeys = new Set<string>();
+
+    if (studentIds.length > 0) {
+      const { data: trainingRuns } = await supabase
+        .from("training_session_runs")
+        .select("id, student_id, scheduled_session_id, status")
+        .eq("tutor_id", tutorId)
+        .in("student_id", studentIds);
+
+      const hasTrainingRunsByStudent = new Set<string>();
+      (trainingRuns || []).forEach((row: any) => {
+        const studentId = String(row?.student_id || "");
+        if (!studentId) return;
+
+        const normalizedStatus = String(row?.status || "").trim().toLowerCase();
+        if (!["submitted", "completed"].includes(normalizedStatus)) return;
+
+        const scheduledId = String(row?.scheduled_session_id || "").trim();
+        const runId = String(row?.id || "").trim();
+        if (!scheduledId && !runId) return;
+
+        if (!drillCounts[studentId]) {
+          drillCounts[studentId] = 0;
+        }
+        hasTrainingRunsByStudent.add(studentId);
+
+        const key = scheduledId || runId;
+        const seenKey = `${studentId}:${key}`;
+        if (countedSessionKeys.has(seenKey)) return;
+        countedSessionKeys.add(seenKey);
+        drillCounts[studentId] += 1;
+      });
+
+      const { data: drills } = await supabase
+        .from("intro_session_drills")
+        .select("id, student_id, scheduled_session_id, training_session_run_id, drill")
+        .eq("tutor_id", tutorId)
+        .in("student_id", studentIds);
+
+      (drills || []).forEach((row: any) => {
+        const id = String(row.student_id || "");
+        if (!id) return;
+        if (hasTrainingRunsByStudent.has(id)) return;
+        if (!isTrainingDrillRecord(row)) return;
+
+        const scheduledId = String(row?.scheduled_session_id || "").trim();
+        const runId = String(row?.training_session_run_id || "").trim();
+        const drillId = String(row?.id || "").trim();
+        const key = scheduledId || runId || drillId;
+        if (!key) return;
+
+        if (!drillCounts[id]) {
+          drillCounts[id] = 0;
+        }
+        const seenKey = `${id}:${key}`;
+        if (countedSessionKeys.has(seenKey)) return;
+        countedSessionKeys.add(seenKey);
+        drillCounts[id] += 1;
+      });
+    }
+
+    return students.map((student) => ({
+      ...student,
+      sessionProgress: drillCounts[String(student.id)] || 0,
+    }));
+  };
+
+  const mapParentFacingReport = (report: any, tutorName?: string | null) => {
+    const structured = parseStructuredReportSummary(report.summary) || {};
+    const parentList = (value: unknown): string[] => {
+      if (Array.isArray(value)) {
+        return value
+          .map((item) => String(item || "").trim())
+          .filter(Boolean);
+      }
+
+      const text = String(value || "").trim();
+      if (!text) return [];
+
+      return text
+        .split(/\s*\|\s*|;\s+|\n+/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    };
+    const normalizeCurrentPosition = (value: unknown) => {
+      if (!Array.isArray(value)) return [];
+
+      return value
+        .map((row: any) => ({
+          topic: String(row?.topic || "").trim(),
+          state: String(row?.state || "").trim(),
+          position: String(row?.position || "").trim(),
+        }))
+        .filter((row: any) => row.topic.length > 0);
+    };
+
+    const base = {
+      id: report.id,
+      reportType: report.report_type,
+      sentAt: report.sent_at,
+      tutor: {
+        name: tutorName || "Tutor",
+      },
+      parentFeedback: report.parent_feedback || null,
+      parentFeedbackAt: report.parent_feedback_at || null,
+    };
+
+    if (report.report_type === "weekly") {
+      return {
+        ...base,
+        weekRange:
+          structured.weekStartDate && structured.weekEndDate
+            ? {
+                start: structured.weekStartDate,
+                end: structured.weekEndDate,
+              }
+            : null,
+        sessionsCompleted: Number(structured.sessionsCompletedThisWeek || report.solutions_unlocked || 0),
+        topicsWorkedOn: parentList(structured.topicsWorkedOn || report.topics_learned),
+        whatChanged: parentList(structured.whatChanged || report.strengths),
+        breakdownPattern: parentList(structured.breakdownPattern || report.areas_for_growth),
+        whatThisMeans: parentList(structured.whatThisMeans || structured.interpretationThisWeek),
+        nextMove: parentList(structured.nextMove || report.next_steps),
+      };
+    }
+
+    return {
+      ...base,
+      monthRange:
+        structured.monthStartDate && structured.monthEndDate
+            ? {
+                start: structured.monthStartDate,
+                end: structured.monthEndDate,
+              }
+            : null,
+      monthName: report.month_name || null,
+      totalSessionsCompleted: Number(structured.totalSessionsCompletedThisMonth || report.solutions_unlocked || 0),
+      topicsConditioned: parentList(structured.topicsConditioned || report.topics_learned),
+      systemMovement: parentList(structured.systemMovement || report.strengths),
+      whatBecameStronger: parentList(structured.whatBecameStronger || report.strengths),
+      breakdownPattern: parentList(structured.breakdownPattern || report.areas_for_growth),
+      currentPosition: normalizeCurrentPosition(structured.currentPosition),
+      whatThisMeans: parentList(structured.whatThisMeans || structured.interpretationThisMonth),
+      nextMonthMove: parentList(structured.nextMonthMove || report.next_steps),
+    };
+  };
+
+  // Get all reports created by tutor (optional student filter)
+  app.get(
+    "/api/tutor/reports",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = (req as any).dbUser.id;
+        const studentId = typeof req.query.studentId === "string" ? req.query.studentId : null;
+
+        let query = supabase
+          .from("parent_reports")
+          .select("*")
+          .eq("tutor_id", tutorId)
+          .order("sent_at", { ascending: false });
+
+        if (studentId) {
+          query = query.eq("student_id", studentId);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+          throw error;
+        }
+
+        const reports = (data || []).map((report: any) => ({
+          id: report.id,
+          tutorId: report.tutor_id,
+          studentId: report.student_id,
+          parentId: report.parent_id,
+          reportType: report.report_type,
+          weekNumber: report.week_number,
+          monthName: report.month_name,
+          summary: report.summary,
+          topicsLearned: report.topics_learned,
+          strengths: report.strengths,
+          areasForGrowth: report.areas_for_growth,
+          bossBattlesCompleted: report.boss_battles_completed,
+          solutionsUnlocked: report.solutions_unlocked,
+          confidenceGrowth: report.confidence_growth,
+          nextSteps: report.next_steps,
+          parentFeedback: report.parent_feedback,
+          parentFeedbackAt: report.parent_feedback_at,
+          sentAt: report.sent_at,
+          createdAt: report.created_at,
+          structuredData: parseStructuredReportSummary(report.summary),
+        }));
+
+        res.json(reports);
+      } catch (error) {
+        console.error("Error fetching tutor reports:", error);
+        res.status(500).json({ message: "Failed to fetch tutor reports" });
+      }
+    }
+  );
+
+  // Reports center data per student (sessions + weekly/monthly reports)
+  app.get(
+    "/api/tutor/students/:studentId/reports-center",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = (req as any).dbUser.id;
+        const { studentId } = req.params;
+
+        const student = await storage.getStudent(studentId);
+        if (!student || student.tutorId !== tutorId) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+
+        if (isEmergencyDbMode()) {
+          const drillResult = await pool.query(
+            `SELECT id, student_id, tutor_id, drill, submitted_at
+               FROM public.intro_session_drills
+              WHERE student_id = $1 AND tutor_id = $2
+              ORDER BY submitted_at DESC`,
+            [studentId, tutorId],
+          );
+          const reportResult = await pool.query(
+            `SELECT *
+               FROM public.parent_reports
+              WHERE student_id = $1 AND tutor_id = $2
+              ORDER BY sent_at DESC`,
+            [studentId, tutorId],
+          );
+          const enrichedReports = reportResult.rows.map((report: any) =>
+            mapEmergencyTutorParentReport(report, parseStructuredReportSummary(report.summary))
+          );
+          return res.json({
+            sessions: aggregateDeterministicSessions(drillResult.rows),
+            reports: enrichedReports,
+          });
+        }
+
+        const { data: drillRows, error: drillRowsError } = await supabase
+          .from("intro_session_drills")
+          .select("id, student_id, tutor_id, drill, submitted_at")
+          .eq("student_id", studentId)
+          .eq("tutor_id", tutorId)
+          .order("submitted_at", { ascending: false });
+
+        if (drillRowsError) {
+          throw drillRowsError;
+        }
+
+        const sessions = aggregateDeterministicSessions(drillRows || []);
+
+        const { data: reports, error: reportsError } = await supabase
+          .from("parent_reports")
+          .select("*")
+          .eq("student_id", studentId)
+          .eq("tutor_id", tutorId)
+          .order("sent_at", { ascending: false });
+
+        if (reportsError) {
+          throw reportsError;
+        }
+
+        const enrichedReports = (reports || []).map((report: any) => ({
+          id: report.id,
+          tutorId: report.tutor_id,
+          studentId: report.student_id,
+          parentId: report.parent_id,
+          reportType: report.report_type,
+          weekNumber: report.week_number,
+          monthName: report.month_name,
+          summary: report.summary,
+          topicsLearned: report.topics_learned,
+          strengths: report.strengths,
+          areasForGrowth: report.areas_for_growth,
+          bossBattlesCompleted: report.boss_battles_completed,
+          solutionsUnlocked: report.solutions_unlocked,
+          confidenceGrowth: report.confidence_growth,
+          nextSteps: report.next_steps,
+          parentFeedback: report.parent_feedback,
+          parentFeedbackAt: report.parent_feedback_at,
+          sentAt: report.sent_at,
+          createdAt: report.created_at,
+          structuredData: parseStructuredReportSummary(report.summary),
+        }));
+
+        res.json({
+          sessions,
+          reports: enrichedReports,
+        });
+      } catch (error) {
+        console.error("Error fetching reports center data:", error);
+        res.status(500).json({ message: "Failed to fetch reports center data" });
+      }
+    }
+  );
+
+  // Create weekly parent report
+  app.post(
+    "/api/tutor/reports/weekly",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = (req as any).dbUser.id;
+        const { studentId, weekStartDate, weekEndDate, internalWeeklyTutorNote } = req.body || {};
+
+        if (!studentId) {
+          return res.status(400).json({ message: "Missing required studentId" });
+        }
+
+        const student = await storage.getStudent(studentId);
+        if (!student || student.tutorId !== tutorId) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+
+        const parentId = await resolveParentIdForStudent(student, tutorId);
+
+        if (!parentId) {
+          return res.status(400).json({ message: "Unable to resolve parent for this student" });
+        }
+
+        let drillQuery = supabase
+          .from("intro_session_drills")
+          .select("id, drill, submitted_at")
+          .eq("student_id", studentId)
+          .eq("tutor_id", tutorId)
+          .order("submitted_at", { ascending: true });
+
+        if (weekStartDate) {
+          drillQuery = drillQuery.gte("submitted_at", `${weekStartDate}T00:00:00.000Z`);
+        }
+        if (weekEndDate) {
+          drillQuery = drillQuery.lte("submitted_at", `${weekEndDate}T23:59:59.999Z`);
+        }
+
+        const { data: drillRows, error: drillRowsError } = await drillQuery;
+        if (drillRowsError) throw drillRowsError;
+
+        if (!drillRows || drillRows.length === 0) {
+          return res.status(400).json({ message: "No drill sessions found for the selected week range" });
+        }
+
+        const structuredData = createWeeklyStructuredDataFromDrills(drillRows);
+        if (!structuredData) {
+          return res.status(400).json({ message: "Unable to generate weekly report from drill data" });
+        }
+        structuredData.internalWeeklyTutorNote = String(internalWeeklyTutorNote || "");
+
+        const inserted = await insertWeeklyReport({
+          tutorId,
+          studentId,
+          parentId,
+          structuredData,
+        });
+
+        res.json({
+          ...inserted,
+          structuredData,
+        });
+      } catch (error) {
+        console.error("Error creating weekly report:", error);
+        res.status(500).json({ message: "Failed to create weekly report" });
+      }
+    }
+  );
+
+  // Create monthly parent report
+  app.post(
+    "/api/tutor/reports/monthly",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = (req as any).dbUser.id;
+        const { studentId, monthStartDate, monthEndDate, internalMonthlyTutorNote } = req.body || {};
+
+        if (!studentId) {
+          return res.status(400).json({ message: "Missing required studentId" });
+        }
+
+        const student = await storage.getStudent(studentId);
+        if (!student || student.tutorId !== tutorId) {
+          return res.status(403).json({ message: "Unauthorized" });
+        }
+
+        const parentId = await resolveParentIdForStudent(student, tutorId);
+
+        if (!parentId) {
+          return res.status(400).json({ message: "Unable to resolve parent for this student" });
+        }
+
+        let drillQuery = supabase
+          .from("intro_session_drills")
+          .select("id, drill, submitted_at")
+          .eq("student_id", studentId)
+          .eq("tutor_id", tutorId)
+          .order("submitted_at", { ascending: true });
+
+        if (monthStartDate) {
+          drillQuery = drillQuery.gte("submitted_at", `${monthStartDate}T00:00:00.000Z`);
+        }
+        if (monthEndDate) {
+          drillQuery = drillQuery.lte("submitted_at", `${monthEndDate}T23:59:59.999Z`);
+        }
+
+        const { data: drillRows, error: drillRowsError } = await drillQuery;
+        if (drillRowsError) throw drillRowsError;
+
+        if (!drillRows || drillRows.length === 0) {
+          return res.status(400).json({ message: "No drill sessions found for the selected month range" });
+        }
+
+        const structuredData = createMonthlyStructuredDataFromDrills(drillRows);
+        if (!structuredData) {
+          return res.status(400).json({ message: "Unable to generate monthly report from drill data" });
+        }
+        (structuredData as any).internalMonthlyTutorNote = String(internalMonthlyTutorNote || "");
+
+        const inserted = await insertMonthlyReport({
+          tutorId,
+          studentId,
+          parentId,
+          structuredData,
+        });
+
+        res.json({
+          ...inserted,
+          structuredData,
+        });
+      } catch (error) {
+        console.error("Error creating monthly report:", error);
+        res.status(500).json({ message: "Failed to create monthly report" });
+      }
+    }
+  );
+
+  // Get tutor's reflections
+  app.get(
+    "/api/tutor/reflections",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = (req as any).dbUser.id;
+        const reflections = await storage.getReflectionsByTutor(tutorId);
+        res.json(reflections);
+      } catch (error) {
+        console.error("Error fetching reflections:", error);
+        res.status(500).json({ message: "Failed to fetch reflections" });
+      }
+    }
+  );
+
+  // Create reflection
+  app.post(
+    "/api/tutor/reflections",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const tutorId = (req as any).dbUser.id;
+        const reflection = await storage.createReflection({
+          tutorId,
+          date: new Date(),
+          reflectionText: req.body.reflectionText,
+        });
+        res.json(reflection);
+      } catch (error) {
+        console.error("Error creating reflection:", error);
+        res.status(400).json({ message: "Failed to create reflection" });
+      }
+    }
+  );
+
+  // ========================================
+  // SCHOOL TRACKER ROUTES (Academic Profiles & Struggle Targets)
+  // ========================================
+
+  // Get tutor's own academic profile
+  app.get(
+    "/api/tutor/profile",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const dbUser = (req as any).dbUser;
+        const profile = await storage.getAcademicProfile(dbUser.id);
+        res.json(profile);
+      } catch (error) {
+        console.error("Error fetching tutor's academic profile:", error);
+        res.status(500).json({ message: "Failed to fetch academic profile" });
+      }
+    }
+  );
+
+  // Create or update tutor's own academic profile
+  app.post(
+    "/api/tutor/profile",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const dbUser = (req as any).dbUser;
+        console.log("Saving profile for user:", dbUser.id);
+        console.log("Request body:", req.body);
+        const data = insertAcademicProfileSchema.parse({
+          ...req.body,
+          studentId: dbUser.id,
+        });
+        console.log("Parsed data:", data);
+        const profile = await storage.upsertAcademicProfile(data);
+        console.log("Saved profile:", profile);
+        res.json(profile);
+      } catch (error) {
+        console.error("Error saving tutor's academic profile:", error);
+        res.status(400).json({ message: `Failed to save academic profile: ${error instanceof Error ? error.message : String(error)}` });
+      }
+    }
+  );
+
+  // Get tutor's user profile (phone, bio, profile picture)
+  app.get(
+    "/api/tutor/user-profile",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const dbUser = (req as any).dbUser;
+        const user = await storage.getUser(dbUser.id);
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        res.json(user);
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+        res.status(500).json({ message: "Failed to fetch user profile" });
+      }
+    }
+  );
+
+  // Update tutor's user profile (phone, bio)
+  app.put(
+    "/api/tutor/profile",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const dbUser = (req as any).dbUser;
+        const { phone, bio } = req.body;
+        
+        const updated = await storage.updateUserProfile(dbUser.id, {
+          phone: phone || null,
+          bio: bio || null,
+        });
+        
+        if (!updated) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        res.json(updated);
+      } catch (error) {
+        console.error("Error updating user profile:", error);
+        res.status(400).json({ message: "Failed to update user profile" });
+      }
+    }
+  );
+
+  // Upload profile image
+  app.post(
+    "/api/tutor/profile/upload-image",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const dbUser = (req as any).dbUser;
+        const { imageBase64, imageMime } = req.body;
+
+        if (!imageBase64) {
+          return res.status(400).json({ message: "No image data provided" });
+        }
+
+        console.log(`Received profile image for tutor ${dbUser.id} - size: ${imageBase64.length} chars, mime: ${imageMime}`);
+
+        // Store as data URL directly in database
+        const dataUrl = `data:${imageMime || 'image/jpeg'};base64,${imageBase64}`;
+        console.log(`Data URL length: ${dataUrl.length} chars`);
+
+        // Update user profile with data URL
+        console.log("Updating user profile with image...");
+        const updated = await storage.updateUserProfile(dbUser.id, {
+          profileImageUrl: dataUrl,
+        });
+
+        console.log("Update result:", updated ? "success" : "no result");
+
+        if (!updated) {
+          console.error("updateUserProfile returned undefined");
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        console.log(`Profile picture stored for user ${dbUser.id}`);
+        res.json(updated);
+      } catch (error) {
+        console.error("Error uploading profile image:", error);
+        res.status(500).json({ 
+          message: "Failed to upload profile image",
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+  );
+
+  // Delete profile image
+  app.delete(
+    "/api/tutor/profile/image",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const dbUser = (req as any).dbUser;
+        
+        const updated = await storage.updateUserProfile(dbUser.id, {
+          profileImageUrl: null,
+        });
+
+        if (!updated) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json(updated);
+      } catch (error) {
+        console.error("Error removing profile image:", error);
+        res.status(500).json({ message: "Failed to remove profile image" });
+      }
+    }
+  );
+
+  // Get student's academic profile
+  app.get(
+    "/api/tutor/students/:studentId/profile",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const { studentId } = req.params;
+        const profile = await storage.getAcademicProfile(studentId);
+        res.json(profile);
+      } catch (error) {
+        console.error("Error fetching academic profile:", error);
+        res.status(500).json({ message: "Failed to fetch academic profile" });
+      }
+    }
+  );
+
+  // Create or update student's academic profile
+  app.post(
+    "/api/tutor/students/:studentId/profile",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const { studentId } = req.params;
+        const data = insertAcademicProfileSchema.parse({
+          ...req.body,
+          studentId,
+        });
+        const profile = await storage.upsertAcademicProfile(data);
+        res.json(profile);
+      } catch (error) {
+        console.error("Error saving academic profile:", error);
+        res.status(400).json({ message: "Failed to save academic profile" });
+      }
+    }
+  );
+
+  // Get tutor's own struggle targets
+  app.get(
+    "/api/tutor/targets",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const dbUser = (req as any).dbUser;
+        const targets = await storage.getStruggleTargets(dbUser.id);
+        res.json(targets);
+      } catch (error) {
+        console.error("Error fetching tutor's struggle targets:", error);
+        res.status(500).json({ message: "Failed to fetch struggle targets" });
+      }
+    }
+  );
+
+  // Get student's struggle targets
+  app.get(
+    "/api/tutor/students/:studentId/targets",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const { studentId } = req.params;
+        const targets = await storage.getStruggleTargets(studentId);
+        res.json(targets);
+      } catch (error) {
+        console.error("Error fetching struggle targets:", error);
+        res.status(500).json({ message: "Failed to fetch struggle targets" });
+      }
+    }
+  );
+
+  // Save student identity sheet
+  app.post(
+    "/api/tutor/students/:studentId/identity-sheet",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const { studentId } = req.params;
+        const dbUser = (req as any).dbUser;
+        const formData = req.body;
+
+        console.log("📥 Received formData.confidenceTriggers:", formData.confidenceTriggers);
+        console.log("Type:", typeof formData.confidenceTriggers, "IsArray:", Array.isArray(formData.confidenceTriggers));
+        console.log("📥 Received formData.confidenceKillers:", formData.confidenceKillers);
+        console.log("Type:", typeof formData.confidenceKillers, "IsArray:", Array.isArray(formData.confidenceKillers));
+
+        // Verify student exists and belongs to this tutor
+        const student = await storage.getStudent(studentId);
+        if (!student) {
+          return res.status(404).json({ message: "Student not found" });
+        }
+
+        if (student.tutorId !== dbUser.id) {
+          return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+        }
+
+        // Update student with identity sheet data
+        console.log("Saving confidenceTriggers:", formData.confidenceTriggers, "Type:", typeof formData.confidenceTriggers, "IsArray:", Array.isArray(formData.confidenceTriggers));
+        console.log("Saving confidenceKillers:", formData.confidenceKillers, "Type:", typeof formData.confidenceKillers, "IsArray:", Array.isArray(formData.confidenceKillers));
+        
+        const updatedStudent = await storage.updateStudent(studentId, {
+          personalProfile: {
+            name: formData.name,
+            grade: formData.grade,
+            school: formData.school,
+            learningId: formData.learningId,
+            personalityType: formData.personalityType,
+            longTermGoals: formData.longTermGoals,
+          },
+          emotionalInsights: {
+            relationshipWithMath: formData.relationshipWithMath,
+            confidenceTriggers: formData.confidenceTriggers,
+            confidenceKillers: formData.confidenceKillers,
+            pressureResponse: formData.pressureResponse,
+            growthDrivers: formData.growthDrivers,
+          },
+          academicDiagnosis: {
+            currentClassTopics: formData.currentClassTopics,
+            strugglesWith: formData.strugglesWith,
+            gapsIdentified: formData.gapsIdentified,
+            bossBattlesCompleted: formData.bossBattlesCompleted,
+            lastBossBattleResult: formData.lastBossBattleResult,
+            tutorNotes: formData.tutorNotes,
+          },
+          identitySheet: formData.identitySheetResponses,
+          identitySheetCompletedAt: new Date(),
+        } as any);
+
+        res.json({
+          success: true,
+          message: "Identity sheet saved successfully",
+          student: updatedStudent,
+        });
+      } catch (error) {
+        console.error("Error saving identity sheet:", error);
+        res.status(500).json({
+          message: "Failed to save identity sheet",
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  );
+
+  // Get student identity sheet
+  app.get(
+    "/api/tutor/students/:studentId/identity-sheet",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const { studentId } = req.params;
+        const dbUser = (req as any).dbUser;
+        console.log("📋 Identity sheet request:", {
+          studentId,
+          tutorId: dbUser?.id,
+          origin: req.headers.origin,
+          authHeader: req.headers.authorization ? 'present' : 'missing',
+        });
+        
+        console.log("📋 Identity sheet request - studentId:", studentId, "tutorId:", dbUser?.id);
+
+        // Verify student exists and belongs to this tutor
+        const student = await storage.getStudent(studentId);
+        if (!student) {
+          console.log("❌ Student not found:", studentId);
+          return res.status(404).json({ message: "Student not found" });
+        }
+
+        console.log("✅ Student found:", student.id, "student.tutorId:", student.tutorId);
+
+        if (student.tutorId !== dbUser.id) {
+          console.log("❌ Tutor mismatch - student.tutorId:", student.tutorId, "dbUser.id:", dbUser.id);
+          return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+        }
+
+        // Return identity sheet data if it exists
+        const identitySheetData = {
+          personalProfile: student.personalProfile || null,
+          emotionalInsights: student.emotionalInsights || null,
+          academicDiagnosis: student.academicDiagnosis || null,
+          identitySheet: student.identitySheet || null,
+          completedAt: student.identitySheetCompletedAt || null,
+        };
+
+        console.log("✅ Returning identity sheet data for student:", studentId);
+        res.json(identitySheetData);
+      } catch (error) {
+        console.error("Error fetching identity sheet:", error);
+        res.status(500).json({ message: "Failed to fetch identity sheet" });
+      }
+    }
+  );
+
+  // Get student assignments (form submissions)
+  app.get(
+    "/api/tutor/students/:studentId/assignments",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const { studentId } = req.params;
+        const dbUser = (req as any).dbUser;
+
+        // Verify student exists and belongs to this tutor
+        const student = await storage.getStudent(studentId);
+        if (!student) {
+          return res.status(404).json({ message: "Student not found" });
+        }
+
+        if (student.tutorId !== dbUser.id) {
+          return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+        }
+
+        if (isEmergencyDbMode()) {
+          const result = await pool.query(
+            `SELECT id, tutor_id, student_id, title, description, problems_assigned, due_date,
+                    is_completed, completed_at, student_result, student_work, created_at
+               FROM public.assignments
+              WHERE student_id = $1 AND tutor_id = $2
+              ORDER BY created_at DESC`,
+            [studentId, dbUser.id],
+          );
+          return res.json(result.rows);
+        }
+
+        // Get all assignments for this student
+        const { data: assignments, error } = await supabase
+          .from("assignments")
+          .select("*")
+          .eq("student_id", studentId)
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          console.error("Error fetching assignments:", error);
+          return res.status(500).json({ message: "Failed to fetch assignments" });
+        }
+
+        res.json(assignments || []);
+      } catch (error) {
+        console.error("Error fetching student assignments:", error);
+        res.status(500).json({ message: "Failed to fetch assignments" });
+      }
+    }
+  );
+
+  // Get persisted student workflow state for tutor card actions
+  app.get(
+    "/api/tutor/students/:studentId/workflow-state",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const { studentId } = req.params;
+        const dbUser = (req as any).dbUser;
+
+        const student = await storage.getStudent(studentId);
+        if (!student) {
+          return res.status(404).json({ message: "Student not found" });
+        }
+
+        if (student.tutorId !== dbUser.id) {
+          return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+        }
+
+        if (isEmergencyDbMode()) {
+          const personalProfile = (student.personalProfile as any) || {};
+          const workflow = personalProfile.workflow || {};
+          const explicitEnrollmentId = String(
+            (student as any).parentEnrollmentId || (student as any).parent_enrollment_id || ""
+          ).trim();
+          let enrollment: any = null;
+          if (explicitEnrollmentId) {
+            const result = await pool.query(
+              `SELECT id, status, user_id, assigned_tutor_id
+                 FROM public.parent_enrollments
+                WHERE id = $1 AND assigned_tutor_id = $2
+                LIMIT 1`,
+              [explicitEnrollmentId, dbUser.id],
+            );
+            enrollment = result.rows[0] || null;
+          }
+          if (!enrollment && (student as any).parentId) {
+            const result = await pool.query(
+              `SELECT id, status, user_id, assigned_tutor_id
+                 FROM public.parent_enrollments
+                WHERE user_id = $1 AND assigned_tutor_id = $2
+                ORDER BY updated_at DESC
+                LIMIT 1`,
+              [(student as any).parentId, dbUser.id],
+            );
+            enrollment = result.rows[0] || null;
+          }
+
+          const proposalResult = await pool.query(
+            `SELECT sent_at, accepted_at, enrollment_id
+               FROM public.onboarding_proposals
+              WHERE student_id = $1 AND tutor_id = $2
+              ORDER BY created_at DESC
+              LIMIT 1`,
+            [studentId, dbUser.id],
+          );
+          let latestProposal = proposalResult.rows[0] || null;
+          if (!latestProposal && enrollment?.id) {
+            const fallbackProposal = await pool.query(
+              `SELECT sent_at, accepted_at, enrollment_id
+                 FROM public.onboarding_proposals
+                WHERE enrollment_id = $1 AND tutor_id = $2
+                ORDER BY created_at DESC
+                LIMIT 1`,
+              [enrollment.id, dbUser.id],
+            );
+            latestProposal = fallbackProposal.rows[0] || null;
+          }
+
+          const drillResult = await pool.query(
+            `SELECT drill
+               FROM public.intro_session_drills
+              WHERE student_id = $1 AND tutor_id = $2
+              ORDER BY submitted_at DESC
+              LIMIT 8`,
+            [studentId, dbUser.id],
+          );
+          let hasDiagnosisEvidence = false;
+          let hasTrainingEvidence = false;
+          for (const row of drillResult.rows) {
+            try {
+              const parsed = typeof row.drill === "string" ? JSON.parse(row.drill) : row.drill || {};
+              const drillType = String(parsed?.drillType || "").trim().toLowerCase();
+              hasDiagnosisEvidence ||= drillType === "diagnosis";
+              hasTrainingEvidence ||= drillType === "training";
+            } catch {
+              // Ignore malformed historical drill rows, matching normal-mode behavior.
+            }
+          }
+
+          const { session: introSession } = await resolveTutorScheduledSession(dbUser.id, studentId, "intro");
+          const handoverRequired = !!workflow.handoverRequiredAt && !workflow.handoverCompletedAt;
+          const { session: handoverSession } = handoverRequired
+            ? await resolveTutorScheduledSession(dbUser.id, studentId, "handover")
+            : { session: null };
+          const enrollmentStatus = String(enrollment?.status || "").trim().toLowerCase();
+          const assignmentAccepted = enrollmentStatus === "awaiting_tutor_acceptance"
+            ? false
+            : Boolean(
+                workflow.assignmentAcceptedAt ||
+                (enrollment && enrollmentStatus !== "awaiting_tutor_acceptance")
+              );
+          const topicStore = (student.conceptMastery as any)?.topicConditioning || {};
+          const hasTopicEvidence = Object.keys(topicStore.topics || {}).length > 0 ||
+            Boolean(String(topicStore.topic || "").trim()) || Boolean(String(topicStore.entry_phase || "").trim());
+          const inferredIntroCompleted = Boolean(workflow.introCompletedAt) || hasTopicEvidence || hasDiagnosisEvidence || hasTrainingEvidence;
+          const inferredProposalSent = Boolean(latestProposal?.sent_at) ||
+            ["proposal_sent", "session_booked", "report_received", "confirmed"].includes(enrollmentStatus) ||
+            hasTrainingEvidence;
+          const inferredProposalAccepted = Boolean(latestProposal?.accepted_at) ||
+            ["session_booked", "report_received", "confirmed"].includes(enrollmentStatus) ||
+            hasTrainingEvidence;
+
+          return res.json({
+            assignmentAccepted,
+            introConfirmed: ["confirmed", "ready", "live", "completed"].includes(String(getEffectiveScheduledSessionStatus(introSession) || "")),
+            introCompleted: inferredIntroCompleted,
+            handoverVerificationRequired: handoverRequired,
+            handoverSessionConfirmed: ["confirmed", "ready", "live", "completed"].includes(String(getEffectiveScheduledSessionStatus(handoverSession) || "")),
+            handoverCompleted: Boolean(workflow.handoverCompletedAt),
+            identitySaved: Boolean(student.identitySheetCompletedAt),
+            proposalSent: inferredProposalSent,
+            proposalAccepted: inferredProposalAccepted,
+          });
+        }
+
+        const { session: introSession } = await resolveTutorScheduledSession(
+          dbUser.id,
+          studentId,
+          "intro"
+        );
+
+
+        const personalProfile = (student.personalProfile as any) || {};
+        const workflow = personalProfile.workflow || {};
+        await promoteAcceptedEnrollmentIfNeeded(student, dbUser.id);
+
+        let { data: latestProposal } = await supabase
+          .from("onboarding_proposals")
+          .select("sent_at, accepted_at, enrollment_id")
+          .eq("student_id", studentId)
+          .eq("tutor_id", dbUser.id)
+          .order("created_at", { ascending: false })
+          .maybeSingle();
+
+        let enrollmentForStudent: { status: string } | null = null;
+        const explicitEnrollmentId = String(
+          (student as any).parentEnrollmentId || (student as any).parent_enrollment_id || ""
+        ).trim();
+        if (explicitEnrollmentId) {
+          const { data: enrollmentById } = await supabase
+            .from("parent_enrollments")
+            .select("status")
+            .eq("assigned_tutor_id", dbUser.id)
+            .eq("id", explicitEnrollmentId)
+            .maybeSingle();
+          enrollmentForStudent = enrollmentById;
+        }
+
+        if (!enrollmentForStudent) {
+          const parentId = (student as any).parentId || null;
+          if (parentId) {
+            const { data: enrollmentByParent } = await supabase
+              .from("parent_enrollments")
+              .select("status")
+              .eq("assigned_tutor_id", dbUser.id)
+              .eq("user_id", parentId)
+              .eq("status", "awaiting_tutor_acceptance")
+              .maybeSingle();
+            enrollmentForStudent = enrollmentByParent;
+          }
+        }
+
+        const isPendingTutorAcceptance = enrollmentForStudent?.status === "awaiting_tutor_acceptance";
+
+        // Fallback: if not found, try by tutor_id + enrollment_id (pre-acceptance)
+        if (!latestProposal) {
+          // Find enrollment for this student
+          let enrollmentId = null;
+          // Prefer parent_enrollment_id if present (new field)
+          if ((student as any).parentEnrollmentId || (student as any).parent_enrollment_id) {
+            enrollmentId = (student as any).parentEnrollmentId || (student as any).parent_enrollment_id;
+          } else if ((student as any).parentId) {
+            // Try to find enrollment by parentId and tutorId
+            const { data: enroll } = await supabase
+              .from("parent_enrollments")
+              .select("id")
+              .eq("user_id", (student as any).parentId)
+              .eq("assigned_tutor_id", dbUser.id)
+              .maybeSingle();
+            enrollmentId = enroll?.id || null;
+          }
+          if (enrollmentId) {
+            const { data: fallbackProposal } = await supabase
+              .from("onboarding_proposals")
+              .select("sent_at, accepted_at, enrollment_id")
+              .eq("enrollment_id", enrollmentId)
+              .eq("tutor_id", dbUser.id)
+              .order("created_at", { ascending: false })
+              .maybeSingle();
+            if (fallbackProposal) latestProposal = fallbackProposal;
+          } else if (student.parentContact) {
+            // As a last resort, try to find a proposal by parent email + tutor id
+            const { data: enroll } = await supabase
+              .from("parent_enrollments")
+              .select("id")
+              .eq("parent_email", student.parentContact)
+              .eq("assigned_tutor_id", dbUser.id)
+              .maybeSingle();
+            if (enroll && enroll.id) {
+              const { data: fallbackProposal } = await supabase
+                .from("onboarding_proposals")
+                .select("sent_at, accepted_at, enrollment_id")
+                .eq("enrollment_id", enroll.id)
+                .eq("tutor_id", dbUser.id)
+                .order("created_at", { ascending: false })
+                .maybeSingle();
+              if (fallbackProposal) latestProposal = fallbackProposal;
+            }
+          }
+        }
+
+        console.log("[DEBUG] /api/tutor/students/:studentId/workflow-state", {
+          studentId,
+          tutorId: dbUser.id,
+          latestProposal
+        });
+        const conceptMastery = student.conceptMastery && typeof student.conceptMastery === "object"
+          ? (student.conceptMastery as any)
+          : {};
+        const topicConditioningStore =
+          conceptMastery.topicConditioning && typeof conceptMastery.topicConditioning === "object"
+            ? conceptMastery.topicConditioning
+            : {};
+        const topicConditioningTopics =
+          topicConditioningStore.topics && typeof topicConditioningStore.topics === "object"
+            ? topicConditioningStore.topics
+            : {};
+        const hasTopicConditioningEvidence =
+          Object.keys(topicConditioningTopics).length > 0 ||
+          !!String(topicConditioningStore.topic || "").trim() ||
+          !!String(topicConditioningStore.entry_phase || "").trim();
+        const handoverVerificationRequired = !!workflow.handoverRequiredAt && !workflow.handoverCompletedAt;
+
+        let handoverSession: any = null;
+        if (handoverVerificationRequired) {
+          const { session: resolvedHandoverSession } = await resolveTutorScheduledSession(
+            dbUser.id,
+            studentId,
+            "handover"
+          );
+          handoverSession = resolvedHandoverSession;
+        }
+
+        const { data: recentDrillRows } = await supabase
+          .from("intro_session_drills")
+          .select("id, drill, submitted_at")
+          .eq("student_id", studentId)
+          .eq("tutor_id", dbUser.id)
+          .order("submitted_at", { ascending: false })
+          .limit(8);
+
+        let hasDiagnosisEvidence = false;
+        let hasTrainingEvidence = false;
+        for (const row of recentDrillRows || []) {
+          try {
+            const parsed = row?.drill && typeof row.drill === "object"
+              ? row.drill
+              : JSON.parse(typeof row?.drill === "string" ? row.drill : "{}");
+            const drillType = String(parsed?.drillType || "").trim().toLowerCase();
+            if (drillType === "diagnosis") {
+              hasDiagnosisEvidence = true;
+            }
+            if (drillType === "training") {
+              hasTrainingEvidence = true;
+            }
+            if (hasDiagnosisEvidence && hasTrainingEvidence) {
+              break;
+            }
+          } catch {
+            // Ignore malformed historical drill rows and fall back to other evidence.
+          }
+        }
+
+        const inferredIntroCompleted =
+          !!workflow.introCompletedAt ||
+          hasTopicConditioningEvidence ||
+          hasDiagnosisEvidence ||
+          hasTrainingEvidence;
+
+        const assignmentAccepted = isPendingTutorAcceptance
+          ? false
+          : !!(
+              workflow.assignmentAcceptedAt ||
+              (enrollmentForStudent && enrollmentForStudent.status !== "awaiting_tutor_acceptance")
+            );
+        const enrollmentStatus = String(enrollmentForStudent?.status || "").trim().toLowerCase();
+        const inferredProposalSent =
+          !!latestProposal?.sent_at ||
+          ["proposal_sent", "session_booked", "report_received", "confirmed"].includes(enrollmentStatus) ||
+          hasTrainingEvidence;
+        const inferredProposalAccepted =
+          !!latestProposal?.accepted_at ||
+          ["session_booked", "report_received", "confirmed"].includes(enrollmentStatus) ||
+          hasTrainingEvidence;
+
+        const effectiveIntroStatus = getEffectiveScheduledSessionStatus(introSession);
+        const effectiveHandoverStatus = handoverSession
+          ? getEffectiveScheduledSessionStatus(handoverSession)
+          : "not_scheduled";
+
+        res.json({
+          assignmentAccepted,
+          introConfirmed: ["confirmed", "ready", "live", "completed"].includes(String(effectiveIntroStatus || "")),
+          introCompleted: inferredIntroCompleted,
+          handoverVerificationRequired,
+          handoverSessionConfirmed: ["confirmed", "ready", "live", "completed"].includes(String(effectiveHandoverStatus || "")),
+          handoverCompleted: !!workflow.handoverCompletedAt,
+          identitySaved: !!student.identitySheetCompletedAt,
+          proposalSent: inferredProposalSent,
+          proposalAccepted: inferredProposalAccepted,
+        });
+      } catch (error) {
+        console.error("Error fetching workflow state:", error);
+        res.status(500).json({ message: "Failed to fetch workflow state" });
+      }
+    }
+  );
+
+  // Mark intro session completed (persisted)
+  app.post(
+    "/api/tutor/students/:studentId/workflow/assignment-decision",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      try {
+        const { studentId } = req.params;
+        const { decision, enrollmentId } = req.body as { decision?: "accept" | "decline"; enrollmentId?: string | null };
+        const dbUser = (req as any).dbUser;
+
+        if (decision !== "accept" && decision !== "decline") {
+          return res.status(400).json({ message: "Decision must be 'accept' or 'decline'" });
+        }
+
+        const student = await storage.getStudent(studentId);
+        if (!student) {
+          return res.status(404).json({ message: "Student not found" });
+        }
+
+        if (student.tutorId !== dbUser.id) {
+          return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+        }
+
+        const existingProfile = (student.personalProfile as any) || {};
+        const workflow = existingProfile.workflow || {};
+
+        if (decision === "accept") {
+          // Resolve the exact parent enrollment for this student assignment before accepting.
+          let parentEnrollment: any = null;
+          const requestedEnrollmentId = String(enrollmentId || "").trim();
+          const explicitEnrollmentId = String(
+            (student as any)?.parentEnrollmentId || (student as any)?.parent_enrollment_id || ""
+          ).trim();
+          const normalizedStudentName = String(student?.name || req.body.studentName || "").trim();
+          const normalizedParentId = String((student as any)?.parentId || (student as any)?.parent_id || "").trim();
+          const normalizedParentEmail = String((student as any)?.parentContact || (student as any)?.parent_contact || "").trim().toLowerCase();
+
+          if (requestedEnrollmentId) {
+            const { data } = await supabase
+              .from("parent_enrollments")
+              .select("id, user_id, status, current_step, proposal_id, assigned_tutor_id, parent_email, student_full_name, is_sandbox_account")
+              .eq("id", requestedEnrollmentId)
+              .maybeSingle();
+            const matchesStudentContext =
+              !!data &&
+              (
+                Boolean((data as any).is_sandbox_account) ||
+                String(data.assigned_tutor_id || "").trim() === String(dbUser.id || "").trim() ||
+                String(data.user_id || "").trim() === normalizedParentId ||
+                String(data.parent_email || "").trim().toLowerCase() === normalizedParentEmail ||
+                String(data.student_full_name || "").trim().toLowerCase() === normalizedStudentName.toLowerCase()
+              );
+            parentEnrollment = matchesStudentContext ? data : null;
+          }
+
+          if (!parentEnrollment && explicitEnrollmentId) {
+            const { data } = await supabase
+              .from("parent_enrollments")
+              .select("id, user_id, status, current_step, proposal_id, assigned_tutor_id")
+              .eq("id", explicitEnrollmentId)
+              .maybeSingle();
+            parentEnrollment =
+              data && (
+                String(data.assigned_tutor_id || "").trim() === String(dbUser.id || "").trim() ||
+                !String(data.assigned_tutor_id || "").trim()
+              )
+                ? data
+                : null;
+          }
+
+          if (!parentEnrollment && explicitEnrollmentId) {
+            const { data } = await supabase
+              .from("parent_enrollments")
+              .select("id, user_id, status, current_step, proposal_id, parent_email, student_full_name")
+              .eq("assigned_tutor_id", dbUser.id)
+              .eq("id", explicitEnrollmentId)
+              .maybeSingle();
+            parentEnrollment = data;
+          }
+
+          if (!parentEnrollment) {
+            let compositeLookup = supabase
+              .from("parent_enrollments")
+              .select("id, user_id, status, current_step, proposal_id, parent_email, student_full_name")
+              .eq("assigned_tutor_id", dbUser.id)
+              .order("updated_at", { ascending: false })
+              .limit(10);
+
+            if (normalizedParentId) {
+              compositeLookup = compositeLookup.eq("user_id", normalizedParentId);
+            }
+
+            const { data } = await compositeLookup;
+            const candidateEnrollments = data || [];
+
+            parentEnrollment =
+              candidateEnrollments.find((entry: any) => {
+                const entryStudentName = String(entry?.student_full_name || "").trim().toLowerCase();
+                const entryParentEmail = String(entry?.parent_email || "").trim().toLowerCase();
+                const sameStudent = normalizedStudentName
+                  ? entryStudentName === normalizedStudentName.toLowerCase()
+                  : true;
+                const sameEmail = normalizedParentEmail
+                  ? entryParentEmail === normalizedParentEmail
+                  : true;
+                return sameStudent && sameEmail;
+              }) ||
+              candidateEnrollments.find((entry: any) => {
+                const entryStudentName = String(entry?.student_full_name || "").trim().toLowerCase();
+                return normalizedStudentName
+                  ? entryStudentName === normalizedStudentName.toLowerCase()
+                  : false;
+              }) ||
+              null;
+          }
+
+          if (!parentEnrollment && normalizedParentEmail) {
+            const { data } = await supabase
+                .from("parent_enrollments")
+                .select("id, user_id, status, current_step, proposal_id, parent_email, student_full_name")
+                .eq("assigned_tutor_id", dbUser.id)
+                .eq("parent_email", normalizedParentEmail)
+                .order("updated_at", { ascending: false })
                 .limit(10);
             parentEnrollment =
               (data || []).find((entry: any) => {
