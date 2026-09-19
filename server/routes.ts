@@ -3815,14 +3815,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       AND c.contract_version = 1
                     WHERE c.comparison_id IS NULL
                       AND COALESCE(d.drill->>'drillType', '') = 'training'
-                      AND d.submitted_at >= NOW() - INTERVAL '2 hours'
+                      AND d.submitted_at >= NOW() - INTERVAL '4 hours'
                       AND d.drill #>> '{summary,evidenceShadow,status}' = 'evaluated'
                     ORDER BY d.submitted_at DESC
                     LIMIT 1`,
                 );
                 row = result.rows[0] || null;
               } else {
-                const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+                const cutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
                 const { data: candidates, error: candidateError } = await supabase
                   .from("intro_session_drills")
                   .select(
