@@ -70,3 +70,20 @@ test("Vercel preview sessions stay host-only on the preview hostname", () => {
     /isProduction && !isVercelPreview \? "\.responseintegrity\.co\.za" : undefined/,
   );
 });
+
+
+test("Vercel preview auth health survives session-store failures", () => {
+  const authSource = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
+  const dbSource = readFileSync(resolve(process.cwd(), "server/db.ts"), "utf8");
+
+  const modeRouteIndex = authSource.indexOf('app.get("/api/auth/mode"');
+  const sessionMiddlewareIndex = authSource.indexOf("app.use(getSession())");
+
+  assert.ok(modeRouteIndex >= 0, "auth mode route must exist");
+  assert.ok(sessionMiddlewareIndex > modeRouteIndex, "auth mode must be registered before session middleware");
+  assert.match(authSource, /pruneSessionInterval: isVercelRuntime \? false : 900/);
+  assert.match(authSource, /SESSION_STORE_UNAVAILABLE/);
+  assert.match(authSource, /describeRuntimeDatabaseTarget\(process\.env\.DATABASE_URL\)/);
+  assert.match(dbSource, /pool\.on\("error"/);
+  assert.match(dbSource, /PostgreSQL pool idle-client error/);
+});

@@ -22,7 +22,7 @@ import {
   createEmergencyTutorAccount,
   emergencyExpectedRoleMatches,
 } from "./emergencyAuth";
-import { pool } from "./db";
+import { describeRuntimeDatabaseTarget, pool } from "./db";
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
   throw new Error("Missing Supabase environment variables");
@@ -35,6 +35,7 @@ const supabase = createClient(
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  const isVercelRuntime = process.env.VERCEL === "1";
   
   let sessionStore;
   
@@ -50,6 +51,15 @@ export function getSession() {
         pool,
         tableName: "sessions",
         createTableIfMissing: false, // Table already exists from schema
+        // Serverless instances are short-lived; background pruning timers can
+        // outlive the request and surface pool errors after the response path.
+        pruneSessionInterval: isVercelRuntime ? false : 900,
+        errorLog: (error: unknown) => {
+          console.error(
+            "[AUTH] PostgreSQL session-store error",
+            error instanceof Error ? error.message : String(error),
+          );
+        },
       });
       
       console.log("✅ Using PostgreSQL for persistent session storage");
@@ -92,15 +102,44 @@ export function getSession() {
 
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
+
+  // Keep the mode probe independent from PostgreSQL-backed session loading.
+  // This endpoint is our first preview health boundary and must still report
+  // the selected auth mode when the session store itself is unhealthy.
+  app.get("/api/auth/mode", (_req: Request, res: Response) => {
+    const emergencyDbMode = isEmergencyDbMode();
+    const databaseTarget =
+      process.env.VERCEL_ENV === "preview" && process.env.DATABASE_URL
+        ? describeRuntimeDatabaseTarget(process.env.DATABASE_URL)
+        : undefined;
+
+    res.json({
+      emergencyDbMode,
+      authMode: emergencyDbMode ? "db-session" : "supabase",
+      ...(databaseTarget ? { databaseTarget } : {}),
+    });
+  });
+
   app.use(getSession());
+
+  // connect-pg-simple reports request-time store failures through next(error).
+  // Handle that boundary explicitly so Vercel returns structured JSON instead
+  // of terminating the invocation with FUNCTION_INVOCATION_FAILED.
+  app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) return next(error);
+    console.error(
+      "[AUTH] Session middleware unavailable",
+      error instanceof Error ? error.message : String(error),
+    );
+    return res.status(503).json({
+      error: "SESSION_STORE_UNAVAILABLE",
+      message: "Authentication session storage is temporarily unavailable",
+    });
+  });
 
   if (isEmergencyDbMode()) {
     console.warn("[AUTH] EMERGENCY_DB_MODE is active: using PostgreSQL sessions and direct password verification");
   }
-
-  app.get("/api/auth/mode", (_req: Request, res: Response) => {
-    res.json({ emergencyDbMode: isEmergencyDbMode(), authMode: isEmergencyDbMode() ? "db-session" : "supabase" });
-  });
 
   // Sign up endpoint
   app.post("/api/auth/signup", async (req: Request, res: Response) => {

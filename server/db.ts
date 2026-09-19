@@ -69,4 +69,14 @@ export const pool = new Pool({
   application_name: "response-integrity-api",
 });
 
+// node-postgres emits idle-client failures as an "error" event on the Pool.
+// Without a listener Node treats that event as uncaught and a serverless
+// invocation can terminate before Express has a chance to return JSON.
+pool.on("error", (error) => {
+  console.error("[DB] PostgreSQL pool idle-client error", {
+    message: error instanceof Error ? error.message : String(error),
+    target: runtimeTarget,
+  });
+});
+
 export const db = drizzle(pool, { schema });
