@@ -5465,13 +5465,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return `${clean.slice(0, -1).join(", ")}, and ${clean[clean.length - 1]}`;
           };
 
-          const normalizeTransitionReason = (value: unknown): TransitionReason => {
+          function normalizeTransitionReason(value: unknown): TransitionReason {
             const reason = String(value || "").trim().toLowerCase();
             if (reason === "phase progress") return "phase progress";
             if (reason === "stability advance") return "stability advance";
             if (reason === "stability regress") return "stability regress";
             return "remain";
-          };
+          }
 
           const resolveTransitionReason = ({
             storedReason,
