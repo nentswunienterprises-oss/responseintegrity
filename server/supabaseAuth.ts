@@ -554,8 +554,16 @@ export async function setupAuth(app: Express) {
       if (isEmergencyDbMode()) {
         const result = await authenticateEmergencyUser(pool, email, password, req.ip || "unknown");
         if ("error" in result) {
-          console.warn("[AUTH] Emergency login rejected", { reason: result.error });
-          return res.status(401).json({ message: "Invalid credentials" });
+          console.warn("[AUTH] Emergency login rejected", {
+            outcome: result.error,
+            internalReason: result.reason,
+          });
+          if (result.error === "throttled") {
+            return res.status(429).json({
+              message: "Too many login attempts. Please wait a few minutes and try again.",
+            });
+          }
+          return res.status(401).json({ message: "Email or password is incorrect" });
         }
 
         const user = await storage.getUser(result.authUser.id);
@@ -609,7 +617,14 @@ export async function setupAuth(app: Express) {
 
       if (authError) {
         console.error("Supabase signin error:", authError);
-        return res.status(401).json({ message: "Invalid credentials" });
+        const isRateLimited =
+          authError.code === "over_request_rate_limit" ||
+          authError.status === 429;
+        return res.status(isRateLimited ? 429 : 401).json({
+          message: isRateLimited
+            ? "Too many login attempts. Please wait a few minutes and try again."
+            : "Email or password is incorrect",
+        });
       }
 
       if (!authData.user) {

@@ -48,6 +48,18 @@ export type EmergencyAuthUser = {
   raw_user_meta_data: Record<string, unknown> | null;
 };
 
+export type EmergencyAuthFailureReason =
+  | "account_not_found"
+  | "credential_not_provisioned"
+  | "password_mismatch"
+  | "account_unavailable"
+  | "throttled";
+
+export type EmergencyAuthFailure = {
+  error: "invalid" | "throttled";
+  reason: EmergencyAuthFailureReason;
+};
+
 const EMERGENCY_BCRYPT_WORK_FACTOR = 10;
 
 export function emergencyExpectedRoleMatches(userRole: string, expectedRole?: string | null) {
@@ -192,13 +204,13 @@ export async function authenticateEmergencyUser(
   email: string,
   password: string,
   ip: string,
-): Promise<{ authUser: EmergencyAuthUser } | { error: "invalid" | "throttled" }> {
+): Promise<{ authUser: EmergencyAuthUser } | EmergencyAuthFailure> {
   const normalizedEmail = email.trim().toLowerCase();
   const now = Date.now();
   const { key, attempt } = getAttempt(normalizedEmail, ip, now);
 
   if (attempt.blockedUntil > now) {
-    return { error: "throttled" };
+    return { error: "throttled", reason: "throttled" };
   }
 
   const result = await pool.query<EmergencyAuthUser & {
@@ -217,6 +229,14 @@ export async function authenticateEmergencyUser(
 
   const authUser = result.rows[0];
   const isBanned = authUser?.banned_until && new Date(authUser.banned_until).getTime() > now;
+  const authUserUnavailable = Boolean(
+    authUser &&
+      (!authUser.encrypted_password ||
+        authUser.deleted_at ||
+        authUser.is_anonymous ||
+        isBanned ||
+        !authUser.email_confirmed_at),
+  );
   const authUserMatches = Boolean(
     authUser &&
       authUser.encrypted_password &&
@@ -230,7 +250,13 @@ export async function authenticateEmergencyUser(
   if (authUser) {
     if (!authUserMatches) {
       recordFailure(key, attempt, now);
-      return { error: attempt.blockedUntil > now ? "throttled" : "invalid" };
+      if (attempt.blockedUntil > now) {
+        return { error: "throttled", reason: "throttled" };
+      }
+      return {
+        error: "invalid",
+        reason: authUserUnavailable ? "account_unavailable" : "password_mismatch",
+      };
     }
 
     attempts.delete(key);
@@ -256,7 +282,9 @@ export async function authenticateEmergencyUser(
   const publicUser = publicUserResult.rows[0];
   if (!publicUser) {
     recordFailure(key, attempt, now);
-    return { error: attempt.blockedUntil > now ? "throttled" : "invalid" };
+    return attempt.blockedUntil > now
+      ? { error: "throttled", reason: "throttled" }
+      : { error: "invalid", reason: "account_not_found" };
   }
 
   const credentialResult = await pool.query<{ user_id: string; password_hash: string }>(
@@ -276,7 +304,13 @@ export async function authenticateEmergencyUser(
 
   if (!fallbackValid) {
     recordFailure(key, attempt, now);
-    return { error: attempt.blockedUntil > now ? "throttled" : "invalid" };
+    if (attempt.blockedUntil > now) {
+      return { error: "throttled", reason: "throttled" };
+    }
+    return {
+      error: "invalid",
+      reason: credential?.password_hash ? "password_mismatch" : "credential_not_provisioned",
+    };
   }
 
   attempts.delete(key);

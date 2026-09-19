@@ -660,3 +660,12 @@ test("emergency encryption rejects invalid keys and preserves the failure-closed
     /EMERGENCY_DOCUMENT_ENCRYPTION_KEY must resolve to exactly 32 bytes/i,
   );
 });
+
+test("signin keeps account-existence details server-side while returning enumeration-safe public copy", () => {
+  const authSource = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
+  assert.match(authSource, /internalReason: result\.reason/);
+  assert.match(authSource, /Email or password is incorrect/);
+  assert.match(authSource, /Too many login attempts\. Please wait a few minutes and try again\./);
+  assert.doesNotMatch(authSource, /res\.status\(401\)\.json\(\{ message: "Account not found"/);
+  assert.doesNotMatch(authSource, /res\.status\(401\)\.json\(\{ message: "Wrong password"/);
+});
