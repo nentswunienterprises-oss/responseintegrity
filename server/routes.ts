@@ -3798,16 +3798,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           let previewTrainingShadowRecoveryStatus: Record<string, unknown> = {
             status: "not_attempted",
+            stage: "not_started",
+            attempt: 0,
           };
 
-          const repairRecentPreviewTrainingShadowComparison = async () => {
+          const classifyTrainingShadowRecoveryError = (error: unknown) => {
+            const value = error as any;
+            const rawMessage =
+              error instanceof Error ? error.message : String(error || "");
+            const errorCode =
+              typeof value?.code === "string" || typeof value?.code === "number"
+                ? String(value.code)
+                : null;
+            const errorName =
+              error instanceof Error
+                ? error.name
+                : typeof value?.name === "string"
+                  ? value.name
+                  : null;
+
+            const messageTag = /max client connections|remaining connection slots|too many clients/i.test(rawMessage)
+              ? "connection_limit"
+              : /timeout|timed out/i.test(rawMessage)
+                ? "timeout"
+                : /econnreset|socket hang up|connection terminated|connection closed|connection refused/i.test(rawMessage)
+                  ? "connection_transport"
+                  : /password authentication failed|authentication failed|tenant or user not found/i.test(rawMessage)
+                    ? "database_auth"
+                    : /prepared statement .* already exists|prepared statement .* does not exist/i.test(rawMessage)
+                      ? "prepared_statement"
+                      : /relation .* does not exist/i.test(rawMessage)
+                        ? "missing_relation"
+                        : /column .* does not exist/i.test(rawMessage)
+                          ? "missing_column"
+                          : /violates|constraint|not-null|null value|foreign key|duplicate key/i.test(rawMessage)
+                            ? "database_constraint"
+                            : /permission denied|not authorized|unauthorized/i.test(rawMessage)
+                              ? "database_permission"
+                              : /ssl|certificate/i.test(rawMessage)
+                                ? "ssl"
+                                : "unclassified";
+
+            const failureKind =
+              ["connection_limit", "timeout", "connection_transport"].includes(messageTag)
+                ? "database_connection"
+                : messageTag === "database_permission" || messageTag === "database_auth"
+                  ? "database_permission"
+                  : ["database_constraint", "missing_relation", "missing_column"].includes(messageTag)
+                    ? "database_contract"
+                    : messageTag === "ssl"
+                      ? "database_connection"
+                      : "other";
+
+            return { errorCode, errorName, failureKind, messageTag };
+          };
+
+          const repairRecentPreviewTrainingShadowComparison = async (attempt = 1) => {
             if (process.env.VERCEL_ENV !== "preview") {
-              previewTrainingShadowRecoveryStatus = { status: "skipped_not_preview" };
+              previewTrainingShadowRecoveryStatus = {
+                status: "skipped_not_preview",
+                stage: "guard",
+                attempt,
+              };
               return;
             }
 
+            const selectorTransport = isEmergencyDbMode() ? "direct_pg" : "supabase";
+            let stage = "selector";
+            let candidateFound = false;
+
             try {
               let row: any = null;
+              previewTrainingShadowRecoveryStatus = {
+                status: "running",
+                stage,
+                attempt,
+                selectorTransport,
+                candidateFound: false,
+              };
 
               if (isEmergencyDbMode()) {
                 const result = await pool.query(
@@ -3822,14 +3890,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       AND c.contract_version = 1
                     WHERE c.comparison_id IS NULL
                       AND COALESCE(d.drill->>'drillType', '') = 'training'
-                      AND d.submitted_at >= NOW() - INTERVAL '4 hours'
+                      AND d.submitted_at >= NOW() - INTERVAL '8 hours'
                       AND d.drill #>> '{summary,evidenceShadow,status}' = 'evaluated'
                     ORDER BY d.submitted_at DESC
                     LIMIT 1`,
                 );
                 row = result.rows[0] || null;
               } else {
-                const cutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+                const cutoff = new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString();
                 const { data: candidates, error: candidateError } = await supabase
                   .from("intro_session_drills")
                   .select(
@@ -3865,14 +3933,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
               }
 
+              candidateFound = Boolean(row);
               if (!row) {
                 previewTrainingShadowRecoveryStatus = {
                   status: "no_candidate",
-                  selectorTransport: isEmergencyDbMode() ? "direct_pg" : "supabase",
+                  stage,
+                  attempt,
+                  selectorTransport,
+                  candidateFound: false,
                 };
                 return;
               }
 
+              stage = "candidate_validation";
               const drill = row.drill && typeof row.drill === "object"
                 ? row.drill
                 : JSON.parse(String(row.drill || "{}"));
@@ -3887,8 +3960,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (!phase || !evidenceShadow || !Number.isFinite(sessionScore)) {
                 previewTrainingShadowRecoveryStatus = {
                   status: "invalid_candidate",
+                  stage,
+                  attempt,
                   sourceDrillId: row.id,
-                  selectorTransport: isEmergencyDbMode() ? "direct_pg" : "supabase",
+                  selectorTransport,
+                  candidateFound: true,
                 };
                 console.warn("[RI_TRAINING_EVIDENCE_SHADOW_REPAIR] skipped invalid recent drill", {
                   sourceDrillId: row.id,
@@ -3902,8 +3978,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (!nextPhase || !nextStability) {
                 previewTrainingShadowRecoveryStatus = {
                   status: "missing_legacy_transition",
+                  stage,
+                  attempt,
                   sourceDrillId: row.id,
-                  selectorTransport: isEmergencyDbMode() ? "direct_pg" : "supabase",
+                  selectorTransport,
+                  candidateFound: true,
                 };
                 console.warn("[RI_TRAINING_EVIDENCE_SHADOW_REPAIR] skipped missing legacy transition", {
                   sourceDrillId: row.id,
@@ -3911,6 +3990,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return;
               }
 
+              stage = "comparison";
               const comparison = compareTrainingEvidenceShadowToLegacy({
                 sessionScore,
                 legacyTransition: {
@@ -3921,6 +4001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 evidenceShadow,
               });
 
+              stage = "persistence";
               const persisted = await persistTrainingShadowComparison({
                 sourceDrillId: String(row.id),
                 studentId: String(row.student_id),
@@ -3935,13 +4016,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 comparison,
               });
 
+              const persistedError = persisted.message
+                ? classifyTrainingShadowRecoveryError({
+                    name: "PersistenceError",
+                    message: persisted.message,
+                    code: persisted.errorCode,
+                  } as any)
+                : {
+                    errorCode: persisted.errorCode || null,
+                    errorName: null,
+                    failureKind: null,
+                    messageTag: null,
+                  };
+
               previewTrainingShadowRecoveryStatus = {
                 status: persisted.status,
+                stage,
+                attempt,
                 sourceDrillId: row.id,
                 comparisonId: persisted.comparisonId,
-                selectorTransport: isEmergencyDbMode() ? "direct_pg" : "supabase",
-                errorCode: persisted.errorCode || null,
-                message: persisted.message || null,
+                selectorTransport,
+                candidateFound: true,
+                ...persistedError,
               };
 
               if (persisted.status === "persisted") {
@@ -3953,45 +4049,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
             } catch (error) {
               previewTrainingShadowRecoveryStatus = {
                 status: "failed",
-                selectorTransport: isEmergencyDbMode() ? "direct_pg" : "supabase",
-                message: error instanceof Error ? error.message : String(error),
+                stage,
+                attempt,
+                selectorTransport,
+                candidateFound,
+                ...classifyTrainingShadowRecoveryError(error),
               };
               console.warn("[RI_TRAINING_EVIDENCE_SHADOW_REPAIR] failed", {
-                message: error instanceof Error ? error.message : String(error),
+                stage,
+                attempt,
+                ...classifyTrainingShadowRecoveryError(error),
               });
             }
           };
 
-          await repairRecentPreviewTrainingShadowComparison();
+          await repairRecentPreviewTrainingShadowComparison(1);
+          if (previewTrainingShadowRecoveryStatus.status === "failed") {
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            await repairRecentPreviewTrainingShadowComparison(2);
+          }
 
           if (process.env.VERCEL_ENV === "preview") {
             app.get(
               "/api/proof/training-shadow-recovery-status",
-              (_req: Request, res: Response) => {
-                const rawMessage = String(
-                  previewTrainingShadowRecoveryStatus.message || "",
-                );
-                const failureKind = !rawMessage
-                  ? null
-                  : /timeout|timed out|connection|connect|socket|econn/i.test(rawMessage)
-                    ? "database_connection"
-                    : /permission|denied|not authorized|unauthorized/i.test(rawMessage)
-                      ? "database_permission"
-                      : /constraint|violates|not-null|null value|duplicate|foreign key/i.test(rawMessage)
-                        ? "database_constraint"
-                        : "other";
+              async (_req: Request, res: Response) => {
+                const probe: Record<string, unknown> = {
+                  transport: isEmergencyDbMode() ? "direct_pg" : "supabase",
+                  pingOk: false,
+                  candidateVisible: false,
+                };
+
+                try {
+                  if (isEmergencyDbMode()) {
+                    await pool.query("SELECT 1");
+                    probe.pingOk = true;
+                    const candidateResult = await pool.query(
+                      `SELECT d.id
+                         FROM public.intro_session_drills d
+                         LEFT JOIN public.training_evidence_shadow_comparisons c
+                           ON c.source_drill_id = d.id
+                          AND c.evaluator_version = 1
+                          AND c.contract_version = 1
+                        WHERE c.comparison_id IS NULL
+                          AND COALESCE(d.drill->>'drillType', '') = 'training'
+                          AND d.submitted_at >= NOW() - INTERVAL '8 hours'
+                          AND d.drill #>> '{summary,evidenceShadow,status}' = 'evaluated'
+                        ORDER BY d.submitted_at DESC
+                        LIMIT 1`,
+                    );
+                    probe.candidateVisible = Boolean(candidateResult.rows[0]);
+                  } else {
+                    const cutoff = new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString();
+                    const { data, error } = await supabase
+                      .from("intro_session_drills")
+                      .select("id,submitted_at,drill")
+                      .gte("submitted_at", cutoff)
+                      .order("submitted_at", { ascending: false })
+                      .limit(10);
+                    if (error) throw error;
+                    probe.pingOk = true;
+                    probe.candidateVisible = Boolean(
+                      (data || []).find((candidate: any) =>
+                        candidate?.drill?.drillType === "training" &&
+                        candidate?.drill?.summary?.evidenceShadow?.status === "evaluated"
+                      ),
+                    );
+                  }
+                } catch (error) {
+                  Object.assign(
+                    probe,
+                    classifyTrainingShadowRecoveryError(error),
+                  );
+                }
 
                 res.json({
                   status: previewTrainingShadowRecoveryStatus.status || "unknown",
+                  stage: previewTrainingShadowRecoveryStatus.stage || null,
+                  attempt: previewTrainingShadowRecoveryStatus.attempt || null,
                   selectorTransport:
                     previewTrainingShadowRecoveryStatus.selectorTransport || null,
                   errorCode: previewTrainingShadowRecoveryStatus.errorCode || null,
-                  failureKind,
+                  errorName: previewTrainingShadowRecoveryStatus.errorName || null,
+                  failureKind: previewTrainingShadowRecoveryStatus.failureKind || null,
+                  messageTag: previewTrainingShadowRecoveryStatus.messageTag || null,
                   candidateFound: Boolean(
+                    previewTrainingShadowRecoveryStatus.candidateFound ||
                     previewTrainingShadowRecoveryStatus.sourceDrillId,
                   ),
                   comparisonCreated:
                     previewTrainingShadowRecoveryStatus.status === "persisted",
+                  probe,
                   emergencyDbMode: isEmergencyDbMode(),
                   vercelEnv: process.env.VERCEL_ENV || null,
                   commitSha: process.env.VERCEL_GIT_COMMIT_SHA || null,
