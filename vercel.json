@@ -337,7 +337,13 @@
           "value": "tt-confidence-hub-git-feat-dem-d053fe-relief-works-technologies.vercel.app"
         }
       ],
-      "destination": "/api/preview?__ri_path=:path*"
+      "destination": "/api/preview?__ri_internal=1&__ri_path=:path*",
+      "missing": [
+        {
+          "type": "query",
+          "key": "__ri_internal"
+        }
+      ]
     },
     {
       "source": "/api/:path*",
