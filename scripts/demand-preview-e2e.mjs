@@ -54,7 +54,7 @@ try {
   let environmentProof = null;
   for (let attempt = 1; attempt <= 30; attempt += 1) {
     const response = await page.request.get(
-      `${baseUrl}/api/__proof/environment`,
+      `${baseUrl}/api/proof-environment`,
       { timeout: 30_000 },
     ).catch(() => null);
 
