@@ -64,9 +64,9 @@ async function initializeApp(): Promise<Express> {
     { registerEvidenceCompleteDiagnosisRoutes },
     { registerRoutes },
   ] = await Promise.all([
-    import('../server/supabaseAuth'),
-    import('../server/evidenceCompleteDiagnosisRoutes'),
-    import('../server/routes'),
+    import('../server/supabaseAuth.js'),
+    import('../server/evidenceCompleteDiagnosisRoutes.js'),
+    import('../server/routes.js'),
   ]);
 
   // Register auth first. setupAuth installs the session middleware and the
