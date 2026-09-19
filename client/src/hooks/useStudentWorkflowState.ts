@@ -3,6 +3,11 @@ import { apiRequest } from "@/lib/queryClient";
 import { getAuthMode } from "@/lib/authMode";
 import { useEffect, useState } from "react";
 
+const studentWorkflowQueryKey = (
+  studentId: string,
+  apiBasePath = "/api/tutor",
+) => [apiBasePath, "students", studentId, "workflow-state"] as const;
+
 export interface StudentWorkflowState {
   assignmentAccepted: boolean;
   introConfirmed: boolean;
@@ -27,7 +32,7 @@ export function useStudentWorkflowState(
   }, []);
 
   return useQuery<StudentWorkflowState>({
-    queryKey: [apiBasePath, "students", studentId, "workflow-state"],
+    queryKey: studentWorkflowQueryKey(studentId, apiBasePath),
     queryFn: async () => {
       if (!studentId) {
         return {
@@ -62,8 +67,11 @@ export function useMarkIntroCompleted(studentId: string) {
       const res = await apiRequest("POST", `/api/tutor/students/${studentId}/workflow/intro-completed`, {});
       return await res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tutor/students", studentId, "workflow-state"] });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({
+        queryKey: studentWorkflowQueryKey(studentId),
+        type: "active",
+      });
     },
   });
 }
@@ -76,10 +84,15 @@ export function useMarkHandoverCompleted(studentId: string) {
       const res = await apiRequest("POST", `/api/tutor/students/${studentId}/workflow/handover-completed`, {});
       return await res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tutor/students", studentId, "workflow-state"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tutor/students/intro-session-details", studentId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tutor/pod"] });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({
+        queryKey: studentWorkflowQueryKey(studentId),
+        type: "active",
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/tutor/students/intro-session-details", studentId] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/tutor/pod"] }),
+      ]);
     },
   });
 }
@@ -95,9 +108,12 @@ export function useRespondToAssignment(studentId: string, enrollmentId?: string 
       });
       return await res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tutor/students", studentId, "workflow-state"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tutor/pod"] });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({
+        queryKey: studentWorkflowQueryKey(studentId),
+        type: "active",
+      });
+      await queryClient.invalidateQueries({ queryKey: ["/api/tutor/pod"] });
     },
   });
 }
