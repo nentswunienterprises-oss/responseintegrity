@@ -720,4 +720,7 @@ test("preview startup repairs one recent real training shadow row in normal or e
   assert.match(repairSource, /compareTrainingEvidenceShadowToLegacy/);
   assert.match(repairSource, /await persistTrainingShadowComparison/);
   assert.match(repairSource, /LIMIT 1/);
+  assert.match(repairSource, /previewTrainingShadowRecoveryStatus/);
+  assert.match(repairSource, /\/api\/proof\/training-shadow-recovery-status/);
+  assert.match(repairSource, /VERCEL_GIT_COMMIT_SHA/);
 });
