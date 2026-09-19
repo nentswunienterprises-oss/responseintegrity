@@ -489,7 +489,7 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Full independent execution without any help. Build consistent, repeatable execution.",
       repInstruction: "Solve independently.",
-      activeRules: ["No help from Specialist", "Full independence expected", "Observe consistency and error handling"],
+      activeRules: ["No help from Specialist", "Full independence expected", "Observe repeatability and step discipline"],
       observationBlock: [
         { key: "independence", label: "Independence", options: ["needs help", "light support", "independent"] },
         { key: "repeatability", label: "Repeatability", options: ["breaks", "inconsistent", "stable"] },
