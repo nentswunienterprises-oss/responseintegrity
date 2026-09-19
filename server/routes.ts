@@ -515,6 +515,10 @@ function isLiveSchedulingMode(mode: TutorTrainingMode) {
   return mode === "trial" || mode === "certified_live";
 }
 
+function isFamilySchedulingMode(mode: TutorTrainingMode) {
+  return mode === "sandbox" || isLiveSchedulingMode(mode);
+}
+
 async function getTutorCertificationMode(tutorId: string): Promise<TutorTrainingMode> {
   const assignment = await storage.getTutorAssignment(tutorId);
   if (isEmergencyDbMode()) {
@@ -3165,6 +3169,59 @@ async function getCompletedSessionCountForStudent(studentId: string) {
 }
 
 async function ensurePremiumAccessForParent(parentId: string, studentId?: string | null) {
+  const normalizedStudentId = String(studentId || "").trim();
+
+  if (normalizedStudentId) {
+    try {
+      let hasActiveSandboxMembership = false;
+
+      if (isEmergencyDbMode()) {
+        const sandboxMembershipResult = await pool.query(
+          `SELECT 1
+             FROM public.membership_months
+            WHERE parent_id = $1
+              AND student_id = $2
+              AND is_sandbox = true
+              AND status = 'active'
+              AND month_start = date_trunc('month', NOW())::date
+            LIMIT 1`,
+          [parentId, normalizedStudentId],
+        );
+        hasActiveSandboxMembership = Boolean(sandboxMembershipResult.rows[0]);
+      } else {
+        const monthStart = new Date();
+        monthStart.setUTCDate(1);
+        monthStart.setUTCHours(0, 0, 0, 0);
+        const { data: sandboxMembership } = await supabase
+          .from("membership_months")
+          .select("id")
+          .eq("parent_id", parentId)
+          .eq("student_id", normalizedStudentId)
+          .eq("is_sandbox", true)
+          .eq("status", "active")
+          .eq("month_start", monthStart.toISOString().slice(0, 10))
+          .limit(1)
+          .maybeSingle();
+        hasActiveSandboxMembership = Boolean(sandboxMembership?.id);
+      }
+
+      if (hasActiveSandboxMembership) {
+        return {
+          allowed: true,
+          status: 200,
+          message: null,
+          onboardingType: "sandbox",
+        };
+      }
+    } catch (error) {
+      console.warn("[SANDBOX BILLING] failed to verify active sandbox membership", {
+        parentId,
+        studentId: normalizedStudentId,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   const billingModel = await getParentBillingModel(parentId);
   if (billingModel.error) {
     return {
@@ -10020,7 +10077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             weekStart: weekStart.toISOString(),
             weekEnd: weekEnd.toISOString(),
             operationalMode,
-            sessionSchedulingEnabled: isLiveSchedulingMode(operationalMode),
+            sessionSchedulingEnabled: isFamilySchedulingMode(operationalMode),
             sessions: scheduleResult.rows.map((session: any) => ({
               ...session,
               student: studentsById.get(String(session.student_id || "")) || null,
@@ -10066,7 +10123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           weekStart: weekStart.toISOString(),
           weekEnd: weekEnd.toISOString(),
           operationalMode,
-          sessionSchedulingEnabled: isLiveSchedulingMode(operationalMode),
+          sessionSchedulingEnabled: isFamilySchedulingMode(operationalMode),
           sessions: (sessions || []).map((session: any) => ({
             ...session,
             student: studentsById.get(String(session.student_id || "")) || null,
@@ -11485,7 +11542,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           : null;
         return res.json({
           operationalMode,
-          sessionSchedulingEnabled: isLiveSchedulingMode(operationalMode),
+          sessionSchedulingEnabled: isFamilySchedulingMode(operationalMode),
           monthlyQuota,
           sessions: sessionsResult.rows.map((session: any) => ({ ...session, launch: getSessionLaunchState(session, "training") })),
         });
@@ -11603,7 +11660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         operationalMode,
-        sessionSchedulingEnabled: isLiveSchedulingMode(operationalMode),
+        sessionSchedulingEnabled: isFamilySchedulingMode(operationalMode),
         monthlyQuota,
         sessions: sessionsWithArtifacts.map((session: any) => ({
           ...session,
