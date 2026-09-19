@@ -382,6 +382,7 @@ export const students = pgTable("students", {
   identitySheet: jsonb("identity_sheet"),
   identitySheetCompletedAt: timestamp("identity_sheet_completed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export type Student = typeof students.$inferSelect;
@@ -390,6 +391,7 @@ export type InsertStudent = typeof students.$inferInsert;
 export const insertStudentSchema = createInsertSchema(students).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
   sessionProgress: true,
 });
 

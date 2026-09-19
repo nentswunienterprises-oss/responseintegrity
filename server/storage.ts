@@ -1223,10 +1223,11 @@ export class SupabaseStorage implements IStorage {
     // Convert camelCase keys to snake_case for database
     const dbData: any = {};
     for (const [key, value] of Object.entries(data)) {
-      if (key === 'id' || key === 'createdAt') continue; // Skip readonly fields
+      if (key === 'id' || key === 'createdAt' || key === 'updatedAt') continue; // Skip readonly fields
       const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
       dbData[snakeKey] = value;
     }
+    dbData.updated_at = new Date().toISOString();
 
     if (isEmergencyDbMode()) {
       const allowedColumns = new Set([
