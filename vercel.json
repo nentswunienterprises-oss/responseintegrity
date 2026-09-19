@@ -412,7 +412,7 @@
   ],
   "functions": {
     "api/index.js": {
-      "includeFiles": "{server/**/*.ts,server/routes/**/*.js,shared/**/*.ts,shared/**/*.json,server/**/*.json,server/**/*.md,tsconfig.json,node_modules/tsx/**/*,node_modules/get-tsconfig/**/*,node_modules/resolve-pkg-maps/**/*,node_modules/esbuild/**/*,node_modules/@esbuild/**/*}"
+      "includeFiles": "{server/**/*,shared/**/*,tsconfig.json,node_modules/{tsx,get-tsconfig,resolve-pkg-maps,esbuild,@esbuild}/**/*}"
     }
   }
 }
