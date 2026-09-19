@@ -669,3 +669,19 @@ test("signin keeps account-existence details server-side while returning enumera
   assert.doesNotMatch(authSource, /res\.status\(401\)\.json\(\{ message: "Account not found"/);
   assert.doesNotMatch(authSource, /res\.status\(401\)\.json\(\{ message: "Wrong password"/);
 });
+
+
+test("emergency mode drift self-heals assignment only in Vercel Preview", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const modeStart = routesSource.indexOf("async function getTutorCertificationMode");
+  const modeEnd = routesSource.indexOf("async function getTutorSandboxReadiness", modeStart);
+  const modeSource = routesSource.slice(modeStart, modeEnd);
+
+  assert.match(modeSource, /process\.env\.VERCEL_ENV === "preview"/);
+  assert.match(modeSource, /UPDATE public\.tutor_assignments/);
+  assert.match(modeSource, /SET operational_mode = \$1/);
+  assert.match(modeSource, /AND tutor_id = \$3/);
+  assert.match(modeSource, /operational_mode <> \$1/);
+  assert.match(modeSource, /preview assignment repaired/);
+  assert.match(modeSource, /return resolveEmergencyTutorMode\(\{ assignmentMode, certificationMode \}\)/);
+});

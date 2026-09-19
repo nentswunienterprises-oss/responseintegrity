@@ -535,6 +535,37 @@ async function getTutorCertificationMode(tutorId: string): Promise<TutorTraining
         assignmentMode,
         certificationMode,
       });
+
+      // Preview Proof should not keep carrying a stale assignment mode once the
+      // authoritative battle-test/certification state is known. Repair only in
+      // Vercel Preview so production emergency continuity remains read-only
+      // with respect to mode drift.
+      if (process.env.VERCEL_ENV === "preview") {
+        try {
+          const repairResult = await pool.query(
+            `UPDATE public.tutor_assignments
+                SET operational_mode = $1
+              WHERE id = $2
+                AND tutor_id = $3
+                AND operational_mode <> $1
+              RETURNING id, operational_mode`,
+            [certificationMode, assignment.id, tutorId],
+          );
+          if (repairResult.rows[0]) {
+            console.info("[EMERGENCY MODE DRIFT] preview assignment repaired", {
+              tutorId,
+              assignmentId: assignment.id,
+              operationalMode: repairResult.rows[0].operational_mode,
+            });
+          }
+        } catch (error) {
+          console.warn("[EMERGENCY MODE DRIFT] preview repair failed", {
+            tutorId,
+            assignmentId: assignment.id,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
     }
     return resolveEmergencyTutorMode({ assignmentMode, certificationMode });
   }
