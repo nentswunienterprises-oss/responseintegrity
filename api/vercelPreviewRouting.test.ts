@@ -46,9 +46,10 @@ test("Vercel preview packages the API and server source", () => {
 test("Vercel preview registers auth and restores the public API path before Express", () => {
   const apiIndex = readFileSync(resolve(process.cwd(), "api/index.ts"), "utf8");
 
-  assert.match(apiIndex, /import\(['"]\.\.\/server\/supabaseAuth\.js['"]\)/);
+  assert.match(apiIndex, /import \{ setupAuth \} from ['"]\.\.\/server\/supabaseAuth['"]/);
   assert.match(apiIndex, /await setupAuth\(app\)/);
   assert.match(apiIndex, /PREVIEW_API_INITIALIZATION_FAILED/);
+  assert.doesNotMatch(apiIndex, /import\(['"]\.\.\/server\//);
   assert.match(apiIndex, /missingEnvironmentVariables/);
   assert.match(apiIndex, /req\.query\?\.__previewPath/);
   assert.match(apiIndex, /req\.url = queryString \?/);
