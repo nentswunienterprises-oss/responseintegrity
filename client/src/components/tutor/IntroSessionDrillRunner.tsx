@@ -835,7 +835,7 @@ export default function IntroSessionDrillRunner() {
   } | null>(null);
   const [repStarted, setRepStarted] = useState(false);
   const [supportPickerOpen, setSupportPickerOpen] = useState(false);
-  const [evidenceExceptionField, setEvidenceExceptionField] = useState<string | null>(null);
+  const [showEvidenceExceptions, setShowEvidenceExceptions] = useState(false);
 
   const requestedMode = searchParams.get("mode");
   const requestedContext = searchParams.get("context");
@@ -1075,7 +1075,7 @@ export default function IntroSessionDrillRunner() {
   useEffect(() => {
     setRepStarted(false);
     setSupportPickerOpen(false);
-    setEvidenceExceptionField(null);
+    setShowEvidenceExceptions(false);
   }, [currentSet, currentRep, sessionTopicIndex, activeDiagnosisPhase, currentTopicName]);
 
   useEffect(() => {
@@ -1163,7 +1163,6 @@ export default function IntroSessionDrillRunner() {
       ...prev,
       ["set" + currentSet + "_rep" + currentRep + "_" + trainingEvidenceStatusKey(field)]: status,
     }));
-    setEvidenceExceptionField(null);
   };
 
   const handleTrainingIntervention = (event: TrainingInterventionEvent) => {
@@ -2315,224 +2314,184 @@ export default function IntroSessionDrillRunner() {
         </div>
       )}
 
-      {isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted ? (
-        <div className="mb-5 overflow-hidden rounded-2xl border border-primary/20 bg-background shadow-sm">
-          <div className="border-b border-primary/10 bg-primary/5 px-4 py-3 sm:px-5">
-            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">Ready</span>
-              <span>Observe</span>
-              <span className="text-primary/30">→</span>
-              <span>Confirm</span>
+      {isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted && (
+        <div className="mb-5 rounded-2xl border border-primary/20 bg-background p-5 shadow-sm">
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">Ready</span>
+            <span>Observe</span>
+            <span className="text-primary/30">→</span>
+            <span>Confirm</span>
+          </div>
+          <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Set {currentSet + 1} of {drillStructure?.length ?? 0} · {set?.setName}
+          </div>
+          <div className="mt-1 flex items-end gap-3">
+            <div className="text-4xl font-black tracking-tight text-foreground sm:text-5xl">
+              REP {currentRep + 1}
+            </div>
+            <div className="pb-1 text-sm font-semibold text-muted-foreground">
+              of {set?.reps ?? 0}
             </div>
           </div>
-          <div className="px-4 py-5 sm:px-5 sm:py-6">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Set {currentSet + 1} of {drillStructure.length} · {set?.setName}
-            </div>
-            <div className="mt-2 flex items-end gap-3">
-              <div className="text-4xl font-black tracking-tight text-foreground sm:text-5xl">
-                REP {currentRep + 1}
-              </div>
-              <div className="pb-1 text-sm font-semibold text-muted-foreground">
-                of {set?.reps ?? 0}
-              </div>
-            </div>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-              {set?.purpose}
-            </p>
-            <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">
-                Say / do this now
-              </div>
-              <div className="mt-1 text-base font-semibold text-foreground">
-                {set?.repInstruction}
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {set?.activeRules?.map((rule, i) => (
-                <span
-                  key={i}
-                  className="rounded-full border border-primary/15 bg-background px-2.5 py-1 text-xs text-muted-foreground"
-                >
-                  {rule}
-                </span>
-              ))}
-            </div>
-            <p className="mt-4 text-xs leading-5 text-muted-foreground">
-              Use the problem you prepared before the session. Once the rep starts, keep your attention on the student's response rather than on form administration.
-            </p>
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                className="rounded-md border border-primary/20 bg-background px-4 py-2 text-sm hover:bg-primary/5 disabled:opacity-50"
-                onClick={handleBackStep}
-                disabled={submitting || (isFirstSet && isFirstRep && (!isSessionMode || sessionTopicIndex === 0))}
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-                onClick={() => setRepStarted(true)}
-              >
-                Begin Rep {currentRep + 1}
-              </button>
-            </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">{set?.purpose}</p>
+          <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">Say / do this now</div>
+            <div className="mt-1 text-base font-semibold text-foreground">{set?.repInstruction}</div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {set?.activeRules?.map((rule, i) => (
+              <span key={i} className="rounded-full border border-primary/15 px-2.5 py-1 text-xs text-muted-foreground">
+                {rule}
+              </span>
+            ))}
+          </div>
+          <p className="mt-4 text-xs leading-5 text-muted-foreground">
+            Use the problem prepared before the session. Once the rep starts, keep attention on the student's response rather than on form administration.
+          </p>
+          <div className="mt-5 flex justify-end">
+            <button
+              type="button"
+              className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+              onClick={() => setRepStarted(true)}
+            >
+              Begin Rep {currentRep + 1}
+            </button>
           </div>
         </div>
-      ) : (
-        <>
-          {/* Active rep cockpit. Rep identity is primary; set identity is supporting context. */}
-          <div className="mb-4 rounded-2xl border border-primary/20 bg-background p-4 shadow-sm sm:p-5">
-            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              <span className="rounded-full border border-primary/15 px-2 py-1">Ready ✓</span>
-              <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">Observe</span>
-              <span className="text-primary/30">→</span>
-              <span>Confirm</span>
-            </div>
-            <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Set {currentSet + 1} of {drillStructure.length} · {set?.setName}
-            </div>
-            <div className="mt-1 text-3xl font-black tracking-tight text-foreground sm:text-4xl">
-              {isModelingSet ? "PRE-DRILL STEP" : `REP ${currentRep + 1} OF ${set?.reps ?? 0}`}
-            </div>
-            <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">
-                Current instruction
-              </div>
-              <div className="mt-1 text-sm font-semibold text-foreground">
-                {set?.repInstruction}
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {set?.activeRules?.map((rule, i) => (
-                <span key={i} className="rounded-full border border-primary/15 px-2.5 py-1 text-xs text-muted-foreground">
-                  {rule}
-                </span>
-              ))}
-            </div>
-          </div>
+      )}
 
-          {isTrainingEvidenceCapture && !set?.isModelingSet && (
-            <div className="mb-4 rounded-xl border border-primary/15 bg-background p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Support this rep
-                  </div>
-                  <div className="mt-1 text-sm font-semibold text-foreground">
-                    {TRAINING_INTERVENTION_OPTIONS.find((option) => option.id === currentTrainingIntervention())?.label || "No intervention"}
-                  </div>
-                </div>
+      {isTrainingEvidenceCapture && !set?.isModelingSet && repStarted && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <span className="rounded-full border border-primary/15 px-2 py-1">Ready ✓</span>
+          <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">Observe</span>
+          <span className="text-primary/30">→</span>
+          <span>Confirm</span>
+        </div>
+      )}
+
+      {/* Set context block -purpose, rep instruction, active rules */}
+      <div className={`mb-4 p-2 sm:p-3 rounded-xl border border-primary/15 bg-background shadow-sm ${isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted ? "hidden" : ""}`}>
+        <div className="mb-2">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Set {currentSet + 1} of {drillStructure.length} · {set?.setName}
+          </div>
+          <div className="mt-1 text-2xl font-black tracking-tight text-foreground sm:text-3xl">
+            {isModelingSet ? "PRE-DRILL STEP" : `REP ${currentRep + 1} OF ${set?.reps ?? 0}`}
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground mb-2 sm:mb-3">{set?.purpose}</div>
+        <div className="p-2 rounded-md border border-primary/20 bg-primary/5 mb-2 sm:mb-3">
+          <div className="text-xs font-semibold text-primary mb-0.5">Rep instruction</div>
+          <div className="text-xs sm:text-sm text-foreground font-medium">{set?.repInstruction}</div>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {set?.activeRules?.map((rule, i) => (
+            <span key={i} className="px-1 sm:px-2 py-0.5 bg-background border border-primary/15 text-muted-foreground rounded text-[10px] sm:text-xs">{rule}</span>
+          ))}
+        </div>
+      </div>
+
+      {isTrainingEvidenceCapture && !set?.isModelingSet && repStarted && (
+        <div className="mb-4 rounded-xl border border-primary/15 bg-background p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Support this rep</div>
+              <div className="mt-1 text-sm font-semibold text-foreground">
+                {TRAINING_INTERVENTION_OPTIONS.find((option) => option.id === currentTrainingIntervention())?.label || "No intervention"}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="rounded-md border border-primary/20 px-3 py-1.5 text-xs font-semibold hover:bg-primary/5"
+              onClick={() => setSupportPickerOpen((open) => !open)}
+            >
+              {supportPickerOpen ? "Close" : "Change support"}
+            </button>
+          </div>
+          {supportPickerOpen && (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {TRAINING_INTERVENTION_OPTIONS.map((option) => (
                 <button
                   type="button"
-                  className="rounded-md border border-primary/20 px-3 py-1.5 text-xs font-semibold hover:bg-primary/5"
-                  onClick={() => setSupportPickerOpen((open) => !open)}
+                  key={option.id}
+                  onClick={() => handleTrainingIntervention(option.id)}
+                  className={[
+                    "rounded-lg border p-3 text-left",
+                    currentTrainingIntervention() === option.id
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-primary/15 hover:bg-primary/5",
+                  ].join(" ")}
                 >
-                  {supportPickerOpen ? "Close" : currentTrainingIntervention() === "none" ? "Change support" : "Change"}
+                  <span className="block text-sm font-medium">{option.label}</span>
+                  <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.detail}</span>
                 </button>
-              </div>
-              {supportPickerOpen && (
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {TRAINING_INTERVENTION_OPTIONS.map((option) => (
-                    <button
-                      type="button"
-                      key={option.id}
-                      onClick={() => handleTrainingIntervention(option.id)}
-                      className={[
-                        "rounded-lg border p-3 text-left",
-                        currentTrainingIntervention() === option.id
-                          ? "border-primary bg-primary/5 ring-1 ring-primary"
-                          : "border-primary/15 hover:bg-primary/5",
-                      ].join(" ")}
-                    >
-                      <span className="block text-sm font-medium">{option.label}</span>
-                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                        {option.detail}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
+              ))}
             </div>
           )}
+          <div className="mt-3 border-t border-primary/10 pt-2">
+            <button
+              type="button"
+              className="text-[11px] font-semibold text-primary hover:underline"
+              onClick={() => setShowEvidenceExceptions((open) => !open)}
+            >
+              {showEvidenceExceptions ? "Hide evidence exceptions" : "Mark an evidence exception"}
+            </button>
+          </div>
+        </div>
+      )}
 
-          <form className="space-y-3">
-            {getLiveObservationBlockForRep(set, currentRep).length === 0 && (
-              <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
-                No observations are captured for this step. Continue when pre-drill teaching is complete.
+      <form className={`space-y-4 ${isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted ? "hidden" : ""}`}>
+        {getLiveObservationBlockForRep(set, currentRep).length === 0 && (
+          <div className="p-3 rounded-md border border-primary/20 bg-primary/5 text-sm">
+            No observations are captured for this step. Continue when pre-drill teaching is complete.
+          </div>
+        )}
+        {getLiveObservationBlockForRep(set, currentRep).map((obs) => (
+          <div key={obs.key}>
+            <label className="block font-medium mb-2 text-sm sm:text-base">{obs.label}</label>
+            <div className="flex flex-wrap gap-1 sm:gap-2">
+              {obs.options.map((option: string) => (
+                <button
+                  type="button"
+                  key={option}
+                  className={`px-2 sm:px-3 py-1 rounded-md border text-xs sm:text-sm transition-colors whitespace-nowrap ${observations[`set${currentSet}_rep${currentRep}_${obs.key}`] === option ? "bg-primary text-primary-foreground border-primary" : "bg-background border-primary/20 hover:bg-primary/5"}`}
+                  onClick={() => handleObservation(obs.key, option)}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+            {isTrainingEvidenceCapture && showEvidenceExceptions && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <span className="mr-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Evidence validity
+                </span>
+                {([
+                  ["observed", "Observed cleanly"],
+                  ["not_observed", "Not meaningfully observed"],
+                  ["confounded", "Confounded"],
+                ] as Array<[TrainingEvidenceStatus, string]>).map(([status, label]) => (
+                  <button
+                    type="button"
+                    key={status}
+                    onClick={() => handleTrainingEvidenceStatus(obs.key, status)}
+                    className={[
+                      "rounded-md border px-2 py-1 text-[11px]",
+                      currentTrainingEvidenceStatus(obs.key) === status
+                        ? "border-primary bg-primary/5 font-medium"
+                        : "border-primary/15 text-muted-foreground hover:bg-primary/5",
+                    ].join(" ")}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             )}
-            {getLiveObservationBlockForRep(set, currentRep).map((obs) => {
-              const evidenceStatus = currentTrainingEvidenceStatus(obs.key);
-              const evidenceLabel =
-                evidenceStatus === "not_observed"
-                  ? "Not meaningfully observed"
-                  : evidenceStatus === "confounded"
-                    ? "Confounded"
-                    : "Observed cleanly";
-              const exceptionKey = `set${currentSet}_rep${currentRep}_${obs.key}`;
-              const exceptionOpen = evidenceExceptionField === exceptionKey;
-
-              return (
-                <div key={obs.key} className="rounded-xl border border-primary/15 bg-background p-3 sm:p-4">
-                  <label className="block text-sm font-semibold text-foreground sm:text-base">{obs.label}</label>
-                  <div className="mt-2 flex flex-wrap gap-1.5 sm:gap-2">
-                    {obs.options.map((option: string) => (
-                      <button
-                        type="button"
-                        key={option}
-                        className={`rounded-md border px-2.5 py-1.5 text-xs transition-colors sm:px-3 sm:text-sm ${observations[`set${currentSet}_rep${currentRep}_${obs.key}`] === option ? "border-primary bg-primary text-primary-foreground" : "border-primary/20 bg-background hover:bg-primary/5"}`}
-                        onClick={() => handleObservation(obs.key, option)}
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </div>
-                  {isTrainingEvidenceCapture && (
-                    <div className="mt-3 border-t border-primary/10 pt-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className={`text-[11px] font-medium ${evidenceStatus === "observed" ? "text-muted-foreground" : "text-primary"}`}>
-                          Evidence: {evidenceLabel}
-                        </span>
-                        <button
-                          type="button"
-                          className="text-[11px] font-semibold text-primary hover:underline"
-                          onClick={() => setEvidenceExceptionField(exceptionOpen ? null : exceptionKey)}
-                        >
-                          {exceptionOpen ? "Close" : evidenceStatus === "observed" ? "Mark exception" : "Change"}
-                        </button>
-                      </div>
-                      {exceptionOpen && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {([
-                            ["observed", "Observed cleanly"],
-                            ["not_observed", "Not meaningfully observed"],
-                            ["confounded", "Confounded"],
-                          ] as Array<[TrainingEvidenceStatus, string]>).map(([status, label]) => (
-                            <button
-                              type="button"
-                              key={status}
-                              onClick={() => handleTrainingEvidenceStatus(obs.key, status)}
-                              className={[
-                                "rounded-md border px-2 py-1 text-[11px]",
-                                evidenceStatus === status
-                                  ? "border-primary bg-primary/5 font-medium"
-                                  : "border-primary/15 text-muted-foreground hover:bg-primary/5",
-                              ].join(" ")}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </form>
+          </div>
+        ))}
+      </form>
         </>
+        )
       )}
       {(!(isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted) && !((isAdaptiveDiagnosisMode || isHandoverMode) && !submitSuccess && (!prepReady || !!adaptiveTransition))) && (
       <div className="mt-6 flex justify-end">
