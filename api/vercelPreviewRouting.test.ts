@@ -87,3 +87,20 @@ test("Vercel preview auth health survives session-store failures", () => {
   assert.match(dbSource, /pool\.on\("error"/);
   assert.match(dbSource, /PostgreSQL pool idle-client error/);
 });
+
+
+test("preview DB diagnostics identify the Supabase project without exposing credentials", async () => {
+  const { describeRuntimeDatabaseTarget } = await import("../server/db");
+
+  const target = describeRuntimeDatabaseTarget(
+    "postgresql://postgres.jftlxeacphvbnhbsbpxc:secret@aws-1-eu-west-1.pooler.supabase.com:6543/postgres",
+  );
+
+  assert.deepEqual(target, {
+    host: "aws-1-eu-west-1.pooler.supabase.com",
+    port: "6543",
+    mode: "transaction",
+    projectRef: "jftlxeacphvbnhbsbpxc",
+  });
+  assert.equal(JSON.stringify(target).includes("secret"), false);
+});

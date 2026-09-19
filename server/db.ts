@@ -32,10 +32,13 @@ export function describeRuntimeDatabaseTarget(databaseUrl: string) {
       parsed.hostname.toLowerCase().endsWith(".pooler.supabase.com")
         ? (effectivePort === "6543" ? "transaction" : "session")
         : "direct-or-custom";
+    const username = decodeURIComponent(parsed.username || "");
+    const projectRefMatch = username.match(/^postgres\.([a-z0-9]+)$/i);
     return {
       host: parsed.hostname,
       port: effectivePort,
       mode,
+      ...(projectRefMatch ? { projectRef: projectRefMatch[1] } : {}),
     };
   } catch {
     return { host: "unparseable", port: "unknown", mode: "unknown" };
