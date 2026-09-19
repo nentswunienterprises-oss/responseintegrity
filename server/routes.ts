@@ -12,7 +12,11 @@ import { isAuthenticated } from "./supabaseAuth";
 import { pool } from "./db";
 import { isEmergencyDbMode } from "./emergencyMode";
 import { buildEmergencyEnrollmentStatusFilter } from "./emergencyPodQuery";
-import { createEmergencyFileBundle, decryptEmergencyFileBundle } from "./emergencyAuth";
+import {
+  createEmergencyFileBundle,
+  decryptEmergencyFileBundle,
+  provisionEmergencyCredentialForExistingUser,
+} from "./emergencyAuth";
 import { fileURLToPath } from "url";
 import {
   insertPodSchema,
@@ -1450,6 +1454,14 @@ async function autoProvisionSandboxAccountsForTutor(
         lastName: "",
         role: "parent",
       });
+    }
+
+    if (isEmergencyDbMode() && !authProvisioned) {
+      await provisionEmergencyCredentialForExistingUser(
+        pool,
+        fakeParentId,
+        "SandboxPass123!",
+      );
     }
 
     const sandboxEnrollmentBase = {
