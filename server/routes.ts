@@ -3796,8 +3796,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
 
 
+          let previewTrainingShadowRecoveryStatus: Record<string, unknown> = {
+            status: "not_attempted",
+          };
+
           const repairRecentPreviewTrainingShadowComparison = async () => {
-            if (process.env.VERCEL_ENV !== "preview") return;
+            if (process.env.VERCEL_ENV !== "preview") {
+              previewTrainingShadowRecoveryStatus = { status: "skipped_not_preview" };
+              return;
+            }
 
             try {
               let row: any = null;
@@ -3858,7 +3865,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
               }
 
-              if (!row) return;
+              if (!row) {
+                previewTrainingShadowRecoveryStatus = {
+                  status: "no_candidate",
+                  selectorTransport: isEmergencyDbMode() ? "direct_pg" : "supabase",
+                };
+                return;
+              }
 
               const drill = row.drill && typeof row.drill === "object"
                 ? row.drill
@@ -3872,6 +3885,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const sessionScore = Number(summary?.sessionScore);
 
               if (!phase || !evidenceShadow || !Number.isFinite(sessionScore)) {
+                previewTrainingShadowRecoveryStatus = {
+                  status: "invalid_candidate",
+                  sourceDrillId: row.id,
+                  selectorTransport: isEmergencyDbMode() ? "direct_pg" : "supabase",
+                };
                 console.warn("[RI_TRAINING_EVIDENCE_SHADOW_REPAIR] skipped invalid recent drill", {
                   sourceDrillId: row.id,
                 });
@@ -3882,6 +3900,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const nextStability = normalizeStability(summary?.stability || "");
               const transitionReason = normalizeTransitionReason(summary?.transitionReason || "remain");
               if (!nextPhase || !nextStability) {
+                previewTrainingShadowRecoveryStatus = {
+                  status: "missing_legacy_transition",
+                  sourceDrillId: row.id,
+                  selectorTransport: isEmergencyDbMode() ? "direct_pg" : "supabase",
+                };
                 console.warn("[RI_TRAINING_EVIDENCE_SHADOW_REPAIR] skipped missing legacy transition", {
                   sourceDrillId: row.id,
                 });
@@ -3912,6 +3935,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 comparison,
               });
 
+              previewTrainingShadowRecoveryStatus = {
+                status: persisted.status,
+                sourceDrillId: row.id,
+                comparisonId: persisted.comparisonId,
+                selectorTransport: isEmergencyDbMode() ? "direct_pg" : "supabase",
+                errorCode: persisted.errorCode || null,
+                message: persisted.message || null,
+              };
+
               if (persisted.status === "persisted") {
                 console.info("[RI_TRAINING_EVIDENCE_SHADOW_REPAIR] repaired recent preview drill", {
                   sourceDrillId: row.id,
@@ -3919,6 +3951,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 });
               }
             } catch (error) {
+              previewTrainingShadowRecoveryStatus = {
+                status: "failed",
+                selectorTransport: isEmergencyDbMode() ? "direct_pg" : "supabase",
+                message: error instanceof Error ? error.message : String(error),
+              };
               console.warn("[RI_TRAINING_EVIDENCE_SHADOW_REPAIR] failed", {
                 message: error instanceof Error ? error.message : String(error),
               });
@@ -3926,6 +3963,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
 
           await repairRecentPreviewTrainingShadowComparison();
+
+          if (process.env.VERCEL_ENV === "preview") {
+            app.get(
+              "/api/proof/training-shadow-recovery-status",
+              isAuthenticated,
+              (_req: Request, res: Response) => {
+                res.json({
+                  ...previewTrainingShadowRecoveryStatus,
+                  emergencyDbMode: isEmergencyDbMode(),
+                  vercelEnv: process.env.VERCEL_ENV || null,
+                  commitSha: process.env.VERCEL_GIT_COMMIT_SHA || null,
+                });
+              },
+            );
+          }
 
           type NormalizedEvidenceSet = {
             setName: string;
