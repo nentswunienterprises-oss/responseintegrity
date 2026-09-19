@@ -409,5 +409,18 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.cjs": {
+      "includeFiles": [
+        "server/**/*.ts",
+        "server/routes/**/*.js",
+        "shared/**/*.ts",
+        "shared/**/*.json",
+        "server/**/*.json",
+        "server/**/*.md",
+        "tsconfig.json"
+      ]
+    }
+  }
 }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 test("Vercel preview API is routed to the branch Express function before the SPA fallback", () => {
@@ -34,27 +34,27 @@ test("Vercel preview API is routed to the branch Express function before the SPA
   assert.ok(productionIndex < spaIndex, "production API routing must win before SPA fallback");
 });
 
-test("Vercel preview packages the API and server source", () => {
-  const ignore = readFileSync(resolve(process.cwd(), ".vercelignore"), "utf8")
-    .split(/\r?\n/)
-    .map((line) => line.trim());
+test("Vercel preview uses a CommonJS bootstrap with raw TypeScript runtime sources", () => {
+  const bootstrap = readFileSync(resolve(process.cwd(), "api/index.cjs"), "utf8");
+  const runtime = readFileSync(resolve(process.cwd(), "server/vercelPreviewApi.ts"), "utf8");
+  const config = JSON.parse(readFileSync(resolve(process.cwd(), "vercel.json"), "utf8"));
 
-  assert.equal(ignore.includes("api/"), false);
-  assert.equal(ignore.includes("server/"), false);
-});
+  assert.equal(existsSync(resolve(process.cwd(), "api/index.ts")), false);
+  assert.match(bootstrap, /tsx\/esm\/api/);
+  assert.match(bootstrap, /server\/vercelPreviewApi\.ts/);
+  assert.match(bootstrap, /PREVIEW_BOOTSTRAP_FAILED/);
 
-test("Vercel preview registers auth and restores the public API path before Express", () => {
-  const apiIndex = readFileSync(resolve(process.cwd(), "api/index.ts"), "utf8");
+  assert.match(runtime, /from "\.\/routes\.ts"/);
+  assert.match(runtime, /from "\.\/supabaseAuth\.ts"/);
+  assert.match(runtime, /from "\.\/evidenceCompleteDiagnosisRoutes\.ts"/);
+  assert.match(runtime, /await setupAuth\(app\)/);
+  assert.match(runtime, /req\.query\?\.__previewPath/);
+  assert.match(runtime, /req\.url = queryString \?/);
 
-  assert.match(apiIndex, /import \{ setupAuth \} from ['"]\.\.\/server\/supabaseAuth['"]/);
-  assert.match(apiIndex, /await setupAuth\(app\)/);
-  assert.match(apiIndex, /PREVIEW_API_INITIALIZATION_FAILED/);
-  assert.doesNotMatch(apiIndex, /import\(['"]\.\.\/server\//);
-  assert.match(apiIndex, /missingEnvironmentVariables/);
-  assert.match(apiIndex, /req\.query\?\.__previewPath/);
-  assert.match(apiIndex, /req\.url = queryString \?/);
-  assert.match(apiIndex, /\/api\/\$\{previewPath\}/);
-  assert.doesNotMatch(apiIndex, /app\.use\(getSession\(\)\)/);
+  const includeFiles = config.functions?.["api/index.cjs"]?.includeFiles || [];
+  assert.ok(includeFiles.includes("server/**/*.ts"));
+  assert.ok(includeFiles.includes("shared/**/*.ts"));
+  assert.ok(includeFiles.includes("tsconfig.json"));
 });
 
 test("Vercel preview sessions stay host-only on the preview hostname", () => {
