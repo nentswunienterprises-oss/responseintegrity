@@ -58,9 +58,35 @@ try {
   const intakeUrl =
     `${baseUrl}/client/intake?fastTrack=exec&production=DEMAND01&pipeline=demand&utm_source=smoke&utm_campaign=demand-gateway-smoke`;
 
-  await page.goto(intakeUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
-  await page.getByText("Parent intake gateway", { exact: false }).waitFor({ timeout: 30_000 });
-  checkpoint("fast-track-intake-opened", { url: page.url() });
+  let previewReady = false;
+  let previewProbe = null;
+
+  for (let attempt = 1; attempt <= 30; attempt += 1) {
+    const response = await page.goto(intakeUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    const bodyText = await page.locator("body").innerText().catch(() => "");
+    previewProbe = {
+      attempt,
+      status: response?.status() ?? null,
+      url: page.url(),
+      title: await page.title().catch(() => ""),
+      bodyStart: bodyText.slice(0, 500),
+    };
+
+    if (bodyText.toLowerCase().includes("parent intake gateway")) {
+      previewReady = true;
+      break;
+    }
+
+    console.log("PREVIEW_WAIT", JSON.stringify(previewProbe));
+    await page.waitForTimeout(10_000);
+  }
+
+  assert.ok(
+    previewReady,
+    `Preview never became the RI parent intake page. Last probe: ${JSON.stringify(previewProbe)}`,
+  );
+
+  checkpoint("fast-track-intake-opened", { url: page.url(), previewProbe });
   await page.screenshot({
     path: path.join(evidenceDir, "01-fast-track-intake.png"),
     fullPage: true,
