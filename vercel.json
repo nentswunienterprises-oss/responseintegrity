@@ -1,8 +1,7 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": "dist",
   "installCommand": "npm ci",
-  "framework": null,
+  "framework": "vite",
   "github": {
     "silent": false
   },
@@ -399,10 +398,5 @@
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
-  ],
-  "functions": {
-    "api/**/*.ts": {
-      "maxDuration": 60
-    }
-  }
+  ]
 }
