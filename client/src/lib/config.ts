@@ -1,7 +1,6 @@
 // Runtime configuration for API URL
 
 const PRODUCTION_API_URL = 'https://api.responseintegrity.co.za';
-const PROOF_API_URL = 'https://responseintegrity-proof.onrender.com';
 
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
@@ -20,9 +19,10 @@ export function getApiUrl(): string {
       return 'http://localhost:5000';
     }
 
-    // Git-backed Vercel preview aliases must never call the production API.
+    // Git-backed Vercel previews use their own feature-branch Vercel API function.
+    // Vercel Preview environment variables must point that function at Proof.
     if (hostname.endsWith('.vercel.app') && hostname.includes('-git-')) {
-      return PROOF_API_URL;
+      return window.location.origin;
     }
   }
 
