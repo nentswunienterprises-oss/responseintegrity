@@ -3967,10 +3967,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (process.env.VERCEL_ENV === "preview") {
             app.get(
               "/api/proof/training-shadow-recovery-status",
-              isAuthenticated,
               (_req: Request, res: Response) => {
+                const rawMessage = String(
+                  previewTrainingShadowRecoveryStatus.message || "",
+                );
+                const failureKind = !rawMessage
+                  ? null
+                  : /timeout|timed out|connection|connect|socket|econn/i.test(rawMessage)
+                    ? "database_connection"
+                    : /permission|denied|not authorized|unauthorized/i.test(rawMessage)
+                      ? "database_permission"
+                      : /constraint|violates|not-null|null value|duplicate|foreign key/i.test(rawMessage)
+                        ? "database_constraint"
+                        : "other";
+
                 res.json({
-                  ...previewTrainingShadowRecoveryStatus,
+                  status: previewTrainingShadowRecoveryStatus.status || "unknown",
+                  selectorTransport:
+                    previewTrainingShadowRecoveryStatus.selectorTransport || null,
+                  errorCode: previewTrainingShadowRecoveryStatus.errorCode || null,
+                  failureKind,
+                  candidateFound: Boolean(
+                    previewTrainingShadowRecoveryStatus.sourceDrillId,
+                  ),
+                  comparisonCreated:
+                    previewTrainingShadowRecoveryStatus.status === "persisted",
                   emergencyDbMode: isEmergencyDbMode(),
                   vercelEnv: process.env.VERCEL_ENV || null,
                   commitSha: process.env.VERCEL_GIT_COMMIT_SHA || null,
