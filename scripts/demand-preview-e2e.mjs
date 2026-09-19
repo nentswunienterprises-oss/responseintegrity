@@ -76,12 +76,13 @@ try {
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(password);
 
-  const signupResponsePromise = page.waitForResponse(
-    (response) => response.url().includes("/api/auth/signup") && response.request().method() === "POST",
-    { timeout: 60_000 },
-  );
-  await page.getByRole("button", { name: "Sign Up", exact: true }).click();
-  const signupResponse = await signupResponsePromise;
+  const [signupResponse] = await Promise.all([
+    page.waitForResponse(
+      (response) => response.url().includes("/api/auth/signup") && response.request().method() === "POST",
+      { timeout: 60_000 },
+    ),
+    page.getByRole("button", { name: "Sign Up", exact: true }).click(),
+  ]);
   const signupBody = await signupResponse.json().catch(() => null);
   assert.ok(signupResponse.ok(), `Signup failed: ${signupResponse.status()} ${JSON.stringify(signupBody)}`);
   checkpoint("parent-signup-created", { status: signupResponse.status(), email });
@@ -99,12 +100,13 @@ try {
     await page.locator("#login-email").fill(email);
     await page.locator("#login-password").fill(password);
 
-    const signinResponsePromise = page.waitForResponse(
-      (response) => response.url().includes("/api/auth/signin") && response.request().method() === "POST",
-      { timeout: 60_000 },
-    );
-    await page.getByRole("button", { name: "Login", exact: true }).click();
-    const signinResponse = await signinResponsePromise;
+    const [signinResponse] = await Promise.all([
+      page.waitForResponse(
+        (response) => response.url().includes("/api/auth/signin") && response.request().method() === "POST",
+        { timeout: 60_000 },
+      ),
+      page.getByRole("button", { name: "Login", exact: true }).click(),
+    ]);
     const signinBody = await signinResponse.json().catch(() => null);
     lastSignin = { attempt, status: signinResponse.status(), message: signinBody?.message || null };
 
@@ -155,12 +157,13 @@ try {
   const submitButton = page.getByRole("button", { name: "Submit Application", exact: true });
   assert.equal(await submitButton.isEnabled(), true, "Gateway application should be submittable");
 
-  const enrollmentResponsePromise = page.waitForResponse(
-    (response) => response.url().includes("/api/parent/enroll") && response.request().method() === "POST",
-    { timeout: 60_000 },
-  );
-  await submitButton.click();
-  const enrollmentResponse = await enrollmentResponsePromise;
+  const [enrollmentResponse] = await Promise.all([
+    page.waitForResponse(
+      (response) => response.url().includes("/api/parent/enroll") && response.request().method() === "POST",
+      { timeout: 60_000 },
+    ),
+    submitButton.click(),
+  ]);
   const enrollmentBody = await enrollmentResponse.json().catch(() => null);
   assert.ok(enrollmentResponse.ok(), `Enrollment submission failed: ${enrollmentResponse.status()} ${JSON.stringify(enrollmentBody)}`);
 
@@ -180,6 +183,7 @@ try {
   evidence.failure = error instanceof Error ? error.stack || error.message : String(error);
   await saveEvidence();
   console.error("DEMAND_PREVIEW_E2E=FAIL");
+  console.error(evidence.failure);
   throw error;
 } finally {
   await browser.close();
