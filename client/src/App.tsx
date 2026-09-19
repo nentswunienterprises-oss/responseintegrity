@@ -1,4 +1,4 @@
-import IntroSessionDrillRunner from "@/components/tutor/IntroSessionDrillRunner";
+import IntroSessionRoute from "@/components/tutor/IntroSessionRoute";
 import ExecutiveCOOTrackLeads from "@/pages/executive/coo/track-leads";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, type ReactNode } from "react";
@@ -225,8 +225,8 @@ function Router() {
     <Routes>
       {/* General Routes */}
       {/* Intro Session Drill Runner */}
-      <Route path="/tutor/intro-session/:studentId" element={<TutorGatewayGuard><IntroSessionDrillRunner /></TutorGatewayGuard>} />
-      <Route path="/specialist/intro-session/:studentId" element={<TutorGatewayGuard><IntroSessionDrillRunner /></TutorGatewayGuard>} />
+      <Route path="/tutor/intro-session/:studentId" element={<TutorGatewayGuard><IntroSessionRoute /></TutorGatewayGuard>} />
+      <Route path="/specialist/intro-session/:studentId" element={<TutorGatewayGuard><IntroSessionRoute /></TutorGatewayGuard>} />
       <Route path="/" element={<PortalLanding />} />
       <Route path="/portal-landing" element={<Navigate to="/" replace />} />
       <Route path="/landing" element={<Landing />} />

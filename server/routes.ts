@@ -59,6 +59,10 @@ import {
   validateAndNormalizeSemanticEvidenceSet,
   type EvidenceDrillMode,
 } from "@shared/responseIntegrityDrillRegistry";
+import {
+  compareTrainingEvidenceShadowToLegacy,
+  evaluateTrainingEvidenceShadow,
+} from "@shared/trainingEvidenceEvaluator";
 import { buildResponseSnapshotV1, summarizeSnapshotObservedResponse } from "@shared/responseSnapshot";
 import {
   normalizeTopicReferenceContent,
@@ -135,6 +139,11 @@ import {
   persistResponseIntegrityEvidenceLedgerShadow,
   persistResponseIntegrityEvidenceLedgerShadowDirect,
 } from "./responseIntegrityEvidenceLedger";
+import {
+  persistTrainingEvidenceShadowComparison,
+  persistTrainingEvidenceShadowComparisonDirect,
+  type TrainingEvidenceShadowDatasetInput,
+} from "./trainingEvidenceShadowComparison";
 import {
   createTrialCase,
   createTrialPlacement,
@@ -3733,6 +3742,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return result;
           };
 
+          const persistTrainingShadowComparison = async (
+            input: TrainingEvidenceShadowDatasetInput,
+          ) => {
+            const result = isEmergencyDbMode()
+              ? await persistTrainingEvidenceShadowComparisonDirect(pool, input)
+              : await persistTrainingEvidenceShadowComparison(supabase as any, input);
+            if (result.status === "persistence_failed") {
+              console.warn("[RI_TRAINING_EVIDENCE_SHADOW] comparison not persisted", {
+                sourceDrillId: input.sourceDrillId,
+                comparisonId: result.comparisonId,
+                errorCode: result.errorCode || null,
+                message: result.message || null,
+              });
+            } else {
+              console.info("[RI_TRAINING_EVIDENCE_SHADOW] comparison persisted", {
+                sourceDrillId: input.sourceDrillId,
+                comparisonId: result.comparisonId,
+              });
+            }
+            return result;
+          };
+
           type NormalizedEvidenceSet = {
             setName: string;
             setId?: string;
@@ -4458,8 +4489,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ? Math.round(weighted.sum / weighted.weight)
               : 0;
 
-            // Use the locked transition engine from Response Integrity Drift Correction Spec
+            // Shadow-only evidence-native evaluation. This is persisted beside the legacy
+            // score-driven result for proof comparison and has zero live state authority.
+            const evidenceShadow = evaluateTrainingEvidenceShadow({
+              phase: observedPhase,
+              previousStability,
+              sets: sets as any,
+            });
+
+            // The legacy score transition remains authoritative during shadow validation.
             const transition = computeTransition(observedPhase, previousStability, sessionScore);
+            const evidenceShadowComparison = compareTrainingEvidenceShadowToLegacy({
+              sessionScore,
+              legacyTransition: transition,
+              evidenceShadow,
+            });
 
             const nextActionConfig = (NEXT_ACTION_ENGINE as any)?.[transition.next_phase]?.[transition.next_stability] || null;
 
@@ -4477,6 +4521,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               repRows,
               setScores,
               highGuardPasses,
+              evidenceShadow,
+              evidenceShadowComparison,
               lowStreakAfterSession: 0, // No longer used in new transition engine
             };
           };
@@ -7061,6 +7107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               emergencyDbClient = isEmergencyDbMode() ? await pool.connect() : null;
               if (emergencyDbClient) await emergencyDbClient.query("BEGIN");
               const pendingEmergencyLedgerInputs: EvidenceLedgerProjectionInput[] = [];
+              const pendingEmergencyShadowComparisons: TrainingEvidenceShadowDatasetInput[] = [];
 
               const conceptMastery: any =
                 student.conceptMastery && typeof student.conceptMastery === "object"
@@ -7238,6 +7285,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   pendingEmergencyLedgerInputs.push(ledgerInput);
                 } else {
                   await persistEvidenceLedgerShadow(ledgerInput);
+                }
+
+                const shadowComparisonInput: TrainingEvidenceShadowDatasetInput = {
+                  sourceDrillId: String(inserted?.id || drillId),
+                  studentId: String(studentId),
+                  tutorId: String(tutorId),
+                  topic: normalizedTopic,
+                  scheduledSessionId: scheduledSessionRecordId,
+                  trainingSessionRunId: String(trainingRun?.id || sessionId),
+                  phase: effectivePhase,
+                  previousStability,
+                  observedAt: String(inserted?.submitted_at || sessionStartTime),
+                  evidenceShadow: trainingSummary.evidenceShadow,
+                  comparison: trainingSummary.evidenceShadowComparison,
+                };
+                if (isEmergencyDbMode()) {
+                  pendingEmergencyShadowComparisons.push(shadowComparisonInput);
+                } else {
+                  await persistTrainingShadowComparison(shadowComparisonInput);
                 }
 
                 // Update topic state
@@ -7427,7 +7493,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       status: projection.status,
                     });
                   }
+                }                for (const comparisonInput of pendingEmergencyShadowComparisons) {
+                  const comparisonResult = await persistTrainingShadowComparison(comparisonInput);
+                  if (comparisonResult.status === "persistence_failed") {
+                    console.warn("[RI_TRAINING_EVIDENCE_SHADOW_DEGRADED]", {
+                      sourceDrillId: comparisonInput.sourceDrillId,
+                      comparisonId: comparisonResult.comparisonId,
+                    });
+                  }
                 }
+
               }
 
               res.json({
@@ -7567,6 +7642,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Topic is required" });
         }
 
+        const student = await storage.getStudent(studentId);
+        if (!student || String(student.tutorId) !== String(tutorId)) {
+          return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+        }
+
+        if (isEmergencyDbMode()) {
+          const existingResult = await pool.query(
+            `SELECT id, student_id, tutor_id, topic, reason, created_at
+               FROM public.topic_conditioning_activations
+              WHERE student_id = $1 AND tutor_id = $2
+              ORDER BY created_at DESC`,
+            [studentId, tutorId],
+          );
+
+          const existingActivation = (existingResult.rows || []).find(
+            (entry: any) => String(entry?.topic || "").trim().toLowerCase() === normalizedTopic
+          );
+
+          if (existingActivation) {
+            return res.json({ activation: existingActivation, duplicate: true });
+          }
+
+          const inserted = await pool.query(
+            `INSERT INTO public.topic_conditioning_activations
+              (student_id, tutor_id, topic, reason)
+             VALUES ($1, $2, $3, $4)
+             RETURNING id, student_id, tutor_id, topic, reason, created_at`,
+            [studentId, tutorId, String(topic).trim(), reason],
+          );
+
+          return res.json({ activation: inserted.rows[0] });
+        }
+
         const { data: existingActivations, error: existingError } = await supabase
           .from("topic_conditioning_activations")
           .select("id, student_id, tutor_id, topic, reason, created_at")
@@ -7597,16 +7705,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
           .select()
           .single();
+
         if (error) {
           console.error("Error inserting topic activation:", error);
           return res.status(500).json({ message: "Failed to activate topic" });
         }
-        res.json({ activation: data });
+
+        return res.json({ activation: data });
       } catch (err) {
         console.error("Exception in topic activation:", err);
-        res.status(500).json({ message: "Internal server error" });
+        return res.status(500).json({ message: "Internal server error" });
       }
     });
+
   ensureStudentForEnrollment = async (enrollment: any, tutorIdOverride?: string) => {
     const tutorId = tutorIdOverride || enrollment?.assigned_tutor_id;
     if (!enrollment || !tutorId || !enrollment.user_id || !enrollment.student_full_name || !enrollment.student_grade) {

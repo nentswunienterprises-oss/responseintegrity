@@ -25,6 +25,24 @@ import { buildExecutiveRosterFromRows } from "./routes/executiveCommandRhythm";
 import { toJsonbParam, transformSnakeToCamel } from "./storage";
 import { formatApplicationDate } from "../client/src/lib/application-date";
 
+test("emergency topic activation stays on direct PostgreSQL and never falls through to Supabase", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const routeStart = routesSource.indexOf('app.post("/api/tutor/students/:studentId/topic-conditioning"');
+  const routeEnd = routesSource.indexOf("ensureStudentForEnrollment = async", routeStart);
+  const routeSource = routesSource.slice(routeStart, routeEnd);
+  const emergencyStart = routeSource.indexOf("if (isEmergencyDbMode())");
+  const normalStart = routeSource.indexOf('const { data: existingActivations', emergencyStart);
+  const emergencyBranch = routeSource.slice(emergencyStart, normalStart);
+
+  assert.ok(routeStart >= 0);
+  assert.ok(routeEnd > routeStart);
+  assert.match(emergencyBranch, /pool\.query/);
+  assert.match(emergencyBranch, /INSERT INTO public\.topic_conditioning_activations/);
+  assert.doesNotMatch(emergencyBranch, /supabase\./);
+  assert.match(routeSource, /storage\.getStudent\(studentId\)/);
+  assert.match(routeSource, /Unauthorized: Student does not belong to this tutor/);
+});
+
 test("emergency tutor mode prefers the exact assignment certification mode", () => {
   assert.equal(resolveEmergencyTutorMode({ assignmentMode: "training", certificationMode: "sandbox" }), "sandbox");
   assert.equal(resolveEmergencyTutorMode({ assignmentMode: "training" }), "training");

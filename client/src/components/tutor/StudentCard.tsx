@@ -326,9 +326,12 @@ export function StudentCard({
       case "communications":
         setCommunicationDialogOpen(true);
         break;
-      case "intro-drill":
-        navigate(`/specialist/intro-session/${student.id}`);
+      case "intro-drill": {
+        const topicParam = encodeURIComponent(suggestedTopic || "");
+        const phaseParam = encodeURIComponent(recommendedStartingPhase || "Clarity");
+        navigate(`/specialist/intro-session/${student.id}?topic=${topicParam}&phase=${phaseParam}`);
         break;
+      }
       case "student-card":
       default:
         break;

@@ -25,6 +25,13 @@ import type { TopicReference, TopicReferenceContent } from "@shared/topicReferen
 import { useStudentWorkflowState } from "@/hooks/useStudentWorkflowState";
 import { supabase } from "@/lib/supabaseClient";
 import { API_URL } from "@/lib/config";
+import {
+  TRAINING_INTERVENTION_FIELD,
+  TRAINING_INTERVENTION_OPTIONS,
+  trainingEvidenceStatusKey,
+  type TrainingEvidenceStatus,
+  type TrainingInterventionEvent,
+} from "@shared/trainingEvidenceCapture";
 
 type PhaseLabel = "Clarity" | "Structured Execution" | "Controlled Discomfort" | "Time Pressure Stability";
 type DrillMode = "diagnosis" | "training" | "session" | "handover";
@@ -1016,6 +1023,7 @@ export default function IntroSessionDrillRunner() {
 
   const set = drillStructure?.[currentSet] ?? null;
   const isModelingSet = !!set?.isModelingSet;
+  const isTrainingEvidenceCapture = modeToUse === "training" || isSessionMode;
   const isFirstRep = currentRep === 0;
   const isFirstSet = currentSet === 0;
   const isTopicReferenceCaptureStep =
@@ -1135,6 +1143,48 @@ export default function IntroSessionDrillRunner() {
       ...prev,
       [`set${currentSet}_rep${currentRep}_${field}`]: value,
     }));
+  };
+
+
+  const handleTrainingEvidenceStatus = (
+    field: string,
+    status: TrainingEvidenceStatus,
+  ) => {
+    setObservations((prev: any) => ({
+      ...prev,
+      ["set" + currentSet + "_rep" + currentRep + "_" + trainingEvidenceStatusKey(field)]: status,
+    }));
+  };
+
+  const handleTrainingIntervention = (event: TrainingInterventionEvent) => {
+    setObservations((prev: any) => ({
+      ...prev,
+      ["set" + currentSet + "_rep" + currentRep + "_" + TRAINING_INTERVENTION_FIELD]: event,
+    }));
+  };
+
+  const currentTrainingIntervention = (): TrainingInterventionEvent => {
+    const stored = String(
+      observations[
+        "set" + currentSet + "_rep" + currentRep + "_" + TRAINING_INTERVENTION_FIELD
+      ] || "none",
+    ) as TrainingInterventionEvent;
+    return TRAINING_INTERVENTION_OPTIONS.some((option) => option.id === stored)
+      ? stored
+      : "none";
+  };
+
+  const currentTrainingEvidenceStatus = (
+    field: string,
+  ): TrainingEvidenceStatus => {
+    const stored = String(
+      observations[
+        "set" + currentSet + "_rep" + currentRep + "_" + trainingEvidenceStatusKey(field)
+      ] || "observed",
+    );
+    return stored === "not_observed" || stored === "confounded"
+      ? stored
+      : "observed";
   };
 
   const handleTopicReferenceChange = (field: keyof TopicReferenceContent, value: string) => {
@@ -1273,7 +1323,19 @@ export default function IntroSessionDrillRunner() {
           obs._rep_number = String(repIdx + 1);
         }
         const observationBlock = getLiveObservationBlockForRep(setConfig, repIdx);
+        if (isTrainingEvidenceCapture) {
+          obs[TRAINING_INTERVENTION_FIELD] =
+            observations[
+              "set" + setIndex + "_rep" + repIdx + "_" + TRAINING_INTERVENTION_FIELD
+            ] || "none";
+        }
         observationBlock.forEach((block) => {
+          if (isTrainingEvidenceCapture) {
+            obs[trainingEvidenceStatusKey(block.key)] =
+              observations[
+                "set" + setIndex + "_rep" + repIdx + "_" + trainingEvidenceStatusKey(block.key)
+              ] || "observed";
+          }
           const selectedLabel = observations[`set${setIndex}_rep${repIdx}_${block.key}`] || "";
           const optionIndex = block.options.findIndex((option) => option === selectedLabel);
           const semanticIdentity = getEvidenceSelectionIdentity({
@@ -2242,6 +2304,15 @@ export default function IntroSessionDrillRunner() {
         </div>
       )}
 
+      {isTrainingEvidenceCapture && !set?.isModelingSet && (
+        <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-3">
+          <div className="text-sm font-semibold">Behavior first, score second</div>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Choose the concrete behavior that occurred. Then mark whether that observation is actually usable as evidence. During shadow validation the legacy score still runs, while the evidence engine independently decides what the behavior is allowed to prove.
+          </p>
+        </div>
+      )}
+
       {/* Set context block -purpose, rep instruction, active rules */}
       <div className="mb-4 p-2 sm:p-3 rounded-xl border border-primary/15 bg-background shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 mb-2">
@@ -2261,6 +2332,37 @@ export default function IntroSessionDrillRunner() {
           ))}
         </div>
       </div>
+
+      {isTrainingEvidenceCapture && !set?.isModelingSet && (
+        <div className="mb-4 rounded-xl border border-primary/15 bg-background p-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Support actually used in this rep
+          </div>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Record what happened, even when support was allowed by the drill. The evidence engine decides which dimensions remain valid.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {TRAINING_INTERVENTION_OPTIONS.map((option) => (
+              <button
+                type="button"
+                key={option.id}
+                onClick={() => handleTrainingIntervention(option.id)}
+                className={[
+                  "rounded-lg border p-3 text-left",
+                  currentTrainingIntervention() === option.id
+                    ? "border-primary bg-primary/5 ring-1 ring-primary"
+                    : "border-primary/15 hover:bg-primary/5",
+                ].join(" ")}
+              >
+                <span className="block text-sm font-medium">{option.label}</span>
+                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                  {option.detail}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <form className="space-y-4">
         {getLiveObservationBlockForRep(set, currentRep).length === 0 && (
@@ -2283,6 +2385,32 @@ export default function IntroSessionDrillRunner() {
                 </button>
               ))}
             </div>
+            {isTrainingEvidenceCapture && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <span className="mr-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Evidence validity
+                </span>
+                {([
+                  ["observed", "Observed cleanly"],
+                  ["not_observed", "Not meaningfully observed"],
+                  ["confounded", "Confounded"],
+                ] as Array<[TrainingEvidenceStatus, string]>).map(([status, label]) => (
+                  <button
+                    type="button"
+                    key={status}
+                    onClick={() => handleTrainingEvidenceStatus(obs.key, status)}
+                    className={[
+                      "rounded-md border px-2 py-1 text-[11px]",
+                      currentTrainingEvidenceStatus(obs.key) === status
+                        ? "border-primary bg-primary/5 font-medium"
+                        : "border-primary/15 text-muted-foreground hover:bg-primary/5",
+                    ].join(" ")}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </form>

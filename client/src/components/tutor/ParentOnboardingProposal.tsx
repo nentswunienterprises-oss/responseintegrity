@@ -55,7 +55,8 @@ export default function ParentOnboardingProposal({
 
   const drillData = drillDataRaw as any;
 
-  // Core scoring model: diagnosis classifies entry phase/stability only.
+  // Evidence-native diagnosis classifies entry phase/stability from observed behavior.
+  // Numeric scores have no diagnosis decision authority.
   const deriveTrainingEntryPhase = (diagnosisPhase: string, _stability: string): string => {
     return diagnosisPhase;
   };
@@ -81,7 +82,7 @@ export default function ParentOnboardingProposal({
 
   const getParentFacingPriority = (trainingPhase: string, diagnosisPhase: string, stability: string) => {
     if (stability === "High" && diagnosisPhase === trainingPhase) {
-      return `Training will start at ${trainingPhase} and use session scoring to determine whether to remain, regress, or advance.`;
+      return `Training will start at ${trainingPhase} and use observed response evidence to determine whether the state holds, regresses, or progresses.`;
     }
     switch (trainingPhase) {
       case "Clarity":
@@ -155,7 +156,10 @@ export default function ParentOnboardingProposal({
       const trainingEntryPhase = deriveTrainingEntryPhase(diagnosisPhase, stability);
 
       const recommendedPlan = `${trainingEntryPhase} phase conditioning on ${topic || "primary diagnostic topic"} (entry stability: ${stability}). Diagnosed at ${diagnosisPhase} - training starts at ${trainingEntryPhase}. System-generated from intro drill.`;
-      const justification = `Intro drill scored ${drillData?.summary?.diagnosisScore ?? "-"}/100 at ${diagnosisPhase} phase. Stability: ${stability}. Training entry phase resolved to ${trainingEntryPhase}. Next action: ${drillData?.summary?.nextAction || "Continue phase work"}.`;
+      const evidenceReason =
+        drillData?.summary?.reason ||
+        "The entry state was resolved from the student's observed response behavior.";
+      const justification = `Behavioral diagnosis placed ${topic || "the diagnostic topic"} at ${diagnosisPhase} - ${stability}. ${evidenceReason} Training begins at ${trainingEntryPhase}. Next action: ${drillData?.summary?.nextAction || "Continue phase work"}.`;
 
       const response = await apiRequest("POST", "/api/tutor/proposal", {
         studentId,
