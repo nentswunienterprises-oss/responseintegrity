@@ -81,7 +81,7 @@ try {
       (response) => response.url().includes("/api/auth/signup") && response.request().method() === "POST",
       { timeout: 60_000 },
     ),
-    page.getByRole("button", { name: "Sign Up", exact: true }).click(),
+    page.locator("form").getByRole("button", { name: "Sign Up", exact: true }).click(),
   ]);
   const signupBody = await signupResponse.json().catch(() => null);
   assert.ok(signupResponse.ok(), `Signup failed: ${signupResponse.status()} ${JSON.stringify(signupBody)}`);
@@ -105,7 +105,7 @@ try {
         (response) => response.url().includes("/api/auth/signin") && response.request().method() === "POST",
         { timeout: 60_000 },
       ),
-      page.getByRole("button", { name: "Login", exact: true }).click(),
+      page.locator("form").getByRole("button", { name: "Login", exact: true }).click(),
     ]);
     const signinBody = await signinResponse.json().catch(() => null);
     lastSignin = { attempt, status: signinResponse.status(), message: signinBody?.message || null };
