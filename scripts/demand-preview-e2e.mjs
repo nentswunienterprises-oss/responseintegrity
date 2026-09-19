@@ -17,7 +17,7 @@ const evidence = {
   runId,
   baseUrl,
   email,
-  productionLink: "DEMAND01",
+  productionLink: "DMD46E2E",
   pipeline: "demand",
   trackingSource: "smoke",
   trackingCampaign: "demand-gateway-smoke",
@@ -44,51 +44,62 @@ page.on("console", (message) => {
 
 try {
   const intakeUrl =
-    `${baseUrl}/client/intake?fastTrack=exec&production=DEMAND01&pipeline=demand&utm_source=smoke&utm_campaign=demand-gateway-smoke`;
+    `${baseUrl}/client/intake?fastTrack=exec&production=DMD46E2E&pipeline=demand&utm_source=smoke&utm_campaign=demand-gateway-smoke`;
 
-  let previewBundleReady = false;
-  let lastBundleProbe = null;
+  const allowedProofRefs = new Set([
+    "jftlxeacphvbnhbsbpxc",
+    "tzgkiaiwnhmnzznvmbfg",
+  ]);
+
+  let environmentProof = null;
   for (let attempt = 1; attempt <= 30; attempt += 1) {
-    const probeResponse = await page.goto(intakeUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
-    const scriptUrls = await page.locator("script[src]").evaluateAll((nodes) =>
-      nodes.map((node) => new URL(node.getAttribute("src"), window.location.href).toString()),
-    );
-    let proofApiPresent = false;
-    for (const scriptUrl of scriptUrls) {
-      const source = await page.request.get(scriptUrl);
-      const text = await source.text();
-      if (text.includes("responseintegrity-proof.onrender.com")) {
-        proofApiPresent = true;
+    const response = await page.request.get(
+      `${baseUrl}/api/__proof/environment`,
+      { timeout: 30_000 },
+    ).catch(() => null);
+
+    if (response?.ok()) {
+      const body = await response.json().catch(() => null);
+      if (
+        body?.vercelEnv === "preview" &&
+        allowedProofRefs.has(body?.supabaseProjectRef)
+      ) {
+        environmentProof = body;
         break;
       }
+      console.log("PREVIEW_ENV_WAIT", JSON.stringify({ attempt, status: response.status(), body }));
+    } else {
+      console.log("PREVIEW_ENV_WAIT", JSON.stringify({ attempt, status: response?.status?.() ?? null }));
     }
-    lastBundleProbe = {
-      attempt,
-      status: probeResponse?.status() ?? null,
-      url: page.url(),
-      proofApiPresent,
-    };
-    if (proofApiPresent) {
-      previewBundleReady = true;
-      break;
-    }
-    console.log("PREVIEW_BUNDLE_WAIT", JSON.stringify(lastBundleProbe));
+
     await page.waitForTimeout(10_000);
   }
-  assert.ok(previewBundleReady, `Preview alias never served Proof-routed bundle: ${JSON.stringify(lastBundleProbe)}`);
+
+  assert.ok(
+    environmentProof,
+    "Preview API never proved that it was running the branch backend against an approved Proof Supabase project",
+  );
+  checkpoint("preview-proof-environment-certified", environmentProof);
 
   const proofModeResponse = await page.request.get(
-    "https://responseintegrity-proof.onrender.com/api/auth/mode",
-    { timeout: 120_000 },
+    `${baseUrl}/api/auth/mode`,
+    { timeout: 60_000 },
   );
   const proofModeText = await proofModeResponse.text();
   assert.ok(
     proofModeResponse.ok(),
-    `Proof API auth mode probe failed: ${proofModeResponse.status()} ${proofModeText}`,
+    `Preview branch API auth mode probe failed: ${proofModeResponse.status()} ${proofModeText}`,
   );
   const proofMode = JSON.parse(proofModeText);
-  assert.equal(proofMode.emergencyDbMode, false, `Proof API must not be in emergency DB mode: ${proofModeText}`);
-  checkpoint("proof-api-ready", { status: proofModeResponse.status(), authMode: proofMode.authMode });
+  assert.equal(
+    proofMode.emergencyDbMode,
+    false,
+    `Preview branch API must not be in emergency DB mode: ${proofModeText}`,
+  );
+  checkpoint("preview-branch-api-ready", {
+    status: proofModeResponse.status(),
+    authMode: proofMode.authMode,
+  });
 
   const intakeResponse = await page.goto(intakeUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
   const intakeBody = await page.locator("body").innerText();
@@ -103,7 +114,7 @@ try {
 
   const signupUrl = new URL(page.url());
   assert.equal(signupUrl.searchParams.get("fastTrack"), "exec");
-  assert.equal(signupUrl.searchParams.get("production"), "DEMAND01");
+  assert.equal(signupUrl.searchParams.get("production"), "DMD46E2E");
   assert.equal(signupUrl.searchParams.get("pipeline"), "demand");
   assert.equal(signupUrl.searchParams.get("utm_source"), "smoke");
   assert.equal(signupUrl.searchParams.get("utm_campaign"), "demand-gateway-smoke");
@@ -135,7 +146,7 @@ try {
   await page.screenshot({ path: path.join(evidenceDir, "02-signup-created.png"), fullPage: true });
 
   const loginUrl =
-    `${baseUrl}/client/signup?mode=login&fastTrack=exec&production=DEMAND01&pipeline=demand&utm_source=smoke&utm_campaign=demand-gateway-smoke`;
+    `${baseUrl}/client/signup?mode=login&fastTrack=exec&production=DMD46E2E&pipeline=demand&utm_source=smoke&utm_campaign=demand-gateway-smoke`;
 
   let loggedIn = false;
   let lastSignin = null;
