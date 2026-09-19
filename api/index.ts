@@ -1,16 +1,12 @@
 import 'dotenv/config';
 import express from 'express';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { registerRoutes } from '../server/routes';
-import { getSession } from '../server/supabaseAuth';
 import cors from 'cors';
 
 const app = express();
 
-// Trust proxy for Vercel
 app.set('trust proxy', 1);
 
-// CORS configuration - must be before routes
 app.use(cors({
   origin: true,
   credentials: true,
@@ -18,7 +14,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
 
-// Handle preflight requests explicitly
 app.options('*', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
@@ -30,27 +25,90 @@ app.options('*', (req, res) => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
-// Attach session middleware BEFORE routes
-app.use(getSession());
-
-// Debug middleware to log incoming requests
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
   console.log(`[API] ${req.method} ${req.url}`);
   next();
 });
 
-// Register API routes
-registerRoutes(app);
+let initialized = false;
+let initializationPromise: Promise<void> | null = null;
 
-// Catch-all for unhandled routes
-app.use((req, res) => {
-  console.log(`[API] 404 Not Found: ${req.method} ${req.url}`);
-  res.status(404).json({ error: 'Not found', path: req.url, method: req.method });
-});
+function initializeApp(): Promise<void> {
+  if (initialized) return Promise.resolve();
+  if (!initializationPromise) {
+    initializationPromise = (async () => {
+      const [{ setupAuth }, { registerRoutes }] = await Promise.all([
+        import('../server/supabaseAuth'),
+        import('../server/routes'),
+      ]);
 
-// Vercel serverless handler
-export default function handler(req: VercelRequest, res: VercelResponse) {
-  // Routes are registered with /api prefix, so pass through as-is
+      await setupAuth(app);
+      await registerRoutes(app);
+
+      app.use((req, res) => {
+        console.log(`[API] 404 Not Found: ${req.method} ${req.url}`);
+        res.status(404).json({ error: 'Not found', path: req.url, method: req.method });
+      });
+
+      initialized = true;
+    })();
+  }
+  return initializationPromise;
+}
+
+function remapPreviewApiPath(req: VercelRequest) {
+  const routedPath = req.query.__ri_path;
+  if (typeof routedPath !== 'string' || !routedPath) return;
+
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(req.query)) {
+    if (key === '__ri_path') continue;
+    if (Array.isArray(value)) {
+      for (const item of value) query.append(key, String(item));
+    } else if (value !== undefined) {
+      query.append(key, String(value));
+    }
+  }
+
+  const qs = query.toString();
+  req.url = `/api/${routedPath}${qs ? `?${qs}` : ''}`;
+}
+
+function previewEnvironmentProof(res: VercelResponse) {
+  const supabaseUrl = process.env.SUPABASE_URL || '';
+  let supabaseProjectRef: string | null = null;
+  try {
+    supabaseProjectRef = new URL(supabaseUrl).hostname.split('.')[0] || null;
+  } catch {
+    supabaseProjectRef = null;
+  }
+
+  let databaseHost: string | null = null;
+  try {
+    databaseHost = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).hostname : null;
+  } catch {
+    databaseHost = null;
+  }
+
+  return res.status(200).json({
+    vercelEnv: process.env.VERCEL_ENV || null,
+    supabaseProjectRef,
+    databaseHost,
+  });
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  remapPreviewApiPath(req);
+
+  if (req.url?.split('?')[0] === '/api/__proof/environment') {
+    if (process.env.VERCEL_ENV !== 'preview') {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    return previewEnvironmentProof(res);
+  }
+
+  await initializeApp();
+
   console.log(`[Vercel Handler] ${req.method} ${req.url}`);
   return app(req as any, res as any);
 }

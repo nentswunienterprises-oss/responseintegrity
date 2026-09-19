@@ -41,7 +41,7 @@ interface EnrollmentStatus {
   step?: string;
   assignmentLane?: string | null;
   plan?: string;
-  onboardingType?: "pilot" | "commercial";
+  onboardingType?: "pending" | "pilot" | "commercial" | null;
   freeSessionsRemaining?: number;
   paymentStatus?: "UNPAID" | "PENDING" | "PAID" | "FAILED" | "CANCELLED" | "FREE_ACCESS";
   paymentDate?: string | null;

@@ -1,0 +1,83 @@
+name: Demand Gateway Preview E2E
+
+on:
+  push:
+    branches:
+      - feat/demand-production-gateway
+    paths:
+      - 'scripts/demand-preview-e2e.mjs'
+      - '.github/workflows/demand-gateway-preview-e2e.yml'
+      - 'client/src/lib/config.ts'
+      - 'api/index.ts'
+      - 'server/supabaseAuth.ts'
+      - 'vercel.json'
+  workflow_dispatch:
+
+jobs:
+  demand-gateway-preview-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SMOKE_BASE_URL: https://tt-confidence-hub-git-feat-dem-d053fe-relief-works-technologies.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - name: Probe preview Proof routing
+        run: |
+          node --input-type=module <<'NODE'
+          const base = process.env.SMOKE_BASE_URL.replace(/\/$/, "");
+          const url = base + "/api/proof-environment";
+          let last = null;
+          for (let attempt = 1; attempt <= 18; attempt += 1) {
+            try {
+              const response = await fetch(url, { redirect: "manual" });
+              const text = await response.text();
+              const contentType = response.headers.get("content-type") || "";
+              last = {
+                attempt,
+                status: response.status,
+                contentType,
+                bodyStart: text.slice(0, 500),
+              };
+              console.log("PREVIEW_ROUTE_PROBE", JSON.stringify(last));
+              if (response.ok && contentType.includes("application/json")) {
+                const body = JSON.parse(text);
+                if (
+                  body?.vercelEnv === "preview" &&
+                  ["jftlxeacphvbnhbsbpxc", "tzgkiaiwnhmnzznvmbfg"].includes(body?.supabaseProjectRef)
+                ) {
+                  process.exit(0);
+                }
+              }
+            } catch (error) {
+              last = { attempt, error: String(error) };
+              console.log("PREVIEW_ROUTE_PROBE", JSON.stringify(last));
+            }
+            await new Promise((resolve) => setTimeout(resolve, 5000));
+          }
+          console.error("Preview Proof routing probe failed", JSON.stringify(last));
+          process.exit(1);
+          NODE
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run deployed Demand Gateway smoke
+        run: node scripts/demand-preview-e2e.mjs
+
+      - name: Upload Demand Gateway smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demand-gateway-preview-e2e
+          path: artifacts/demand-preview-e2e
+          if-no-files-found: warn
