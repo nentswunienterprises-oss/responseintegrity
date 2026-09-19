@@ -111,10 +111,10 @@ export default function OperationalLanding() {
                 <div className="w-8 h-8 rounded-full" style={{ backgroundColor: "white" }} />
               </div>
               <h3 className="text-2xl font-bold mb-3" style={{ color: "#1A1A1A" }}>
-                Tutor
+                Specialist
               </h3>
               <p className="mb-6" style={{ color: "#5A5A5A" }}>
-                Lead student Response Pods and train execution
+                Deliver governed response-conditioning sessions
               </p>
               
               <p className="text-xs font-semibold uppercase tracking-wide mb-4" style={{ color: "#E63946" }}>
@@ -133,7 +133,7 @@ export default function OperationalLanding() {
                 className="w-full px-4 sm:px-6 rounded-full py-2.5 sm:py-3.5 mt-auto font-semibold border-0 text-center box-border"
                 style={{ backgroundColor: "#E63946", color: "white" }}
               >
-                Continue as Tutor
+                Continue as Specialist
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Card>
@@ -154,14 +154,14 @@ export default function OperationalLanding() {
                 Territory Director
               </h3>
               <p className="mb-6" style={{ color: "#5A5A5A" }}>
-                Oversee multiple pods, tutors, and ensure quality consistency
+                Oversee multiple pods, specialists, and ensure quality consistency
               </p>
               
               <p className="text-xs font-semibold uppercase tracking-wide mb-4" style={{ color: "#E63946" }}>
                 Your Dashboard Includes
               </p>
               <ul className="space-y-3 mb-8">
-                {["Tutor Performance Reports", "All Student Check-Ins (Territory-wide)", "Territory Analytics & KPIs", "Tutor Coaching & Feedback Management", "Enrollment & Retention Tracking"].map((item, i) => (
+                {["Specialist Performance Reports", "All Student Check-Ins (Territory-wide)", "Territory Analytics & KPIs", "Specialist Coaching & Feedback Management", "Enrollment & Retention Tracking"].map((item, i) => (
                   <li key={i} className="flex items-center gap-3">
                     <Check className="w-5 h-5 flex-shrink-0" style={{ color: "#E63946" }} />
                     <span style={{ color: "#5A5A5A" }}>{item}</span>
@@ -189,7 +189,7 @@ export default function OperationalLanding() {
               What We're Looking For
             </h2>
             <p className="text-lg" style={{ color: "#5A5A5A" }}>
-              The qualities that make great Tutors and Territory Directors
+              The qualities that make strong Specialists and Territory Directors
             </p>
           </div>
           
@@ -206,13 +206,13 @@ export default function OperationalLanding() {
                 >
                   <Brain className="w-6 h-6" style={{ color: "#E63946" }} />
                 </div>
-                <h3 className="text-xl font-bold" style={{ color: "#1A1A1A" }}>Tutors</h3>
+                <h3 className="text-xl font-bold" style={{ color: "#1A1A1A" }}>Specialists</h3>
               </div>
               <div className="space-y-4">
                 {[
                   "Strong math background (high school level minimum)",
                   "Natural mentoring ability and student empathy",
-                  "Commitment to student confidence (not just grades)",
+                  "Commitment to evidence-led student development",
                   "Reliability and consistent presence",
                   "Openness to feedback and continuous learning"
                 ].map((item, i) => (
@@ -300,7 +300,7 @@ export default function OperationalLanding() {
               &copy; {new Date().getFullYear()} Response Integrity (Pty) Ltd
               <br />
               <span className="text-sm">
-                Manufacturing Confidence & Financial Independence in South African Youth.
+                Response conditioning for execution under mathematical difficulty.
               </span>
             </p>
           </div>
