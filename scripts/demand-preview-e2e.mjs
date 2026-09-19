@@ -77,6 +77,19 @@ try {
   }
   assert.ok(previewBundleReady, `Preview alias never served Proof-routed bundle: ${JSON.stringify(lastBundleProbe)}`);
 
+  const proofModeResponse = await page.request.get(
+    "https://responseintegrity-proof.onrender.com/api/auth/mode",
+    { timeout: 120_000 },
+  );
+  const proofModeText = await proofModeResponse.text();
+  assert.ok(
+    proofModeResponse.ok(),
+    `Proof API auth mode probe failed: ${proofModeResponse.status()} ${proofModeText}`,
+  );
+  const proofMode = JSON.parse(proofModeText);
+  assert.equal(proofMode.emergencyDbMode, false, `Proof API must not be in emergency DB mode: ${proofModeText}`);
+  checkpoint("proof-api-ready", { status: proofModeResponse.status(), authMode: proofMode.authMode });
+
   const intakeResponse = await page.goto(intakeUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
   const intakeBody = await page.locator("body").innerText();
   assert.ok(intakeBody.toLowerCase().includes("parent intake gateway"), `Expected RI intake page, got ${page.url()} / ${await page.title()}`);
