@@ -14510,7 +14510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let enrollment: any = null;
           if (explicitEnrollmentId) {
             const result = await pool.query(
-              `SELECT id, status, user_id, assigned_tutor_id
+              `SELECT id, status, current_step, user_id, assigned_tutor_id
                  FROM public.parent_enrollments
                 WHERE id = $1 AND assigned_tutor_id = $2
                 LIMIT 1`,
@@ -14520,7 +14520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           if (!enrollment && (student as any).parentId) {
             const result = await pool.query(
-              `SELECT id, status, user_id, assigned_tutor_id
+              `SELECT id, status, current_step, user_id, assigned_tutor_id
                  FROM public.parent_enrollments
                 WHERE user_id = $1 AND assigned_tutor_id = $2
                 ORDER BY updated_at DESC
@@ -14528,6 +14528,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
               [(student as any).parentId, dbUser.id],
             );
             enrollment = result.rows[0] || null;
+          }
+
+          if (
+            enrollment?.id &&
+            workflow.assignmentAcceptedAt &&
+            String(enrollment.status || "").trim().toLowerCase() === "awaiting_tutor_acceptance"
+          ) {
+            const resumedStatus = extractReassignmentResumeStatus(enrollment.current_step) || null;
+            const nextEnrollmentStatus = resumedStatus || "assigned";
+            const nextCurrentStep =
+              resumedStatus && resumedStatus !== "assigned"
+                ? "handover_not_scheduled"
+                : nextEnrollmentStatus;
+            const promoted = await pool.query(
+              `UPDATE public.parent_enrollments
+                  SET assigned_tutor_id = $2,
+                      status = $3,
+                      current_step = $4,
+                      updated_at = NOW()
+                WHERE id = $1
+                  AND assigned_tutor_id = $2
+                RETURNING id, status, current_step, user_id, assigned_tutor_id`,
+              [enrollment.id, dbUser.id, nextEnrollmentStatus, nextCurrentStep],
+            );
+            enrollment = promoted.rows[0] || enrollment;
           }
 
           const proposalResult = await pool.query(
@@ -15010,16 +15035,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } as any);
 
           if (sandboxContextLikely && parentEnrollment?.id) {
-            await supabase
-              .from("students")
-              .update({
-                parent_enrollment_id: parentEnrollment.id,
-                parent_id: normalizedParentId || null,
-                parent_contact: normalizedParentEmail || null,
-                tutor_id: dbUser.id,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", studentId);
+            if (isEmergencyDbMode()) {
+              await pool.query(
+                `UPDATE public.students
+                    SET parent_enrollment_id = $2,
+                        parent_id = $3,
+                        parent_contact = $4,
+                        tutor_id = $5,
+                        updated_at = NOW()
+                  WHERE id = $1`,
+                [
+                  studentId,
+                  parentEnrollment.id,
+                  normalizedParentId || null,
+                  normalizedParentEmail || null,
+                  dbUser.id,
+                ],
+              );
+            } else {
+              await supabase
+                .from("students")
+                .update({
+                  parent_enrollment_id: parentEnrollment.id,
+                  parent_id: normalizedParentId || null,
+                  parent_contact: normalizedParentEmail || null,
+                  tutor_id: dbUser.id,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", studentId);
+            }
           }
 
           if (parentEnrollment && parentEnrollment.id) {
@@ -15029,21 +15073,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 ? "handover_not_scheduled"
                 : nextEnrollmentStatus;
 
-            const { error: enrollmentUpdateError } = await supabase
-              .from("parent_enrollments")
-              .update({
-                assigned_tutor_id: dbUser.id,
-                status: nextEnrollmentStatus,
-                current_step: nextCurrentStep,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", parentEnrollment.id);
+            if (isEmergencyDbMode()) {
+              const enrollmentUpdate = await pool.query(
+                `UPDATE public.parent_enrollments
+                    SET assigned_tutor_id = $2,
+                        status = $3,
+                        current_step = $4,
+                        updated_at = NOW()
+                  WHERE id = $1
+                    AND assigned_tutor_id = $2
+                  RETURNING id, user_id, status, current_step, assigned_tutor_id`,
+                [parentEnrollment.id, dbUser.id, nextEnrollmentStatus, nextCurrentStep],
+              );
 
-            if (enrollmentUpdateError) {
-              console.error("Failed to update accepted enrollment:", parentEnrollment.id, enrollmentUpdateError);
-              return res.status(500).json({
-                message: "Assignment acceptance saved on the student, but the enrollment state could not be advanced.",
-              });
+              if (!enrollmentUpdate.rows[0]) {
+                return res.status(409).json({
+                  message: "Assignment acceptance was saved, but the parent enrollment could not be advanced for this specialist.",
+                });
+              }
+
+              parentEnrollment = {
+                ...parentEnrollment,
+                ...enrollmentUpdate.rows[0],
+              };
+            } else {
+              const { error: enrollmentUpdateError } = await supabase
+                .from("parent_enrollments")
+                .update({
+                  assigned_tutor_id: dbUser.id,
+                  status: nextEnrollmentStatus,
+                  current_step: nextCurrentStep,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", parentEnrollment.id);
+
+              if (enrollmentUpdateError) {
+                console.error("Failed to update accepted enrollment:", parentEnrollment.id, enrollmentUpdateError);
+                return res.status(500).json({
+                  message: "Assignment acceptance saved on the student, but the enrollment state could not be advanced.",
+                });
+              }
             }
 
             await safeSendPush(
