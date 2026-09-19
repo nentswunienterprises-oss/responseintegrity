@@ -1,5 +1,5 @@
-const path = require("node:path");
-const { pathToFileURL } = require("node:url");
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 let handlerPromise = null;
 let tsxApi = null;
@@ -21,8 +21,7 @@ async function loadPreviewHandler() {
       const runtimeUrl = pathToFileURL(
         path.join(process.cwd(), runtimeEntry),
       ).href;
-      const parentUrl = pathToFileURL(__filename).href;
-      const loaded = await tsxApi.import(runtimeUrl, parentUrl);
+      const loaded = await tsxApi.import(runtimeUrl, import.meta.url);
       const handler = loaded && loaded.default;
 
       if (typeof handler !== "function") {
@@ -41,7 +40,7 @@ async function loadPreviewHandler() {
   return handlerPromise;
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   try {
     const previewHandler = await loadPreviewHandler();
     return await previewHandler(req, res);
@@ -59,19 +58,15 @@ module.exports = async function handler(req, res) {
       vercelEnv: process.env.VERCEL_ENV || null,
     });
 
-    res.statusCode = 500;
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.end(
-      JSON.stringify({
-        error: "PREVIEW_BOOTSTRAP_FAILED",
-        missingEnvironmentVariables,
-        message:
-          process.env.VERCEL_ENV === "preview"
-            ? error instanceof Error
-              ? error.message
-              : String(error)
-            : "Preview API bootstrap failed",
-      }),
-    );
+    res.status(500).json({
+      error: "PREVIEW_BOOTSTRAP_FAILED",
+      missingEnvironmentVariables,
+      message:
+        process.env.VERCEL_ENV === "preview"
+          ? error instanceof Error
+            ? error.message
+            : String(error)
+          : "Preview API bootstrap failed",
+    });
   }
-};
+}

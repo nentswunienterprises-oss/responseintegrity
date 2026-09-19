@@ -35,7 +35,7 @@ test("Vercel preview API is routed to the branch Express function before the SPA
 });
 
 test("Vercel preview uses a CommonJS bootstrap with raw TypeScript runtime sources", () => {
-  const bootstrap = readFileSync(resolve(process.cwd(), "api/index.cjs"), "utf8");
+  const bootstrap = readFileSync(resolve(process.cwd(), "api/index.js"), "utf8");
   const runtime = readFileSync(resolve(process.cwd(), "server/vercelPreviewApi.ts"), "utf8");
   const config = JSON.parse(readFileSync(resolve(process.cwd(), "vercel.json"), "utf8"));
 
@@ -51,7 +51,7 @@ test("Vercel preview uses a CommonJS bootstrap with raw TypeScript runtime sourc
   assert.match(runtime, /req\.query\?\.__previewPath/);
   assert.match(runtime, /req\.url = queryString \?/);
 
-  const includeFiles = config.functions?.["api/index.cjs"]?.includeFiles || "";
+  const includeFiles = config.functions?.["api/index.js"]?.includeFiles || "";
   assert.equal(typeof includeFiles, "string");
   assert.match(includeFiles, /server\/\*\*\/\*\.ts/);
   assert.match(includeFiles, /shared\/\*\*\/\*\.ts/);

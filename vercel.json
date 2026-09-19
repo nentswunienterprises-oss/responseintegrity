@@ -411,7 +411,7 @@
     }
   ],
   "functions": {
-    "api/index.cjs": {
+    "api/index.js": {
       "includeFiles": "{server/**/*.ts,server/routes/**/*.js,shared/**/*.ts,shared/**/*.json,server/**/*.json,server/**/*.md,tsconfig.json}"
     }
   }
