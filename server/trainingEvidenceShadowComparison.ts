@@ -6,7 +6,7 @@ import type {
 import type { TopicPhase, TopicStability } from "../shared/topicConditioningEngine";
 
 export const TRAINING_EVIDENCE_EVALUATOR_VERSION = 1;
-export const TRAINING_EVIDENCE_CONTRACT_VERSION = 1;
+export const TRAINING_EVIDENCE_CONTRACT_VERSION = 2;
 
 export type TrainingEvidenceShadowDatasetInput = {
   sourceDrillId: string;

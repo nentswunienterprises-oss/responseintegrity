@@ -777,3 +777,24 @@ test("sandbox family scheduling keeps payment authority separate from sandbox qu
   assert.match(acceptSource, /\.in\("status", \["proposal_sent", "session_booked"\]\)/);
   assert.match(acceptSource, /payfastSandboxForEnrollment/);
 });
+
+test("specialist High Maintenance prep stays in the current phase until confirmation", () => {
+  const source = readFileSync(
+    resolve(process.cwd(), "client/src/components/tutor/StudentTopicConditioningDialog.tsx"),
+    "utf8",
+  );
+
+  const prepStart = source.indexOf("function nextPrepPhaseFor");
+  const prepEnd = source.indexOf("function actionGuidanceFor", prepStart);
+  const prepSource = source.slice(prepStart, prepEnd);
+
+  assert.ok(prepStart >= 0);
+  assert.ok(prepEnd > prepStart);
+  assert.match(prepSource, /if \(stability === "High Maintenance"\) return phase;/);
+  assert.doesNotMatch(source, /Advance Threshold Met/);
+  assert.match(source, /Maintenance Confirmation/);
+  assert.match(
+    source,
+    /Confirm it in a later qualifying Controlled Discomfort drill before progressing into Time Pressure Stability\./,
+  );
+});

@@ -564,7 +564,8 @@ Every new versioned training drill produces an immutable comparison row containi
 
 - the legacy compatibility score and transition;
 - the evidence-native observed stability and predicted transition;
-- whether the two paths diverged;
+- whether phase/stability state paths diverged (`diverged` / `stateDiverged`);
+- whether transition-reason labels diverged separately (`reasonDiverged`);
 - High Maintenance entry qualification;
 - exit qualification;
 - intervention events;
@@ -573,6 +574,8 @@ Every new versioned training drill produces an immutable comparison row containi
 - the complete shadow evaluation payload.
 
 The dataset is proof-only and protected by RLS with no direct client policies. It cannot authorize live topic state.
+
+Comparison contract version 2 defines `diverged` as a phase/stability state disagreement only. A reason-label mismatch without a state disagreement is preserved as `reasonDiverged = true` and does not make `diverged` true.
 
 A new evaluator or contract version must create a new comparison identity rather than rewriting prior proof. Historical comparisons are evidence about a particular engine version and remain immutable.
 

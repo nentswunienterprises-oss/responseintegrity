@@ -467,7 +467,7 @@ function deriveTransitionStatus(
   const advanceTo = getNextActionData(phase, stability).advanceTo;
   if (trend === "Regressing" && !options?.suppressRegressed) return "Regressed" as const;
   if (phase === "Time Pressure Stability" && stability === "High Maintenance") return "Transfer Ready" as const;
-  if (stability === "High Maintenance" && advanceTo) return "Advance Threshold Met" as const;
+  if (stability === "High Maintenance" && advanceTo) return "Maintenance Confirmation" as const;
   if (stability === "High Maintenance") return "Maintain" as const;
   if (stability === "High") return "Maintenance Check" as const;
   if (stability === "Medium") return "Building" as const;
@@ -519,19 +519,19 @@ function interpretTopicState(
       Low: "Student still needs foundational clarity before independent execution.",
       Medium: "Student grasps concepts but needs more practice for consistency.",
       High: "Student has clear understanding and is ready for structured execution practice.",
-      "High Maintenance": "Student sustained high Clarity and is now ready to progress into Structured Execution.",
+      "High Maintenance": "Student has reached the Clarity maintenance checkpoint. Confirm it in a later qualifying Clarity drill before progressing into Structured Execution.",
     },
     "Structured Execution": {
       Low: "Student can follow steps but needs consistency and independence building.",
       Medium: "Student executes steps mostly independently but struggles with consistency.",
       High: "Student executes steps independently and is ready to build resilience under difficulty.",
-      "High Maintenance": "Student sustained high execution consistency and is ready to progress into Controlled Discomfort.",
+      "High Maintenance": "Student has reached the Structured Execution maintenance checkpoint. Confirm it in a later qualifying Structured Execution drill before progressing into Controlled Discomfort.",
     },
     "Controlled Discomfort": {
       Low: "Student struggles under difficulty but is building stability.",
       Medium: "Student handles difficulty with improving stability and consistency.",
       High: "Student handles difficulty with stability and is ready for time-pressure training.",
-      "High Maintenance": "Student sustained high discomfort control and is ready to progress into Time Pressure Stability.",
+      "High Maintenance": "Student has reached the Controlled Discomfort maintenance checkpoint. Confirm it in a later qualifying Controlled Discomfort drill before progressing into Time Pressure Stability.",
     },
     "Time Pressure Stability": {
       Low: "Student needs to maintain structure and speed consistency under time.",
@@ -565,6 +565,7 @@ function interpretTopicState(
 }
 
 function nextPrepPhaseFor(phase: PhaseLabel, stability: StabilityLabel): PhaseLabel {
+  if (stability === "High Maintenance") return phase;
   return getNextActionData(phase, stability).advanceTo || phase;
 }
 
@@ -603,10 +604,14 @@ function tutorPrepPlanFor(
 
   const prepPhase = nextPrepPhaseFor(phase, stability);
   const prepStability = prepPhase === phase ? stability : "Low";
+  const prepDrillType =
+    stability === "High Maintenance" && prepPhase !== "Time Pressure Stability"
+      ? `${prepPhase} High Maintenance Drill`
+      : `${prepPhase} Drill`;
 
   if (prepPhase === "Clarity") {
     return {
-      drillType: `${prepPhase} Drill`,
+      drillType: prepDrillType,
       setPlans: [
         { label: "Set 1: Modeling", problems: 2, difficulty: baseDifficulty },
         { label: "Set 2: Identification", problems: 3, difficulty: baseDifficulty },
@@ -623,7 +628,7 @@ function tutorPrepPlanFor(
 
   if (prepPhase === "Structured Execution") {
     return {
-      drillType: `${prepPhase} Drill`,
+      drillType: prepDrillType,
       setPlans: [
         { label: "Set 1", problems: 3, difficulty: baseDifficulty },
         { label: "Set 2", problems: 3, difficulty: baseDifficulty },
@@ -641,7 +646,7 @@ function tutorPrepPlanFor(
     const highIntensity =
       prepStability === "Medium" || prepStability === "High" || prepStability === "High Maintenance";
     return {
-      drillType: `${prepPhase} Drill`,
+      drillType: prepDrillType,
       setPlans: [
         { label: "Set 1", problems: 3, difficulty: highIntensity ? "Hard" : baseDifficulty },
         { label: "Set 2", problems: 3, difficulty: highIntensity ? "Challenging (but solvable)" : baseDifficulty },

@@ -42,6 +42,8 @@ const buildInput = (): TrainingEvidenceShadowDatasetInput => ({
     authority: "shadow_only",
     available: true,
     diverged: true,
+    stateDiverged: true,
+    reasonDiverged: true,
     legacy: {
       score: 92,
       nextPhase: "Clarity",
@@ -62,16 +64,17 @@ const buildInput = (): TrainingEvidenceShadowDatasetInput => ({
   },
 });
 
-test("comparison identity is deterministic and evaluator-versioned", () => {
+test("comparison identity is deterministic and evaluator/contract-versioned", () => {
   assert.equal(
     buildTrainingEvidenceShadowComparisonId(buildInput().sourceDrillId),
-    "11111111-1111-4111-8111-111111111111::evaluator::1::contract::1",
+    "11111111-1111-4111-8111-111111111111::evaluator::1::contract::2",
   );
 });
 
 test("dataset row preserves both decisions while remaining shadow-only", () => {
   const row = toTrainingEvidenceShadowDatasetRow(buildInput());
   assert.equal(row.authority, "shadow_only");
+  assert.equal(row.contract_version, 2);
   assert.equal(row.legacy_score, 92);
   assert.equal(row.legacy_next_stability, "High Maintenance");
   assert.equal(row.evidence_observed_stability, "Medium");

@@ -1763,8 +1763,9 @@ Each state stores:
 
 `High Maintenance`
 
-- primary action: `Run Structured Execution drill`
-- rules: `Do NOT stay in teaching mode`, `Move forward`
+- primary action: `Run Clarity High Maintenance drill`
+- rules: `Do NOT phase advance yet`, `Confirm High Maintenance in a later qualifying drill`
+- next actions: `Run High Maintenance confirmation in Clarity`; `Confirm repeatable clarity in a later qualifying drill`; `Advance to Structured Execution only after confirmation`
 - advanceTo: `Structured Execution`
 
 #### Structured Execution
@@ -1786,8 +1787,9 @@ Each state stores:
 
 `High Maintenance`
 
-- primary action: `Run Controlled Discomfort drill`
-- rules: `Do NOT keep repeating basic problems`, `Move forward`
+- primary action: `Run Structured Execution High Maintenance drill`
+- rules: `Do NOT phase advance yet`, `Confirm High Maintenance in a later qualifying drill`
+- next actions: `Run High Maintenance confirmation in Structured Execution`; `Confirm repeatable execution stability in a later qualifying drill`; `Advance to Controlled Discomfort only after confirmation`
 - advanceTo: `Controlled Discomfort`
 
 #### Controlled Discomfort
@@ -1809,8 +1811,9 @@ Each state stores:
 
 `High Maintenance`
 
-- primary action: `Run Time Pressure Stability drill`
-- rules: `Do NOT stay in comfort zone`, `Move forward`
+- primary action: `Run Controlled Discomfort High Maintenance drill`
+- rules: `Do NOT phase advance yet`, `Confirm High Maintenance in a later qualifying drill`
+- next actions: `Run High Maintenance confirmation in Controlled Discomfort`; `Confirm composed stability under uncertainty in a later qualifying drill`; `Advance to Time Pressure Stability only after confirmation`
 - advanceTo: `Time Pressure Stability`
 
 #### Time Pressure Stability
@@ -2365,16 +2368,16 @@ Examples:
 
 - `Clarity / Low` -> `reinforce recognition and first-step decisions before increasing difficulty.`
 - `Clarity / Medium` -> `reinforce recognition and first-step decisions before increasing difficulty.`
-- `Clarity / High` -> `reinforce recognition and first-step decisions before increasing difficulty.`
-- `Clarity / High Maintenance` -> `introduce Structured Execution while protecting recognition and step choice.`
+- `Clarity / High` -> `run a Clarity High Maintenance check; do not advance phase yet.`
+- `Clarity / High Maintenance` -> `confirm Clarity High Maintenance in a later qualifying drill before introducing Structured Execution.`
 - `Structured Execution / Low` -> `reinforce step order and independent starts before increasing difficulty.`
 - `Structured Execution / Medium` -> `reinforce step order and independent starts before increasing difficulty.`
-- `Structured Execution / High` -> `increase variation while protecting step order and independent starts.`
-- `Structured Execution / High Maintenance` -> `introduce Controlled Discomfort while protecting structure.`
+- `Structured Execution / High` -> `run a Structured Execution High Maintenance check; do not advance phase yet.`
+- `Structured Execution / High Maintenance` -> `confirm Structured Execution High Maintenance in a later qualifying drill before introducing Controlled Discomfort.`
 - `Controlled Discomfort / Low` -> `increase exposure to harder problems while maintaining structure.`
 - `Controlled Discomfort / Medium` -> `increase exposure to harder problems while maintaining structure.`
-- `Controlled Discomfort / High` -> `increase timed demand while protecting structure under difficulty.`
-- `Controlled Discomfort / High Maintenance` -> `introduce Time Pressure Stability while protecting structure.`
+- `Controlled Discomfort / High` -> `run a Controlled Discomfort High Maintenance check; do not introduce timed demand yet.`
+- `Controlled Discomfort / High Maintenance` -> `confirm Controlled Discomfort High Maintenance in a later qualifying drill before introducing Time Pressure Stability.`
 - `Time Pressure Stability / Low` -> `increase timed exposure while protecting structure and pace control.`
 - `Time Pressure Stability / Medium` -> `increase timed exposure while protecting structure and pace control.`
 - `Time Pressure Stability / High` -> `increase timed exposure while protecting structure and pace control.`
