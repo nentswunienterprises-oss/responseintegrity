@@ -1,11 +1,17 @@
 # Response Integrity-OS Live Implementation Source of Truth
 
-Last updated: 2026-09-03
-Status: Canonical implementation spec
+Last updated: 2026-09-19
+Status: DERIVATIVE IMPLEMENTATION SPEC - subordinate to the Response Integrity Universal Canonical Source of Truth
+
+> **Authority notice**
+>
+> This file describes repository implementation and runtime behavior. It is not the sole company or product-law authority.
+>
+> The current governing company source is **Response Integrity - Universal Canonical Source of Truth**. When this file conflicts with that source, the universal canonical position governs the intended product and this file must be reconciled. Where live code still differs from canonical product law, this file must state the implementation gap explicitly rather than silently redefining company truth.
 
 ## Purpose
 
-This document is the single human-readable source of truth for the live Response Integrity-OS product, algorithm, service-delivery flow, reporting logic, and integrity layer in this repository.
+This document is the primary human-readable implementation reference for the live Response Integrity-OS product, algorithm, service-delivery flow, reporting logic, and integrity layer in this repository.
 
 It is intentionally large.
 
@@ -22,11 +28,11 @@ This file absorbs the essential explanatory content that used to live across mul
 
 Read this file with these rules:
 
-1. This file is the sole documentation authority for Response Integrity-OS.
-2. Other docs may still exist, but they are derivative, archival, historical, or specialized views.
-3. If another doc conflicts with this file, this file wins.
-4. If this file and the current code ever disagree, the current code is the live runtime behavior and this file must be updated immediately in the same workstream.
-5. No Response Integrity-OS algorithm change is complete until this document is updated.
+1. The Universal Canonical Source of Truth governs company and product law.
+2. This file governs the detailed description of current repository implementation only to the extent that it does not contradict higher-order canonical law.
+3. If this file and live code disagree, code describes actual runtime behavior and the mismatch must be documented and reconciled.
+4. If live code and canonical product law disagree, that is an implementation gap - not permission to redefine the canonical position.
+5. No Response Integrity-OS algorithm change is institutionally complete until affected canonical and implementation documentation has been reconciled.
 
 ## What Response Integrity-OS Is
 
@@ -90,18 +96,30 @@ As of 2026-09-03, the live implementation uses these operating constants:
 
 Do not describe the live commercial model as a R1,000 Premium plan, loose session credits, or ad-hoc session capacity.
 
-The Specialist development pathway is:
+The current canonical Specialist development pathway is:
 
-- Application -> Training -> Sandbox -> Sandbox Mock Gate -> Trial -> Certified Live
-- standard development window: 75 active days
-- approved documented extension maximum: 90 active days
-- Training Battle Test: 15 questions per Deep Dive, 96%+ required three consecutive times for that Deep Dive
-- Sandbox Mock Gate: final Sandbox exit assessment, not a separate first-class mode
-- Trial window: 14 calendar days starting after both Trial families are placed
-- Trial evidence requirement: exactly 2 families x 9 qualifying completed sessions per family
-- Trial cadence target: intensive 4-5 sessions per week per family
+- Application -> Training -> Sandbox -> Practicals -> Trial -> Certification -> Certified Live
 
-The 14-day Trial window never replaces the 2 x 9 evidence requirement. If the window expires before the evidence requirement is met, COO must record a justified extension, and the final effective date may not exceed the approved pathway maximum.
+Current governing interpretation:
+
+- Training contains the Deep Dives and Capability Engine mastery work.
+- Sandbox is deterministic simulated practice in observation, discernment, evidence logging, drill workflow and system operation.
+- Practicals is the visible-execution stage: the Specialist must demonstrate the work, not merely describe what they would do.
+- Trial is governed real-family validation.
+- Certification is the final readiness decision gate.
+- Certified Live is the operating state after Certification.
+- Trial remains unpaid.
+- paid Specialist delivery begins in Certified Live, subject to qualifying-delivery and evidence rules.
+
+Implementation reconciliation still open:
+
+- older Sandbox Mock Gate references are superseded as pathway law;
+- exact Practicals rubric / count / evidence contract remain OPEN;
+- exact Live Trial cadence, session mathematics and duration remain OPEN;
+- older 2-family / 18-session and 14-day Trial formulations must not be treated as settled company law until separately reconciled and approved;
+- older fixed Training Battle Test thresholds / lock mechanics must not be treated as current company law unless retained through explicit reconciliation.
+
+The current implementation may still contain legacy states, route names, database fields or evaluator mechanics. Those are implementation debt and compatibility constraints, not canonical pathway authority.
 
 ## System Layers
 

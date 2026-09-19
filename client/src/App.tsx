@@ -26,10 +26,7 @@ if (typeof window !== 'undefined') {
 }
 
 // General Pages
-import Landing from "@/pages/landing";
 import PortalLanding from "@/pages/portal-landing";
-import OnlineTutorsWanted from "@/pages/onlinetutors-wanted";
-import OnlineTutorsWantedPlain from "@/pages/onlinetutorswanted";
 import AuthPage from "@/pages/auth";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
@@ -229,7 +226,7 @@ function Router() {
       <Route path="/specialist/intro-session/:studentId" element={<TutorGatewayGuard><IntroSessionDrillRunner /></TutorGatewayGuard>} />
       <Route path="/" element={<PortalLanding />} />
       <Route path="/portal-landing" element={<Navigate to="/" replace />} />
-      <Route path="/landing" element={<Landing />} />
+      <Route path="/landing" element={<RedirectWithSearch to="/" />} />
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -244,8 +241,8 @@ function Router() {
       <Route path="/td-terms-of-use" element={<TdTermsOfUse />} />
       <Route path="/egp-terms-of-use" element={<EgpTermsOfUse />} />
       <Route path="/faq" element={<FAQPage />} />
-      <Route path="/onlinetutors-wanted" element={<OnlineTutorsWanted />} />
-      <Route path="/onlinetutorswanted" element={<OnlineTutorsWantedPlain />} />
+      <Route path="/onlinetutors-wanted" element={<RedirectWithSearch to="/operational/specialist/landing" />} />
+      <Route path="/onlinetutorswanted" element={<RedirectWithSearch to="/operational/specialist/landing" />} />
       <Route path="/earlyinterventionreferralprogram" element={<EarlyInterventionReferralProgram />} />
       <Route path="/about" element={<AboutIndex />} />
       <Route path="/about/who-we-are" element={<WhoWeAre />} />
