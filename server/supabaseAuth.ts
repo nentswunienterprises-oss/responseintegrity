@@ -70,6 +70,9 @@ export function getSession() {
     console.log("⚠️  Using memory store for sessions (will clear on restart)");
   }
 
+  const isProductionRuntime = process.env.NODE_ENV === "production";
+  const isVercelPreview = process.env.VERCEL_ENV === "preview";
+
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
@@ -77,10 +80,11 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // true in prod, false in dev
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // 'none' for cross-site in prod
+      secure: isProductionRuntime,
+      // Preview is same-origin on *.vercel.app, so do not use the production cross-site cookie contract.
+      sameSite: isVercelPreview ? "lax" : isProductionRuntime ? "none" : "lax",
       maxAge: sessionTtl,
-      domain: process.env.NODE_ENV === "production" ? ".responseintegrity.co.za" : undefined,
+      domain: isProductionRuntime && !isVercelPreview ? ".responseintegrity.co.za" : undefined,
       path: "/",
     },
   });
