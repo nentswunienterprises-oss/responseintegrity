@@ -3800,25 +3800,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (process.env.VERCEL_ENV !== "preview") return;
 
             try {
-              const result = await pool.query(
-                `SELECT d.id, d.student_id, d.tutor_id,
-                        d.scheduled_session_id::text AS scheduled_session_id,
-                        d.training_session_run_id::text AS training_session_run_id,
-                        d.submitted_at, d.drill
-                   FROM public.intro_session_drills d
-                   LEFT JOIN public.training_evidence_shadow_comparisons c
-                     ON c.source_drill_id = d.id
-                    AND c.evaluator_version = 1
-                    AND c.contract_version = 1
-                  WHERE c.comparison_id IS NULL
-                    AND COALESCE(d.drill->>'drillType', '') = 'training'
-                    AND d.submitted_at >= NOW() - INTERVAL '2 hours'
-                    AND d.drill #>> '{summary,evidenceShadow,status}' = 'evaluated'
-                  ORDER BY d.submitted_at DESC
-                  LIMIT 1`,
-              );
+              let row: any = null;
 
-              const row = result.rows[0];
+              if (isEmergencyDbMode()) {
+                const result = await pool.query(
+                  `SELECT d.id, d.student_id, d.tutor_id,
+                          d.scheduled_session_id::text AS scheduled_session_id,
+                          d.training_session_run_id::text AS training_session_run_id,
+                          d.submitted_at, d.drill
+                     FROM public.intro_session_drills d
+                     LEFT JOIN public.training_evidence_shadow_comparisons c
+                       ON c.source_drill_id = d.id
+                      AND c.evaluator_version = 1
+                      AND c.contract_version = 1
+                    WHERE c.comparison_id IS NULL
+                      AND COALESCE(d.drill->>'drillType', '') = 'training'
+                      AND d.submitted_at >= NOW() - INTERVAL '2 hours'
+                      AND d.drill #>> '{summary,evidenceShadow,status}' = 'evaluated'
+                    ORDER BY d.submitted_at DESC
+                    LIMIT 1`,
+                );
+                row = result.rows[0] || null;
+              } else {
+                const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+                const { data: candidates, error: candidateError } = await supabase
+                  .from("intro_session_drills")
+                  .select(
+                    "id,student_id,tutor_id,scheduled_session_id,training_session_run_id,submitted_at,drill",
+                  )
+                  .gte("submitted_at", cutoff)
+                  .order("submitted_at", { ascending: false })
+                  .limit(10);
+
+                if (candidateError) throw candidateError;
+
+                for (const candidate of candidates || []) {
+                  const candidateDrill =
+                    candidate?.drill && typeof candidate.drill === "object"
+                      ? candidate.drill
+                      : JSON.parse(String(candidate?.drill || "{}"));
+                  if (candidateDrill?.drillType !== "training") continue;
+                  if (candidateDrill?.summary?.evidenceShadow?.status !== "evaluated") continue;
+
+                  const { data: existing, error: existingError } = await supabase
+                    .from("training_evidence_shadow_comparisons")
+                    .select("comparison_id")
+                    .eq("source_drill_id", candidate.id)
+                    .eq("evaluator_version", 1)
+                    .eq("contract_version", 1)
+                    .maybeSingle();
+
+                  if (existingError) throw existingError;
+                  if (existing) continue;
+
+                  row = candidate;
+                  break;
+                }
+              }
+
               if (!row) return;
 
               const drill = row.drill && typeof row.drill === "object"
