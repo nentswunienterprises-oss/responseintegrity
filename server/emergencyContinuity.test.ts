@@ -685,3 +685,31 @@ test("emergency mode drift self-heals assignment only in Vercel Preview", () => 
   assert.match(modeSource, /preview assignment repaired/);
   assert.match(modeSource, /return resolveEmergencyTutorMode\(\{ assignmentMode, certificationMode \}\)/);
 });
+
+
+test("training shadow comparison maps legacy snake-case transition before comparing", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const summaryStart = routesSource.indexOf("const computeTrainingSessionSummary");
+  const summaryEnd = routesSource.indexOf("const mapDrillRowToDeterministicSession", summaryStart);
+  const summarySource = routesSource.slice(summaryStart, summaryEnd);
+
+  assert.match(summarySource, /nextPhase: transition\.next_phase/);
+  assert.match(summarySource, /nextStability: transition\.next_stability/);
+  assert.match(summarySource, /transitionReason: normalizeTransitionReason\(transition\.transition_reason\)/);
+  assert.doesNotMatch(summarySource, /legacyTransition: transition,/);
+});
+
+test("preview startup repairs only a recent real training shadow row and never production", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const repairStart = routesSource.indexOf("const repairRecentPreviewTrainingShadowComparison");
+  const repairEnd = routesSource.indexOf("type NormalizedEvidenceSet", repairStart);
+  const repairSource = routesSource.slice(repairStart, repairEnd);
+
+  assert.match(repairSource, /process\.env\.VERCEL_ENV !== "preview"/);
+  assert.match(repairSource, /!isEmergencyDbMode\(\)/);
+  assert.match(repairSource, /d\.submitted_at >= NOW\(\) - INTERVAL '2 hours'/);
+  assert.match(repairSource, /COALESCE\(d\.drill->>'drillType', ''\) = 'training'/);
+  assert.match(repairSource, /compareTrainingEvidenceShadowToLegacy/);
+  assert.match(repairSource, /await persistTrainingShadowComparison/);
+  assert.match(repairSource, /LIMIT 1/);
+});

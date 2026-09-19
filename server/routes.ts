@@ -3795,6 +3795,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return result;
           };
 
+
+          const repairRecentPreviewTrainingShadowComparison = async () => {
+            if (process.env.VERCEL_ENV !== "preview" || !isEmergencyDbMode()) return;
+
+            try {
+              const result = await pool.query(
+                `SELECT d.id, d.student_id, d.tutor_id,
+                        d.scheduled_session_id::text AS scheduled_session_id,
+                        d.training_session_run_id::text AS training_session_run_id,
+                        d.submitted_at, d.drill
+                   FROM public.intro_session_drills d
+                   LEFT JOIN public.training_evidence_shadow_comparisons c
+                     ON c.source_drill_id = d.id
+                    AND c.evaluator_version = 1
+                    AND c.contract_version = 1
+                  WHERE c.comparison_id IS NULL
+                    AND COALESCE(d.drill->>'drillType', '') = 'training'
+                    AND d.submitted_at >= NOW() - INTERVAL '2 hours'
+                    AND d.drill #>> '{summary,evidenceShadow,status}' = 'evaluated'
+                  ORDER BY d.submitted_at DESC
+                  LIMIT 1`,
+              );
+
+              const row = result.rows[0];
+              if (!row) return;
+
+              const drill = row.drill && typeof row.drill === "object"
+                ? row.drill
+                : JSON.parse(String(row.drill || "{}"));
+              const summary = drill?.summary || {};
+              const phase = tryParsePhase(drill?.phase || summary?.observedPhase);
+              const previousStability = normalizeStability(
+                drill?.previousStability || summary?.previousStability || "Low",
+              );
+              const evidenceShadow = summary?.evidenceShadow;
+              const sessionScore = Number(summary?.sessionScore);
+
+              if (!phase || !evidenceShadow || !Number.isFinite(sessionScore)) {
+                console.warn("[RI_TRAINING_EVIDENCE_SHADOW_REPAIR] skipped invalid recent drill", {
+                  sourceDrillId: row.id,
+                });
+                return;
+              }
+
+              const nextPhase = tryParsePhase(summary?.phase);
+              const nextStability = normalizeStability(summary?.stability || "");
+              const transitionReason = normalizeTransitionReason(summary?.transitionReason || "remain");
+              if (!nextPhase || !nextStability) {
+                console.warn("[RI_TRAINING_EVIDENCE_SHADOW_REPAIR] skipped missing legacy transition", {
+                  sourceDrillId: row.id,
+                });
+                return;
+              }
+
+              const comparison = compareTrainingEvidenceShadowToLegacy({
+                sessionScore,
+                legacyTransition: {
+                  nextPhase,
+                  nextStability,
+                  transitionReason,
+                },
+                evidenceShadow,
+              });
+
+              const persisted = await persistTrainingShadowComparison({
+                sourceDrillId: String(row.id),
+                studentId: String(row.student_id),
+                tutorId: String(row.tutor_id),
+                topic: String(drill?.trainingTopic || "").trim(),
+                scheduledSessionId: row.scheduled_session_id || null,
+                trainingSessionRunId: row.training_session_run_id || null,
+                phase,
+                previousStability,
+                observedAt: String(row.submitted_at || new Date().toISOString()),
+                evidenceShadow,
+                comparison,
+              });
+
+              if (persisted.status === "persisted") {
+                console.info("[RI_TRAINING_EVIDENCE_SHADOW_REPAIR] repaired recent preview drill", {
+                  sourceDrillId: row.id,
+                  comparisonId: persisted.comparisonId,
+                });
+              }
+            } catch (error) {
+              console.warn("[RI_TRAINING_EVIDENCE_SHADOW_REPAIR] failed", {
+                message: error instanceof Error ? error.message : String(error),
+              });
+            }
+          };
+
+          await repairRecentPreviewTrainingShadowComparison();
+
           type NormalizedEvidenceSet = {
             setName: string;
             setId?: string;
@@ -4530,9 +4623,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             // The legacy score transition remains authoritative during shadow validation.
             const transition = computeTransition(observedPhase, previousStability, sessionScore);
+            const legacyTransition = {
+              nextPhase: transition.next_phase,
+              nextStability: transition.next_stability,
+              transitionReason: normalizeTransitionReason(transition.transition_reason),
+            };
             const evidenceShadowComparison = compareTrainingEvidenceShadowToLegacy({
               sessionScore,
-              legacyTransition: transition,
+              legacyTransition,
               evidenceShadow,
             });
 
