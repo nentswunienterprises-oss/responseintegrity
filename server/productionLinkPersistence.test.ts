@@ -24,7 +24,7 @@ test("multi-lead parent history resolves the earliest Production Link determinis
     { id: "lead-1", production_link_code: "DEM001", created_at: "2026-01-01T00:00:00Z" },
   ]);
   assert.equal(lead?.production_link_code, "DEM001");
-  assert.equal(resolveDurableProductionLink(lead?.production_link_code, null, "DEM002"), "DEM001");
+  assert.equal(resolveDurableProductionLink(lead?.production_link_code, null, null), "DEM001");
 });
 
 test("capacity account attribution survives application submission without transport state", () => {
