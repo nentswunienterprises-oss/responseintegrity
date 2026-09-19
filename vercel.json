@@ -337,11 +337,17 @@
           "value": "tt-confidence-hub-git-feat-dem-d053fe-relief-works-technologies.vercel.app"
         }
       ],
-      "destination": "/api/index?__ri_path=:path*"
+      "destination": "/api?__ri_path=:path*"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://api.responseintegrity.co.za/api/:path*"
+      "destination": "https://api.responseintegrity.co.za/api/:path*",
+      "missing": [
+        {
+          "type": "host",
+          "value": "tt-confidence-hub-git-feat-dem-d053fe-relief-works-technologies.vercel.app"
+        }
+      ]
     },
     {
       "source": "/",
