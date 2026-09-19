@@ -3797,7 +3797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
           const repairRecentPreviewTrainingShadowComparison = async () => {
-            if (process.env.VERCEL_ENV !== "preview" || !isEmergencyDbMode()) return;
+            if (process.env.VERCEL_ENV !== "preview") return;
 
             try {
               const result = await pool.query(
