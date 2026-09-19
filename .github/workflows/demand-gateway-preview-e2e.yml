@@ -7,6 +7,10 @@ on:
     paths:
       - 'scripts/demand-preview-e2e.mjs'
       - '.github/workflows/demand-gateway-preview-e2e.yml'
+      - 'client/src/lib/config.ts'
+      - 'api/index.ts'
+      - 'server/supabaseAuth.ts'
+      - 'vercel.json'
   workflow_dispatch:
 
 jobs:
