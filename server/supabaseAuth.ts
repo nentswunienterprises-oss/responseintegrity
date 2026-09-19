@@ -8,7 +8,6 @@ import type {
 } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
-import pg from "pg";
 import { storage, supabase as serverSupabase } from "./storage";
 import { captureDemandParent } from "./demandCapture";
 import {
@@ -45,15 +44,11 @@ export function getSession() {
     try {
       const PgSession = connectPg(session);
       
-      // Create PostgreSQL pool for session storage
-      // Supabase requires SSL in all environments
-      const pgPool = new pg.Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false }, // Supabase requires SSL
-      });
-
+      // Reuse the application's bounded PostgreSQL pool.
+      // A second default pg.Pool here could add another 10 session-mode
+      // connections and exceed Supabase's per-project session-pooler ceiling.
       sessionStore = new PgSession({
-        pool: pgPool,
+        pool,
         tableName: "sessions",
         createTableIfMissing: false, // Table already exists from schema
       });

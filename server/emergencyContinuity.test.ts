@@ -72,6 +72,72 @@ test("emergency evidence ledger normalizes browser timezone timestamps to UTC IS
   );
 });
 
+test("Render emergency runtime shares a bounded PostgreSQL pool and uses transaction-mode Supabase pooling", () => {
+  const dbSource = readFileSync(resolve(process.cwd(), "server/db.ts"), "utf8");
+  const authSource = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
+
+  assert.match(dbSource, /DB_POOL_MAX/);
+  assert.match(dbSource, /max:\s*poolMax/);
+  assert.match(dbSource, /pooler\\\.supabase\\\.com\)\(\?:\:5432\)\?/);
+  assert.match(dbSource, /"\$1:6543"/);
+  assert.match(dbSource, /process\.env\.DATABASE_URL\s*=\s*runtimeDatabaseUrl/);
+  assert.match(dbSource, /application_name:\s*"response-integrity-api"/);
+  assert.doesNotMatch(authSource, /new\s+pg\.Pool/);
+  assert.match(authSource, /new PgSession\(\{[\s\S]*?pool,/);
+});
+
+test("emergency student auth reads and writes the production database directly", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+
+  const signupStart = routesSource.indexOf('app.post("/api/student/signup"');
+  const signinStart = routesSource.indexOf('app.post("/api/student/signin"', signupStart);
+  const meStart = routesSource.indexOf('app.get("/api/student/me"', signinStart);
+  const communicationsStart = routesSource.indexOf('app.get("/api/student/communications"', meStart);
+
+  const signupSource = routesSource.slice(signupStart, signinStart);
+  const signinSource = routesSource.slice(signinStart, meStart);
+  const meSource = routesSource.slice(meStart, communicationsStart);
+
+  assert.match(signupSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(signupSource, /FROM public\.onboarding_proposals/);
+  assert.match(signupSource, /INSERT INTO public\.student_users/);
+  assert.match(signupSource, /upper\(parent_code\) = \$1/);
+
+  assert.match(signinSource, /FROM public\.student_users/);
+  assert.match(signinSource, /UPDATE public\.student_users/);
+
+  assert.match(meSource, /FROM public\.student_users/);
+  assert.match(meSource, /LEFT JOIN public\.tutor_assignments/);
+  assert.match(meSource, /LEFT JOIN public\.pods/);
+});
+
+test("emergency student dashboard reads canonical student state from production PostgreSQL", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+
+  const statsStart = routesSource.indexOf('app.get("/api/student/stats"');
+  const commitmentsStart = routesSource.indexOf('app.get("/api/student/commitments"', statsStart);
+  const topicStateStart = routesSource.indexOf('app.get("/api/student/topic-conditioning-state"');
+  const topicStatesStart = routesSource.indexOf('app.get("/api/student/topic-conditioning-states"', topicStateStart);
+  const parentStart = routesSource.indexOf("// PARENT PORTAL ROUTES", topicStatesStart);
+
+  const statsSource = routesSource.slice(statsStart, commitmentsStart);
+  const topicStateSource = routesSource.slice(topicStateStart, topicStatesStart);
+  const topicStatesSource = routesSource.slice(topicStatesStart, parentStart);
+
+  assert.match(routesSource, /const resolveStudentIdForPortalSession/);
+  assert.match(statsSource, /resolveStudentIdForPortalSession\(studentUserId\)/);
+  assert.match(topicStateSource, /resolveStudentIdForPortalSession\(studentUserId\)/);
+  assert.match(topicStatesSource, /resolveStudentIdForPortalSession\(studentUserId\)/);
+  assert.match(topicStateSource, /FROM public\.topic_conditioning_activations/);
+
+  const helperStart = routesSource.indexOf("const getStudentDashboardStats");
+  const helperEnd = routesSource.indexOf("const getTTScheduledSessionsByStudent", helperStart);
+  const helperSource = routesSource.slice(helperStart, helperEnd);
+  assert.match(helperSource, /FROM public\.intro_session_drills/);
+  assert.match(helperSource, /FROM public\.training_session_runs/);
+  assert.match(helperSource, /FROM public\.student_commitments/);
+});
+
 test("emergency parent student stats return stable zero-value contract when no canonical student is linked", () => {
   assert.deepEqual(buildEmergencyParentStudentStats({ sessionCount: 0, commitmentCount: 0 }), {
     introDiagnosisCompleted: 0,
