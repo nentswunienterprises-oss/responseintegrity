@@ -722,5 +722,17 @@ test("preview startup repairs one recent real training shadow row in normal or e
   assert.match(repairSource, /LIMIT 1/);
   assert.match(repairSource, /previewTrainingShadowRecoveryStatus/);
   assert.match(repairSource, /\/api\/proof\/training-shadow-recovery-status/);
+  const diagnosticRouteStart = repairSource.indexOf(
+    '"/api/proof/training-shadow-recovery-status"',
+  );
+  const diagnosticRouteSource = repairSource.slice(
+    diagnosticRouteStart,
+    repairSource.indexOf("type NormalizedEvidenceSet", diagnosticRouteStart),
+  );
+  assert.doesNotMatch(diagnosticRouteSource, /isAuthenticated/);
+  assert.match(diagnosticRouteSource, /candidateFound/);
+  assert.match(diagnosticRouteSource, /comparisonCreated/);
+  assert.match(diagnosticRouteSource, /failureKind/);
+  assert.doesNotMatch(diagnosticRouteSource, /\.\.\.previewTrainingShadowRecoveryStatus/);
   assert.match(repairSource, /VERCEL_GIT_COMMIT_SHA/);
 });
