@@ -2,6 +2,8 @@
 BEGIN;
 ALTER TABLE public.parents ALTER COLUMN onboarding_type SET DEFAULT 'pending';
 ALTER TABLE public.leads ALTER COLUMN onboarding_type SET DEFAULT 'pending';
+ALTER TABLE public.parents DROP CONSTRAINT IF EXISTS chk_onboarding_type;
+ALTER TABLE public.parents ADD CONSTRAINT chk_onboarding_type CHECK (onboarding_type IN ('pending','pilot','commercial'));
 ALTER TABLE public.parent_enrollments
   ADD COLUMN IF NOT EXISTS demand_flow_version integer NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS qualification_status text,
@@ -196,4 +198,15 @@ BEGIN
 END $$;
 DROP TRIGGER IF EXISTS guard_demand_entry_type ON public.parents;
 CREATE TRIGGER guard_demand_entry_type BEFORE UPDATE ON public.parents FOR EACH ROW EXECUTE FUNCTION public.guard_demand_entry_type();
+
+-- Legacy affiliate automation cannot decide Demand Production service terms.
+-- Source is lineage only; entry remains pending until explicit qualification and entry selection.
+CREATE OR REPLACE FUNCTION public.set_onboarding_type_from_affiliate() RETURNS trigger
+LANGUAGE plpgsql SECURITY INVOKER SET search_path = public AS $$
+BEGIN
+  IF NEW.onboarding_type IS NULL OR NEW.onboarding_type NOT IN ('pending','pilot','commercial') THEN
+    NEW.onboarding_type := 'pending';
+  END IF;
+  RETURN NEW;
+END $$;
 COMMIT;
