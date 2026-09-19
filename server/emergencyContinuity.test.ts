@@ -711,7 +711,7 @@ test("preview startup repairs one recent real training shadow row in normal or e
     /VERCEL_ENV !== "preview"\s*\|\|\s*!isEmergencyDbMode\(\)/,
   );
   assert.match(repairSource, /if \(isEmergencyDbMode\(\)\)/);
-  assert.match(repairSource, /d\.submitted_at >= NOW\(\) - INTERVAL '4 hours'/);
+  assert.match(repairSource, /d\.submitted_at >= NOW\(\) - INTERVAL '8 hours'/);
   assert.match(repairSource, /\.from\("intro_session_drills"\)/);
   assert.match(repairSource, /\.from\("training_evidence_shadow_comparisons"\)/);
   assert.match(repairSource, /\.gte\("submitted_at", cutoff\)/);
