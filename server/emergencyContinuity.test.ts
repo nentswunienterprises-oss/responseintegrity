@@ -699,6 +699,17 @@ test("training shadow comparison maps legacy snake-case transition before compar
   assert.doesNotMatch(summarySource, /legacyTransition: transition,/);
 });
 
+test("training shadow recovery can call transition reason normalization before its source declaration", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const recoveryStart = routesSource.indexOf("const repairRecentPreviewTrainingShadowComparison");
+  const helperStart = routesSource.indexOf("function normalizeTransitionReason");
+
+  assert.ok(recoveryStart >= 0);
+  assert.ok(helperStart > recoveryStart);
+  assert.match(routesSource, /function normalizeTransitionReason\(value: unknown\): TransitionReason/);
+  assert.doesNotMatch(routesSource, /const normalizeTransitionReason =/);
+});
+
 test("preview startup repairs one recent real training shadow row in normal or emergency auth mode", () => {
   const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
   const repairStart = routesSource.indexOf("const repairRecentPreviewTrainingShadowComparison");
