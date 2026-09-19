@@ -2636,11 +2636,62 @@ async function getMonthlySessionQuotaSnapshot(options: {
     );
     const row = result.rows[0];
     if (!row) return null;
+
+    const monthStartIso = new Date(`${monthKey}T00:00:00.000Z`).toISOString();
+    const nextMonth = new Date(monthStartIso);
+    nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
+    const nextMonthIso = nextMonth.toISOString();
+
+    const usageResult = await pool.query(
+      `WITH completed_keys AS (
+         SELECT 'training:' || s.id::text AS usage_key
+           FROM public.scheduled_sessions s
+          WHERE s.parent_id = $1
+            AND s.student_id = $2
+            AND s.type = 'training'
+            AND s.status = 'completed'
+            AND s.scheduled_time >= $3::timestamptz
+            AND s.scheduled_time < $4::timestamptz
+         UNION
+         SELECT CASE
+                  WHEN r.scheduled_session_id IS NOT NULL
+                    THEN 'training:' || r.scheduled_session_id::text
+                  ELSE 'training-run:' || r.id::text
+                END AS usage_key
+           FROM public.training_session_runs r
+          WHERE r.student_id = $2
+            AND r.status IN ('submitted', 'completed')
+            AND COALESCE(r.submitted_at, r.started_at, r.created_at) >= $3::timestamptz
+            AND COALESCE(r.submitted_at, r.started_at, r.created_at) < $4::timestamptz
+       )
+       SELECT COUNT(*)::int AS completed_used
+         FROM completed_keys`,
+      [options.parentId, options.studentId, monthStartIso, nextMonthIso],
+    );
+
+    const eventResult = await pool.query(
+      `SELECT COALESCE(SUM(GREATEST(credits_delta, 0)), 0)::int AS event_used
+         FROM public.session_billing_events
+        WHERE parent_id = $1
+          AND student_id = $2
+          AND effective_at >= $3::timestamptz
+          AND effective_at < $4::timestamptz
+          AND billing_impact = 'consume'
+          AND is_sandbox = $5`,
+      [options.parentId, options.studentId, monthStartIso, nextMonthIso, isSandbox],
+    );
+
+    const sessionQuota = Number(row.session_quota ?? DEFAULT_SERVICE_PACKAGE.sessionsPerMonth);
+    const completedUsed = Number(usageResult.rows[0]?.completed_used || 0);
+    const eventUsed = Number(eventResult.rows[0]?.event_used || 0);
+    const sessionsUsed = Math.max(0, Math.min(sessionQuota, completedUsed + eventUsed));
+    const sessionsRemaining = Math.max(0, sessionQuota - sessionsUsed);
+
     return {
       ...row,
-      session_quota: Number(row.session_quota ?? DEFAULT_SERVICE_PACKAGE.sessionsPerMonth),
-      sessions_used: Number(row.sessions_used ?? 0),
-      sessions_remaining: Number(row.sessions_remaining ?? 0),
+      session_quota: sessionQuota,
+      sessions_used: sessionsUsed,
+      sessions_remaining: sessionsRemaining,
       status: String(row.status || "active"),
     };
   }
@@ -3181,59 +3232,8 @@ async function getCompletedSessionCountForStudent(studentId: string) {
 }
 
 async function ensurePremiumAccessForParent(parentId: string, studentId?: string | null) {
-  const normalizedStudentId = String(studentId || "").trim();
-
-  if (normalizedStudentId) {
-    try {
-      let hasActiveSandboxMembership = false;
-
-      if (isEmergencyDbMode()) {
-        const sandboxMembershipResult = await pool.query(
-          `SELECT 1
-             FROM public.membership_months
-            WHERE parent_id = $1
-              AND student_id = $2
-              AND is_sandbox = true
-              AND status = 'active'
-              AND month_start = date_trunc('month', NOW())::date
-            LIMIT 1`,
-          [parentId, normalizedStudentId],
-        );
-        hasActiveSandboxMembership = Boolean(sandboxMembershipResult.rows[0]);
-      } else {
-        const monthStart = new Date();
-        monthStart.setUTCDate(1);
-        monthStart.setUTCHours(0, 0, 0, 0);
-        const { data: sandboxMembership } = await supabase
-          .from("membership_months")
-          .select("id")
-          .eq("parent_id", parentId)
-          .eq("student_id", normalizedStudentId)
-          .eq("is_sandbox", true)
-          .eq("status", "active")
-          .eq("month_start", monthStart.toISOString().slice(0, 10))
-          .limit(1)
-          .maybeSingle();
-        hasActiveSandboxMembership = Boolean(sandboxMembership?.id);
-      }
-
-      if (hasActiveSandboxMembership) {
-        return {
-          allowed: true,
-          status: 200,
-          message: null,
-          onboardingType: "sandbox",
-        };
-      }
-    } catch (error) {
-      console.warn("[SANDBOX BILLING] failed to verify active sandbox membership", {
-        parentId,
-        studentId: normalizedStudentId,
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
+  // Sandbox mirrors the commercial package journey through PayFast sandbox.
+  // A sandbox membership row is quota state, not payment authority.
   const billingModel = await getParentBillingModel(parentId);
   if (billingModel.error) {
     return {
@@ -23840,7 +23840,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         let status = String(enrollment.status || "not_enrolled");
         let step = enrollment.current_step || null;
-        if (enrollment.assigned_tutor_id && ["proposal_sent", "session_booked", "report_received", "confirmed"].includes(status)) {
+
+        let hasTrainingActivity = false;
+        if (enrollment.assigned_student_id) {
+          const trainingActivityResult = await pool.query(
+            `SELECT EXISTS (
+               SELECT 1
+                 FROM public.training_session_runs
+                WHERE student_id = $1
+                  AND status IN ('submitted', 'completed')
+             ) AS has_training_activity`,
+            [enrollment.assigned_student_id],
+          );
+          hasTrainingActivity = Boolean(trainingActivityResult.rows[0]?.has_training_activity);
+        }
+
+        if (hasTrainingActivity) {
+          status = "confirmed";
+          step = "active_training";
+        } else if (
+          enrollment.assigned_tutor_id &&
+          ["proposal_sent", "session_booked", "report_received", "confirmed"].includes(status)
+        ) {
           const sessionResult = await pool.query(
             `SELECT status, type
                FROM public.scheduled_sessions
@@ -25149,7 +25170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from("parent_enrollments")
         .select("id, status, proposal_id, student_full_name, current_step, assigned_tutor_id, parent_email, is_sandbox_account")
         .eq("user_id", parentId)
-        .eq("status", "proposal_sent")
+        .in("status", ["proposal_sent", "session_booked"])
         .not("proposal_id", "is", null)
         .order("updated_at", { ascending: false })
         .limit(1)
@@ -25165,6 +25186,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const payfastSandboxForEnrollment = isSandboxPaymentEnrollment(paymentEnrollment);
+      if (
+        String(paymentEnrollment.status || "") === "session_booked" &&
+        !payfastSandboxForEnrollment
+      ) {
+        return res.status(404).json({ message: "No pending proposal found" });
+      }
       if (billingModel.data.onboardingType === "commercial" && !isMonthlyPackagePaymentReady(payfastSandboxForEnrollment)) {
         return res.status(500).json({ message: "PayFast is not configured on this deployment." });
       }

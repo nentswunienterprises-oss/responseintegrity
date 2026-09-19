@@ -30,12 +30,19 @@ describe("topicConditioningEngine", () => {
 
   it("returns next action from engine", () => {
     assert.equal(nextActionFor("Clarity", "Low"), "Run Clarity drill");
+    assert.equal(
+      nextActionFor("Controlled Discomfort", "High Maintenance"),
+      "Run Controlled Discomfort High Maintenance drill",
+    );
     assert.equal(getNextActionData("Structured Execution", "High Maintenance").advanceTo, "Controlled Discomfort");
   });
 
   it("recommends movement logic", () => {
     assert.equal(nextMoveRecommendation("Clarity", "High"), "Run High Maintenance check before advancing");
-    assert.equal(nextMoveRecommendation("Clarity", "High Maintenance"), "Advance to Structured Execution");
+    assert.equal(
+      nextMoveRecommendation("Clarity", "High Maintenance"),
+      "Confirm High Maintenance in Clarity before advancing to Structured Execution",
+    );
     assert.equal(nextMoveRecommendation("Controlled Discomfort", "Low").includes("Reinforce Structured Execution"), true);
   });
 

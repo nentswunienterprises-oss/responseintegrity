@@ -354,7 +354,7 @@ interface StudentTopicConditioningDialogProps {
   studentId: string;
   studentName: string;
   studentGrade?: string | null;
-  operationalMode?: "training" | "trial" | "certified_live";
+  operationalMode?: "training" | "sandbox" | "trial" | "certified_live";
   readOnly?: boolean;
   mapOnly?: boolean;
   apiBasePath?: string;
@@ -938,7 +938,8 @@ export default function StudentTopicConditioningDialog({
   const navigate = useNavigate();
   const { data: workflow } = useStudentWorkflowState(studentId, apiBasePath, !readOnly);
   const assignmentAccepted = workflow?.assignmentAccepted ?? true;
-  const isTrainingMode = operationalMode === "training";
+  const isSandboxMode = operationalMode === "sandbox";
+  const isTrainingMode = operationalMode === "training" || isSandboxMode;
   // Fetch topic activations for this student (must be inside component to access studentId)
   const { data: activationsData, refetch: refetchActivations } = useQuery({
     queryKey: [apiBasePath, "students", studentId, "topic-conditioning-activations"],
@@ -2153,12 +2154,12 @@ export default function StudentTopicConditioningDialog({
                 isTrainingMode ? (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <h4 className="font-medium">Training Operations</h4>
+                    <h4 className="font-medium">{isSandboxMode ? "Sandbox Operations" : "Training Operations"}</h4>
                   </div>
                   <div className="rounded-md border border-primary/20 bg-primary/5 p-3 space-y-2">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-medium">Training Mode</p>
+                        <p className="text-sm font-medium">{isSandboxMode ? "Sandbox Mode" : "Training Mode"}</p>
                         <p className="text-xs text-muted-foreground">
                           Weekly Response Integrity scheduling still applies. Google Meet links and live launch windows do not.
                         </p>
@@ -2281,10 +2282,12 @@ export default function StudentTopicConditioningDialog({
                                       try {
                                         const result = await confirmTrainingSession.mutateAsync({ sessionId: session.id });
                                         setTrainingSessionMeetMessage(
-                                          result?.googleMeetError ||
-                                          (result?.googleMeetSync === "google_calendar"
-                                            ? "Tutor confirmed. Google Meet attached to the lesson."
-                                            : "Tutor confirmed the lesson.")
+                                          isSandboxMode
+                                            ? "Tutor confirmed the lesson."
+                                            : result?.googleMeetError ||
+                                              (result?.googleMeetSync === "google_calendar"
+                                                ? "Tutor confirmed. Google Meet attached to the lesson."
+                                                : "Tutor confirmed the lesson.")
                                         );
                                       } catch (error) {
                                         setTrainingSessionMeetMessage(
@@ -2467,7 +2470,9 @@ export default function StudentTopicConditioningDialog({
                       <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs space-y-2">
                         <p className="font-medium text-blue-900">Awaiting tutor confirmation</p>
                         <p className="text-blue-800">
-                          The parent has proposed this week's training lessons. Confirm both dates before Meet links are created.
+                          {isSandboxMode
+                            ? "The parent has proposed this week's training lessons. Confirm both dates before the lessons are ready."
+                            : "The parent has proposed this week's training lessons. Confirm both dates before Meet links are created."}
                         </p>
                         <div className="space-y-2">
                           {pendingTutorConfirmationSessions.map((session: any) => (

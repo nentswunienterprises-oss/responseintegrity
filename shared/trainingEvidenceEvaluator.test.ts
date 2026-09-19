@@ -299,10 +299,36 @@ test("score-vs-evidence divergence is explicitly preserved for proof analysis", 
 
   assert.equal(comparison.available, true);
   assert.equal(comparison.diverged, true);
+  assert.equal(comparison.stateDiverged, true);
   assert.equal(comparison.legacy.score, 98);
   assert.notEqual(comparison.evidence?.nextStability, "High Maintenance");
 });
 
+
+test("reason-only differences do not count as a state divergence", () => {
+  const sets = buildTrainingSets({ phase: "Controlled Discomfort" });
+  const shadow = evaluateTrainingEvidenceShadow({
+    phase: "Controlled Discomfort",
+    previousStability: "High",
+    sets,
+  });
+
+  const comparison = compareTrainingEvidenceShadowToLegacy({
+    sessionScore: 100,
+    legacyTransition: {
+      nextPhase: "Controlled Discomfort",
+      nextStability: "High Maintenance",
+      transitionReason: "stability advance",
+    },
+    evidenceShadow: shadow,
+  });
+
+  assert.equal(comparison.available, true);
+  assert.equal(comparison.diverged, false);
+  assert.equal(comparison.stateDiverged, false);
+  assert.equal(comparison.reasonDiverged, true);
+  assert.equal(comparison.evidence?.transitionReason, "high maintenance entry");
+});
 
 test("later clean Clarity evidence can resolve earlier conditional evidence", () => {
   const sets = buildTrainingSets({

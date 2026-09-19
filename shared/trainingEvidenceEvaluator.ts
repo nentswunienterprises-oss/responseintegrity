@@ -443,6 +443,8 @@ export type TrainingEvidenceShadowComparison = {
   authority: "shadow_only";
   available: boolean;
   diverged: boolean | null;
+  stateDiverged: boolean | null;
+  reasonDiverged: boolean | null;
   legacy: {
     score: number;
     nextPhase: TopicPhase;
@@ -486,6 +488,8 @@ export const compareTrainingEvidenceShadowToLegacy = ({
       authority: "shadow_only",
       available: false,
       diverged: null,
+      stateDiverged: null,
+      reasonDiverged: null,
       legacy,
       evidence: null,
       reason: evidenceShadow.reason,
@@ -501,19 +505,24 @@ export const compareTrainingEvidenceShadowToLegacy = ({
     exitQualified: evidenceShadow.exitQualified,
     ineligibleEvidenceCount: evidenceShadow.ineligibleEvidenceCount,
   };
-  const diverged =
+  const stateDiverged =
     legacy.nextPhase !== evidence.nextPhase ||
-    legacy.nextStability !== evidence.nextStability ||
-    legacy.transitionReason !== evidence.transitionReason;
+    legacy.nextStability !== evidence.nextStability;
+  const reasonDiverged = legacy.transitionReason !== evidence.transitionReason;
+  const diverged = stateDiverged;
 
   return {
     authority: "shadow_only",
     available: true,
     diverged,
+    stateDiverged,
+    reasonDiverged,
     legacy,
     evidence,
-    reason: diverged
-      ? "The legacy score transition and evidence-native shadow transition disagree."
-      : "The legacy score transition and evidence-native shadow transition agree.",
+    reason: stateDiverged
+      ? "The legacy score transition and evidence-native shadow state transition disagree."
+      : reasonDiverged
+        ? "The legacy and evidence-native engines reached the same state transition but used different transition-reason labels."
+        : "The legacy score transition and evidence-native shadow transition agree.",
   };
 };

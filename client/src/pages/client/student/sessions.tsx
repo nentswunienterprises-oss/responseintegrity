@@ -22,7 +22,7 @@ type StudentSession = {
 
 type StudentSessionsResponse = {
   sessions: StudentSession[];
-  operationalMode?: "training" | "trial" | "certified_live";
+  operationalMode?: "training" | "sandbox" | "trial" | "certified_live";
   sessionSchedulingEnabled?: boolean;
 };
 

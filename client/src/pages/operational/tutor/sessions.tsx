@@ -36,7 +36,7 @@ type TutorWeeklyScheduleSession = {
 type TutorWeeklyScheduleResponse = {
   weekStart: string;
   weekEnd: string;
-  operationalMode?: "training" | "trial" | "certified_live";
+  operationalMode?: "training" | "sandbox" | "trial" | "certified_live";
   sessionSchedulingEnabled?: boolean;
   sessions: TutorWeeklyScheduleSession[];
 };
@@ -180,7 +180,8 @@ export default function TutorSessions() {
   }, [data?.sessions]);
 
   const operationalMode = data?.operationalMode || podData?.assignment?.operationalMode || "training";
-  const schedulingEnabled = data?.sessionSchedulingEnabled ?? ["trial", "certified_live"].includes(operationalMode);
+  const schedulingEnabled =
+    data?.sessionSchedulingEnabled ?? ["sandbox", "trial", "certified_live"].includes(operationalMode);
 
   const { data: sessionLog, isLoading: sessionLogLoading } = useQuery<SessionLogResponse>({
     queryKey: ["/api/tutor/scheduled-sessions/log", selectedLogSession?.id],
@@ -201,9 +202,11 @@ export default function TutorSessions() {
             <p className="text-sm text-muted-foreground mt-1">
               {operationalMode === "trial"
                 ? "Trial is live validation. Your schedule remains active for your two governed family placements."
-                : operationalMode === "training"
-                ? "Training mode is active. Live scheduling and Google Meet lesson windows are hidden for you."
-                : "Weekly tutor schedule from the live Response Integrity planning table."}
+                : operationalMode === "sandbox"
+                  ? "Sandbox mode mirrors the family scheduling workflow without Google Meet delivery requirements."
+                  : operationalMode === "training"
+                    ? "Training mode is active. Live scheduling and Google Meet lesson windows are hidden for you."
+                    : "Weekly tutor schedule from the live Response Integrity planning table."}
             </p>
           </div>
           <div className="flex items-center gap-2">

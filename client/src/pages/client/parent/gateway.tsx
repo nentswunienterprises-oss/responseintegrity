@@ -49,7 +49,7 @@ interface EnrollmentStatus {
 
 interface IntroSessionConfirmation {
   status?: string;
-  operationalMode?: "training" | "trial" | "certified_live";
+  operationalMode?: "training" | "sandbox" | "trial" | "certified_live";
   scheduled_time?: string;
   id?: string;
   introCompleted?: boolean;
@@ -283,6 +283,7 @@ export default function ParentGateway() {
     monthlyQuota?: { sessions_remaining?: number; session_quota?: number; session_price?: number } | null;
     paymentRequired?: boolean;
     paymentStatus?: string | null;
+    operationalMode?: "training" | "sandbox" | "trial" | "certified_live";
   }>({
     queryKey: ["/api/parent/training-sessions"],
     queryFn: getQueryFn({ on401: "returnNull" }),
@@ -300,6 +301,28 @@ export default function ParentGateway() {
   const renewalBlocked = paymentRequired || quotaExhausted;
   const renewalPackageSessions = Math.max(1, Number(trainingSessionsData?.monthlyQuota?.session_quota || 8));
   const renewalAmount = renewalPackageSessions * Number(trainingSessionsData?.monthlyQuota?.session_price || 200);
+  const sandboxInitialPaymentRequired =
+    trainingSessionsData?.operationalMode === "sandbox" && paymentRequired;
+
+  useEffect(() => {
+    if (!enrollmentStatus || !trainingSessionsData) return;
+    const activeTraining =
+      enrollmentStatus.status === "confirmed" ||
+      String(enrollmentStatus.step || "").trim().toLowerCase() === "active_training";
+    if (!activeTraining) return;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payfast") || params.get("renew") === "1") return;
+    if (paymentRequired || quotaExhausted) return;
+
+    navigate("/client/parent/dashboard", { replace: true });
+  }, [
+    enrollmentStatus,
+    navigate,
+    paymentRequired,
+    quotaExhausted,
+    trainingSessionsData,
+  ]);
 
   // Fetch intro session confirmation if status is assigned, awaiting assignment, or awaiting tutor acceptance
   const {
@@ -469,7 +492,9 @@ export default function ParentGateway() {
   const sessionLabel = isHandoverFlow ? "continuity check" : "intro session";
   const sessionTitle = isHandoverFlow ? "Continuity Check" : "Introductory Session";
   const sessionCompletedLabel = isHandoverFlow ? "continuity check" : "introductory session";
-  const isTrainingMode = effectiveIntroSessionConfirmation?.operationalMode === "training";
+  const isTrainingMode = ["training", "sandbox"].includes(
+    String(effectiveIntroSessionConfirmation?.operationalMode || ""),
+  );
   const showProposalActions = enrollmentStatus?.status === "proposal_sent";
   const showProposalPanel =
     enrollmentStatus?.status === "proposal_sent" ||
@@ -2107,22 +2132,34 @@ export default function ParentGateway() {
                     <Card className="border border-rose-200 bg-rose-50 mt-4 sm:mt-6">
                       <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
                         <CardTitle className="text-base sm:text-lg text-rose-700">
-                          {paymentRequired ? "Monthly Payment Required" : "Monthly Quota Exhausted"}
+                          {sandboxInitialPaymentRequired
+                            ? "Sandbox Package Payment Required"
+                            : paymentRequired
+                              ? "Monthly Payment Required"
+                              : "Monthly Quota Exhausted"}
                         </CardTitle>
                         <CardDescription className="text-xs sm:text-sm text-rose-600">
-                          {paymentRequired
-                            ? "Training bookings are disabled until the monthly renewal is completed."
-                            : `All ${renewalPackageSessions} package sessions for this month have been used. Renew to unlock the next monthly package.`}
+                          {sandboxInitialPaymentRequired
+                            ? "Complete the PayFast Sandbox package checkout to mirror the live family journey and unlock training bookings. No real money is charged."
+                            : paymentRequired
+                              ? "Training bookings are disabled until the monthly renewal is completed."
+                              : `All ${renewalPackageSessions} package sessions for this month have been used. Renew to unlock the next monthly package.`}
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
                         <Button
-                          onClick={handleRenewSubscription}
-                          disabled={isRenewing}
+                          onClick={sandboxInitialPaymentRequired ? handleAcceptProposal : handleRenewSubscription}
+                          disabled={sandboxInitialPaymentRequired ? isProcessingProposal : isRenewing}
                           className="w-full bg-rose-600 hover:bg-rose-700 text-white"
                           size="lg"
                         >
-                          {isRenewing ? "Preparing payment..." : `Renew This Month - R${renewalAmount.toLocaleString("en-ZA")}`}
+                          {sandboxInitialPaymentRequired
+                            ? isProcessingProposal
+                              ? "Preparing sandbox payment..."
+                              : `Complete Sandbox Payment - R${renewalAmount.toLocaleString("en-ZA")}`
+                            : isRenewing
+                              ? "Preparing payment..."
+                              : `Renew This Month - R${renewalAmount.toLocaleString("en-ZA")}`}
                         </Button>
                       </CardContent>
                     </Card>

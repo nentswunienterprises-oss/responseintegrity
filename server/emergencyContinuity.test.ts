@@ -747,3 +747,33 @@ test("preview startup repairs one recent real training shadow row in normal or e
   assert.doesNotMatch(diagnosticRouteSource, /\.\.\.previewTrainingShadowRecoveryStatus/);
   assert.match(repairSource, /VERCEL_GIT_COMMIT_SHA/);
 });
+
+
+test("sandbox family scheduling keeps payment authority separate from sandbox quota state", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+
+  const accessStart = routesSource.indexOf("async function ensurePremiumAccessForParent");
+  const accessEnd = routesSource.indexOf("async function ensurePremiumAccessForStudent", accessStart);
+  const accessSource = routesSource.slice(accessStart, accessEnd);
+
+  assert.ok(accessStart >= 0);
+  assert.ok(accessEnd > accessStart);
+  assert.doesNotMatch(accessSource, /hasActiveSandboxMembership/);
+  assert.doesNotMatch(accessSource, /onboardingType:\s*"sandbox"/);
+
+  const quotaStart = routesSource.indexOf("async function getMonthlySessionQuotaSnapshot");
+  const quotaEnd = routesSource.indexOf("async function resolveEnrollmentIdForSession", quotaStart);
+  const quotaSource = routesSource.slice(quotaStart, quotaEnd);
+
+  assert.match(quotaSource, /WITH completed_keys AS/);
+  assert.match(quotaSource, /public\.training_session_runs/);
+  assert.match(quotaSource, /public\.session_billing_events/);
+  assert.match(quotaSource, /sessions_remaining: sessionsRemaining/);
+
+  const acceptStart = routesSource.indexOf('app.post("/api/parent/proposal/accept"');
+  const acceptEnd = routesSource.indexOf('app.post("/api/parent/proposal/decline"', acceptStart);
+  const acceptSource = routesSource.slice(acceptStart, acceptEnd);
+
+  assert.match(acceptSource, /\.in\("status", \["proposal_sent", "session_booked"\]\)/);
+  assert.match(acceptSource, /payfastSandboxForEnrollment/);
+});

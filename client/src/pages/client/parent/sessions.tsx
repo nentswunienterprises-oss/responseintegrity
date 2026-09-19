@@ -238,7 +238,9 @@ export default function ParentSessions() {
         title: "Week Scheduled",
         description:
           payload?.createdCount > 0
-            ? "Two weekly session times were proposed. Your tutor must confirm both dates before Meet links are created."
+            ? data?.operationalMode === "sandbox"
+              ? "Two weekly session times were proposed. Your specialist must confirm both dates before the lessons are ready."
+              : "Two weekly session times were proposed. Your tutor must confirm both dates before Meet links are created."
             : "Those weekly session times already exist.",
       });
 

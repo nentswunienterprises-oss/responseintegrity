@@ -67,7 +67,7 @@ interface ParentTrainingSessionsResponse {
     status?: string;
     month_key?: string;
   } | null;
-  operationalMode?: "training" | "trial" | "certified_live";
+  operationalMode?: "training" | "sandbox" | "trial" | "certified_live";
   sessionSchedulingEnabled?: boolean;
 }
 
