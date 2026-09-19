@@ -4,6 +4,16 @@ import { pathToFileURL } from "node:url";
 let handlerPromise = null;
 let tsxApi = null;
 
+// Trace-only dependency anchor for Vercel's Node file tracer.
+// This is deliberately never called at runtime: it makes Vercel walk the
+// complete RI server graph and package its external dependency closure, while
+// the actual preview execution still loads the raw TypeScript through tsx.
+function tracePreviewRuntimeForVercel() {
+  return import("../server/vercelPreviewApi.ts");
+}
+void tracePreviewRuntimeForVercel;
+
+
 async function loadPreviewHandler() {
   if (!handlerPromise) {
     handlerPromise = (async () => {

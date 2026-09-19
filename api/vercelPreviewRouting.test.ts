@@ -43,6 +43,9 @@ test("Vercel preview uses a CommonJS bootstrap with raw TypeScript runtime sourc
   assert.match(bootstrap, /tsx\/esm\/api/);
   assert.match(bootstrap, /server\/vercelPreviewApi\.ts/);
   assert.match(bootstrap, /PREVIEW_BOOTSTRAP_FAILED/);
+  assert.match(bootstrap, /function tracePreviewRuntimeForVercel\(\)/);
+  assert.match(bootstrap, /import\("\.\.\/server\/vercelPreviewApi\.ts"\)/);
+  assert.match(bootstrap, /void tracePreviewRuntimeForVercel/);
 
   assert.match(runtime, /from "\.\/routes\.ts"/);
   assert.match(runtime, /from "\.\/supabaseAuth\.ts"/);
