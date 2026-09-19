@@ -22,7 +22,7 @@ import {
   createEmergencyTutorAccount,
   emergencyExpectedRoleMatches,
 } from "./emergencyAuth";
-import { describeRuntimeDatabaseTarget, pool } from "./db";
+import { describeRuntimeDatabaseTarget, describeSupabaseApiTarget, pool } from "./db";
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
   throw new Error("Missing Supabase environment variables");
@@ -108,15 +108,26 @@ export async function setupAuth(app: Express) {
   // the selected auth mode when the session store itself is unhealthy.
   app.get("/api/auth/mode", (_req: Request, res: Response) => {
     const emergencyDbMode = isEmergencyDbMode();
+    const isPreview = process.env.VERCEL_ENV === "preview";
     const databaseTarget =
-      process.env.VERCEL_ENV === "preview" && process.env.DATABASE_URL
+      isPreview && process.env.DATABASE_URL
         ? describeRuntimeDatabaseTarget(process.env.DATABASE_URL)
+        : undefined;
+    const supabaseTarget =
+      isPreview && process.env.SUPABASE_URL
+        ? describeSupabaseApiTarget(process.env.SUPABASE_URL)
+        : undefined;
+    const runtimeTargetsAligned =
+      databaseTarget?.projectRef && supabaseTarget?.projectRef
+        ? databaseTarget.projectRef === supabaseTarget.projectRef
         : undefined;
 
     res.json({
       emergencyDbMode,
       authMode: emergencyDbMode ? "db-session" : "supabase",
       ...(databaseTarget ? { databaseTarget } : {}),
+      ...(supabaseTarget ? { supabaseTarget } : {}),
+      ...(runtimeTargetsAligned !== undefined ? { runtimeTargetsAligned } : {}),
     });
   });
 

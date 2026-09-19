@@ -45,6 +45,20 @@ export function describeRuntimeDatabaseTarget(databaseUrl: string) {
   }
 }
 
+export function describeSupabaseApiTarget(supabaseUrl: string) {
+  try {
+    const parsed = new URL(supabaseUrl);
+    const hostname = parsed.hostname.toLowerCase();
+    const projectRefMatch = hostname.match(/^([a-z0-9]+)\.supabase\.co$/i);
+    return {
+      host: hostname,
+      ...(projectRefMatch ? { projectRef: projectRefMatch[1] } : {}),
+    };
+  } catch {
+    return { host: "unparseable" };
+  }
+}
+
 const configuredDatabaseUrl = process.env.DATABASE_URL;
 const runtimeDatabaseUrl = normalizeRuntimeDatabaseUrl(configuredDatabaseUrl);
 

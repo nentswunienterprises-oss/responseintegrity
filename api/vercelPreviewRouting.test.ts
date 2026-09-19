@@ -104,3 +104,15 @@ test("preview DB diagnostics identify the Supabase project without exposing cred
   });
   assert.equal(JSON.stringify(target).includes("secret"), false);
 });
+
+
+test("preview auth mode can detect DATABASE_URL and SUPABASE_URL project drift", () => {
+  const authSource = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
+  const dbSource = readFileSync(resolve(process.cwd(), "server/db.ts"), "utf8");
+
+  assert.match(dbSource, /describeSupabaseApiTarget/);
+  assert.match(dbSource, /projectRefMatch = hostname\.match/);
+  assert.match(authSource, /supabaseTarget/);
+  assert.match(authSource, /runtimeTargetsAligned/);
+  assert.match(authSource, /databaseTarget\.projectRef === supabaseTarget\.projectRef/);
+});
