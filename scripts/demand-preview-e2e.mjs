@@ -46,6 +46,37 @@ try {
   const intakeUrl =
     `${baseUrl}/client/intake?fastTrack=exec&production=DEMAND01&pipeline=demand&utm_source=smoke&utm_campaign=demand-gateway-smoke`;
 
+  let previewBundleReady = false;
+  let lastBundleProbe = null;
+  for (let attempt = 1; attempt <= 30; attempt += 1) {
+    const probeResponse = await page.goto(intakeUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    const scriptUrls = await page.locator("script[src]").evaluateAll((nodes) =>
+      nodes.map((node) => new URL(node.getAttribute("src"), window.location.href).toString()),
+    );
+    let proofApiPresent = false;
+    for (const scriptUrl of scriptUrls) {
+      const source = await page.request.get(scriptUrl);
+      const text = await source.text();
+      if (text.includes("responseintegrity-proof.onrender.com")) {
+        proofApiPresent = true;
+        break;
+      }
+    }
+    lastBundleProbe = {
+      attempt,
+      status: probeResponse?.status() ?? null,
+      url: page.url(),
+      proofApiPresent,
+    };
+    if (proofApiPresent) {
+      previewBundleReady = true;
+      break;
+    }
+    console.log("PREVIEW_BUNDLE_WAIT", JSON.stringify(lastBundleProbe));
+    await page.waitForTimeout(10_000);
+  }
+  assert.ok(previewBundleReady, `Preview alias never served Proof-routed bundle: ${JSON.stringify(lastBundleProbe)}`);
+
   const intakeResponse = await page.goto(intakeUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
   const intakeBody = await page.locator("body").innerText();
   assert.ok(intakeBody.toLowerCase().includes("parent intake gateway"), `Expected RI intake page, got ${page.url()} / ${await page.title()}`);
