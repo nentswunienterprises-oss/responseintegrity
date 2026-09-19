@@ -51,10 +51,11 @@ test("Vercel preview uses a CommonJS bootstrap with raw TypeScript runtime sourc
   assert.match(runtime, /req\.query\?\.__previewPath/);
   assert.match(runtime, /req\.url = queryString \?/);
 
-  const includeFiles = config.functions?.["api/index.cjs"]?.includeFiles || [];
-  assert.ok(includeFiles.includes("server/**/*.ts"));
-  assert.ok(includeFiles.includes("shared/**/*.ts"));
-  assert.ok(includeFiles.includes("tsconfig.json"));
+  const includeFiles = config.functions?.["api/index.cjs"]?.includeFiles || "";
+  assert.equal(typeof includeFiles, "string");
+  assert.match(includeFiles, /server\/\*\*\/\*\.ts/);
+  assert.match(includeFiles, /shared\/\*\*\/\*\.ts/);
+  assert.match(includeFiles, /tsconfig\.json/);
 });
 
 test("Vercel preview sessions stay host-only on the preview hostname", () => {
