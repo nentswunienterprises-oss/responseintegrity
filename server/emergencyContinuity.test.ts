@@ -706,7 +706,7 @@ test("preview startup repairs only a recent real training shadow row and never p
   const repairSource = routesSource.slice(repairStart, repairEnd);
 
   assert.match(repairSource, /process\.env\.VERCEL_ENV !== "preview"/);
-  assert.match(repairSource, /!isEmergencyDbMode\(\)/);
+  assert.doesNotMatch(repairSource, /isEmergencyDbMode\(\)/);
   assert.match(repairSource, /d\.submitted_at >= NOW\(\) - INTERVAL '2 hours'/);
   assert.match(repairSource, /COALESCE\(d\.drill->>'drillType', ''\) = 'training'/);
   assert.match(repairSource, /compareTrainingEvidenceShadowToLegacy/);
