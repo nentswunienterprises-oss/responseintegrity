@@ -1,0 +1,42 @@
+name: Demand Gateway Preview E2E
+
+on:
+  push:
+    branches:
+      - feat/demand-production-gateway
+    paths:
+      - 'scripts/demand-preview-e2e.mjs'
+      - '.github/workflows/demand-gateway-preview-e2e.yml'
+  workflow_dispatch:
+
+jobs:
+  demand-gateway-preview-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SMOKE_BASE_URL: https://tt-confidence-hub-git-feat-dem-d053fe-relief-works-technologies.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run deployed Demand Gateway smoke
+        run: node scripts/demand-preview-e2e.mjs
+
+      - name: Upload Demand Gateway smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demand-gateway-preview-e2e
+          path: artifacts/demand-preview-e2e
+          if-no-files-found: warn
