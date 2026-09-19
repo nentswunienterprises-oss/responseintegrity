@@ -699,16 +699,24 @@ test("training shadow comparison maps legacy snake-case transition before compar
   assert.doesNotMatch(summarySource, /legacyTransition: transition,/);
 });
 
-test("preview startup repairs only a recent real training shadow row and never production", () => {
+test("preview startup repairs one recent real training shadow row in normal or emergency auth mode", () => {
   const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
   const repairStart = routesSource.indexOf("const repairRecentPreviewTrainingShadowComparison");
   const repairEnd = routesSource.indexOf("type NormalizedEvidenceSet", repairStart);
   const repairSource = routesSource.slice(repairStart, repairEnd);
 
   assert.match(repairSource, /process\.env\.VERCEL_ENV !== "preview"/);
-  assert.doesNotMatch(repairSource, /isEmergencyDbMode\(\)/);
+  assert.doesNotMatch(
+    repairSource,
+    /VERCEL_ENV !== "preview"\s*\|\|\s*!isEmergencyDbMode\(\)/,
+  );
+  assert.match(repairSource, /if \(isEmergencyDbMode\(\)\)/);
   assert.match(repairSource, /d\.submitted_at >= NOW\(\) - INTERVAL '2 hours'/);
-  assert.match(repairSource, /COALESCE\(d\.drill->>'drillType', ''\) = 'training'/);
+  assert.match(repairSource, /\.from\("intro_session_drills"\)/);
+  assert.match(repairSource, /\.from\("training_evidence_shadow_comparisons"\)/);
+  assert.match(repairSource, /\.gte\("submitted_at", cutoff\)/);
+  assert.match(repairSource, /candidateDrill\?\.drillType !== "training"/);
+  assert.match(repairSource, /evidenceShadow\?\.status !== "evaluated"/);
   assert.match(repairSource, /compareTrainingEvidenceShadowToLegacy/);
   assert.match(repairSource, /await persistTrainingShadowComparison/);
   assert.match(repairSource, /LIMIT 1/);
