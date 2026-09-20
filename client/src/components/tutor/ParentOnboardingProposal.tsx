@@ -153,6 +153,10 @@ export default function ParentOnboardingProposal({
         firstPriority: priority,
         sessionStructure,
         progressSignals,
+        importantNote:
+          "This training focuses on how the student responds while solving, not only on whether the final answer is correct.",
+        commitment:
+          `Consistency and active participation are required across the selected ${selectedPackage.sessionsPerMonth}-session monthly package. Students are expected to attempt before receiving guidance.`,
       };
       const justification = attachDiagnosisProposalSnapshot(
         baseJustification,
