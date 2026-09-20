@@ -25,10 +25,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
+
       - run: npm ci --ignore-scripts
 
       - name: Install Playwright
@@ -38,58 +40,59 @@ jobs:
 
       - name: Align smoke to live gated parent entry
         run: |
-          node --input-type=module <<'NODE'
-          import fs from "node:fs";
-          const path = "scripts/coo-production-link-ui-smoke.mjs";
-          let source = fs.readFileSync(path, "utf8");
-          const start = source.indexOf('  const signupCtas = parentPage.locator("[data-signup-link]");');
-          const end = source.indexOf('  await parentContext.close();', start);
-          if (start < 0 || end < 0) {
-            throw new Error("Parent landing assertion block not found");
-          }
-          const replacement = `  checkpoint("canonical-link-opened-as-parent", {
-            url: parentPage.url(),
-            title: await parentPage.title(),
-          });
-          await parentPage.screenshot({
-            path: path.join(evidenceDir, "03-parent-landing.png"),
-            fullPage: true,
-          });
+          python - <<'PY'
+          from pathlib import Path
+          from textwrap import dedent
 
-          const intakeButton = parentPage
-            .getByRole("button", { name: "Check Current Intake Window", exact: true })
-            .first();
-          await intakeButton.waitFor({ timeout: 30_000 });
-          await intakeButton.click();
-          await parentPage.waitForURL(/\\/client\\/intake/, { timeout: 30_000 });
+          path = Path("scripts/coo-production-link-ui-smoke.mjs")
+          source = path.read_text()
+          start = source.index('  const signupCtas = parentPage.locator("[data-signup-link]");')
+          end = source.index('  await parentContext.close();', start)
 
-          const intakeUrl = new URL(parentPage.url());
-          assert.equal(intakeUrl.searchParams.get("production"), generatedCode);
-          assert.equal(intakeUrl.searchParams.get("pipeline"), "demand");
-          assert.equal(
-            intakeUrl.searchParams.get("fastTrack"),
-            null,
-            "A normal COO Production Link must not unlock fast-track access",
-          );
-          await parentPage.getByText("Parent intake gateway", { exact: false }).waitFor({
-            timeout: 30_000,
-          });
+          replacement = dedent(r'''
+            checkpoint("canonical-link-opened-as-parent", {
+              url: parentPage.url(),
+              title: await parentPage.title(),
+            });
+            await parentPage.screenshot({
+              path: path.join(evidenceDir, "03-parent-landing.png"),
+              fullPage: true,
+            });
 
-          checkpoint("parent-reached-attributed-intake", {
-            url: parentPage.url(),
-            production: intakeUrl.searchParams.get("production"),
-            pipeline: intakeUrl.searchParams.get("pipeline"),
-            fastTrack: intakeUrl.searchParams.get("fastTrack"),
-          });
-          await parentPage.screenshot({
-            path: path.join(evidenceDir, "04-attributed-intake.png"),
-            fullPage: true,
-          });
+            const intakeButton = parentPage
+              .getByRole("button", { name: "Check Current Intake Window", exact: true })
+              .first();
+            await intakeButton.waitFor({ timeout: 30_000 });
+            await intakeButton.click();
+            await parentPage.waitForURL(/\/client\/intake/, { timeout: 30_000 });
 
-`;
-          source = source.slice(0, start) + replacement + source.slice(end);
-          fs.writeFileSync(path, source);
-          NODE
+            const intakeUrl = new URL(parentPage.url());
+            assert.equal(intakeUrl.searchParams.get("production"), generatedCode);
+            assert.equal(intakeUrl.searchParams.get("pipeline"), "demand");
+            assert.equal(
+              intakeUrl.searchParams.get("fastTrack"),
+              null,
+              "A normal COO Production Link must not unlock fast-track access",
+            );
+            await parentPage.getByText("Parent intake gateway", { exact: false }).waitFor({
+              timeout: 30_000,
+            });
+
+            checkpoint("parent-reached-attributed-intake", {
+              url: parentPage.url(),
+              production: intakeUrl.searchParams.get("production"),
+              pipeline: intakeUrl.searchParams.get("pipeline"),
+              fastTrack: intakeUrl.searchParams.get("fastTrack"),
+            });
+            await parentPage.screenshot({
+              path: path.join(evidenceDir, "04-attributed-intake.png"),
+              fullPage: true,
+            });
+
+          ''')
+
+          path.write_text(source[:start] + replacement + source[end:])
+          PY
 
       - name: Run COO Production Link UI smoke
         run: node scripts/coo-production-link-ui-smoke.mjs
