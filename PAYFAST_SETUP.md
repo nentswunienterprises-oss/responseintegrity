@@ -27,13 +27,11 @@
 - `PAYFAST_MERCHANT_KEY`
 - `PAYFAST_PASSPHRASE`
 - `PAYFAST_SANDBOX=true` for sandbox
-- `PAYFAST_SANDBOX_MERCHANT_ID` (optional; use your PayFast Sandbox merchant ID)
-- `PAYFAST_SANDBOX_MERCHANT_KEY` (optional; use your PayFast Sandbox merchant key)
-- `PAYFAST_SANDBOX_PASSPHRASE` (optional; use only with your matching Sandbox credentials)
+- Sandbox checkout is pinned to PayFast's documented public test credentials in code for Proof/Sandbox testing
 - `APP_BASE_URL=https://app.responseintegrity.co.za`
 - `API_PUBLIC_URL=https://api.responseintegrity.co.za`
 
-Sandbox never reuses live PayFast credentials. If a valid sandbox-specific Merchant ID and Key are configured, those are used. Otherwise the integration falls back to PayFast's public no-passphrase sandbox test pair (`10000100` / `46f0cd694581a`). Live credentials are used only against the live PayFast endpoint.
+Sandbox never reuses live PayFast credentials. Proof/Sandbox checkout is pinned to PayFast's documented public test credentials (`10000100` / `46f0cd694581a`) with the documented test passphrase. Live credentials are used only against the live PayFast endpoint.
 
 `APP_BASE_URL` and `API_PUBLIC_URL` must be public web URLs. PayFast does not accept local `localhost` callback URLs for live ITN flow.
 
