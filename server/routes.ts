@@ -3342,6 +3342,230 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
     throw new Error("Payment transaction is missing enrollment or proposal linkage.");
   }
 
+  if (isEmergencyDbMode()) {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      const enrollmentResult = await client.query(
+        `SELECT id, status, proposal_id
+           FROM public.parent_enrollments
+          WHERE id = $1
+          FOR UPDATE`,
+        [enrollmentId],
+      );
+      const enrollment = enrollmentResult.rows[0] || null;
+      if (!enrollment) {
+        throw new Error("Failed to resolve parent enrollment for paid transaction.");
+      }
+
+      const proposalResult = await client.query(
+        `SELECT id, accepted_at, parent_code, student_id, tutor_id,
+                topic_conditioning_topic, topic_conditioning_entry_phase,
+                topic_conditioning_stability, package_key, package_sessions,
+                planned_sessions_per_week
+           FROM public.onboarding_proposals
+          WHERE id = $1
+          FOR UPDATE`,
+        [proposalId],
+      );
+      const proposal = proposalResult.rows[0] || null;
+      if (!proposal) {
+        throw new Error("Failed to resolve onboarding proposal for paid transaction.");
+      }
+
+      if (proposal.accepted_at && proposal.parent_code && enrollment.status === "session_booked") {
+        await client.query("COMMIT");
+        return {
+          status: "session_booked",
+          parentCode: proposal.parent_code,
+        };
+      }
+
+      const generateParentCode = () => {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        let code = "";
+        for (let i = 0; i < 8; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+      };
+
+      let parentCode = proposal.parent_code || generateParentCode();
+      let codeIsUnique = !!proposal.parent_code;
+      let attempts = 0;
+
+      while (!codeIsUnique && attempts < 10) {
+        const existingCode = await client.query(
+          `SELECT id
+             FROM public.onboarding_proposals
+            WHERE parent_code = $1
+              AND id <> $2
+            LIMIT 1`,
+          [parentCode, proposal.id],
+        );
+        if (!existingCode.rows[0]) {
+          codeIsUnique = true;
+        } else {
+          parentCode = generateParentCode();
+          attempts++;
+        }
+      }
+
+      const nowIso = new Date().toISOString();
+      const servicePackage = getMonthlyServicePackage(proposal.package_key || transaction?.package_key);
+
+      await client.query(
+        `UPDATE public.parent_enrollments
+            SET status = 'session_booked',
+                package_key = $1,
+                package_sessions = $2,
+                planned_sessions_per_week = $3,
+                updated_at = $4
+          WHERE id = $5`,
+        [
+          servicePackage.key,
+          servicePackage.sessionsPerMonth,
+          servicePackage.plannedSessionsPerWeek,
+          nowIso,
+          enrollment.id,
+        ],
+      );
+
+      await client.query(
+        `UPDATE public.onboarding_proposals
+            SET enrollment_id = $1,
+                accepted_at = COALESCE(accepted_at, $2),
+                parent_code = $3,
+                updated_at = $2
+          WHERE id = $4`,
+        [enrollment.id, nowIso, parentCode, proposal.id],
+      );
+
+      const acceptedTopic = String(proposal.topic_conditioning_topic || "").trim();
+      const acceptedPhase = tryParsePhase(proposal.topic_conditioning_entry_phase) || "Clarity";
+      const acceptedStability = normalizeStability(proposal.topic_conditioning_stability || "Low");
+
+      if (proposal.student_id && proposal.tutor_id && acceptedTopic) {
+        const activationReason = [
+          "Auto-activated from accepted proposal",
+          `Phase ${acceptedPhase}`,
+          `Stability ${acceptedStability}`,
+        ].join(" | ");
+
+        const existingActivation = await client.query(
+          `SELECT id
+             FROM public.topic_conditioning_activations
+            WHERE student_id = $1
+              AND topic = $2
+            LIMIT 1`,
+          [proposal.student_id, acceptedTopic],
+        );
+
+        if (!existingActivation.rows[0]) {
+          await client.query(
+            `INSERT INTO public.topic_conditioning_activations
+              (student_id, tutor_id, topic, reason)
+             VALUES ($1, $2, $3, $4)`,
+            [proposal.student_id, proposal.tutor_id, acceptedTopic, activationReason],
+          );
+        }
+
+        const studentResult = await client.query(
+          `SELECT id, concept_mastery
+             FROM public.students
+            WHERE id = $1
+            LIMIT 1`,
+          [proposal.student_id],
+        );
+        const studentForConcept = studentResult.rows[0] || null;
+
+        if (studentForConcept) {
+          const currentConceptMastery =
+            studentForConcept.concept_mastery && typeof studentForConcept.concept_mastery === "object"
+              ? studentForConcept.concept_mastery
+              : {};
+          const topicConditioning =
+            currentConceptMastery.topicConditioning && typeof currentConceptMastery.topicConditioning === "object"
+              ? currentConceptMastery.topicConditioning
+              : {};
+          const topics =
+            topicConditioning.topics && typeof topicConditioning.topics === "object"
+              ? { ...topicConditioning.topics }
+              : {};
+          const existingTopicState =
+            topics[acceptedTopic] && typeof topics[acceptedTopic] === "object"
+              ? topics[acceptedTopic]
+              : {};
+          const existingHistory = Array.isArray(existingTopicState.history)
+            ? existingTopicState.history
+            : [];
+
+          topics[acceptedTopic] = {
+            ...existingTopicState,
+            topic: acceptedTopic,
+            phase: acceptedPhase,
+            stability: acceptedStability,
+            lastUpdated: nowIso,
+            observationNotes: "Auto-activated from accepted proposal after confirmed premium payment.",
+            history: [
+              ...existingHistory,
+              {
+                date: nowIso,
+                phase: acceptedPhase,
+                stability: acceptedStability,
+                nextAction: NEXT_ACTION_ENGINE[acceptedPhase][acceptedStability].primaryAction,
+                observationNotes: "Auto-activated from accepted proposal.",
+              },
+            ],
+          };
+
+          const mergedConceptMastery = {
+            ...currentConceptMastery,
+            topicConditioning: {
+              ...topicConditioning,
+              topic: acceptedTopic,
+              entry_phase: acceptedPhase,
+              stability: acceptedStability,
+              lastUpdated: nowIso,
+              topics,
+            },
+          };
+
+          await client.query(
+            `UPDATE public.students
+                SET concept_mastery = $1::jsonb
+              WHERE id = $2`,
+            [JSON.stringify(mergedConceptMastery), proposal.student_id],
+          );
+        }
+      }
+
+      await client.query("COMMIT");
+
+      await safeSendPush(
+        proposal?.tutor_id,
+        {
+          title: "Proposal paid and accepted",
+          body: "A parent completed monthly package payment. Continue with the scheduled session flow.",
+          url: "/operational/tutor/pod",
+          tag: `tutor-proposal-paid-${proposal.id}`,
+        },
+        "tutor premium payment completed",
+      );
+
+      return {
+        status: "session_booked",
+        parentCode,
+      };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   const { data: enrollment, error: enrollmentError } = await supabase
     .from("parent_enrollments")
     .select("id, status, proposal_id")
@@ -25496,6 +25720,253 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/parent/proposal/accept", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
     try {
       const parentId = (req as any).dbUser.id;
+
+      if (isEmergencyDbMode()) {
+        let paymentEnrollmentResult = await pool.query(
+          `SELECT id, user_id, status, proposal_id, student_full_name, current_step,
+                  assigned_tutor_id, parent_email, is_sandbox_account
+             FROM public.parent_enrollments
+            WHERE user_id = $1
+              AND status IN ('proposal_sent', 'session_booked')
+              AND proposal_id IS NOT NULL
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [parentId],
+        );
+        let paymentEnrollment = paymentEnrollmentResult.rows[0] || null;
+
+        if (!paymentEnrollment) {
+          const userResult = await pool.query(
+            "SELECT email FROM public.users WHERE id = $1 LIMIT 1",
+            [parentId],
+          );
+          const parentEmail = normalizeEmail(userResult.rows[0]?.email);
+          if (parentEmail) {
+            paymentEnrollmentResult = await pool.query(
+              `SELECT id, user_id, status, proposal_id, student_full_name, current_step,
+                      assigned_tutor_id, parent_email, is_sandbox_account
+                 FROM public.parent_enrollments
+                WHERE lower(parent_email) = $1
+                  AND status IN ('proposal_sent', 'session_booked')
+                  AND proposal_id IS NOT NULL
+                ORDER BY updated_at DESC
+                LIMIT 1`,
+              [parentEmail],
+            );
+            paymentEnrollment = paymentEnrollmentResult.rows[0] || null;
+          }
+        }
+
+        if (!paymentEnrollment?.proposal_id) {
+          return res.status(404).json({ message: "No pending proposal found" });
+        }
+
+        const payfastSandboxForEnrollment = isSandboxPaymentEnrollment(paymentEnrollment);
+        if (
+          String(paymentEnrollment.status || "") === "session_booked" &&
+          !payfastSandboxForEnrollment
+        ) {
+          return res.status(404).json({ message: "No pending proposal found" });
+        }
+
+        const billingResult = await pool.query(
+          `SELECT onboarding_type, affiliate_code, affiliate_type
+             FROM public.parents
+            WHERE user_id = $1
+            LIMIT 1`,
+          [String(paymentEnrollment.user_id || parentId)],
+        );
+        const billingRow = billingResult.rows[0] || null;
+        const onboardingType =
+          String(billingRow?.onboarding_type || "").trim().toLowerCase() === "pilot"
+            ? "pilot"
+            : "commercial";
+
+        if (onboardingType === "commercial" && !isMonthlyPackagePaymentReady(payfastSandboxForEnrollment)) {
+          return res.status(500).json({ message: "PayFast is not configured on this deployment." });
+        }
+
+        const existingPaymentResult = await pool.query(
+          `SELECT *
+             FROM public.payment_transactions
+            WHERE enrollment_id = $1
+              AND provider = $2
+            ORDER BY created_at DESC
+            LIMIT 1`,
+          [String(paymentEnrollment.id), PAYMENT_PROVIDER_PAYFAST],
+        );
+        const existingPayment = existingPaymentResult.rows[0] || null;
+
+        if (String(existingPayment?.payment_status || "").toLowerCase() === "paid") {
+          const finalized = await finalizeAcceptedProposalFromPayment(existingPayment);
+          return res.json({
+            message: "Monthly package payment already confirmed.",
+            paymentStatus: "PAID",
+            status: finalized.status,
+            parentCode: finalized.parentCode,
+          });
+        }
+
+        const paymentProposalResult = await pool.query(
+          `SELECT id, student_id, tutor_id, package_key, package_sessions,
+                  planned_sessions_per_week, package_amount
+             FROM public.onboarding_proposals
+            WHERE id = $1
+            LIMIT 1`,
+          [paymentEnrollment.proposal_id],
+        );
+        const paymentProposal = paymentProposalResult.rows[0] || null;
+
+        if (!paymentProposal?.student_id || !paymentProposal?.tutor_id) {
+          return res.status(400).json({ message: "Proposal is missing student or tutor linkage." });
+        }
+
+        const servicePackage = getMonthlyServicePackage(paymentProposal.package_key);
+
+        if (onboardingType === "pilot") {
+          const finalizationSeed = existingPayment || {
+            parent_id: String(paymentEnrollment.user_id || parentId),
+            enrollment_id: paymentEnrollment.id,
+            proposal_id: paymentProposal.id,
+          };
+          const finalized = await finalizeAcceptedProposalFromPayment(finalizationSeed);
+
+          return res.json({
+            message: "Pilot proposal accepted. Free access is active.",
+            onboardingType: "pilot",
+            paymentStatus: "FREE_ACCESS",
+            status: finalized.status,
+            parentCode: finalized.parentCode,
+            freeSessionsRemaining: 9,
+          });
+        }
+
+        const merchantReference = String(
+          existingPayment?.merchant_reference || `response-integrity-package-${uuidv4()}`,
+        );
+        const payfastConfig = getPayfastConfig(payfastSandboxForEnrollment);
+        const nowIso = new Date().toISOString();
+        const paymentRawPayload = {
+          ...(existingPayment?.raw_payload && typeof existingPayment.raw_payload === "object"
+            ? existingPayment.raw_payload
+            : {}),
+          payfast_mode: payfastSandboxForEnrollment ? "sandbox" : "live",
+          sandbox_checkout: payfastSandboxForEnrollment,
+          package_key: servicePackage.key,
+        };
+
+        const savedPaymentResult = await pool.query(
+          `INSERT INTO public.payment_transactions (
+             parent_id, enrollment_id, proposal_id, student_id, tutor_id, provider,
+             payment_status, plan, amount, currency, tutor_share, platform_share,
+             package_key, package_sessions, planned_sessions_per_week, session_price,
+             merchant_reference, item_name, item_description, raw_payload, created_at, updated_at
+           )
+           VALUES (
+             $1,$2,$3,$4,$5,$6,
+             'pending',$7,$8,'ZAR',$9,$10,
+             $11,$12,$13,$14,
+             $15,$16,$17,$18::jsonb,$19,$19
+           )
+           ON CONFLICT (merchant_reference)
+           DO UPDATE SET
+             parent_id = EXCLUDED.parent_id,
+             enrollment_id = EXCLUDED.enrollment_id,
+             proposal_id = EXCLUDED.proposal_id,
+             student_id = EXCLUDED.student_id,
+             tutor_id = EXCLUDED.tutor_id,
+             provider = EXCLUDED.provider,
+             payment_status = 'pending',
+             plan = EXCLUDED.plan,
+             amount = EXCLUDED.amount,
+             currency = EXCLUDED.currency,
+             tutor_share = EXCLUDED.tutor_share,
+             platform_share = EXCLUDED.platform_share,
+             package_key = EXCLUDED.package_key,
+             package_sessions = EXCLUDED.package_sessions,
+             planned_sessions_per_week = EXCLUDED.planned_sessions_per_week,
+             session_price = EXCLUDED.session_price,
+             item_name = EXCLUDED.item_name,
+             item_description = EXCLUDED.item_description,
+             raw_payload = EXCLUDED.raw_payload,
+             updated_at = EXCLUDED.updated_at
+           RETURNING *`,
+          [
+            String(paymentEnrollment.user_id || parentId),
+            String(paymentEnrollment.id),
+            String(paymentProposal.id),
+            String(paymentProposal.student_id),
+            String(paymentProposal.tutor_id),
+            PAYMENT_PROVIDER_PAYFAST,
+            servicePackage.label,
+            servicePackage.amountZar.toFixed(2),
+            servicePackage.specialistAllocationZar.toFixed(2),
+            servicePackage.responseIntegrityAllocationZar.toFixed(2),
+            servicePackage.key,
+            servicePackage.sessionsPerMonth,
+            servicePackage.plannedSessionsPerWeek,
+            SESSION_PRICE_ZAR,
+            merchantReference,
+            servicePackage.label,
+            buildPackagePaymentDescription(paymentEnrollment.student_full_name, servicePackage.key),
+            JSON.stringify(paymentRawPayload),
+            nowIso,
+          ],
+        );
+        const savedPayment = savedPaymentResult.rows[0] || null;
+
+        if (!savedPayment) {
+          return res.status(500).json({ message: "Failed to prepare payment transaction" });
+        }
+
+        const payfastFields = withPayfastSignature(
+          {
+            merchant_id: payfastConfig.merchantId,
+            merchant_key: payfastConfig.merchantKey,
+            return_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}`,
+            cancel_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}`,
+            notify_url: `${getApiPublicUrl()}/api/payments/payfast/notify`,
+            name_first: String((req as any).dbUser?.firstName || "").trim(),
+            name_last: String((req as any).dbUser?.lastName || "").trim(),
+            email_address: resolvePayfastEmailAddress({
+              dbUserEmail: (req as any).dbUser?.email,
+              enrollmentEmail: paymentEnrollment.parent_email,
+              parentId: String(paymentEnrollment.user_id || parentId),
+              useSandbox: payfastSandboxForEnrollment,
+            }),
+            m_payment_id: merchantReference,
+            amount: servicePackage.amountZar.toFixed(2),
+            item_name: servicePackage.label,
+            item_description: buildPackagePaymentDescription(paymentEnrollment.student_full_name, servicePackage.key),
+            custom_str1: String(paymentEnrollment.id),
+            custom_str2: String(paymentProposal.id),
+            custom_str3: String(paymentProposal.student_id),
+            custom_str4: String(paymentProposal.tutor_id),
+            custom_str5: servicePackage.key,
+          },
+          payfastConfig.passphrase,
+        );
+
+        return res.json({
+          message: "PayFast payment prepared.",
+          onboardingType: "commercial",
+          paymentStatus: "UNPAID",
+          paymentProvider: PAYMENT_PROVIDER_PAYFAST,
+          plan: servicePackage.label,
+          packageKey: servicePackage.key,
+          sessionsPerMonth: servicePackage.sessionsPerMonth,
+          plannedSessionsPerWeek: servicePackage.plannedSessionsPerWeek,
+          amount: servicePackage.amountZar,
+          tutorShare: servicePackage.specialistAllocationZar,
+          platformShare: servicePackage.responseIntegrityAllocationZar,
+          ttShare: servicePackage.responseIntegrityAllocationZar,
+          merchantReference,
+          checkoutUrl: payfastConfig.processUrl,
+          sandbox: payfastSandboxForEnrollment,
+          formFields: payfastFields,
+        });
+      }
+
       const billingModel = await getParentBillingModel(parentId);
       if (billingModel.error) {
         return res.status(500).json({ message: "Failed to resolve onboarding type for billing." });
@@ -26055,6 +26526,173 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const merchantReference = String(req.body?.merchantReference || "").trim();
+
+      if (isEmergencyDbMode()) {
+        let canonicalParentId = parentId;
+        let transactionResult = merchantReference
+          ? await pool.query(
+              `SELECT *
+                 FROM public.payment_transactions
+                WHERE parent_id = $1
+                  AND provider = $2
+                  AND merchant_reference = $3
+                LIMIT 1`,
+              [canonicalParentId, PAYMENT_PROVIDER_PAYFAST, merchantReference],
+            )
+          : await pool.query(
+              `SELECT *
+                 FROM public.payment_transactions
+                WHERE parent_id = $1
+                  AND provider = $2
+                  AND payment_status = 'pending'
+                ORDER BY created_at DESC
+                LIMIT 1`,
+              [canonicalParentId, PAYMENT_PROVIDER_PAYFAST],
+            );
+
+        let transaction = transactionResult.rows[0] || null;
+
+        if (!transaction) {
+          const userResult = await pool.query(
+            "SELECT email FROM public.users WHERE id = $1 LIMIT 1",
+            [parentId],
+          );
+          const parentEmail = normalizeEmail(userResult.rows[0]?.email);
+          if (parentEmail) {
+            const enrollmentResult = await pool.query(
+              `SELECT user_id
+                 FROM public.parent_enrollments
+                WHERE lower(parent_email) = $1
+                ORDER BY updated_at DESC
+                LIMIT 1`,
+              [parentEmail],
+            );
+            canonicalParentId = String(enrollmentResult.rows[0]?.user_id || parentId);
+            transactionResult = merchantReference
+              ? await pool.query(
+                  `SELECT *
+                     FROM public.payment_transactions
+                    WHERE parent_id = $1
+                      AND provider = $2
+                      AND merchant_reference = $3
+                    LIMIT 1`,
+                  [canonicalParentId, PAYMENT_PROVIDER_PAYFAST, merchantReference],
+                )
+              : await pool.query(
+                  `SELECT *
+                     FROM public.payment_transactions
+                    WHERE parent_id = $1
+                      AND provider = $2
+                      AND payment_status = 'pending'
+                    ORDER BY created_at DESC
+                    LIMIT 1`,
+                  [canonicalParentId, PAYMENT_PROVIDER_PAYFAST],
+                );
+            transaction = transactionResult.rows[0] || null;
+          }
+        }
+
+        if (!transaction) {
+          return res.status(404).json({ message: "No pending sandbox PayFast payment found" });
+        }
+
+        let transactionSandboxMode =
+          String(
+            (transaction.raw_payload && typeof transaction.raw_payload === "object"
+              ? transaction.raw_payload.payfast_mode
+              : "") || ""
+          ).trim().toLowerCase() === "sandbox";
+
+        if (!transactionSandboxMode) {
+          const enrollmentId = String(transaction.enrollment_id || "").trim();
+          if (enrollmentId) {
+            const linkedEnrollmentResult = await pool.query(
+              `SELECT id, current_step, assigned_tutor_id, parent_email,
+                      is_sandbox_account, student_full_name
+                 FROM public.parent_enrollments
+                WHERE id = $1
+                LIMIT 1`,
+              [enrollmentId],
+            );
+            transactionSandboxMode = isSandboxPaymentEnrollment(
+              linkedEnrollmentResult.rows[0] || null,
+            );
+          }
+        }
+
+        if (!transactionSandboxMode) {
+          return res.status(403).json({
+            message: "Sandbox confirmation is only available for sandbox payment transactions.",
+          });
+        }
+
+        if (String(transaction.payment_status || "").toLowerCase() === "paid") {
+          if (isRenewalPaymentTransaction(transaction)) {
+            return res.status(503).json({
+              message: "Sandbox renewal confirmation is not available in Emergency DB mode yet.",
+            });
+          }
+          const finalized = await finalizeAcceptedProposalFromPayment(transaction);
+          return res.json({
+            message: "Sandbox PayFast payment already confirmed.",
+            paymentStatus: "PAID",
+            status: finalized.status,
+            parentCode: finalized.parentCode,
+            sandbox: true,
+          });
+        }
+
+        if (!["pending", "failed", "cancelled"].includes(String(transaction.payment_status || "").toLowerCase())) {
+          return res.status(409).json({
+            message: `Sandbox payment cannot be confirmed from status ${transaction.payment_status}.`,
+          });
+        }
+
+        if (isRenewalPaymentTransaction(transaction)) {
+          return res.status(503).json({
+            message: "Sandbox renewal confirmation is not available in Emergency DB mode yet.",
+          });
+        }
+
+        const nowIso = new Date().toISOString();
+        const rawPayload =
+          transaction.raw_payload && typeof transaction.raw_payload === "object"
+            ? transaction.raw_payload
+            : {};
+        const mergedPayload = {
+          ...rawPayload,
+          payfast_mode: "sandbox",
+          sandbox_checkout: true,
+          sandbox_manual_confirmation: true,
+          sandbox_manual_confirmation_at: nowIso,
+        };
+
+        const updatedResult = await pool.query(
+          `UPDATE public.payment_transactions
+              SET payment_status = 'paid',
+                  payment_date = $1,
+                  paid_at = $1,
+                  itn_received_at = COALESCE(itn_received_at, $1),
+                  raw_payload = $2::jsonb,
+                  updated_at = $1
+            WHERE id = $3
+            RETURNING *`,
+          [nowIso, JSON.stringify(mergedPayload), transaction.id],
+        );
+        const updatedTransaction = updatedResult.rows[0] || null;
+        if (!updatedTransaction) {
+          return res.status(500).json({ message: "Failed to confirm sandbox payment" });
+        }
+
+        const finalized = await finalizeAcceptedProposalFromPayment(updatedTransaction);
+        return res.json({
+          message: "Sandbox PayFast payment confirmed.",
+          paymentStatus: "PAID",
+          status: finalized.status,
+          parentCode: finalized.parentCode,
+          sandbox: true,
+        });
+      }
       let transactionQuery = supabase
         .from("payment_transactions")
         .select("*")
