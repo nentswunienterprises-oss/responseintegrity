@@ -25,6 +25,24 @@ export const EVIDENCE_COMPLETE_DIAGNOSIS_DEFINITION_HASH =
   "d5af9c66f1b8e807b325e898884416662a0c743ad1b82f446b08ff34f16d9de2";
 export const MAX_EVIDENCE_COMPLETE_DIAGNOSIS_PROBES = 12;
 
+export const canonicalizeEvidenceJson = (value: unknown): string => {
+  const normalize = (entry: unknown): unknown => {
+    if (Array.isArray(entry)) {
+      return entry.map(normalize);
+    }
+    if (entry && typeof entry === "object") {
+      return Object.fromEntries(
+        Object.keys(entry as Record<string, unknown>)
+          .sort()
+          .map((key) => [key, normalize((entry as Record<string, unknown>)[key])]),
+      );
+    }
+    return entry ?? null;
+  };
+
+  return JSON.stringify(normalize(value ?? null));
+};
+
 const SUPPORT_EVENTS = new Set<DiagnosisSupportEvent>([
   "none",
   "neutral_clarification",
