@@ -10,6 +10,7 @@ import {
   type TopicStability,
 } from "@shared/topicConditioningEngine";
 import { getMonthlyServicePackage, type MonthlyPackageKey } from "@shared/servicePackages";
+import { extractDiagnosisProposalSnapshot } from "@shared/diagnosisProposalCopy";
 
 interface ProposalData {
   id: string;
@@ -104,6 +105,7 @@ export default function ProposalView({
     proposal.plannedSessionsPerWeek || servicePackage.plannedSessionsPerWeek,
   );
   const packageAmount = Number(proposal.packageAmount || servicePackage.amountZar);
+  const diagnosisProposalSnapshot = extractDiagnosisProposalSnapshot(proposal.justification);
 
   type StudentPronounSet = {
     subject: "he" | "she" | "they";
@@ -268,10 +270,13 @@ export default function ProposalView({
   };
 
   const normalizedDiagnosisPhase =
+    normalizePhaseLabel(diagnosisProposalSnapshot?.entryPhase) ||
     extractDiagnosisPhase() ||
     normalizePhaseLabel(topicConditioning.entryPhase) ||
     "Clarity";
-  const normalizedStability = normalizeStabilityLabel(topicConditioning.stability);
+  const normalizedStability = normalizeStabilityLabel(
+    diagnosisProposalSnapshot?.stability || topicConditioning.stability,
+  );
   const trainingStartPhase = deriveTrainingEntryPhase(normalizedDiagnosisPhase, normalizedStability);
 
   const personalizeCopy = (text: string) =>
@@ -521,7 +526,7 @@ export default function ProposalView({
     .flatMap((item) => splitList(item));
 
   const expectedChanges = splitList(proposal.childWillWin);
-  const diagnosisTopic = topicConditioning.topic || focusTopics[0] || "Current school topic";
+  const diagnosisTopic = diagnosisProposalSnapshot?.topic || topicConditioning.topic || focusTopics[0] || "Current school topic";
 
   const getFirstBreakdown = () => {
     switch (trainingStartPhase) {
@@ -672,7 +677,79 @@ export default function ProposalView({
         </CardContent>
       </Card>
 
-      {(isLiveTrainingView || isLiveTrainingStatePending || normalizedStability === "Low" || normalizedStability === "Medium") && (
+      {!isLiveTrainingView && !isLiveTrainingStatePending && diagnosisProposalSnapshot && (
+        <>
+          <Card>
+            <CardHeader><CardTitle>Focus Area</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">{diagnosisProposalSnapshot.focusArea}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Why Training Starts Here</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">{diagnosisProposalSnapshot.whyTrainingStartsHere}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Diagnostic Results</CardTitle></CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-md border bg-muted/50 p-3">
+                  <p className="text-xs uppercase text-muted-foreground mb-1">Topic</p>
+                  <p className="text-sm font-medium text-foreground">{diagnosisProposalSnapshot.topic}</p>
+                </div>
+                <div className="rounded-md border bg-muted/50 p-3">
+                  <p className="text-xs uppercase text-muted-foreground mb-1">Starting Signal</p>
+                  <p className="text-sm font-medium text-foreground">{diagnosisProposalSnapshot.startingSignal}</p>
+                </div>
+                <div className="rounded-md border bg-muted/50 p-3">
+                  <p className="text-xs uppercase text-muted-foreground mb-1">Entry Phase</p>
+                  <p className="text-sm font-medium text-foreground">{diagnosisProposalSnapshot.entryPhase}</p>
+                </div>
+                <div className="rounded-md border bg-muted/50 p-3">
+                  <p className="text-xs uppercase text-muted-foreground mb-1">Stability</p>
+                  <p className="text-sm font-medium text-foreground">{diagnosisProposalSnapshot.stability}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>First Priority</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">{diagnosisProposalSnapshot.firstPriority}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>How Sessions Will Be Structured</CardTitle></CardHeader>
+            <CardContent>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>- Cadence: {plannedSessionsPerWeek} sessions per week ({packageSessions} sessions per month)</li>
+                {diagnosisProposalSnapshot.sessionStructure.map((item) => (
+                  <li key={item}>- {item}</li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>How Progress Will Be Observed</CardTitle></CardHeader>
+            <CardContent>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                {diagnosisProposalSnapshot.progressSignals.map((item) => (
+                  <li key={item}>- {item}</li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {!diagnosisProposalSnapshot && (isLiveTrainingView || isLiveTrainingStatePending || normalizedStability === "Low" || normalizedStability === "Medium") && (
         <Card>
           <CardHeader>
             <CardTitle>{isLiveTrainingView || isLiveTrainingStatePending ? "Current Position" : `Where ${studentFirstName} Currently Gets Stuck`}</CardTitle>
@@ -702,7 +779,7 @@ export default function ProposalView({
         </Card>
       )}
 
-      <Card>
+      {!diagnosisProposalSnapshot && <Card>
         <CardHeader>
           <CardTitle>{isLiveTrainingView || isLiveTrainingStatePending ? "What We Are Observing" : "What We Have Observed"}</CardTitle>
         </CardHeader>
@@ -742,9 +819,9 @@ export default function ProposalView({
             </p>
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Card>
+      {!diagnosisProposalSnapshot && <Card>
         <CardHeader>
           <CardTitle>{isLiveTrainingView || isLiveTrainingStatePending ? "Training Direction" : "Training Path"}</CardTitle>
         </CardHeader>
@@ -770,9 +847,9 @@ export default function ProposalView({
               <p className="text-sm text-muted-foreground">{getFirstPriority()}</p>
             )}
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Card>
+      {!diagnosisProposalSnapshot && <Card>
         <CardHeader>
           <CardTitle>{isLiveTrainingView || isLiveTrainingStatePending ? "Structure" : "Conditioning Structure"}</CardTitle>
         </CardHeader>
@@ -795,9 +872,9 @@ export default function ProposalView({
             </ul>
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Card>
+      {!diagnosisProposalSnapshot && <Card>
         <CardHeader>
           <CardTitle>{isLiveTrainingView || isLiveTrainingStatePending ? "How Progress Will Show" : "How Progress Will Be Observed"}</CardTitle>
         </CardHeader>
@@ -816,7 +893,7 @@ export default function ProposalView({
             </ul>
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
       <Card className="bg-gradient-to-r from-primary/10 to-primary/5">
         <CardContent className="pt-6">
