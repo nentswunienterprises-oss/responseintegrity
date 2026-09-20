@@ -7684,19 +7684,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
               }
 
-              const { data, error } = await supabase
-                .from("intro_session_drills")
-                .select("id, drill, submitted_at")
-                .eq("student_id", studentId)
-                .order("submitted_at", { ascending: false })
-                .limit(20);
+              let data: any[] = [];
+              let completedRunIds = new Set<string>();
 
-              if (error || !data || data.length === 0) {
-                return res.status(404).json({ message: "No intro drill found for this student" });
+              if (isEmergencyDbMode()) {
+                const result = await pool.query(
+                  `SELECT d.id, d.drill, d.submitted_at
+                     FROM public.intro_session_drills d
+                     JOIN public.response_integrity_diagnosis_runs r
+                       ON r.id::text = d.id::text
+                    WHERE d.student_id = $1
+                      AND r.student_id = $1
+                      AND r.tutor_id = $2
+                      AND r.status = 'completed'
+                      AND r.source_drill_id::text = d.id::text
+                    ORDER BY d.submitted_at DESC
+                    LIMIT 20`,
+                  [studentId, tutorId],
+                );
+                data = result.rows || [];
+                completedRunIds = new Set(data.map((row: any) => String(row.id)));
+              } else {
+                const { data: drillRows, error } = await supabase
+                  .from("intro_session_drills")
+                  .select("id, drill, submitted_at")
+                  .eq("student_id", studentId)
+                  .order("submitted_at", { ascending: false })
+                  .limit(20);
+
+                if (error) {
+                  return res.status(500).json({ message: "Failed to load completed intro diagnosis" });
+                }
+
+                data = drillRows || [];
+                if (data.length > 0) {
+                  const drillIds = data.map((row: any) => String(row.id));
+                  const { data: completedRuns, error: runError } = await supabase
+                    .from("response_integrity_diagnosis_runs")
+                    .select("id, status, source_drill_id")
+                    .eq("student_id", studentId)
+                    .eq("tutor_id", tutorId)
+                    .eq("status", "completed")
+                    .in("id", drillIds);
+
+                  if (runError) {
+                    return res.status(500).json({ message: "Failed to validate completed intro diagnosis" });
+                  }
+
+                  completedRunIds = new Set(
+                    (completedRuns || [])
+                      .filter((run: any) => String(run.source_drill_id || "") === String(run.id || ""))
+                      .map((run: any) => String(run.id)),
+                  );
+                }
+              }
+
+              if (!data || data.length === 0 || completedRunIds.size === 0) {
+                return res.status(404).json({ message: "No completed intro diagnosis found for this student" });
               }
 
               let latestDiagnosis: any = null;
               for (const row of data) {
+                if (!completedRunIds.has(String(row.id))) continue;
                 let parsed: any = null;
                 try {
                   parsed = row.drill && typeof row.drill === "object"
@@ -7712,7 +7761,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
 
               if (!latestDiagnosis) {
-                return res.status(404).json({ message: "No intro diagnosis drill found for this student" });
+                return res.status(404).json({ message: "No completed intro diagnosis found for this student" });
               }
 
               const drillObj = latestDiagnosis.parsed;
@@ -24796,6 +24845,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!latestIntroDrill || !parsedIntro) {
         return res.status(400).json({
           message: "Complete the diagnosis drill from the confirmed intro session before generating proposal",
+        });
+      }
+
+      let diagnosisFinalized = false;
+      if (isEmergencyDbMode()) {
+        const diagnosisRunResult = await pool.query(
+          `SELECT id
+             FROM public.response_integrity_diagnosis_runs
+            WHERE id::text = $1
+              AND student_id = $2
+              AND tutor_id = $3
+              AND status = 'completed'
+              AND source_drill_id::text = id::text
+            LIMIT 1`,
+          [String(latestIntroDrill.id), studentId, tutorId],
+        );
+        diagnosisFinalized = !!diagnosisRunResult.rows[0];
+      } else {
+        const { data: completedDiagnosisRun, error: completedDiagnosisRunError } = await supabase
+          .from("response_integrity_diagnosis_runs")
+          .select("id, status, source_drill_id")
+          .eq("id", String(latestIntroDrill.id))
+          .eq("student_id", studentId)
+          .eq("tutor_id", tutorId)
+          .eq("status", "completed")
+          .maybeSingle();
+
+        if (completedDiagnosisRunError) {
+          return res.status(500).json({ message: "Failed to validate diagnosis finalization before proposal" });
+        }
+
+        diagnosisFinalized =
+          !!completedDiagnosisRun &&
+          String(completedDiagnosisRun.source_drill_id || "") === String(completedDiagnosisRun.id || "");
+      }
+
+      if (!diagnosisFinalized) {
+        return res.status(409).json({
+          message: "Diagnosis finalization is incomplete. Reopen the intro drill and let the stored evidence finish processing before generating a proposal.",
         });
       }
 
