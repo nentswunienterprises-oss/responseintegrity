@@ -52,7 +52,7 @@ test("Clarity High proposal does not overclaim sustained or consistent performan
   assert.match(focus, /substantially present and usable/);
   assert.match(focus, /remaining instability/);
   assert.doesNotMatch(focus, /strong, consistent|consistently/i);
-  assert.match(priority, /Clarity High → High Maintenance qualifying drill/);
+  assert.match(priority, /Training will begin with a Clarity drill/);
   assert.doesNotMatch(priority, /High Maintenance drill/i);
   assert.match(priority, /Reason for the method/);
   assert.match(priority, /before any phase progression/);
@@ -76,7 +76,7 @@ test("persisted proposal plan and justification stay behavior-native", () => {
   });
 
   assert.match(plan, /Clarity \/ High/);
-  assert.match(plan, /Clarity High → High Maintenance qualifying drill/);
+  assert.match(plan, /Run Clarity drill/);
   assert.match(justification, /Decisive evidence: Reason for the method/);
   assert.match(
     justification,
@@ -163,7 +163,7 @@ test("Clarity High session structure targets the actual gap and preserves cleare
   assert.match(combined, /Problem vocabulary/);
   assert.match(combined, /Method recognition/);
   assert.match(combined, /Immediate use of understanding/);
-  assert.match(combined, /Clarity High → High Maintenance qualifying drill/);
+  assert.doesNotMatch(combined, /High Maintenance drill/i);
   assert.doesNotMatch(combined, /Guided practice with immediate correction/i);
 });
 
@@ -277,7 +277,7 @@ test("session structure and progress observation stay evidence-native across all
       if (stability === "High") {
         assert.match(
           structureText,
-          new RegExp(`Using "Run ${entry.phase} drill"`, "i"),
+          new RegExp(`Using a ${entry.phase} drill`, "i"),
         );
         assert.doesNotMatch(structureText, /High Maintenance drill/i);
         assert.match(progressText, /earn High Maintenance/i);
