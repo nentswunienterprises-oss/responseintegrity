@@ -23,8 +23,11 @@ import {
   buildDiagnosisProposalFocus,
   buildDiagnosisProposalJustification,
   buildDiagnosisProposalPriority,
+  buildDiagnosisProposalProgressSignals,
   buildDiagnosisProposalRecommendedPlan,
+  buildDiagnosisProposalSessionStructure,
   buildDiagnosisProposalWhyEntry,
+  normalizeProposalPhaseSupportEvidence,
   normalizeProposalPlacementEvidence,
 } from "@shared/diagnosisProposalCopy";
 
@@ -67,46 +70,6 @@ export default function ParentOnboardingProposal({
   // Numeric scores have no diagnosis decision authority.
   const deriveTrainingEntryPhase = (diagnosisPhase: string, _stability: string): string => {
     return diagnosisPhase;
-  };
-
-  const getProgressSignals = (trainingPhase: string) => {
-    switch (trainingPhase) {
-      case "Clarity":
-        return [
-          "Clearer recognition of what the question is asking",
-          "Earlier correct method selection",
-          "Less confusion when beginning problems",
-          "More accurate first steps",
-        ];
-      case "Structured Execution":
-        return [
-          "Earlier independent starts",
-          "Less hesitation when beginning problems",
-          "More consistent method use",
-          "More stable step order without prompting",
-        ];
-      case "Controlled Discomfort":
-        return [
-          "Calmer starts when questions feel less familiar",
-          "Better structure holding in harder work",
-          "Less visible shutdown under challenge",
-          "More complete attempts on difficult questions",
-        ];
-      case "Time Pressure Stability":
-        return [
-          "Stronger structure while work is timed",
-          "Fewer rushed breakdowns",
-          "More reliable decisions under pace pressure",
-          "Less instability when speed is added",
-        ];
-      default:
-        return [
-          "Earlier independent starts",
-          "Less hesitation when beginning problems",
-          "More consistent method use",
-          "More stable step order without prompting",
-        ];
-    }
   };
 
   const handleSendProposal = async () => {
@@ -236,6 +199,10 @@ export default function ParentOnboardingProposal({
   const placementEvidence = normalizeProposalPlacementEvidence(
     drillData?.summary?.placementEvidence,
   );
+  const phaseSupportEvidence = normalizeProposalPhaseSupportEvidence(
+    drillData?.summary?.phaseStates,
+    trainingEntryPhase,
+  );
   const nextAction =
     String(drillData?.summary?.nextAction || "").trim() || "Continue phase work";
   const focusArea = buildDiagnosisProposalFocus({
@@ -255,7 +222,20 @@ export default function ParentOnboardingProposal({
     nextAction,
     placementEvidence,
   });
-  const progressSignals = getProgressSignals(trainingEntryPhase);
+  const sessionStructure = buildDiagnosisProposalSessionStructure({
+    phase: trainingEntryPhase,
+    stability,
+    nextAction,
+    placementEvidence,
+    phaseSupportEvidence,
+  });
+  const progressSignals = buildDiagnosisProposalProgressSignals({
+    phase: trainingEntryPhase,
+    stability,
+    nextAction,
+    placementEvidence,
+    phaseSupportEvidence,
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -380,12 +360,11 @@ export default function ParentOnboardingProposal({
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <ul className="text-xs text-muted-foreground space-y-0.5 ml-2">
+              <ul className="text-xs text-muted-foreground space-y-1 ml-2">
                 <li>Cadence: {selectedPackage.plannedSessionsPerWeek} sessions per week ({selectedPackage.sessionsPerMonth} sessions per month)</li>
-                <li>Clear explanation of the problem structure</li>
-                <li>Guided practice with immediate correction</li>
-                <li>Repeated method-building in the same topic</li>
-                <li>Gradual increase in difficulty when readiness improves</li>
+                {sessionStructure.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ul>
             </CardContent>
           </Card>
@@ -397,7 +376,7 @@ export default function ParentOnboardingProposal({
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <ul className="text-xs text-muted-foreground space-y-0.5 ml-2">
+              <ul className="text-xs text-muted-foreground space-y-1 ml-2">
                 {progressSignals.map((signal) => (
                   <li key={signal}>{signal}</li>
                 ))}
@@ -408,7 +387,7 @@ export default function ParentOnboardingProposal({
           <Card>
             <CardContent className="px-4 py-3 space-y-2">
               <p className="text-xs text-muted-foreground">
-                <strong className="text-foreground">Important Note</strong> - This training focuses on how the student responds under difficulty, not only on correct answers.
+                <strong className="text-foreground">Important Note</strong> - This training focuses on how the student responds while solving, not only on whether the final answer is correct.
               </p>
               <p className="text-xs text-muted-foreground">
                 <strong className="text-foreground">Commitment</strong> - Consistency and active participation are required across the selected {selectedPackage.sessionsPerMonth}-session monthly package. Students are expected to attempt before receiving guidance.
