@@ -8,7 +8,7 @@ const baseUrl = (process.env.SMOKE_BASE_URL || "").replace(/\/$/, "");
 assert.ok(baseUrl, "SMOKE_BASE_URL is required");
 
 const runId = process.env.GITHUB_RUN_ID || String(Date.now());
-const email = `demand.smoke.${runId}@example.com`;
+const email = `demand.smoke.${runId}@smoke.responseintegrity.co.za`;
 const password = `RiSmoke!${crypto.randomBytes(18).toString("hex")}`;
 const evidenceDir = path.resolve("artifacts/demand-preview-e2e");
 await fs.mkdir(evidenceDir, { recursive: true });
