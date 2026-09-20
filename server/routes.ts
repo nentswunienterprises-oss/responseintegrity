@@ -8286,10 +8286,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).dbUser.id;
       const operationalMode = await getParentAssignedTutorOperationalMode(userId);
-      const { proposedDate, proposedTime } = req.body;
+      const { proposedDate, proposedTime, timezone } = req.body;
       if (!proposedDate || !proposedTime) {
         return res.status(400).json({ message: "Missing date or time" });
       }
+      const requestedTimezone = String(timezone || "Africa/Johannesburg").trim() || "Africa/Johannesburg";
 
       // Get parent's enrollment to find assigned tutor
       const activeEnrollmentStatuses = [
@@ -8300,6 +8301,162 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "report_received",
         "confirmed",
       ];
+
+      if (isEmergencyDbMode()) {
+        const enrollmentResult = await pool.query(
+          `SELECT *
+             FROM public.parent_enrollments
+            WHERE user_id = $1
+              AND status::text = ANY($2::text[])
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [userId, activeEnrollmentStatuses],
+        );
+        const enrollmentData = enrollmentResult.rows[0] || null;
+
+        if (!enrollmentData) {
+          return res.status(400).json({ message: "Failed to fetch enrollment" });
+        }
+
+        const sessionType = getEnrollmentSessionType(enrollmentData);
+        const sessionLabel = getSessionDisplayLabel(sessionType);
+        const allowHandoverBooking = sessionType === "handover" && !!enrollmentData.assigned_tutor_id;
+        if (
+          !enrollmentData.assigned_tutor_id ||
+          ((enrollmentData.status !== "assigned" && enrollmentData.status !== "awaiting_tutor_acceptance") &&
+            !allowHandoverBooking)
+        ) {
+          return res.status(400).json({ message: "You must be assigned a tutor before booking a session." });
+        }
+
+        let assignedStudent: any = null;
+        if (enrollmentData.id) {
+          const studentByEnrollment = await pool.query(
+            `SELECT *
+               FROM public.students
+              WHERE parent_enrollment_id::text = $1
+                AND tutor_id = $2
+              ORDER BY updated_at DESC, created_at DESC
+              LIMIT 1`,
+            [String(enrollmentData.id), String(enrollmentData.assigned_tutor_id)],
+          );
+          assignedStudent = studentByEnrollment.rows[0] || null;
+        }
+
+        if (!assignedStudent) {
+          const studentByIdentity = await pool.query(
+            `SELECT *
+               FROM public.students
+              WHERE parent_id::text = $1
+                AND tutor_id = $2
+                AND name = $3
+              ORDER BY updated_at DESC, created_at DESC
+              LIMIT 1`,
+            [
+              String(enrollmentData.user_id),
+              String(enrollmentData.assigned_tutor_id),
+              String(enrollmentData.student_full_name || ""),
+            ],
+          );
+          assignedStudent = studentByIdentity.rows[0] || null;
+        }
+
+        if (!assignedStudent) {
+          const createdStudent = await pool.query(
+            `INSERT INTO public.students
+              (name, grade, tutor_id, session_progress, concept_mastery, parent_contact, parent_id, parent_enrollment_id, personal_profile, updated_at)
+             VALUES ($1, $2, $3, 0, '{}'::jsonb, $4, $5::uuid, $6::uuid, '{}'::jsonb, NOW())
+             RETURNING *`,
+            [
+              enrollmentData.student_full_name,
+              enrollmentData.student_grade,
+              String(enrollmentData.assigned_tutor_id),
+              enrollmentData.parent_email,
+              String(enrollmentData.user_id),
+              String(enrollmentData.id),
+            ],
+          );
+          assignedStudent = createdStudent.rows[0] || null;
+        }
+
+        const existingSessionResult = await pool.query(
+          `SELECT id, scheduled_time, status, parent_confirmed, tutor_confirmed, created_at, updated_at
+             FROM public.scheduled_sessions
+            WHERE parent_id = $1
+              AND tutor_id = $2
+              AND type = $3
+              AND status = ANY($4::text[])
+            ORDER BY created_at DESC
+            LIMIT 1`,
+          [
+            String(userId),
+            String(enrollmentData.assigned_tutor_id),
+            sessionType,
+            ["pending_tutor_confirmation", "pending_parent_confirmation"],
+          ],
+        );
+        const existingSession = existingSessionResult.rows[0] || null;
+        const scheduledTimestamp = `${proposedDate}T${proposedTime}`;
+
+        let persistedSession: any = null;
+        if (existingSession) {
+          const updatedSession = await pool.query(
+            `UPDATE public.scheduled_sessions
+                SET student_id = $2::uuid,
+                    scheduled_time = $3::timestamp,
+                    timezone = $4,
+                    parent_confirmed = TRUE,
+                    tutor_confirmed = FALSE,
+                    status = 'pending_tutor_confirmation',
+                    updated_at = NOW()
+              WHERE id = $1
+              RETURNING id, student_id, scheduled_time, timezone, type, status, parent_confirmed, tutor_confirmed`,
+            [existingSession.id, assignedStudent?.id || null, scheduledTimestamp, requestedTimezone],
+          );
+          persistedSession = updatedSession.rows[0] || null;
+        } else {
+          const insertedSession = await pool.query(
+            `INSERT INTO public.scheduled_sessions
+              (parent_id, tutor_id, student_id, scheduled_time, timezone, type, status, parent_confirmed, tutor_confirmed)
+             VALUES ($1, $2, $3::uuid, $4::timestamp, $5, $6, 'pending_tutor_confirmation', TRUE, FALSE)
+             RETURNING id, student_id, scheduled_time, timezone, type, status, parent_confirmed, tutor_confirmed`,
+            [
+              String(userId),
+              String(enrollmentData.assigned_tutor_id),
+              assignedStudent?.id || null,
+              scheduledTimestamp,
+              requestedTimezone,
+              sessionType,
+            ],
+          );
+          persistedSession = insertedSession.rows[0] || null;
+        }
+
+        await pool.query(
+          `UPDATE public.parent_enrollments
+              SET current_step = $2,
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [
+            enrollmentData.id,
+            sessionType === "handover" ? "handover_session_booked" : "intro_session_booked",
+          ],
+        );
+
+        return res.status(200).json({
+          id: persistedSession?.id || null,
+          student_id: assignedStudent?.id || null,
+          status: "pending_tutor_confirmation",
+          operationalMode,
+          type: sessionType,
+          sessionLabel,
+          scheduled_time: persistedSession?.scheduled_time || scheduledTimestamp,
+          timezone: persistedSession?.timezone || requestedTimezone,
+          parent_confirmed: true,
+          tutor_confirmed: false,
+          success: true,
+        });
+      }
 
       const { data: enrollmentRows, error: enrollmentError } = await supabase
         .from("parent_enrollments")
@@ -8366,6 +8523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .update({
             student_id: assignedStudent?.id || null,
             scheduled_time: `${proposedDate}T${proposedTime}`,
+            timezone: requestedTimezone,
             parent_confirmed: true,
             tutor_confirmed: false,
             status: "pending_tutor_confirmation",
@@ -8396,6 +8554,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           operationalMode,
           type: sessionType,
           scheduled_time: `${proposedDate}T${proposedTime}`,
+            timezone: requestedTimezone,
           parent_confirmed: true,
           tutor_confirmed: false,
         });
@@ -8410,6 +8569,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             tutor_id: enrollmentData.assigned_tutor_id,
             student_id: assignedStudent?.id || null,
             scheduled_time: `${proposedDate}T${proposedTime}`,
+            timezone: requestedTimezone,
             type: sessionType,
             status: "pending_tutor_confirmation",
             parent_confirmed: true,
@@ -8452,6 +8612,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         operationalMode,
         type: sessionType,
         scheduled_time: `${proposedDate}T${proposedTime}`,
+            timezone: requestedTimezone,
         parent_confirmed: true,
         tutor_confirmed: false,
         success: true,

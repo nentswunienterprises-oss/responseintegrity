@@ -1025,7 +1025,8 @@ export default function ParentGateway() {
         }),
       });
       if (!response.ok) {
-        throw new Error("Failed to propose session");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.message || "Failed to propose session");
       }
 
       const sessionData = await response.json();
@@ -1070,7 +1071,7 @@ export default function ParentGateway() {
       console.error("Error proposing session:", error);
       toast({
         title: "Error",
-        description: "Failed to propose session. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to propose session. Please try again.",
         variant: "destructive",
       });
     } finally {

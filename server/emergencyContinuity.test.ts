@@ -859,3 +859,18 @@ test("emergency assignment acceptance advances the enrollment on the direct DB p
   assert.match(routeSource, /status = \$3,[\s\S]*?current_step = \$4/);
   assert.match(routeSource, /RETURNING id, user_id, status, current_step, assigned_tutor_id/);
 });
+
+test("parent intro proposal uses direct PostgreSQL in emergency mode", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const routeStart = routesSource.indexOf('app.post("/api/parent/intro-session/propose"');
+  const routeEnd = routesSource.indexOf("// Parent intro session confirmation status", routeStart);
+  const routeSource = routesSource.slice(routeStart, routeEnd);
+
+  assert.ok(routeStart >= 0);
+  assert.ok(routeEnd > routeStart);
+  assert.match(routeSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(routeSource, /SELECT \*[\s\S]*?FROM public\.parent_enrollments/);
+  assert.match(routeSource, /INSERT INTO public\.scheduled_sessions/);
+  assert.match(routeSource, /UPDATE public\.parent_enrollments[\s\S]*?intro_session_booked/);
+  assert.match(routeSource, /return res\.status\(200\)\.json/);
+});
