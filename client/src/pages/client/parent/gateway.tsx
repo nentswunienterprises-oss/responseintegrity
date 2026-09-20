@@ -104,6 +104,19 @@ function getGroupFallbackOptionIds(groupId: string) {
   return [`${groupId}_none_of_above`, `${groupId}_not_sure`];
 }
 
+function assertPayfastCheckoutFields(fields: Record<string, string>, sandbox: boolean) {
+  const merchantId = String(fields?.merchant_id || "").trim();
+  const merchantKey = String(fields?.merchant_key || "").trim();
+
+  if (!/^\d{8}$/.test(merchantId) || !/^[A-Za-z0-9]{13}$/.test(merchantKey)) {
+    throw new Error(
+      sandbox
+        ? "Sandbox checkout credentials are malformed. The payment was not submitted."
+        : "PayFast checkout credentials are malformed. The payment was not submitted.",
+    );
+  }
+}
+
 function submitExternalPaymentForm(action: string, fields: Record<string, string>) {
   const form = document.createElement("form");
   form.method = "POST";
@@ -557,6 +570,7 @@ export default function ParentGateway() {
         description: `Complete the R${Number(data?.amount || 0).toLocaleString("en-ZA")} ${data?.sessionsPerMonth || "monthly"}-session package payment to unlock sessions.`,
       });
 
+      assertPayfastCheckoutFields(data.formFields, data?.sandbox === true);
       submitExternalPaymentForm(data.checkoutUrl, data.formFields);
     } catch (error) {
       console.error("Error accepting proposal:", error);
