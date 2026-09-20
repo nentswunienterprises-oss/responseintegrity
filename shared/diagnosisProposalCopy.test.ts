@@ -156,7 +156,8 @@ test("Clarity High session structure targets the actual gap and preserves cleare
   assert.match(combined, /Beginning with an independent attempt before explanation/i);
   assert.match(combined, /Targeting the remaining Reason for the method gap/i);
   assert.match(combined, /Preserving the already-supported/i);
-  assert.match(combined, /Using "Run Clarity drill" as the immediate training structure/i);
+  assert.match(combined, /Using a Clarity drill to strengthen the remaining gap/i);
+  assert.doesNotMatch(combined, /Using "Run Clarity drill"/i);
   assert.match(combined, /Not progressing to the next response layer/i);
   assert.match(combined, /Reason for the method/);
   assert.match(combined, /Problem vocabulary/);

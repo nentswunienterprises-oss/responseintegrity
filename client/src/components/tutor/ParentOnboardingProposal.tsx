@@ -193,10 +193,15 @@ export default function ParentOnboardingProposal({
     );
   }
 
-  const diagnosisPhase = drillData?.summary?.phase || drillData?.phase || drillData?.phaseObserved || "Clarity";
+  const entryPhase = drillData?.summary?.phase || drillData?.phase || drillData?.phaseObserved || "Clarity";
+  const startingSignal =
+    drillData?.startingPhase ||
+    drillData?.responseSnapshot?.startingPhase ||
+    drillData?.summary?.startingPhase ||
+    "Not recorded";
   const stability = drillData?.summary?.stability || drillData?.stability || drillData?.stabilityObserved || "Low";
   const topic = drillData?.introTopic || drillData?.topic || "Current class topic";
-  const trainingEntryPhase = deriveTrainingEntryPhase(diagnosisPhase, stability);
+  const trainingEntryPhase = deriveTrainingEntryPhase(entryPhase, stability);
   const placementEvidence = normalizeProposalPlacementEvidence(
     drillData?.summary?.placementEvidence,
   );
@@ -212,7 +217,7 @@ export default function ParentOnboardingProposal({
     stability,
   });
   const whyEntry = buildDiagnosisProposalWhyEntry({
-    phase: diagnosisPhase,
+    phase: entryPhase,
     placementEvidence,
     reason: drillData?.summary?.reason,
   });
@@ -333,17 +338,17 @@ export default function ParentOnboardingProposal({
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4 space-y-2">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-md border bg-muted/50 p-2">
                   <p className="text-[10px] uppercase text-muted-foreground mb-1">Topic</p>
                   <p className="text-xs font-medium text-foreground">{topic}</p>
                 </div>
                 <div className="rounded-md border bg-muted/50 p-2">
-                  <p className="text-[10px] uppercase text-muted-foreground mb-1">Diagnosis Phase</p>
-                  <p className="text-xs font-medium text-foreground">{diagnosisPhase}</p>
+                  <p className="text-[10px] uppercase text-muted-foreground mb-1">Starting Signal</p>
+                  <p className="text-xs font-medium text-foreground">{startingSignal}</p>
                 </div>
                 <div className="rounded-md border bg-muted/50 p-2">
-                  <p className="text-[10px] uppercase text-muted-foreground mb-1">Training Starts At</p>
+                  <p className="text-[10px] uppercase text-muted-foreground mb-1">Entry Phase</p>
                   <p className="text-xs font-medium text-foreground">{trainingEntryPhase}</p>
                 </div>
                 <div className="rounded-md border bg-muted/50 p-2">

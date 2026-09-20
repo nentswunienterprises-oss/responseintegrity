@@ -167,7 +167,7 @@ function firstTrainingMove(nextAction: string): string {
   const action = normalizeProposalTrainingAction(nextAction);
   if (!action) return "Training will begin from the diagnosed entry state.";
   const runMatch = action.match(/^Run\s+(.+)$/i);
-  if (runMatch) return `The first training move is a ${runMatch[1]}.`;
+  if (runMatch) return `Training will begin with a ${runMatch[1]}.`;
   return `The first training move is: ${action}.`;
 }
 
@@ -260,8 +260,6 @@ export function buildDiagnosisProposalSessionStructure(input: {
   const preservedDimensions = supportedDimensionLabels(
     input.phaseSupportEvidence,
   ).filter((label) => !targetDimensions.includes(label));
-  const action = normalizeProposalTrainingAction(input.nextAction) || `${input.phase} training`;
-
   if (input.stability === "High") {
     return [
       "Beginning with an independent attempt before explanation, correction, or modelling.",
@@ -271,7 +269,7 @@ export function buildDiagnosisProposalSessionStructure(input: {
       preservedDimensions.length
         ? `Preserving the already-supported ${humanJoin(preservedDimensions)} behaviors without prompting.`
         : `Preserving the ${input.phase} behaviors that already hold cleanly.`,
-      `Using "${action}" as the immediate training structure.`,
+      `Using a ${input.phase} drill to strengthen the remaining gap and verify that the response holds independently.`,
       "Not progressing to the next response layer until High Maintenance is earned and later independently confirmed.",
     ];
   }
@@ -285,7 +283,7 @@ export function buildDiagnosisProposalSessionStructure(input: {
       preservedDimensions.length
         ? `Keeping the already-supported ${humanJoin(preservedDimensions)} behaviors intact while the unstable dimension is rebuilt.`
         : `Keeping already-supported ${input.phase} behavior intact while the unstable dimension is rebuilt.`,
-      `Using "${action}" before adding the next response condition.`,
+      `Using a ${input.phase} drill to strengthen the unstable response before adding the next response condition.`,
     ];
   }
 
@@ -295,7 +293,7 @@ export function buildDiagnosisProposalSessionStructure(input: {
     targetDimensions.length
       ? `Targeting ${humanJoin(targetDimensions)} as the first recovery point.`
       : `Targeting the diagnosed ${input.phase} breakdown as the first recovery point.`,
-    `Using "${action}" before adding the next response condition.`,
+    `Using a ${input.phase} drill to rebuild the phase-defining response before adding the next response condition.`,
   ];
 }
 
