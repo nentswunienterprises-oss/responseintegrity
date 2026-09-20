@@ -400,9 +400,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
         ? "The decisive clean behavior was conditional or materially unstable. That maps to Medium because the capability exists, but does not yet hold reliably."
         : decision?.stability === "High"
           ? "The decisive clean behavior was near-stable: the capability was substantially present and usable, but not fully clean. That is stronger than conditional or breakdown evidence, so the starting stability is High rather than Medium or Low."
-          : decision?.stability === "High Maintenance"
-            ? "High Maintenance is a training-earned confirmation state and is not minted by diagnosis."
-            : null;
+          : null;
 
   return (
     <main className="min-h-screen bg-background px-4 py-8 sm:px-6">
