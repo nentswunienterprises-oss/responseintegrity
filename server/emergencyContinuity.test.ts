@@ -776,6 +776,43 @@ test("sandbox family scheduling keeps payment authority separate from sandbox qu
 
   assert.match(acceptSource, /\.in\("status", \["proposal_sent", "session_booked"\]\)/);
   assert.match(acceptSource, /payfastSandboxForEnrollment/);
+  assert.match(acceptSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(acceptSource, /public\.payment_transactions/);
+  assert.match(acceptSource, /ON CONFLICT \(merchant_reference\)/);
+
+  const sandboxConfirmStart = routesSource.indexOf(
+    'app.post("/api/parent/payments/payfast/sandbox-confirm"',
+  );
+  const sandboxConfirmEnd = routesSource.indexOf(
+    '// Generate student code for accepted proposal',
+    sandboxConfirmStart,
+  );
+  const sandboxConfirmSource = routesSource.slice(
+    sandboxConfirmStart,
+    sandboxConfirmEnd,
+  );
+
+  assert.ok(sandboxConfirmStart >= 0);
+  assert.ok(sandboxConfirmEnd > sandboxConfirmStart);
+  assert.match(sandboxConfirmSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(sandboxConfirmSource, /public\.payment_transactions/);
+  assert.match(sandboxConfirmSource, /finalizeAcceptedProposalFromPayment/);
+
+  const finalizeStart = routesSource.indexOf(
+    "async function finalizeAcceptedProposalFromPayment",
+  );
+  const finalizeEnd = routesSource.indexOf(
+    "async function ",
+    finalizeStart + "async function finalizeAcceptedProposalFromPayment".length,
+  );
+  const finalizeSource = routesSource.slice(finalizeStart, finalizeEnd);
+
+  assert.ok(finalizeStart >= 0);
+  assert.ok(finalizeEnd > finalizeStart);
+  assert.match(finalizeSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(finalizeSource, /FOR UPDATE/);
+  assert.match(finalizeSource, /UPDATE public\.parent_enrollments/);
+  assert.match(finalizeSource, /UPDATE public\.onboarding_proposals/);
 });
 
 test("specialist High Maintenance prep stays in the current phase until confirmation", () => {
