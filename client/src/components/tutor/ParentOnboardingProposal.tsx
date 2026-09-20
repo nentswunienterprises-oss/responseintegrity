@@ -72,7 +72,7 @@ export default function ParentOnboardingProposal({
     drillData?.diagnosisEngine === "evidence_native_v2" ||
     drillData?.diagnosisMode === "evidence_native";
 
-  const { data: diagnosisRunDataRaw } = useQuery({
+  const { data: diagnosisRunDataRaw, isLoading: diagnosisRunLoading } = useQuery({
     queryKey: ["/api/tutor/evidence-complete-diagnosis", diagnosisRunId],
     queryFn: async () => {
       const res = await apiRequest(
@@ -218,7 +218,7 @@ export default function ParentOnboardingProposal({
     drillData?.responseSnapshot?.startingPhase ||
     drillData?.summary?.startingPhase ||
     diagnosisRunData?.startingPhase ||
-    "Not recorded";
+    (isEvidenceNativeDiagnosis && diagnosisRunLoading ? "Loading…" : "Not recorded");
   const stability = drillData?.summary?.stability || drillData?.stability || drillData?.stabilityObserved || "Low";
   const topic = drillData?.introTopic || drillData?.topic || "Current class topic";
   const trainingEntryPhase = deriveTrainingEntryPhase(entryPhase, stability);

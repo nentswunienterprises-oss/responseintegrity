@@ -450,6 +450,7 @@ async function ensureIntroDrill(input: {
   };
 
   const summary = {
+    startingPhase: input.startingPhase,
     phase: decision.placementPhase,
     stability: decision.stability,
     diagnosisScore: null,
