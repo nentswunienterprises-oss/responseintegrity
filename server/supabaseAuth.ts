@@ -205,14 +205,22 @@ export async function setupAuth(app: Express) {
       let authError: any = null;
 
       if (isPreviewSmokeIdentity) {
+        const smokeUserId = randomUUID();
+        await pool.query(
+          `INSERT INTO auth.users
+            (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+           VALUES ($1, 'authenticated', 'authenticated', $2, NOW(), '{}'::jsonb, '{}'::jsonb, NOW(), NOW())`,
+          [smokeUserId, normalizedEmail],
+        );
+
         authData = {
           user: {
-            id: randomUUID(),
+            id: smokeUserId,
             email: normalizedEmail,
           },
           session: null,
         };
-        console.log("[PREVIEW SMOKE] issued synthetic parent identity", {
+        console.log("[PREVIEW SMOKE] issued isolated Proof auth identity", {
           email: normalizedEmail,
           userId: authData.user.id,
         });
