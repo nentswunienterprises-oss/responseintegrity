@@ -365,7 +365,7 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       ],
     },
     High: {
-      primaryAction: "Run Clarity High Maintenance drill",
+      primaryAction: "Run Clarity High → High Maintenance qualifying drill",
       rules: ["Do NOT phase advance yet", "Prove repeatable stability first"],
       nextActions: [
         "Run High Maintenance check in Clarity",
@@ -407,7 +407,7 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       ],
     },
     High: {
-      primaryAction: "Run Structured Execution High Maintenance drill",
+      primaryAction: "Run Structured Execution High → High Maintenance qualifying drill",
       rules: ["Do NOT phase advance yet", "Prove repeatable stability first"],
       nextActions: [
         "Run High Maintenance check in Structured Execution",
@@ -448,7 +448,7 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       ],
     },
     High: {
-      primaryAction: "Run Controlled Discomfort High Maintenance drill",
+      primaryAction: "Run Controlled Discomfort High → High Maintenance qualifying drill",
       rules: ["Do NOT phase advance yet", "Prove repeatable stability first"],
       nextActions: [
         "Run High Maintenance check in Controlled Discomfort",
@@ -488,7 +488,7 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       ],
     },
     High: {
-      primaryAction: "Run Time Pressure Stability High Maintenance drill",
+      primaryAction: "Run Time Pressure Stability High → High Maintenance qualifying drill",
       rules: ["Do NOT declare transfer yet", "Confirm sustained stability first"],
       nextActions: [
         "Run High Maintenance check under time pressure",

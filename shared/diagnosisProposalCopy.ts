@@ -273,7 +273,7 @@ export function buildDiagnosisProposalSessionStructure(input: {
     targetDimensions.length
       ? `Target ${humanJoin(targetDimensions)} as the first recovery point.`
       : `Target the diagnosed ${input.phase} breakdown as the first recovery point.`,
-    `Use the state-engine move "${action}" before adding the next response condition.`,
+    `Use "${action}" before adding the next response condition.`,
   ];
 }
 

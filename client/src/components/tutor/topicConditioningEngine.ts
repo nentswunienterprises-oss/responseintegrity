@@ -67,7 +67,7 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       rules: ["No Boss Battles as primary", "No time pressure", "Reduce explanation, increase execution"],
     },
     High: {
-      primaryAction: "Run Clarity High Maintenance drill",
+      primaryAction: "Run Clarity High → High Maintenance qualifying drill",
       nextActions: [
         "Run High Maintenance check in Clarity",
         "Reduce modeling",
@@ -109,7 +109,7 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       rules: ["Do not rush to time pressure", "Do not introduce Boss Battles before phase advance", "Still reinforce structure every time"],
     },
     High: {
-      primaryAction: "Run Structured Execution High Maintenance drill",
+      primaryAction: "Run Structured Execution High → High Maintenance qualifying drill",
       nextActions: [
         "Run High Maintenance check in Structured Execution",
         "Run Structured Execution drill",
@@ -150,7 +150,7 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       rules: ["Do not remove difficulty", "Do not over-guide"],
     },
     High: {
-      primaryAction: "Run Controlled Discomfort High Maintenance drill",
+      primaryAction: "Run Controlled Discomfort High → High Maintenance qualifying drill",
       nextActions: [
         "Run High Maintenance check in Controlled Discomfort",
         "Increase difficulty consistency",
@@ -190,7 +190,7 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       rules: ["Do not sacrifice structure for speed", "Maintain method discipline"],
     },
     High: {
-      primaryAction: "Run Time Pressure Stability High Maintenance drill",
+      primaryAction: "Run Time Pressure Stability High → High Maintenance qualifying drill",
       nextActions: [
         "Run High Maintenance check under time pressure",
         "Confirm structure under timed variation",

@@ -44,14 +44,14 @@ test("Clarity High proposal does not overclaim sustained or consistent performan
     studentFirstName: "Sandbox",
     phase: "Clarity",
     stability: "High",
-    nextAction: "Run Clarity High Maintenance drill",
+    nextAction: "Run Clarity High → High Maintenance qualifying drill",
     placementEvidence: ratiosEvidence,
   });
 
   assert.match(focus, /substantially present and usable/);
   assert.match(focus, /remaining instability/);
   assert.doesNotMatch(focus, /strong, consistent|consistently/i);
-  assert.match(priority, /Clarity High Maintenance drill/);
+  assert.match(priority, /Clarity High → High Maintenance qualifying drill/);
   assert.match(priority, /Reason for the method/);
   assert.match(priority, /before any phase progression/);
 });
@@ -61,7 +61,7 @@ test("persisted proposal plan and justification stay behavior-native", () => {
     topic: "Ratios",
     phase: "Clarity",
     stability: "High",
-    nextAction: "Run Clarity High Maintenance drill",
+    nextAction: "Run Clarity High → High Maintenance qualifying drill",
   });
   const justification = buildDiagnosisProposalJustification({
     topic: "Ratios",
@@ -69,12 +69,12 @@ test("persisted proposal plan and justification stay behavior-native", () => {
     stability: "High",
     reason:
       "Clarity is the first response layer with direct clean behavioral evidence that does not meet the support contract.",
-    nextAction: "Run Clarity High Maintenance drill",
+    nextAction: "Run Clarity High → High Maintenance qualifying drill",
     placementEvidence: ratiosEvidence,
   });
 
   assert.match(plan, /Clarity \/ High/);
-  assert.match(plan, /Clarity High Maintenance drill/);
+  assert.match(plan, /Clarity High → High Maintenance qualifying drill/);
   assert.match(justification, /Decisive evidence: Reason for the method/);
   assert.match(
     justification,
@@ -145,7 +145,7 @@ test("Clarity High session structure targets the actual gap and preserves cleare
   const structure = buildDiagnosisProposalSessionStructure({
     phase: "Clarity",
     stability: "High",
-    nextAction: "Run Clarity High Maintenance drill",
+    nextAction: "Run Clarity High → High Maintenance qualifying drill",
     placementEvidence: ratiosEvidence,
     phaseSupportEvidence: clarityHighPhaseSupport,
   });
@@ -156,7 +156,7 @@ test("Clarity High session structure targets the actual gap and preserves cleare
   assert.match(combined, /Problem vocabulary/);
   assert.match(combined, /Method recognition/);
   assert.match(combined, /Immediate use of understanding/);
-  assert.match(combined, /Clarity High Maintenance drill/);
+  assert.match(combined, /Clarity High → High Maintenance qualifying drill/);
   assert.doesNotMatch(combined, /Guided practice with immediate correction/i);
 });
 
@@ -164,7 +164,7 @@ test("Clarity High progress signals track the diagnosed reason gap instead of ge
   const signals = buildDiagnosisProposalProgressSignals({
     phase: "Clarity",
     stability: "High",
-    nextAction: "Run Clarity High Maintenance drill",
+    nextAction: "Run Clarity High → High Maintenance qualifying drill",
     placementEvidence: ratiosEvidence,
     phaseSupportEvidence: clarityHighPhaseSupport,
   });
@@ -178,4 +178,99 @@ test("Clarity High progress signals track the diagnosed reason gap instead of ge
   assert.match(combined, /earn High Maintenance/i);
   assert.match(combined, /later independent confirmation/i);
   assert.doesNotMatch(combined, /Less confusion when beginning problems/i);
+});
+
+
+test("session structure and progress observation stay evidence-native across all four phase entries", () => {
+  const cases = [
+    {
+      phase: "Clarity",
+      target: "Reason for the method",
+      supported: "Method recognition",
+      action: "Run Clarity High → High Maintenance qualifying drill",
+    },
+    {
+      phase: "Structured Execution",
+      target: "Step discipline",
+      supported: "Independent start",
+      action: "Run Structured Execution High → High Maintenance qualifying drill",
+    },
+    {
+      phase: "Controlled Discomfort",
+      target: "Difficulty tolerance",
+      supported: "First-step control",
+      action: "Run Controlled Discomfort High → High Maintenance qualifying drill",
+    },
+    {
+      phase: "Time Pressure Stability",
+      target: "Pace control",
+      supported: "Structure under time",
+      action: "Run Time Pressure Stability High → High Maintenance qualifying drill",
+    },
+  ] as const;
+
+  for (const entry of cases) {
+    for (const stability of ["Low", "Medium", "High"] as const) {
+      const placementEvidence = [
+        {
+          dimensionLabel: entry.target,
+          behaviorLabel:
+            stability === "High"
+              ? "Capability held with a small gap or imprecision"
+              : stability === "Medium"
+                ? "Capability was materially conditional"
+                : "Capability broke at meaningful exposure",
+          behaviorClass:
+            stability === "High"
+              ? "near_stable"
+              : stability === "Medium"
+                ? "conditional"
+                : "breakdown",
+        },
+      ];
+      const phaseSupportEvidence = {
+        phase: entry.phase,
+        supportedDimensions: [
+          {
+            dimensionLabel: entry.supported,
+            supportingBehaviors: ["Observed cleanly without support"],
+          },
+        ],
+      };
+      const nextAction =
+        stability === "High"
+          ? entry.action
+          : `Run ${entry.phase} drill`;
+
+      const structure = buildDiagnosisProposalSessionStructure({
+        phase: entry.phase,
+        stability,
+        nextAction,
+        placementEvidence,
+        phaseSupportEvidence,
+      });
+      const progress = buildDiagnosisProposalProgressSignals({
+        phase: entry.phase,
+        stability,
+        nextAction,
+        placementEvidence,
+        phaseSupportEvidence,
+      });
+
+      const structureText = structure.join(" ");
+      const progressText = progress.join(" ");
+
+      assert.match(structureText, new RegExp(entry.target, "i"));
+      assert.match(structureText, new RegExp(entry.supported, "i"));
+      assert.match(structureText, new RegExp(entry.phase, "i"));
+      assert.match(progressText, new RegExp(entry.target, "i"));
+      assert.match(progressText, new RegExp(entry.supported, "i"));
+
+      if (stability === "High") {
+        assert.match(structureText, /High → High Maintenance qualifying drill/);
+        assert.match(progressText, /earn High Maintenance/i);
+        assert.match(progressText, /later independent confirmation/i);
+      }
+    }
+  }
 });

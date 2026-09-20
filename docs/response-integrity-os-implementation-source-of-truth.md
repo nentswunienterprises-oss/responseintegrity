@@ -1758,7 +1758,7 @@ Each state stores:
 
 `High`
 
-- primary action: `Run Clarity High Maintenance drill`
+- primary action: `Run Clarity High → High Maintenance qualifying drill`
 - rules: `Do NOT phase advance yet`, `Prove repeatable stability first`
 
 `High Maintenance`
@@ -1782,7 +1782,7 @@ Each state stores:
 
 `High`
 
-- primary action: `Run Structured Execution High Maintenance drill`
+- primary action: `Run Structured Execution High → High Maintenance qualifying drill`
 - rules: `Do NOT phase advance yet`, `Prove repeatable stability first`
 
 `High Maintenance`
@@ -1806,7 +1806,7 @@ Each state stores:
 
 `High`
 
-- primary action: `Run Controlled Discomfort High Maintenance drill`
+- primary action: `Run Controlled Discomfort High → High Maintenance qualifying drill`
 - rules: `Do NOT phase advance yet`, `Prove repeatable stability first`
 
 `High Maintenance`
@@ -1830,7 +1830,7 @@ Each state stores:
 
 `High`
 
-- primary action: `Run Time Pressure Stability High Maintenance drill`
+- primary action: `Run Time Pressure Stability High → High Maintenance qualifying drill`
 - rules: `Do NOT declare transfer yet`, `Confirm sustained stability first`
 
 `High Maintenance`
