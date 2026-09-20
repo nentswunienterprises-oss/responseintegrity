@@ -1,0 +1,29 @@
+name: Canonical Production Host Diagnostic
+
+on:
+  push:
+    branches:
+      - feat/demand-production-gateway
+    paths:
+      - '.github/workflows/canonical-production-host-diagnostic.yml'
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Resolve canonical app host
+        run: |
+          set -x
+          getent ahosts app.responseintegrity.co.za || true
+          nslookup app.responseintegrity.co.za || true
+
+      - name: Inspect canonical Production Link response
+        run: |
+          set -x
+          curl -sSIL --max-time 30 'https://app.responseintegrity.co.za/?production=AFIXTOSXTB&pipeline=demand' || true
+          echo '--- BODY START ---'
+          curl -sSL --max-time 30 'https://app.responseintegrity.co.za/?production=AFIXTOSXTB&pipeline=demand' | head -c 5000 || true
+          echo
+          echo '--- BODY END ---'
