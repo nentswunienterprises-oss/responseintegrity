@@ -45,7 +45,7 @@ jobs:
             echo "Preview backend is excluded by .vercelignore"
             exit 1
           fi
-          test -f api/index.ts
+          test -f api/index.js
           test -f server/routes.ts
 
       - name: Wait for this commit's Vercel deployment
