@@ -3,7 +3,6 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { API_URL } from "@/lib/config";
 import { supabase } from "@/lib/supabaseClient";
 import {
-  DIAGNOSIS_PROBES,
   type DiagnosisDimensionId,
   type DiagnosisProbeDefinition,
   type DiagnosisProbeResult,
@@ -763,17 +762,6 @@ function ResultCell({ label, value }: { label: string; value: string }) {
         {label}
       </p>
       <p className="mt-1 font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function InfoBlock({ label, text }: { label: string; text: string }) {
-  return (
-    <div className="rounded-xl border p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-2 text-sm leading-6">{text}</p>
     </div>
   );
 }
