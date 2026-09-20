@@ -963,9 +963,6 @@ export default function ProposalView({
               <p className="mt-1 font-semibold text-foreground">R{packageAmount.toLocaleString("en-ZA")}</p>
             </div>
           </div>
-          <p className="mt-3 text-sm text-muted-foreground">
-            R200 is the per-session pricing basis. The service is delivered and renewed as this monthly package, not as ad-hoc session capacity.
-          </p>
         </CardContent>
       </Card>
 
