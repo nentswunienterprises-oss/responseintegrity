@@ -196,7 +196,14 @@ export default function EvidenceCompleteDiagnosisRunner() {
         if (!cancelled) setRunId(id);
 
         let state = storedRunId ? await loadExisting(id) : null;
-        if (!state) state = await postHistory(id, []);
+        if (!state) {
+          state = await postHistory(id, []);
+        } else if (!state.finalized && state.decision?.complete) {
+          // A prior finalization can fail after probe_history is durable but before
+          // ledger/topic-state completion. Re-submit the exact stored history to
+          // resume finalization instead of stranding the specialist outside the runner.
+          state = await postHistory(id, state.probeHistory);
+        }
 
         if (!cancelled) {
           setApiState(state);
