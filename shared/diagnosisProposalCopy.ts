@@ -21,6 +21,81 @@ type ProposalCopyInput = {
   stability: string;
 };
 
+export type DiagnosisProposalSnapshot = {
+  version: 1;
+  topic: string;
+  startingSignal: string;
+  entryPhase: string;
+  stability: string;
+  focusArea: string;
+  whyTrainingStartsHere: string;
+  firstPriority: string;
+  sessionStructure: string[];
+  progressSignals: string[];
+};
+
+const DIAGNOSIS_PROPOSAL_SNAPSHOT_MARKER =
+  "\n\n[[RI_DIAGNOSIS_PROPOSAL_SNAPSHOT_V1]]";
+
+export function attachDiagnosisProposalSnapshot(
+  justification: string,
+  snapshot: DiagnosisProposalSnapshot,
+): string {
+  const base = clean(justification);
+  return `${base}${DIAGNOSIS_PROPOSAL_SNAPSHOT_MARKER}${JSON.stringify(snapshot)}`;
+}
+
+export function extractDiagnosisProposalSnapshot(
+  value: unknown,
+): DiagnosisProposalSnapshot | null {
+  const text = String(value || "");
+  const markerIndex = text.lastIndexOf(DIAGNOSIS_PROPOSAL_SNAPSHOT_MARKER);
+  if (markerIndex < 0) return null;
+
+  const payload = text
+    .slice(markerIndex + DIAGNOSIS_PROPOSAL_SNAPSHOT_MARKER.length)
+    .trim();
+  if (!payload) return null;
+
+  try {
+    const parsed = JSON.parse(payload) as Partial<DiagnosisProposalSnapshot>;
+    if (
+      parsed.version !== 1 ||
+      !clean(parsed.topic) ||
+      !clean(parsed.entryPhase) ||
+      !clean(parsed.stability) ||
+      !clean(parsed.focusArea) ||
+      !clean(parsed.whyTrainingStartsHere) ||
+      !clean(parsed.firstPriority) ||
+      !Array.isArray(parsed.sessionStructure) ||
+      !Array.isArray(parsed.progressSignals)
+    ) {
+      return null;
+    }
+
+    return {
+      version: 1,
+      topic: clean(parsed.topic),
+      startingSignal: clean(parsed.startingSignal) || "Not recorded",
+      entryPhase: clean(parsed.entryPhase),
+      stability: clean(parsed.stability),
+      focusArea: clean(parsed.focusArea),
+      whyTrainingStartsHere: clean(parsed.whyTrainingStartsHere),
+      firstPriority: clean(parsed.firstPriority),
+      sessionStructure: parsed.sessionStructure.map(clean).filter(Boolean),
+      progressSignals: parsed.progressSignals.map(clean).filter(Boolean),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function stripDiagnosisProposalSnapshot(value: unknown): string {
+  const text = String(value || "");
+  const markerIndex = text.lastIndexOf(DIAGNOSIS_PROPOSAL_SNAPSHOT_MARKER);
+  return (markerIndex < 0 ? text : text.slice(0, markerIndex)).trim();
+}
+
 const clean = (value: unknown) => String(value || "").trim();
 
 const LEGACY_HIGH_QUALIFYING_ACTIONS: Record<string, string> = {
