@@ -365,10 +365,10 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       ],
     },
     High: {
-      primaryAction: "Run Clarity High → High Maintenance qualifying drill",
-      rules: ["Do NOT phase advance yet", "Prove repeatable stability first"],
+      primaryAction: "Run Clarity drill",
+      rules: ["Do NOT phase advance yet", "A later qualifying Clarity drill may earn High Maintenance"],
       nextActions: [
-        "Run High Maintenance check in Clarity",
+        "Run Clarity drill",
         "Reduce modeling",
         "Increase independent attempts",
         "Validate consistency across full set volume",
@@ -407,10 +407,10 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       ],
     },
     High: {
-      primaryAction: "Run Structured Execution High → High Maintenance qualifying drill",
-      rules: ["Do NOT phase advance yet", "Prove repeatable stability first"],
+      primaryAction: "Run Structured Execution drill",
+      rules: ["Do NOT phase advance yet", "A later qualifying Structured Execution drill may earn High Maintenance"],
       nextActions: [
-        "Run High Maintenance check in Structured Execution",
+        "Run Structured Execution drill",
         "Run Structured Execution drill",
         "Confirm repeatable execution stability",
       ],
@@ -448,10 +448,10 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       ],
     },
     High: {
-      primaryAction: "Run Controlled Discomfort High → High Maintenance qualifying drill",
-      rules: ["Do NOT phase advance yet", "Prove repeatable stability first"],
+      primaryAction: "Run Controlled Discomfort drill",
+      rules: ["Do NOT phase advance yet", "A later qualifying Controlled Discomfort drill may earn High Maintenance"],
       nextActions: [
-        "Run High Maintenance check in Controlled Discomfort",
+        "Run Controlled Discomfort drill",
         "Increase difficulty consistency",
         "Confirm composed starts under uncertainty",
       ],
@@ -488,10 +488,10 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       ],
     },
     High: {
-      primaryAction: "Run Time Pressure Stability High → High Maintenance qualifying drill",
-      rules: ["Do NOT declare transfer yet", "Confirm sustained stability first"],
+      primaryAction: "Run Time Pressure Stability drill",
+      rules: ["Do NOT declare transfer yet", "A later qualifying Time Pressure Stability drill may earn High Maintenance"],
       nextActions: [
-        "Run High Maintenance check under time pressure",
+        "Run Time Pressure Stability drill",
         "Confirm structure under timed variation",
         "Sustain consistency across multiple sets",
       ],

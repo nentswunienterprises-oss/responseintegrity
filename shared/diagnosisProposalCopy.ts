@@ -24,14 +24,20 @@ type ProposalCopyInput = {
 const clean = (value: unknown) => String(value || "").trim();
 
 const LEGACY_HIGH_QUALIFYING_ACTIONS: Record<string, string> = {
-  "Run Clarity High Maintenance drill":
-    "Run Clarity High → High Maintenance qualifying drill",
+  "Run Clarity High Maintenance drill": "Run Clarity drill",
+  "Run Clarity High → High Maintenance qualifying drill": "Run Clarity drill",
   "Run Structured Execution High Maintenance drill":
-    "Run Structured Execution High → High Maintenance qualifying drill",
+    "Run Structured Execution drill",
+  "Run Structured Execution High → High Maintenance qualifying drill":
+    "Run Structured Execution drill",
   "Run Controlled Discomfort High Maintenance drill":
-    "Run Controlled Discomfort High → High Maintenance qualifying drill",
+    "Run Controlled Discomfort drill",
+  "Run Controlled Discomfort High → High Maintenance qualifying drill":
+    "Run Controlled Discomfort drill",
   "Run Time Pressure Stability High Maintenance drill":
-    "Run Time Pressure Stability High → High Maintenance qualifying drill",
+    "Run Time Pressure Stability drill",
+  "Run Time Pressure Stability High → High Maintenance qualifying drill":
+    "Run Time Pressure Stability drill",
 };
 
 export function normalizeProposalTrainingAction(value: unknown): string {
@@ -258,38 +264,38 @@ export function buildDiagnosisProposalSessionStructure(input: {
 
   if (input.stability === "High") {
     return [
-      "Begin with an independent attempt before explanation, correction, or modelling.",
+      "Beginning with an independent attempt before explanation, correction, or modelling.",
       targetDimensions.length
-        ? `Target the remaining ${humanJoin(targetDimensions)} gap directly rather than rebuilding the whole ${input.phase} layer.`
-        : `Target only the remaining ${input.phase} instability rather than rebuilding capabilities that already hold.`,
+        ? `Targeting the remaining ${humanJoin(targetDimensions)} gap directly rather than rebuilding the whole ${input.phase} layer.`
+        : `Targeting only the remaining ${input.phase} instability rather than rebuilding capabilities that already hold.`,
       preservedDimensions.length
-        ? `Preserve the already-supported ${humanJoin(preservedDimensions)} behaviors without prompting.`
-        : `Preserve the ${input.phase} behaviors that already hold cleanly.`,
-      `Use "${action}" as the immediate training structure.`,
-      "Do not progress to the next response layer until this phase has earned High Maintenance and then held in a later qualifying confirmation.",
+        ? `Preserving the already-supported ${humanJoin(preservedDimensions)} behaviors without prompting.`
+        : `Preserving the ${input.phase} behaviors that already hold cleanly.`,
+      `Using "${action}" as the immediate training structure.`,
+      "Not progressing to the next response layer until High Maintenance is earned and later independently confirmed.",
     ];
   }
 
   if (input.stability === "Medium") {
     return [
-      "Start with independent work and add only the minimum support needed to expose the unstable response.",
+      "Starting with independent work and adding only the minimum support needed to expose the unstable response.",
       targetDimensions.length
-        ? `Target ${humanJoin(targetDimensions)} until the response becomes clean and independent.`
-        : `Target the diagnosed ${input.phase} instability until the response becomes clean and independent.`,
+        ? `Targeting ${humanJoin(targetDimensions)} until the response becomes clean and independent.`
+        : `Targeting the diagnosed ${input.phase} instability until the response becomes clean and independent.`,
       preservedDimensions.length
-        ? `Keep the already-supported ${humanJoin(preservedDimensions)} behaviors intact while the unstable dimension is rebuilt.`
-        : `Keep already-supported ${input.phase} behavior intact while the unstable dimension is rebuilt.`,
-      `Use "${action}" before adding the next response condition.`,
+        ? `Keeping the already-supported ${humanJoin(preservedDimensions)} behaviors intact while the unstable dimension is rebuilt.`
+        : `Keeping already-supported ${input.phase} behavior intact while the unstable dimension is rebuilt.`,
+      `Using "${action}" before adding the next response condition.`,
     ];
   }
 
   return [
-    "Rebuild the phase-defining response with clear modelling only where the recorded breakdown requires it.",
-    "Move back to independent attempts as soon as the student can act without tutor carry.",
+    "Rebuilding the phase-defining response with clear modelling only where the recorded breakdown requires it.",
+    "Returning to independent attempts as soon as the student can act without tutor carry.",
     targetDimensions.length
-      ? `Target ${humanJoin(targetDimensions)} as the first recovery point.`
-      : `Target the diagnosed ${input.phase} breakdown as the first recovery point.`,
-    `Use "${action}" before adding the next response condition.`,
+      ? `Targeting ${humanJoin(targetDimensions)} as the first recovery point.`
+      : `Targeting the diagnosed ${input.phase} breakdown as the first recovery point.`,
+    `Using "${action}" before adding the next response condition.`,
   ];
 }
 
@@ -332,7 +338,7 @@ export function buildDiagnosisProposalProgressSignals(input: {
       `${input.phase} holds across repeated independent opportunities strongly enough to earn High Maintenance.`,
     );
     signals.push(
-      "A later independent confirmation is still required before phase progression.",
+      "A later independent confirmation before phase progression.",
     );
   } else {
     signals.push(

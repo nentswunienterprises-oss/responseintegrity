@@ -45,7 +45,7 @@ test("Clarity High proposal does not overclaim sustained or consistent performan
     studentFirstName: "Sandbox",
     phase: "Clarity",
     stability: "High",
-    nextAction: "Run Clarity High → High Maintenance qualifying drill",
+    nextAction: "Run Clarity drill",
     placementEvidence: ratiosEvidence,
   });
 
@@ -62,7 +62,7 @@ test("persisted proposal plan and justification stay behavior-native", () => {
     topic: "Ratios",
     phase: "Clarity",
     stability: "High",
-    nextAction: "Run Clarity High → High Maintenance qualifying drill",
+    nextAction: "Run Clarity drill",
   });
   const justification = buildDiagnosisProposalJustification({
     topic: "Ratios",
@@ -70,7 +70,7 @@ test("persisted proposal plan and justification stay behavior-native", () => {
     stability: "High",
     reason:
       "Clarity is the first response layer with direct clean behavioral evidence that does not meet the support contract.",
-    nextAction: "Run Clarity High → High Maintenance qualifying drill",
+    nextAction: "Run Clarity drill",
     placementEvidence: ratiosEvidence,
   });
 
@@ -146,13 +146,17 @@ test("Clarity High session structure targets the actual gap and preserves cleare
   const structure = buildDiagnosisProposalSessionStructure({
     phase: "Clarity",
     stability: "High",
-    nextAction: "Run Clarity High → High Maintenance qualifying drill",
+    nextAction: "Run Clarity drill",
     placementEvidence: ratiosEvidence,
     phaseSupportEvidence: clarityHighPhaseSupport,
   });
 
   const combined = structure.join(" ");
-  assert.match(combined, /independent attempt before explanation/i);
+  assert.match(combined, /Beginning with an independent attempt before explanation/i);
+  assert.match(combined, /Targeting the remaining Reason for the method gap/i);
+  assert.match(combined, /Preserving the already-supported/i);
+  assert.match(combined, /Using "Run Clarity drill" as the immediate training structure/i);
+  assert.match(combined, /Not progressing to the next response layer/i);
   assert.match(combined, /Reason for the method/);
   assert.match(combined, /Problem vocabulary/);
   assert.match(combined, /Method recognition/);
@@ -165,7 +169,7 @@ test("Clarity High progress signals track the diagnosed reason gap instead of ge
   const signals = buildDiagnosisProposalProgressSignals({
     phase: "Clarity",
     stability: "High",
-    nextAction: "Run Clarity High → High Maintenance qualifying drill",
+    nextAction: "Run Clarity drill",
     placementEvidence: ratiosEvidence,
     phaseSupportEvidence: clarityHighPhaseSupport,
   });
@@ -177,7 +181,8 @@ test("Clarity High progress signals track the diagnosed reason gap instead of ge
   assert.match(combined, /Method recognition/);
   assert.match(combined, /Immediate use of understanding/);
   assert.match(combined, /earn High Maintenance/i);
-  assert.match(combined, /later independent confirmation/i);
+  assert.match(combined, /A later independent confirmation before phase progression/i);
+  assert.doesNotMatch(combined, /is still required/i);
   assert.doesNotMatch(combined, /Less confusion when beginning problems/i);
 });
 
@@ -188,25 +193,25 @@ test("session structure and progress observation stay evidence-native across all
       phase: "Clarity",
       target: "Reason for the method",
       supported: "Method recognition",
-      action: "Run Clarity High → High Maintenance qualifying drill",
+      action: "Run Clarity drill",
     },
     {
       phase: "Structured Execution",
       target: "Step discipline",
       supported: "Independent start",
-      action: "Run Structured Execution High → High Maintenance qualifying drill",
+      action: "Run Structured Execution drill",
     },
     {
       phase: "Controlled Discomfort",
       target: "Difficulty tolerance",
       supported: "First-step control",
-      action: "Run Controlled Discomfort High → High Maintenance qualifying drill",
+      action: "Run Controlled Discomfort drill",
     },
     {
       phase: "Time Pressure Stability",
       target: "Pace control",
       supported: "Structure under time",
-      action: "Run Time Pressure Stability High → High Maintenance qualifying drill",
+      action: "Run Time Pressure Stability drill",
     },
   ] as const;
 
@@ -268,33 +273,33 @@ test("session structure and progress observation stay evidence-native across all
       assert.match(progressText, new RegExp(entry.supported, "i"));
 
       if (stability === "High") {
-        assert.match(structureText, /High → High Maintenance qualifying drill/);
+        assert.match(
+          structureText,
+          new RegExp(`Using "Run ${entry.phase} drill"`, "i"),
+        );
+        assert.doesNotMatch(structureText, /High Maintenance drill/i);
         assert.match(progressText, /earn High Maintenance/i);
-        assert.match(progressText, /later independent confirmation/i);
+        assert.match(
+          progressText,
+          /A later independent confirmation before phase progression/i,
+        );
+        assert.doesNotMatch(progressText, /is still required/i);
       }
     }
   }
 });
 
 
-test("legacy stored High actions are read as qualifying moves rather than existing High Maintenance state", () => {
+test("legacy stored High actions normalize to the ordinary same-phase drill", () => {
   const cases = [
-    [
-      "Run Clarity High Maintenance drill",
-      "Run Clarity High → High Maintenance qualifying drill",
-    ],
-    [
-      "Run Structured Execution High Maintenance drill",
-      "Run Structured Execution High → High Maintenance qualifying drill",
-    ],
-    [
-      "Run Controlled Discomfort High Maintenance drill",
-      "Run Controlled Discomfort High → High Maintenance qualifying drill",
-    ],
-    [
-      "Run Time Pressure Stability High Maintenance drill",
-      "Run Time Pressure Stability High → High Maintenance qualifying drill",
-    ],
+    ["Run Clarity High Maintenance drill", "Run Clarity drill"],
+    ["Run Clarity High → High Maintenance qualifying drill", "Run Clarity drill"],
+    ["Run Structured Execution High Maintenance drill", "Run Structured Execution drill"],
+    ["Run Structured Execution High → High Maintenance qualifying drill", "Run Structured Execution drill"],
+    ["Run Controlled Discomfort High Maintenance drill", "Run Controlled Discomfort drill"],
+    ["Run Controlled Discomfort High → High Maintenance qualifying drill", "Run Controlled Discomfort drill"],
+    ["Run Time Pressure Stability High Maintenance drill", "Run Time Pressure Stability drill"],
+    ["Run Time Pressure Stability High → High Maintenance qualifying drill", "Run Time Pressure Stability drill"],
   ] as const;
 
   for (const [legacy, expected] of cases) {

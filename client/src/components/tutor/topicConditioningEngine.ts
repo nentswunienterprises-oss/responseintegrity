@@ -14,7 +14,7 @@ export function interpretTopicState(
       transitionStatus = `Advance to ${PHASES[idx + 1]}`;
     }
   } else if (stability === "High") {
-    transitionStatus = "Run High Maintenance check before advancing";
+    transitionStatus = `Continue ${phase} drill until High Maintenance is earned`;
   } else if (stability === "Low") {
     if (phaseIndex(phase) === 0) {
       transitionStatus = "Hold at Clarity - reinforce foundations";
@@ -67,14 +67,14 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       rules: ["No Boss Battles as primary", "No time pressure", "Reduce explanation, increase execution"],
     },
     High: {
-      primaryAction: "Run Clarity High → High Maintenance qualifying drill",
+      primaryAction: "Run Clarity drill",
       nextActions: [
-        "Run High Maintenance check in Clarity",
+        "Run Clarity drill",
         "Reduce modeling",
         "Increase independent attempts",
         "Validate consistency across full set volume",
       ],
-      rules: ["Do NOT phase advance yet", "Prove repeatable stability first"],
+      rules: ["Do NOT phase advance yet", "A later qualifying Clarity drill may earn High Maintenance"],
     },
     "High Maintenance": {
       primaryAction: "Run Clarity High Maintenance drill",
@@ -109,13 +109,13 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       rules: ["Do not rush to time pressure", "Do not introduce Boss Battles before phase advance", "Still reinforce structure every time"],
     },
     High: {
-      primaryAction: "Run Structured Execution High → High Maintenance qualifying drill",
+      primaryAction: "Run Structured Execution drill",
       nextActions: [
-        "Run High Maintenance check in Structured Execution",
+        "Run Structured Execution drill",
         "Run Structured Execution drill",
         "Confirm repeatable execution stability",
       ],
-      rules: ["Do NOT phase advance yet", "Prove repeatable stability first"],
+      rules: ["Do NOT phase advance yet", "A later qualifying Structured Execution drill may earn High Maintenance"],
     },
     "High Maintenance": {
       primaryAction: "Run Structured Execution High Maintenance drill",
@@ -150,13 +150,13 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       rules: ["Do not remove difficulty", "Do not over-guide"],
     },
     High: {
-      primaryAction: "Run Controlled Discomfort High → High Maintenance qualifying drill",
+      primaryAction: "Run Controlled Discomfort drill",
       nextActions: [
-        "Run High Maintenance check in Controlled Discomfort",
+        "Run Controlled Discomfort drill",
         "Increase difficulty consistency",
         "Confirm composed starts under uncertainty",
       ],
-      rules: ["Do NOT phase advance yet", "Prove repeatable stability first"],
+      rules: ["Do NOT phase advance yet", "A later qualifying Controlled Discomfort drill may earn High Maintenance"],
     },
     "High Maintenance": {
       primaryAction: "Run Controlled Discomfort High Maintenance drill",
@@ -190,13 +190,13 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       rules: ["Do not sacrifice structure for speed", "Maintain method discipline"],
     },
     High: {
-      primaryAction: "Run Time Pressure Stability High → High Maintenance qualifying drill",
+      primaryAction: "Run Time Pressure Stability drill",
       nextActions: [
-        "Run High Maintenance check under time pressure",
+        "Run Time Pressure Stability drill",
         "Confirm structure under timed variation",
         "Sustain consistency across multiple sets",
       ],
-      rules: ["Do NOT declare transfer yet", "Confirm sustained stability first"],
+      rules: ["Do NOT declare transfer yet", "A later qualifying Time Pressure Stability drill may earn High Maintenance"],
     },
     "High Maintenance": {
       primaryAction: "Run Time Pressure Stability maintenance drill",
@@ -286,7 +286,7 @@ export function nextMoveRecommendation(phase: PhaseLabel, stability: StabilityLa
     return `Confirm High Maintenance in ${phase} before advancing to ${PHASES[idx + 1]}`;
   }
   if (stability === "High") {
-    return "Run High Maintenance check before advancing";
+    return `Continue ${phase} drill until High Maintenance is earned`;
   }
   if (stability === "Low") {
     if (idx === 0) return "Hold at Clarity - reinforce foundations";
