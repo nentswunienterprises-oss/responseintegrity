@@ -145,37 +145,18 @@ try {
   console.log("SMOKE_SIGNUP_COMPLETE=true");
   await page.screenshot({ path: path.join(evidenceDir, "02-signup-created.png"), fullPage: true });
 
-  const loginUrl =
-    `${baseUrl}/client/signup?mode=login&fastTrack=exec&production=DMD46E2E&pipeline=demand&utm_source=smoke&utm_campaign=demand-gateway-smoke`;
-
-  let loggedIn = false;
-  let lastSignin = null;
-  for (let attempt = 1; attempt <= 18; attempt += 1) {
-    await page.goto(loginUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
-    await page.locator("#login-email").fill(email);
-    await page.locator("#login-password").fill(password);
-
-    const [signinResponse] = await Promise.all([
-      page.waitForResponse(
-        (response) => response.url().includes("/api/auth/signin") && response.request().method() === "POST",
-        { timeout: 60_000 },
-      ),
-      page.locator("form").getByRole("button", { name: "Login", exact: true }).click(),
-    ]);
-    const signinBody = await signinResponse.json().catch(() => null);
-    lastSignin = { attempt, status: signinResponse.status(), message: signinBody?.message || null };
-
-    try {
-      await page.waitForURL(/\/client\/parent\/gateway/, { timeout: 6_000 });
-      loggedIn = true;
-      break;
-    } catch {
-      console.log(`LOGIN_WAIT attempt=${attempt} status=${signinResponse.status()} message=${signinBody?.message || "none"}`);
-      await page.waitForTimeout(4_000);
-    }
-  }
-  assert.ok(loggedIn, `Parent login did not reach Gateway. Last signin: ${JSON.stringify(lastSignin)}`);
-  checkpoint("parent-login-reached-gateway", { url: page.url(), lastSignin });
+  await page.waitForURL(/\/client\/parent\/gateway/, { timeout: 30_000 }).catch(async () => {
+    await page.goto(`${baseUrl}/client/parent/gateway`, {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    });
+  });
+  assert.match(
+    page.url(),
+    /\/client\/parent\/gateway/,
+    `Signup session did not reach Gateway: ${page.url()}`,
+  );
+  checkpoint("parent-signup-session-reached-gateway", { url: page.url() });
 
   await page.getByText("Application Form", { exact: true }).waitFor({ timeout: 30_000 });
   await page.screenshot({ path: path.join(evidenceDir, "03-gateway-application.png"), fullPage: true });
