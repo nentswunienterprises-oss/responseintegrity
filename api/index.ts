@@ -2,6 +2,8 @@ import 'dotenv/config';
 import express from 'express';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import cors from 'cors';
+import { setupAuth } from '../server/supabaseAuth';
+import { registerRoutes } from '../server/routes';
 
 const app = express();
 
@@ -37,11 +39,6 @@ function initializeApp(): Promise<void> {
   if (initialized) return Promise.resolve();
   if (!initializationPromise) {
     initializationPromise = (async () => {
-      const [{ setupAuth }, { registerRoutes }] = await Promise.all([
-        import('../server/supabaseAuth'),
-        import('../server/routes'),
-      ]);
-
       await setupAuth(app);
       await registerRoutes(app);
 
