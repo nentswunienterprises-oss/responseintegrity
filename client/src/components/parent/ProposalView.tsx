@@ -106,6 +106,7 @@ export default function ProposalView({
   );
   const packageAmount = Number(proposal.packageAmount || servicePackage.amountZar);
   const diagnosisProposalSnapshot = extractDiagnosisProposalSnapshot(proposal.justification);
+  const showApprovedDiagnosisSnapshot = forceDiagnosisView && !!diagnosisProposalSnapshot;
 
   type StudentPronounSet = {
     subject: "he" | "she" | "they";
@@ -677,7 +678,7 @@ export default function ProposalView({
         </CardContent>
       </Card>
 
-      {!isLiveTrainingView && !isLiveTrainingStatePending && diagnosisProposalSnapshot && (
+      {showApprovedDiagnosisSnapshot && diagnosisProposalSnapshot && (
         <>
           <Card>
             <CardHeader><CardTitle>Focus Area</CardTitle></CardHeader>
@@ -749,7 +750,7 @@ export default function ProposalView({
         </>
       )}
 
-      {!diagnosisProposalSnapshot && (isLiveTrainingView || isLiveTrainingStatePending || normalizedStability === "Low" || normalizedStability === "Medium") && (
+      {!showApprovedDiagnosisSnapshot && (isLiveTrainingView || isLiveTrainingStatePending || normalizedStability === "Low" || normalizedStability === "Medium") && (
         <Card>
           <CardHeader>
             <CardTitle>{isLiveTrainingView || isLiveTrainingStatePending ? "Current Position" : `Where ${studentFirstName} Currently Gets Stuck`}</CardTitle>
@@ -779,7 +780,7 @@ export default function ProposalView({
         </Card>
       )}
 
-      {!diagnosisProposalSnapshot && <Card>
+      {!showApprovedDiagnosisSnapshot && <Card>
         <CardHeader>
           <CardTitle>{isLiveTrainingView || isLiveTrainingStatePending ? "What We Are Observing" : "What We Have Observed"}</CardTitle>
         </CardHeader>
@@ -821,7 +822,7 @@ export default function ProposalView({
         </CardContent>
       </Card>}
 
-      {!diagnosisProposalSnapshot && <Card>
+      {!showApprovedDiagnosisSnapshot && <Card>
         <CardHeader>
           <CardTitle>{isLiveTrainingView || isLiveTrainingStatePending ? "Training Direction" : "Training Path"}</CardTitle>
         </CardHeader>
@@ -849,7 +850,7 @@ export default function ProposalView({
         </CardContent>
       </Card>}
 
-      {!diagnosisProposalSnapshot && <Card>
+      {!showApprovedDiagnosisSnapshot && <Card>
         <CardHeader>
           <CardTitle>{isLiveTrainingView || isLiveTrainingStatePending ? "Structure" : "Conditioning Structure"}</CardTitle>
         </CardHeader>
@@ -874,7 +875,7 @@ export default function ProposalView({
         </CardContent>
       </Card>}
 
-      {!diagnosisProposalSnapshot && <Card>
+      {!showApprovedDiagnosisSnapshot && <Card>
         <CardHeader>
           <CardTitle>{isLiveTrainingView || isLiveTrainingStatePending ? "How Progress Will Show" : "How Progress Will Be Observed"}</CardTitle>
         </CardHeader>
