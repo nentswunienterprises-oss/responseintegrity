@@ -145,6 +145,17 @@ test("near-stable behavior derives High without numeric thresholds", () => {
   assert.equal(decision.stability, "High");
 });
 
+test("Clarity High means near-stable behavior, not fully sustained clarity", () => {
+  const definition = DIAGNOSIS_OBSERVATION_MATRIX["clarity.reason"];
+  const nearStable = definition.options.find(
+    (option) => option.id === "correct_reason_imprecise",
+  );
+
+  assert.equal(nearStable?.behaviorClass, "near_stable");
+  assert.match(nearStable?.detail || "", /substantially correct/i);
+  assert.doesNotMatch(nearStable?.detail || "", /fully clean/i);
+});
+
 test("not observed remains unresolved and is never converted into weakness", () => {
   let state = createEvidenceCompleteDiagnosisState("Clarity");
   state = run(state, "clarity.recognition", {

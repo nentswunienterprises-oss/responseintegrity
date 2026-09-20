@@ -240,9 +240,9 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
       focus: "We are increasing practice and helping them apply the method more consistently.",
     },
     High: {
-      status: "Your child now understands this topic clearly.",
-      meaning: "They can recognize the problem and explain the steps with confidence.",
-      focus: "We are moving into independent problem-solving to build execution.",
+      status: "Your child shows strong understanding of this topic.",
+      meaning: "The core understanding is substantially present, but a minor gap or remaining confirmation means Clarity is not yet considered sustained.",
+      focus: "We are strengthening the remaining gap and verifying that clarity holds consistently before progression.",
     },
     "High Maintenance": {
       status: "Your child has sustained strong clarity in this topic.",

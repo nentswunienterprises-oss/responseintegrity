@@ -296,8 +296,8 @@ export const DIAGNOSIS_OBSERVATION_MATRIX: Record<
 export const DIAGNOSIS_STABILITY_MEANINGS: Record<TopicStability, string> = {
   Low: "The phase-defining capability is substantially absent or breaks at first meaningful exposure.",
   Medium: "The capability exists, but is conditional, inconsistent, support-dependent, or materially unstable.",
-  High: "The capability is substantially present, but a decision-relevant behavior is not yet clean enough to clear the phase.",
-  "High Maintenance": "The capability has already been demonstrated strongly and is being verified for sustained progression. Diagnosis cannot mint this state.",
+  High: "The capability is substantially present and usable; only minor instability and/or insufficient confirmation prevents the phase from being considered sustained.",
+  "High Maintenance": "The capability has met the strong-performance threshold in training and is being confirmed in a later qualifying exposure before progression. Diagnosis cannot mint this state.",
 };
 
 export function getDiagnosisObservationOption(

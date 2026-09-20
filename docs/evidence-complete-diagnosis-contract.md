@@ -72,7 +72,7 @@ The Specialist records concrete behavior. Each decision-relevant behavior is cla
 
 - `breakdown` - phase-defining capability is substantially absent;
 - `conditional` - capability exists but is materially inconsistent, dependent, or unstable;
-- `near_stable` - capability is substantially present but not clean enough to clear the layer;
+- `near_stable` - capability is substantially present and usable, but minor instability prevents the layer from being considered fully clean;
 - `supported` - the behavior meets the support contract;
 - `not_observed` - no valid opportunity existed to observe it;
 - `confounded` - the observation cannot be interpreted cleanly.
@@ -85,9 +85,16 @@ Starting stability is then derived categorically from the unsupported behavior t
 
 No percentage threshold participates in that decision.
 
-Diagnosis never mints `High Maintenance`. High Maintenance remains the fourth stability state, but it is training-earned: the capability has already been demonstrated strongly and is being verified for sustained progression.
+Diagnosis never mints `High Maintenance`. High Maintenance remains the fourth stability state, but it is training-earned. A training drill must first establish the High Maintenance state; once earned, a later qualifying exposure confirms that the capability holds before phase progression.
 
-A phase can therefore be the correct entry phase at High when its phase-defining behavior is substantially present but a decision-relevant behavior has not yet become clean enough to clear the layer.
+The universal stability meanings are:
+
+- Low - the phase-defining capability is substantially absent or breaks at meaningful exposure;
+- Medium - the capability exists but is materially conditional, inconsistent, dependent, or unstable;
+- High - the capability is substantially present and usable; only minor instability and/or insufficient confirmation prevents the phase from being considered sustained;
+- High Maintenance - the capability has met the strong-performance threshold in training and is being confirmed in a later qualifying exposure before progression.
+
+A phase can therefore be the correct diagnosis entry phase at High when its phase-defining capability is substantially present, but a decision-relevant behavior remains near-stable rather than fully supported. High is not a claim that the phase has already demonstrated sustained stability.
 
 ## Repetition law
 

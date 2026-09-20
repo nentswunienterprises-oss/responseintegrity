@@ -11,9 +11,10 @@ import {
 } from "@shared/evidenceCompleteDiagnosis";
 import {
   DIAGNOSIS_OBSERVATION_MATRIX,
+  DIAGNOSIS_STABILITY_MEANINGS,
   type DiagnosisObservationOption,
 } from "@shared/diagnosisObservationMatrix";
-import { tryParsePhase, type TopicPhase } from "@shared/topicConditioningEngine";
+import { NEXT_ACTION_ENGINE, tryParsePhase, type TopicPhase } from "@shared/topicConditioningEngine";
 
 type DiagnosisApiResponse = {
   success: boolean;
@@ -380,6 +381,28 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const blocked = Boolean(
     decision && !decision.complete && !decision.nextProbeId,
   );
+  const placementPhaseState =
+    decision?.phaseStates.find((state) => state.phase === decision.placementPhase) ||
+    null;
+  const placementSupportedLabels = placementPhaseState
+    ? placementPhaseState.supportedDimensions.map(
+        (dimensionId) => DIAGNOSIS_OBSERVATION_MATRIX[dimensionId].label,
+      )
+    : [];
+  const nextAction =
+    decision?.placementPhase && decision?.stability
+      ? NEXT_ACTION_ENGINE[decision.placementPhase][decision.stability]
+      : null;
+  const stabilityExplanation =
+    decision?.stability === "Low"
+      ? "The decisive clean behavior showed a phase-defining breakdown. That maps to Low because the capability was substantially absent or broke at meaningful exposure."
+      : decision?.stability === "Medium"
+        ? "The decisive clean behavior was conditional or materially unstable. That maps to Medium because the capability exists, but does not yet hold reliably."
+        : decision?.stability === "High"
+          ? "The decisive clean behavior was near-stable: the capability was substantially present and usable, but not fully clean. That is stronger than conditional or breakdown evidence, so the starting stability is High rather than Medium or Low."
+          : decision?.stability === "High Maintenance"
+            ? "High Maintenance is a training-earned confirmation state and is not minted by diagnosis."
+            : null;
 
   return (
     <main className="min-h-screen bg-background px-4 py-8 sm:px-6">
@@ -436,11 +459,34 @@ export default function EvidenceCompleteDiagnosisRunner() {
               />
             </div>
 
-            <div className="mt-6 rounded-xl border p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Why diagnosis stopped
-              </p>
-              <p className="mt-2 text-sm leading-6">{decision.reason}</p>
+            <div className="mt-6 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-xl border p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Why {decision.placementPhase || "this phase"}
+                </p>
+                <p className="mt-2 text-sm leading-6">{decision.reason}</p>
+                {placementSupportedLabels.length > 0 && (
+                  <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                    Cleanly supported in {decision.placementPhase}:{" "}
+                    {placementSupportedLabels.join(", ")}.
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-xl border p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Why {decision.stability || "this stability"}
+                </p>
+                <p className="mt-2 text-sm leading-6">
+                  {stabilityExplanation ||
+                    "Starting stability was derived categorically from the decisive clean behavior."}
+                </p>
+                {decision.stability && (
+                  <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                    {DIAGNOSIS_STABILITY_MEANINGS[decision.stability]}
+                  </p>
+                )}
+              </div>
             </div>
 
             {decision.placementEvidence.length > 0 && (
@@ -463,6 +509,25 @@ export default function EvidenceCompleteDiagnosisRunner() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {nextAction && (
+              <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                  Next move
+                </p>
+                <p className="mt-2 text-sm font-semibold">
+                  {nextAction.primaryAction}
+                </p>
+                {decision.stability === "High" && (
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                    Diagnosis cannot mint High Maintenance. This training move
+                    must first establish High Maintenance; once earned, a later
+                    qualifying confirmation is still required before phase
+                    progression.
+                  </p>
+                )}
               </div>
             )}
 
