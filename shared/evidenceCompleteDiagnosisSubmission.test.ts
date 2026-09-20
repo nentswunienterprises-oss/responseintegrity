@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildEvidenceCompleteDiagnosisLedgerRows,
+  canonicalizeEvidenceJson,
   replayEvidenceCompleteDiagnosis,
 } from "./evidenceCompleteDiagnosisSubmission";
 import type {
@@ -134,4 +135,36 @@ test("ledger stores behavior IDs and zeroes numeric decision fields", () => {
   assert.equal(rows[0].score_contribution_max, 0);
   assert.equal(rows[0].constraint_profile.decisionAuthority, "behavioral_evidence");
   assert.equal(new Set(rows.map((row) => row.evidence_id)).size, rows.length);
+});
+
+test("canonical evidence comparison ignores jsonb object-key reordering but preserves array order", () => {
+  const submitted = {
+    probeId: "stack.timed_challenge",
+    supportEvent: "neutral_clarification",
+    observations: [
+      { dimensionId: "clarity.vocabulary", behaviorId: "accurate_recognition" },
+      { dimensionId: "clarity.method", behaviorId: "correct_method_cleanly" },
+    ],
+  };
+  const jsonbRoundTrip = {
+    observations: [
+      { behaviorId: "accurate_recognition", dimensionId: "clarity.vocabulary" },
+      { behaviorId: "correct_method_cleanly", dimensionId: "clarity.method" },
+    ],
+    supportEvent: "neutral_clarification",
+    probeId: "stack.timed_challenge",
+  };
+
+  assert.equal(
+    canonicalizeEvidenceJson(submitted),
+    canonicalizeEvidenceJson(jsonbRoundTrip),
+  );
+
+  assert.notEqual(
+    canonicalizeEvidenceJson(submitted),
+    canonicalizeEvidenceJson({
+      ...jsonbRoundTrip,
+      observations: [...jsonbRoundTrip.observations].reverse(),
+    }),
+  );
 });
