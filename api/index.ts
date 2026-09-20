@@ -62,7 +62,7 @@ function remapPreviewApiPath(req: VercelRequest) {
 
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(req.query)) {
-    if (key === '__ri_path') continue;
+    if (key === '__ri_path' || key === '__ri_internal') continue;
     if (Array.isArray(value)) {
       for (const item of value) query.append(key, String(item));
     } else if (value !== undefined) {

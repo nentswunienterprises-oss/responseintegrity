@@ -13,6 +13,10 @@ on:
       - 'vercel.json'
   workflow_dispatch:
 
+concurrency:
+  group: demand-gateway-preview-e2e
+  cancel-in-progress: true
+
 jobs:
   demand-gateway-preview-e2e:
     runs-on: ubuntu-latest
@@ -33,7 +37,7 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           const base = process.env.SMOKE_BASE_URL.replace(/\/$/, "");
-          const url = base + "/api/proof-environment";
+          const url = base + "/api/__proof/environment";
           let last = null;
           for (let attempt = 1; attempt <= 18; attempt += 1) {
             try {

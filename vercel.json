@@ -330,6 +330,22 @@
   "rewrites": [
     {
       "source": "/api/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "tt-confidence-hub-git-feat-dem-d053fe-relief-works-technologies.vercel.app"
+        }
+      ],
+      "missing": [
+        {
+          "type": "query",
+          "key": "__ri_internal"
+        }
+      ],
+      "destination": "/api/index?__ri_internal=1&__ri_path=:path*"
+    },
+    {
+      "source": "/api/:path*",
       "destination": "https://api.responseintegrity.co.za/api/:path*",
       "missing": [
         {
