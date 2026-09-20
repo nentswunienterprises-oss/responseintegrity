@@ -10,6 +10,7 @@ import {
   buildDiagnosisProposalWhyEntry,
   normalizeProposalPhaseSupportEvidence,
   normalizeProposalPlacementEvidence,
+  normalizeProposalTrainingAction,
 } from "./diagnosisProposalCopy";
 
 const ratiosEvidence = normalizeProposalPlacementEvidence([
@@ -272,5 +273,31 @@ test("session structure and progress observation stay evidence-native across all
         assert.match(progressText, /later independent confirmation/i);
       }
     }
+  }
+});
+
+
+test("legacy stored High actions are read as qualifying moves rather than existing High Maintenance state", () => {
+  const cases = [
+    [
+      "Run Clarity High Maintenance drill",
+      "Run Clarity High → High Maintenance qualifying drill",
+    ],
+    [
+      "Run Structured Execution High Maintenance drill",
+      "Run Structured Execution High → High Maintenance qualifying drill",
+    ],
+    [
+      "Run Controlled Discomfort High Maintenance drill",
+      "Run Controlled Discomfort High → High Maintenance qualifying drill",
+    ],
+    [
+      "Run Time Pressure Stability High Maintenance drill",
+      "Run Time Pressure Stability High → High Maintenance qualifying drill",
+    ],
+  ] as const;
+
+  for (const [legacy, expected] of cases) {
+    assert.equal(normalizeProposalTrainingAction(legacy), expected);
   }
 });

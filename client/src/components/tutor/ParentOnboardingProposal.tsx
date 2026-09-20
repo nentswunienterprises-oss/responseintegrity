@@ -29,6 +29,7 @@ import {
   buildDiagnosisProposalWhyEntry,
   normalizeProposalPhaseSupportEvidence,
   normalizeProposalPlacementEvidence,
+  normalizeProposalTrainingAction,
 } from "@shared/diagnosisProposalCopy";
 
 interface ParentOnboardingProposalProps {
@@ -93,7 +94,7 @@ export default function ParentOnboardingProposal({
         drillData?.summary?.placementEvidence,
       );
       const nextAction =
-        String(drillData?.summary?.nextAction || "").trim() || "Continue phase work";
+        normalizeProposalTrainingAction(drillData?.summary?.nextAction) || "Continue phase work";
       const recommendedPlan = buildDiagnosisProposalRecommendedPlan({
         topic: topic || "primary diagnostic topic",
         phase: trainingEntryPhase,
@@ -204,7 +205,7 @@ export default function ParentOnboardingProposal({
     trainingEntryPhase,
   );
   const nextAction =
-    String(drillData?.summary?.nextAction || "").trim() || "Continue phase work";
+    normalizeProposalTrainingAction(drillData?.summary?.nextAction) || "Continue phase work";
   const focusArea = buildDiagnosisProposalFocus({
     studentFirstName,
     phase: trainingEntryPhase,

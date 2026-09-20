@@ -23,6 +23,22 @@ type ProposalCopyInput = {
 
 const clean = (value: unknown) => String(value || "").trim();
 
+const LEGACY_HIGH_QUALIFYING_ACTIONS: Record<string, string> = {
+  "Run Clarity High Maintenance drill":
+    "Run Clarity High → High Maintenance qualifying drill",
+  "Run Structured Execution High Maintenance drill":
+    "Run Structured Execution High → High Maintenance qualifying drill",
+  "Run Controlled Discomfort High Maintenance drill":
+    "Run Controlled Discomfort High → High Maintenance qualifying drill",
+  "Run Time Pressure Stability High Maintenance drill":
+    "Run Time Pressure Stability High → High Maintenance qualifying drill",
+};
+
+export function normalizeProposalTrainingAction(value: unknown): string {
+  const action = clean(value);
+  return LEGACY_HIGH_QUALIFYING_ACTIONS[action] || action;
+}
+
 export function normalizeProposalPlacementEvidence(
   value: unknown,
 ): ProposalPlacementEvidence[] {
@@ -142,7 +158,7 @@ export function buildDiagnosisProposalWhyEntry(input: {
 }
 
 function firstTrainingMove(nextAction: string): string {
-  const action = clean(nextAction);
+  const action = normalizeProposalTrainingAction(nextAction);
   if (!action) return "Training will begin from the diagnosed entry state.";
   const runMatch = action.match(/^Run\s+(.+)$/i);
   if (runMatch) return `The first training move is a ${runMatch[1]}.`;
@@ -176,7 +192,7 @@ export function buildDiagnosisProposalRecommendedPlan(input: {
   stability: string;
   nextAction: string;
 }): string {
-  return `Training starts at ${input.phase} / ${input.stability} for ${input.topic}. First action: ${clean(input.nextAction) || "Continue phase work"}.`;
+  return `Training starts at ${input.phase} / ${input.stability} for ${input.topic}. First action: ${normalizeProposalTrainingAction(input.nextAction) || "Continue phase work"}.`;
 }
 
 export function buildDiagnosisProposalJustification(input: {
@@ -194,7 +210,7 @@ export function buildDiagnosisProposalJustification(input: {
     : "";
   const reasonSentence = reason ? ` ${reason}` : "";
 
-  return `Behavioral diagnosis placed ${input.topic} at ${input.phase} / ${input.stability}.${evidenceSentence}${reasonSentence} First training action: ${clean(input.nextAction) || "Continue phase work"}.`;
+  return `Behavioral diagnosis placed ${input.topic} at ${input.phase} / ${input.stability}.${evidenceSentence}${reasonSentence} First training action: ${normalizeProposalTrainingAction(input.nextAction) || "Continue phase work"}.`;
 }
 
 
@@ -238,7 +254,7 @@ export function buildDiagnosisProposalSessionStructure(input: {
   const preservedDimensions = supportedDimensionLabels(
     input.phaseSupportEvidence,
   ).filter((label) => !targetDimensions.includes(label));
-  const action = clean(input.nextAction) || `${input.phase} training`;
+  const action = normalizeProposalTrainingAction(input.nextAction) || `${input.phase} training`;
 
   if (input.stability === "High") {
     return [
