@@ -846,12 +846,12 @@ test("PayFast sandbox config never falls back to live merchant credentials", () 
   assert.ok(configEnd > configStart);
   assert.match(configSource, /PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID = "10000100"/);
   assert.match(configSource, /PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY = "46f0cd694581a"/);
-  assert.match(configSource, /PAYFAST_SANDBOX_MERCHANT_ID/);
-  assert.match(configSource, /PAYFAST_SANDBOX_MERCHANT_KEY/);
-  assert.doesNotMatch(
-    configSource,
-    /useSandbox \? process\.env\.PAYFAST_SANDBOX_MERCHANT_ID \|\| process\.env\.PAYFAST_MERCHANT_ID/,
-  );
+  assert.match(configSource, /PAYFAST_PUBLIC_SANDBOX_PASSPHRASE = "jt7NOE43FZPn"/);
+  assert.doesNotMatch(configSource, /PAYFAST_SANDBOX_MERCHANT_ID/);
+  assert.doesNotMatch(configSource, /PAYFAST_SANDBOX_MERCHANT_KEY/);
+  assert.match(configSource, /merchantId: PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID/);
+  assert.match(configSource, /merchantKey: PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY/);
+  assert.match(configSource, /passphrase: PAYFAST_PUBLIC_SANDBOX_PASSPHRASE/);
   assert.match(configSource, /isValidPayfastMerchantId\(config\.merchantId\)/);
   assert.match(configSource, /isValidPayfastMerchantKey\(config\.merchantKey\)/);
 });
@@ -873,6 +873,7 @@ test("Sandbox payment gate stays actionable from Parent Sessions and returns the
   assert.match(sessionsSource, /"\/client\/parent\/sessions"/);
   assert.match(gatewaySource, /const returnPath = window\.sessionStorage\.getItem\(PAYFAST_RETURN_PATH_STORAGE_KEY\)/);
   assert.match(gatewaySource, /navigate\(returnPath, \{ replace: true \}\)/);
+  assert.match(gatewaySource, /assertPayfastCheckoutFields\(data\.formFields, data\?\.sandbox === true\)/);
 });
 
 test("assignment acceptance refreshes the canonical workflow query immediately", () => {
