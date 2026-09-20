@@ -102,10 +102,12 @@ A completed diagnosis must be auditable without requiring knowledge of internal 
 
 Every completion surface must explain four things:
 
-1. **Why this phase** - identify the entry phase as the first unsupported response layer and, for any higher-phase entry, explicitly name every earlier response layer that was cleanly supported.
+1. **Why this phase** - identify the entry phase as the first unsupported response layer. For any higher-phase entry, do not merely state that earlier layers cleared: show the clean behavioral evidence that proves each earlier layer met its support contract, dimension by dimension.
 2. **Why this stability** - connect the decisive clean behavior to the universal categorical meaning: `breakdown -> Low`, `conditional -> Medium`, `near_stable -> High`.
 3. **What behavior decided it** - preserve the exact dimension and observed behavior label that created the entry state.
 4. **What happens next** - show the state-engine training move without implying that diagnosis itself earned High Maintenance or phase progression.
+
+A phase-clearance claim is valid only when the completion surface exposes, for every supported dimension, the exact clean behavior labels that counted toward support and the observed count versus the dimension's required supported-observation count. A phase name or `status = supported` flag is not, by itself, an acceptable explanation.
 
 There is one deliberate High exception to the near-stable rule: when all four response layers are fully supported, including the required repeated timed evidence, diagnosis ends at **Time Pressure Stability / High** because diagnosis is not allowed to mint High Maintenance. That result must be explained as an authority boundary, not falsely described as near-stable behavior.
 

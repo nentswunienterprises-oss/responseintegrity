@@ -104,6 +104,20 @@ export type DiagnosisPlacementEvidence = {
   behaviorClass: DiagnosisBehaviorClass;
 };
 
+export type DiagnosisSupportedDimensionEvidence = {
+  dimensionId: DiagnosisDimensionId;
+  dimensionLabel: string;
+  requiredSupportedObservations: number;
+  supportedCount: number;
+  supportingBehaviors: string[];
+};
+
+export type DiagnosisPhaseSupportEvidence = {
+  phase: TopicPhase;
+  phaseStatus: DiagnosisEvidenceStatus;
+  dimensions: DiagnosisSupportedDimensionEvidence[];
+};
+
 export type EvidenceCompleteDiagnosisState = {
   recommendedStartingPhase: TopicPhase | null;
   evidence: DiagnosisEvidenceEvent[];
@@ -395,6 +409,29 @@ function dimensionState(
       behaviorClass: event.behaviorClass,
       contaminated: event.contaminated,
     })),
+  };
+}
+
+export function getDiagnosisPhaseSupportEvidence(
+  state: DiagnosisPhaseState,
+): DiagnosisPhaseSupportEvidence {
+  return {
+    phase: state.phase,
+    phaseStatus: state.status,
+    dimensions: state.dimensions
+      .filter((dimension) => dimension.status === "supported")
+      .map((dimension) => ({
+        dimensionId: dimension.dimensionId,
+        dimensionLabel: DIAGNOSIS_OBSERVATION_MATRIX[dimension.dimensionId].label,
+        requiredSupportedObservations: dimension.requiredSupportedObservations,
+        supportedCount: dimension.supportedCount,
+        supportingBehaviors: dimension.behaviorHistory
+          .filter(
+            (behavior) =>
+              !behavior.contaminated && behavior.behaviorClass === "supported",
+          )
+          .map((behavior) => behavior.behaviorLabel),
+      })),
   };
 }
 

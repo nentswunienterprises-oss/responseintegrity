@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   createEvidenceCompleteDiagnosisState,
   evaluateEvidenceCompleteDiagnosis,
+  getDiagnosisPhaseSupportEvidence,
   recordEvidenceCompleteDiagnosisProbe,
   type DiagnosisDimensionId,
   type DiagnosisProbeId,
@@ -374,6 +375,24 @@ test("every phase entry uses the same behavior-native Low Medium High contract a
           "supported",
           `${earlierPhase} must clear before ${phase} can be the entry phase`,
         );
+        assert.ok(earlierState);
+        const proof = getDiagnosisPhaseSupportEvidence(earlierState!);
+        assert.equal(
+          proof.dimensions.length,
+          earlierState!.dimensions.length,
+          `${earlierPhase} must expose support evidence for every dimension`,
+        );
+        for (const dimension of proof.dimensions) {
+          assert.ok(
+            dimension.supportedCount >= dimension.requiredSupportedObservations,
+            `${earlierPhase} / ${dimension.dimensionId} must meet its support count`,
+          );
+          assert.ok(
+            dimension.supportingBehaviors.length >=
+              dimension.requiredSupportedObservations,
+            `${earlierPhase} / ${dimension.dimensionId} must expose the clean behaviors that prove support`,
+          );
+        }
         assert.ok(
           decision.reason.includes(earlierPhase),
           `${phase} reasoning should name cleared earlier layer ${earlierPhase}`,
@@ -409,4 +428,18 @@ test("all-clear diagnosis requires repeated temporal evidence and never mints Hi
   assert.equal(decision.complete, true);
   assert.equal(decision.placementPhase, "Time Pressure Stability");
   assert.equal(decision.stability, "High");
+
+  for (const phaseState of decision.phaseStates) {
+    const proof = getDiagnosisPhaseSupportEvidence(phaseState);
+    assert.equal(proof.dimensions.length, phaseState.dimensions.length);
+    for (const dimension of proof.dimensions) {
+      assert.ok(
+        dimension.supportedCount >= dimension.requiredSupportedObservations,
+      );
+      assert.ok(
+        dimension.supportingBehaviors.length >=
+          dimension.requiredSupportedObservations,
+      );
+    }
+  }
 });

@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import {
   type DiagnosisDimensionId,
   type DiagnosisProbeDefinition,
+  getDiagnosisPhaseSupportEvidence,
   type DiagnosisProbeResult,
   type DiagnosisSupportEvent,
   type EvidenceCompleteDiagnosisDecision,
@@ -384,21 +385,19 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const placementPhaseState =
     decision?.phaseStates.find((state) => state.phase === decision.placementPhase) ||
     null;
-  const placementSupportedLabels = placementPhaseState
-    ? placementPhaseState.supportedDimensions.map(
-        (dimensionId) => DIAGNOSIS_OBSERVATION_MATRIX[dimensionId].label,
-      )
-    : [];
   const placementPhaseIndex = decision?.placementPhase
     ? PHASE_ORDER.indexOf(decision.placementPhase)
     : -1;
-  const earlierClearedPhases =
+  const earlierSupportEvidence =
     placementPhaseIndex > 0 && decision
       ? decision.phaseStates
           .slice(0, placementPhaseIndex)
           .filter((state) => state.status === "supported")
-          .map((state) => state.phase)
+          .map(getDiagnosisPhaseSupportEvidence)
       : [];
+  const placementSupportEvidence = placementPhaseState
+    ? getDiagnosisPhaseSupportEvidence(placementPhaseState)
+    : null;
   const allResponseLayersSupported = Boolean(
     decision?.phaseStates.length &&
       decision.phaseStates.every((state) => state.status === "supported"),
@@ -479,18 +478,6 @@ export default function EvidenceCompleteDiagnosisRunner() {
                   Why {decision.placementPhase || "this phase"}
                 </p>
                 <p className="mt-2 text-sm leading-6">{decision.reason}</p>
-                {earlierClearedPhases.length > 0 && (
-                  <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                    Earlier response layers cleanly supported:{" "}
-                    {earlierClearedPhases.join(" → ")}.
-                  </p>
-                )}
-                {placementSupportedLabels.length > 0 && (
-                  <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                    Cleanly supported inside {decision.placementPhase}:{" "}
-                    {placementSupportedLabels.join(", ")}.
-                  </p>
-                )}
               </div>
 
               <div className="rounded-xl border p-4">
@@ -508,6 +495,99 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 )}
               </div>
             </div>
+
+            {earlierSupportEvidence.length > 0 && (
+              <div className="mt-4 rounded-xl border p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Evidence that earlier layers cleared
+                </p>
+                <div className="mt-3 space-y-4">
+                  {earlierSupportEvidence.map((phaseEvidence) => (
+                    <div
+                      key={phaseEvidence.phase}
+                      className="rounded-lg bg-muted/30 p-3"
+                    >
+                      <p className="text-sm font-semibold">
+                        {phaseEvidence.phase} — cleared
+                      </p>
+                      <div className="mt-3 grid gap-2 md:grid-cols-2">
+                        {phaseEvidence.dimensions.map((dimension) => (
+                          <div
+                            key={dimension.dimensionId}
+                            className="rounded-lg border bg-background px-3 py-2"
+                          >
+                            <p className="text-sm font-medium">
+                              {dimension.dimensionLabel}
+                            </p>
+                            <p className="mt-1 text-[11px] text-muted-foreground">
+                              {dimension.supportedCount} /{" "}
+                              {dimension.requiredSupportedObservations} clean
+                              supporting observation
+                              {dimension.requiredSupportedObservations === 1
+                                ? ""
+                                : "s"}
+                            </p>
+                            <div className="mt-2 space-y-1">
+                              {dimension.supportingBehaviors.map(
+                                (behaviorLabel, index) => (
+                                  <p
+                                    key={`${dimension.dimensionId}:support:${index}`}
+                                    className="text-xs text-muted-foreground"
+                                  >
+                                    • {behaviorLabel}
+                                  </p>
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {placementSupportEvidence &&
+              placementSupportEvidence.dimensions.length > 0 && (
+                <div className="mt-4 rounded-xl border p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Clean evidence inside {decision.placementPhase}
+                  </p>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {placementSupportEvidence.dimensions.map((dimension) => (
+                      <div
+                        key={dimension.dimensionId}
+                        className="rounded-lg bg-muted/30 px-3 py-2"
+                      >
+                        <p className="text-sm font-medium">
+                          {dimension.dimensionLabel}
+                        </p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {dimension.supportedCount} /{" "}
+                          {dimension.requiredSupportedObservations} clean
+                          supporting observation
+                          {dimension.requiredSupportedObservations === 1
+                            ? ""
+                            : "s"}
+                        </p>
+                        <div className="mt-2 space-y-1">
+                          {dimension.supportingBehaviors.map(
+                            (behaviorLabel, index) => (
+                              <p
+                                key={`${dimension.dimensionId}:entry-support:${index}`}
+                                className="text-xs text-muted-foreground"
+                              >
+                                • {behaviorLabel}
+                              </p>
+                            ),
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
             {decision.placementEvidence.length > 0 && (
               <div className="mt-4 rounded-xl border p-4">
