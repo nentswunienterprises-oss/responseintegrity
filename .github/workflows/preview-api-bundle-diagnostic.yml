@@ -24,13 +24,14 @@ jobs:
 
       - name: Bundle preview API
         run: |
+          mkdir -p .tmp
           npx esbuild api/index.ts \
             --bundle \
             --platform=node \
             --format=esm \
             --packages=external \
             --target=node24 \
-            --outfile=/tmp/ri-preview-api.mjs
+            --outfile=.tmp/ri-preview-api.mjs
 
       - name: Import bundled preview API
         env:
@@ -41,13 +42,5 @@ jobs:
           DATABASE_URL: postgresql://user:pass@localhost:5432/db
           SESSION_SECRET: diagnostic-session-secret
         run: |
-          node --input-type=module <<'NODE'
-          try {
-            await import('file:///tmp/ri-preview-api.mjs');
-            console.log('PREVIEW_API_BUNDLE_IMPORT=PASS');
-          } catch (error) {
-            console.error('PREVIEW_API_BUNDLE_IMPORT=FAIL');
-            console.error(error?.stack || error);
-            process.exit(1);
-          }
-          NODE
+          node .tmp/ri-preview-api.mjs
+          echo 'PREVIEW_API_BUNDLE_IMPORT=PASS'
