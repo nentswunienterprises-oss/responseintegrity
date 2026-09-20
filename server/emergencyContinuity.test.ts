@@ -874,3 +874,42 @@ test("parent intro proposal uses direct PostgreSQL in emergency mode", () => {
   assert.match(routeSource, /UPDATE public\.parent_enrollments[\s\S]*?intro_session_booked/);
   assert.match(routeSource, /return res\.status\(200\)\.json/);
 });
+
+test("proposal surfaces ignore partial evidence-native diagnosis artifacts", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const runnerSource = readFileSync(
+    resolve(process.cwd(), "client/src/components/tutor/EvidenceCompleteDiagnosisRunner.tsx"),
+    "utf8",
+  );
+
+  const latestStart = routesSource.indexOf(
+    'app.get("/api/tutor/students/:studentId/latest-intro-drill"',
+  );
+  const latestEnd = routesSource.indexOf(
+    '// Tutor: Activate a topic for a student',
+    latestStart,
+  );
+  const latestRoute = routesSource.slice(latestStart, latestEnd);
+
+  assert.ok(latestStart >= 0);
+  assert.ok(latestEnd > latestStart);
+  assert.match(latestRoute, /response_integrity_diagnosis_runs/);
+  assert.match(latestRoute, /r\.status = 'completed'/);
+  assert.match(latestRoute, /r\.source_drill_id::text = d\.id::text/);
+
+  const proposalStart = routesSource.indexOf('app.post("/api/tutor/proposal"');
+  const proposalEnd = routesSource.indexOf(
+    "// Parent: Get proposal",
+    proposalStart,
+  );
+  const proposalRoute = routesSource.slice(proposalStart, proposalEnd);
+
+  assert.ok(proposalStart >= 0);
+  assert.match(proposalRoute, /Diagnosis finalization is incomplete/);
+  assert.match(proposalRoute, /status = 'completed'/);
+
+  assert.match(
+    runnerSource,
+    /!state\.finalized && state\.decision\?\.complete[\s\S]*?postHistory\(id, state\.probeHistory\)/,
+  );
+});
