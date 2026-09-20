@@ -53,6 +53,7 @@ test("Clarity High proposal does not overclaim sustained or consistent performan
   assert.match(focus, /remaining instability/);
   assert.doesNotMatch(focus, /strong, consistent|consistently/i);
   assert.match(priority, /Clarity High → High Maintenance qualifying drill/);
+  assert.doesNotMatch(priority, /High Maintenance drill/i);
   assert.match(priority, /Reason for the method/);
   assert.match(priority, /before any phase progression/);
 });

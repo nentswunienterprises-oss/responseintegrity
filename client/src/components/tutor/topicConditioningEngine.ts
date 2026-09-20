@@ -112,8 +112,8 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       primaryAction: "Run Structured Execution drill",
       nextActions: [
         "Run Structured Execution drill",
-        "Run Structured Execution drill",
         "Confirm repeatable execution stability",
+        "Increase independent execution consistency",
       ],
       rules: ["Do NOT phase advance yet", "A later qualifying Structured Execution drill may earn High Maintenance"],
     },

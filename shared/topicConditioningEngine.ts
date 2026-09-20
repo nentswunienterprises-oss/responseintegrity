@@ -411,8 +411,8 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       rules: ["Do NOT phase advance yet", "A later qualifying Structured Execution drill may earn High Maintenance"],
       nextActions: [
         "Run Structured Execution drill",
-        "Run Structured Execution drill",
         "Confirm repeatable execution stability",
+        "Increase independent execution consistency",
       ],
     },
     "High Maintenance": {
