@@ -47,3 +47,24 @@ test("Production Link canonical host remains configurable through APP_BASE_URL",
     );
   });
 });
+
+
+test("legacy Territorial Tutoring APP_BASE_URL never leaks into generated Production Links", () => {
+  withAppBaseUrl("https://app.territorialtutoring.co.za", () => {
+    const url = buildCanonicalProductionLinkUrl("AFIXLEGACY", "demand");
+    assert.equal(
+      url,
+      "https://app.responseintegrity.co.za/?production=AFIXLEGACY&pipeline=demand",
+    );
+  });
+});
+
+test("invalid APP_BASE_URL falls back to the Response Integrity app host", () => {
+  withAppBaseUrl("not a url", () => {
+    const url = buildCanonicalProductionLinkUrl("AFIXINVALID", "demand");
+    assert.equal(
+      url,
+      "https://app.responseintegrity.co.za/?production=AFIXINVALID&pipeline=demand",
+    );
+  });
+});

@@ -332,6 +332,17 @@ test("emergency executive gateway cannot invoke Supabase HTTP", () => {
   assert.match(source, /FROM public\.executive_role_appointments/);
 });
 
+test("COO Production Link creation keeps the authoritative server session usable without a client Supabase token", () => {
+  const source = readFileSync(resolve(process.cwd(), "client/src/pages/executive/coo/dashboard.tsx"), "utf8");
+  const start = source.indexOf("const handleCreateAffiliate");
+  const end = source.indexOf("// Delete pilot request mutation", start);
+  const handler = source.slice(start, end);
+
+  assert.doesNotMatch(handler, /if \(!accessToken\) throw/);
+  assert.match(handler, /credentials:\s*"include"/);
+  assert.match(handler, /if \(accessToken\) \{[\s\S]*headers\.Authorization/);
+});
+
 test("executive dashboard queries do not poll restricted emergency endpoints", () => {
   const metricsSource = readFileSync(resolve(process.cwd(), "client/src/pages/executive/hr/dashboard.tsx"), "utf8");
   const trafficSource = readFileSync(resolve(process.cwd(), "client/src/pages/executive/hr/traffic.tsx"), "utf8");
