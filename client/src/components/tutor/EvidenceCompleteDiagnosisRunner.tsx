@@ -389,6 +389,20 @@ export default function EvidenceCompleteDiagnosisRunner() {
         (dimensionId) => DIAGNOSIS_OBSERVATION_MATRIX[dimensionId].label,
       )
     : [];
+  const placementPhaseIndex = decision?.placementPhase
+    ? PHASE_ORDER.indexOf(decision.placementPhase)
+    : -1;
+  const earlierClearedPhases =
+    placementPhaseIndex > 0 && decision
+      ? decision.phaseStates
+          .slice(0, placementPhaseIndex)
+          .filter((state) => state.status === "supported")
+          .map((state) => state.phase)
+      : [];
+  const allResponseLayersSupported = Boolean(
+    decision?.phaseStates.length &&
+      decision.phaseStates.every((state) => state.status === "supported"),
+  );
   const nextAction =
     decision?.placementPhase && decision?.stability
       ? NEXT_ACTION_ENGINE[decision.placementPhase][decision.stability]
@@ -398,9 +412,11 @@ export default function EvidenceCompleteDiagnosisRunner() {
       ? "The decisive clean behavior showed a phase-defining breakdown. That maps to Low because the capability was substantially absent or broke at meaningful exposure."
       : decision?.stability === "Medium"
         ? "The decisive clean behavior was conditional or materially unstable. That maps to Medium because the capability exists, but does not yet hold reliably."
-        : decision?.stability === "High"
-          ? "The decisive clean behavior was near-stable: the capability was substantially present and usable, but not fully clean. That is stronger than conditional or breakdown evidence, so the starting stability is High rather than Medium or Low."
-          : null;
+        : decision?.stability === "High" && allResponseLayersSupported
+          ? "All four response layers were cleanly supported, including the required repeated timed evidence. Diagnosis still returns High because High Maintenance is training-earned and cannot be minted by diagnosis."
+          : decision?.stability === "High"
+            ? "The decisive clean behavior was near-stable: the capability was substantially present and usable, but not fully clean. That is stronger than conditional or breakdown evidence, so the starting stability is High rather than Medium or Low."
+            : null;
 
   return (
     <main className="min-h-screen bg-background px-4 py-8 sm:px-6">
@@ -463,9 +479,15 @@ export default function EvidenceCompleteDiagnosisRunner() {
                   Why {decision.placementPhase || "this phase"}
                 </p>
                 <p className="mt-2 text-sm leading-6">{decision.reason}</p>
+                {earlierClearedPhases.length > 0 && (
+                  <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                    Earlier response layers cleanly supported:{" "}
+                    {earlierClearedPhases.join(" → ")}.
+                  </p>
+                )}
                 {placementSupportedLabels.length > 0 && (
                   <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                    Cleanly supported in {decision.placementPhase}:{" "}
+                    Cleanly supported inside {decision.placementPhase}:{" "}
                     {placementSupportedLabels.join(", ")}.
                   </p>
                 )}

@@ -96,6 +96,25 @@ The universal stability meanings are:
 
 A phase can therefore be the correct diagnosis entry phase at High when its phase-defining capability is substantially present, but a decision-relevant behavior remains near-stable rather than fully supported. High is not a claim that the phase has already demonstrated sustained stability.
 
+## Completion explanation contract
+
+A completed diagnosis must be auditable without requiring knowledge of internal behavior classes or source code.
+
+Every completion surface must explain four things:
+
+1. **Why this phase** - identify the entry phase as the first unsupported response layer and, for any higher-phase entry, explicitly name every earlier response layer that was cleanly supported.
+2. **Why this stability** - connect the decisive clean behavior to the universal categorical meaning: `breakdown -> Low`, `conditional -> Medium`, `near_stable -> High`.
+3. **What behavior decided it** - preserve the exact dimension and observed behavior label that created the entry state.
+4. **What happens next** - show the state-engine training move without implying that diagnosis itself earned High Maintenance or phase progression.
+
+There is one deliberate High exception to the near-stable rule: when all four response layers are fully supported, including the required repeated timed evidence, diagnosis ends at **Time Pressure Stability / High** because diagnosis is not allowed to mint High Maintenance. That result must be explained as an authority boundary, not falsely described as near-stable behavior.
+
+Higher-phase entries therefore require an explicit proof chain:
+
+- Structured Execution entry -> Clarity was cleanly supported;
+- Controlled Discomfort entry -> Clarity and Structured Execution were cleanly supported;
+- Time Pressure Stability entry -> Clarity, Structured Execution and Controlled Discomfort were cleanly supported.
+
 ## Repetition law
 
 Repetition is a diagnostic instrument, not a diagnostic requirement.

@@ -539,10 +539,19 @@ function derivePlacementStability(
 function unsupportedReason(
   phase: TopicPhase,
   placementEvidence: DiagnosisPlacementEvidence[],
+  phaseStates: DiagnosisPhaseState[],
 ) {
+  const placementIndex = PHASES.indexOf(phase);
+  const earlierSupportedPhases = phaseStates
+    .slice(0, placementIndex)
+    .filter((state) => state.status === "supported")
+    .map((state) => state.phase);
+  const earlierText = earlierSupportedPhases.length
+    ? ` Earlier layers cleanly supported: ${earlierSupportedPhases.join(", ")}.`
+    : "";
   const labels = Array.from(new Set(placementEvidence.map((item) => item.dimensionLabel)));
-  const evidenceText = labels.length ? ` Evidence: ${labels.join(", ")}.` : "";
-  return `${phase} is the first response layer with direct clean behavioral evidence that does not meet the support contract.${evidenceText} Training should begin here.`;
+  const evidenceText = labels.length ? ` Decisive evidence: ${labels.join(", ")}.` : "";
+  return `${phase} is the first response layer with direct clean behavioral evidence that does not meet the support contract.${earlierText}${evidenceText} Training should begin here.`;
 }
 
 export function evaluateEvidenceCompleteDiagnosis(
@@ -610,7 +619,7 @@ export function evaluateEvidenceCompleteDiagnosis(
         confidence:
           cleanProbeCount > 1 && !contaminatedProbeCount ? "strong" : "sufficient",
         nextProbeId: null,
-        reason: unsupportedReason(phase, placementEvidence),
+        reason: unsupportedReason(phase, placementEvidence, phaseStates),
         placementEvidence,
       };
     }

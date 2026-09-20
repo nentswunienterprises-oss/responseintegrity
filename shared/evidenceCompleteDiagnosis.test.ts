@@ -11,6 +11,11 @@ import {
   DIAGNOSIS_OBSERVATION_MATRIX,
   type DiagnosisBehaviorClass,
 } from "./diagnosisObservationMatrix";
+import {
+  PHASES,
+  type TopicPhase,
+  type TopicStability,
+} from "./topicConditioningEngine";
 
 const behavior = (
   values: Partial<Record<DiagnosisDimensionId, string>>,
@@ -255,6 +260,132 @@ test("lower-layer confirmation isolates a Time Pressure breakdown", () => {
   assert.equal(decision.complete, true);
   assert.equal(decision.placementPhase, "Time Pressure Stability");
   assert.equal(decision.stability, "Low");
+});
+
+
+type DiagnosisStartingStability = Exclude<TopicStability, "High Maintenance">;
+
+const behaviorClassByStability: Record<
+  DiagnosisStartingStability,
+  DiagnosisBehaviorClass
+> = {
+  Low: "breakdown",
+  Medium: "conditional",
+  High: "near_stable",
+};
+
+function placementDecisionFor(
+  phase: TopicPhase,
+  stability: DiagnosisStartingStability,
+) {
+  if (phase === "Clarity") {
+    const decisiveBehavior = {
+      Low: "no_reason",
+      Medium: "partial_reason",
+      High: "correct_reason_imprecise",
+    }[stability];
+
+    let state = createEvidenceCompleteDiagnosisState("Clarity");
+    state = run(state, "clarity.recognition", {
+      ...claritySupported,
+      "clarity.reason": decisiveBehavior,
+    });
+    return evaluateEvidenceCompleteDiagnosis(state);
+  }
+
+  if (phase === "Structured Execution") {
+    const decisiveBehavior = {
+      Low: "no_start",
+      Medium: "guessing_or_disordered_start",
+      High: "valid_start_after_hesitation",
+    }[stability];
+
+    let state = createEvidenceCompleteDiagnosisState("Structured Execution");
+    state = run(state, "stack.normal_independent", {
+      ...claritySupported,
+      ...executionImmediateSupported,
+      "execution.start": decisiveBehavior,
+    });
+    return evaluateEvidenceCompleteDiagnosis(state);
+  }
+
+  if (phase === "Controlled Discomfort") {
+    const decisiveBehavior = {
+      Low: "withdraws_or_freezes",
+      Medium: "avoidant_hesitation",
+      High: "brief_hesitation_then_attempt",
+    }[stability];
+
+    let state = createEvidenceCompleteDiagnosisState("Controlled Discomfort");
+    state = run(state, "stack.challenge_no_timer", {
+      ...claritySupported,
+      ...executionImmediateSupported,
+      ...difficultySupported,
+      "difficulty.initial_response": decisiveBehavior,
+    });
+    state = run(state, "execution.repeatability", executionSupported);
+    return evaluateEvidenceCompleteDiagnosis(state);
+  }
+
+  const decisiveBehavior = {
+    Low: "timed_freeze",
+    Medium: "timed_disordered_delay",
+    High: "timed_valid_with_disruption",
+  }[stability];
+
+  let state = createEvidenceCompleteDiagnosisState("Time Pressure Stability");
+  state = run(state, "stack.timed_challenge", {
+    ...claritySupported,
+    ...executionImmediateSupported,
+    ...difficultySupported,
+    ...timeSupported,
+    "time.start": decisiveBehavior,
+  });
+  state = run(state, "execution.repeatability", executionSupported);
+  state = run(state, "difficulty.recovery", difficultySupported);
+  return evaluateEvidenceCompleteDiagnosis(state);
+}
+
+test("every phase entry uses the same behavior-native Low Medium High contract and explains cleared lower layers", () => {
+  const stabilities: DiagnosisStartingStability[] = ["Low", "Medium", "High"];
+
+  for (const phase of PHASES) {
+    for (const stability of stabilities) {
+      const decision = placementDecisionFor(phase, stability);
+
+      assert.equal(decision.complete, true, `${phase} / ${stability} should complete`);
+      assert.equal(decision.placementPhase, phase);
+      assert.equal(decision.stability, stability);
+      assert.ok(
+        decision.placementEvidence.some(
+          (item) => item.behaviorClass === behaviorClassByStability[stability],
+        ),
+        `${phase} / ${stability} should be justified by the matching behavior class`,
+      );
+
+      const phaseIndex = PHASES.indexOf(phase);
+      const earlierPhases = PHASES.slice(0, phaseIndex);
+      for (const earlierPhase of earlierPhases) {
+        const earlierState = decision.phaseStates.find(
+          (state) => state.phase === earlierPhase,
+        );
+        assert.equal(
+          earlierState?.status,
+          "supported",
+          `${earlierPhase} must clear before ${phase} can be the entry phase`,
+        );
+        assert.ok(
+          decision.reason.includes(earlierPhase),
+          `${phase} reasoning should name cleared earlier layer ${earlierPhase}`,
+        );
+      }
+
+      if (earlierPhases.length > 0) {
+        assert.match(decision.reason, /Earlier layers cleanly supported:/);
+      }
+      assert.match(decision.reason, /Decisive evidence:/);
+    }
+  }
 });
 
 test("all-clear diagnosis requires repeated temporal evidence and never mints High Maintenance", () => {

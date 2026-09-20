@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  PARENT_DASHBOARD_COPY_BY_STATE,
+  PHASES,
   computeTransition,
   mapObservationsToBehavior,
   normalizePhase,
@@ -52,4 +54,21 @@ test("normalizePhase falls back conservatively to Clarity", () => {
 test("tryParsePhase rejects unknown values", () => {
   assert.equal(tryParsePhase("Clarity"), "Clarity");
   assert.equal(tryParsePhase("legacy unknown"), null);
+});
+
+
+test("High parent copy across every phase does not overclaim sustained stability", () => {
+  for (const phase of PHASES) {
+    const high = PARENT_DASHBOARD_COPY_BY_STATE[phase].High;
+    const highMaintenance =
+      PARENT_DASHBOARD_COPY_BY_STATE[phase]["High Maintenance"];
+
+    assert.doesNotMatch(high.status, /sustained|consistently/i);
+    assert.match(high.meaning, /substantially present and usable/i);
+    assert.match(high.meaning, /not yet considered sustained/i);
+    assert.match(
+      `${highMaintenance.status} ${highMaintenance.meaning}`,
+      /sustained|held|consistently/i,
+    );
+  }
 });

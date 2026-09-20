@@ -241,7 +241,7 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     },
     High: {
       status: "Your child shows strong understanding of this topic.",
-      meaning: "The core understanding is substantially present, but a minor gap or remaining confirmation means Clarity is not yet considered sustained.",
+      meaning: "The core understanding is substantially present and usable, but a minor gap or remaining confirmation means Clarity is not yet considered sustained.",
       focus: "We are strengthening the remaining gap and verifying that clarity holds consistently before progression.",
     },
     "High Maintenance": {
@@ -262,9 +262,9 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
       focus: "We are increasing independent practice to strengthen consistency.",
     },
     High: {
-      status: "Your child can now solve problems consistently in this topic.",
-      meaning: "They are able to follow the correct steps independently with minimal support.",
-      focus: "We are verifying sustained high execution through repeated, constrained practice before introducing more challenging questions to strengthen their response under difficulty.",
+      status: "Your child shows strong independent execution in this topic.",
+      meaning: "Independent execution is substantially present and usable, but a minor inconsistency or remaining confirmation means it is not yet considered sustained.",
+      focus: "We are strengthening the remaining inconsistency and verifying that execution holds reliably before adding greater difficulty.",
     },
     "High Maintenance": {
       status: "Your child has sustained strong execution consistency in this topic.",
@@ -284,9 +284,9 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
       focus: "We are increasing exposure to harder questions to build confidence under difficulty.",
     },
     High: {
-      status: "Your child is handling difficult problems well.",
-      meaning: "They are able to stay structured and solve unfamiliar questions with stability.",
-      focus: "We are preparing them to perform under time pressure.",
+      status: "Your child shows strong control when problems become difficult.",
+      meaning: "Response control under difficulty is substantially present and usable, but a minor instability or remaining confirmation means it is not yet considered sustained.",
+      focus: "We are strengthening the remaining instability and verifying that control holds across difficult work before adding time pressure.",
     },
     "High Maintenance": {
       status: "Your child has sustained strong performance under challenge in this topic.",
@@ -306,9 +306,9 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
       focus: "We are increasing timed practice to strengthen consistency.",
     },
     High: {
-      status: "Your child is performing consistently under time pressure.",
-      meaning: "They can solve problems accurately and maintain structure even under time constraints.",
-      focus: "We are maintaining performance and preparing them to transfer this skill to new topics.",
+      status: "Your child shows strong control under time pressure.",
+      meaning: "Timed response control is substantially present and usable, but it is not yet considered sustained High Maintenance.",
+      focus: "We are verifying that structure, pace, and completion hold consistently before maintenance is confirmed.",
     },
     "High Maintenance": {
       status: "Your child has sustained top stability under time pressure.",
