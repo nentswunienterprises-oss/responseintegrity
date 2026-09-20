@@ -23,6 +23,7 @@ import {
   EVIDENCE_COMPLETE_DIAGNOSIS_SCHEMA_ID,
   EVIDENCE_COMPLETE_DIAGNOSIS_SCHEMA_VERSION,
   buildEvidenceCompleteDiagnosisLedgerRows,
+  canonicalizeEvidenceJson,
   replayEvidenceCompleteDiagnosis,
 } from "@shared/evidenceCompleteDiagnosisSubmission";
 
@@ -335,7 +336,7 @@ async function resolveSessionContext(input: {
   };
 }
 
-const canonicalJson = (value: unknown) => JSON.stringify(value ?? null);
+const canonicalJson = canonicalizeEvidenceJson;
 
 const assertHistoryPrefix = (
   existingHistory: DiagnosisProbeResult[],
