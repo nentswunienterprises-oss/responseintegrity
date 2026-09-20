@@ -8,9 +8,10 @@ on:
       - 'scripts/demand-preview-e2e.mjs'
       - '.github/workflows/demand-gateway-preview-e2e.yml'
       - 'client/src/lib/config.ts'
-      - 'api/index.ts'
+      - 'api/**'
       - 'server/supabaseAuth.ts'
       - 'vercel.json'
+      - '.vercelignore'
   workflow_dispatch:
 
 concurrency:
@@ -32,6 +33,67 @@ jobs:
           cache: npm
 
       - run: npm ci --ignore-scripts
+
+      - name: Verify preview deployment inputs
+        run: |
+          if grep -Eq '^(api/|server/)
+        run: |
+          node --input-type=module <<'NODE'
+          const base = process.env.SMOKE_BASE_URL.replace(/\/$/, "");
+          const url = base + "/api/__proof/environment";
+          let last = null;
+          for (let attempt = 1; attempt <= 18; attempt += 1) {
+            try {
+              const response = await fetch(url, { redirect: "manual" });
+              const text = await response.text();
+              const contentType = response.headers.get("content-type") || "";
+              last = {
+                attempt,
+                status: response.status,
+                contentType,
+                bodyStart: text.slice(0, 500),
+              };
+              console.log("PREVIEW_ROUTE_PROBE", JSON.stringify(last));
+              if (response.ok && contentType.includes("application/json")) {
+                const body = JSON.parse(text);
+                if (
+                  body?.vercelEnv === "preview" &&
+                  ["jftlxeacphvbnhbsbpxc", "tzgkiaiwnhmnzznvmbfg"].includes(body?.supabaseProjectRef)
+                ) {
+                  process.exit(0);
+                }
+              }
+            } catch (error) {
+              last = { attempt, error: String(error) };
+              console.log("PREVIEW_ROUTE_PROBE", JSON.stringify(last));
+            }
+            await new Promise((resolve) => setTimeout(resolve, 5000));
+          }
+          console.error("Preview Proof routing probe failed", JSON.stringify(last));
+          process.exit(1);
+          NODE
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run deployed Demand Gateway smoke
+        run: node scripts/demand-preview-e2e.mjs
+
+      - name: Upload Demand Gateway smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demand-gateway-preview-e2e
+          path: artifacts/demand-preview-e2e
+          if-no-files-found: warn
+ .vercelignore; then
+            echo "Preview backend is excluded by .vercelignore"
+            exit 1
+          fi
+          test -f api/index.ts
+          test -f server/routes.ts
 
       - name: Probe preview Proof routing
         run: |
