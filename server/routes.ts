@@ -349,29 +349,53 @@ function isSandboxPaymentEnrollment(enrollment: any) {
   );
 }
 
+const PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID = "10000100";
+const PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY = "46f0cd694581a";
+
+function isValidPayfastMerchantId(value: string) {
+  return /^\d{8}$/.test(String(value || "").trim());
+}
+
+function isValidPayfastMerchantKey(value: string) {
+  return /^[A-Za-z0-9]{13}$/.test(String(value || "").trim());
+}
+
 function getPayfastConfig(useSandbox: boolean) {
-  // PayFast can use separate sandbox credentials when needed.
-  const merchantId = String(
-    useSandbox ? process.env.PAYFAST_SANDBOX_MERCHANT_ID || process.env.PAYFAST_MERCHANT_ID : process.env.PAYFAST_MERCHANT_ID || ""
-  ).trim();
-  const merchantKey = String(
-    useSandbox ? process.env.PAYFAST_SANDBOX_MERCHANT_KEY || process.env.PAYFAST_MERCHANT_KEY : process.env.PAYFAST_MERCHANT_KEY || ""
-  ).trim();
-  const passphrase = String(
-    useSandbox ? process.env.PAYFAST_SANDBOX_PASSPHRASE || process.env.PAYFAST_PASSPHRASE : process.env.PAYFAST_PASSPHRASE || ""
-  ).trim();
+  if (useSandbox) {
+    const configuredMerchantId = String(process.env.PAYFAST_SANDBOX_MERCHANT_ID || "").trim();
+    const configuredMerchantKey = String(process.env.PAYFAST_SANDBOX_MERCHANT_KEY || "").trim();
+    const hasUsableSandboxCredentials =
+      isValidPayfastMerchantId(configuredMerchantId) &&
+      isValidPayfastMerchantKey(configuredMerchantKey);
+
+    return {
+      merchantId: hasUsableSandboxCredentials
+        ? configuredMerchantId
+        : PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID,
+      merchantKey: hasUsableSandboxCredentials
+        ? configuredMerchantKey
+        : PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY,
+      passphrase: hasUsableSandboxCredentials
+        ? String(process.env.PAYFAST_SANDBOX_PASSPHRASE || "").trim()
+        : "",
+      processUrl: getPayfastProcessUrl(true),
+    };
+  }
 
   return {
-    merchantId,
-    merchantKey,
-    passphrase,
-    processUrl: getPayfastProcessUrl(useSandbox),
+    merchantId: String(process.env.PAYFAST_MERCHANT_ID || "").trim(),
+    merchantKey: String(process.env.PAYFAST_MERCHANT_KEY || "").trim(),
+    passphrase: String(process.env.PAYFAST_PASSPHRASE || "").trim(),
+    processUrl: getPayfastProcessUrl(false),
   };
 }
 
 function isMonthlyPackagePaymentReady(useSandbox = usePayfastSandbox()) {
   const config = getPayfastConfig(useSandbox);
-  return !!(config.merchantId && config.merchantKey);
+  return (
+    isValidPayfastMerchantId(config.merchantId) &&
+    isValidPayfastMerchantKey(config.merchantKey)
+  );
 }
 
 function buildPackagePaymentDescription(
