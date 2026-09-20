@@ -896,40 +896,53 @@ export default function ProposalView({
         </CardContent>
       </Card>}
 
-      <Card className="bg-gradient-to-r from-primary/10 to-primary/5">
-        <CardContent className="pt-6">
-          <h3 className="font-bold text-lg mb-2">{isLiveTrainingView || isLiveTrainingStatePending ? "Parent Note" : "Parent Alignment"}</h3>
-          {isLiveTrainingView ? (
-            <ul className="text-sm text-muted-foreground space-y-1">
-              {hasMultipleLiveTopics ? (
-                <>
-                  <li>- This plan reflects {studentFirstName}'s current live training position across {currentTopicSummary}.</li>
-                  <li>- Each topic advances according to its own stability.</li>
-                </>
-              ) : (
-                <>
-                  <li>- This plan reflects {studentFirstName}'s current training position, not a fixed program.</li>
-                  <li>- As their execution stabilizes, the training phase will advance.</li>
-                </>
-              )}
-            </ul>
-          ) : isLiveTrainingStatePending ? (
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li>- This view no longer falls back to onboarding-era topic placement once active training has begun.</li>
-              <li>- If live state is still syncing, the current training position will appear here as soon as the latest topic-conditioning state is available.</li>
-            </ul>
-          ) : (
-            <>
-              <p className="text-sm text-muted-foreground">{`This training focuses on how ${studentFirstName} responds when work becomes difficult.
-            The goal is to build structured thinking, independent execution, and stability
-            under pressure.`}</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Progress is measured through behavior and response, not only marks.
-              </p>
-            </>
-          )}
-        </CardContent>
-      </Card>
+      {showApprovedDiagnosisSnapshot && diagnosisProposalSnapshot ? (
+        <Card>
+          <CardContent className="pt-6 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              <strong className="text-foreground">Important Note</strong> - {diagnosisProposalSnapshot.importantNote}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              <strong className="text-foreground">Commitment</strong> - {diagnosisProposalSnapshot.commitment}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="bg-gradient-to-r from-primary/10 to-primary/5">
+          <CardContent className="pt-6">
+            <h3 className="font-bold text-lg mb-2">{isLiveTrainingView || isLiveTrainingStatePending ? "Parent Note" : "Parent Alignment"}</h3>
+            {isLiveTrainingView ? (
+              <ul className="text-sm text-muted-foreground space-y-1">
+                {hasMultipleLiveTopics ? (
+                  <>
+                    <li>- This plan reflects {studentFirstName}'s current live training position across {currentTopicSummary}.</li>
+                    <li>- Each topic advances according to its own stability.</li>
+                  </>
+                ) : (
+                  <>
+                    <li>- This plan reflects {studentFirstName}'s current training position, not a fixed program.</li>
+                    <li>- As their execution stabilizes, the training phase will advance.</li>
+                  </>
+                )}
+              </ul>
+            ) : isLiveTrainingStatePending ? (
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>- This view no longer falls back to onboarding-era topic placement once active training has begun.</li>
+                <li>- If live state is still syncing, the current training position will appear here as soon as the latest topic-conditioning state is available.</li>
+              </ul>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">{`This training focuses on how ${studentFirstName} responds when work becomes difficult.
+              The goal is to build structured thinking, independent execution, and stability
+              under pressure.`}</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Progress is measured through behavior and response, not only marks.
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -956,19 +969,21 @@ export default function ProposalView({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Commitment</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="text-sm text-muted-foreground space-y-1">
-            <li>- Package cadence: {plannedSessionsPerWeek} sessions weekly ({packageSessions} sessions monthly)</li>
-            <li>- Consistent sessions are required</li>
-            <li>- Student is expected to attempt before receiving guidance</li>
-            <li>- Discomfort during learning is part of the process</li>
-          </ul>
-        </CardContent>
-      </Card>
+      {!showApprovedDiagnosisSnapshot && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Commitment</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="text-sm text-muted-foreground space-y-1">
+              <li>- Package cadence: {plannedSessionsPerWeek} sessions weekly ({packageSessions} sessions monthly)</li>
+              <li>- Consistent sessions are required</li>
+              <li>- Student is expected to attempt before receiving guidance</li>
+              <li>- Discomfort during learning is part of the process</li>
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <Separator />
 
