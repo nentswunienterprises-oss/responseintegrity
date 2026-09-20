@@ -9,7 +9,8 @@ on:
       - '.github/workflows/demand-gateway-preview-e2e.yml'
       - 'client/src/lib/config.ts'
       - 'api/**'
-      - 'server/supabaseAuth.ts'
+      - 'server/**'
+      - 'package.json'
       - 'vercel.json'
       - '.vercelignore'
   workflow_dispatch:

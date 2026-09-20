@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run build && npm run build:vercel-api",
   "installCommand": "npm ci",
   "framework": "vite",
   "github": {
@@ -328,6 +328,16 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/__proof/environment",
+      "has": [
+        {
+          "type": "host",
+          "value": "tt-confidence-hub-git-feat-dem-d053fe-relief-works-technologies.vercel.app"
+        }
+      ],
+      "destination": "/api/proof-environment"
+    },
     {
       "source": "/api/:path*",
       "has": [
