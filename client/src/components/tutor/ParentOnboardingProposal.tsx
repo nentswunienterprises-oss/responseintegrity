@@ -66,11 +66,22 @@ export default function ParentOnboardingProposal({
   });
 
   const drillData = drillDataRaw as any;
-  const diagnosisRunId = String(drillData?.id || "").trim();
+  const storedDrill =
+    drillData?.drill && typeof drillData.drill === "object"
+      ? drillData.drill
+      : null;
+  const diagnosisRunId = String(drillData?.id || storedDrill?.id || "").trim();
   const isEvidenceNativeDiagnosis =
     drillData?.summary?.diagnosisEngine === "evidence_native_v2" ||
+    storedDrill?.summary?.diagnosisEngine === "evidence_native_v2" ||
     drillData?.diagnosisEngine === "evidence_native_v2" ||
-    drillData?.diagnosisMode === "evidence_native";
+    storedDrill?.diagnosisEngine === "evidence_native_v2" ||
+    drillData?.diagnosisMode === "evidence_native" ||
+    storedDrill?.diagnosisMode === "evidence_native" ||
+    Array.isArray(drillData?.summary?.placementEvidence) ||
+    Array.isArray(storedDrill?.summary?.placementEvidence) ||
+    Array.isArray(drillData?.summary?.phaseStates) ||
+    Array.isArray(storedDrill?.summary?.phaseStates);
 
   const { data: diagnosisRunDataRaw, isLoading: diagnosisRunLoading } = useQuery({
     queryKey: ["/api/tutor/evidence-complete-diagnosis", diagnosisRunId],
@@ -212,25 +223,50 @@ export default function ParentOnboardingProposal({
     );
   }
 
-  const entryPhase = drillData?.summary?.phase || drillData?.phase || drillData?.phaseObserved || "Clarity";
+  const entryPhase =
+    drillData?.summary?.phase ||
+    storedDrill?.summary?.phase ||
+    drillData?.phase ||
+    storedDrill?.phase ||
+    drillData?.phaseObserved ||
+    "Clarity";
   const startingSignal =
     drillData?.startingPhase ||
+    storedDrill?.startingPhase ||
     drillData?.responseSnapshot?.startingPhase ||
+    storedDrill?.responseSnapshot?.startingPhase ||
     drillData?.summary?.startingPhase ||
+    storedDrill?.summary?.startingPhase ||
     diagnosisRunData?.startingPhase ||
     (isEvidenceNativeDiagnosis && diagnosisRunLoading ? "Loading…" : "Not recorded");
-  const stability = drillData?.summary?.stability || drillData?.stability || drillData?.stabilityObserved || "Low";
-  const topic = drillData?.introTopic || drillData?.topic || "Current class topic";
+  const stability =
+    drillData?.summary?.stability ||
+    storedDrill?.summary?.stability ||
+    drillData?.stability ||
+    storedDrill?.stability ||
+    drillData?.stabilityObserved ||
+    "Low";
+  const topic =
+    drillData?.introTopic ||
+    storedDrill?.introTopic ||
+    drillData?.topic ||
+    storedDrill?.topic ||
+    "Current class topic";
   const trainingEntryPhase = deriveTrainingEntryPhase(entryPhase, stability);
   const placementEvidence = normalizeProposalPlacementEvidence(
-    drillData?.summary?.placementEvidence,
+    drillData?.summary?.placementEvidence ||
+      storedDrill?.summary?.placementEvidence,
   );
   const phaseSupportEvidence = normalizeProposalPhaseSupportEvidence(
-    drillData?.summary?.phaseStates,
+    drillData?.summary?.phaseStates ||
+      storedDrill?.summary?.phaseStates,
     trainingEntryPhase,
   );
   const nextAction =
-    normalizeProposalTrainingAction(drillData?.summary?.nextAction) || "Continue phase work";
+    normalizeProposalTrainingAction(
+      drillData?.summary?.nextAction ||
+        storedDrill?.summary?.nextAction,
+    ) || "Continue phase work";
   const focusArea = buildDiagnosisProposalFocus({
     studentFirstName,
     phase: trainingEntryPhase,
@@ -239,7 +275,9 @@ export default function ParentOnboardingProposal({
   const whyEntry = buildDiagnosisProposalWhyEntry({
     phase: entryPhase,
     placementEvidence,
-    reason: drillData?.summary?.reason,
+    reason:
+      drillData?.summary?.reason ||
+      storedDrill?.summary?.reason,
   });
   const priority = buildDiagnosisProposalPriority({
     studentFirstName,
