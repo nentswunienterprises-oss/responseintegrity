@@ -129,6 +129,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [opportunityStarted, setOpportunityStarted] = useState(false);
+  const [activeLayerIndex, setActiveLayerIndex] = useState(0);
+  const [confirmStep, setConfirmStep] = useState(false);
 
   const postHistory = async (
     id: string,
@@ -200,6 +203,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
           setApiState(state);
           setObservations({});
           setSupportEvent("none");
+          setOpportunityStarted(false);
+          setActiveLayerIndex(0);
+          setConfirmStep(false);
         }
       } catch (bootError) {
         if (!cancelled) {
@@ -228,6 +234,8 @@ export default function EvidenceCompleteDiagnosisRunner() {
   ]);
 
   const currentProbe = apiState?.nextProbe || null;
+  const opportunityNumber =
+    apiState?.opportunityNumber || (apiState?.probeHistory.length || 0) + 1;
   const allDimensionsComplete = currentProbe
     ? currentProbe.dimensions.every((dimensionId) => !!observations[dimensionId])
     : false;
@@ -247,6 +255,47 @@ export default function EvidenceCompleteDiagnosisRunner() {
       ),
     })).filter((group) => group.dimensions.length > 0);
   }, [currentProbe]);
+
+  const activeLayer = groupedDimensions[activeLayerIndex] || null;
+  const activeLayerComplete = activeLayer
+    ? activeLayer.dimensions.every((dimensionId) => !!observations[dimensionId])
+    : false;
+  const recordedBehaviorCount = currentProbe
+    ? currentProbe.dimensions.filter((dimensionId) => observations[dimensionId]).length
+    : 0;
+
+  const scrollRunnerTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const beginOpportunity = () => {
+    setOpportunityStarted(true);
+    setActiveLayerIndex(0);
+    setConfirmStep(false);
+    scrollRunnerTop();
+  };
+
+  const continueFromLayer = () => {
+    if (!activeLayerComplete) return;
+    if (activeLayerIndex < groupedDimensions.length - 1) {
+      setActiveLayerIndex((current) => current + 1);
+    } else {
+      setConfirmStep(true);
+    }
+    scrollRunnerTop();
+  };
+
+  const backWithinOpportunity = () => {
+    if (confirmStep) {
+      setConfirmStep(false);
+      setActiveLayerIndex(Math.max(0, groupedDimensions.length - 1));
+    } else if (activeLayerIndex > 0) {
+      setActiveLayerIndex((current) => current - 1);
+    } else {
+      setOpportunityStarted(false);
+    }
+    scrollRunnerTop();
+  };
 
   const submitProbe = async () => {
     if (!runId || !apiState || !currentProbe || !allDimensionsComplete) return;
@@ -270,6 +319,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
       setApiState(nextState);
       setObservations({});
       setSupportEvent("none");
+      setOpportunityStarted(false);
+      setActiveLayerIndex(0);
+      setConfirmStep(false);
 
       if (nextState.finalized) {
         window.sessionStorage.removeItem(storageKey);
@@ -434,14 +486,21 @@ export default function EvidenceCompleteDiagnosisRunner() {
             </p>
           </section>
         ) : currentProbe ? (
-          <>
-            <section className="rounded-2xl border bg-card p-5 sm:p-7">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          !opportunityStarted ? (
+            <section className="rounded-2xl border bg-card p-5 shadow-sm sm:p-7">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
+                  Ready
+                </span>
+                <span>Observe</span>
+                <span className="text-primary/30">→</span>
+                <span>Confirm</span>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    Opportunity{" "}
-                    {apiState?.opportunityNumber ||
-                      (apiState?.probeHistory.length || 0) + 1}
+                    Opportunity {opportunityNumber}
                   </p>
                   <h2 className="mt-2 text-2xl font-semibold">
                     {currentProbe.label}
@@ -452,129 +511,111 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-4 lg:grid-cols-2">
-                <InfoBlock
-                  label="Question this probe must answer"
-                  text={currentProbe.evidenceQuestion}
-                />
-                <InfoBlock
-                  label="Why this opportunity exists"
-                  text={
-                    apiState?.opportunityPurpose ||
-                    "Resolve the next unanswered evidence question."
-                  }
-                />
-              </div>
+              <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                {currentProbe.evidenceQuestion}
+              </p>
 
-              <div className="mt-4 rounded-xl border p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Specialist instruction
+              <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                  Say / do this now
                 </p>
-                <p className="mt-2 text-sm leading-6">
+                <p className="mt-1 text-base font-semibold leading-6">
                   {currentProbe.specialistInstruction}
                 </p>
               </div>
 
-              <div className="mt-4 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
-                <p className="text-sm font-semibold">
-                  Record behavior, not a judgment
+              <div className="mt-4 rounded-xl border p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Why this opportunity exists
                 </p>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  Do not decide whether the response is Low, Medium, High,
-                  weak, partial, or clear. Select the concrete behavior that
-                  actually happened. If the behavior was not observable or the
-                  observation was contaminated, say so explicitly.
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {apiState?.opportunityPurpose ||
+                    "Resolve the next unanswered evidence question."}
                 </p>
               </div>
-            </section>
 
-            {groupedDimensions.map((group) => (
-              <section
-                key={group.phase}
-                className="rounded-2xl border bg-card p-5 sm:p-7"
-              >
-                <div className="mb-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    Evidence layer
-                  </p>
-                  <h3 className="mt-1 text-xl font-semibold">{group.phase}</h3>
-                </div>
-
-                <div className="space-y-5">
-                  {group.dimensions.map((dimensionId) => {
-                    const definition =
-                      DIAGNOSIS_OBSERVATION_MATRIX[dimensionId];
-                    return (
-                      <div key={dimensionId} className="rounded-xl border p-4">
-                        <p className="font-medium">{definition.label}</p>
-                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                          {definition.observationQuestion}
-                        </p>
-                        <div className="mt-4 grid gap-2 lg:grid-cols-2">
-                          {definition.options.map((option) => (
-                            <BehaviorOption
-                              key={option.id}
-                              option={option}
-                              selected={
-                                observations[dimensionId] === option.id
-                              }
-                              onSelect={() =>
-                                setObservations((current) => ({
-                                  ...current,
-                                  [dimensionId]: option.id,
-                                }))
-                              }
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
-
-            <section className="rounded-2xl border bg-card p-5 sm:p-7">
-              <h3 className="text-lg font-semibold">Did you intervene?</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Intervention is stored separately from the student's behavior.
-                Teaching or first-step assistance cannot silently remain
-                baseline diagnosis evidence.
+              <p className="mt-4 text-xs leading-5 text-muted-foreground">
+                Use one problem for this opportunity. Observe the whole response.
+                The runner will capture one evidence layer at a time so you can
+                stay focused on the student rather than a long form.
               </p>
 
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                {SUPPORT_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setSupportEvent(option.value)}
-                    className={[
-                      "rounded-xl border p-4 text-left",
-                      supportEvent === option.value
-                        ? "border-primary bg-primary/5 ring-1 ring-primary"
-                        : "",
-                      option.contaminated ? "border-amber-500/30" : "",
-                    ].join(" ")}
-                  >
-                    <span className="block text-sm font-medium">
-                      {option.title}
-                    </span>
-                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                      {option.detail}
-                    </span>
-                  </button>
-                ))}
+              <div className="mt-5 flex justify-end">
+                <button
+                  type="button"
+                  className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  onClick={beginOpportunity}
+                >
+                  Begin Opportunity {opportunityNumber}
+                </button>
+              </div>
+            </section>
+          ) : confirmStep ? (
+            <section className="rounded-2xl border bg-card p-5 sm:p-7">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <span className="rounded-full border border-primary/15 px-2 py-1">
+                  Ready ✓
+                </span>
+                <span className="rounded-full border border-primary/15 px-2 py-1">
+                  Observe ✓
+                </span>
+                <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
+                  Confirm
+                </span>
               </div>
 
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {
-                    currentProbe.dimensions.filter(
-                      (id) => observations[id],
-                    ).length
-                  }{" "}
-                  / {currentProbe.dimensions.length} behaviors recorded
+              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Opportunity {opportunityNumber}
+              </p>
+              <h2 className="mt-1 text-2xl font-semibold">
+                Confirm what happened
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {recordedBehaviorCount} / {currentProbe.dimensions.length} behaviors recorded.
+                Record any intervention separately before committing this opportunity.
+              </p>
+
+              <div className="mt-5">
+                <h3 className="text-lg font-semibold">Did you intervene?</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Teaching or first-step assistance cannot silently remain
+                  baseline diagnosis evidence.
                 </p>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {SUPPORT_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setSupportEvent(option.value)}
+                      className={[
+                        "rounded-xl border p-4 text-left",
+                        supportEvent === option.value
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "",
+                        option.contaminated ? "border-amber-500/30" : "",
+                      ].join(" ")}
+                    >
+                      <span className="block text-sm font-medium">
+                        {option.title}
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                        {option.detail}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted/50"
+                  onClick={backWithinOpportunity}
+                  disabled={submitting}
+                >
+                  Back to observations
+                </button>
                 <button
                   type="button"
                   disabled={!allDimensionsComplete || submitting}
@@ -583,11 +624,104 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 >
                   {submitting
                     ? "Recording evidence..."
-                    : "Record behavior and continue"}
+                    : "Confirm Opportunity " + opportunityNumber}
                 </button>
               </div>
             </section>
-          </>
+          ) : activeLayer ? (
+            <section className="rounded-2xl border bg-card p-5 sm:p-7">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <span className="rounded-full border border-primary/15 px-2 py-1">
+                  Ready ✓
+                </span>
+                <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
+                  Observe
+                </span>
+                <span className="text-primary/30">→</span>
+                <span>Confirm</span>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    Opportunity {opportunityNumber} · Evidence layer {activeLayerIndex + 1} of {groupedDimensions.length}
+                  </p>
+                  <h2 className="mt-1 text-2xl font-semibold">
+                    {activeLayer.phase}
+                  </h2>
+                </div>
+                <div className="rounded-lg border px-3 py-2 text-xs text-muted-foreground">
+                  {recordedBehaviorCount} / {currentProbe.dimensions.length} recorded
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                  Keep observing this same opportunity
+                </p>
+                <p className="mt-1 text-sm font-medium leading-6">
+                  {currentProbe.specialistInstruction}
+                </p>
+              </div>
+
+              <div className="mt-4 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+                <p className="text-sm font-semibold">Record behavior, not a judgment</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Select only what actually happened. Do not translate the response
+                  into Low, Medium, High, weak, partial, or clear.
+                </p>
+              </div>
+
+              <div className="mt-5 space-y-5">
+                {activeLayer.dimensions.map((dimensionId) => {
+                  const definition = DIAGNOSIS_OBSERVATION_MATRIX[dimensionId];
+                  return (
+                    <div key={dimensionId} className="rounded-xl border p-4">
+                      <p className="font-medium">{definition.label}</p>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                        {definition.observationQuestion}
+                      </p>
+                      <div className="mt-4 grid gap-2 lg:grid-cols-2">
+                        {definition.options.map((option) => (
+                          <BehaviorOption
+                            key={option.id}
+                            option={option}
+                            selected={observations[dimensionId] === option.id}
+                            onSelect={() =>
+                              setObservations((current) => ({
+                                ...current,
+                                [dimensionId]: option.id,
+                              }))
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted/50"
+                  onClick={backWithinOpportunity}
+                >
+                  {activeLayerIndex === 0 ? "Back to ready" : "Previous layer"}
+                </button>
+                <button
+                  type="button"
+                  disabled={!activeLayerComplete}
+                  onClick={continueFromLayer}
+                  className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {activeLayerIndex === groupedDimensions.length - 1
+                    ? "Review Opportunity"
+                    : "Next Evidence Layer"}
+                </button>
+              </div>
+            </section>
+          ) : null
         ) : null}
       </div>
     </main>
