@@ -6,6 +6,8 @@ on:
       - feat/demand-production-gateway
     paths:
       - 'client/src/pages/executive/coo/dashboard.tsx'
+      - 'server/productionLinkUrls.ts'
+      - 'server/productionLinkUrls.test.ts'
       - 'scripts/coo-production-link-ui-smoke.mjs'
       - '.github/workflows/coo-production-link-ui-smoke.yml'
   workflow_dispatch:
@@ -28,28 +30,6 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts
-
-      - name: Wait for Preview deployment
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-        run: |
-          node --input-type=module <<'NODE'
-          const { GH_TOKEN, REPO, SHA } = process.env;
-          for (let attempt = 1; attempt <= 36; attempt += 1) {
-            const response = await fetch(`https://api.github.com/repos/${REPO}/commits/${SHA}/status`, {
-              headers: { Authorization: `Bearer ${GH_TOKEN}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
-            });
-            const body = await response.json();
-            const vercel = body.statuses?.find((status) => status.context === "Vercel") || null;
-            console.log("VERCEL_WAIT", JSON.stringify({ attempt, state: vercel?.state || null }));
-            if (vercel?.state === "success") process.exit(0);
-            if (vercel?.state === "failure" || vercel?.state === "error") process.exit(1);
-            await new Promise((resolve) => setTimeout(resolve, 10000));
-          }
-          process.exit(1);
-          NODE
 
       - name: Install Playwright
         run: |
