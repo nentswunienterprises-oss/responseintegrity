@@ -1,0 +1,68 @@
+name: COO Production Link UI Smoke
+
+on:
+  push:
+    branches:
+      - feat/demand-production-gateway
+    paths:
+      - 'client/src/pages/executive/coo/dashboard.tsx'
+      - 'scripts/coo-production-link-ui-smoke.mjs'
+      - '.github/workflows/coo-production-link-ui-smoke.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: coo-production-link-ui-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SMOKE_BASE_URL: https://tt-confidence-hub-git-feat-dem-d053fe-relief-works-technologies.vercel.app
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+
+      - name: Wait for Preview deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          const { GH_TOKEN, REPO, SHA } = process.env;
+          for (let attempt = 1; attempt <= 36; attempt += 1) {
+            const response = await fetch(`https://api.github.com/repos/${REPO}/commits/${SHA}/status`, {
+              headers: { Authorization: `Bearer ${GH_TOKEN}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+            });
+            const body = await response.json();
+            const vercel = body.statuses?.find((status) => status.context === "Vercel") || null;
+            console.log("VERCEL_WAIT", JSON.stringify({ attempt, state: vercel?.state || null }));
+            if (vercel?.state === "success") process.exit(0);
+            if (vercel?.state === "failure" || vercel?.state === "error") process.exit(1);
+            await new Promise((resolve) => setTimeout(resolve, 10000));
+          }
+          process.exit(1);
+          NODE
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run COO Production Link UI smoke
+        run: node scripts/coo-production-link-ui-smoke.mjs
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coo-production-link-ui-smoke
+          path: artifacts/coo-production-link-ui-smoke
+          if-no-files-found: warn
