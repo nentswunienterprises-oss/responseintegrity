@@ -836,6 +836,26 @@ test("specialist High Maintenance prep stays in the current phase until confirma
   );
 });
 
+test("PayFast sandbox config never falls back to live merchant credentials", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const configStart = routesSource.indexOf("const PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID");
+  const configEnd = routesSource.indexOf("function buildPackagePaymentDescription", configStart);
+  const configSource = routesSource.slice(configStart, configEnd);
+
+  assert.ok(configStart >= 0);
+  assert.ok(configEnd > configStart);
+  assert.match(configSource, /PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID = "10000100"/);
+  assert.match(configSource, /PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY = "46f0cd694581a"/);
+  assert.match(configSource, /PAYFAST_SANDBOX_MERCHANT_ID/);
+  assert.match(configSource, /PAYFAST_SANDBOX_MERCHANT_KEY/);
+  assert.doesNotMatch(
+    configSource,
+    /useSandbox \? process\.env\.PAYFAST_SANDBOX_MERCHANT_ID \|\| process\.env\.PAYFAST_MERCHANT_ID/,
+  );
+  assert.match(configSource, /isValidPayfastMerchantId\(config\.merchantId\)/);
+  assert.match(configSource, /isValidPayfastMerchantKey\(config\.merchantKey\)/);
+});
+
 test("Sandbox payment gate stays actionable from Parent Sessions and returns there after checkout", () => {
   const sessionsSource = readFileSync(
     resolve(process.cwd(), "client/src/pages/client/parent/sessions.tsx"),
