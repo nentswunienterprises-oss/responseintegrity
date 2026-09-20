@@ -721,17 +721,16 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getFirstProductionLeadByUser(userId: string): Promise<any | null> {
-    const { data, error } = await supabase
-      .from("leads")
-      .select("id, user_id, affiliate_id, production_link_code, tracking_source, tracking_campaign, created_at")
-      .eq("user_id", userId)
-      .not("production_link_code", "is", null)
-      .order("created_at", { ascending: true })
-      .order("id", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (error) throw error;
-    return data || null;
+    const result = await pool.query(
+      `SELECT id, user_id, affiliate_id, production_link_code, tracking_source, tracking_campaign, created_at
+         FROM public.leads
+        WHERE user_id = $1
+          AND production_link_code IS NOT NULL
+        ORDER BY created_at ASC, id ASC
+        LIMIT 1`,
+      [userId],
+    );
+    return result.rows[0] || null;
   }
 
   async getCanonicalLeadByUser(userId: string): Promise<any | null> {
@@ -3204,26 +3203,37 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getAffiliateByCode(code: string): Promise<any | null> {
-    const { data } = await supabase
-      .from("affiliate_codes")
-      .select("affiliate_id, created_by, owner_user_id, owner_type, owner_name, code, type, person_name, entity_name, pipeline_type, campaign_name, status")
-      .eq("code", code)
-      .maybeSingle();
+    const result = await pool.query(
+      `SELECT affiliate_id, created_by, owner_user_id, owner_type, owner_name, code, type,
+              person_name, entity_name, pipeline_type, campaign_name, status
+         FROM public.affiliate_codes
+        WHERE code = $1
+        LIMIT 1`,
+      [code],
+    );
+    const data = result.rows[0];
     if (!data) return null;
-    // Compose affiliate_name: prefer person_name, fallback to entity_name, fallback to null
-    let affiliate_name = data.person_name || data.entity_name || null;
-    let ownershipStatus = data.owner_user_id || data.owner_type || data.owner_name ? "explicit" : "legacy_contributor";
+
+    const affiliate_name = data.person_name || data.entity_name || null;
+    let ownershipStatus = data.owner_user_id || data.owner_type || data.owner_name
+      ? "explicit"
+      : "legacy_contributor";
+
     if (!data.owner_user_id && !data.owner_type && data.affiliate_id) {
-      const { data: owner } = await supabase.from("users").select("role").eq("id", data.affiliate_id).maybeSingle();
-      if (owner?.role !== "affiliate") ownershipStatus = "unresolved_legacy";
+      const ownerResult = await pool.query(
+        `SELECT role FROM public.users WHERE id = $1 LIMIT 1`,
+        [data.affiliate_id],
+      );
+      if (ownerResult.rows[0]?.role !== "affiliate") ownershipStatus = "unresolved_legacy";
     }
+
     return {
       affiliate_id: data.affiliate_id,
       created_by: data.created_by,
       owner_user_id: data.owner_user_id || data.affiliate_id || null,
       owner_type: data.owner_type || data.type || null,
       owner_name: data.owner_name || data.person_name || data.entity_name || null,
-      affiliate_type: data.type || null,
+      affiliate_type: data.type || data.affiliate_type || null,
       affiliate_name,
       production_link_code: data.code,
       pipeline_type: data.pipeline_type || "demand",
@@ -3291,95 +3301,74 @@ export class SupabaseStorage implements IStorage {
     encounterId?: string,
     trackingData?: { trackingSource?: string; trackingCampaign?: string; leadType?: string; fullName?: string; affiliateType?: string; affiliateName?: string; productionLinkCode?: string }
   ): Promise<any> {
-    if (trackingData?.productionLinkCode) {
-      const firstAttributedLead = await this.getFirstProductionLeadByUser(parentId);
-      if (firstAttributedLead) {
-        return firstAttributedLead;
-      }
-      const { data: oldestLead, error: oldestLeadError } = await supabase
-        .from("leads")
-        .select("id, production_link_code")
-        .eq("user_id", parentId)
-        .order("created_at", { ascending: true })
-        .order("id", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (oldestLeadError) throw oldestLeadError;
-      if (oldestLead && !oldestLead.production_link_code) {
-        const claimedLead = await claimProductionLeadIfUnattributed(
-          supabase,
-          oldestLead.id,
-          affiliateId || null,
-          trackingData.productionLinkCode,
-          trackingData.trackingSource,
-          trackingData.trackingCampaign,
+    const firstAttributedLead = trackingData?.productionLinkCode
+      ? await this.getFirstProductionLeadByUser(parentId)
+      : null;
+    if (firstAttributedLead) return firstAttributedLead;
+
+    const oldestResult = await pool.query(
+      `SELECT *
+         FROM public.leads
+        WHERE user_id = $1
+        ORDER BY created_at ASC, id ASC
+        LIMIT 1`,
+      [parentId],
+    );
+    const oldestLead = oldestResult.rows[0] || null;
+
+    if (oldestLead) {
+      if (
+        trackingData?.productionLinkCode &&
+        !oldestLead.production_link_code
+      ) {
+        const claimed = await pool.query(
+          `UPDATE public.leads
+              SET affiliate_id = $2,
+                  production_link_code = $3,
+                  tracking_source = COALESCE($4, 'affiliate'),
+                  tracking_campaign = $5
+            WHERE id = $1
+              AND production_link_code IS NULL
+          RETURNING *`,
+          [
+            oldestLead.id,
+            affiliateId || null,
+            trackingData.productionLinkCode,
+            trackingData.trackingSource || null,
+            trackingData.trackingCampaign || null,
+          ],
         );
-        if (claimedLead) return claimedLead;
-        const canonicalLead = await this.getFirstProductionLeadByUser(parentId);
-        if (canonicalLead) return canonicalLead;
-        return null;
+        if (claimed.rows[0]) return claimed.rows[0];
+        return await this.getFirstProductionLeadByUser(parentId);
       }
-    }
-    // Use null for organic leads (no affiliate)
-    let query = supabase
-      .from("leads")
-      .select("*")
-      .eq("user_id", parentId);
-    if (affiliateId) {
-      query = query.eq("affiliate_id", affiliateId);
-    } else {
-      query = query.is("affiliate_id", null);
-    }
-    if (encounterId) {
-      query = query.eq("encounter_id", encounterId);
-    }
-    const { data: existingLead, error: findError } = await query
-      .order("created_at", { ascending: true })
-      .order("id", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (findError) {
-      console.error("[createLead] Error finding existing lead:", findError);
-      throw findError;
-    }
-    if (existingLead) {
-      console.log("[createLead] Lead already exists:", existingLead);
-      return existingLead;
+
+      const sameAffiliate =
+        (oldestLead.affiliate_id || null) === (affiliateId || null);
+      const sameEncounter =
+        !encounterId || String(oldestLead.encounter_id || "") === String(encounterId);
+      if (sameAffiliate && sameEncounter) return oldestLead;
     }
 
-    // Insert new lead
-    const insertObj: any = {
-      affiliate_id: affiliateId || null,
-      user_id: parentId,
-      encounter_id: encounterId || null,
-      tracking_source: trackingData?.trackingSource || 'affiliate',
-      tracking_campaign: trackingData?.trackingCampaign || null,
-      production_link_code: trackingData?.productionLinkCode || null,
-      onboarding_type: "pending",
-      full_name: trackingData?.fullName || '',
-    };
-    if (trackingData?.leadType) {
-      insertObj.lead_type = trackingData.leadType;
-    }
-    if (trackingData?.affiliateType) {
-      insertObj.affiliate_type = trackingData.affiliateType;
-    }
-    if (trackingData?.affiliateName) {
-      insertObj.affiliate_name = trackingData.affiliateName;
-    }
-
-    console.log("[createLead] Inserting new lead:", insertObj);
-    const { data, error } = await supabase
-      .from("leads")
-      .insert(insertObj)
-      .select()
-      .single();
-    if (error) {
-      console.error("[createLead] Error inserting lead:", error, "Insert object:", insertObj);
-      throw error;
-    }
-    console.log("[createLead] Lead inserted successfully:", data);
-    return data;
+    const result = await pool.query(
+      `INSERT INTO public.leads
+        (affiliate_id, user_id, encounter_id, tracking_source, tracking_campaign,
+         production_link_code, onboarding_type, full_name, lead_type, affiliate_type, affiliate_name)
+       VALUES ($1,$2,$3,$4,$5,$6,'pending',$7,$8,$9,$10)
+       RETURNING *`,
+      [
+        affiliateId || null,
+        parentId,
+        encounterId || null,
+        trackingData?.trackingSource || "affiliate",
+        trackingData?.trackingCampaign || null,
+        trackingData?.productionLinkCode || null,
+        trackingData?.fullName || "",
+        trackingData?.leadType || null,
+        trackingData?.affiliateType || null,
+        trackingData?.affiliateName || null,
+      ],
+    );
+    return result.rows[0];
   }
 
   async getLeads(affiliateId: string): Promise<any[]> {
