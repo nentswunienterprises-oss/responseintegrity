@@ -155,7 +155,7 @@ test("Clarity High session structure targets the actual gap and preserves cleare
   assert.match(combined, /Reason for the method/);
   assert.match(combined, /Problem vocabulary/);
   assert.match(combined, /Method recognition/);
-  assert.match(combined, /Immediate application/);
+  assert.match(combined, /Immediate use of understanding/);
   assert.match(combined, /Clarity High Maintenance drill/);
   assert.doesNotMatch(combined, /Guided practice with immediate correction/i);
 });
@@ -174,8 +174,8 @@ test("Clarity High progress signals track the diagnosed reason gap instead of ge
   assert.match(combined, /gap or imprecision/i);
   assert.match(combined, /Problem vocabulary/);
   assert.match(combined, /Method recognition/);
-  assert.match(combined, /Immediate application/);
+  assert.match(combined, /Immediate use of understanding/);
   assert.match(combined, /earn High Maintenance/i);
-  assert.match(combined, /later qualifying confirmation/i);
+  assert.match(combined, /later independent confirmation/i);
   assert.doesNotMatch(combined, /Less confusion when beginning problems/i);
 });

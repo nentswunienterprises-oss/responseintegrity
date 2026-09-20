@@ -249,7 +249,7 @@ export function buildDiagnosisProposalSessionStructure(input: {
       preservedDimensions.length
         ? `Preserve the already-supported ${humanJoin(preservedDimensions)} behaviors without prompting.`
         : `Preserve the ${input.phase} behaviors that already hold cleanly.`,
-      `Use the state-engine move "${action}" as the immediate training structure.`,
+      `Use "${action}" as the immediate training structure.`,
       "Do not progress to the next response layer until this phase has earned High Maintenance and then held in a later qualifying confirmation.",
     ];
   }
@@ -263,7 +263,7 @@ export function buildDiagnosisProposalSessionStructure(input: {
       preservedDimensions.length
         ? `Keep the already-supported ${humanJoin(preservedDimensions)} behaviors intact while the unstable dimension is rebuilt.`
         : `Keep already-supported ${input.phase} behavior intact while the unstable dimension is rebuilt.`,
-      `Use the state-engine move "${action}" before adding the next response condition.`,
+      `Use "${action}" before adding the next response condition.`,
     ];
   }
 
@@ -316,7 +316,7 @@ export function buildDiagnosisProposalProgressSignals(input: {
       `${input.phase} holds across repeated independent opportunities strongly enough to earn High Maintenance.`,
     );
     signals.push(
-      "A later qualifying confirmation still holds before phase progression.",
+      "A later independent confirmation is still required before phase progression.",
     );
   } else {
     signals.push(
