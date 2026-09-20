@@ -19,6 +19,14 @@ import {
   MONTHLY_SERVICE_PACKAGES,
   type MonthlyPackageKey,
 } from "@shared/servicePackages";
+import {
+  buildDiagnosisProposalFocus,
+  buildDiagnosisProposalJustification,
+  buildDiagnosisProposalPriority,
+  buildDiagnosisProposalRecommendedPlan,
+  buildDiagnosisProposalWhyEntry,
+  normalizeProposalPlacementEvidence,
+} from "@shared/diagnosisProposalCopy";
 
 interface ParentOnboardingProposalProps {
   open: boolean;
@@ -59,43 +67,6 @@ export default function ParentOnboardingProposal({
   // Numeric scores have no diagnosis decision authority.
   const deriveTrainingEntryPhase = (diagnosisPhase: string, _stability: string): string => {
     return diagnosisPhase;
-  };
-
-  // Parent-facing breakdown: describes what the student needs to build at training entry phase
-  const getParentFacingBreakdown = (trainingPhase: string, diagnosisPhase: string, stability: string) => {
-    if (stability === "High" && diagnosisPhase === trainingPhase) {
-      return `${studentFirstName} showed strong, consistent performance in ${diagnosisPhase}. Training begins in the same phase to confirm stability and progress decisions through training sessions.`;
-    }
-    switch (trainingPhase) {
-      case "Clarity":
-        return `${studentFirstName} is not yet consistently identifying what the problem is asking or what method to use first.`;
-      case "Structured Execution":
-        return `${studentFirstName} understands the topic but does not yet apply a stable method consistently without support.`;
-      case "Controlled Discomfort":
-        return `${studentFirstName} can execute reliably in familiar conditions but becomes less stable when the work pushes back.`;
-      case "Time Pressure Stability":
-        return `${studentFirstName} can execute the method but loses structure when time pressure is introduced.`;
-      default:
-        return `${studentFirstName} needs a more stable starting structure.`;
-    }
-  };
-
-  const getParentFacingPriority = (trainingPhase: string, diagnosisPhase: string, stability: string) => {
-    if (stability === "High" && diagnosisPhase === trainingPhase) {
-      return `Training will start at ${trainingPhase} and use observed response evidence to determine whether the state holds, regresses, or progresses.`;
-    }
-    switch (trainingPhase) {
-      case "Clarity":
-        return `We will first help ${studentFirstName} read problems more clearly, recognise what is being asked, and name the structure before solving.`;
-      case "Structured Execution":
-        return `We will train ${studentFirstName} to start independently and follow a repeatable method without being carried through each step.`;
-      case "Controlled Discomfort":
-        return `We will train ${studentFirstName} to stay calm and structured when questions become less familiar or more demanding.`;
-      case "Time Pressure Stability":
-        return `We will train ${studentFirstName} to keep the same structure and decision-making even when time pressure increases.`;
-      default:
-        return `We will first strengthen ${studentFirstName}'s consistency before adding more difficulty.`;
-    }
   };
 
   const getProgressSignals = (trainingPhase: string) => {
@@ -155,11 +126,27 @@ export default function ParentOnboardingProposal({
       const topic = drillData?.introTopic || drillData?.topic || drillData?.summary?.topic || "";
       const trainingEntryPhase = deriveTrainingEntryPhase(diagnosisPhase, stability);
 
-      const recommendedPlan = `${trainingEntryPhase} phase conditioning on ${topic || "primary diagnostic topic"} (entry stability: ${stability}). Diagnosed at ${diagnosisPhase} - training starts at ${trainingEntryPhase}. System-generated from intro drill.`;
-      const evidenceReason =
-        drillData?.summary?.reason ||
-        "The entry state was resolved from the student's observed response behavior.";
-      const justification = `Behavioral diagnosis placed ${topic || "the diagnostic topic"} at ${diagnosisPhase} - ${stability}. ${evidenceReason} Training begins at ${trainingEntryPhase}. Next action: ${drillData?.summary?.nextAction || "Continue phase work"}.`;
+      const placementEvidence = normalizeProposalPlacementEvidence(
+        drillData?.summary?.placementEvidence,
+      );
+      const nextAction =
+        String(drillData?.summary?.nextAction || "").trim() || "Continue phase work";
+      const recommendedPlan = buildDiagnosisProposalRecommendedPlan({
+        topic: topic || "primary diagnostic topic",
+        phase: trainingEntryPhase,
+        stability,
+        nextAction,
+      });
+      const justification = buildDiagnosisProposalJustification({
+        topic: topic || "the diagnostic topic",
+        phase: diagnosisPhase,
+        stability,
+        reason:
+          drillData?.summary?.reason ||
+          "The entry state was resolved from the student's observed response behavior.",
+        nextAction,
+        placementEvidence,
+      });
 
       const response = await apiRequest("POST", "/api/tutor/proposal", {
         studentId,
@@ -246,8 +233,28 @@ export default function ParentOnboardingProposal({
   const stability = drillData?.summary?.stability || drillData?.stability || drillData?.stabilityObserved || "Low";
   const topic = drillData?.introTopic || drillData?.topic || "Current class topic";
   const trainingEntryPhase = deriveTrainingEntryPhase(diagnosisPhase, stability);
-  const breakdown = getParentFacingBreakdown(trainingEntryPhase, diagnosisPhase, stability);
-  const priority = getParentFacingPriority(trainingEntryPhase, diagnosisPhase, stability);
+  const placementEvidence = normalizeProposalPlacementEvidence(
+    drillData?.summary?.placementEvidence,
+  );
+  const nextAction =
+    String(drillData?.summary?.nextAction || "").trim() || "Continue phase work";
+  const focusArea = buildDiagnosisProposalFocus({
+    studentFirstName,
+    phase: trainingEntryPhase,
+    stability,
+  });
+  const whyEntry = buildDiagnosisProposalWhyEntry({
+    phase: diagnosisPhase,
+    placementEvidence,
+    reason: drillData?.summary?.reason,
+  });
+  const priority = buildDiagnosisProposalPriority({
+    studentFirstName,
+    phase: trainingEntryPhase,
+    stability,
+    nextAction,
+    placementEvidence,
+  });
   const progressSignals = getProgressSignals(trainingEntryPhase);
 
   return (
@@ -269,7 +276,7 @@ export default function ParentOnboardingProposal({
           <Card>
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Recommended Monthly Package
+                Monthly Package
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
@@ -300,7 +307,7 @@ export default function ParentOnboardingProposal({
                 })}
               </RadioGroup>
               <p className="mt-3 text-xs text-muted-foreground">
-                Select the frequency appropriate to the diagnosed need. This is a monthly package, not ad-hoc session capacity.
+                Choose the agreed monthly delivery frequency. Diagnosis determines the training entry and first focus; it does not currently choose package frequency.
               </p>
             </CardContent>
           </Card>
@@ -312,33 +319,20 @@ export default function ParentOnboardingProposal({
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              {trainingEntryPhase === "Clarity" && (
-                <p className="text-xs text-muted-foreground">Training will begin at the <span className="text-foreground font-medium">Clarity</span> level - building vocabulary, method recognition, and reason understanding before execution is introduced.</p>
-              )}
-              {trainingEntryPhase === "Structured Execution" && (
-                <p className="text-xs text-muted-foreground">Training will begin at the <span className="text-foreground font-medium">Structured Execution</span> level - building an independent, repeatable method without tutor carry.</p>
-              )}
-              {trainingEntryPhase === "Controlled Discomfort" && (
-                <p className="text-xs text-muted-foreground">Training will begin at the <span className="text-foreground font-medium">Controlled Discomfort</span> level - introducing difficulty and unfamiliar problems while maintaining structure.</p>
-              )}
-              {trainingEntryPhase === "Time Pressure Stability" && (
-                <p className="text-xs text-muted-foreground">Training will begin at the <span className="text-foreground font-medium">Time Pressure Stability</span> level - maintaining full method and structure under timed conditions.</p>
-              )}
+              <p className="text-xs leading-5 text-muted-foreground">{focusArea}</p>
             </CardContent>
           </Card>
 
-          {stability !== "High" && (
-            <Card>
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Where {studentFirstName} Currently Gets Stuck
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <p className="text-xs text-muted-foreground">{breakdown}</p>
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Why Training Starts Here
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <p className="text-xs leading-5 text-muted-foreground">{whyEntry}</p>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader className="pb-2 pt-4 px-4">
@@ -347,7 +341,7 @@ export default function ParentOnboardingProposal({
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <p className="text-xs text-muted-foreground">{priority}</p>
+              <p className="text-xs leading-5 text-muted-foreground">{priority}</p>
             </CardContent>
           </Card>
 
