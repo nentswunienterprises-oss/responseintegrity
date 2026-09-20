@@ -27,6 +27,7 @@ import {
   buildDiagnosisProposalRecommendedPlan,
   buildDiagnosisProposalSessionStructure,
   buildDiagnosisProposalWhyEntry,
+  attachDiagnosisProposalSnapshot,
   normalizeProposalPhaseSupportEvidence,
   normalizeProposalPlacementEvidence,
   normalizeProposalTrainingAction,
@@ -131,7 +132,7 @@ export default function ParentOnboardingProposal({
         stability,
         nextAction,
       });
-      const justification = buildDiagnosisProposalJustification({
+      const baseJustification = buildDiagnosisProposalJustification({
         topic: topic || "the diagnostic topic",
         phase: diagnosisPhase,
         stability,
@@ -141,6 +142,22 @@ export default function ParentOnboardingProposal({
         nextAction,
         placementEvidence,
       });
+      const proposalSnapshot = {
+        version: 1 as const,
+        topic: topic || "Current class topic",
+        startingSignal,
+        entryPhase: trainingEntryPhase,
+        stability,
+        focusArea,
+        whyTrainingStartsHere: whyEntry,
+        firstPriority: priority,
+        sessionStructure,
+        progressSignals,
+      };
+      const justification = attachDiagnosisProposalSnapshot(
+        baseJustification,
+        proposalSnapshot,
+      );
 
       const response = await apiRequest("POST", "/api/tutor/proposal", {
         studentId,
