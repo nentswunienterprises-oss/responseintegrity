@@ -173,10 +173,10 @@ try {
 
   await page.getByPlaceholder("Type one math topic, then add it").fill("Algebra");
   await page.getByRole("button", { name: /Add$/ }).click();
-  await page.getByRole("button", {
-    name: "My child often does not understand what the question is asking",
-    exact: true,
-  }).click();
+  await page.getByText(
+    "My child often does not understand what the question is asking",
+    { exact: true },
+  ).click();
 
   await page.getByRole("button", { name: "No - this will be their first time", exact: true }).click();
   await page.getByRole("button", { name: "Yes, always", exact: true }).click();
