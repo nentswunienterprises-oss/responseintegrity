@@ -32,6 +32,8 @@ export type DiagnosisProposalSnapshot = {
   firstPriority: string;
   sessionStructure: string[];
   progressSignals: string[];
+  importantNote: string;
+  commitment: string;
 };
 
 const DIAGNOSIS_PROPOSAL_SNAPSHOT_MARKER =
@@ -68,7 +70,9 @@ export function extractDiagnosisProposalSnapshot(
       !clean(parsed.whyTrainingStartsHere) ||
       !clean(parsed.firstPriority) ||
       !Array.isArray(parsed.sessionStructure) ||
-      !Array.isArray(parsed.progressSignals)
+      !Array.isArray(parsed.progressSignals) ||
+      !clean(parsed.importantNote) ||
+      !clean(parsed.commitment)
     ) {
       return null;
     }
@@ -84,6 +88,8 @@ export function extractDiagnosisProposalSnapshot(
       firstPriority: clean(parsed.firstPriority),
       sessionStructure: parsed.sessionStructure.map(clean).filter(Boolean),
       progressSignals: parsed.progressSignals.map(clean).filter(Boolean),
+      importantNote: clean(parsed.importantNote),
+      commitment: clean(parsed.commitment),
     };
   } catch {
     return null;
