@@ -94,7 +94,22 @@ function previewEnvironmentProof(res: VercelResponse) {
     vercelEnv: process.env.VERCEL_ENV || null,
     supabaseProjectRef,
     databaseHost,
+    requiredEnv: {
+      SUPABASE_URL: Boolean(process.env.SUPABASE_URL),
+      SUPABASE_ANON_KEY: Boolean(process.env.SUPABASE_ANON_KEY),
+      SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      DATABASE_URL: Boolean(process.env.DATABASE_URL),
+      SESSION_SECRET: Boolean(process.env.SESSION_SECRET),
+    },
   });
+}
+
+function sanitizePreviewDiagnostic(error: unknown) {
+  const raw = error instanceof Error ? error.message : String(error);
+  return raw
+    .replace(/postgres(?:ql)?:\/\/[^@\s]+@/gi, 'postgresql://***@')
+    .replace(/([?&](?:password|token|key|secret)=)[^&\s]+/gi, '$1***')
+    .slice(0, 1000);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -107,7 +122,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return previewEnvironmentProof(res);
   }
 
-  await initializeApp();
+  try {
+    await initializeApp();
+  } catch (error) {
+    console.error('[Vercel Handler] backend initialization failed', error);
+    if (process.env.VERCEL_ENV === 'preview') {
+      return res.status(500).json({
+        error: 'PREVIEW_BACKEND_INIT_FAILED',
+        message: sanitizePreviewDiagnostic(error),
+      });
+    }
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 
   console.log(`[Vercel Handler] ${req.method} ${req.url}`);
   return app(req as any, res as any);

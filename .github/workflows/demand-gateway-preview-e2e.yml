@@ -110,10 +110,15 @@ jobs:
 
               if (response.ok && contentType.includes("application/json")) {
                 const body = JSON.parse(text);
-                if (
+                const envOk =
                   body?.vercelEnv === "preview" &&
-                  ["jftlxeacphvbnhbsbpxc", "tzgkiaiwnhmnzznvmbfg"].includes(body?.supabaseProjectRef)
-                ) {
+                  ["jftlxeacphvbnhbsbpxc", "tzgkiaiwnhmnzznvmbfg"].includes(body?.supabaseProjectRef) &&
+                  body?.requiredEnv?.SUPABASE_URL === true &&
+                  body?.requiredEnv?.SUPABASE_ANON_KEY === true &&
+                  body?.requiredEnv?.DATABASE_URL === true &&
+                  body?.requiredEnv?.SESSION_SECRET === true;
+
+                if (envOk) {
                   console.log("PROOF_ENVIRONMENT_CERTIFIED", JSON.stringify(body));
                   process.exit(0);
                 }
@@ -128,6 +133,25 @@ jobs:
 
           console.error("Preview Proof routing probe failed", JSON.stringify(last));
           process.exit(1);
+          NODE
+
+      - name: Probe preview branch API initialization
+        run: |
+          node --input-type=module <<'NODE'
+          const base = process.env.SMOKE_BASE_URL.replace(/\/$/, "");
+          const response = await fetch(base + "/api/auth/mode");
+          const text = await response.text();
+          console.log("AUTH_MODE_PROBE", JSON.stringify({
+            status: response.status,
+            contentType: response.headers.get("content-type") || "",
+            body: text.slice(0, 1500),
+          }));
+          if (!response.ok) process.exit(1);
+          const body = JSON.parse(text);
+          if (body?.emergencyDbMode !== false || body?.authMode !== "supabase") {
+            console.error("Unexpected auth mode", JSON.stringify(body));
+            process.exit(1);
+          }
           NODE
 
       - name: Install Playwright
