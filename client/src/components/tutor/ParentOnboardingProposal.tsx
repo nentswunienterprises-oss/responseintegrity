@@ -66,6 +66,25 @@ export default function ParentOnboardingProposal({
   });
 
   const drillData = drillDataRaw as any;
+  const diagnosisRunId = String(drillData?.id || "").trim();
+  const isEvidenceNativeDiagnosis =
+    drillData?.summary?.diagnosisEngine === "evidence_native_v2" ||
+    drillData?.diagnosisEngine === "evidence_native_v2" ||
+    drillData?.diagnosisMode === "evidence_native";
+
+  const { data: diagnosisRunDataRaw } = useQuery({
+    queryKey: ["/api/tutor/evidence-complete-diagnosis", diagnosisRunId],
+    queryFn: async () => {
+      const res = await apiRequest(
+        "GET",
+        `/api/tutor/evidence-complete-diagnosis/${diagnosisRunId}`,
+      );
+      return res.json();
+    },
+    enabled: open && !!diagnosisRunId && isEvidenceNativeDiagnosis,
+  });
+
+  const diagnosisRunData = diagnosisRunDataRaw as any;
 
   // Evidence-native diagnosis classifies entry phase/stability from observed behavior.
   // Numeric scores have no diagnosis decision authority.
@@ -198,6 +217,7 @@ export default function ParentOnboardingProposal({
     drillData?.startingPhase ||
     drillData?.responseSnapshot?.startingPhase ||
     drillData?.summary?.startingPhase ||
+    diagnosisRunData?.startingPhase ||
     "Not recorded";
   const stability = drillData?.summary?.stability || drillData?.stability || drillData?.stabilityObserved || "Low";
   const topic = drillData?.introTopic || drillData?.topic || "Current class topic";

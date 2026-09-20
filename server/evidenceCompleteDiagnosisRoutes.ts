@@ -650,6 +650,7 @@ const responseForReplay = (
     runId,
     finalized,
     sourceDrillId: sourceDrillId || null,
+    startingPhase: replay.state.recommendedStartingPhase,
     probeHistory: replay.state.probeHistory,
     decision: replay.decision,
     nextProbe: replay.nextProbe,
