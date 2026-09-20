@@ -1,8 +1,6 @@
-# Ignore server files - backend is on Railway
-server/
-api/
+# Vercel Preview runs the branch API against Proof, so api/ and server/ must ship.
+# Keep database/source-environment artifacts out of the deployment bundle.
 *.sql
-*.bundle
 migrations/
 nixpacks.toml
 railway.json

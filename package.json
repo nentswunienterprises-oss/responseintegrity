@@ -22,7 +22,9 @@
     "check:ri-snapshot": "tsc --noEmit --skipLibCheck --allowImportingTsExtensions --moduleResolution bundler --module esnext --target es2022 --types node shared/responseSnapshot.ts shared/responseSnapshot.test.ts shared/responseIntegrityDrillRegistry.ts shared/responseIntegrityEvidenceLedger.ts shared/topicConditioningEngine.ts shared/observationScoring.ts shared/adaptiveDiagnosis.ts",
     "test:ri-snapshot": "node --import tsx --test shared/responseSnapshot.test.ts shared/responseIntegrityDrillRegistry.test.ts shared/responseIntegrityEvidenceLedger.test.ts",
     "test:unit": "tsx --test",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "test:demand-production": "node --import tsx --test server/demandProduction.test.ts server/demandProduction.journeys.test.ts server/productionEconomy.test.ts",
+    "build:vercel-api": "mkdir -p generated && esbuild server/vercelPreviewRuntime.ts --bundle --platform=node --format=esm --packages=external --target=node24 --outfile=generated/preview-api-runtime.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -107,6 +109,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.3.10",
     "@replit/vite-plugin-cartographer": "^0.4.0",
     "@replit/vite-plugin-dev-banner": "^0.1.1",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
