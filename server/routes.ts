@@ -351,6 +351,7 @@ function isSandboxPaymentEnrollment(enrollment: any) {
 
 const PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID = "10000100";
 const PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY = "46f0cd694581a";
+const PAYFAST_PUBLIC_SANDBOX_PASSPHRASE = "jt7NOE43FZPn";
 
 function isValidPayfastMerchantId(value: string) {
   return /^\d{8}$/.test(String(value || "").trim());
@@ -362,22 +363,12 @@ function isValidPayfastMerchantKey(value: string) {
 
 function getPayfastConfig(useSandbox: boolean) {
   if (useSandbox) {
-    const configuredMerchantId = String(process.env.PAYFAST_SANDBOX_MERCHANT_ID || "").trim();
-    const configuredMerchantKey = String(process.env.PAYFAST_SANDBOX_MERCHANT_KEY || "").trim();
-    const hasUsableSandboxCredentials =
-      isValidPayfastMerchantId(configuredMerchantId) &&
-      isValidPayfastMerchantKey(configuredMerchantKey);
-
+    // Sandbox is deliberately pinned to PayFast's documented public test
+    // account. Never reuse live credentials or stale local placeholders here.
     return {
-      merchantId: hasUsableSandboxCredentials
-        ? configuredMerchantId
-        : PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID,
-      merchantKey: hasUsableSandboxCredentials
-        ? configuredMerchantKey
-        : PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY,
-      passphrase: hasUsableSandboxCredentials
-        ? String(process.env.PAYFAST_SANDBOX_PASSPHRASE || "").trim()
-        : "",
+      merchantId: PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID,
+      merchantKey: PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY,
+      passphrase: PAYFAST_PUBLIC_SANDBOX_PASSPHRASE,
       processUrl: getPayfastProcessUrl(true),
     };
   }
