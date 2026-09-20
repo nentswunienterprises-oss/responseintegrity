@@ -25029,31 +25029,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to create proposal" });
       }
 
-      // Update enrollment status to proposal_sent if enrollment exists
-      if (actualEnrollmentId) {
-        const { data: updatedEnrollment } = await supabase
-          .from("parent_enrollments")
-          .update({
-            status: "proposal_sent",
-            proposal_id: proposalData.id,
-            proposal_sent_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", actualEnrollmentId)
-          .select("id, user_id")
-          .maybeSingle();
+      // Link the proposal to the canonical enrollment through the server-side
+      // Postgres connection. The shared Supabase client can legitimately fall
+      // back to the anon key in local/proof environments, where tutor RLS does
+      // not permit parent_enrollments updates. Treating that zero-row update as
+      // success leaves the workflow stuck on "Create & Send Proposal".
+      const proposalSentAt = new Date().toISOString();
+      const enrollmentUpdate = await pool.query(
+        `UPDATE public.parent_enrollments
+            SET status = 'proposal_sent',
+                proposal_id = $1,
+                proposal_sent_at = $2,
+                updated_at = NOW()
+          WHERE id = $3
+            AND assigned_tutor_id = $4
+          RETURNING id, user_id, status, proposal_id, proposal_sent_at`,
+        [proposalData.id, proposalSentAt, actualEnrollmentId, tutorId],
+      );
+      const updatedEnrollment = enrollmentUpdate.rows[0] || null;
 
-        await safeSendPush(
-          updatedEnrollment?.user_id,
-          {
-            title: "Proposal ready",
-            body: "Your tutor has sent a proposal. Open Response Integrity to review and respond.",
-            url: "/client/parent/gateway",
-            tag: `parent-proposal-sent-${proposalData.id}`,
-          },
-          "parent proposal sent",
+      if (!updatedEnrollment) {
+        // Do not leave an orphan proposal if the enrollment transition did not happen.
+        await pool.query(
+          `DELETE FROM public.onboarding_proposals
+            WHERE id = $1
+              AND enrollment_id = $2`,
+          [proposalData.id, actualEnrollmentId],
         );
+        return res.status(409).json({
+          message: "Proposal could not be linked to the active parent enrollment. Refresh the assignment and try again.",
+        });
       }
+
+      await safeSendPush(
+        updatedEnrollment.user_id,
+        {
+          title: "Proposal ready",
+          body: "Your tutor has sent a proposal. Open Response Integrity to review and respond.",
+          url: "/client/parent/gateway",
+          tag: `parent-proposal-sent-${proposalData.id}`,
+        },
+        "parent proposal sent",
+      );
 
       res.json({
         message: "Proposal sent successfully",

@@ -160,11 +160,19 @@ export default function ParentOnboardingProposal({
         duration: 5000,
       });
 
-      await queryClient.invalidateQueries({ queryKey: ["/api/tutor/pod"] });
-      await queryClient.invalidateQueries({
-        queryKey: ["/api/tutor/students", studentId, "workflow-state"],
-        refetchType: "active",
-      });
+      const workflowQueryKey = ["/api/tutor", "students", studentId, "workflow-state"] as const;
+      queryClient.setQueryData(workflowQueryKey, (current: any) => ({
+        ...(current || {}),
+        proposalSent: true,
+        proposalAccepted: Boolean(current?.proposalAccepted),
+      }));
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/tutor/pod"] }),
+        queryClient.refetchQueries({
+          queryKey: workflowQueryKey,
+          type: "active",
+        }),
+      ]);
 
       onOpenChange(false);
     } catch (error) {
