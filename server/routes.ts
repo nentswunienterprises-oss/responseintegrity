@@ -12281,7 +12281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     fallbackSelect?: string;
     preferPaidEnrollment?: boolean;
   }) => {
-    if (isEmergencyDbMode()) {
+    if (isEmergencyDbMode() || process.env.VERCEL_ENV === "preview") {
       const byParent = await pool.query(
         `SELECT * FROM public.parent_enrollments
           WHERE user_id = $1
@@ -24087,14 +24087,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
 
-      // Check if enrollment already exists
-      const { data: existing } = await supabase
-        .from("parent_enrollments")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
+      // Check through the authoritative server database path.
+      const existingEnrollmentResult = await pool.query(
+        `SELECT id
+           FROM public.parent_enrollments
+          WHERE user_id = $1
+          ORDER BY updated_at DESC
+          LIMIT 1`,
+        [userId],
+      );
 
-      if (existing) {
+      if (existingEnrollmentResult.rows[0]) {
         return res.status(400).json({ message: "Enrollment already submitted" });
       }
 
@@ -24113,54 +24116,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Lead creation is now handled after signup, not enrollment.
 
-      // Create enrollment record
-      const { data: enrollmentData, error } = await supabase
-        .from("parent_enrollments")
-        .insert({
-          user_id: userId,
-          parent_full_name: parentFullName,
-          parent_phone: parentPhone,
-          parent_email: parentEmail,
-          parent_city: parentCity,
-          student_full_name: studentFullName,
-          student_grade: studentGrade,
-          student_gender: studentGender,
-          school_name: schoolName,
-          response_symptoms: effectiveResponseSymptoms,
-          topic_response_symptoms: normalizedTopicResponseSymptoms,
-          response_signal_scores: responseRecommendation.scores,
-          topic_response_signal_scores: Object.fromEntries(
-            Object.entries(topicResponseRecommendations).map(([topic, value]) => [topic, (value as any).scores])
-          ),
-          recommended_starting_phase: responseRecommendation.phase,
-          topic_recommended_starting_phases: Object.fromEntries(
-            Object.entries(topicResponseRecommendations).map(([topic, value]) => [
-              topic,
-              {
-                phase: (value as any).phase,
-                supportingSymptoms: (value as any).supportingSymptoms,
-                rationale: (value as any).rationale,
-              },
-            ])
-          ),
-          previous_tutoring: previousTutoring,
-          internet_access: internetAccess,
-          parent_motivation: normalizedParentMotivation,
-          status: "awaiting_assignment",
-          current_step: "qualification-pending",
-          demand_flow_version: 1,
-          qualification_status: "pending",
-          created_at: new Date().toISOString(),
-        })
-        .select();
+      // Create enrollment record through the authoritative server database path.
+      const topicSignalScores = Object.fromEntries(
+        Object.entries(topicResponseRecommendations).map(([topic, value]) => [topic, (value as any).scores])
+      );
+      const topicStartingPhases = Object.fromEntries(
+        Object.entries(topicResponseRecommendations).map(([topic, value]) => [
+          topic,
+          {
+            phase: (value as any).phase,
+            supportingSymptoms: (value as any).supportingSymptoms,
+            rationale: (value as any).rationale,
+          },
+        ])
+      );
 
-      if (error) {
-        console.error("Failed to create parent enrollment:", error);
-        return res.status(500).json({
-          message: "Failed to save enrollment",
-          detail: error.message,
-        });
-      }
+      const enrollmentResult = await pool.query(
+        `INSERT INTO public.parent_enrollments (
+           user_id, parent_full_name, parent_phone, parent_email, parent_city,
+           student_full_name, student_grade, student_gender, school_name,
+           response_symptoms, topic_response_symptoms, response_signal_scores,
+           topic_response_signal_scores, recommended_starting_phase,
+           topic_recommended_starting_phases, previous_tutoring, internet_access,
+           parent_motivation, status, current_step, demand_flow_version,
+           qualification_status, created_at, updated_at
+         ) VALUES (
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,
+           $10::jsonb,$11::jsonb,$12::jsonb,$13::jsonb,$14,$15::jsonb,
+           $16,$17,$18,'awaiting_assignment','qualification-pending',1,'pending',NOW(),NOW()
+         )
+         RETURNING *`,
+        [
+          userId,
+          parentFullName,
+          parentPhone,
+          parentEmail,
+          parentCity || null,
+          studentFullName,
+          studentGrade,
+          studentGender,
+          schoolName,
+          JSON.stringify(effectiveResponseSymptoms),
+          JSON.stringify(normalizedTopicResponseSymptoms),
+          JSON.stringify(responseRecommendation.scores),
+          JSON.stringify(topicSignalScores),
+          responseRecommendation.phase,
+          JSON.stringify(topicStartingPhases),
+          previousTutoring,
+          internetAccess,
+          normalizedParentMotivation,
+        ],
+      );
+      const enrollmentData = enrollmentResult.rows;
 
       res.json({
         message: "Enrollment submitted successfully",

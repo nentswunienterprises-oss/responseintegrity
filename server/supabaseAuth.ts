@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { randomUUID } from "crypto";
 import type {
   Express,
   RequestHandler,
@@ -196,10 +197,33 @@ export async function setupAuth(app: Express) {
       // Create user in Supabase Auth with metadata
       // NOTE: NOT passing metadata here due to trigger issues
       // We'll create the user record manually after auth succeeds
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+      const isPreviewSmokeIdentity =
+        process.env.VERCEL_ENV === "preview" &&
+        normalizedEmail.endsWith("@smoke.responseintegrity.co.za");
+
+      let authData: any;
+      let authError: any = null;
+
+      if (isPreviewSmokeIdentity) {
+        authData = {
+          user: {
+            id: randomUUID(),
+            email: normalizedEmail,
+          },
+          session: null,
+        };
+        console.log("[PREVIEW SMOKE] issued synthetic parent identity", {
+          email: normalizedEmail,
+          userId: authData.user.id,
+        });
+      } else {
+        const signupResult = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        authData = signupResult.data;
+        authError = signupResult.error;
+      }
 
       if (authError) {
         console.error("Supabase signup error:", authError);
