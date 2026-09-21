@@ -19,7 +19,7 @@ const buildInput = (): TrainingEvidenceShadowDatasetInput => ({
   observedAt: "2026-09-18T14:00:00.000Z",
   evidenceShadow: {
     status: "evaluated",
-    authority: "shadow_only",
+    authority: "evidence_native",
     phase: "Clarity",
     previousStability: "High",
     observedStability: "Medium",
