@@ -337,6 +337,67 @@ function getApiPublicUrl() {
   );
 }
 
+const PAYFAST_SANDBOX_BRANCH_RELAY_BASE_URL =
+  "https://tt-confidence-hub-git-feat-evi-31b8c6-relief-works-technologies.vercel.app";
+
+function isAllowedSandboxReturnOrigin(value: string | null | undefined) {
+  try {
+    const parsed = new URL(String(value || "").trim());
+    const hostname = parsed.hostname.toLowerCase();
+    if (!["http:", "https:"].includes(parsed.protocol)) return false;
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
+      hostname.endsWith(".vercel.app") ||
+      hostname === "responseintegrity.co.za" ||
+      hostname.endsWith(".responseintegrity.co.za")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function resolveSandboxPaymentReturnOrigin(req: Request) {
+  const origin = String(req.get("origin") || "").trim();
+  if (isAllowedSandboxReturnOrigin(origin)) {
+    return new URL(origin).origin;
+  }
+
+  const referer = String(req.get("referer") || "").trim();
+  if (isAllowedSandboxReturnOrigin(referer)) {
+    return new URL(referer).origin;
+  }
+
+  return getAppBaseUrl();
+}
+
+function getPayfastSandboxRelayBaseUrl() {
+  const configured = String(process.env.PAYFAST_SANDBOX_RELAY_BASE_URL || "").trim();
+  if (configured) return configured.replace(/\/+$/, "");
+
+  const vercelUrl = String(process.env.VERCEL_URL || "").trim();
+  if (vercelUrl) return `https://${vercelUrl}`;
+
+  if (String(process.env.VERCEL_ENV || "").trim().toLowerCase() === "production") {
+    return getAppBaseUrl();
+  }
+
+  return PAYFAST_SANDBOX_BRANCH_RELAY_BASE_URL;
+}
+
+function buildPayfastSandboxReturnUrl(
+  req: Request,
+  state: "return" | "cancelled",
+  merchantReference: string,
+) {
+  const relay = new URL("/payfast-sandbox-return.html", getPayfastSandboxRelayBaseUrl());
+  relay.searchParams.set("payfast", state);
+  relay.searchParams.set("merchantReference", merchantReference);
+  relay.searchParams.set("targetOrigin", resolveSandboxPaymentReturnOrigin(req));
+  return relay.toString();
+}
+
 function usePayfastSandbox() {
   return String(process.env.PAYFAST_SANDBOX || "").trim().toLowerCase() === "true";
 }
@@ -25939,8 +26000,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               {
                 merchant_id: payfastConfig.merchantId,
                 merchant_key: payfastConfig.merchantKey,
-                return_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}`,
-                cancel_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}`,
+                return_url: buildPayfastSandboxReturnUrl(req, "return", merchantReference),
+                cancel_url: buildPayfastSandboxReturnUrl(req, "cancelled", merchantReference),
                 m_payment_id: merchantReference,
                 amount: servicePackage.amountZar.toFixed(2),
                 item_name: servicePackage.label,
@@ -26151,8 +26212,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             {
               merchant_id: payfastConfig.merchantId,
               merchant_key: payfastConfig.merchantKey,
-              return_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}`,
-              cancel_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}`,
+              return_url: buildPayfastSandboxReturnUrl(req, "return", merchantReference),
+              cancel_url: buildPayfastSandboxReturnUrl(req, "cancelled", merchantReference),
               m_payment_id: merchantReference,
               amount: servicePackage.amountZar.toFixed(2),
               item_name: servicePackage.label,
@@ -27217,8 +27278,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           merchant_id: payfastConfig.merchantId,
           merchant_key: payfastConfig.merchantKey,
-          return_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}&renewal=true`,
-          cancel_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}&renewal=true`,
+          return_url: useSandbox ? buildPayfastSandboxReturnUrl(req, "return", merchantReference) : `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}&renewal=true`,
+          cancel_url: useSandbox ? buildPayfastSandboxReturnUrl(req, "cancelled", merchantReference) : `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}&renewal=true`,
           notify_url: `${getApiPublicUrl()}/api/payments/payfast/notify`,
           name_first: String((req as any).dbUser?.firstName || "").trim(),
           name_last: String((req as any).dbUser?.lastName || "").trim(),
