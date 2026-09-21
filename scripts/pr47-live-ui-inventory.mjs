@@ -6,9 +6,11 @@ import { chromium } from "playwright";
 const baseUrl = String(process.env.SMOKE_BASE_URL || "").replace(/\/$/, "");
 const email = String(process.env.RI_PROOF_EMAIL || "").trim();
 const password = String(process.env.RI_PROOF_PASSWORD || "");
+const vercelBypass = String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "").trim();
 assert.ok(baseUrl, "SMOKE_BASE_URL is required");
 assert.ok(email, "RI_PROOF_EMAIL is required");
 assert.ok(password, "RI_PROOF_PASSWORD is required");
+assert.ok(vercelBypass, "VERCEL_AUTOMATION_BYPASS_SECRET is required");
 
 const evidenceDir = path.resolve("artifacts/pr47-live-ui-proof");
 await fs.mkdir(evidenceDir, { recursive: true });
@@ -30,7 +32,12 @@ const save = async () => fs.writeFile(
 );
 
 const browser = await chromium.launch({ headless: true });
-const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
+const context = await browser.newContext({
+  viewport: { width: 1440, height: 1100 },
+  extraHTTPHeaders: {
+    "x-vercel-protection-bypass": vercelBypass,
+  },
+});
 const page = await context.newPage();
 page.on("console", (message) => {
   if (message.type() === "error") evidence.consoleErrors.push(message.text());
