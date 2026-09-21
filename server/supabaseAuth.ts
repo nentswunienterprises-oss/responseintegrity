@@ -136,12 +136,44 @@ export async function setupAuth(app: Express) {
   // connect-pg-simple reports request-time store failures through next(error).
   // Handle that boundary explicitly so Vercel returns structured JSON instead
   // of terminating the invocation with FUNCTION_INVOCATION_FAILED.
-  app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
+  app.use((error: unknown, req: Request, res: Response, next: NextFunction) => {
     if (res.headersSent) return next(error);
-    console.error(
-      "[AUTH] Session middleware unavailable",
-      error instanceof Error ? error.message : String(error),
-    );
+
+    const errorRecord =
+      error && typeof error === "object"
+        ? (error as { message?: unknown; code?: unknown; stack?: unknown })
+        : {};
+    const message =
+      typeof errorRecord.message === "string"
+        ? errorRecord.message
+        : String(error);
+    const code =
+      typeof errorRecord.code === "string"
+        ? errorRecord.code
+        : null;
+    const hasBearerToken =
+      typeof req.headers.authorization === "string" &&
+      req.headers.authorization.startsWith("Bearer ");
+
+    console.error("[AUTH] Session middleware unavailable", {
+      method: req.method,
+      path: req.path,
+      message,
+      code,
+    });
+
+    // Non-emergency GETs can still be authenticated independently by the
+    // downstream Supabase bearer-token path. Do not let a legacy Express
+    // session-store outage collapse read-only portal state when a bearer token
+    // is already present. Mutations remain fail-closed.
+    if (!isEmergencyDbMode() && req.method === "GET" && hasBearerToken) {
+      (req as any).session = new (session as any).Session(req, {});
+      console.warn("[AUTH] Continuing bearer-authenticated GET without persisted Express session", {
+        path: req.path,
+      });
+      return next();
+    }
+
     return res.status(503).json({
       error: "SESSION_STORE_UNAVAILABLE",
       message: "Authentication session storage is temporarily unavailable",

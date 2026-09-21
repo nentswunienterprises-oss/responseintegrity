@@ -354,6 +354,7 @@ export default function ParentGateway() {
     enabled:
       !!user &&
       !authLoading &&
+      String(enrollmentStatus?.step || "").trim().toLowerCase() !== "active_training" &&
       (
         enrollmentStatus?.status === "proposal_sent" ||
         enrollmentStatus?.status === "session_booked" ||
@@ -440,7 +441,11 @@ export default function ParentGateway() {
   const { data: proposal, isLoading: proposalLoading, error: proposalError } = useQuery<any>({
     queryKey: ["/api/parent/proposal"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    enabled: !!user && !authLoading && !!enrollmentStatus,
+    enabled:
+      !!user &&
+      !authLoading &&
+      !!enrollmentStatus &&
+      String(enrollmentStatus?.step || "").trim().toLowerCase() !== "active_training",
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: !emergencyDbMode,

@@ -3566,7 +3566,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
       await client.query("BEGIN");
 
       const enrollmentResult = await client.query(
-        `SELECT id, status, proposal_id
+        `SELECT id, status, current_step, proposal_id
            FROM public.parent_enrollments
           WHERE id = $1
           FOR UPDATE`,
@@ -3593,6 +3593,15 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
       }
 
       if (proposal.accepted_at && proposal.parent_code && enrollment.status === "session_booked") {
+        if (String(enrollment.current_step || "").trim().toLowerCase() !== "active_training") {
+          await client.query(
+            `UPDATE public.parent_enrollments
+                SET current_step = 'active_training',
+                    updated_at = $1
+              WHERE id = $2`,
+            [new Date().toISOString(), enrollment.id],
+          );
+        }
         await client.query("COMMIT");
         return {
           status: "session_booked",
@@ -3636,6 +3645,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
       await client.query(
         `UPDATE public.parent_enrollments
             SET status = 'session_booked',
+                current_step = 'active_training',
                 package_key = $1,
                 package_sessions = $2,
                 planned_sessions_per_week = $3,
@@ -3786,7 +3796,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
 
   const { data: enrollment, error: enrollmentError } = await supabase
     .from("parent_enrollments")
-    .select("id, status, proposal_id")
+    .select("id, status, current_step, proposal_id")
     .eq("id", enrollmentId)
     .maybeSingle();
 
@@ -3805,6 +3815,20 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
   }
 
   if (proposal.accepted_at && proposal.parent_code && enrollment.status === "session_booked") {
+    if (String(enrollment.current_step || "").trim().toLowerCase() !== "active_training") {
+      const { error: repairStepError } = await supabase
+        .from("parent_enrollments")
+        .update({
+          current_step: "active_training",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", enrollment.id);
+
+      if (repairStepError) {
+        throw new Error("Failed to repair active training step after confirmed payment.");
+      }
+    }
+
     return {
       status: "session_booked",
       parentCode: proposal.parent_code,
@@ -3847,6 +3871,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
     .from("parent_enrollments")
     .update({
       status: "session_booked",
+      current_step: "active_training",
       package_key: servicePackage.key,
       package_sessions: servicePackage.sessionsPerMonth,
       planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
@@ -10732,7 +10757,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const studentsById = new Map<string, any>();
           if (studentIds.length > 0) {
             const studentResult = await pool.query(
-              "SELECT id, name, grade FROM public.students WHERE id = ANY($1::uuid[])",
+              "SELECT id, name, grade FROM public.students WHERE id = ANY($1::text[])",
               [studentIds],
             );
             studentResult.rows.forEach((student: any) => studentsById.set(String(student.id), student));
@@ -24915,6 +24940,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let { data: latestPayment } = await getLatestPaymentForEnrollment(String(enrollmentData.id));
       enrollmentDebug.latestPaymentId = latestPayment?.id || null;
       enrollmentDebug.latestPaymentStatus = latestPayment?.payment_status || null;
+
+      const paidUnlockedEnrollment =
+        String(status) === "session_booked" &&
+        String(latestPayment?.payment_status || "").trim().toLowerCase() === "paid";
+
+      if (paidUnlockedEnrollment) {
+        effectiveStep = "active_training";
+        enrollmentDebug.reconciledActiveTrainingFromPaidAccess = true;
+
+        if (String(enrollmentData.current_step || "").trim().toLowerCase() !== "active_training") {
+          const { error: activeStepRepairError } = await supabase
+            .from("parent_enrollments")
+            .update({
+              current_step: "active_training",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", enrollmentData.id);
+
+          if (activeStepRepairError) {
+            console.error("Failed to persist active-training reconciliation:", activeStepRepairError);
+            enrollmentDebug.activeStepRepairError = String(
+              activeStepRepairError.message || activeStepRepairError,
+            );
+          } else {
+            enrollmentDebug.activeStepRepaired = true;
+          }
+        }
+      }
 
       if (String(status) === "proposal_sent") {
         const { data: latestPaidPayment, error: latestPaidPaymentError } = await getLatestPaidPaymentForEnrollment(
