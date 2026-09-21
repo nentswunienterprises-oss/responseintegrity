@@ -241,8 +241,8 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     },
     High: {
       status: "Your child shows strong understanding of this topic.",
-      meaning: "The core understanding is substantially present and usable, but a minor gap or remaining confirmation means Clarity is not yet considered sustained.",
-      focus: "We are strengthening the remaining gap and verifying that clarity holds consistently before progression.",
+      meaning: "They are recognising what the question is asking and selecting the right structure reliably. The next step is to see that this strong clarity holds across different questions and repeated sessions.",
+      focus: "We are testing the reliability of this clarity across variation and repetition before progression.",
     },
     "High Maintenance": {
       status: "Your child has sustained strong clarity in this topic.",
@@ -263,8 +263,8 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     },
     High: {
       status: "Your child shows strong independent execution in this topic.",
-      meaning: "Independent execution is substantially present and usable, but a minor inconsistency or remaining confirmation means it is not yet considered sustained.",
-      focus: "We are strengthening the remaining inconsistency and verifying that execution holds reliably before adding greater difficulty.",
+      meaning: "They are applying the correct method independently and reliably. The next step is to see that this execution holds across varied problems and repeated sessions.",
+      focus: "We are testing the reliability of this execution across variation and repetition before adding greater difficulty.",
     },
     "High Maintenance": {
       status: "Your child has sustained strong execution consistency in this topic.",
@@ -285,8 +285,8 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     },
     High: {
       status: "Your child shows strong control when problems become difficult.",
-      meaning: "Response control under difficulty is substantially present and usable, but a minor instability or remaining confirmation means it is not yet considered sustained.",
-      focus: "We are strengthening the remaining instability and verifying that control holds across difficult work before adding time pressure.",
+      meaning: "They are staying structured and composed when the work becomes harder or less familiar. The next step is to see that this control holds across repeated challenge.",
+      focus: "We are testing the reliability of this control across varied difficult work before adding time pressure.",
     },
     "High Maintenance": {
       status: "Your child has sustained strong performance under challenge in this topic.",
@@ -307,8 +307,8 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     },
     High: {
       status: "Your child shows strong control under time pressure.",
-      meaning: "Timed response control is substantially present and usable, but it is not yet considered sustained High Maintenance.",
-      focus: "We are verifying that structure, pace, and completion hold consistently before maintenance is confirmed.",
+      meaning: "They are maintaining structure and decision quality while working against the clock. The next step is to see that this performance remains reliable across varied timed work.",
+      focus: "We are testing that structure, pace, and completion stay reliable across repeated timed work before this level is treated as sustained.",
     },
     "High Maintenance": {
       status: "Your child has sustained top stability under time pressure.",

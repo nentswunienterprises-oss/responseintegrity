@@ -138,98 +138,125 @@ function extractTopicConditioning(proposal: any) {
   };
 }
 
-function getStabilityObservationLine(
-  stability: StabilityLabel | null,
-  diagnosisOnly: boolean,
-): string | null {
-  switch (stability) {
-    case "Low":
-      return diagnosisOnly
-        ? "The response is not yet stable enough to treat as reliable."
-        : "The current response is still developing and is not yet reliable across sessions.";
-    case "Medium":
-      return diagnosisOnly
-        ? "The response is forming, but it is not yet consistent enough to treat as secure."
-        : "The response is strengthening, but consistency still varies across sessions.";
-    case "High":
-      return diagnosisOnly
-        ? "Performance is strong at this layer, but it still needs confirmation before it is treated as sustained."
-        : "Performance is strong at this layer, but it still needs to hold across repeated sessions before progression.";
-    case "High Maintenance":
-      return diagnosisOnly
-        ? "This layer is showing sustained strength; progression still follows the system's confirmation gate."
-        : "This layer has reached sustained strength and is being held to the progression-confirmation standard.";
-    default:
-      return null;
-  }
-}
+const DASHBOARD_SIGNALS_BY_STATE: Record<PhaseLabel, Record<StabilityLabel, string[]>> = {
+  Clarity: {
+    Low: [
+      "Recognition of what the question is asking is still inconsistent",
+      "Method selection often needs support",
+      "First steps are not yet reliably structured",
+      "The foundation is still being rebuilt",
+    ],
+    Medium: [
+      "The question is usually understood with some support",
+      "Correct method selection is appearing more often",
+      "First steps are becoming more accurate",
+      "Clarity is forming but still varies across problems",
+    ],
+    High: [
+      "The question is being read and interpreted accurately",
+      "The right method is being selected early and with little support",
+      "First steps are accurate and appropriately structured",
+      "Strong clarity is visible; RI is now watching whether it stays reliable across different questions and repeated sessions",
+    ],
+    "High Maintenance": [
+      "Accurate recognition is holding across different questions",
+      "Correct method selection is repeatable without support",
+      "First steps remain accurate across sessions",
+      "Clarity is sustained and ready for a progression decision",
+    ],
+  },
+  "Structured Execution": {
+    Low: [
+      "The correct method is not yet being held consistently from start to finish",
+      "Step order still breaks without support",
+      "Independent starts are unreliable",
+      "Execution needs rebuilding before more pressure is added",
+    ],
+    Medium: [
+      "Independent starts are becoming more consistent",
+      "The correct method is being held through more of the problem",
+      "Step order is improving across attempts",
+      "Execution is strengthening but still varies",
+    ],
+    High: [
+      "The correct method is being applied independently",
+      "Step order is accurate and repeatable",
+      "Problems are being carried through with minimal support",
+      "Strong execution is visible; RI is now watching whether it stays reliable across varied problems and repeated sessions",
+    ],
+    "High Maintenance": [
+      "Independent execution is holding across varied problems",
+      "Step order remains reliable without prompting",
+      "The method is sustained across sessions",
+      "Execution is sustained and ready for a progression decision",
+    ],
+  },
+  "Controlled Discomfort": {
+    Low: [
+      "Structure breaks when the work becomes harder or unfamiliar",
+      "Hesitation rises quickly under challenge",
+      "Support is still needed to restart after difficulty appears",
+      "Response control under challenge is still being built",
+    ],
+    Medium: [
+      "Structure is holding through more difficult work",
+      "Hesitation is reducing under challenge",
+      "Independent recovery is appearing more often",
+      "Control under difficulty is strengthening but still varies",
+    ],
+    High: [
+      "Structure is staying intact when the work becomes difficult",
+      "The student is continuing without early rescue when questions feel unfamiliar",
+      "Starts and decisions remain composed under challenge",
+      "Strong control is visible; RI is now watching whether it stays reliable across repeated difficult work",
+    ],
+    "High Maintenance": [
+      "Structure remains intact across varied difficult work",
+      "Composed starts are repeatable without rescue",
+      "Control under challenge is sustained across sessions",
+      "Challenge response is sustained and ready for a progression decision",
+    ],
+  },
+  "Time Pressure Stability": {
+    Low: [
+      "Structure becomes less reliable once pace pressure is added",
+      "Rushed decisions are still affecting execution",
+      "Completion quality drops under time limits",
+      "Timed stability is still being built",
+    ],
+    Medium: [
+      "Structure is holding for longer under pace pressure",
+      "Rushed breakdowns are becoming less frequent",
+      "Timed decisions are becoming more controlled",
+      "Time-pressure stability is strengthening but still varies",
+    ],
+    High: [
+      "Structure is staying intact under time pressure",
+      "Pace is controlled without sacrificing the method",
+      "Decisions and completion remain reliable while timed",
+      "Strong timed performance is visible; RI is now watching whether it stays reliable across varied timed work",
+    ],
+    "High Maintenance": [
+      "Structure remains reliable across varied timed work",
+      "Pace and decision quality hold across sessions",
+      "Completion remains stable under repeated time pressure",
+      "Timed performance is sustained and ready for transfer decisions",
+    ],
+  },
+};
 
 function getDashboardSignalsForState(
   phase: PhaseLabel | null,
   stability: StabilityLabel | null,
-  diagnosisOnly: boolean,
 ): string[] {
-  let phaseSignals: string[];
-
-  switch (phase) {
-    case "Clarity":
-      phaseSignals = diagnosisOnly
-        ? [
-            "Clearer recognition of what the question is asking",
-            "Earlier correct method selection",
-            "Less confusion when beginning problems",
-            "More accurate first steps",
-          ]
-        : [
-            "Clearer recognition of what the question is asking",
-            "Earlier correct method selection",
-            "Less confusion during setup",
-            "More accurate first steps across sessions",
-          ];
-      break;
-    case "Structured Execution":
-      phaseSignals = [
-        "Earlier independent starts",
-        "Less hesitation when beginning problems",
-        "More consistent method use",
-        "More stable step order without prompting",
-      ];
-      break;
-    case "Controlled Discomfort":
-      phaseSignals = [
-        "Calmer starts when questions feel less familiar",
-        "Better structure holding in harder work",
-        "Less visible shutdown under challenge",
-        "More complete attempts on difficult questions",
-      ];
-      break;
-    case "Time Pressure Stability":
-      phaseSignals = [
-        "Stronger structure while work is timed",
-        "Fewer rushed breakdowns",
-        "More reliable decisions under pace pressure",
-        "Less instability when speed is added",
-      ];
-      break;
-    default:
-      phaseSignals = diagnosisOnly
-        ? [
-            "Clearer recognition of what the question is asking",
-            "Earlier correct method selection",
-            "Less confusion when beginning problems",
-            "More accurate first steps",
-          ]
-        : [
-            "Earlier independent starts",
-            "More consistent method use",
-            "Clearer structure across attempts",
-            "Steadier completion of the method",
-          ];
-      break;
+  if (!phase || !stability) {
+    return [
+      "The current observed state is still being established",
+      "The next scored session will make the active response pattern clearer",
+    ];
   }
 
-  const stabilityLine = getStabilityObservationLine(stability, diagnosisOnly);
-  return stabilityLine ? [...phaseSignals, stabilityLine] : phaseSignals;
+  return DASHBOARD_SIGNALS_BY_STATE[phase][stability];
 }
 
 function getStabilityParentRoleLine(stability: StabilityLabel | null): string | null {
@@ -601,7 +628,6 @@ export default function ParentDashboard() {
   const dashboardSignals = getDashboardSignalsForState(
     primaryDashboardPhase,
     primaryDashboardStability,
-    isDiagnosisOnlyView,
   );
   const parentRoleLines = getParentRoleLinesForState(
     primaryDashboardPhase,
@@ -614,17 +640,6 @@ export default function ParentDashboard() {
         signals: getDashboardSignalsForState(
           normalizePhaseLabel(item.phase),
           normalizeStabilityLabel(item.stability),
-          isDiagnosisOnlyView,
-        ).slice(-3),
-      }))
-    : [];
-  const multiTopicParentRoleBlocks = topicCards.length > 1
-    ? topicCards.map((item) => ({
-        topic: item.topic,
-        lines: getParentRoleLinesForState(
-          normalizePhaseLabel(item.phase),
-          normalizeStabilityLabel(item.stability),
-          isDiagnosisOnlyView,
         ).slice(-3),
       }))
     : [];
@@ -872,79 +887,40 @@ export default function ParentDashboard() {
         </CardContent>
       </Card>
 
-      <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
-        <Card className="border-primary/15">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold tracking-[-0.01em]">What is Being Observed</CardTitle>
-            <CardDescription>
-              {topicCards.length > 1
-                ? "These observations vary by topic:"
-                : isDiagnosisOnlyView
-                  ? "The diagnosis is pointing to these observable targets:"
-                  : "The current training is being tracked through these observable signals:"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {topicCards.length > 1 ? (
-              <div className="space-y-3">
-                {multiTopicObservationBlocks.map((block) => (
-                  <div key={block.topic} className="rounded-lg border border-primary/10 bg-muted/20 px-3 py-2">
-                    <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">{block.topic}</p>
-                    <ul className="mt-2 space-y-1 text-sm text-muted-foreground leading-relaxed">
-                      {block.signals.map((signal) => (
-                        <li key={`${block.topic}-${signal}`}>{signal}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <ul className="space-y-2 text-sm text-muted-foreground leading-relaxed">
-                {dashboardSignals.map((signal) => (
-                  <li key={signal}>{signal}</li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-primary/25 bg-background">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold tracking-[-0.01em]">Parent Role</CardTitle>
-            <CardDescription>
-              {isDiagnosisOnlyView
-                ? "What helps the diagnosed starting point become trainable once sessions begin:"
-                : "What helps the system work as intended outside the session:"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {topicCards.length > 1 ? (
-              <div className="space-y-3">
-                <ul className="space-y-2 text-sm text-muted-foreground leading-relaxed">
-                  <li>Keep session attendance steady and protected.</li>
-                  <li>Use the Specialist and training plan as the operating reference.</li>
-                </ul>
-                {multiTopicParentRoleBlocks.map((block) => (
-                  <div key={block.topic} className="rounded-lg border border-primary/10 bg-muted/20 px-3 py-2">
-                    <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">{block.topic}</p>
-                    <ul className="mt-2 space-y-1 text-sm text-muted-foreground leading-relaxed">
-                      {block.lines.map((line) => (
-                        <li key={`${block.topic}-${line}`}>{line}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <ul className="space-y-2 text-sm text-muted-foreground leading-relaxed">
-                {parentRoleLines.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="border-primary/15">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-semibold tracking-[-0.01em]">What is Being Observed</CardTitle>
+          <CardDescription>
+            {topicCards.length > 1
+              ? "These observations vary by topic:"
+              : isDiagnosisOnlyView
+                ? "The diagnosis is pointing to these observable signals:"
+                : "The current training is being tracked through these observable signals:"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {topicCards.length > 1 ? (
+            <div className="space-y-3">
+              {multiTopicObservationBlocks.map((block) => (
+                <div key={block.topic} className="rounded-lg border border-primary/10 bg-muted/20 px-3 py-2">
+                  <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">{block.topic}</p>
+                  <ul className="mt-2 space-y-1 text-sm text-muted-foreground leading-relaxed">
+                    {block.signals.map((signal) => (
+                      <li key={`${block.topic}-${signal}`}>{signal}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <ul className="space-y-2 text-sm text-muted-foreground leading-relaxed">
+              {dashboardSignals.map((signal) => (
+                <li key={signal}>{signal}</li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
         <Card className="lg:col-span-2 border-primary/15">
@@ -993,7 +969,7 @@ export default function ParentDashboard() {
               Review Training Plan
             </Button>
             <Button variant="outline" className="w-full justify-start text-sm" onClick={() => navigate("/client/parent/updates?tab=messages")}>
-              Message Tutor
+              Message Specialist
             </Button>
             <Button variant="outline" className="w-full justify-start text-sm" onClick={() => navigate("/client/parent/progress?tab=analytics")}>
               View Analytics
