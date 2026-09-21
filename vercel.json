@@ -1,8 +1,7 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
+  "buildCommand": "npm run build && npm run build:vercel-api",
   "installCommand": "npm ci",
-  "framework": null,
+  "framework": "vite",
   "github": {
     "silent": false
   },
@@ -330,6 +329,16 @@
   ],
   "rewrites": [
     {
+      "source": "/api/__proof/environment",
+      "has": [
+        {
+          "type": "host",
+          "value": "tt-confidence-hub-git-feat-dem-d053fe-relief-works-technologies.vercel.app"
+        }
+      ],
+      "destination": "/api/proof-environment"
+    },
+    {
       "source": "/api/:path*",
       "has": [
         {
@@ -412,7 +421,8 @@
   ],
   "functions": {
     "api/index.js": {
-      "includeFiles": "{server/**/*,shared/**/*,tsconfig.json,node_modules/{tsx,get-tsconfig,resolve-pkg-maps,esbuild,@esbuild}/**/*}"
+      "includeFiles": "server/**/*.ts,shared/**/*.ts,tsconfig.json,node_modules/{tsx,get-tsconfig,resolve-pkg-maps,esbuild,@esbuild}/**/*"
     }
-  }
+  },
+  "ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD -- . ':(exclude).github/**' ':(exclude)scripts/demand-preview-e2e.mjs'"
 }

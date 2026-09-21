@@ -1,3 +1,6 @@
+import { captureDemandParent } from "./demandCapture";
+import { registerDemandProductionRoutes } from "./demandProduction";
+import { demandAssignmentBlock, resolveEntryType } from "../shared/demandProduction";
 import type { Express, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { createHash } from "crypto";
@@ -3361,9 +3364,14 @@ async function getParentBillingModel(parentId: string) {
     .eq("user_id", parentId)
     .maybeSingle();
 
-  const onboardingType = String(data?.onboarding_type || "").trim().toLowerCase() === "pilot"
-    ? "pilot"
-    : "commercial";
+  let onboardingType = resolveEntryType(data);
+  // Preserve the former commercial fallback only for a proven pre-migration enrollment.
+  if (!data && !error) {
+    const legacy = await supabase.from("parent_enrollments").select("id")
+      .eq("user_id", parentId).eq("demand_flow_version", 0).limit(1).maybeSingle();
+    if (legacy.error) return { data: { onboardingType: null, affiliateCode: null, affiliateType: null }, error: legacy.error };
+    if (legacy.data) onboardingType = "commercial";
+  }
 
   return {
     data: {
@@ -3476,6 +3484,10 @@ async function ensurePremiumAccessForParent(parentId: string, studentId?: string
       status: 500,
       message: "Failed to resolve onboarding type for payment rules.",
     };
+  }
+
+  if (!billingModel.data.onboardingType || billingModel.data.onboardingType === "pending") {
+    return { allowed: false, status: 409, message: "Application review and entry selection must be completed before service." };
   }
 
   if (billingModel.data.onboardingType === "pilot") {
@@ -4306,6 +4318,7 @@ async function getPendingTrainingConfirmationSession(tutorId: string, studentId:
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  registerDemandProductionRoutes(app, { client: supabase, isAuthenticated, requireRole });
           const persistEvidenceLedgerShadow = async (input: EvidenceLedgerProjectionInput) => {
             const result = isEmergencyDbMode()
               ? await persistResponseIntegrityEvidenceLedgerShadowDirect(pool, input)
@@ -13472,7 +13485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     fallbackSelect?: string;
     preferPaidEnrollment?: boolean;
   }) => {
-    if (isEmergencyDbMode()) {
+    if (isEmergencyDbMode() || process.env.VERCEL_ENV === "preview") {
       const byParent = await pool.query(
         `SELECT * FROM public.parent_enrollments
           WHERE user_id = $1
@@ -14258,23 +14271,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     };
 
-    const { data: drillRows } = await supabase
-      .from("intro_session_drills")
-      .select("id, scheduled_session_id, training_session_run_id, submitted_at, drill")
-      .eq("student_id", studentId)
-      .order("submitted_at", { ascending: false });
+    let drillRows: any[] = [];
+    let trainingRuns: any[] = [];
 
-    const { data: trainingRuns } = await supabase
-      .from("training_session_runs")
-      .select("id, scheduled_session_id, topic_count, submitted_at, status")
-      .eq("student_id", studentId)
-      .order("submitted_at", { ascending: false });
+    if (isEmergencyDbMode()) {
+      const [drillResult, trainingResult] = await Promise.all([
+        pool.query(
+          `SELECT id, scheduled_session_id, training_session_run_id, submitted_at, drill
+             FROM public.intro_session_drills
+            WHERE student_id = $1
+            ORDER BY submitted_at DESC`,
+          [studentId],
+        ),
+        pool.query(
+          `SELECT id, scheduled_session_id, topic_count, submitted_at, status
+             FROM public.training_session_runs
+            WHERE student_id = $1
+            ORDER BY submitted_at DESC`,
+          [studentId],
+        ),
+      ]);
+      drillRows = drillResult.rows;
+      trainingRuns = trainingResult.rows;
+    } else {
+      const [drillResult, trainingResult] = await Promise.all([
+        supabase
+          .from("intro_session_drills")
+          .select("id, scheduled_session_id, training_session_run_id, submitted_at, drill")
+          .eq("student_id", studentId)
+          .order("submitted_at", { ascending: false }),
+        supabase
+          .from("training_session_runs")
+          .select("id, scheduled_session_id, topic_count, submitted_at, status")
+          .eq("student_id", studentId)
+          .order("submitted_at", { ascending: false }),
+      ]);
+      drillRows = drillResult.data || [];
+      trainingRuns = trainingResult.data || [];
+    }
 
-    const normalizedTrainingRuns = (trainingRuns || []).filter((row: any) =>
+    const normalizedTrainingRuns = trainingRuns.filter((row: any) =>
       ["submitted", "completed"].includes(String(row?.status || "").toLowerCase())
     );
 
-    const parsedDrills = (drillRows || []).map((row: any) => {
+    const parsedDrills = drillRows.map((row: any) => {
       const payload = parseDrillPayload(row?.drill);
       const inferredType =
         payload?.drillType ||
@@ -14325,15 +14365,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         trainingDrills.map((row) => row.trainingSessionRunId || row.id).filter(Boolean)
       ).size;
 
-    const { data: commitments } = await supabase
-      .from("student_commitments")
-      .select("streak_count")
-      .eq("student_id", studentId)
-      .eq("is_active", true)
-      .order("streak_count", { ascending: false })
-      .limit(1);
-
-    const currentStreak = Number(commitments?.[0]?.streak_count || 0);
+    let currentStreak = 0;
+    if (isEmergencyDbMode()) {
+      const commitmentResult = await pool.query(
+        `SELECT COALESCE(MAX(streak_count), 0)::int AS streak_count
+           FROM public.student_commitments
+          WHERE student_id = $1
+            AND is_active = true`,
+        [studentId],
+      );
+      currentStreak = Number(commitmentResult.rows[0]?.streak_count || 0);
+    } else {
+      const { data: commitments } = await supabase
+        .from("student_commitments")
+        .select("streak_count")
+        .eq("student_id", studentId)
+        .eq("is_active", true)
+        .order("streak_count", { ascending: false })
+        .limit(1);
+      currentStreak = Number(commitments?.[0]?.streak_count || 0);
+    }
 
     return {
       introDiagnosisCompleted: introDrills.length,
@@ -17474,18 +17525,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       requireRole(["coo"]),
       async (_req: Request, res: Response) => {
         try {
-          const [links, leads, applications, users, enrollments, assignments, trialCases, trialPlacements, closes] = await Promise.all([
+          const [links, leads, applications, users, enrollments, assignments, trialCases, trialPlacements, closes, parents, payments, proposals] = await Promise.all([
             supabase.from("affiliate_codes").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
             supabase.from("leads").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
             supabase.from("tutor_applications").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
-            supabase.from("users").select("id, name, first_name, last_name, email").then(({ data, error }) => { if (error) throw error; return data || []; }),
+            supabase.from("users").select("id, name, first_name, last_name, email, role, production_link_code, tracking_source, tracking_campaign, created_at").then(({ data, error }) => { if (error) throw error; return data || []; }),
             supabase.from("parent_enrollments").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
             supabase.from("tutor_assignments").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
             supabase.from("tutor_trial_cases").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
             supabase.from("tutor_trial_placements").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
             supabase.from("closes").select("*").then(({ data, error }) => { if (error) throw error; return data || []; }),
+            supabase.from("parents").select("user_id, onboarding_type").then(({ data, error }) => { if (error) throw error; return data || []; }),
+            supabase.from("payment_transactions").select("enrollment_id, parent_id, proposal_id, provider, payment_status, paid_at, amount").then(({ data, error }) => { if (error) throw error; return data || []; }),
+            supabase.from("onboarding_proposals").select("id, enrollment_id, student_id, tutor_id, accepted_at").then(({ data, error }) => { if (error) throw error; return data || []; }),
           ]);
-          res.json(buildProductionEconomy({ links, leads, applications, users, enrollments, assignments, trialCases, trialPlacements, closes }));
+          res.json(buildProductionEconomy({ links, leads, applications, users, enrollments, assignments, trialCases, trialPlacements, closes, parents, payments, proposals }));
         } catch (error) {
           console.error("[COO PRODUCTION ECONOMY] Error:", error);
           res.status(500).json({ message: "Failed to load Production Economy" });
@@ -23506,6 +23560,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (enrollmentError || !enrollment) {
           return res.status(404).json({ message: "Enrollment not found" });
         }
+        const demandBlock = demandAssignmentBlock(enrollment);
+        if (demandBlock) return res.status(409).json({ message: demandBlock });
         if (isSandboxEnrollmentForTutor(enrollment, tutorId)) {
           return res.status(409).json({ message: "A sandbox account cannot be used as Trial evidence" });
         }
@@ -23607,6 +23663,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!tutorId) {
           return res.status(400).json({ message: "Tutor ID is required" });
         }
+
+        const { data: demandEnrollment, error: demandError } = await supabase.from("parent_enrollments").select("*").eq("id", enrollmentId).maybeSingle();
+        if (demandError) return res.status(500).json({ message: "Failed to verify Demand Production gate" });
+        const demandBlock = demandAssignmentBlock(demandEnrollment);
+        if (demandBlock) return res.status(409).json({ message: demandBlock });
 
         const tutorAssignment = await storage.getTutorAssignment(tutorId);
         if (!tutorAssignment) {
@@ -25021,6 +25082,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ status: "not_enrolled", debug: enrollmentDebug });
       }
 
+      if (enrollmentData.demand_flow_version === 1 && !enrollmentData.assigned_tutor_id) {
+        const billing = await getParentBillingModel(userId);
+        if (billing.error) return res.status(500).json({ message: "Failed to load application status" });
+        return res.json({ status: "awaiting_assignment", step: "application-review", onboardingType: billing.data.onboardingType,
+          freeSessionsRemaining: 0, plan: null, paymentStatus: null, paymentDate: null });
+      }
+
       let status = enrollmentData.status || "not_enrolled";
       let effectiveStep = enrollmentData.current_step;
       const operationalMode = await getParentAssignedTutorOperationalMode(userId);
@@ -25284,7 +25352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Submit parent enrollment form
-  app.post("/api/parent/enroll", isAuthenticated, async (req: Request, res: Response) => {
+  app.post("/api/parent/enroll", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
     try {
       const userId = (req as any).dbUser?.id || (req.session as any)?.userId;
       const dbUser = (req as any).dbUser;
@@ -25312,8 +25380,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parentMotivation,
         processAlignment,
         agreedToTerms,
-        onboardingType,
-        cohortCode,
         affiliateCode: bodyAffiliateCode
       } = req.body;
 
@@ -25386,149 +25452,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
 
-      // Check if enrollment already exists
-      const { data: existing } = await supabase
-        .from("parent_enrollments")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (existing) {
-        return res.status(400).json({ message: "Enrollment already submitted" });
-      }
-
-
-
-      // Determine onboarding_type from affiliate code if present
-      // Determine onboarding_type and affiliate_type from affiliate code if present
-      // Only allow 'pilot' or 'commercial' as onboarding_type
-        // --- ONBOARDING LOGIC ---
-        // onboarding_type: 'pilot' or 'commercial' ONLY
-        // affiliate_type: 'person' or 'entity' ONLY
-        let resolvedOnboardingType = (onboardingType === 'pilot' || onboardingType === 'commercial') ? onboardingType : 'commercial';
-        let resolvedAffiliateType = null;
-        if (affiliateCode) {
-          // Always set onboarding_type to 'pilot' if code is provided
-          resolvedOnboardingType = 'pilot';
-          const { data: codeData, error: codeError } = await supabase
-            .from("affiliate_codes")
-            .select("type, affiliate_type")
-            .eq("code", affiliateCode)
-            .maybeSingle();
-          if (codeError) {
-            console.error('Error looking up affiliate code for onboarding_type/affiliate_type:', codeError);
-          }
-          if (codeData) {
-            // affiliate_type is for analytics/tracking, not onboarding flow
-            resolvedAffiliateType = codeData.affiliate_type || codeData.type || null;
-          }
+      if (process.env.VERCEL_ENV === "preview") {
+        const existingEnrollmentResult = await pool.query(
+          `SELECT id
+             FROM public.parent_enrollments
+            WHERE user_id = $1
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [userId],
+        );
+        if (existingEnrollmentResult.rows[0]) {
+          return res.status(400).json({ message: "Enrollment already submitted" });
         }
-        // Ensure onboarding_type is never set to affiliate_type
-        if (resolvedOnboardingType !== 'pilot' && resolvedOnboardingType !== 'commercial') {
-          resolvedOnboardingType = 'commercial';
+      } else {
+        // Check if enrollment already exists
+        const { data: existing } = await supabase
+          .from("parent_enrollments")
+          .select("id")
+          .eq("user_id", userId)
+          .maybeSingle();
+  
+        if (existing) {
+          return res.status(400).json({ message: "Enrollment already submitted" });
         }
-        // --- END ONBOARDING LOGIC ---
-      // Insert or update onboarding type, affiliate type, and affiliate code in parents table
-      // Fetch full_name from public.users
-      let fullName = null;
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("first_name, last_name")
-        .eq("id", userId)
-        .maybeSingle();
-      if (userError) {
-        console.error("Error fetching first_name/last_name from users:", userError);
+  
+  
+  
+  
       }
-      if (userData) {
-        const first = userData.first_name || '';
-        const last = userData.last_name || '';
-        fullName = (first + ' ' + last).trim();
-      }
-      // --- DEBUG LOGGING ---
-      console.log("[ENROLL] Preparing to upsert parent record:", {
-        user_id: userId,
-        onboarding_type: resolvedOnboardingType,
-        affiliate_type: resolvedAffiliateType,
-        affiliate_code: affiliateCode,
-        cohort_code: cohortCode,
-        full_name: fullName,
-      });
+
+      // Resolve the durable signup lineage; never derive entry type from a link or parent input.
       try {
-        const { data: parentUpserted, error: parentUpsertError } = await supabase
-          .from("parents")
-          .upsert({
-            user_id: userId,
-            onboarding_type: resolvedOnboardingType,
-            affiliate_type: resolvedAffiliateType,
-            affiliate_code: affiliateCode || cohortCode || null,
-            full_name: fullName,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'user_id' })
-          .select()
-          .single();
-        if (parentUpsertError) {
-          console.error("[ENROLL] Error upserting parent onboarding/affiliate type:", parentUpsertError);
-        } else {
-          console.log("[ENROLL] Parent upsert successful. Upserted row:", parentUpserted);
-        }
-      } catch (err) {
-        console.error("[ENROLL] Exception during parent upsert:", err);
+        await captureDemandParent(supabase, storage, {
+          userId, fullName: parentFullName, email: parentEmail,
+          code: affiliateCode, source: (req.session as any).trackingSource,
+          campaign: (req.session as any).trackingCampaign,
+        });
+      } catch (captureError) {
+        return res.status(409).json({ message: captureError instanceof Error ? captureError.message : "Could not preserve application source" });
       }
-      // --- END DEBUG LOGGING ---
 
       // Lead creation is now handled after signup, not enrollment.
 
-      // Create enrollment record
-      const { data: enrollmentData, error } = await supabase
-        .from("parent_enrollments")
-        .insert({
-          user_id: userId,
-          parent_full_name: parentFullName,
-          parent_phone: parentPhone,
-          parent_email: parentEmail,
-          parent_city: parentCity,
-          student_full_name: studentFullName,
-          student_grade: studentGrade,
-          student_gender: studentGender,
-          school_name: schoolName,
-          response_symptoms: effectiveResponseSymptoms,
-          topic_response_symptoms: normalizedTopicResponseSymptoms,
-          response_signal_scores: responseRecommendation.scores,
-          topic_response_signal_scores: Object.fromEntries(
-            Object.entries(topicResponseRecommendations).map(([topic, value]) => [topic, (value as any).scores])
-          ),
-          recommended_starting_phase: responseRecommendation.phase,
-          topic_recommended_starting_phases: Object.fromEntries(
-            Object.entries(topicResponseRecommendations).map(([topic, value]) => [
-              topic,
-              {
-                phase: (value as any).phase,
-                supportingSymptoms: (value as any).supportingSymptoms,
-                rationale: (value as any).rationale,
-              },
-            ])
-          ),
-          previous_tutoring: previousTutoring,
-          internet_access: internetAccess,
-          parent_motivation: normalizedParentMotivation,
-          status: "awaiting_assignment",
-          current_step: "awaiting-assignment",
-          created_at: new Date().toISOString(),
-        })
-        .select();
-
-      if (error) {
-        console.error("Failed to create parent enrollment:", error);
-        return res.status(500).json({
-          message: "Failed to save enrollment",
-          detail: error.message,
+      if (process.env.VERCEL_ENV === "preview") {
+          // Preview uses the authoritative PostgreSQL path because Proof has no service-role key.
+        const topicSignalScores = Object.fromEntries(
+          Object.entries(topicResponseRecommendations).map(([topic, value]) => [topic, (value as any).scores])
+        );
+        const topicStartingPhases = Object.fromEntries(
+          Object.entries(topicResponseRecommendations).map(([topic, value]) => [
+            topic,
+            {
+              phase: (value as any).phase,
+              supportingSymptoms: (value as any).supportingSymptoms,
+              rationale: (value as any).rationale,
+            },
+          ])
+        );
+  
+        const enrollmentResult = await pool.query(
+          `INSERT INTO public.parent_enrollments (
+             user_id, parent_full_name, parent_phone, parent_email, parent_city,
+             student_full_name, student_grade, student_gender, school_name,
+             response_symptoms, topic_response_symptoms, response_signal_scores,
+             topic_response_signal_scores, recommended_starting_phase,
+             topic_recommended_starting_phases, previous_tutoring, internet_access,
+             parent_motivation, status, current_step, demand_flow_version,
+             qualification_status, created_at, updated_at
+           ) VALUES (
+             $1,$2,$3,$4,$5,$6,$7,$8,$9,
+             $10::jsonb,$11::jsonb,$12::jsonb,$13::jsonb,$14,$15::jsonb,
+             $16,$17,$18,'awaiting_assignment','qualification-pending',1,'pending',NOW(),NOW()
+           )
+           RETURNING *`,
+          [
+            userId,
+            parentFullName,
+            parentPhone,
+            parentEmail,
+            parentCity || null,
+            studentFullName,
+            studentGrade,
+            studentGender,
+            schoolName,
+            JSON.stringify(effectiveResponseSymptoms),
+            JSON.stringify(normalizedTopicResponseSymptoms),
+            JSON.stringify(responseRecommendation.scores),
+            JSON.stringify(topicSignalScores),
+            responseRecommendation.phase,
+            JSON.stringify(topicStartingPhases),
+            previousTutoring,
+            internetAccess,
+            normalizedParentMotivation,
+          ],
+        );
+        const enrollmentData = enrollmentResult.rows;
+  
+        res.json({
+          message: "Enrollment submitted successfully",
+          enrollment: enrollmentData?.[0],
         });
+  
+      } else {
+        // Create enrollment record
+        const { data: enrollmentData, error } = await supabase
+          .from("parent_enrollments")
+          .insert({
+            user_id: userId,
+            parent_full_name: parentFullName,
+            parent_phone: parentPhone,
+            parent_email: parentEmail,
+            parent_city: parentCity,
+            student_full_name: studentFullName,
+            student_grade: studentGrade,
+            student_gender: studentGender,
+            school_name: schoolName,
+            response_symptoms: effectiveResponseSymptoms,
+            topic_response_symptoms: normalizedTopicResponseSymptoms,
+            response_signal_scores: responseRecommendation.scores,
+            topic_response_signal_scores: Object.fromEntries(
+              Object.entries(topicResponseRecommendations).map(([topic, value]) => [topic, (value as any).scores])
+            ),
+            recommended_starting_phase: responseRecommendation.phase,
+            topic_recommended_starting_phases: Object.fromEntries(
+              Object.entries(topicResponseRecommendations).map(([topic, value]) => [
+                topic,
+                {
+                  phase: (value as any).phase,
+                  supportingSymptoms: (value as any).supportingSymptoms,
+                  rationale: (value as any).rationale,
+                },
+              ])
+            ),
+            previous_tutoring: previousTutoring,
+            internet_access: internetAccess,
+            parent_motivation: normalizedParentMotivation,
+            status: "awaiting_assignment",
+            current_step: "qualification-pending",
+            demand_flow_version: 1,
+            qualification_status: "pending",
+            created_at: new Date().toISOString(),
+          })
+          .select();
+  
+        if (error) {
+          console.error("Failed to create parent enrollment:", error);
+          return res.status(500).json({
+            message: "Failed to save enrollment",
+            detail: error.message,
+          });
+        }
+  
+        res.json({
+          message: "Enrollment submitted successfully",
+          enrollment: enrollmentData?.[0],
+        });
+  
       }
-
-      res.json({
-        message: "Enrollment submitted successfully",
-        enrollment: enrollmentData?.[0],
-      });
     } catch (error) {
       console.error("Error in enroll:", error);
       return res.status(500).json({
@@ -26607,6 +26687,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const billingModel = await getParentBillingModel(parentId);
       if (billingModel.error) {
         return res.status(500).json({ message: "Failed to resolve onboarding type for billing." });
+      }
+
+      if (!billingModel.data.onboardingType || billingModel.data.onboardingType === "pending") {
+        return res.status(409).json({ message: "Application review and entry selection must be completed before proposal acceptance." });
       }
 
       const { data: paymentEnrollment, error: paymentEnrollmentError } = await supabase
@@ -27871,19 +27955,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/student/signup", async (req: Request, res: Response) => {
     try {
       const { email, password, firstName, lastName, parentCode } = req.body;
-      console.log("🎓 Student signup request:", { email, firstName, lastName, parentCode });
+      const normalizedEmail = String(email || "").trim().toLowerCase();
+      const normalizedParentCode = String(parentCode || "").trim().toUpperCase();
+      console.log("🎓 Student signup request:", {
+        email: normalizedEmail,
+        firstName,
+        lastName,
+        parentCode: normalizedParentCode,
+      });
 
-      if (!email || !password || !parentCode) {
+      if (!normalizedEmail || !password || !normalizedParentCode) {
         return res.status(400).json({ message: "Email, password, and parent code are required" });
       }
 
-      // Validate parent code
-      console.log("🔍 Validating parent code:", parentCode.toUpperCase());
-      const { data: proposal, error: proposalError } = await supabase
-        .from("onboarding_proposals")
-        .select("id, student_id, accepted_at, parent_code")
-        .eq("parent_code", parentCode.toUpperCase())
-        .maybeSingle();
+      console.log("🔍 Validating parent code:", normalizedParentCode);
+
+      let proposal: any = null;
+      let proposalError: any = null;
+
+      if (isEmergencyDbMode()) {
+        try {
+          const proposalResult = await pool.query(
+            `SELECT
+                id::text,
+                student_id::text,
+                accepted_at,
+                parent_code,
+                tutor_id::text,
+                enrollment_id::text
+               FROM public.onboarding_proposals
+              WHERE upper(parent_code) = $1
+              LIMIT 1`,
+            [normalizedParentCode],
+          );
+          proposal = proposalResult.rows[0] || null;
+        } catch (error) {
+          proposalError = error;
+        }
+      } else {
+        const proposalResult = await supabase
+          .from("onboarding_proposals")
+          .select("id, student_id, accepted_at, parent_code, tutor_id, enrollment_id")
+          .eq("parent_code", normalizedParentCode)
+          .maybeSingle();
+
+        proposal = proposalResult.data;
+        proposalError = proposalResult.error;
+      }
 
       console.log("📋 Proposal found:", proposal, "Error:", proposalError);
 
@@ -27897,82 +28015,204 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Parent has not yet accepted the proposal for this code" });
       }
 
-      // Check if code already used
       console.log("🔍 Checking if code already used...");
-      const { data: existingStudent, error: checkError } = await supabase
-        .from("student_users")
-        .select("id")
-        .eq("parent_code", parentCode.toUpperCase())
-        .maybeSingle();
+      let existingStudent: any = null;
+      let checkError: any = null;
+
+      if (isEmergencyDbMode()) {
+        try {
+          const existingResult = await pool.query(
+            `SELECT id::text
+               FROM public.student_users
+              WHERE upper(parent_code) = $1
+              LIMIT 1`,
+            [normalizedParentCode],
+          );
+          existingStudent = existingResult.rows[0] || null;
+        } catch (error) {
+          checkError = error;
+        }
+      } else {
+        const existingResult = await supabase
+          .from("student_users")
+          .select("id")
+          .eq("parent_code", normalizedParentCode)
+          .maybeSingle();
+
+        existingStudent = existingResult.data;
+        checkError = existingResult.error;
+      }
 
       console.log("👥 Existing student:", existingStudent, "Check error:", checkError);
+
+      if (checkError) {
+        console.error("❌ Failed to verify parent code usage:", checkError);
+        return res.status(500).json({ message: "Failed to verify parent code" });
+      }
 
       if (existingStudent) {
         console.log("❌ Code already used");
         return res.status(400).json({ message: "This parent code has already been used" });
       }
 
-      // Hash password using bcrypt
       console.log("🔐 Hashing password...");
       const { hash } = await import("bcryptjs");
       const hashedPassword = await hash(password, 10);
 
-      // Create student user
       console.log("💾 Creating student user in database...");
-      const { data: studentUser, error: insertError } = await supabase
-        .from("student_users")
-        .insert({
-          email,
-          password: hashedPassword,
-          first_name: firstName,
-          last_name: lastName,
-          student_id: proposal.student_id,
-          parent_code: parentCode.toUpperCase(),
-        })
-        .select()
-        .single();
+      let studentUser: any = null;
+      let insertError: any = null;
 
-      if (insertError) {
-        console.error("❌ Error creating student user:", insertError);
-        console.error("❌ Insert error details:", JSON.stringify(insertError, null, 2));
-        return res.status(500).json({ message: "Failed to create student account", error: insertError.message });
+      if (isEmergencyDbMode()) {
+        try {
+          const insertResult = await pool.query(
+            `INSERT INTO public.student_users (
+                email,
+                password,
+                first_name,
+                last_name,
+                student_id,
+                parent_code
+              )
+              VALUES ($1, $2, $3, $4, $5, $6)
+              RETURNING
+                id::text,
+                email,
+                first_name,
+                last_name,
+                student_id::text,
+                parent_code,
+                created_at,
+                last_login`,
+            [
+              normalizedEmail,
+              hashedPassword,
+              firstName || null,
+              lastName || null,
+              proposal.student_id || null,
+              normalizedParentCode,
+            ],
+          );
+          studentUser = insertResult.rows[0] || null;
+        } catch (error: any) {
+          insertError = error;
+        }
+      } else {
+        const insertResult = await supabase
+          .from("student_users")
+          .insert({
+            email: normalizedEmail,
+            password: hashedPassword,
+            first_name: firstName,
+            last_name: lastName,
+            student_id: proposal.student_id,
+            parent_code: normalizedParentCode,
+          })
+          .select()
+          .single();
+
+        studentUser = insertResult.data;
+        insertError = insertResult.error;
       }
 
-      console.log("✅ Student user created:", studentUser);
+      if (insertError || !studentUser) {
+        console.error("❌ Error creating student user:", insertError);
+        if (insertError?.code === "23505") {
+          return res.status(400).json({ message: "A student account already exists for this email or parent code" });
+        }
+        return res.status(500).json({
+          message: "Failed to create student account",
+          error: insertError?.message || "Student account was not created",
+        });
+      }
 
-      // Patch: Link intro session(s) to student_id after signup
-      if (proposal.student_id) {
-        // Find all intro sessions for this parent/tutor with student_id null
-        const { data: introSessions, error: sessionFetchError } = await supabase
-          .from("scheduled_sessions")
-          .select("id")
-          .eq("parent_id", req.body.parentId || null)
-          .eq("tutor_id", (proposal as any).tutor_id)
-          .is("student_id", null)
-          .eq("type", "intro");
-        if (sessionFetchError) {
-          console.error("❌ Error fetching intro sessions for student linkage:", sessionFetchError);
-        } else if (introSessions && introSessions.length > 0) {
-          const sessionIds = introSessions.map(s => s.id);
-          const { error: updateSessionError } = await supabase
-            .from("scheduled_sessions")
-            .update({ student_id: proposal.student_id, updated_at: new Date().toISOString() })
-            .in("id", sessionIds);
-          if (updateSessionError) {
-            console.error("❌ Error updating intro sessions with student_id:", updateSessionError);
-          } else {
-            console.log("✅ Linked intro sessions to student_id:", sessionIds);
+      console.log("✅ Student user created:", {
+        id: studentUser.id,
+        email: studentUser.email,
+        studentId: studentUser.student_id,
+      });
+
+      // Keep any unlinked intro session attached to the canonical student.
+      if (proposal.student_id && proposal.tutor_id) {
+        if (isEmergencyDbMode()) {
+          try {
+            let parentId: string | null = null;
+            if (proposal.enrollment_id) {
+              const enrollmentResult = await pool.query(
+                `SELECT user_id::text
+                   FROM public.parent_enrollments
+                  WHERE id = $1
+                  LIMIT 1`,
+                [proposal.enrollment_id],
+              );
+              parentId = enrollmentResult.rows[0]?.user_id || null;
+            }
+
+            if (parentId) {
+              const linkResult = await pool.query(
+                `UPDATE public.scheduled_sessions
+                    SET student_id = $1::uuid,
+                        updated_at = NOW()
+                  WHERE parent_id = $2
+                    AND tutor_id = $3
+                    AND student_id IS NULL
+                    AND type = 'intro'
+                  RETURNING id::text`,
+                [proposal.student_id, parentId, proposal.tutor_id],
+              );
+              if (linkResult.rows.length > 0) {
+                console.log("✅ Linked intro sessions to student_id:", linkResult.rows.map((row: any) => row.id));
+              }
+            }
+          } catch (linkError) {
+            console.error("❌ Error linking intro sessions to student_id:", linkError);
+          }
+        } else {
+          let parentId = String(req.body.parentId || "").trim() || null;
+
+          if (!parentId && proposal.enrollment_id) {
+            const { data: enrollment } = await supabase
+              .from("parent_enrollments")
+              .select("user_id")
+              .eq("id", proposal.enrollment_id)
+              .maybeSingle();
+            parentId = String(enrollment?.user_id || "").trim() || null;
+          }
+
+          if (parentId) {
+            const { data: introSessions, error: sessionFetchError } = await supabase
+              .from("scheduled_sessions")
+              .select("id")
+              .eq("parent_id", parentId)
+              .eq("tutor_id", proposal.tutor_id)
+              .is("student_id", null)
+              .eq("type", "intro");
+
+            if (sessionFetchError) {
+              console.error("❌ Error fetching intro sessions for student linkage:", sessionFetchError);
+            } else if (introSessions && introSessions.length > 0) {
+              const sessionIds = introSessions.map((session: any) => session.id);
+              const { error: updateSessionError } = await supabase
+                .from("scheduled_sessions")
+                .update({ student_id: proposal.student_id, updated_at: new Date().toISOString() })
+                .in("id", sessionIds);
+
+              if (updateSessionError) {
+                console.error("❌ Error updating intro sessions with student_id:", updateSessionError);
+              } else {
+                console.log("✅ Linked intro sessions to student_id:", sessionIds);
+              }
+            }
           }
         }
       }
 
-      // Create session for student
       (req.session as any).studentUserId = studentUser.id;
       (req.session as any).studentEmail = studentUser.email;
       req.session.touch();
 
       console.log("✅ Student signup successful!");
-      res.json({
+      return res.json({
         message: "Student account created successfully",
         user: {
           id: studentUser.id,
@@ -27985,7 +28225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("❌ Student signup error:", error);
       console.error("❌ Error stack:", error.stack);
-      res.status(500).json({ message: "Failed to create student account", error: error.message });
+      return res.status(500).json({ message: "Failed to create student account", error: error.message });
     }
   });
 
@@ -27993,23 +28233,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/student/signin", async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
+      const normalizedEmail = String(email || "").trim().toLowerCase();
 
-      if (!email || !password) {
+      if (!normalizedEmail || !password) {
         return res.status(400).json({ message: "Email and password are required" });
       }
 
-      // Find student user
-      const { data: studentUser, error } = await supabase
-        .from("student_users")
-        .select("*")
-        .eq("email", email)
-        .maybeSingle();
+      let studentUser: any = null;
+      let lookupError: any = null;
 
-      if (error || !studentUser) {
+      if (isEmergencyDbMode()) {
+        try {
+          const userResult = await pool.query(
+            `SELECT
+                id::text,
+                email,
+                password,
+                first_name,
+                last_name,
+                student_id::text,
+                created_at,
+                last_login
+               FROM public.student_users
+              WHERE lower(email) = $1
+              LIMIT 1`,
+            [normalizedEmail],
+          );
+          studentUser = userResult.rows[0] || null;
+        } catch (error) {
+          lookupError = error;
+        }
+      } else {
+        const userResult = await supabase
+          .from("student_users")
+          .select("*")
+          .eq("email", normalizedEmail)
+          .maybeSingle();
+
+        studentUser = userResult.data;
+        lookupError = userResult.error;
+      }
+
+      if (lookupError || !studentUser) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      // Verify password
       const { compare } = await import("bcryptjs");
       const passwordMatch = await compare(password, studentUser.password);
 
@@ -28017,18 +28285,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      // Update last login
-      await supabase
-        .from("student_users")
-        .update({ last_login: new Date().toISOString() })
-        .eq("id", studentUser.id);
+      if (isEmergencyDbMode()) {
+        await pool.query(
+          `UPDATE public.student_users
+              SET last_login = NOW()
+            WHERE id = $1`,
+          [studentUser.id],
+        );
+      } else {
+        await supabase
+          .from("student_users")
+          .update({ last_login: new Date().toISOString() })
+          .eq("id", studentUser.id);
+      }
 
-      // Create session
       (req.session as any).studentUserId = studentUser.id;
       (req.session as any).studentEmail = studentUser.email;
       req.session.touch();
 
-      res.json({
+      return res.json({
         message: "Signed in successfully",
         user: {
           id: studentUser.id,
@@ -28040,7 +28315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Student signin error:", error);
-      res.status(500).json({ message: "Failed to sign in" });
+      return res.status(500).json({ message: "Failed to sign in" });
     }
   });
 
@@ -28053,40 +28328,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      const { data: studentUser, error } = await supabase
-        .from("student_users")
-        .select("id, email, first_name, last_name, student_id, created_at, last_login")
-        .eq("id", studentUserId)
-        .single();
+      let studentUser: any = null;
+      let lookupError: any = null;
 
-      if (error || !studentUser) {
+      if (isEmergencyDbMode()) {
+        try {
+          const userResult = await pool.query(
+            `SELECT
+                id::text,
+                email,
+                first_name,
+                last_name,
+                student_id::text,
+                created_at,
+                last_login
+               FROM public.student_users
+              WHERE id = $1
+              LIMIT 1`,
+            [studentUserId],
+          );
+          studentUser = userResult.rows[0] || null;
+        } catch (error) {
+          lookupError = error;
+        }
+      } else {
+        const userResult = await supabase
+          .from("student_users")
+          .select("id, email, first_name, last_name, student_id, created_at, last_login")
+          .eq("id", studentUserId)
+          .single();
+
+        studentUser = userResult.data;
+        lookupError = userResult.error;
+      }
+
+      if (lookupError || !studentUser) {
         return res.status(404).json({ message: "Student user not found" });
       }
 
-      // Get the student's tutor's pod if available
       let podName = null;
-      if (studentUser.student_id) {
-        const { data: student } = await supabase
-          .from("students")
-          .select("tutor_id")
-          .eq("id", studentUser.student_id)
-          .maybeSingle();
 
-        if (student?.tutor_id) {
-          const { data: tutorAssignment } = await supabase
-            .from("tutor_assignments")
-            .select("pod:pods(pod_name)")
-            .eq("tutor_id", student.tutor_id)
+      if (studentUser.student_id) {
+        if (isEmergencyDbMode()) {
+          const podResult = await pool.query(
+            `SELECT p.pod_name
+               FROM public.students s
+               LEFT JOIN public.tutor_assignments ta
+                 ON ta.tutor_id = s.tutor_id
+               LEFT JOIN public.pods p
+                 ON p.id = ta.pod_id
+              WHERE s.id = $1
+              LIMIT 1`,
+            [studentUser.student_id],
+          );
+          podName = podResult.rows[0]?.pod_name || null;
+        } else {
+          const { data: student } = await supabase
+            .from("students")
+            .select("tutor_id")
+            .eq("id", studentUser.student_id)
             .maybeSingle();
 
-          const pod = tutorAssignment?.pod as { pod_name?: string } | null;
-          if (pod) {
-            podName = pod.pod_name || null;
+          if (student?.tutor_id) {
+            const { data: tutorAssignment } = await supabase
+              .from("tutor_assignments")
+              .select("pod:pods(pod_name)")
+              .eq("tutor_id", student.tutor_id)
+              .maybeSingle();
+
+            const pod = tutorAssignment?.pod as { pod_name?: string } | null;
+            if (pod) {
+              podName = pod.pod_name || null;
+            }
           }
         }
       }
 
-      res.json({
+      return res.json({
         id: studentUser.id,
         email: studentUser.email,
         firstName: studentUser.first_name,
@@ -28094,11 +28412,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         studentId: studentUser.student_id,
         createdAt: studentUser.created_at,
         lastLogin: studentUser.last_login,
-        podName: podName,
+        podName,
       });
     } catch (error) {
       console.error("Error fetching student user:", error);
-      res.status(500).json({ message: "Failed to fetch student user" });
+      return res.status(500).json({ message: "Failed to fetch student user" });
     }
   });
 
@@ -28300,6 +28618,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================
 
   // Get student stats (gamified dashboard)
+  const resolveStudentIdForPortalSession = async (studentUserId: string) => {
+    if (isEmergencyDbMode()) {
+      const result = await pool.query(
+        `SELECT student_id::text
+           FROM public.student_users
+          WHERE id = $1
+          LIMIT 1`,
+        [studentUserId],
+      );
+      return String(result.rows[0]?.student_id || "").trim() || null;
+    }
+
+    const { data: studentUser } = await supabase
+      .from("student_users")
+      .select("student_id")
+      .eq("id", studentUserId)
+      .single();
+
+    return String(studentUser?.student_id || "").trim() || null;
+  };
+
   app.get("/api/student/stats", async (req: Request, res: Response) => {
     try {
       const studentUserId = (req.session as any).studentUserId;
@@ -28307,18 +28646,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      // Get student_id from student_users table
-      const { data: studentUser } = await supabase
-        .from("student_users")
-        .select("student_id")
-        .eq("id", studentUserId)
-        .single();
+      const studentId = await resolveStudentIdForPortalSession(studentUserId);
 
-      if (!studentUser?.student_id) {
+      if (!studentId) {
         return res.status(404).json({ message: "Student not found" });
       }
 
-      const stats = await getStudentDashboardStats(studentUser.student_id);
+      const stats = await getStudentDashboardStats(studentId);
       res.json(stats);
     } catch (error) {
       console.error("Error fetching student stats:", error);
@@ -28903,17 +29237,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      const { data: studentUser } = await supabase
-        .from("student_users")
-        .select("student_id")
-        .eq("id", studentUserId)
-        .single();
+      const studentId = await resolveStudentIdForPortalSession(studentUserId);
 
-      if (!studentUser?.student_id) {
+      if (!studentId) {
         return res.status(404).json({ message: "Student not found" });
       }
 
-      const student = await storage.getStudent(studentUser.student_id);
+      const student = await storage.getStudent(studentId);
 
       if (!student?.tutorId) {
         return res.json({
@@ -29025,13 +29355,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .pop() || null;
 
       if (!latest) {
-        const { data: activations } = await supabase
-          .from("topic_conditioning_activations")
-          .select("topic, created_at")
-          .eq("student_id", student.id)
-          .order("created_at", { ascending: true });
+        let activations: any[] = [];
+        if (isEmergencyDbMode()) {
+          const activationResult = await pool.query(
+            `SELECT topic, created_at
+               FROM public.topic_conditioning_activations
+              WHERE student_id = $1
+              ORDER BY created_at ASC`,
+            [student.id],
+          );
+          activations = activationResult.rows;
+        } else {
+          const { data } = await supabase
+            .from("topic_conditioning_activations")
+            .select("topic, created_at")
+            .eq("student_id", student.id)
+            .order("created_at", { ascending: true });
+          activations = data || [];
+        }
 
-        const activation = (activations || [])
+        const activation = activations
           .map((row: any) => ({
             topic: sanitizeTopic(row?.topic),
             date: String(row?.created_at || "").trim(),
@@ -29082,17 +29425,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      const { data: studentUser } = await supabase
-        .from("student_users")
-        .select("student_id")
-        .eq("id", studentUserId)
-        .single();
+      const studentId = await resolveStudentIdForPortalSession(studentUserId);
 
-      if (!studentUser?.student_id) {
+      if (!studentId) {
         return res.status(404).json({ message: "Student not found" });
       }
 
-      const student = await storage.getStudent(studentUser.student_id);
+      const student = await storage.getStudent(studentId);
       if (!student?.tutorId) {
         return res.json([]);
       }

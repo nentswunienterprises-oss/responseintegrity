@@ -627,9 +627,6 @@ export class SupabaseStorage implements IStorage {
       phone: user.phone,
       bio: user.bio,
       profile_image_url: user.profileImageUrl,
-      production_link_code: user.productionLinkCode || null,
-      tracking_source: user.trackingSource || null,
-      tracking_campaign: user.trackingCampaign || null,
       name: [user.firstName, user.lastName].filter(Boolean).join(" ") || "User",
     };
     if (user.role) {
@@ -724,6 +721,19 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getFirstProductionLeadByUser(userId: string): Promise<any | null> {
+    if (process.env.VERCEL_ENV === "preview") {
+      const result = await pool.query(
+        `SELECT id, user_id, affiliate_id, production_link_code, tracking_source, tracking_campaign, created_at
+           FROM public.leads
+          WHERE user_id = $1
+            AND production_link_code IS NOT NULL
+          ORDER BY created_at ASC, id ASC
+          LIMIT 1`,
+        [userId],
+      );
+      return result.rows[0] || null;
+    }
+
     const { data, error } = await supabase
       .from("leads")
       .select("id, user_id, affiliate_id, production_link_code, tracking_source, tracking_campaign, created_at")
@@ -735,6 +745,7 @@ export class SupabaseStorage implements IStorage {
       .maybeSingle();
     if (error) throw error;
     return data || null;
+  
   }
 
   async getCanonicalLeadByUser(userId: string): Promise<any | null> {
@@ -3208,6 +3219,47 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getAffiliateByCode(code: string): Promise<any | null> {
+    if (process.env.VERCEL_ENV === "preview") {
+      const result = await pool.query(
+        `SELECT affiliate_id, created_by, owner_user_id, owner_type, owner_name, code, type,
+                person_name, entity_name, pipeline_type, campaign_name, status
+           FROM public.affiliate_codes
+          WHERE code = $1
+          LIMIT 1`,
+        [code],
+      );
+      const data = result.rows[0];
+      if (!data) return null;
+
+      const affiliate_name = data.person_name || data.entity_name || null;
+      let ownershipStatus = data.owner_user_id || data.owner_type || data.owner_name
+        ? "explicit"
+        : "legacy_contributor";
+
+      if (!data.owner_user_id && !data.owner_type && data.affiliate_id) {
+        const ownerResult = await pool.query(
+          `SELECT role FROM public.users WHERE id = $1 LIMIT 1`,
+          [data.affiliate_id],
+        );
+        if (ownerResult.rows[0]?.role !== "affiliate") ownershipStatus = "unresolved_legacy";
+      }
+
+      return {
+        affiliate_id: data.affiliate_id,
+        created_by: data.created_by,
+        owner_user_id: data.owner_user_id || data.affiliate_id || null,
+        owner_type: data.owner_type || data.type || null,
+        owner_name: data.owner_name || data.person_name || data.entity_name || null,
+        affiliate_type: data.type || null,
+        affiliate_name,
+        production_link_code: data.code,
+        pipeline_type: data.pipeline_type || "demand",
+        campaign_name: data.campaign_name || null,
+        status: data.status || "active",
+        ownership_status: ownershipStatus,
+      };
+    }
+
     const { data } = await supabase
       .from("affiliate_codes")
       .select("affiliate_id, created_by, owner_user_id, owner_type, owner_name, code, type, person_name, entity_name, pipeline_type, campaign_name, status")
@@ -3235,6 +3287,7 @@ export class SupabaseStorage implements IStorage {
       status: data.status || "active",
       ownership_status: ownershipStatus,
     };
+  
   }
 
   async logEncounter(affiliateId: string, encounter: any): Promise<any> {
@@ -3293,8 +3346,74 @@ export class SupabaseStorage implements IStorage {
     affiliateId: string | null,
     parentId: string,
     encounterId?: string,
-    trackingData?: { trackingSource?: string; trackingCampaign?: string; leadType?: string; affiliateType?: string; affiliateName?: string; productionLinkCode?: string }
+    trackingData?: { trackingSource?: string; trackingCampaign?: string; leadType?: string; fullName?: string; affiliateType?: string; affiliateName?: string; productionLinkCode?: string }
   ): Promise<any> {
+    if (process.env.VERCEL_ENV === "preview") {
+      const firstAttributedLead = trackingData?.productionLinkCode
+        ? await this.getFirstProductionLeadByUser(parentId)
+        : null;
+      if (firstAttributedLead) return firstAttributedLead;
+
+      const oldestResult = await pool.query(
+        `SELECT *
+           FROM public.leads
+          WHERE user_id = $1
+          ORDER BY created_at ASC, id ASC
+          LIMIT 1`,
+        [parentId],
+      );
+      const oldestLead = oldestResult.rows[0] || null;
+
+      if (oldestLead) {
+        if (trackingData?.productionLinkCode && !oldestLead.production_link_code) {
+          const claimed = await pool.query(
+            `UPDATE public.leads
+                SET affiliate_id = $2,
+                    production_link_code = $3,
+                    tracking_source = COALESCE($4, 'affiliate'),
+                    tracking_campaign = $5
+              WHERE id = $1
+                AND production_link_code IS NULL
+            RETURNING *`,
+            [
+              oldestLead.id,
+              affiliateId || null,
+              trackingData.productionLinkCode,
+              trackingData.trackingSource || null,
+              trackingData.trackingCampaign || null,
+            ],
+          );
+          if (claimed.rows[0]) return claimed.rows[0];
+          return await this.getFirstProductionLeadByUser(parentId);
+        }
+
+        const sameAffiliate = (oldestLead.affiliate_id || null) === (affiliateId || null);
+        const sameEncounter = !encounterId || String(oldestLead.encounter_id || "") === String(encounterId);
+        if (sameAffiliate && sameEncounter) return oldestLead;
+      }
+
+      const result = await pool.query(
+        `INSERT INTO public.leads
+          (affiliate_id, user_id, encounter_id, tracking_source, tracking_campaign,
+           production_link_code, onboarding_type, full_name, lead_type, affiliate_type, affiliate_name)
+         VALUES ($1,$2,$3,$4,$5,$6,'pending',$7,$8,$9,$10)
+         RETURNING *`,
+        [
+          affiliateId || null,
+          parentId,
+          encounterId || null,
+          trackingData?.trackingSource || "affiliate",
+          trackingData?.trackingCampaign || null,
+          trackingData?.productionLinkCode || null,
+          trackingData?.fullName || "",
+          trackingData?.leadType || null,
+          trackingData?.affiliateType || null,
+          trackingData?.affiliateName || null,
+        ],
+      );
+      return result.rows[0];
+    }
+
     if (trackingData?.productionLinkCode) {
       const firstAttributedLead = await this.getFirstProductionLeadByUser(parentId);
       if (firstAttributedLead) {
@@ -3359,7 +3478,7 @@ export class SupabaseStorage implements IStorage {
       tracking_source: trackingData?.trackingSource || 'affiliate',
       tracking_campaign: trackingData?.trackingCampaign || null,
       production_link_code: trackingData?.productionLinkCode || null,
-      onboarding_type: trackingData?.onboardingType || 'pilot',
+      onboarding_type: "pending",
       full_name: trackingData?.fullName || '',
     };
     if (trackingData?.leadType) {
@@ -3384,6 +3503,7 @@ export class SupabaseStorage implements IStorage {
     }
     console.log("[createLead] Lead inserted successfully:", data);
     return data;
+  
   }
 
   async getLeads(affiliateId: string): Promise<any[]> {

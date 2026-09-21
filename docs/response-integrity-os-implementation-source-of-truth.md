@@ -76,6 +76,10 @@ Do not build Response Integrity-OS around:
 
 If the system becomes a loose tutoring tracker, it stops being Response Integrity-OS.
 
+## Demand Production Gateway
+
+The parent acquisition/enrollment operating contract is [Demand Production Gateway](demand-production-gateway.md). New applications persist qualification pending and require a human qualification decision, deliberate Pilot/Commercial selection, and measured transfer of responsibility before assignment. First-touch Production Link attribution remains independent of that arrangement and of the Specialist assignment lane. Legacy enrollments retain explicit version-0 compatibility without fabricated evidence. Commercial verification requires existing paid-payment truth plus accepted/unlocked service; free Pilot entry is separate. Production Rewards remain disabled.
+
 ## Commercial And Specialist Pathway Constants
 
 As of 2026-09-03, the live implementation uses these operating constants:

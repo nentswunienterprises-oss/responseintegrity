@@ -1,0 +1,172 @@
+name: Demand Gateway Preview E2E
+
+on:
+  push:
+    branches:
+      - feat/demand-production-gateway
+    paths:
+      - 'scripts/demand-preview-e2e.mjs'
+      - '.github/workflows/demand-gateway-preview-e2e.yml'
+      - 'client/src/lib/config.ts'
+      - 'api/**'
+      - 'server/**'
+      - 'package.json'
+      - 'vercel.json'
+      - '.vercelignore'
+  workflow_dispatch:
+
+concurrency:
+  group: demand-gateway-preview-e2e
+  cancel-in-progress: true
+
+jobs:
+  demand-gateway-preview-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      statuses: read
+    env:
+      SMOKE_BASE_URL: https://tt-confidence-hub-git-feat-dem-d053fe-relief-works-technologies.vercel.app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - name: Verify preview deployment inputs
+        run: |
+          if grep -Eq '^(api/|server/)$' .vercelignore; then
+            echo "Preview backend is excluded by .vercelignore"
+            exit 1
+          fi
+          test -f api/index.js
+          test -f server/routes.ts
+
+      - name: Wait for this commit's Vercel deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          const { GH_TOKEN, REPO, SHA } = process.env;
+          let last = null;
+
+          for (let attempt = 1; attempt <= 36; attempt += 1) {
+            const response = await fetch(
+              `https://api.github.com/repos/${REPO}/commits/${SHA}/status`,
+              {
+                headers: {
+                  Authorization: `Bearer ${GH_TOKEN}`,
+                  Accept: "application/vnd.github+json",
+                  "X-GitHub-Api-Version": "2022-11-28",
+                },
+              },
+            );
+
+            const body = await response.json();
+            const vercel = body.statuses?.find((status) => status.context === "Vercel") || null;
+            last = {
+              attempt,
+              overall: body.state,
+              vercel: vercel ? { state: vercel.state, target_url: vercel.target_url } : null,
+            };
+            console.log("VERCEL_WAIT", JSON.stringify(last));
+
+            if (vercel?.state === "success") process.exit(0);
+            if (vercel?.state === "failure" || vercel?.state === "error") process.exit(1);
+
+            await new Promise((resolve) => setTimeout(resolve, 10000));
+          }
+
+          console.error("Timed out waiting for Vercel deployment", JSON.stringify(last));
+          process.exit(1);
+          NODE
+
+      - name: Probe preview Proof routing
+        run: |
+          node --input-type=module <<'NODE'
+          const base = process.env.SMOKE_BASE_URL.replace(/\/$/, "");
+          const url = base + "/api/__proof/environment";
+          let last = null;
+
+          for (let attempt = 1; attempt <= 12; attempt += 1) {
+            try {
+              const response = await fetch(url, { redirect: "manual" });
+              const text = await response.text();
+              const contentType = response.headers.get("content-type") || "";
+              last = {
+                attempt,
+                status: response.status,
+                contentType,
+                bodyStart: text.slice(0, 500),
+              };
+              console.log("PREVIEW_ROUTE_PROBE", JSON.stringify(last));
+
+              if (response.ok && contentType.includes("application/json")) {
+                const body = JSON.parse(text);
+                const envOk =
+                  body?.vercelEnv === "preview" &&
+                  ["jftlxeacphvbnhbsbpxc", "tzgkiaiwnhmnzznvmbfg"].includes(body?.supabaseProjectRef) &&
+                  body?.requiredEnv?.SUPABASE_URL === true &&
+                  body?.requiredEnv?.SUPABASE_ANON_KEY === true &&
+                  body?.requiredEnv?.DATABASE_URL === true &&
+                  body?.requiredEnv?.SESSION_SECRET === true;
+
+                if (envOk) {
+                  console.log("PROOF_ENVIRONMENT_CERTIFIED", JSON.stringify(body));
+                  process.exit(0);
+                }
+              }
+            } catch (error) {
+              last = { attempt, error: String(error) };
+              console.log("PREVIEW_ROUTE_PROBE", JSON.stringify(last));
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 5000));
+          }
+
+          console.error("Preview Proof routing probe failed", JSON.stringify(last));
+          process.exit(1);
+          NODE
+
+      - name: Probe preview branch API initialization
+        run: |
+          node --input-type=module <<'NODE'
+          const base = process.env.SMOKE_BASE_URL.replace(/\/$/, "");
+          const response = await fetch(base + "/api/auth/mode");
+          const text = await response.text();
+          console.log("AUTH_MODE_PROBE", JSON.stringify({
+            status: response.status,
+            contentType: response.headers.get("content-type") || "",
+            body: text.slice(0, 1500),
+          }));
+          if (!response.ok) process.exit(1);
+          const body = JSON.parse(text);
+          if (body?.emergencyDbMode !== false || body?.authMode !== "supabase") {
+            console.error("Unexpected auth mode", JSON.stringify(body));
+            process.exit(1);
+          }
+          NODE
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run deployed Demand Gateway smoke
+        run: node scripts/demand-preview-e2e.mjs
+
+      - name: Upload Demand Gateway smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demand-gateway-preview-e2e
+          path: artifacts/demand-preview-e2e
+          if-no-files-found: warn

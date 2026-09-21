@@ -108,10 +108,11 @@ export default function COODashboard() {
         setCreatingAffiliate(true);
         setAffiliateError("");
         try {
-          // Get JWT access token from Supabase
+          // Prefer the Supabase bearer token when available, but keep the
+          // server session cookie authoritative so COO tools remain usable
+          // during emergency DB continuity and Preview smoke validation.
           const { data: sessionData } = await supabase.auth.getSession();
           const accessToken = sessionData?.session?.access_token;
-          if (!accessToken) throw new Error("No access token found. Please log in again.");
           // Call backend API to create affiliate code
           const body = {
             type: affiliateType,
@@ -125,12 +126,16 @@ export default function COODashboard() {
             ownerName: ownerName || undefined,
           };
           const { API_URL } = await import("@/lib/config");
+          const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+          };
+          if (accessToken) {
+            headers.Authorization = `Bearer ${accessToken}`;
+          }
           const res = await fetch(`${API_URL}/api/coo/create-affiliate-code`, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${accessToken}`
-            },
+            headers,
+            credentials: "include",
             body: JSON.stringify(body)
           });
           const data = await res.json();

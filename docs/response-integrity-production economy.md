@@ -1,3 +1,16 @@
+# ARCHIVED — superseded Production Economy assumptions
+
+> **Historical record only. Do not implement the economics or reward rules below.**
+> Current authority: [Demand Production Gateway](demand-production-gateway.md) and `shared/servicePackages.ts`.
+> Current packages: 8/12/16 sessions monthly at R200 per session; R130 Specialist / R70 RI per qualifying session.
+> Production Rewards are disabled and not economically defined. Historical R1,000 / R750 / R250 / R100 figures below are obsolete.
+> Pilot/Commercial is a deliberate post-qualification decision, independent of Production Link attribution and Specialist Trial/Certified Live state.
+> Demand includes qualified handover before assignment, with a measurable 24-hour standard. Organic capture remains valid.
+
+The following original text is retained only for provenance. Its production/reward flow is superseded in full by the current contract above.
+
+---
+
 # Response Integrity — Pod Economy Architecture
 
 ## 1. Purpose

@@ -1,8 +1,6 @@
-# Vercel preview deploys include api/ and server/ so branch API code is
-# packaged with the preview. Production custom hosts still proxy to the
-# production API through vercel.json.
+# Vercel Preview runs the branch API against Proof, so api/ and server/ must ship.
+# Keep database/source-environment artifacts out of the deployment bundle.
 *.sql
-*.bundle
 migrations/
 nixpacks.toml
 railway.json
