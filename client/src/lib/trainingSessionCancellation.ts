@@ -13,11 +13,6 @@ export const TUTOR_TRAINING_SESSION_CANCELLATION_REASONS: TrainingSessionCancell
     description: "Use when the Specialist can no longer deliver the confirmed lesson.",
   },
   {
-    code: "schedule_conflict",
-    label: "Schedule conflict",
-    description: "Use when the confirmed time is no longer operationally workable.",
-  },
-  {
     code: "technical_issue",
     label: "Technical or platform issue",
     description: "Use when platform, device, connectivity, or account issues block delivery.",
@@ -49,11 +44,6 @@ export const PARENT_TRAINING_SESSION_CANCELLATION_REASONS: TrainingSessionCancel
     code: "student_unavailable",
     label: "Student unavailable",
     description: "Use when the student cannot attend the confirmed lesson.",
-  },
-  {
-    code: "schedule_conflict",
-    label: "Schedule conflict",
-    description: "Use when the confirmed time is no longer workable for the family.",
   },
   {
     code: "technical_issue",

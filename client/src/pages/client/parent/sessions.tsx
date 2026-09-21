@@ -47,6 +47,14 @@ type ParentTrainingSession = {
   google_meet_url?: string | null;
   parent_confirmed?: boolean;
   tutor_confirmed?: boolean;
+  cancellation?: {
+    disposition: "replacement_required" | "closed_consumed" | "manual_review";
+    eventType?: string | null;
+    billingImpact?: string | null;
+    reasonCodes?: string[];
+    reasonNote?: string | null;
+    cancelledAt?: string | null;
+  } | null;
 };
 
 type ParentTrainingSessionsResponse = {
@@ -513,9 +521,15 @@ export default function ParentSessions() {
         throw new Error(payload?.message || "Failed to cancel session");
       }
 
+      const cancellationDisposition = payload?.cancellation?.disposition;
       toast({
         title: "Session Cancelled",
-        description: "The session is cancelled. Use Reschedule Session below to propose a replacement time.",
+        description:
+          cancellationDisposition === "replacement_required"
+            ? "The session is cancelled and still needs a replacement time."
+            : cancellationDisposition === "closed_consumed"
+              ? "The session is cancelled and closed under the cancellation policy. No replacement is created automatically."
+              : "The session is cancelled. Replacement eligibility needs operational review.",
       });
 
       queryClient.invalidateQueries({ queryKey: ["/api/parent/training-sessions"] });
@@ -542,18 +556,21 @@ export default function ParentSessions() {
   const actionableSessions = sessions.filter(
     (session) => !["completed", "cancelled", "flagged"].includes(String(session.status || "")),
   );
-  const cancelledRecoverySessions = sessions.filter((session) => {
+  const futureCancelledSessions = sessions.filter((session) => {
     if (String(session.status || "") !== "cancelled") return false;
     const scheduledTime = new Date(session.scheduled_time).getTime();
     return Number.isFinite(scheduledTime) && scheduledTime >= Date.now();
   });
-  const visibleSessions = [...actionableSessions, ...cancelledRecoverySessions].sort(
+  const replacementRequiredCancelledSessions = futureCancelledSessions.filter(
+    (session) => session.cancellation?.disposition === "replacement_required",
+  );
+  const visibleSessions = [...actionableSessions, ...futureCancelledSessions].sort(
     (a, b) => new Date(a.scheduled_time).getTime() - new Date(b.scheduled_time).getTime(),
   );
   const canScheduleNewWeek =
     schedulingEnabled &&
     actionableSessions.length === 0 &&
-    cancelledRecoverySessions.length === 0 &&
+    replacementRequiredCancelledSessions.length === 0 &&
     !renewalBlocked;
 
   return (
@@ -700,56 +717,71 @@ export default function ParentSessions() {
                   {session.status === "cancelled" ? (
                     <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
                       <p className="text-sm font-medium text-amber-900">Session cancelled</p>
-                      <p className="text-sm text-amber-800">
-                        This time is no longer part of the confirmed weekly schedule. Choose a replacement time to restore this week's two-session plan. The cancellation remains recorded in the operating trail.
-                      </p>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openAdjustmentEditor(session)}
-                        disabled={adjustingSessionId === session.id}
-                      >
-                        {editingSessionId === session.id ? "Hide reschedule" : "Reschedule Session"}
-                      </Button>
-                      {editingSessionId === session.id ? (
-                        <div className="rounded-md border border-amber-200 bg-white p-3 space-y-2">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-white">
-                                <CalendarDays className="mr-2 h-4 w-4" />
-                                {formatScheduleLabel(adjustedDate)}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent align="start" className="w-auto p-0">
-                              <Calendar
-                                mode="single"
-                                selected={adjustedDate}
-                                onSelect={setAdjustedDate}
-                                disabled={(date) => !isSelectableSessionDate(date)}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          <Input
-                            type="time"
-                            value={adjustedTime}
-                            onChange={(e) => setAdjustedTime(e.target.value)}
-                            className="bg-white"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            {adjustedDate ? `${formatScheduleLabel(adjustedDate)} at ${adjustedTime}` : "Pick a Monday-Saturday date and time."}
-                          </p>
-                          <div className="flex justify-end">
-                            <Button
-                              size="sm"
-                              onClick={() => handleAdjustSession(session.id)}
-                              disabled={adjustingSessionId === session.id}
-                            >
-                              {adjustingSessionId === session.id ? "Sending..." : "Send Replacement Time"}
-                            </Button>
-                          </div>
-                        </div>
+                      {session.cancellation?.reasonNote ? (
+                        <p className="text-xs text-amber-800">{session.cancellation.reasonNote}</p>
                       ) : null}
+                      {session.cancellation?.disposition === "replacement_required" ? (
+                        <>
+                          <p className="text-sm text-amber-800">
+                            This cancellation keeps the delivery obligation open. Choose a replacement time so the weekly plan can be restored.
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openAdjustmentEditor(session)}
+                            disabled={adjustingSessionId === session.id}
+                          >
+                            {editingSessionId === session.id ? "Hide reschedule" : "Reschedule Session"}
+                          </Button>
+                          {editingSessionId === session.id ? (
+                            <div className="rounded-md border border-amber-200 bg-white p-3 space-y-2">
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-white">
+                                    <CalendarDays className="mr-2 h-4 w-4" />
+                                    {formatScheduleLabel(adjustedDate)}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent align="start" className="w-auto p-0">
+                                  <Calendar
+                                    mode="single"
+                                    selected={adjustedDate}
+                                    onSelect={setAdjustedDate}
+                                    disabled={(date) => !isSelectableSessionDate(date)}
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <Input
+                                type="time"
+                                value={adjustedTime}
+                                onChange={(e) => setAdjustedTime(e.target.value)}
+                                className="bg-white"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                {adjustedDate ? `${formatScheduleLabel(adjustedDate)} at ${adjustedTime}` : "Pick a Monday-Saturday date and time."}
+                              </p>
+                              <div className="flex justify-end">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleAdjustSession(session.id)}
+                                  disabled={adjustingSessionId === session.id}
+                                >
+                                  {adjustingSessionId === session.id ? "Sending..." : "Send Replacement Time"}
+                                </Button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </>
+                      ) : session.cancellation?.disposition === "closed_consumed" ? (
+                        <p className="text-sm text-amber-800">
+                          This cancellation is closed under the cancellation policy and the package credit was consumed. No replacement is created automatically.
+                        </p>
+                      ) : (
+                        <p className="text-sm text-amber-800">
+                          The cancellation is recorded, but replacement eligibility needs operational review before another time can be created.
+                        </p>
+                      )}
                     </div>
                   ) : null}
 

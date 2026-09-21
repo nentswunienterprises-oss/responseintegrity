@@ -1487,11 +1487,14 @@ export default function StudentTopicConditioningDialog({
     const scheduledTime = new Date(session.scheduled_time || 0).getTime();
     return Number.isFinite(scheduledTime) && scheduledTime >= Date.now();
   });
+  const replacementRequiredCancelledTrainingSessions = futureCancelledTrainingSessions.filter(
+    (session: any) => session.cancellation?.disposition === "replacement_required",
+  );
   const weeklyScheduleReady =
     confirmedTrainingSessions.length > 0 &&
     pendingTutorConfirmationSessions.length === 0 &&
     !pendingTrainingConfirmationSession &&
-    futureCancelledTrainingSessions.length === 0;
+    replacementRequiredCancelledTrainingSessions.length === 0;
   const activeTrainingSession = isTrainingMode
     ? weeklyScheduleReady
       ? confirmedTrainingSessions[0] || null
@@ -2195,13 +2198,13 @@ export default function StudentTopicConditioningDialog({
                           : "Training launch stays locked until both weekly sessions are scheduled and fully confirmed."}
                       </p>
                     </div>
-                    {futureCancelledTrainingSessions.length > 0 ? (
+                    {replacementRequiredCancelledTrainingSessions.length > 0 ? (
                       <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs space-y-1">
                         <p className="font-medium text-amber-900">Weekly schedule needs a replacement</p>
                         <p className="text-amber-800">
                           A confirmed session was cancelled. Training launch stays locked until the parent proposes a replacement time and the Specialist confirms it.
                         </p>
-                        {futureCancelledTrainingSessions.map((session: any) => (
+                        {replacementRequiredCancelledTrainingSessions.map((session: any) => (
                           <p key={session.id} className="text-amber-800">
                             Cancelled: {formatLessonTime(session.scheduled_time)}
                           </p>

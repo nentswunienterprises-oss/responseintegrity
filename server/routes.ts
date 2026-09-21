@@ -69,6 +69,11 @@ import {
 } from "@shared/trainingEvidenceEvaluator";
 import { buildResponseSnapshotV1, summarizeSnapshotObservedResponse } from "@shared/responseSnapshot";
 import {
+  cancellationNeedsReplacement,
+  deriveTrainingSessionCancellationDisposition,
+  type TrainingSessionCancellationDisposition,
+} from "@shared/trainingSessionCancellationPolicy";
+import {
   normalizeTopicReferenceContent,
   parseStoredTopicReference,
   TOPIC_REFERENCE_SCHEMA_VERSION,
@@ -2628,6 +2633,7 @@ async function recordSessionBillingEvent(options: {
     .from("session_billing_events")
     .select("id")
     .eq("session_id", options.sessionId)
+    .eq("event_type", options.eventType)
     .limit(1);
 
   if (Array.isArray(existingEvents) && existingEvents.length > 0) {
@@ -2914,6 +2920,142 @@ function classifyCancellationBillingImpact(options: {
     impact: "none" as const,
     creditsDelta: 0,
   };
+}
+
+function classifyTrainingSessionCancellation(options: {
+  actorRole: "parent" | "tutor";
+  reasonCodes: string[];
+  scheduledTimeIso?: string | null;
+}) {
+  const parentRequestedThroughSpecialist =
+    options.actorRole === "tutor" &&
+    options.reasonCodes.includes("parent_requested_cancellation");
+  const responsibleActorRole: "parent" | "tutor" =
+    parentRequestedThroughSpecialist ? "parent" : options.actorRole;
+  const billing = classifyCancellationBillingImpact({
+    actorRole: responsibleActorRole,
+    scheduledTimeIso: options.scheduledTimeIso,
+  });
+  const disposition = deriveTrainingSessionCancellationDisposition({
+    actorRole: options.actorRole,
+    reasonCodes: options.reasonCodes,
+    eventType: billing.eventType,
+    billingImpact: billing.impact,
+  });
+
+  return {
+    ...billing,
+    disposition,
+    responsibleActorRole,
+  };
+}
+
+function normalizeStoredCancellationDisposition(
+  value: unknown,
+): TrainingSessionCancellationDisposition | null {
+  const normalized = String(value || "").trim();
+  if (
+    normalized === "replacement_required" ||
+    normalized === "closed_consumed" ||
+    normalized === "manual_review"
+  ) {
+    return normalized;
+  }
+  return null;
+}
+
+function buildTrainingSessionCancellationContext(event: any) {
+  if (!event) {
+    return {
+      disposition: "manual_review" as const,
+      eventType: null,
+      billingImpact: null,
+      reasonCodes: [] as string[],
+      reasonNote: null,
+      cancelledAt: null,
+    };
+  }
+
+  const metadata =
+    event.metadata && typeof event.metadata === "object"
+      ? event.metadata
+      : {};
+  const reasonCodes = Array.isArray(event.reason_codes)
+    ? event.reason_codes.map((value: unknown) => String(value || "").trim()).filter(Boolean)
+    : [];
+  const storedDisposition = normalizeStoredCancellationDisposition(
+    (metadata as Record<string, unknown>).cancellation_disposition,
+  );
+  const disposition =
+    storedDisposition ||
+    deriveTrainingSessionCancellationDisposition({
+      actorRole: String(event.actor_role || "") === "tutor" ? "tutor" : "parent",
+      reasonCodes,
+      eventType: event.event_type,
+      billingImpact: event.billing_impact,
+    });
+
+  return {
+    disposition,
+    eventType: String(event.event_type || "").trim() || null,
+    billingImpact: String(event.billing_impact || "").trim() || null,
+    reasonCodes,
+    reasonNote: String(event.reason_note || "").trim() || null,
+    cancelledAt: event.effective_at || event.created_at || null,
+  };
+}
+
+async function attachTrainingSessionCancellationContext(sessions: any[]) {
+  const cancelledSessionIds = Array.from(
+    new Set(
+      sessions
+        .filter((session: any) => String(session?.status || "") === "cancelled")
+        .map((session: any) => String(session?.id || "").trim())
+        .filter(Boolean),
+    ),
+  );
+
+  if (cancelledSessionIds.length === 0) return sessions;
+
+  try {
+    const cancellationEventsResult = await pool.query(
+      `SELECT DISTINCT ON (session_id::text)
+              session_id, event_type, actor_role, billing_impact,
+              reason_codes, reason_note, metadata, effective_at, created_at
+         FROM public.session_billing_events
+        WHERE session_id::text = ANY($1::text[])
+          AND (
+            event_type LIKE 'cancelled_%'
+            OR event_type LIKE 'no_show_%'
+          )
+        ORDER BY session_id::text, effective_at DESC, created_at DESC`,
+      [cancelledSessionIds],
+    );
+
+    const eventsBySessionId = new Map<string, any>();
+    for (const event of cancellationEventsResult.rows || []) {
+      eventsBySessionId.set(String(event.session_id), event);
+    }
+
+    return sessions.map((session: any) => {
+      if (String(session?.status || "") !== "cancelled") return session;
+      return {
+        ...session,
+        cancellation: buildTrainingSessionCancellationContext(
+          eventsBySessionId.get(String(session.id)),
+        ),
+      };
+    });
+  } catch (error) {
+    console.error("Failed to attach training-session cancellation context:", error);
+    return sessions.map((session: any) => {
+      if (String(session?.status || "") !== "cancelled") return session;
+      return {
+        ...session,
+        cancellation: buildTrainingSessionCancellationContext(null),
+      };
+    });
+  }
 }
 
 async function isSandboxPaymentTransaction(transaction: any) {
@@ -11094,8 +11236,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               LIMIT 12`,
             [tutorId, studentId],
           );
+          const sessionsWithCancellation = await attachTrainingSessionCancellationContext(result.rows);
           return res.json({
-            sessions: result.rows.map((session: any) => ({
+            sessions: sessionsWithCancellation.map((session: any) => ({
               ...session,
               launch: getSessionLaunchState(session, "training"),
             })),
@@ -11136,8 +11279,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
         );
 
+        const sessionsWithCancellation = await attachTrainingSessionCancellationContext(sessionsWithArtifacts);
         res.json({
-          sessions: sessionsWithArtifacts.map((session: any) => ({
+          sessions: sessionsWithCancellation.map((session: any) => ({
             ...session,
             launch: getSessionLaunchState(session, "training"),
           })),
@@ -11411,6 +11555,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (normalizedReasonCodes.length === 0) {
             return res.status(400).json({ message: "At least one cancellation reason is required." });
           }
+          if (normalizedReasonCodes.includes("schedule_conflict")) {
+            return res.status(409).json({
+              message: "A schedule conflict should be rescheduled, not cancelled. Use Adjust to propose a new time.",
+            });
+          }
 
           if (["completed", "live", "cancelled", "flagged"].includes(String(session.status || ""))) {
             return res.status(400).json({ message: "This training session can no longer be cancelled" });
@@ -11441,8 +11590,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           const enrollmentId = await resolveEnrollmentIdForSession(session);
-          const cancellationImpact = classifyCancellationBillingImpact({
+          const cancellationImpact = classifyTrainingSessionCancellation({
             actorRole: "tutor",
+            reasonCodes: normalizedReasonCodes,
             scheduledTimeIso: session.scheduled_time,
           });
           const monthlyQuota = await recordSessionBillingEvent({
@@ -11461,23 +11611,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
               action: "cancel",
               policy_cutoff_hours: CANCELLATION_CUTOFF_HOURS,
               scheduled_time: session.scheduled_time,
+              cancellation_disposition: cancellationImpact.disposition,
+              responsible_actor_role: cancellationImpact.responsibleActorRole,
             },
           });
+
+          const cancellationContext = {
+            disposition: cancellationImpact.disposition,
+            eventType: cancellationImpact.eventType,
+            billingImpact: cancellationImpact.impact,
+            reasonCodes: normalizedReasonCodes,
+            reasonNote: String(reasonNote || "").trim() || null,
+            cancelledAt: new Date().toISOString(),
+          };
 
           await safeSendPush(
             session.parent_id,
             {
               title: "Session cancelled",
-              body: "Your tutor cancelled a training session. Open Response Integrity to review the updated week.",
+              body:
+                cancellationImpact.disposition === "replacement_required"
+                  ? "A training session was cancelled and still needs a replacement time. Open Response Integrity to reschedule it."
+                  : cancellationImpact.disposition === "closed_consumed"
+                    ? "A training session was cancelled and closed under the cancellation policy."
+                    : "A training session was cancelled. Open Response Integrity to review its replacement status.",
               url: "/client/parent/sessions",
               tag: `parent-training-session-cancelled-${sessionId}`,
             },
-            "parent training session cancelled by tutor",
+            "parent training session cancelled by Specialist",
           );
 
           return res.json({
             success: true,
-            session: cancelledSession,
+            session: { ...cancelledSession, cancellation: cancellationContext },
+            cancellation: cancellationContext,
             status: "cancelled",
             monthlyQuota,
             googleMeetConfigured: false,
@@ -11724,26 +11891,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           const scheduleTimezone = String(session.timezone || "Africa/Johannesburg").trim() || "Africa/Johannesburg";
-          const weeklyPairResult = await pool.query(
-            `SELECT COUNT(*)::int AS confirmed_pair_count
+          const weeklySessionsResult = await pool.query(
+            `SELECT ${SCHEDULED_SESSION_SELECT}
                FROM public.scheduled_sessions
               WHERE tutor_id = $1
                 AND student_id = $2
                 AND parent_id = $3
                 AND type = 'training'
-                AND parent_confirmed IS TRUE
-                AND tutor_confirmed IS TRUE
-                AND status IN ('confirmed', 'ready', 'live', 'completed')
                 AND date_trunc('week', scheduled_time AT TIME ZONE $4)
-                    = date_trunc('week', $5::timestamptz AT TIME ZONE $4)`,
+                    = date_trunc('week', $5::timestamptz AT TIME ZONE $4)
+              ORDER BY scheduled_time ASC`,
             [tutorId, studentId, session.parent_id, scheduleTimezone, session.scheduled_time],
           );
-          const confirmedWeeklyPairCount = Number(weeklyPairResult.rows[0]?.confirmed_pair_count || 0);
+          const weeklySessions = await attachTrainingSessionCancellationContext(
+            weeklySessionsResult.rows || [],
+          );
+          const resolvedWeeklySessionCount = weeklySessions.filter((weeklySession: any) => {
+            const status = String(weeklySession.status || "");
+            if (
+              ["confirmed", "ready", "live", "completed"].includes(status) &&
+              weeklySession.parent_confirmed &&
+              weeklySession.tutor_confirmed
+            ) {
+              return true;
+            }
+            return (
+              status === "cancelled" &&
+              weeklySession.cancellation?.disposition === "closed_consumed"
+            );
+          }).length;
 
-          if (confirmedWeeklyPairCount < 2) {
+          if (resolvedWeeklySessionCount < 2) {
             return res.status(400).json({
               canLaunch: false,
-              message: "Both weekly Response Integrity sessions must be confirmed before training can launch.",
+              message: "This week's two session obligations must be resolved before training can launch. Replace any cancellation that still carries a delivery obligation.",
               session: {
                 ...session,
                 launch: {
@@ -12094,11 +12275,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               isSandboxContext: String(enrollment.parent_email || "").toLowerCase().startsWith("sandbox-parent-"),
             })
           : null;
+        const sessionsWithCancellation = await attachTrainingSessionCancellationContext(sessionsResult.rows);
         return res.json({
           operationalMode,
           sessionSchedulingEnabled: isFamilySchedulingMode(operationalMode),
           monthlyQuota,
-          sessions: sessionsResult.rows.map((session: any) => ({ ...session, launch: getSessionLaunchState(session, "training") })),
+          sessions: sessionsWithCancellation.map((session: any) => ({ ...session, launch: getSessionLaunchState(session, "training") })),
         });
       }
       const operationalMode = await getParentAssignedTutorOperationalMode(userId);
@@ -12212,11 +12394,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
+      const sessionsWithCancellation = await attachTrainingSessionCancellationContext(sessionsWithArtifacts);
       res.json({
         operationalMode,
         sessionSchedulingEnabled: isFamilySchedulingMode(operationalMode),
         monthlyQuota,
-        sessions: sessionsWithArtifacts.map((session: any) => ({
+        sessions: sessionsWithCancellation.map((session: any) => ({
           ...session,
           launch: getSessionLaunchState(session, "training"),
         })),
@@ -12471,6 +12654,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (normalizedReasonCodes.length === 0) {
           return res.status(400).json({ message: "At least one cancellation reason is required." });
         }
+        if (normalizedReasonCodes.includes("schedule_conflict")) {
+          return res.status(409).json({
+            message: "A schedule conflict should be rescheduled, not cancelled. Use Request New Time instead.",
+          });
+        }
 
         if (["completed", "live", "cancelled", "flagged"].includes(String(session.status || ""))) {
           return res.status(400).json({ message: "This training session can no longer be cancelled" });
@@ -12501,8 +12689,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const enrollmentId = await resolveEnrollmentIdForSession(session);
-        const cancellationImpact = classifyCancellationBillingImpact({
+        const cancellationImpact = classifyTrainingSessionCancellation({
           actorRole: "parent",
+          reasonCodes: normalizedReasonCodes,
           scheduledTimeIso: session.scheduled_time,
         });
         const monthlyQuota = await recordSessionBillingEvent({
@@ -12521,27 +12710,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
             action: "cancel",
             policy_cutoff_hours: CANCELLATION_CUTOFF_HOURS,
             scheduled_time: session.scheduled_time,
+            cancellation_disposition: cancellationImpact.disposition,
+            responsible_actor_role: cancellationImpact.responsibleActorRole,
           },
         });
+
+        const cancellationContext = {
+          disposition: cancellationImpact.disposition,
+          eventType: cancellationImpact.eventType,
+          billingImpact: cancellationImpact.impact,
+          reasonCodes: normalizedReasonCodes,
+          reasonNote: String(reasonNote || "").trim() || null,
+          cancelledAt: new Date().toISOString(),
+        };
 
         await safeSendPush(
           cancelledSession.tutor_id,
           {
             title: "Session cancelled",
-            body: "A parent cancelled a training session. Open Response Integrity to review the updated week.",
+            body:
+              cancellationImpact.disposition === "replacement_required"
+                ? "A parent cancelled a training session and a replacement time is still required."
+                : cancellationImpact.disposition === "closed_consumed"
+                  ? "A parent cancellation closed the session under the cancellation policy."
+                  : "A parent cancelled a training session. Review its replacement status.",
             url: "/operational/tutor/pod",
             tag: `tutor-training-session-cancelled-${sessionId}`,
           },
-          "tutor training session cancelled by parent",
+          "Specialist training session cancelled by parent",
         );
 
         try {
+          const parentCancellationMessage =
+            cancellationImpact.disposition === "replacement_required"
+              ? "This cancellation keeps the session obligation open. Open Sessions to propose a replacement time."
+              : cancellationImpact.disposition === "closed_consumed"
+                ? "This session is closed under the cancellation policy and its package credit has been consumed. No replacement is created automatically."
+                : "This cancellation was recorded, but replacement eligibility needs operational review.";
           await storage.createNotification({
             recipientUserId: userId,
             actorUserId: userId,
             channel: "informational",
             title: "Session cancelled",
-            message: "The cancelled session still needs a replacement time. Open Sessions to reschedule it and restore this week's two-session plan.",
+            message: parentCancellationMessage,
             link: "/client/parent/sessions",
             entityType: "scheduled_session",
             entityId: String(sessionId),
@@ -12553,7 +12764,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({
           success: true,
           status: "cancelled",
-          session: cancelledSession,
+          session: { ...cancelledSession, cancellation: cancellationContext },
+          cancellation: cancellationContext,
           monthlyQuota,
         });
       }
@@ -12563,8 +12775,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (action === "reschedule") {
-        if (!["pending_parent_confirmation", "pending_tutor_confirmation", "cancelled"].includes(String(session.status || ""))) {
+        const currentSessionStatus = String(session.status || "");
+        if (!["pending_parent_confirmation", "pending_tutor_confirmation", "cancelled"].includes(currentSessionStatus)) {
           return res.status(400).json({ message: "This session cannot be rescheduled at this time" });
+        }
+
+        if (currentSessionStatus === "cancelled") {
+          const [cancelledWithContext] = await attachTrainingSessionCancellationContext([session]);
+          const disposition = cancelledWithContext?.cancellation?.disposition;
+          if (!cancellationNeedsReplacement(disposition)) {
+            return res.status(409).json({
+              message:
+                disposition === "closed_consumed"
+                  ? "This cancelled session is closed because its package credit was consumed. It cannot be rescheduled automatically."
+                  : "This cancelled session needs operational review before a replacement can be created.",
+            });
+          }
         }
 
         const nextStart = String(scheduledStart || "").trim();
