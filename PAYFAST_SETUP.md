@@ -63,3 +63,12 @@ Sandbox never reuses live PayFast credentials. Proof/Sandbox checkout uses PayFa
 2. Set the PayFast credentials and public URL env vars.
 3. In PayFast, use the same passphrase configured in `PAYFAST_PASSPHRASE`.
 4. Test sandbox checkout and confirm ITN reaches the notify endpoint.
+
+
+## Sandbox return relay
+
+PayFast rejects localhost return/cancel URLs. Sandbox checkout therefore posts public return/cancel URLs to `/payfast-sandbox-return.html` on the current Preview/public relay host. The relay carries only the payment state, merchant reference, and a validated initiating app origin.
+
+After PayFast completes or cancels the sandbox transaction, the relay returns the browser to the original Response Integrity origin that started checkout (for example local development or the active Vercel Preview). The parent gateway then performs the existing authenticated sandbox confirmation against the pending `payment_transactions` row.
+
+Allowed relay targets are limited to localhost/127.0.0.1, Vercel Preview hosts, and Response Integrity hosts. Live PayFast checkout does not use this relay.
