@@ -9,6 +9,7 @@ import {
 } from "./responseIntegrityDrillRegistry";
 import {
   compareTrainingEvidenceShadowToLegacy,
+  evaluateTrainingEvidence,
   evaluateTrainingEvidenceShadow,
 } from "./trainingEvidenceEvaluator";
 import {
@@ -99,10 +100,17 @@ const evaluate = (
   previousStability: TopicStability,
   sets: SubmittedEvidenceSet[],
 ) => {
-  const result = evaluateTrainingEvidenceShadow({ phase, previousStability, sets });
+  const result = evaluateTrainingEvidence({ phase, previousStability, sets });
   assert.equal(result.status, "evaluated");
+  if (result.status === "evaluated") {
+    assert.equal(result.authority, "evidence_native");
+  }
   return result as Extract<typeof result, { status: "evaluated" }>;
 };
+
+test("legacy shadow evaluator name remains a compatibility alias", () => {
+  assert.equal(evaluateTrainingEvidenceShadow, evaluateTrainingEvidence);
+});
 
 test("fully supported evidence establishes High from Low but not High Maintenance", () => {
   const sets = buildTrainingSets({ phase: "Structured Execution" });
