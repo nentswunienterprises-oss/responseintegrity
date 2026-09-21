@@ -93,19 +93,32 @@ test("Vercel preview auth health survives session-store failures", () => {
 
 
 test("preview DB diagnostics identify the Supabase project without exposing credentials", async () => {
-  const { describeRuntimeDatabaseTarget } = await import("../server/db");
+  const previousDatabaseUrl = process.env.DATABASE_URL;
+  if (!process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/test";
+  }
 
-  const target = describeRuntimeDatabaseTarget(
-    "postgresql://postgres.jftlxeacphvbnhbsbpxc:secret@aws-1-eu-west-1.pooler.supabase.com:6543/postgres",
-  );
+  try {
+    const { describeRuntimeDatabaseTarget } = await import("../server/db");
 
-  assert.deepEqual(target, {
-    host: "aws-1-eu-west-1.pooler.supabase.com",
-    port: "6543",
-    mode: "transaction",
-    projectRef: "jftlxeacphvbnhbsbpxc",
-  });
-  assert.equal(JSON.stringify(target).includes("secret"), false);
+    const target = describeRuntimeDatabaseTarget(
+      "postgresql://postgres.jftlxeacphvbnhbsbpxc:secret@aws-1-eu-west-1.pooler.supabase.com:6543/postgres",
+    );
+
+    assert.deepEqual(target, {
+      host: "aws-1-eu-west-1.pooler.supabase.com",
+      port: "6543",
+      mode: "transaction",
+      projectRef: "jftlxeacphvbnhbsbpxc",
+    });
+    assert.equal(JSON.stringify(target).includes("secret"), false);
+  } finally {
+    if (previousDatabaseUrl === undefined) {
+      delete process.env.DATABASE_URL;
+    } else {
+      process.env.DATABASE_URL = previousDatabaseUrl;
+    }
+  }
 });
 
 
