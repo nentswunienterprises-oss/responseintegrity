@@ -10,7 +10,6 @@ const vercelBypass = String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "").t
 assert.ok(baseUrl, "SMOKE_BASE_URL is required");
 assert.ok(email, "RI_PROOF_EMAIL is required");
 assert.ok(password, "RI_PROOF_PASSWORD is required");
-assert.ok(vercelBypass, "VERCEL_AUTOMATION_BYPASS_SECRET is required");
 
 const evidenceDir = path.resolve("artifacts/pr47-live-ui-proof");
 await fs.mkdir(evidenceDir, { recursive: true });
@@ -34,9 +33,9 @@ const save = async () => fs.writeFile(
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({
   viewport: { width: 1440, height: 1100 },
-  extraHTTPHeaders: {
-    "x-vercel-protection-bypass": vercelBypass,
-  },
+  ...(vercelBypass
+    ? { extraHTTPHeaders: { "x-vercel-protection-bypass": vercelBypass } }
+    : {}),
 });
 const page = await context.newPage();
 page.on("console", (message) => {
