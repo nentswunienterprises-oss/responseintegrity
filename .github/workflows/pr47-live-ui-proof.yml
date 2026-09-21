@@ -63,7 +63,18 @@ jobs:
           npx playwright install --with-deps chromium
 
       - name: Use canonical Preview environment probe
-        run: sed -i 's#/api/__proof/environment#/api/proof-environment#g' scripts/pr47-live-ui-inventory.mjs
+        run: |
+          sed -i 's#/api/__proof/environment#/api/proof-environment#g' scripts/pr47-live-ui-inventory.mjs
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("scripts/pr47-live-ui-inventory.mjs")
+          text = path.read_text()
+          needle = '  const podText = await podResponse.text();\n'
+          insert = needle + '  console.log("PR47_POD_RAW=" + podText);\n'
+          if needle not in text:
+              raise SystemExit("pod response anchor not found")
+          path.write_text(text.replace(needle, insert, 1))
+          PY
 
       - name: Run authenticated PR47 live UI inventory
         run: node scripts/pr47-live-ui-inventory.mjs
