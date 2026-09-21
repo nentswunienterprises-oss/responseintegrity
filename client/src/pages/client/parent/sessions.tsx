@@ -327,7 +327,7 @@ export default function ParentSessions() {
           payload?.createdCount > 0
             ? data?.operationalMode === "sandbox"
               ? "Two weekly session times were proposed. Your specialist must confirm both dates before the lessons are ready."
-              : "Two weekly session times were proposed. Your tutor must confirm both dates before Meet links are created."
+              : "Two weekly session times were proposed. Your Specialist must confirm both dates before Meet links are created."
             : "Those weekly session times already exist.",
       });
 
@@ -464,7 +464,7 @@ export default function ParentSessions() {
 
       toast({
         title: "Session Updated",
-        description: "The new time was sent back to the tutor for confirmation.",
+        description: "The new time was sent back to the Specialist for confirmation.",
       });
 
       setAdjustedDate(undefined);
@@ -515,7 +515,7 @@ export default function ParentSessions() {
 
       toast({
         title: "Session Cancelled",
-        description: "The lesson has been cancelled. You can now schedule a new week.",
+        description: "The session is cancelled. Use Reschedule Session below to propose a replacement time.",
       });
 
       queryClient.invalidateQueries({ queryKey: ["/api/parent/training-sessions"] });
@@ -537,12 +537,24 @@ export default function ParentSessions() {
   const sandboxPaymentRequired = data?.operationalMode === "sandbox" && paymentRequired;
   const trainingModeScheduling = ["training", "sandbox"].includes(String(data?.operationalMode || ""));
   const scheduleWeekDescription = trainingModeScheduling
-    ? "Choose two Monday-to-Saturday training session times in the same week. Your tutor must confirm both dates before Response Integrity locks the sessions into the training flow."
-    : "Choose two Monday-to-Saturday training session times in the same week. Your tutor must confirm both dates before Response Integrity creates the Meet links.";
+    ? "Choose two Monday-to-Saturday training session times in the same week. Your Specialist must confirm both dates before Response Integrity locks the sessions into the training flow."
+    : "Choose two Monday-to-Saturday training session times in the same week. Your Specialist must confirm both dates before Response Integrity creates the Meet links.";
   const actionableSessions = sessions.filter(
     (session) => !["completed", "cancelled", "flagged"].includes(String(session.status || "")),
   );
-  const canScheduleNewWeek = schedulingEnabled && actionableSessions.length === 0 && !renewalBlocked;
+  const cancelledRecoverySessions = sessions.filter((session) => {
+    if (String(session.status || "") !== "cancelled") return false;
+    const scheduledTime = new Date(session.scheduled_time).getTime();
+    return Number.isFinite(scheduledTime) && scheduledTime >= Date.now();
+  });
+  const visibleSessions = [...actionableSessions, ...cancelledRecoverySessions].sort(
+    (a, b) => new Date(a.scheduled_time).getTime() - new Date(b.scheduled_time).getTime(),
+  );
+  const canScheduleNewWeek =
+    schedulingEnabled &&
+    actionableSessions.length === 0 &&
+    cancelledRecoverySessions.length === 0 &&
+    !renewalBlocked;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -554,7 +566,7 @@ export default function ParentSessions() {
         <div className="rounded-lg border border-border bg-card p-4 sm:p-6">
           <p className="text-base font-semibold text-foreground">Training mode scheduling is active</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Your assigned tutor is currently in training mode. You should still schedule and confirm sessions here, but the lesson will run inside the training flow instead of depending on Google Meet or the normal live-session window.
+            Your assigned Specialist is currently in training mode. You should still schedule and confirm sessions here, but the lesson will run inside the training flow instead of depending on Google Meet or the normal live-session window.
           </p>
         </div>
       ) : null}
@@ -657,7 +669,7 @@ export default function ParentSessions() {
             <div>
               <h2 className="text-base sm:text-xl font-semibold">Schedule This Week</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Weekly scheduling is already in progress for this student. Confirm or adjust the current lesson times below before proposing a new week.
+                Weekly scheduling is already in progress for this student. Confirm, adjust, or replace the current session times below before proposing a new week.
               </p>
             </div>
           </div>
@@ -667,11 +679,11 @@ export default function ParentSessions() {
           <h2 className="text-base sm:text-xl font-semibold mb-3 sm:mb-4">Upcoming Sessions</h2>
           {sessionsLoading ? (
             <p className="text-sm sm:text-base text-muted-foreground">Loading sessions...</p>
-          ) : actionableSessions.length === 0 ? (
+          ) : visibleSessions.length === 0 ? (
             <p className="text-sm sm:text-base text-muted-foreground">No sessions scheduled yet.</p>
           ) : (
             <div className="space-y-3">
-              {actionableSessions.map((session) => (
+              {visibleSessions.map((session) => (
                 <div key={session.id} className="rounded-lg border border-border p-4 space-y-2">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -685,10 +697,66 @@ export default function ParentSessions() {
                     </span>
                   </div>
 
+                  {session.status === "cancelled" ? (
+                    <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-sm font-medium text-amber-900">Session cancelled</p>
+                      <p className="text-sm text-amber-800">
+                        This time is no longer part of the confirmed weekly schedule. Choose a replacement time to restore this week's two-session plan. The cancellation remains recorded in the operating trail.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openAdjustmentEditor(session)}
+                        disabled={adjustingSessionId === session.id}
+                      >
+                        {editingSessionId === session.id ? "Hide reschedule" : "Reschedule Session"}
+                      </Button>
+                      {editingSessionId === session.id ? (
+                        <div className="rounded-md border border-amber-200 bg-white p-3 space-y-2">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-white">
+                                <CalendarDays className="mr-2 h-4 w-4" />
+                                {formatScheduleLabel(adjustedDate)}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent align="start" className="w-auto p-0">
+                              <Calendar
+                                mode="single"
+                                selected={adjustedDate}
+                                onSelect={setAdjustedDate}
+                                disabled={(date) => !isSelectableSessionDate(date)}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <Input
+                            type="time"
+                            value={adjustedTime}
+                            onChange={(e) => setAdjustedTime(e.target.value)}
+                            className="bg-white"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            {adjustedDate ? `${formatScheduleLabel(adjustedDate)} at ${adjustedTime}` : "Pick a Monday-Saturday date and time."}
+                          </p>
+                          <div className="flex justify-end">
+                            <Button
+                              size="sm"
+                              onClick={() => handleAdjustSession(session.id)}
+                              disabled={adjustingSessionId === session.id}
+                            >
+                              {adjustingSessionId === session.id ? "Sending..." : "Send Replacement Time"}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   {session.status === "pending_tutor_confirmation" ? (
                     <div className="space-y-2">
                       <p className="text-sm text-blue-700">
-                        Waiting for tutor confirmation. If one of the proposed times is wrong, adjust or cancel it now before your tutor confirms.
+                        Waiting for Specialist confirmation. If one of the proposed times is wrong, adjust or cancel it now before your Specialist confirms.
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <Button
@@ -918,13 +986,13 @@ export default function ParentSessions() {
         title="Cancel Confirmed Session"
         description={
           cancelSessionTarget
-            ? `You are cancelling the confirmed lesson on ${formatSessionDateTime(cancelSessionTarget.scheduled_time)}. Select the reason so the tutor and billing trail stay accurate.`
-            : "Select the cancellation reason so the tutor and billing trail stay accurate."
+            ? `You are cancelling the confirmed lesson on ${formatSessionDateTime(cancelSessionTarget.scheduled_time)}. Select the reason so the Specialist and billing trail stay accurate.`
+            : "Select the cancellation reason so the Specialist and billing trail stay accurate."
         }
         confirmLabel="Cancel Session"
         isSubmitting={!!cancellingSessionId}
         reasonOptions={PARENT_TRAINING_SESSION_CANCELLATION_REASONS}
-        notePlaceholder="Add any extra context your tutor should know about this cancellation."
+        notePlaceholder="Add any extra context your Specialist should know about this cancellation."
         onConfirm={async ({ reasonCodes, reasonNote }) => {
           if (!cancelSessionTarget) {
             throw new Error("No confirmed session selected.");

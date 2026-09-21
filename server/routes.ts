@@ -11711,7 +11711,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!hasConfirmedSchedule) {
             return res.status(400).json({
               canLaunch: false,
-              message: "Training mode still requires a tutor-confirmed weekly Response Integrity lesson before launch.",
+              message: "Training mode still requires a Specialist-confirmed weekly Response Integrity lesson before launch.",
+              session: {
+                ...session,
+                launch: {
+                  canLaunch: false,
+                  isLive: false,
+                  isImminent: false,
+                },
+              },
+            });
+          }
+
+          const scheduleTimezone = String(session.timezone || "Africa/Johannesburg").trim() || "Africa/Johannesburg";
+          const weeklyPairResult = await pool.query(
+            `SELECT COUNT(*)::int AS confirmed_pair_count
+               FROM public.scheduled_sessions
+              WHERE tutor_id = $1
+                AND student_id = $2
+                AND parent_id = $3
+                AND type = 'training'
+                AND parent_confirmed IS TRUE
+                AND tutor_confirmed IS TRUE
+                AND status IN ('confirmed', 'ready', 'live', 'completed')
+                AND date_trunc('week', scheduled_time AT TIME ZONE $4)
+                    = date_trunc('week', $5::timestamptz AT TIME ZONE $4)`,
+            [tutorId, studentId, session.parent_id, scheduleTimezone, session.scheduled_time],
+          );
+          const confirmedWeeklyPairCount = Number(weeklyPairResult.rows[0]?.confirmed_pair_count || 0);
+
+          if (confirmedWeeklyPairCount < 2) {
+            return res.status(400).json({
+              canLaunch: false,
+              message: "Both weekly Response Integrity sessions must be confirmed before training can launch.",
               session: {
                 ...session,
                 launch: {
@@ -12503,6 +12535,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "tutor training session cancelled by parent",
         );
 
+        try {
+          await storage.createNotification({
+            recipientUserId: userId,
+            actorUserId: userId,
+            channel: "informational",
+            title: "Session cancelled",
+            message: "The cancelled session still needs a replacement time. Open Sessions to reschedule it and restore this week's two-session plan.",
+            link: "/client/parent/sessions",
+            entityType: "scheduled_session",
+            entityId: String(sessionId),
+          } as any);
+        } catch (error) {
+          console.error("Failed to create parent training-session cancellation notification:", error);
+        }
+
         return res.json({
           success: true,
           status: "cancelled",
@@ -12516,7 +12563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (action === "reschedule") {
-        if (!["pending_parent_confirmation", "pending_tutor_confirmation"].includes(String(session.status || ""))) {
+        if (!["pending_parent_confirmation", "pending_tutor_confirmation", "cancelled"].includes(String(session.status || ""))) {
           return res.status(400).json({ message: "This session cannot be rescheduled at this time" });
         }
 

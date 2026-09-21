@@ -1090,7 +1090,7 @@ export default function StudentTopicConditioningDialog({
     const pendingParentSession = trainingSessionsData?.sessions?.find((session: any) => session.status === "pending_parent_confirmation");
     const pendingTutorSession = trainingSessionsData?.sessions?.find((session: any) => session.status === "pending_tutor_confirmation");
     if (pendingTutorSession) {
-      setTrainingSessionMeetMessage("Two weekly lesson times are waiting for tutor confirmation. Confirm them before running drills.");
+      setTrainingSessionMeetMessage("Two weekly lesson times are waiting for Specialist confirmation. Confirm them before running drills.");
       setSessionTopicsModalOpen(false);
       return;
     }
@@ -1482,8 +1482,20 @@ export default function StudentTopicConditioningDialog({
   const isConfirmingTrainingSession = (sessionId: string) =>
     confirmTrainingSession.isPending && confirmTrainingSession.variables?.sessionId === sessionId;
   const pendingTrainingConfirmationSession = actionableTrainingSessions.find((session: any) => session.status === "pending_parent_confirmation") || null;
+  const futureCancelledTrainingSessions = (trainingSessionsData?.sessions || []).filter((session: any) => {
+    if (String(session.status || "") !== "cancelled") return false;
+    const scheduledTime = new Date(session.scheduled_time || 0).getTime();
+    return Number.isFinite(scheduledTime) && scheduledTime >= Date.now();
+  });
+  const weeklyScheduleReady =
+    confirmedTrainingSessions.length > 0 &&
+    pendingTutorConfirmationSessions.length === 0 &&
+    !pendingTrainingConfirmationSession &&
+    futureCancelledTrainingSessions.length === 0;
   const activeTrainingSession = isTrainingMode
-    ? confirmedTrainingSessions[0] || null
+    ? weeklyScheduleReady
+      ? confirmedTrainingSessions[0] || null
+      : null
     : pendingTrainingConfirmationSession
       ? null
       : actionableTrainingSessions.find((session: any) => session.launch?.canLaunch) || null;
@@ -1523,7 +1535,7 @@ export default function StudentTopicConditioningDialog({
       action: "cancel",
       reasonCodes,
       reasonNote: buildTrainingSessionCancellationNote(
-        "Tutor",
+        "Specialist",
         TUTOR_TRAINING_SESSION_CANCELLATION_REASONS,
         reasonCodes,
         reasonNote,
@@ -1531,7 +1543,7 @@ export default function StudentTopicConditioningDialog({
     });
 
     setTrainingSessionMeetMessage(
-      result?.message || "Training session cancelled. The parent can reschedule a new week."
+      result?.message || "Training session cancelled. The parent can reschedule the cancelled session."
     );
   };
   const toggleTopicExpanded = (topic: string) => {
@@ -2170,19 +2182,32 @@ export default function StudentTopicConditioningDialog({
                         </p>
                       </div>
                       <div className="text-right text-xs text-muted-foreground">
-                        Start Session unlocks after the week's lesson is confirmed by both parent and tutor.
+                        Start Session unlocks after the week's lesson is confirmed by both parent and Specialist.
                       </div>
                     </div>
                     <div className="rounded border border-primary/20 bg-background px-3 py-2 text-xs space-y-2">
                       <p className="font-medium text-foreground">
-                        {confirmedTrainingSessions.length > 0 ? "Confirmed weekly lesson ready" : "Awaiting confirmed weekly lesson"}
+                        {weeklyScheduleReady ? "Confirmed weekly schedule ready" : "Awaiting complete weekly schedule"}
                       </p>
                       <p className="text-muted-foreground">
-                        {confirmedTrainingSessions.length > 0
+                        {weeklyScheduleReady
                           ? "Use Start Session to choose topics and enter the runner for a confirmed weekly lesson."
-                          : "Training launch stays locked until a weekly lesson is scheduled and fully confirmed."}
+                          : "Training launch stays locked until both weekly sessions are scheduled and fully confirmed."}
                       </p>
                     </div>
+                    {futureCancelledTrainingSessions.length > 0 ? (
+                      <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs space-y-1">
+                        <p className="font-medium text-amber-900">Weekly schedule needs a replacement</p>
+                        <p className="text-amber-800">
+                          A confirmed session was cancelled. Training launch stays locked until the parent proposes a replacement time and the Specialist confirms it.
+                        </p>
+                        {futureCancelledTrainingSessions.map((session: any) => (
+                          <p key={session.id} className="text-amber-800">
+                            Cancelled: {formatLessonTime(session.scheduled_time)}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null}
                     {confirmedTrainingSessions.length > 0 ? (
                       <div className="rounded border border-primary/20 bg-background px-3 py-2 text-xs space-y-2">
                         <p className="font-medium text-foreground">Confirmed lessons</p>
@@ -2267,7 +2292,7 @@ export default function StudentTopicConditioningDialog({
                     />
                     {pendingTutorConfirmationSessions.length > 0 ? (
                       <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs space-y-2">
-                        <p className="font-medium text-blue-900">Awaiting tutor confirmation</p>
+                        <p className="font-medium text-blue-900">Awaiting Specialist confirmation</p>
                         <p className="text-blue-800">
                           The parent has proposed this week's lesson times. Confirm both dates before training can launch.
                         </p>
@@ -2277,7 +2302,7 @@ export default function StudentTopicConditioningDialog({
                               <div className="flex items-center justify-between gap-3">
                                 <div>
                                   <p className="font-medium text-foreground">{formatLessonTime(session.scheduled_time)}</p>
-                                  <p className="text-muted-foreground">Status: waiting for tutor confirmation</p>
+                                  <p className="text-muted-foreground">Status: waiting for Specialist confirmation</p>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                   <Button
@@ -2288,11 +2313,11 @@ export default function StudentTopicConditioningDialog({
                                         const result = await confirmTrainingSession.mutateAsync({ sessionId: session.id });
                                         setTrainingSessionMeetMessage(
                                           isSandboxMode
-                                            ? "Tutor confirmed the lesson."
+                                            ? "Specialist confirmed the lesson."
                                             : result?.googleMeetError ||
                                               (result?.googleMeetSync === "google_calendar"
-                                                ? "Tutor confirmed. Google Meet attached to the lesson."
-                                                : "Tutor confirmed the lesson.")
+                                                ? "Specialist confirmed. Google Meet attached to the lesson."
+                                                : "Specialist confirmed the lesson.")
                                         );
                                       } catch (error) {
                                         setTrainingSessionMeetMessage(
@@ -2337,7 +2362,7 @@ export default function StudentTopicConditioningDialog({
                                             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Johannesburg",
                                           });
                                           setTrainingSessionMeetMessage(
-                                            result?.googleMeetError || "Tutor sent a new time to the parent for confirmation."
+                                            result?.googleMeetError || "Specialist sent a new time to the parent for confirmation."
                                           );
                                           setEditingTrainingSessionId(null);
                                           setAdjustedTrainingSessionTime("");
@@ -2473,7 +2498,7 @@ export default function StudentTopicConditioningDialog({
                     ) : null}
                     {pendingTutorConfirmationSessions.length > 0 ? (
                       <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs space-y-2">
-                        <p className="font-medium text-blue-900">Awaiting tutor confirmation</p>
+                        <p className="font-medium text-blue-900">Awaiting Specialist confirmation</p>
                         <p className="text-blue-800">
                           {isSandboxMode
                             ? "The parent has proposed this week's training lessons. Confirm both dates before the lessons are ready."
@@ -2485,7 +2510,7 @@ export default function StudentTopicConditioningDialog({
                               <div className="flex items-center justify-between gap-3">
                                 <div>
                                   <p className="font-medium text-foreground">{formatLessonTime(session.scheduled_time)}</p>
-                                  <p className="text-muted-foreground">Status: waiting for tutor confirmation</p>
+                                  <p className="text-muted-foreground">Status: waiting for Specialist confirmation</p>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                   <Button
@@ -2497,8 +2522,8 @@ export default function StudentTopicConditioningDialog({
                                         setTrainingSessionMeetMessage(
                                           result?.googleMeetError ||
                                           (result?.googleMeetSync === "google_calendar"
-                                            ? "Tutor confirmed. Google Meet attached to the lesson."
-                                            : "Tutor confirmed the lesson.")
+                                            ? "Specialist confirmed. Google Meet attached to the lesson."
+                                            : "Specialist confirmed the lesson.")
                                         );
                                       } catch (error) {
                                         setTrainingSessionMeetMessage(
@@ -2543,7 +2568,7 @@ export default function StudentTopicConditioningDialog({
                                             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Johannesburg",
                                           });
                                           setTrainingSessionMeetMessage(
-                                            result?.googleMeetError || "Tutor sent a new time to the parent for confirmation."
+                                            result?.googleMeetError || "Specialist sent a new time to the parent for confirmation."
                                           );
                                           setEditingTrainingSessionId(null);
                                           setAdjustedTrainingSessionTime("");
@@ -2707,7 +2732,7 @@ export default function StudentTopicConditioningDialog({
                   <div className="rounded-md border border-primary/20 bg-primary/5 p-3 space-y-3">
                     <p className="text-sm font-medium">Prep Rules For Selected Topics</p>
                     <p className="text-xs text-muted-foreground">
-                      Review the exact drill load before you enter the lesson. Each selected topic still needs its own problem prep and explicit tutor confirmation before launch.
+                      Review the exact drill load before you enter the lesson. Each selected topic still needs its own problem prep and explicit Specialist confirmation before launch.
                     </p>
                     <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
                       {selectedSessionPrepPlans.map(({ topic, phase, stability, hasObservedState, prepPlan }) => (
