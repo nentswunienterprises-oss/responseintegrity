@@ -241,7 +241,7 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     },
     High: {
       status: "Your child shows strong understanding of this topic.",
-      meaning: "They are recognising what the question is asking and selecting the right structure reliably. The next step is to see that this strong clarity holds across different questions and repeated sessions.",
+      meaning: "Their clarity is substantially present and usable, but not yet considered sustained. The next step is to see that this strong clarity holds across different questions and repeated sessions.",
       focus: "We are testing the reliability of this clarity across variation and repetition before progression.",
     },
     "High Maintenance": {
@@ -263,7 +263,7 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     },
     High: {
       status: "Your child shows strong independent execution in this topic.",
-      meaning: "They are applying the correct method independently and reliably. The next step is to see that this execution holds across varied problems and repeated sessions.",
+      meaning: "Their independent execution is substantially present and usable, but not yet considered sustained. The next step is to see that this execution holds across varied problems and repeated sessions.",
       focus: "We are testing the reliability of this execution across variation and repetition before adding greater difficulty.",
     },
     "High Maintenance": {
@@ -285,7 +285,7 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     },
     High: {
       status: "Your child shows strong control when problems become difficult.",
-      meaning: "They are staying structured and composed when the work becomes harder or less familiar. The next step is to see that this control holds across repeated challenge.",
+      meaning: "Their control under difficulty is substantially present and usable, but not yet considered sustained. The next step is to see that this control holds across repeated challenge.",
       focus: "We are testing the reliability of this control across varied difficult work before adding time pressure.",
     },
     "High Maintenance": {
@@ -307,7 +307,7 @@ export const PARENT_DASHBOARD_COPY_BY_STATE: Record<TopicPhase, Record<TopicStab
     },
     High: {
       status: "Your child shows strong control under time pressure.",
-      meaning: "They are maintaining structure and decision quality while working against the clock. The next step is to see that this performance remains reliable across varied timed work.",
+      meaning: "Their time-pressure control is substantially present and usable, but not yet considered sustained. The next step is to see that this performance remains reliable across varied timed work.",
       focus: "We are testing that structure, pace, and completion stay reliable across repeated timed work before this level is treated as sustained.",
     },
     "High Maintenance": {

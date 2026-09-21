@@ -111,7 +111,7 @@ export const DIAGNOSIS_OBSERVATION_MATRIX: Record<
     [
       option("no_reason", "Could not give a relevant reason", "breakdown", "The student could not connect the problem structure to the method."),
       option("partial_reason", "Gave a partly relevant reason but the logic was incomplete", "conditional", "The explanation contained some correct structure but could not yet justify the method reliably."),
-      option("correct_reason_imprecise", "Gave the right reason with a small gap or imprecision", "near_stable", "The causal logic was substantially correct but not fully clean."),
+      option("correct_reason_imprecise", "Gave the right reason with a small gap or imprecision", "near_stable", "The causal logic was substantially correct but still had a small decision-relevant gap."),
       option("clear_reason", "Explained clearly why the method fits", "supported", "The student connected the problem structure and method without help."),
       ...commonTail("A reason was not meaningfully requested or the student lacked enough content exposure to make the explanation diagnostic."),
     ],
