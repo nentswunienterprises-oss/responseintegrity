@@ -40,10 +40,6 @@ jobs:
             echo "::error::Specialist proof credentials are missing."
             exit 1
           fi
-          if [ -z "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
-            echo "::error::VERCEL_AUTOMATION_BYPASS_SECRET is missing."
-            exit 1
-          fi
 
       - name: Install Playwright
         run: |
