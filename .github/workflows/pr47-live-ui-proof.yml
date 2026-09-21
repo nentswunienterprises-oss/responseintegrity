@@ -62,6 +62,9 @@ jobs:
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
 
+      - name: Use canonical Preview environment probe
+        run: sed -i 's#/api/__proof/environment#/api/proof-environment#g' scripts/pr47-live-ui-inventory.mjs
+
       - name: Run authenticated PR47 live UI inventory
         run: node scripts/pr47-live-ui-inventory.mjs
 
