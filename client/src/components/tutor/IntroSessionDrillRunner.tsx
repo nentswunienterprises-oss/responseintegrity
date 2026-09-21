@@ -1801,8 +1801,14 @@ export default function IntroSessionDrillRunner() {
           if (transitionReason === "stability regress" || row?.phaseDecision === "regress") {
             return `${topicName}: stability regressed to ${row?.stability} in ${row?.phase}`;
           }
+          if (transitionReason === "high maintenance entry") {
+            return `${topicName}: High Maintenance earned in ${row?.phase}`;
+          }
           if (transitionReason === "stability advance") {
             return `${topicName}: stability improved to ${row?.stability} in ${row?.phase}`;
+          }
+          if (transitionReason === "final maintenance hold") {
+            return `${topicName}: sustained final-phase maintenance in ${row?.phase}`;
           }
           return `${topicName}: stability held at ${row?.stability} in ${row?.phase}`;
         };
@@ -1815,7 +1821,7 @@ export default function IntroSessionDrillRunner() {
         const getDisplayedActionDetails = (row: any) => {
           const transitionReason = String(row?.transitionReason || row?.phaseDecision || "remain").toLowerCase();
           const enteredMaintenanceCheckpoint =
-            transitionReason === "stability advance" &&
+            (transitionReason === "high maintenance entry" || transitionReason === "stability advance") &&
             row?.phaseBefore === row?.phase &&
             row?.stabilityBefore === "High" &&
             row?.stability === "High Maintenance";
@@ -1842,7 +1848,7 @@ export default function IntroSessionDrillRunner() {
         return (
           <div className="mb-6 space-y-4">
             <div className="p-3 rounded-md border border-primary/25 bg-primary/10 text-foreground font-medium">
-              Drill submitted. Scoring complete.
+              Drill submitted. Evidence decision complete.
             </div>
 
             {responseSnapshots.map((snapshot) => (
@@ -1854,7 +1860,7 @@ export default function IntroSessionDrillRunner() {
 
             <details className="rounded-xl border border-primary/15 bg-background px-4 py-3">
               <summary className="cursor-pointer text-sm font-semibold text-foreground">
-                View scoring breakdown
+                View compatibility scoring breakdown
               </summary>
               <div className="mt-3 space-y-3">
                 {setNames.map((setName) => {
@@ -1891,7 +1897,7 @@ export default function IntroSessionDrillRunner() {
             {/* Session total */}
             <div className="rounded-xl border border-primary/15 bg-background px-4 py-3 flex justify-between items-center">
               <span className="font-semibold">
-                {topicSummaries.length > 1 ? "Overall Session Average" : "Drill Total"}
+                {topicSummaries.length > 1 ? "Overall Compatibility Average" : "Compatibility Score"}
               </span>
               <span className={`text-lg font-bold ${
                 overallSessionScore >= 70 ? "text-green-700" : overallSessionScore >= 45 ? "text-yellow-700" : "text-red-700"
