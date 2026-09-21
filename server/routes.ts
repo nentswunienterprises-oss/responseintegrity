@@ -68,7 +68,7 @@ import {
 } from "@shared/responseIntegrityDrillRegistry";
 import {
   compareTrainingEvidenceShadowToLegacy,
-  evaluateTrainingEvidenceShadow,
+  evaluateTrainingEvidence,
 } from "@shared/trainingEvidenceEvaluator";
 import { buildResponseSnapshotV1, summarizeSnapshotObservedResponse } from "@shared/responseSnapshot";
 import {
@@ -5087,44 +5087,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ? Math.round(weighted.sum / weighted.weight)
               : 0;
 
-            // Shadow-only evidence-native evaluation. This is persisted beside the legacy
-            // score-driven result for proof comparison and has zero live state authority.
-            const evidenceShadow = evaluateTrainingEvidenceShadow({
+            // Evidence-native training is the live authority. Numeric scoring remains
+            // available for compatibility analytics and score-vs-evidence comparison only.
+            const evidenceEvaluation = evaluateTrainingEvidence({
               phase: observedPhase,
               previousStability,
               sets: sets as any,
             });
 
-            // The legacy score transition remains authoritative during shadow validation.
-            const transition = computeTransition(observedPhase, previousStability, sessionScore);
+            if (evidenceEvaluation.status !== "evaluated") {
+              throw new Error(
+                `Training evidence cannot authorize live state: ${evidenceEvaluation.reason}`,
+              );
+            }
+
+            // Preserve the former score decision only as a proof comparison. It must not
+            // authorize topic state, next action, snapshots, ledger state, or reporting lineage.
+            const legacyTransitionResult = computeTransition(
+              observedPhase,
+              previousStability,
+              sessionScore,
+            );
             const legacyTransition = {
-              nextPhase: transition.next_phase,
-              nextStability: transition.next_stability,
-              transitionReason: normalizeTransitionReason(transition.transition_reason),
+              nextPhase: legacyTransitionResult.next_phase,
+              nextStability: legacyTransitionResult.next_stability,
+              transitionReason: normalizeTransitionReason(legacyTransitionResult.transition_reason),
             };
             const evidenceShadowComparison = compareTrainingEvidenceShadowToLegacy({
               sessionScore,
               legacyTransition,
-              evidenceShadow,
+              evidenceShadow: evidenceEvaluation,
             });
 
-            const nextActionConfig = (NEXT_ACTION_ENGINE as any)?.[transition.next_phase]?.[transition.next_stability] || null;
+            const evidenceTransition = evidenceEvaluation.predictedTransition;
+            const nextActionConfig =
+              (NEXT_ACTION_ENGINE as any)?.[evidenceTransition.nextPhase]?.[
+                evidenceTransition.nextStability
+              ] || null;
 
             return {
               observedPhase,
               previousStability,
-              phase: transition.next_phase,
-              stability: transition.next_stability,
-              transitionReason: normalizeTransitionReason(transition.transition_reason),
-              phaseDecision: transition.transition_reason === "phase progress" ? "advance" :
-                           transition.transition_reason === "stability regress" ? "regress" : "remain",
+              observedStability: evidenceEvaluation.observedStability,
+              phase: evidenceTransition.nextPhase,
+              stability: evidenceTransition.nextStability,
+              transitionReason: evidenceTransition.transitionReason,
+              phaseDecision: evidenceTransition.transitionReason === "phase progress" ? "advance" :
+                           evidenceTransition.transitionReason === "stability regress" ? "regress" : "remain",
               sessionScore,
+              decisionAuthority: "evidence_native" as const,
               nextAction: nextActionConfig?.primaryAction || null,
               constraint: nextActionConfig?.rules?.[0] || null,
               repRows,
               setScores,
               highGuardPasses,
-              evidenceShadow,
+              evidence: evidenceEvaluation,
+              // Compatibility alias retained for the immutable historical comparison dataset.
+              evidenceShadow: evidenceEvaluation,
               evidenceShadowComparison,
               lowStreakAfterSession: 0, // No longer used in new transition engine
             };
@@ -8076,8 +8095,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   lastUpdated: nowIso,
                   nextAction: trainingSummary.nextAction,
                   observationNotes: [
-                    `Training Drill Session Score: ${trainingSummary.sessionScore}`,
+                    `Training evidence decision: ${trainingSummary.observedStability} observed stability`,
                     `Decision: ${trainingSummary.transitionReason.toUpperCase()}`,
+                    `Compatibility score: ${trainingSummary.sessionScore}`,
                     trainingSummary.constraint ? `Constraint: ${trainingSummary.constraint}` : null,
                   ]
                     .filter(Boolean)
@@ -8089,13 +8109,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       phase: trainingSummary.phase,
                       stability: trainingSummary.stability,
                       nextAction: trainingSummary.nextAction,
-                      observationNotes: `Training drill update. Session Score ${trainingSummary.sessionScore}.`,
+                      observationNotes: `Training drill update. Evidence decision ${trainingSummary.transitionReason}; compatibility score ${trainingSummary.sessionScore}.`,
                       structuredObservation: {
                         drillType: "training",
                         observedPhase: trainingSummary.observedPhase,
+                        observedStability: trainingSummary.observedStability,
                         previousStability: trainingSummary.previousStability,
                         transitionReason: trainingSummary.transitionReason,
                         phaseDecision: trainingSummary.phaseDecision,
+                        decisionAuthority: trainingSummary.decisionAuthority,
                         sessionScore: trainingSummary.sessionScore,
                         nextAction: trainingSummary.nextAction,
                         constraint: trainingSummary.constraint,
@@ -8127,6 +8149,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       setPoints: setScore,
                       setMaxPoints: 100,
                       sessionScore: trainingSummary.sessionScore,
+                      decisionAuthority: trainingSummary.decisionAuthority,
+                      observedStability: trainingSummary.observedStability,
                       phaseBefore: trainingSummary.observedPhase,
                       phase: trainingSummary.phase,
                       stabilityBefore: trainingSummary.previousStability,
