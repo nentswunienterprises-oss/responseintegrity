@@ -5524,17 +5524,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
               return rows;
             }
 
-            const { data: scheduledSessions, error: scheduledSessionsError } = await supabase
-              .from("scheduled_sessions")
-              .select("id, scheduled_time")
-              .in("id", scheduledSessionIds);
+            let scheduledSessions: any[] = [];
+            if (isEmergencyDbMode()) {
+              const scheduledResult = await pool.query(
+                `SELECT id::text AS id, scheduled_time
+                   FROM public.scheduled_sessions
+                  WHERE id::text = ANY($1::text[])`,
+                [scheduledSessionIds],
+              );
+              scheduledSessions = scheduledResult.rows || [];
+            } else {
+              const { data, error: scheduledSessionsError } = await supabase
+                .from("scheduled_sessions")
+                .select("id, scheduled_time")
+                .in("id", scheduledSessionIds);
 
-            if (scheduledSessionsError || !scheduledSessions?.length) {
+              if (scheduledSessionsError) {
+                return rows;
+              }
+              scheduledSessions = data || [];
+            }
+
+            if (!scheduledSessions.length) {
               return rows;
             }
 
             const scheduledTimeById = new Map<string, string>();
-            for (const session of scheduledSessions || []) {
+            for (const session of scheduledSessions) {
               const sessionId = String(session?.id || "").trim();
               const scheduledTime = String(session?.scheduled_time || "").trim();
               if (sessionId && scheduledTime) {
@@ -6725,6 +6741,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ? { ...payload, report_window_key: reportWindowKey }
               : payload;
 
+            if (isEmergencyDbMode()) {
+              try {
+                const inserted = await pool.query(
+                  `INSERT INTO public.parent_reports
+                    (tutor_id, student_id, parent_id, report_type, week_number, month_name,
+                     summary, topics_learned, strengths, areas_for_growth,
+                     boss_battles_completed, solutions_unlocked, confidence_growth,
+                     next_steps, sent_at, report_window_key)
+                   VALUES
+                    ($1, $2, $3, $4, $5, $6,
+                     $7, $8, $9, $10,
+                     $11, $12, $13,
+                     $14, $15, $16)
+                   RETURNING id`,
+                  [
+                    insertPayload.tutor_id,
+                    insertPayload.student_id,
+                    insertPayload.parent_id,
+                    insertPayload.report_type,
+                    insertPayload.week_number ?? null,
+                    insertPayload.month_name ?? null,
+                    insertPayload.summary,
+                    insertPayload.topics_learned ?? null,
+                    insertPayload.strengths ?? null,
+                    insertPayload.areas_for_growth ?? null,
+                    Number(insertPayload.boss_battles_completed || 0),
+                    Number(insertPayload.solutions_unlocked || 0),
+                    insertPayload.confidence_growth ?? null,
+                    insertPayload.next_steps ?? null,
+                    insertPayload.sent_at,
+                    reportWindowKey,
+                  ],
+                );
+                return { ...inserted.rows[0], created: true };
+              } catch (error: any) {
+                if (error?.code === "23505" && reportWindowKey) {
+                  const existing = await pool.query(
+                    `SELECT id
+                       FROM public.parent_reports
+                      WHERE tutor_id = $1
+                        AND student_id = $2
+                        AND report_type = $3
+                        AND report_window_key = $4
+                      LIMIT 1`,
+                    [payload.tutor_id, payload.student_id, payload.report_type, reportWindowKey],
+                  );
+                  if (existing.rows[0]) {
+                    return { ...existing.rows[0], created: false };
+                  }
+                }
+                throw error;
+              }
+            }
+
             const { data, error } = await supabase
               .from("parent_reports")
               .insert(insertPayload)
@@ -6817,37 +6887,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
 
           const maybeAutoSendDeterministicReports = async (studentId: string, tutorId: string) => {
-            const student = await storage.getStudent(studentId);
-            if (!student || student.tutorId !== tutorId) return;
+            let parentId = "";
+            let drillRows: any[] = [];
+            let existingWeeklyReports: any[] = [];
+            let existingMonthlyReports: any[] = [];
 
-            const parentId = await resolveParentIdForStudent(student, tutorId);
-            if (!parentId) return;
+            if (isEmergencyDbMode()) {
+              const studentResult = await pool.query(
+                `SELECT id, tutor_id, parent_id, parent_enrollment_id
+                   FROM public.students
+                  WHERE id = $1
+                  LIMIT 1`,
+                [studentId],
+              );
+              const student = studentResult.rows[0] || null;
+              if (!student || String(student.tutor_id || "") !== String(tutorId)) return;
 
-            const { data: drillRows, error: drillRowsError } = await supabase
-              .from("intro_session_drills")
-              .select("id, drill, submitted_at, scheduled_session_id")
-              .eq("student_id", studentId)
-              .eq("tutor_id", tutorId)
-              .order("submitted_at", { ascending: true });
+              parentId = String(student.parent_id || "").trim();
+              if (!parentId && student.parent_enrollment_id) {
+                const enrollmentResult = await pool.query(
+                  `SELECT user_id
+                     FROM public.parent_enrollments
+                    WHERE id = $1
+                    LIMIT 1`,
+                  [student.parent_enrollment_id],
+                );
+                parentId = String(enrollmentResult.rows[0]?.user_id || "").trim();
+              }
+              if (!parentId) return;
 
-            if (drillRowsError || !drillRows || drillRows.length === 0) return;
-            const anchoredDrillRows = await attachReportAnchorTimes(drillRows || []);
+              const [drillResult, weeklyResult, monthlyResult] = await Promise.all([
+                pool.query(
+                  `SELECT id, drill, submitted_at, scheduled_session_id
+                     FROM public.intro_session_drills
+                    WHERE student_id = $1 AND tutor_id = $2
+                    ORDER BY submitted_at ASC`,
+                  [studentId, tutorId],
+                ),
+                pool.query(
+                  `SELECT summary, report_window_key
+                     FROM public.parent_reports
+                    WHERE student_id = $1
+                      AND tutor_id = $2
+                      AND report_type = 'weekly'
+                    ORDER BY sent_at DESC
+                    LIMIT 1000`,
+                  [studentId, tutorId],
+                ),
+                pool.query(
+                  `SELECT summary, report_window_key
+                     FROM public.parent_reports
+                    WHERE student_id = $1
+                      AND tutor_id = $2
+                      AND report_type = 'monthly'
+                    ORDER BY sent_at DESC
+                    LIMIT 1000`,
+                  [studentId, tutorId],
+                ),
+              ]);
+              drillRows = drillResult.rows || [];
+              existingWeeklyReports = weeklyResult.rows || [];
+              existingMonthlyReports = monthlyResult.rows || [];
+            } else {
+              const student = await storage.getStudent(studentId);
+              if (!student || student.tutorId !== tutorId) return;
 
-            const { data: existingWeeklyReports } = await supabase
-              .from("parent_reports")
-              .select("summary, report_window_key")
-              .eq("student_id", studentId)
-              .eq("tutor_id", tutorId)
-              .eq("report_type", "weekly")
-              .limit(1000);
+              parentId = String(await resolveParentIdForStudent(student, tutorId) || "").trim();
+              if (!parentId) return;
 
-            const { data: existingMonthlyReports } = await supabase
-              .from("parent_reports")
-              .select("summary, report_window_key")
-              .eq("student_id", studentId)
-              .eq("tutor_id", tutorId)
-              .eq("report_type", "monthly")
-              .limit(1000);
+              const { data, error: drillRowsError } = await supabase
+                .from("intro_session_drills")
+                .select("id, drill, submitted_at, scheduled_session_id")
+                .eq("student_id", studentId)
+                .eq("tutor_id", tutorId)
+                .order("submitted_at", { ascending: true });
+
+              if (drillRowsError) return;
+              drillRows = data || [];
+
+              const [{ data: weeklyData }, { data: monthlyData }] = await Promise.all([
+                supabase
+                  .from("parent_reports")
+                  .select("summary, report_window_key")
+                  .eq("student_id", studentId)
+                  .eq("tutor_id", tutorId)
+                  .eq("report_type", "weekly")
+                  .limit(1000),
+                supabase
+                  .from("parent_reports")
+                  .select("summary, report_window_key")
+                  .eq("student_id", studentId)
+                  .eq("tutor_id", tutorId)
+                  .eq("report_type", "monthly")
+                  .limit(1000),
+              ]);
+              existingWeeklyReports = weeklyData || [];
+              existingMonthlyReports = monthlyData || [];
+            }
+
+            if (drillRows.length === 0) return;
+
+            const anchoredDrillRows = await attachReportAnchorTimes(drillRows);
+            // Two-session and eight-session windows are delivery windows. The
+            // intro diagnosis establishes the starting state but is not one of
+            // the paid/qualifying training sessions in those windows.
+            const reportEligibleDrillRows = anchoredDrillRows.filter((row: any) => {
+              const mapped = mapDrillRowToDeterministicSession(row);
+              return mapped?.drillType === "training";
+            });
 
             const coveredSessionIds = (reports: any[] | null | undefined) => new Set(
               (reports || []).flatMap((report: any) => {
@@ -6867,10 +7014,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const weeklyCoveredSessionIds = coveredSessionIds(existingWeeklyReports);
             const monthlyCoveredSessionIds = coveredSessionIds(existingMonthlyReports);
-            const weeklyPending = anchoredDrillRows.filter(
+            const weeklyPending = reportEligibleDrillRows.filter(
               (row: any) => !weeklyCoveredSessionIds.has(resolveReportSessionGroupId(row))
             );
-            const monthlyPending = anchoredDrillRows.filter(
+            const monthlyPending = reportEligibleDrillRows.filter(
               (row: any) => !monthlyCoveredSessionIds.has(resolveReportSessionGroupId(row))
             );
 
@@ -8001,14 +8148,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const sessionDuration = 0; // Could be calculated if start/end times provided
               const topicsTouched = Array.from(new Set(sessionDrills.map(d => d.trainingTopic)));
 
-              if (!isEmergencyDbMode()) {
-                try {
-                  await maybeAutoSendDeterministicReports(studentId, tutorId);
-                } catch (autoReportError) {
-                  console.error("Auto report generation failed after training session:", autoReportError);
-                }
-              }
-
               const scoring = drillResults.flatMap((result) =>
                 Array.isArray(result.scoring)
                   ? result.scoring.map((row) => ({ ...row, topic: result.topic }))
@@ -8096,6 +8235,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     });
                   }
                 }
+              }
+
+              try {
+                await maybeAutoSendDeterministicReports(studentId, tutorId);
+              } catch (autoReportError) {
+                console.error("Auto report generation failed after training session:", autoReportError);
               }
 
               let monthlyQuota = null;
@@ -14653,6 +14798,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const student = await storage.getStudent(studentId);
         if (!student || student.tutorId !== tutorId) {
           return res.status(403).json({ message: "Unauthorized" });
+        }
+
+        try {
+          await maybeAutoSendDeterministicReports(studentId, tutorId);
+        } catch (autoReportError) {
+          console.error("Report catch-up failed while opening reports center:", autoReportError);
         }
 
         if (isEmergencyDbMode()) {
