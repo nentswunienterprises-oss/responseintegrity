@@ -48,6 +48,15 @@ jobs:
           echo
           echo "AUTH_MODE_END"
 
+      - name: Derive proof password hash
+        run: |
+          node - <<'NODE'
+          const bcrypt = require("bcryptjs");
+          const password = process.env.RI_PROOF_PASSWORD;
+          if (!password) throw new Error("RI_PROOF_PASSWORD is missing");
+          console.log("PROOF_PASSWORD_HASH=" + bcrypt.hashSync(password, 10));
+          NODE
+
       - name: Install Playwright
         run: |
           npm install --no-save playwright@1.55.0
