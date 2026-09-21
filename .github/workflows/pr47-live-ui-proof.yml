@@ -95,6 +95,8 @@ jobs:
         run: node scripts/pr47-live-ui-inventory.mjs
 
       - name: Run PR47 live mixed-scenario UI proof
+        env:
+          PR47_SCENARIO_FILTER: raw-strong-but-timer-confounded
         run: node scripts/pr47-live-ui-mixed-scenarios.mjs
 
       - name: Upload PR47 live UI evidence

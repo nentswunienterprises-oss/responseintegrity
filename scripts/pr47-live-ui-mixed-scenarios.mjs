@@ -294,7 +294,7 @@ async function runScenario(page, scenario) {
 
       if (scenario.intervention) {
         await page.getByRole("button", { name: "Change support", exact: true }).click();
-        await page.getByRole("button", { name: scenario.intervention, exact: true }).click();
+        await page.getByRole("button", { name: new RegExp("^" + scenario.intervention) }).click();
       }
 
       for (const field of set.fields) {
@@ -430,7 +430,12 @@ try {
   assert.equal(proofBody?.requiredEnv?.SUPABASE_SERVICE_ROLE_KEY, true);
 
   const failedIds = new Set();
-  for (const scenario of scenarios) {
+  const scenarioFilter = String(process.env.PR47_SCENARIO_FILTER || "").trim();
+  const selectedScenarios = scenarioFilter
+    ? scenarios.filter((scenario) => scenario.id === scenarioFilter)
+    : scenarios;
+  assert.ok(selectedScenarios.length > 0, scenarioFilter ? `Unknown PR47 scenario filter: ${scenarioFilter}` : "No scenarios configured");
+  for (const scenario of selectedScenarios) {
     const dependencies = [];
     if (scenario.id === "raw-strong-but-timer-confounded") dependencies.push("clean-high-to-high-maintenance");
     if (scenario.id === "early-breakdown-then-clean-recovery") dependencies.push("conditional-evidence-does-not-pass-as-high");
