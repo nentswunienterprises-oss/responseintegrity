@@ -1,0 +1,57 @@
+name: PR47 Live UI Proof
+
+on:
+  push:
+    branches:
+      - feat/evidence-complete-diagnosis
+    paths:
+      - 'scripts/pr47-live-ui-inventory.mjs'
+      - '.github/workflows/pr47-live-ui-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: read
+
+jobs:
+  live-ui-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SMOKE_BASE_URL: https://tt-confidence-hub-git-feat-evi-31b8c6-relief-works-technologies.vercel.app
+      RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_EMAIL }}
+      RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - name: Verify temporary proof credentials are configured
+        shell: bash
+        run: |
+          if [ -z "$RI_PROOF_EMAIL" ] || [ -z "$RI_PROOF_PASSWORD" ]; then
+            echo "::error::Add RI_PROOF_EMAIL and RI_PROOF_PASSWORD as temporary GitHub Actions secrets before re-running this job."
+            exit 1
+          fi
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run authenticated PR47 live UI inventory
+        run: node scripts/pr47-live-ui-inventory.mjs
+
+      - name: Upload PR47 live UI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr47-live-ui-proof
+          path: artifacts/pr47-live-ui-proof
+          if-no-files-found: warn
