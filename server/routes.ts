@@ -349,8 +349,9 @@ function isSandboxPaymentEnrollment(enrollment: any) {
   );
 }
 
-const PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID = "10000100";
-const PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY = "46f0cd694581a";
+const PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID = "10004002";
+const PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY = "q1cd2rdny4a53";
+const PAYFAST_PUBLIC_SANDBOX_PASSPHRASE = "payfast";
 
 function isValidPayfastMerchantId(value: string) {
   return /^\d{8}$/.test(String(value || "").trim());
@@ -362,13 +363,12 @@ function isValidPayfastMerchantKey(value: string) {
 
 function getPayfastConfig(useSandbox: boolean) {
   if (useSandbox) {
-    // Match PayFast's official PHP SDK custom-integration test account:
-    // merchant 10000100 / 46f0cd694581a with an empty passphrase.
-    // Live credentials never participate in this path.
+    // Use PayFast's currently documented shared sandbox credentials with the
+    // matching passphrase. Live credentials never participate in this path.
     return {
       merchantId: PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID,
       merchantKey: PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY,
-      passphrase: "",
+      passphrase: PAYFAST_PUBLIC_SANDBOX_PASSPHRASE,
       processUrl: getPayfastProcessUrl(true),
     };
   }
@@ -25934,33 +25934,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ message: "Failed to prepare payment transaction" });
         }
 
-        const payfastFields = withPayfastSignature(
-          {
-            merchant_id: payfastConfig.merchantId,
-            merchant_key: payfastConfig.merchantKey,
-            return_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}`,
-            cancel_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}`,
-            notify_url: `${getApiPublicUrl()}/api/payments/payfast/notify`,
-            name_first: String((req as any).dbUser?.firstName || "").trim(),
-            name_last: String((req as any).dbUser?.lastName || "").trim(),
-            email_address: resolvePayfastEmailAddress({
-              dbUserEmail: (req as any).dbUser?.email,
-              enrollmentEmail: paymentEnrollment.parent_email,
-              parentId: String(paymentEnrollment.user_id || parentId),
-              useSandbox: payfastSandboxForEnrollment,
-            }),
-            m_payment_id: merchantReference,
-            amount: servicePackage.amountZar.toFixed(2),
-            item_name: servicePackage.label,
-            item_description: buildPackagePaymentDescription(paymentEnrollment.student_full_name, servicePackage.key),
-            custom_str1: String(paymentEnrollment.id),
-            custom_str2: String(paymentProposal.id),
-            custom_str3: String(paymentProposal.student_id),
-            custom_str4: String(paymentProposal.tutor_id),
-            custom_str5: servicePackage.key,
-          },
-          payfastConfig.passphrase,
-        );
+        const payfastFields = payfastSandboxForEnrollment
+          ? withPayfastSignature(
+              {
+                merchant_id: payfastConfig.merchantId,
+                merchant_key: payfastConfig.merchantKey,
+                return_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}`,
+                cancel_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}`,
+                m_payment_id: merchantReference,
+                amount: servicePackage.amountZar.toFixed(2),
+                item_name: servicePackage.label,
+              },
+              payfastConfig.passphrase,
+            )
+          : withPayfastSignature(
+              {
+                merchant_id: payfastConfig.merchantId,
+                merchant_key: payfastConfig.merchantKey,
+                return_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}`,
+                cancel_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}`,
+                notify_url: `${getApiPublicUrl()}/api/payments/payfast/notify`,
+                name_first: String((req as any).dbUser?.firstName || "").trim(),
+                name_last: String((req as any).dbUser?.lastName || "").trim(),
+                email_address: resolvePayfastEmailAddress({
+                  dbUserEmail: (req as any).dbUser?.email,
+                  enrollmentEmail: paymentEnrollment.parent_email,
+                  parentId: String(paymentEnrollment.user_id || parentId),
+                  useSandbox: false,
+                }),
+                m_payment_id: merchantReference,
+                amount: servicePackage.amountZar.toFixed(2),
+                item_name: servicePackage.label,
+                item_description: buildPackagePaymentDescription(paymentEnrollment.student_full_name, servicePackage.key),
+                custom_str1: String(paymentEnrollment.id),
+                custom_str2: String(paymentProposal.id),
+                custom_str3: String(paymentProposal.student_id),
+                custom_str4: String(paymentProposal.tutor_id),
+                custom_str5: servicePackage.key,
+              },
+              payfastConfig.passphrase,
+            );
 
         return res.json({
           message: "PayFast payment prepared.",
@@ -26133,33 +26146,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to prepare payment transaction" });
       }
 
-      const payfastFields = withPayfastSignature(
-        {
-          merchant_id: payfastConfig.merchantId,
-          merchant_key: payfastConfig.merchantKey,
-          return_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}`,
-          cancel_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}`,
-          notify_url: `${getApiPublicUrl()}/api/payments/payfast/notify`,
-          name_first: String((req as any).dbUser?.firstName || "").trim(),
-          name_last: String((req as any).dbUser?.lastName || "").trim(),
-          email_address: resolvePayfastEmailAddress({
-            dbUserEmail: (req as any).dbUser?.email,
-            enrollmentEmail: paymentEnrollment.parent_email,
-            parentId,
-            useSandbox: payfastSandboxForEnrollment,
-          }),
-          m_payment_id: merchantReference,
-          amount: servicePackage.amountZar.toFixed(2),
-          item_name: servicePackage.label,
-          item_description: buildPackagePaymentDescription(paymentEnrollment.student_full_name, servicePackage.key),
-          custom_str1: String(paymentEnrollment.id),
-          custom_str2: String(paymentProposal.id),
-          custom_str3: String(paymentProposal.student_id),
-          custom_str4: String(paymentProposal.tutor_id),
-          custom_str5: servicePackage.key,
-        },
-        payfastConfig.passphrase,
-      );
+      const payfastFields = payfastSandboxForEnrollment
+        ? withPayfastSignature(
+            {
+              merchant_id: payfastConfig.merchantId,
+              merchant_key: payfastConfig.merchantKey,
+              return_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}`,
+              cancel_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}`,
+              m_payment_id: merchantReference,
+              amount: servicePackage.amountZar.toFixed(2),
+              item_name: servicePackage.label,
+            },
+            payfastConfig.passphrase,
+          )
+        : withPayfastSignature(
+            {
+              merchant_id: payfastConfig.merchantId,
+              merchant_key: payfastConfig.merchantKey,
+              return_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}`,
+              cancel_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}`,
+              notify_url: `${getApiPublicUrl()}/api/payments/payfast/notify`,
+              name_first: String((req as any).dbUser?.firstName || "").trim(),
+              name_last: String((req as any).dbUser?.lastName || "").trim(),
+              email_address: resolvePayfastEmailAddress({
+                dbUserEmail: (req as any).dbUser?.email,
+                enrollmentEmail: paymentEnrollment.parent_email,
+                parentId,
+                useSandbox: false,
+              }),
+              m_payment_id: merchantReference,
+              amount: servicePackage.amountZar.toFixed(2),
+              item_name: servicePackage.label,
+              item_description: buildPackagePaymentDescription(paymentEnrollment.student_full_name, servicePackage.key),
+              custom_str1: String(paymentEnrollment.id),
+              custom_str2: String(paymentProposal.id),
+              custom_str3: String(paymentProposal.student_id),
+              custom_str4: String(paymentProposal.tutor_id),
+              custom_str5: servicePackage.key,
+            },
+            payfastConfig.passphrase,
+          );
 
       return res.json({
         message: "PayFast payment prepared.",
