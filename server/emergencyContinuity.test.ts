@@ -899,6 +899,49 @@ test("PayFast sandbox checkout signature matches the documented shared account a
   assert.equal(signed.signature, "e20fe96ad84f685cb1c78c0a410eff04");
 });
 
+test("Sandbox PayFast return uses a public relay and returns to the initiating app origin", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const relaySource = readFileSync(
+    resolve(process.cwd(), "client/public/payfast-sandbox-return.html"),
+    "utf8",
+  );
+
+  const helperStart = routesSource.indexOf("const PAYFAST_SANDBOX_BRANCH_RELAY_BASE_URL");
+  const helperEnd = routesSource.indexOf("function usePayfastSandbox", helperStart);
+  const helperSource = routesSource.slice(helperStart, helperEnd);
+
+  assert.ok(helperStart >= 0);
+  assert.ok(helperEnd > helperStart);
+  assert.match(
+    helperSource,
+    /tt-confidence-hub-git-feat-evi-31b8c6-relief-works-technologies\.vercel\.app/,
+  );
+  assert.match(helperSource, /req\.get\("origin"\)/);
+  assert.match(helperSource, /targetOrigin/);
+  assert.match(helperSource, /buildPayfastSandboxReturnUrl/);
+  assert.match(helperSource, /hostname === "localhost"/);
+  assert.match(helperSource, /hostname\.endsWith\("\.vercel\.app"\)/);
+
+  const acceptStart = routesSource.indexOf('app.post("/api/parent/proposal/accept"');
+  const acceptEnd = routesSource.indexOf('app.post("/api/parent/proposal/decline"', acceptStart);
+  const acceptSource = routesSource.slice(acceptStart, acceptEnd);
+
+  assert.match(
+    acceptSource,
+    /return_url: buildPayfastSandboxReturnUrl\(req, "return", merchantReference\)/,
+  );
+  assert.match(
+    acceptSource,
+    /cancel_url: buildPayfastSandboxReturnUrl\(req, "cancelled", merchantReference\)/,
+  );
+
+  assert.match(relaySource, /targetOrigin/);
+  assert.match(relaySource, /window\.location\.replace\(destination\.toString\(\)\)/);
+  assert.match(relaySource, /host === "localhost"/);
+  assert.match(relaySource, /host\.endsWith\("\.vercel\.app"\)/);
+  assert.match(relaySource, /"\/client\/parent\/gateway"/);
+});
+
 test("Sandbox payment gate stays actionable from Parent Sessions and returns there after checkout", () => {
   const sessionsSource = readFileSync(
     resolve(process.cwd(), "client/src/pages/client/parent/sessions.tsx"),
