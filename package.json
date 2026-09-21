@@ -24,7 +24,7 @@
     "test:unit": "tsx --test",
     "db:push": "drizzle-kit push",
     "test:demand-production": "node --import tsx --test server/demandProduction.test.ts server/demandProduction.journeys.test.ts server/productionEconomy.test.ts",
-    "build:vercel-api": "mkdir -p generated && esbuild server/vercelPreviewRuntime.ts --bundle --platform=node --format=esm --packages=external --target=node24 --outfile=generated/preview-api-runtime.mjs"
+    "build:vercel-api": "mkdir -p generated && esbuild server/vercelPreviewApi.ts --bundle --platform=node --format=esm --packages=external --target=node24 --outfile=generated/preview-api-runtime.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
