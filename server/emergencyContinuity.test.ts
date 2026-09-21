@@ -850,14 +850,35 @@ test("PayFast sandbox config never falls back to live merchant credentials", () 
   assert.ok(configEnd > configStart);
   assert.match(configSource, /PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID = "10000100"/);
   assert.match(configSource, /PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY = "46f0cd694581a"/);
-  assert.match(configSource, /PAYFAST_PUBLIC_SANDBOX_PASSPHRASE = "jt7NOE43FZPn"/);
+  assert.doesNotMatch(configSource, /PAYFAST_PUBLIC_SANDBOX_PASSPHRASE/);
   assert.doesNotMatch(configSource, /PAYFAST_SANDBOX_MERCHANT_ID/);
   assert.doesNotMatch(configSource, /PAYFAST_SANDBOX_MERCHANT_KEY/);
   assert.match(configSource, /merchantId: PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID/);
   assert.match(configSource, /merchantKey: PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY/);
-  assert.match(configSource, /passphrase: PAYFAST_PUBLIC_SANDBOX_PASSPHRASE/);
+  assert.match(configSource, /passphrase: ""/);
   assert.match(configSource, /isValidPayfastMerchantId\(config\.merchantId\)/);
   assert.match(configSource, /isValidPayfastMerchantKey\(config\.merchantKey\)/);
+});
+
+test("PayFast signature matches the official PHP SDK custom-integration sample", () => {
+  const values = {
+    merchant_id: "10000100",
+    merchant_key: "46f0cd694581a",
+    return_url: "https://your.domain/return.php",
+    cancel_url: "https://your.domain/cancel.php",
+    notify_url: "https://your.domain/notify.php",
+    name_first: "First Name",
+    name_last: "Last Name",
+    email_address: "test@test.com",
+    m_payment_id: "1234",
+    amount: "10.00",
+    item_name: "Order#123",
+  };
+
+  assert.equal(
+    buildPayfastCheckoutSignature(values, ""),
+    "1e8d2b1630a15355a6992d5dbfbb5ba2",
+  );
 });
 
 test("PayFast checkout signature uses canonical payment order and PHP-style encoding", () => {
@@ -882,11 +903,11 @@ test("PayFast checkout signature uses canonical payment order and PHP-style enco
   };
 
   assert.equal(
-    buildPayfastCheckoutSignature(values, "jt7NOE43FZPn"),
-    "234705e5264e2e9c67933a4f8b20f042",
+    buildPayfastCheckoutSignature(values, ""),
+    "38d54cfac8eb76836dbd4a7dc652ac7b",
   );
 
-  const signed = withPayfastSignature(values, "jt7NOE43FZPn");
+  const signed = withPayfastSignature(values, "");
   assert.deepEqual(Object.keys(signed), [
     "merchant_id",
     "merchant_key",
@@ -907,7 +928,7 @@ test("PayFast checkout signature uses canonical payment order and PHP-style enco
     "custom_str5",
     "signature",
   ]);
-  assert.equal(signed.signature, "234705e5264e2e9c67933a4f8b20f042");
+  assert.equal(signed.signature, "38d54cfac8eb76836dbd4a7dc652ac7b");
 });
 
 test("Sandbox payment gate stays actionable from Parent Sessions and returns there after checkout", () => {
