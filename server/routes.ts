@@ -5117,6 +5117,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             };
           };
 
+          const isResponseSnapshotV1 = (value: any) =>
+            !!value &&
+            typeof value === "object" &&
+            value.version === "response-snapshot-v1" &&
+            !!value.source &&
+            typeof value.source === "object" &&
+            !!value.drill &&
+            typeof value.drill === "object" &&
+            Array.isArray(value.sets);
+
           const mapDrillRowToDeterministicSession = (row: any) => {
             const extractObservationSignalsFromDrill = (drillPayload: any): ObservationSignal[] => {
               const signals: ObservationSignal[] = [];
@@ -5257,7 +5267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 sessionGroupId: String(parsed.sessionId || row.id),
                 topic,
                 drillType: "diagnosis",
-                responseSnapshot: parsed.responseSnapshot || null,
+                responseSnapshot: isResponseSnapshotV1(parsed.responseSnapshot) ? parsed.responseSnapshot : null,
                 behaviorPatterns: rawBehaviorPatterns(observationSignals),
                 score: diagnosisScore,
                 phaseBefore: diagnosisPhase,
@@ -5335,7 +5345,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 sessionGroupId: String(parsed.sessionId || row.id),
                 topic,
                 drillType: "training",
-                responseSnapshot: parsed.responseSnapshot || null,
+                responseSnapshot: isResponseSnapshotV1(parsed.responseSnapshot) ? parsed.responseSnapshot : null,
                 behaviorPatterns: rawBehaviorPatterns(observationSignals),
                 score: sessionScore,
                 phaseBefore: observedPhase,
