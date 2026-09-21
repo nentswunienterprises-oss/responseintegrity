@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Returning to Response Integrity</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; min-height: 100vh; display: grid; place-items: center; background: #fff8f3; color: #1f1f1f; }
+    main { max-width: 520px; padding: 32px; text-align: center; }
+    h1 { font-size: 1.5rem; margin-bottom: 12px; }
+    p { line-height: 1.5; color: #5b5551; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Returning to Response Integrity…</h1>
+    <p id="message">Completing the Sandbox payment handoff.</p>
+  </main>
+  <script>
+    (() => {
+      const params = new URLSearchParams(window.location.search);
+      const state = params.get("payfast");
+      const merchantReference = params.get("merchantReference");
+      const targetOrigin = params.get("targetOrigin");
+      const message = document.getElementById("message");
+
+      const isAllowedTarget = (value) => {
+        try {
+          const parsed = new URL(value || "");
+          const host = parsed.hostname.toLowerCase();
+          if (!["http:", "https:"].includes(parsed.protocol)) return false;
+          return (
+            host === "localhost" ||
+            host === "127.0.0.1" ||
+            host === "::1" ||
+            host.endsWith(".vercel.app") ||
+            host === "responseintegrity.co.za" ||
+            host.endsWith(".responseintegrity.co.za")
+          );
+        } catch {
+          return false;
+        }
+      };
+
+      if (!["return", "cancelled"].includes(state || "") || !merchantReference || !isAllowedTarget(targetOrigin)) {
+        message.textContent = "The Sandbox payment return could not be validated. Return to the parent gateway and try again.";
+        return;
+      }
+
+      const destination = new URL("/client/parent/gateway", new URL(targetOrigin).origin);
+      destination.searchParams.set("payfast", state);
+      destination.searchParams.set("merchantReference", merchantReference);
+      window.location.replace(destination.toString());
+    })();
+  </script>
+</body>
+</html>
