@@ -6,6 +6,7 @@ on:
       - feat/evidence-complete-diagnosis
     paths:
       - 'scripts/pr47-live-ui-inventory.mjs'
+      - 'scripts/pr47-live-ui-mixed-scenarios.mjs'
       - '.github/workflows/pr47-live-ui-proof.yml'
   workflow_dispatch:
 
@@ -16,7 +17,7 @@ permissions:
 jobs:
   live-ui-inventory:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       SMOKE_BASE_URL: https://tt-confidence-hub-git-feat-evi-31b8c6-relief-works-technologies.vercel.app
       RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
@@ -92,6 +93,9 @@ jobs:
 
       - name: Run authenticated PR47 live UI inventory
         run: node scripts/pr47-live-ui-inventory.mjs
+
+      - name: Run PR47 live mixed-scenario UI proof
+        run: node scripts/pr47-live-ui-mixed-scenarios.mjs
 
       - name: Upload PR47 live UI evidence
         if: always()
