@@ -567,6 +567,71 @@ export async function setupAuth(app: Express) {
 
       if (authError) {
         console.error("Supabase signin error:", authError);
+
+        // Preview continuity: Proof can retain an operational sandbox Specialist
+        // even when its Supabase Auth identity is absent. In Preview only, allow
+        // that existing sandbox Specialist to fall back to the already-provisioned
+        // private emergency credential. This never provisions a credential, never
+        // changes the Specialist ID, and is unavailable in production.
+        if (process.env.VERCEL_ENV === "preview") {
+          const fallback = await authenticateEmergencyUser(
+            pool,
+            email,
+            password,
+            req.ip || "unknown",
+          );
+
+          if (!("error" in fallback)) {
+            const fallbackUser = await storage.getUser(fallback.authUser.id);
+            const sandboxAssignment = fallbackUser
+              ? await pool.query(
+                  `SELECT 1
+                     FROM public.tutor_assignments
+                    WHERE tutor_id = $1
+                      AND operational_mode = 'sandbox'
+                    LIMIT 1`,
+                  [fallbackUser.id],
+                )
+              : null;
+
+            if (
+              fallbackUser?.role === "tutor" &&
+              sandboxAssignment?.rows?.[0] &&
+              emergencyExpectedRoleMatches(fallbackUser.role, expectedRole)
+            ) {
+              (req.session as any).userId = fallbackUser.id;
+              (req.session as any).email = fallbackUser.email;
+              delete (req.session as any).accessToken;
+
+              const redirectUrl = getDefaultDashboardRoute("tutor");
+
+              return req.session.save((err) => {
+                if (err) {
+                  console.error("[AUTH] Preview fallback session save error", err);
+                  return res.status(500).json({ message: "Session error" });
+                }
+
+                console.log("[AUTH] Preview sandbox Specialist fallback accepted", {
+                  userId: fallbackUser.id,
+                });
+
+                return res.json({
+                  user: {
+                    id: fallback.authUser.id,
+                    email: fallback.authUser.email,
+                    email_confirmed_at: fallback.authUser.email_confirmed_at,
+                    app_metadata: fallback.authUser.raw_app_meta_data || {},
+                    user_metadata: fallback.authUser.raw_user_meta_data || {},
+                  },
+                  dbUser: fallbackUser,
+                  redirectUrl,
+                  message: "Login successful",
+                });
+              });
+            }
+          }
+        }
+
         const isRateLimited =
           authError.code === "over_request_rate_limit" ||
           authError.status === 429;
