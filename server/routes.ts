@@ -351,7 +351,6 @@ function isSandboxPaymentEnrollment(enrollment: any) {
 
 const PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID = "10000100";
 const PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY = "46f0cd694581a";
-const PAYFAST_PUBLIC_SANDBOX_PASSPHRASE = "jt7NOE43FZPn";
 
 function isValidPayfastMerchantId(value: string) {
   return /^\d{8}$/.test(String(value || "").trim());
@@ -363,12 +362,13 @@ function isValidPayfastMerchantKey(value: string) {
 
 function getPayfastConfig(useSandbox: boolean) {
   if (useSandbox) {
-    // Pin Proof/Sandbox to PayFast's documented public test account and
-    // matching passphrase. Live credentials never participate in this path.
+    // Match PayFast's official PHP SDK custom-integration test account:
+    // merchant 10000100 / 46f0cd694581a with an empty passphrase.
+    // Live credentials never participate in this path.
     return {
       merchantId: PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID,
       merchantKey: PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY,
-      passphrase: PAYFAST_PUBLIC_SANDBOX_PASSPHRASE,
+      passphrase: "",
       processUrl: getPayfastProcessUrl(true),
     };
   }
