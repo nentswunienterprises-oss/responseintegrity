@@ -24718,6 +24718,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let status = String(enrollment.status || "not_enrolled");
         let step = enrollment.current_step || null;
 
+        const latestPaymentResult = await pool.query(
+          `SELECT id, plan, payment_status, payment_date, paid_at, created_at
+             FROM public.payment_transactions
+            WHERE enrollment_id = $1::text
+              AND provider = $2
+            ORDER BY created_at DESC
+            LIMIT 1`,
+          [String(enrollment.id), PAYMENT_PROVIDER_PAYFAST],
+        );
+        const latestPayment = latestPaymentResult.rows[0] || null;
+        const paidUnlockedEnrollment =
+          status === "session_booked" &&
+          String(latestPayment?.payment_status || "").trim().toLowerCase() === "paid";
+
+        debug.latestPaymentId = latestPayment?.id || null;
+        debug.latestPaymentStatus = latestPayment?.payment_status || null;
+
         let hasTrainingActivity = false;
         if (enrollment.assigned_student_id) {
           const trainingActivityResult = await pool.query(
@@ -24735,6 +24752,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (hasTrainingActivity) {
           status = "confirmed";
           step = "active_training";
+        } else if (paidUnlockedEnrollment) {
+          // Emergency/direct-DB mode must honor the same post-payment lifecycle
+          // truth as the normal Supabase path. The economic status remains
+          // session_booked, while current_step marks that onboarding is over.
+          step = "active_training";
+          debug.reconciledActiveTrainingFromPaidAccess = true;
+
+          if (String(enrollment.current_step || "").trim().toLowerCase() !== "active_training") {
+            await pool.query(
+              `UPDATE public.parent_enrollments
+                  SET current_step = 'active_training',
+                      updated_at = NOW()
+                WHERE id = $1`,
+              [enrollment.id],
+            );
+            debug.activeStepRepaired = true;
+          }
         } else if (
           enrollment.assigned_tutor_id &&
           ["proposal_sent", "session_booked", "report_received", "confirmed"].includes(status)
@@ -24756,14 +24790,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         debug.effectiveStatus = status;
+        debug.effectiveStep = step;
         return res.json({
           status,
           step,
           onboardingType: null,
           freeSessionsRemaining: 0,
-          plan: null,
-          paymentStatus: null,
-          paymentDate: null,
+          plan: latestPayment?.plan || null,
+          paymentStatus: latestPayment
+            ? String(latestPayment.payment_status || "").toUpperCase()
+            : null,
+          paymentDate: latestPayment?.payment_date || latestPayment?.paid_at || null,
           debug,
         });
       }
