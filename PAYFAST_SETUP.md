@@ -31,7 +31,7 @@
 - `APP_BASE_URL=https://app.responseintegrity.co.za`
 - `API_PUBLIC_URL=https://api.responseintegrity.co.za`
 
-Sandbox never reuses live PayFast credentials. Proof/Sandbox checkout is pinned to the same public test configuration used by PayFast's official PHP SDK custom-integration test: `10000100` / `46f0cd694581a` with an empty passphrase. Checkout signatures are generated using PayFast's payment-field order and PHP-compatible URL encoding. Live credentials are used only against the live PayFast endpoint.
+Sandbox never reuses live PayFast credentials. Proof/Sandbox checkout uses PayFast's currently documented shared sandbox account: `10004002` / `q1cd2rdny4a53` with passphrase `payfast`. The Sandbox POST is deliberately minimal (merchant credentials, return/cancel URLs, merchant reference, amount and item name only); all enrollment/proposal/student/tutor linkage remains server-side in `payment_transactions`. Checkout signatures use PayFast's payment-field order and PHP-compatible URL encoding. Live credentials are used only against the live PayFast endpoint.
 
 `APP_BASE_URL` and `API_PUBLIC_URL` must be public web URLs. PayFast does not accept local `localhost` callback URLs for live ITN flow.
 
