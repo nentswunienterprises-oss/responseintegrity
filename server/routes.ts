@@ -2769,12 +2769,29 @@ async function getMonthlySessionQuotaSnapshot(options: {
     const sessionsUsed = Math.max(0, Math.min(sessionQuota, completedUsed + eventUsed));
     const sessionsRemaining = Math.max(0, sessionQuota - sessionsUsed);
 
+    let persistedRow = row;
+    if (
+      Number(row.sessions_used ?? 0) !== sessionsUsed ||
+      Number(row.sessions_remaining ?? sessionQuota) !== sessionsRemaining
+    ) {
+      const persisted = await pool.query(
+        `UPDATE public.membership_months
+            SET sessions_used = $1,
+                sessions_remaining = $2,
+                updated_at = NOW()
+          WHERE id = $3
+          RETURNING *`,
+        [sessionsUsed, sessionsRemaining, row.id],
+      );
+      persistedRow = persisted.rows[0] || row;
+    }
+
     return {
-      ...row,
+      ...persistedRow,
       session_quota: sessionQuota,
       sessions_used: sessionsUsed,
       sessions_remaining: sessionsRemaining,
-      status: String(row.status || "active"),
+      status: String(persistedRow.status || "active"),
     };
   }
 
@@ -8044,19 +8061,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 parentId = String(linkedStudent?.parent_id || "").trim();
               }
 
-              let monthlyQuota = null;
-              if (parentId && !isEmergencyDbMode()) {
-                monthlyQuota = await getMonthlySessionQuotaSnapshot({
-                  parentId,
-                  studentId: String(studentId),
-                  referenceIso: new Date().toISOString(),
-                });
-              }
-
               if (emergencyDbClient) {
                 await emergencyDbClient.query("COMMIT");
                 emergencyDbClient.release();
                 emergencyDbClient = null;
+
                 for (const ledgerInput of pendingEmergencyLedgerInputs) {
                   const projection = await persistEvidenceLedgerShadow(ledgerInput);
                   if (projection.status === "persistence_failed" || projection.status === "projection_invalid") {
@@ -8066,7 +8075,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       status: projection.status,
                     });
                   }
-                }                for (const comparisonInput of pendingEmergencyShadowComparisons) {
+                }
+
+                for (const comparisonInput of pendingEmergencyShadowComparisons) {
                   const comparisonResult = await persistTrainingShadowComparison(comparisonInput);
                   if (comparisonResult.status === "persistence_failed") {
                     console.warn("[RI_TRAINING_EVIDENCE_SHADOW_DEGRADED]", {
@@ -8075,7 +8086,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     });
                   }
                 }
+              }
 
+              let monthlyQuota = null;
+              if (parentId) {
+                try {
+                  monthlyQuota = await getMonthlySessionQuotaSnapshot({
+                    parentId,
+                    studentId: String(studentId),
+                    referenceIso: new Date().toISOString(),
+                    isSandboxContext: operationalMode === "sandbox" ? true : undefined,
+                  });
+                } catch (quotaError) {
+                  console.error("Failed to reconcile monthly quota after training completion:", quotaError);
+                }
               }
 
               res.json({
