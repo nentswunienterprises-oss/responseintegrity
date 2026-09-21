@@ -780,6 +780,15 @@ test("sandbox family scheduling keeps payment authority separate from sandbox qu
 
   assert.match(acceptSource, /\.in\("status", \["proposal_sent", "session_booked"\]\)/);
   assert.match(acceptSource, /payfastSandboxForEnrollment/);
+  assert.match(acceptSource, /PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID/);
+  assert.match(acceptSource, /payfastSandboxForEnrollment\s*\?\s*withPayfastSignature/);
+  assert.doesNotMatch(
+    acceptSource.slice(
+      acceptSource.indexOf("const payfastFields = payfastSandboxForEnrollment"),
+      acceptSource.indexOf("return res.json", acceptSource.indexOf("const payfastFields = payfastSandboxForEnrollment")),
+    ),
+    /custom_str1/,
+  );
   assert.match(acceptSource, /if \(isEmergencyDbMode\(\)\)/);
   assert.match(acceptSource, /public\.payment_transactions/);
   assert.match(acceptSource, /ON CONFLICT \(merchant_reference\)/);
@@ -848,87 +857,46 @@ test("PayFast sandbox config never falls back to live merchant credentials", () 
 
   assert.ok(configStart >= 0);
   assert.ok(configEnd > configStart);
-  assert.match(configSource, /PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID = "10000100"/);
-  assert.match(configSource, /PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY = "46f0cd694581a"/);
-  assert.doesNotMatch(configSource, /PAYFAST_PUBLIC_SANDBOX_PASSPHRASE/);
+  assert.match(configSource, /PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID = "10004002"/);
+  assert.match(configSource, /PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY = "q1cd2rdny4a53"/);
+  assert.match(configSource, /PAYFAST_PUBLIC_SANDBOX_PASSPHRASE = "payfast"/);
   assert.doesNotMatch(configSource, /PAYFAST_SANDBOX_MERCHANT_ID/);
   assert.doesNotMatch(configSource, /PAYFAST_SANDBOX_MERCHANT_KEY/);
   assert.match(configSource, /merchantId: PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID/);
   assert.match(configSource, /merchantKey: PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY/);
-  assert.match(configSource, /passphrase: ""/);
+  assert.match(configSource, /passphrase: PAYFAST_PUBLIC_SANDBOX_PASSPHRASE/);
   assert.match(configSource, /isValidPayfastMerchantId\(config\.merchantId\)/);
   assert.match(configSource, /isValidPayfastMerchantKey\(config\.merchantKey\)/);
 });
 
-test("PayFast signature matches the official PHP SDK custom-integration sample", () => {
+test("PayFast sandbox checkout signature matches the documented shared account and minimal field set", () => {
   const values = {
-    merchant_id: "10000100",
-    merchant_key: "46f0cd694581a",
-    return_url: "https://your.domain/return.php",
-    cancel_url: "https://your.domain/cancel.php",
-    notify_url: "https://your.domain/notify.php",
-    name_first: "First Name",
-    name_last: "Last Name",
-    email_address: "test@test.com",
-    m_payment_id: "1234",
-    amount: "10.00",
-    item_name: "Order#123",
-  };
-
-  assert.equal(
-    buildPayfastCheckoutSignature(values, ""),
-    "1e8d2b1630a15355a6992d5dbfbb5ba2",
-  );
-});
-
-test("PayFast checkout signature uses canonical payment order and PHP-style encoding", () => {
-  const values = {
-    custom_str5: "monthly_8",
-    item_description: "Response Integrity 8-session monthly package for Sandbox Student 5",
-    merchant_key: "46f0cd694581a",
-    email_address: "sandbox-payfast-test-responseintegrity@gmail.com",
-    custom_str3: "student-test",
+    merchant_id: "10004002",
+    merchant_key: "q1cd2rdny4a53",
     return_url: "https://app.responseintegrity.co.za/client/parent/gateway?payfast=return&merchantReference=response-integrity-package-test",
-    merchant_id: "10000100",
-    amount: "1600.00",
-    custom_str1: "enrollment-test",
-    notify_url: "https://api.responseintegrity.co.za/api/payments/payfast/notify",
-    name_first: "",
-    custom_str4: "tutor-test",
-    m_payment_id: "response-integrity-package-test",
     cancel_url: "https://app.responseintegrity.co.za/client/parent/gateway?payfast=cancelled&merchantReference=response-integrity-package-test",
-    item_name: "8-session monthly package",
-    name_last: "",
-    custom_str2: "proposal-test",
+    m_payment_id: "response-integrity-package-test",
+    amount: "1600.00",
+    item_name: "8-Session Monthly Package",
   };
 
   assert.equal(
-    buildPayfastCheckoutSignature(values, ""),
-    "38d54cfac8eb76836dbd4a7dc652ac7b",
+    buildPayfastCheckoutSignature(values, "payfast"),
+    "e20fe96ad84f685cb1c78c0a410eff04",
   );
 
-  const signed = withPayfastSignature(values, "");
+  const signed = withPayfastSignature(values, "payfast");
   assert.deepEqual(Object.keys(signed), [
     "merchant_id",
     "merchant_key",
     "return_url",
     "cancel_url",
-    "notify_url",
-    "name_first",
-    "name_last",
-    "email_address",
     "m_payment_id",
     "amount",
     "item_name",
-    "item_description",
-    "custom_str1",
-    "custom_str2",
-    "custom_str3",
-    "custom_str4",
-    "custom_str5",
     "signature",
   ]);
-  assert.equal(signed.signature, "38d54cfac8eb76836dbd4a7dc652ac7b");
+  assert.equal(signed.signature, "e20fe96ad84f685cb1c78c0a410eff04");
 });
 
 test("Sandbox payment gate stays actionable from Parent Sessions and returns there after checkout", () => {
