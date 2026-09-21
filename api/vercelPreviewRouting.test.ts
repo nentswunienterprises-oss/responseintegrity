@@ -34,18 +34,22 @@ test("Vercel preview API is routed to the branch Express function before the SPA
   assert.ok(productionIndex < spaIndex, "production API routing must win before SPA fallback");
 });
 
-test("Vercel preview uses a CommonJS bootstrap with raw TypeScript runtime sources", () => {
+test("Vercel preview boots from the generated bundled runtime without tsx at request time", () => {
   const bootstrap = readFileSync(resolve(process.cwd(), "api/index.js"), "utf8");
   const runtime = readFileSync(resolve(process.cwd(), "server/vercelPreviewApi.ts"), "utf8");
+  const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8"));
   const config = JSON.parse(readFileSync(resolve(process.cwd(), "vercel.json"), "utf8"));
 
   assert.equal(existsSync(resolve(process.cwd(), "api/index.ts")), false);
-  assert.match(bootstrap, /tsx\/esm\/api/);
-  assert.match(bootstrap, /server\/vercelPreviewApi\.ts/);
+  assert.match(bootstrap, /generated\/preview-api-runtime\.mjs/);
+  assert.doesNotMatch(bootstrap, /tsx\/esm\/api/);
+  assert.doesNotMatch(bootstrap, /server\/vercelPreviewApi\.ts/);
   assert.match(bootstrap, /PREVIEW_BOOTSTRAP_FAILED/);
-  assert.match(bootstrap, /function tracePreviewRuntimeForVercel\(\)/);
-  assert.match(bootstrap, /import\("\.\.\/server\/vercelPreviewApi\.ts"\)/);
-  assert.match(bootstrap, /void tracePreviewRuntimeForVercel/);
+
+  assert.match(
+    packageJson.scripts?.["build:vercel-api"] || "",
+    /esbuild server\/vercelPreviewApi\.ts/,
+  );
 
   assert.match(runtime, /from "\.\/routes\.ts"/);
   assert.match(runtime, /from "\.\/supabaseAuth\.ts"/);
@@ -56,9 +60,8 @@ test("Vercel preview uses a CommonJS bootstrap with raw TypeScript runtime sourc
 
   const includeFiles = config.functions?.["api/index.js"]?.includeFiles || "";
   assert.equal(typeof includeFiles, "string");
-  assert.match(includeFiles, /server\/\*\*\/\*\.ts/);
-  assert.match(includeFiles, /shared\/\*\*\/\*\.ts/);
-  assert.match(includeFiles, /tsconfig\.json/);
+  assert.match(includeFiles, /generated\/preview-api-runtime\.mjs/);
+  assert.doesNotMatch(includeFiles, /node_modules\/\{tsx/);
 });
 
 test("Vercel preview sessions stay host-only on the preview hostname", () => {
