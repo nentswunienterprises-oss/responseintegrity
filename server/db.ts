@@ -71,11 +71,22 @@ console.log(
   `[DB] PostgreSQL target ${runtimeTarget.host}:${runtimeTarget.port} mode=${runtimeTarget.mode}`,
 );
 
-const parsedPoolMax = Number.parseInt(process.env.DB_POOL_MAX || "5", 10);
+const isVercelRuntime = process.env.VERCEL === "1";
+
+// Local/emergency mode fans out several parent-dashboard reads at once. Five
+// shared clients were not enough once Express session reads and route queries
+// competed for the same pool. Keep serverless conservative, but allow local
+// application queries enough concurrency to complete without acquisition
+// timeouts.
+const defaultAppPoolMax = isVercelRuntime ? 5 : 10;
+const parsedPoolMax = Number.parseInt(
+  process.env.DB_POOL_MAX || String(defaultAppPoolMax),
+  10,
+);
 const poolMax =
   Number.isFinite(parsedPoolMax) && parsedPoolMax > 0
     ? Math.min(parsedPoolMax, 10)
-    : 5;
+    : defaultAppPoolMax;
 
 export const pool = new Pool({
   connectionString: runtimeDatabaseUrl,
@@ -86,6 +97,47 @@ export const pool = new Pool({
   application_name: "response-integrity-api",
 });
 
+// Session persistence is isolated from application-query capacity. Session
+// lookups are short, so a small dedicated pool is enough and prevents a burst
+// of authenticated requests from starving the route handlers themselves.
+const defaultSessionPoolMax = isVercelRuntime ? 2 : 3;
+const parsedSessionPoolMax = Number.parseInt(
+  process.env.DB_SESSION_POOL_MAX || String(defaultSessionPoolMax),
+  10,
+);
+const sessionPoolMax =
+  Number.isFinite(parsedSessionPoolMax) && parsedSessionPoolMax > 0
+    ? Math.min(parsedSessionPoolMax, 5)
+    : defaultSessionPoolMax;
+
+export const sessionPool = new Pool({
+  connectionString: runtimeDatabaseUrl,
+  ssl: { rejectUnauthorized: false },
+  max: sessionPoolMax,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 10_000,
+  application_name: "response-integrity-session-store",
+});
+
+export function getDatabasePoolStats() {
+  return {
+    application: {
+      max: poolMax,
+      total: pool.totalCount,
+      idle: pool.idleCount,
+      waiting: pool.waitingCount,
+    },
+    session: {
+      max: sessionPoolMax,
+      total: sessionPool.totalCount,
+      idle: sessionPool.idleCount,
+      waiting: sessionPool.waitingCount,
+    },
+  };
+}
+
+console.log("[DB] Pool capacity", getDatabasePoolStats());
+
 // node-postgres emits idle-client failures as an "error" event on the Pool.
 // Without a listener Node treats that event as uncaught and a serverless
 // invocation can terminate before Express has a chance to return JSON.
@@ -93,6 +145,15 @@ pool.on("error", (error) => {
   console.error("[DB] PostgreSQL pool idle-client error", {
     message: error instanceof Error ? error.message : String(error),
     target: runtimeTarget,
+    pools: getDatabasePoolStats(),
+  });
+});
+
+sessionPool.on("error", (error) => {
+  console.error("[DB] PostgreSQL session pool idle-client error", {
+    message: error instanceof Error ? error.message : String(error),
+    target: runtimeTarget,
+    pools: getDatabasePoolStats(),
   });
 });
 

@@ -22,7 +22,13 @@ import {
   createEmergencyTutorAccount,
   emergencyExpectedRoleMatches,
 } from "./emergencyAuth";
-import { describeRuntimeDatabaseTarget, describeSupabaseApiTarget, pool } from "./db";
+import {
+  describeRuntimeDatabaseTarget,
+  describeSupabaseApiTarget,
+  getDatabasePoolStats,
+  pool,
+  sessionPool,
+} from "./db";
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
   throw new Error("Missing Supabase environment variables");
@@ -44,11 +50,11 @@ export function getSession() {
     try {
       const PgSession = connectPg(session);
       
-      // Reuse the application's bounded PostgreSQL pool.
-      // A second default pg.Pool here could add another 10 session-mode
-      // connections and exceed Supabase's per-project session-pooler ceiling.
+      // Keep session persistence isolated from application-query capacity.
+      // Both pools use the normalized transaction-pooler target, while the
+      // session pool stays deliberately small.
       sessionStore = new PgSession({
-        pool,
+        pool: sessionPool,
         tableName: "sessions",
         createTableIfMissing: false, // Table already exists from schema
         // Serverless instances are short-lived; background pruning timers can
@@ -160,6 +166,7 @@ export async function setupAuth(app: Express) {
       path: req.path,
       message,
       code,
+      pools: getDatabasePoolStats(),
     });
 
     // Non-emergency GETs can still be authenticated independently by the
