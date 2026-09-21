@@ -49,7 +49,7 @@ export type TrainingDimensionDecision = {
 export type TrainingEvidenceEvaluation =
   | {
       status: "evaluated";
-      authority: "shadow_only";
+      authority: "evidence_native";
       phase: TopicPhase;
       previousStability: TopicStability;
       observedStability: TrainingObservedStability;
@@ -66,7 +66,7 @@ export type TrainingEvidenceEvaluation =
     }
   | {
       status: "unavailable";
-      authority: "shadow_only";
+      authority: "evidence_native";
       phase: TopicPhase;
       previousStability: TopicStability;
       reason: string;
@@ -286,7 +286,7 @@ const allDimensionsHaveSupportInSets = (
   setIds.every((setId) => supportedInSet(decision, setId) >= minimumPerSet),
 );
 
-export const evaluateTrainingEvidenceShadow = ({
+export const evaluateTrainingEvidence = ({
   phase,
   previousStability,
   sets,
@@ -304,7 +304,7 @@ export const evaluateTrainingEvidenceShadow = ({
     if (!submittedSet) {
       return {
         status: "unavailable",
-        authority: "shadow_only",
+        authority: "evidence_native",
         phase,
         previousStability,
         reason: `Missing training set ${definition.setId}`,
@@ -320,7 +320,7 @@ export const evaluateTrainingEvidenceShadow = ({
     if ("error" in validation) {
       return {
         status: "unavailable",
-        authority: "shadow_only",
+        authority: "evidence_native",
         phase,
         previousStability,
         reason: validation.error,
@@ -406,7 +406,7 @@ export const evaluateTrainingEvidenceShadow = ({
 
   return {
     status: "evaluated",
-    authority: "shadow_only",
+    authority: "evidence_native",
     phase,
     previousStability,
     observedStability,
@@ -437,6 +437,10 @@ export const evaluateTrainingEvidenceShadow = ({
     },
   };
 };
+
+/** Backward-compatible name for historical comparison callers. */
+export const evaluateTrainingEvidenceShadow = evaluateTrainingEvidence;
+
 
 
 export type TrainingEvidenceShadowComparison = {
