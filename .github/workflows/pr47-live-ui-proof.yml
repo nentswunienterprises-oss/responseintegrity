@@ -21,6 +21,7 @@ jobs:
       SMOKE_BASE_URL: https://tt-confidence-hub-git-feat-evi-31b8c6-relief-works-technologies.vercel.app
       RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
       RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
 
     steps:
       - uses: actions/checkout@v4
@@ -36,7 +37,11 @@ jobs:
         shell: bash
         run: |
           if [ -z "$RI_PROOF_EMAIL" ] || [ -z "$RI_PROOF_PASSWORD" ]; then
-            echo "::error::Add RI_PROOF_EMAIL and RI_PROOF_PASSWORD as temporary GitHub Actions secrets before re-running this job."
+            echo "::error::Specialist proof credentials are missing."
+            exit 1
+          fi
+          if [ -z "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
+            echo "::error::VERCEL_AUTOMATION_BYPASS_SECRET is missing."
             exit 1
           fi
 
