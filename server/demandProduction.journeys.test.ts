@@ -93,7 +93,7 @@ test('real HTTP signup → Gateway → qualification → handover → assignment
     const session=(await db.query("INSERT INTO scheduled_sessions(parent_id,student_id,tutor_id,type,status) VALUES ($1,$2,'specialist','intro','confirmed') RETURNING id",[user,e.assigned_student_id])).rows[0];
     const introDrill=(await db.query("INSERT INTO intro_session_drills(student_id,tutor_id,scheduled_session_id,drill) VALUES ($1,'specialist',$2,$3) RETURNING id",[e.assigned_student_id,session.id,JSON.stringify({drillType:'diagnosis',sessionContextKind:'intro',introTopic:'Algebra',summary:{phase:'Clarity',stability:'Low'}})])).rows[0];
     await db.query(
-      "INSERT INTO response_integrity_diagnosis_runs(id,student_id,tutor_id,topic,starting_phase,scheduled_session_id,session_context,status,probe_history,decision,source_drill_id,completed_at) VALUES ($1,$2,'specialist','Algebra','Clarity',$3,'intro','completed','[]'::jsonb,'{}'::jsonb,$1,now())",
+      "INSERT INTO response_integrity_diagnosis_runs(id,student_id,tutor_id,topic,starting_phase,scheduled_session_id,session_context,status,probe_history,decision,source_drill_id,completed_at) VALUES ($1,$2,'specialist','Algebra','Clarity',$3,'intro','completed','[]'::jsonb,'{}'::jsonb,$1::text,now())",
       [introDrill.id,e.assigned_student_id,session.id],
     );
     await ok('POST','/api/tutor/proposal','specialist',{studentId:e.assigned_student_id,enrollmentId:e.id,recommendedPlan:'Monthly package',justification:'Evidence-based entry',packageKey:'monthly_8'});
