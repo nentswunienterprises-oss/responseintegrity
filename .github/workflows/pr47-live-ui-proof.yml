@@ -19,8 +19,8 @@ jobs:
     timeout-minutes: 15
     env:
       SMOKE_BASE_URL: https://tt-confidence-hub-git-feat-evi-31b8c6-relief-works-technologies.vercel.app
-      RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_EMAIL }}
-      RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_PASSWORD }}
+      RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+      RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v4
