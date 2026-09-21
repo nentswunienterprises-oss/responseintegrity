@@ -41,6 +41,13 @@ jobs:
             exit 1
           fi
 
+      - name: Inspect preview auth mode
+        run: |
+          echo "AUTH_MODE_BEGIN"
+          curl -fsS "$SMOKE_BASE_URL/api/auth/mode"
+          echo
+          echo "AUTH_MODE_END"
+
       - name: Install Playwright
         run: |
           npm install --no-save playwright@1.55.0
