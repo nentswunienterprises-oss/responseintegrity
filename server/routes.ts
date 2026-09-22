@@ -4704,7 +4704,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   s.name,
                   s.tutor_id,
                   s.parent_id,
+                  s.personal_profile,
                   s.concept_mastery,
+                  e.id AS enrollment_id,
                   e.is_sandbox_account,
                   e.assignment_lane
              FROM public.students s
@@ -4801,14 +4803,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...conceptMastery,
           topicConditioning: restoredTopicConditioning,
         };
+        const existingProfile =
+          row.personal_profile && typeof row.personal_profile === "object"
+            ? row.personal_profile
+            : {};
+        const existingWorkflow =
+          existingProfile.workflow && typeof existingProfile.workflow === "object"
+            ? existingProfile.workflow
+            : {};
+        const updatedProfile = {
+          ...existingProfile,
+          workflow: {
+            ...existingWorkflow,
+            handoverCompletedAt: existingWorkflow.handoverRequiredAt
+              ? existingWorkflow.handoverCompletedAt || nowIso
+              : existingWorkflow.handoverCompletedAt || null,
+          },
+        };
 
         await pool.query(
           `UPDATE public.students
               SET concept_mastery = $2::jsonb,
+                  personal_profile = $3::jsonb,
                   updated_at = NOW()
             WHERE id = $1`,
-          [studentId, JSON.stringify(updatedConceptMastery)],
+          [studentId, JSON.stringify(updatedConceptMastery), JSON.stringify(updatedProfile)],
         );
+
+        if (row.enrollment_id) {
+          await pool.query(
+            `UPDATE public.parent_enrollments
+                SET current_step = 'active_training',
+                    updated_at = NOW()
+              WHERE id = $1`,
+            [row.enrollment_id],
+          );
+        }
 
         const primaryResult = await pool.query(
           `INSERT INTO public.scheduled_sessions (

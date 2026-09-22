@@ -57,8 +57,11 @@ test("Proof Training reset is Preview-only, authenticated, Sandbox-scoped, and r
   assert.match(route, /requestedTargetedRediagnosisStartPhase/);
   assert.match(route, /requiresTargetedRediagnosis:\s*requestedRequiresTargetedRediagnosis/);
   assert.match(route, /targetedRediagnosisStartPhase:[\s\S]*?requestedTargetedRediagnosisStartPhase/);
+  assert.match(route, /handoverCompletedAt:[\s\S]*?nowIso/);
   assert.match(route, /purpose:\s*"repeatable_training_live_proof"/);
   assert.match(route, /concept_mastery = \$2::jsonb/);
+  assert.match(route, /personal_profile = \$3::jsonb/);
+  assert.match(route, /current_step = 'active_training'/);
   assert.match(route, /'training'/);
   assert.match(route, /INTERVAL '2 hours'/);
   assert.match(route, /parent_confirmed/);

@@ -328,16 +328,21 @@ jobs:
             }
           }
 
-          async function openStudentTraining(studentName) {
+          async function openStudentTraining(studentName, expectedStudentId = null) {
             await page.goto(baseUrl + "/specialist/pod", {
               waitUntil: "domcontentloaded",
               timeout: 90000,
             });
             const nameNode = page.getByText(studentName, { exact: true }).first();
             await nameNode.waitFor({ state: "visible", timeout: 60000 });
-            const studentContainer = nameNode.locator(
-              "xpath=ancestor::*[.//button[contains(normalize-space(.), 'Topic Conditioning')]][1]",
-            );
+            const studentContainer = expectedStudentId
+              ? page.locator(`[data-student-id="${expectedStudentId}"]`).first()
+              : nameNode.locator(
+                "xpath=ancestor::*[.//button[contains(normalize-space(.), 'Topic Conditioning')]][1]",
+              );
+            await studentContainer.waitFor({ state: "visible", timeout: 30000 });
+            await studentContainer.getByText(studentName, { exact: true }).first()
+              .waitFor({ state: "visible", timeout: 30000 });
             await studentContainer.getByRole("button", { name: /Topic Conditioning/ }).first().click();
 
             const conditioningDialog = page.getByRole("dialog").last();
@@ -457,7 +462,7 @@ jobs:
             if (!before.requiresTargetedRediagnosis) {
               assert.equal(before.targetedRediagnosisStartPhase ?? null, null);
 
-              let resumedDialog = await openStudentTraining("Sandbox Student 1");
+              let resumedDialog = await openStudentTraining("Sandbox Student 1", studentId);
               const geometryLabel = resumedDialog.locator('label[for="session-topic-Geometry"]');
               await geometryLabel.waitFor({ state: "visible", timeout: 30000 });
               const geometryLabelText = String(await geometryLabel.textContent()).trim();
@@ -532,7 +537,7 @@ jobs:
               body: sessionsProbeText,
             }));
 
-            let startDialog = await openStudentTraining("Sandbox Student 1");
+            let startDialog = await openStudentTraining("Sandbox Student 1", studentId);
             await selectOnlyTopic(startDialog, /Geometry \(Re-Diagnosis Required - Clarity\)/);
 
             await startDialog.getByText(/Targeted re-diagnosis required.*starting signal Clarity/i)
@@ -582,7 +587,7 @@ jobs:
               requiresTargetedRediagnosis: after.requiresTargetedRediagnosis,
             }));
 
-            startDialog = await openStudentTraining("Sandbox Student 1");
+            startDialog = await openStudentTraining("Sandbox Student 1", studentId);
             const geometryLabel = startDialog.locator('label[for="session-topic-Geometry"]');
             await geometryLabel.waitFor({ state: "visible", timeout: 30000 });
             const geometryLabelText = String(await geometryLabel.textContent()).trim();
