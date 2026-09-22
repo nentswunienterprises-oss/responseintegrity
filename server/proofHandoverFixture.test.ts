@@ -6,7 +6,7 @@ import { resolve } from "path";
 test("Proof Handover reset is Preview-only, authenticated, and Sandbox-scoped", () => {
   const source = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
   const start = source.indexOf('"/api/proof/handover-fixture/reset"');
-  const end = source.indexOf("const persistEvidenceLedgerShadow", start);
+  const end = source.indexOf('"/api/proof/training-fixture/reset"', start);
   const route = source.slice(start, end);
 
   assert.ok(start >= 0);
@@ -37,4 +37,28 @@ test("Handover completion selects one latest session even after repeated Proof r
     route,
     /\.eq\("type", "handover"\)[\s\S]*?\.order\("created_at", \{ ascending: false \}\)[\s\S]*?\.limit\(1\)[\s\S]*?\.maybeSingle\(\)/,
   );
+});
+
+
+test("Proof Training reset is Preview-only, authenticated, Sandbox-scoped, and repeatable", () => {
+  const source = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const start = source.indexOf('"/api/proof/training-fixture/reset"');
+  const end = source.indexOf("const persistEvidenceLedgerShadow", start);
+  const route = source.slice(start, end);
+
+  assert.ok(start >= 0);
+  assert.ok(end > start);
+  assert.match(route, /isAuthenticated/);
+  assert.match(route, /requireRole\(\["tutor"\]\)/);
+  assert.match(route, /process\.env\.VERCEL_ENV !== "preview"/);
+  assert.match(route, /is_sandbox_account/);
+  assert.match(route, /assignment_lane/);
+  assert.match(route, /requiresTargetedRediagnosis:\s*false/);
+  assert.match(route, /targetedRediagnosisStartPhase:\s*null/);
+  assert.match(route, /purpose:\s*"repeatable_training_live_proof"/);
+  assert.match(route, /concept_mastery = \$2::jsonb/);
+  assert.match(route, /'training'/);
+  assert.match(route, /INTERVAL '2 hours'/);
+  assert.match(route, /parent_confirmed/);
+  assert.match(route, /tutor_confirmed/);
 });

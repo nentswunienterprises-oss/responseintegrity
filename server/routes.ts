@@ -4668,6 +4668,223 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     },
   );
+
+  app.post(
+    "/api/proof/training-fixture/reset",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      if (process.env.VERCEL_ENV !== "preview") {
+        return res.status(404).json({ message: "Not found" });
+      }
+
+      try {
+        const dbUser = (req as any).dbUser;
+        const studentId = String(req.body?.studentId || "").trim();
+        const requestedTopic = String(req.body?.topic || "").trim();
+        const requestedRestorePhase = tryParsePhase(req.body?.restorePhase);
+        const requestedRestoreStabilityRaw = String(req.body?.restoreStability || "").trim();
+        const requestedRestoreStability =
+          ["Low", "Medium", "High", "High Maintenance"].includes(requestedRestoreStabilityRaw)
+            ? (requestedRestoreStabilityRaw as TopicStability)
+            : null;
+
+        if (!studentId || !requestedTopic || !requestedRestorePhase || !requestedRestoreStability) {
+          return res.status(400).json({
+            message: "studentId, topic, restorePhase and restoreStability are required",
+          });
+        }
+
+        const result = await pool.query(
+          `SELECT s.id,
+                  s.name,
+                  s.tutor_id,
+                  s.parent_id,
+                  s.concept_mastery,
+                  e.is_sandbox_account,
+                  e.assignment_lane
+             FROM public.students s
+             LEFT JOIN public.parent_enrollments e
+               ON e.id = s.parent_enrollment_id
+            WHERE s.id = $1
+              AND s.tutor_id = $2
+            LIMIT 1`,
+          [studentId, dbUser.id],
+        );
+
+        const row = result.rows[0] || null;
+        if (!row) {
+          return res.status(404).json({ message: "Proof student not found for this Specialist" });
+        }
+
+        const isSandbox =
+          row.is_sandbox_account === true ||
+          String(row.assignment_lane || "").trim().toLowerCase() === "sandbox";
+        if (!isSandbox) {
+          return res.status(403).json({ message: "Proof Training fixtures are limited to Sandbox students" });
+        }
+
+        const conceptMastery =
+          row.concept_mastery && typeof row.concept_mastery === "object"
+            ? row.concept_mastery
+            : {};
+        const topicStore =
+          conceptMastery.topicConditioning && typeof conceptMastery.topicConditioning === "object"
+            ? conceptMastery.topicConditioning
+            : {};
+        const existingTopics =
+          topicStore.topics && typeof topicStore.topics === "object"
+            ? topicStore.topics
+            : {};
+        const topicKey =
+          Object.keys(existingTopics).find(
+            (key) => key.trim().toLowerCase() === requestedTopic.toLowerCase(),
+          ) || requestedTopic;
+        const topicState =
+          existingTopics[topicKey] && typeof existingTopics[topicKey] === "object"
+            ? existingTopics[topicKey]
+            : null;
+
+        if (!topicState) {
+          return res.status(400).json({
+            message: "Sandbox student needs a canonical topic state before Training proof can reset",
+          });
+        }
+
+        const nowIso = new Date().toISOString();
+        const nextActionConfig =
+          (NEXT_ACTION_ENGINE as any)?.[requestedRestorePhase]?.[requestedRestoreStability] || null;
+        const restoredTopicState = {
+          ...topicState,
+          topic: topicKey,
+          phase: requestedRestorePhase,
+          stability: requestedRestoreStability,
+          lastUpdated: nowIso,
+          nextAction: nextActionConfig?.primaryAction || topicState.nextAction || null,
+          requiresTargetedRediagnosis: false,
+          targetedRediagnosisStartPhase: null,
+          prerequisiteContradictionReason: null,
+          prerequisiteContradictionStatus: null,
+          history: [
+            ...(Array.isArray(topicState.history) ? topicState.history : []),
+            {
+              date: nowIso,
+              phase: requestedRestorePhase,
+              stability: requestedRestoreStability,
+              nextAction: nextActionConfig?.primaryAction || topicState.nextAction || null,
+              observationNotes: "Proof fixture reset to canonical Training baseline.",
+              structuredObservation: {
+                drillType: "proof_fixture_reset",
+                decisionAuthority: "proof_fixture",
+                purpose: "repeatable_training_live_proof",
+              },
+            },
+          ].slice(-60),
+        };
+        const restoredTopicConditioning = {
+          ...topicStore,
+          topics: {
+            ...existingTopics,
+            [topicKey]: restoredTopicState,
+          },
+          lastUpdatedAt: nowIso,
+        };
+        const updatedConceptMastery = {
+          ...conceptMastery,
+          topicConditioning: restoredTopicConditioning,
+        };
+
+        await pool.query(
+          `UPDATE public.students
+              SET concept_mastery = $2::jsonb,
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [studentId, JSON.stringify(updatedConceptMastery)],
+        );
+
+        const primaryResult = await pool.query(
+          `INSERT INTO public.scheduled_sessions (
+              parent_id,
+              tutor_id,
+              student_id,
+              scheduled_time,
+              scheduled_end,
+              timezone,
+              type,
+              status,
+              parent_confirmed,
+              tutor_confirmed,
+              created_at,
+              updated_at
+            )
+            VALUES (
+              $1,
+              $2,
+              $3::uuid,
+              NOW(),
+              NOW() + INTERVAL '60 minutes',
+              'Africa/Johannesburg',
+              'training',
+              'confirmed',
+              TRUE,
+              TRUE,
+              NOW(),
+              NOW()
+            )
+            RETURNING id, student_id, tutor_id, type, status, scheduled_time`,
+          [String(row.parent_id || ""), String(dbUser.id), studentId],
+        );
+
+        const companionResult = await pool.query(
+          `INSERT INTO public.scheduled_sessions (
+              parent_id,
+              tutor_id,
+              student_id,
+              scheduled_time,
+              scheduled_end,
+              timezone,
+              type,
+              status,
+              parent_confirmed,
+              tutor_confirmed,
+              created_at,
+              updated_at
+            )
+            VALUES (
+              $1,
+              $2,
+              $3::uuid,
+              NOW() + INTERVAL '2 hours',
+              NOW() + INTERVAL '3 hours',
+              'Africa/Johannesburg',
+              'training',
+              'confirmed',
+              TRUE,
+              TRUE,
+              NOW(),
+              NOW()
+            )
+            RETURNING id, student_id, tutor_id, type, status, scheduled_time`,
+          [String(row.parent_id || ""), String(dbUser.id), studentId],
+        );
+
+        return res.json({
+          studentId,
+          studentName: row.name,
+          topic: topicKey,
+          phase: requestedRestorePhase,
+          stability: requestedRestoreStability,
+          restoredCanonicalState: true,
+          session: primaryResult.rows[0],
+          companionSession: companionResult.rows[0],
+        });
+      } catch (error) {
+        console.error("[PROOF] Failed to reset Training fixture", error);
+        return res.status(500).json({ message: "Failed to reset Proof Training fixture" });
+      }
+    },
+  );
+
           const persistEvidenceLedgerShadow = async (input: EvidenceLedgerProjectionInput) => {
             const result = isEmergencyDbMode()
               ? await persistResponseIntegrityEvidenceLedgerShadowDirect(pool, input)

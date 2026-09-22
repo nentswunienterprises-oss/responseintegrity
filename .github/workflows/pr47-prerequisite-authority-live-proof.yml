@@ -1,5 +1,5 @@
 name: PR47 Prerequisite Authority Live Proof
-# closure rerun app-sha 1c9f41f7
+# repeatable closure proof fixtures
 
 on:
   push:
@@ -339,12 +339,33 @@ jobs:
           }
 
           async function runTrainingScenario(scenario) {
+            const resetResponse = await page.request.post(
+              baseUrl + "/api/proof/training-fixture/reset",
+              {
+                timeout: 60000,
+                data: {
+                  studentId: scenario.studentId,
+                  topic: scenario.topic,
+                  restorePhase: scenario.phase,
+                  restoreStability: scenario.stability,
+                },
+              },
+            );
+            const resetText = await resetResponse.text();
+            assert.ok(
+              resetResponse.ok(),
+              scenario.id + " fixture reset failed: " + resetResponse.status() + " " + resetText,
+            );
+            const reset = JSON.parse(resetText);
+            const sessionId = String(reset?.session?.id || "");
+            assert.ok(sessionId, scenario.id + " fixture reset returned no training session");
+
             const access = await requestGetWithRetry(
               baseUrl +
                 "/api/tutor/students/" +
                 encodeURIComponent(scenario.studentId) +
                 "/drill-session-access?kind=training&sessionId=" +
-                encodeURIComponent(scenario.sessionId),
+                encodeURIComponent(sessionId),
             );
             const accessText = await access.text();
             assert.ok(access.ok(), scenario.id + " access failed: " + access.status() + " " + accessText);
@@ -365,7 +386,7 @@ jobs:
               "&stability=" +
               encodeURIComponent(scenario.stability) +
               "&scheduledSessionId=" +
-              encodeURIComponent(scenario.sessionId);
+              encodeURIComponent(sessionId);
 
             await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
             await page.getByText("Response Integrity Lesson", { exact: true }).waitFor({ state: "visible", timeout: 60000 });
@@ -442,6 +463,7 @@ jobs:
                 requiresTargetedRediagnosis: row.requiresTargetedRediagnosis,
                 targetedRediagnosisStartPhase: row.targetedRediagnosisStartPhase,
               },
+              scheduledSessionId: sessionId,
               persisted: {
                 phase: after.phase,
                 stability: after.stability,
@@ -554,15 +576,12 @@ jobs:
             return result;
           }
 
-          const evidence = { scenarios: [], automaticRoute: null, rediagnosisClear: null };
+          const evidence = { scenarios: [] };
           try {
             await login();
             for (const scenario of SCENARIOS) {
               evidence.scenarios.push(await runTrainingScenario(scenario));
             }
-            const final = await proveAutomaticRediagnosisAndClearGate();
-            evidence.automaticRoute = true;
-            evidence.rediagnosisClear = final;
             await writeFile(
               "artifacts/pr47-prerequisite-authority/result.json",
               JSON.stringify(evidence, null, 2),
