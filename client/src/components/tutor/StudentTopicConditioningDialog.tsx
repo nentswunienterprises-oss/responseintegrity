@@ -448,6 +448,41 @@ function normalizeTopicKey(value?: string | null): string | null {
   return normalized ? normalized.toLowerCase() : null;
 }
 
+function mergeAuthoritativeTopicStates(
+  snapshot: StudentTopicConditioningDialogProps["persistedTopicStates"],
+  response: unknown,
+): StudentTopicConditioningDialogProps["persistedTopicStates"] {
+  const merged: Record<string, any> =
+    snapshot && typeof snapshot === "object" ? { ...snapshot } : {};
+
+  const body = response as any;
+  const rows = Array.isArray(body)
+    ? body
+    : Array.isArray(body?.topics)
+      ? body.topics
+      : [];
+
+  rows.forEach((row: any) => {
+    const topic = sanitizeTopic(row?.topic || "");
+    const topicKey = normalizeTopicKey(topic);
+    if (!topic || !topicKey) return;
+
+    const existingKey =
+      Object.entries(merged).find(([key, entry]: [string, any]) => {
+        const entryTopicKey = normalizeTopicKey(entry?.topic || key);
+        return entryTopicKey === topicKey;
+      })?.[0] || topic;
+
+    merged[existingKey] = {
+      ...(merged[existingKey] || {}),
+      ...row,
+      topic,
+    };
+  });
+
+  return merged;
+}
+
 function clamp(min: number, value: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -967,6 +1002,45 @@ export default function StudentTopicConditioningDialog({
   const assignmentAccepted = workflow?.assignmentAccepted ?? true;
   const isSandboxMode = operationalMode === "sandbox";
   const isTrainingMode = operationalMode === "training" || isSandboxMode;
+  const canonicalTopicStateEnabled =
+    open && !!studentId && !readOnly && apiBasePath === "/api/tutor";
+  const {
+    data: canonicalTopicStateResponse,
+    isFetching: canonicalTopicStateFetching,
+    isError: canonicalTopicStateError,
+  } = useQuery({
+    queryKey: [apiBasePath, "topic-conditioning", studentId, "canonical-live-state"],
+    queryFn: async () => {
+      const res = await apiRequest(
+        "GET",
+        `${apiBasePath}/topic-conditioning/${studentId}`,
+      );
+      return res.json();
+    },
+    enabled: canonicalTopicStateEnabled,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+  });
+  const canonicalTopicStateReady =
+    !canonicalTopicStateEnabled ||
+    (!canonicalTopicStateFetching &&
+      !canonicalTopicStateError &&
+      canonicalTopicStateResponse !== undefined);
+  const effectivePersistedTopicStates = useMemo(
+    () =>
+      canonicalTopicStateEnabled
+        ? mergeAuthoritativeTopicStates(
+            persistedTopicStates,
+            canonicalTopicStateResponse,
+          )
+        : persistedTopicStates,
+    [
+      canonicalTopicStateEnabled,
+      canonicalTopicStateResponse,
+      persistedTopicStates,
+    ],
+  );
   // Fetch topic activations for this student (must be inside component to access studentId)
   const { data: activationsData, refetch: refetchActivations } = useQuery({
     queryKey: [apiBasePath, "students", studentId, "topic-conditioning-activations"],
@@ -1120,6 +1194,14 @@ export default function StudentTopicConditioningDialog({
 
   const handleStartTrainingSession = () => {
     if (!assignmentAccepted) return;
+    if (!canonicalTopicStateReady) {
+      setTrainingSessionMeetMessage(
+        canonicalTopicStateError
+          ? "Live topic state could not be verified. Refresh before starting this lesson."
+          : "Refreshing live topic state before this lesson can start.",
+      );
+      return;
+    }
     if (selectedSessionTopics.size === 0) return;
     const activeSession = activeTrainingSession;
     if (activeSession) {
@@ -1178,7 +1260,7 @@ export default function StudentTopicConditioningDialog({
   const topics = useMemo(
     () => {
       // Build the normal topics
-      const baseTopics = buildTopics(parentTopics, topicConditioning, persistedTopicStates, studentSessions);
+      const baseTopics = buildTopics(parentTopics, topicConditioning, effectivePersistedTopicStates, studentSessions);
       // Add any activation topics not already present, case-insensitively.
       const baseTopicNames = new Set(baseTopics.map((t) => normalizeTopicKey(t.topic)).filter(Boolean));
       const merged = [...baseTopics];
@@ -1202,7 +1284,7 @@ export default function StudentTopicConditioningDialog({
       });
       return merged;
     },
-    [parentTopics, topicConditioning, persistedTopicStates, studentSessions, activationTopics],
+    [parentTopics, topicConditioning, effectivePersistedTopicStates, studentSessions, activationTopics],
   );
   const [selectedTopic, setSelectedTopic] = useState<string>(topics[0]?.topic || "");
 
@@ -2510,8 +2592,16 @@ export default function StudentTopicConditioningDialog({
                         variant="default"
                         size="sm"
                         onClick={() => setSessionTopicsModalOpen(true)}
-                        disabled={!assignmentAccepted}
-                        title={!assignmentAccepted ? "Accept the assignment before running training sessions." : undefined}
+                        disabled={!assignmentAccepted || !canonicalTopicStateReady}
+                        title={
+                          !assignmentAccepted
+                            ? "Accept the assignment before running training sessions."
+                            : !canonicalTopicStateReady
+                              ? canonicalTopicStateError
+                                ? "Live topic state could not be verified. Refresh before starting this lesson."
+                                : "Refreshing live topic state before this lesson can start."
+                              : undefined
+                        }
                       >
                         Start Session
                       </Button>
