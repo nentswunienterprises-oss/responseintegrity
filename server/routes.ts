@@ -30164,12 +30164,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
             date: entry?.lastUpdated || topicConditioningStore.lastUpdatedAt || new Date().toISOString(),
           };
 
+          const requiresTargetedRediagnosis = entry?.requiresTargetedRediagnosis === true;
+          const targetedRediagnosisStartPhase = requiresTargetedRediagnosis
+            ? tryParsePhase(entry?.targetedRediagnosisStartPhase)
+            : null;
+          const prerequisiteContradictionStatus =
+            typeof entry?.prerequisiteContradictionStatus === "string"
+              ? entry.prerequisiteContradictionStatus
+              : null;
+          const prerequisiteContradictionReason =
+            typeof entry?.prerequisiteContradictionReason === "string"
+              ? entry.prerequisiteContradictionReason
+              : null;
+
           return {
             topic,
             phase: latest.phase,
             stability: latest.stability,
             lastUpdated: latest.date,
             topicReference: parseStoredTopicReference(entry?.topicReference),
+            requiresTargetedRediagnosis,
+            targetedRediagnosisStartPhase,
+            prerequisiteContradictionStatus,
+            prerequisiteContradictionReason,
           };
         })
         .filter((row): row is NonNullable<typeof row> => !!row)

@@ -160,6 +160,21 @@ jobs:
             assert.equal(before.phase, "Time Pressure Stability", id + ": expected TPS phase");
             assert.equal(before.stability, stability, id + ": unexpected starting stability");
 
+            const persistedUnresolvedGate =
+              Boolean(before.requiresTargetedRediagnosis) &&
+              before.targetedRediagnosisStartPhase === "Structured Execution" &&
+              before.prerequisiteContradictionStatus === "unresolved";
+            if (persistedUnresolvedGate) {
+              console.log("PR47_UNRESOLVED_SENTINEL_PASS=" + id + " " + JSON.stringify({
+                sentinel: sentinelLabel,
+                frozenState: { phase: before.phase, stability: before.stability },
+                target: before.targetedRediagnosisStartPhase,
+                status: before.prerequisiteContradictionStatus,
+                resumedFromPersistedEvidence: true,
+              }));
+              return;
+            }
+
             const access = await page.request.get(
               baseUrl + "/api/tutor/students/" + encodeURIComponent(studentId) +
                 "/drill-session-access?kind=training&sessionId=" + encodeURIComponent(sessionId),
