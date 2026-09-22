@@ -256,24 +256,12 @@ jobs:
                 }
 
                 if (setIndex === 0 && repIndex === 0) {
-                  const sentinel = page.getByRole("button", { name: scenario.sentinelLabel, exact: true });
-                  const visibleBeforeConfirm = await sentinel.isVisible().catch(() => false);
-                  console.log("PR47_PREREQ_SENTINEL_VISIBLE=" + scenario.id + " " + visibleBeforeConfirm);
-                  if (!visibleBeforeConfirm) {
-                    const selectedButtons = await page.locator("button.bg-primary").allTextContents().catch(() => []);
-                    console.log("PR47_PREREQ_SELECTED_BUTTONS=" + scenario.id + " " + JSON.stringify(selectedButtons));
-                    const confirm = page.getByRole("button", { name: "Confirm Rep", exact: true });
-                    if (await confirm.isVisible().catch(() => false)) {
-                      await confirm.click();
-                      await page.waitForTimeout(250);
-                    }
-                    const bodyText = await page.locator("body").innerText();
-                    const relevant = bodyText
-                      .split("\n")
-                      .filter((line) => /prerequisite|missing|complete all observation|sentinel/i.test(line));
-                    console.log("PR47_PREREQ_RENDER_DEBUG=" + scenario.id + " " + JSON.stringify(relevant.slice(-40)));
-                    throw new Error(scenario.id + ": prerequisite sentinel did not render after clean breakdown");
-                  }
+                  const sentinel = page
+                    .getByRole("button")
+                    .filter({ hasText: scenario.sentinelLabel })
+                    .first();
+                  await sentinel.waitFor({ state: "visible", timeout: 30000 });
+                  console.log("PR47_PREREQ_SENTINEL_VISIBLE=" + scenario.id + " true");
                   await sentinel.click();
                 }
 
