@@ -1,5 +1,5 @@
 name: PR47 Re-Diagnosis Gate Proof
-# 2026-09-22 final current-head re-diagnosis proof trigger
+# 2026-09-22 combined final re-diagnosis proof trigger 1790099509226
 
 on:
   push:
