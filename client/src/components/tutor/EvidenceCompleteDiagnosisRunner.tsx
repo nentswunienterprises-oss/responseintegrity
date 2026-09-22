@@ -636,8 +636,8 @@ export default function EvidenceCompleteDiagnosisRunner() {
             )}
 
             <p className="mt-4 text-sm text-muted-foreground">
-              No numeric score determined this placement. The system resolved
-              phase and stability from the recorded response behavior.
+              The system resolved phase and starting stability from the recorded
+              response behavior and preserved evidence path.
             </p>
 
             <button
