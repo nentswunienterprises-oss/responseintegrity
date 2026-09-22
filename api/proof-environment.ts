@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// PR47 closure proof: deploy deterministic targeted re-diagnosis fixtures with the current proof SHA.
+// PR47 closure proof: final current-head re-diagnosis proof trigger.
 
 export default function handler(_req: VercelRequest, res: VercelResponse) {
   if (process.env.VERCEL_ENV !== 'preview') {
