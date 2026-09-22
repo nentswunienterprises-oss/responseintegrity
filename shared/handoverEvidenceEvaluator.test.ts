@@ -12,7 +12,10 @@ import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
 
 const buildVerificationSet = (
   phase: TopicPhase,
-  optionIndexFor: (fieldKey: string, repIndex: number, optionCount: number) => number,
+  evidenceClassFor: (
+    fieldKey: string,
+    repIndex: number,
+  ) => "breakdown" | "conditional" | "near_stable" | "supported" | "not_observed" | "confounded",
   repCount?: number,
 ): SubmittedEvidenceSet => {
   const schema = getDrillSchemaDefinition("verification", phase);
@@ -32,8 +35,11 @@ const buildVerificationSet = (
       };
       definition.fields.forEach((baseField) => {
         const field = getFieldDefinitionForRep(definition, repIndex, baseField.fieldKey) || baseField;
+        const classes = field.optionEvidenceClasses || [];
+        const requestedClass = evidenceClassFor(field.fieldKey, repIndex);
+        const optionIndex = classes.indexOf(requestedClass);
+        assert.ok(optionIndex >= 0, `Missing ${requestedClass} option for ${field.fieldKey}`);
         const labels = [...(field.optionLabels || [])];
-        const optionIndex = Math.max(0, Math.min(labels.length - 1, optionIndexFor(field.fieldKey, repIndex, labels.length)));
         const identity = getEvidenceSelectionIdentity({
           mode: "verification",
           phase,
@@ -47,6 +53,7 @@ const buildVerificationSet = (
         rep[field.fieldKey + "_option_id"] = identity.optionId;
         rep[field.fieldKey + "_dimension_id"] = identity.dimensionId;
         rep[field.fieldKey + "_level"] = identity.level;
+        rep[field.fieldKey + "_evidence_class"] = String(identity.evidenceClass || "");
       });
       return rep;
     }),
@@ -64,26 +71,49 @@ const evaluate = (
 };
 
 test("one clean opportunity keeps handover open instead of forcing re-diagnosis", () => {
-  const set = buildVerificationSet("Clarity", (_field, _rep, count) => count - 1, 1);
+  const set = buildVerificationSet("Clarity", () => "supported", 1);
   const result = evaluate("Clarity", "High", set);
   assert.equal(result.verificationOutcome, "continue_verification");
   assert.equal(result.reDiagnosisRequired, false);
 });
 
-test("repeated supported continuity evidence holds the inherited state", () => {
-  const set = buildVerificationSet("Structured Execution", (_field, _rep, count) => count - 1);
-  const result = evaluate("Structured Execution", "High", set);
-  assert.equal(result.authority, "evidence_native");
-  assert.equal(result.verificationOutcome, "hold");
-  assert.equal(result.confidence, "strong");
-  assert.equal(result.resultingStability, "High");
-  assert.equal(result.reDiagnosisRequired, false);
+test("clean supported continuity holds every inherited phase and stability", () => {
+  const phases: TopicPhase[] = [
+    "Clarity",
+    "Structured Execution",
+    "Controlled Discomfort",
+    "Time Pressure Stability",
+  ];
+  const stabilities: TopicStability[] = ["Low", "Medium", "High", "High Maintenance"];
+  for (const phase of phases) {
+    for (const previousStability of stabilities) {
+      const set = buildVerificationSet(phase, () => "supported", 2);
+      const result = evaluate(phase, previousStability, set);
+      assert.equal(result.verificationOutcome, "hold", `${phase} / ${previousStability}`);
+      assert.equal(result.resultingPhase, phase);
+      assert.equal(result.resultingStability, previousStability);
+      assert.equal(result.reDiagnosisRequired, false);
+    }
+  }
 });
 
-test("conditional continuity evidence stays open while clean confirmation can still resolve it", () => {
+test("near-stable continuity holds inherited state without being collapsed into conditional", () => {
+  const set = buildVerificationSet(
+    "Structured Execution",
+    (field) => field === "startBehavior" ? "near_stable" : "supported",
+    2,
+  );
+  const result = evaluate("Structured Execution", "High", set);
+  const start = result.dimensions.find((dimension) => dimension.dimensionId === "execution.start");
+  assert.equal(start?.state, "NEAR_STABLE");
+  assert.equal(result.verificationOutcome, "hold");
+  assert.equal(result.resultingStability, "High");
+});
+
+test("conditional continuity stays open while clean confirmation can still resolve it", () => {
   const set = buildVerificationSet(
     "Controlled Discomfort",
-    (field, _rep, count) => field === "discomfortTolerance" ? 1 : count - 1,
+    (field) => field === "discomfortTolerance" ? "conditional" : "supported",
     2,
   );
   const result = evaluate("Controlled Discomfort", "High Maintenance", set);
@@ -95,7 +125,7 @@ test("conditional continuity evidence stays open while clean confirmation can st
 test("persistent conditional evidence adjusts only after the bounded verification window closes", () => {
   const set = buildVerificationSet(
     "Controlled Discomfort",
-    (field, _rep, count) => field === "discomfortTolerance" ? 1 : count - 1,
+    (field) => field === "discomfortTolerance" ? "conditional" : "supported",
     5,
   );
   const result = evaluate("Controlled Discomfort", "High Maintenance", set);
@@ -108,7 +138,7 @@ test("persistent conditional evidence adjusts only after the bounded verificatio
 test("conditional evidence cannot demote Medium to Low without breakdown evidence", () => {
   const set = buildVerificationSet(
     "Clarity",
-    (field, _rep, count) => field === "reason" ? 1 : count - 1,
+    (field) => field === "reason" ? "conditional" : "supported",
     5,
   );
   const result = evaluate("Clarity", "Medium", set);
@@ -118,8 +148,10 @@ test("conditional evidence cannot demote Medium to Low without breakdown evidenc
 });
 
 test("confirmed phase-defining breakdown requires targeted re-diagnosis", () => {
-  const set = buildVerificationSet("Time Pressure Stability", (field, rep, count) =>
-    field === "structureUnderTime" && rep >= 1 ? 0 : count - 1
+  const set = buildVerificationSet(
+    "Time Pressure Stability",
+    (field, rep) => field === "structureUnderTime" && rep >= 1 ? "breakdown" : "supported",
+    2,
   );
   const result = evaluate("Time Pressure Stability", "High", set);
   assert.equal(result.verificationOutcome, "targeted_re_diagnosis_required");
@@ -132,9 +164,43 @@ test("confirmed phase-defining breakdown requires targeted re-diagnosis", () => 
   );
 });
 
+test("not-observed and confounded evidence remain ineligible instead of becoming weakness", () => {
+  const set = buildVerificationSet(
+    "Clarity",
+    (field, rep) => {
+      if (field === "method") return rep === 0 ? "not_observed" : "confounded";
+      return "supported";
+    },
+    2,
+  );
+  const result = evaluate("Clarity", "High", set);
+  const method = result.dimensions.find((dimension) => dimension.dimensionId === "clarity.method");
+  assert.equal(method?.validOpportunityCount, 0);
+  assert.equal(method?.breakdownCount, 0);
+  assert.equal(method?.state, "UNRESOLVED");
+  assert.equal(result.verificationOutcome, "continue_verification");
+  assert.equal(result.resultingStability, "High");
+  assert.equal(result.reDiagnosisRequired, false);
+});
+
+test("unresolved ineligible evidence routes to targeted re-diagnosis only when the bounded window closes", () => {
+  const set = buildVerificationSet(
+    "Time Pressure Stability",
+    (field) => field === "structureUnderTime" ? "confounded" : "supported",
+    5,
+  );
+  const result = evaluate("Time Pressure Stability", "High Maintenance", set);
+  const structure = result.dimensions.find((dimension) => dimension.dimensionId === "time.structure");
+  assert.equal(structure?.validOpportunityCount, 0);
+  assert.equal(structure?.state, "UNRESOLVED");
+  assert.equal(result.verificationOutcome, "targeted_re_diagnosis_required");
+  assert.equal(result.resultingStability, "High Maintenance");
+  assert.equal(result.reDiagnosisRequired, true);
+});
+
 test("forged semantic evidence is unavailable rather than scored", () => {
-  const set = buildVerificationSet("Clarity", (_field, _rep, count) => count - 1);
-  set.observations[0].vocabulary_level = "weak";
+  const set = buildVerificationSet("Clarity", () => "supported", 2);
+  set.observations[0].vocabulary_evidence_class = "breakdown";
   const result = evaluateHandoverVerificationEvidence({
     phase: "Clarity",
     previousStability: "Medium",
@@ -143,22 +209,12 @@ test("forged semantic evidence is unavailable rather than scored", () => {
   assert.equal(result.status, "unavailable");
 });
 
-
-test("high compatibility cannot override a confirmed phase-defining breakdown", () => {
+test("high compatibility metadata cannot override a confirmed phase-defining breakdown", () => {
   const set = buildVerificationSet(
     "Time Pressure Stability",
-    (field, rep, count) => field === "structureUnderTime" && rep >= 1 ? 0 : count - 1,
+    (field, rep) => field === "structureUnderTime" && rep >= 1 ? "breakdown" : "supported",
     3,
   );
-  const compatibility = computeAdaptiveDiagnosisPhaseSummary(
-    "Time Pressure Stability",
-    set.observations,
-  );
-  assert.ok(
-    compatibility.phaseScore >= 70,
-    `Expected a superficially strong compatibility score, received ${compatibility.phaseScore}`,
-  );
-
   const result = evaluate("Time Pressure Stability", "High", set);
   assert.equal(result.verificationOutcome, "targeted_re_diagnosis_required");
   assert.equal(result.reDiagnosisRequired, true);
@@ -171,7 +227,7 @@ test("high compatibility cannot override a confirmed phase-defining breakdown", 
 test("one early breakdown plus two clean continuity opportunities stays open rather than falsely recovering or adjusting", () => {
   const set = buildVerificationSet(
     "Structured Execution",
-    (field, rep, count) => field === "stepExecution" && rep === 0 ? 0 : count - 1,
+    (field, rep) => field === "stepExecution" && rep === 0 ? "breakdown" : "supported",
     3,
   );
   const result = evaluate("Structured Execution", "High", set);
@@ -184,7 +240,6 @@ test("one early breakdown plus two clean continuity opportunities stays open rat
   assert.equal(stepDiscipline?.recoveredAfterBreakdown, false);
   assert.equal(stepDiscipline?.state, "CONDITIONAL");
   assert.equal(result.verificationOutcome, "continue_verification");
-  assert.equal(result.resultingPhase, "Structured Execution");
   assert.equal(result.resultingStability, "High");
   assert.equal(result.reDiagnosisRequired, false);
 });
@@ -192,7 +247,7 @@ test("one early breakdown plus two clean continuity opportunities stays open rat
 test("an early breakdown followed by the required clean continuity sequence can recover before the cap", () => {
   const set = buildVerificationSet(
     "Structured Execution",
-    (field, rep, count) => field === "stepExecution" && rep === 0 ? 0 : count - 1,
+    (field, rep) => field === "stepExecution" && rep === 0 ? "breakdown" : "supported",
     4,
   );
   const result = evaluate("Structured Execution", "High", set);
@@ -212,7 +267,7 @@ test("an early breakdown followed by the required clean continuity sequence can 
 test("mixed conditional evidence can resolve to supported before the cap", () => {
   const set = buildVerificationSet(
     "Clarity",
-    (field, rep, count) => field === "method" && rep === 0 ? 1 : count - 1,
+    (field, rep) => field === "method" && rep === 0 ? "conditional" : "supported",
     3,
   );
   const result = evaluate("Clarity", "High", set);

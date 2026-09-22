@@ -1,4 +1,9 @@
 import type { ObservationLevel } from "./observationScoring";
+import {
+  DIAGNOSIS_OBSERVATION_MATRIX,
+  type DiagnosisBehaviorClass,
+  type DiagnosisDimensionId,
+} from "./diagnosisObservationMatrix";
 import { PHASES, type TopicPhase } from "./topicConditioningEngine";
 
 export type EvidenceDrillMode = "diagnosis" | "training" | "verification";
@@ -16,6 +21,7 @@ export type EvidenceFieldDefinition = {
   scoreWeight: number;
   optionLabels?: string[];
   optionLevels: ObservationLevel[];
+  optionEvidenceClasses?: DiagnosisBehaviorClass[];
 };
 
 export type EvidenceSetDefinition = {
@@ -560,7 +566,12 @@ const schemaFor = (
     ...definition,
     fields: definition.fields.map((fieldDefinition) => ({
       ...fieldDefinition,
-      optionLabels: [...(RAW_OPTION_LABELS[definition.setId]?.[fieldDefinition.fieldKey] || [])],
+      optionLabels: fieldDefinition.optionLabels?.length
+        ? [...fieldDefinition.optionLabels]
+        : [...(RAW_OPTION_LABELS[definition.setId]?.[fieldDefinition.fieldKey] || [])],
+      optionEvidenceClasses: fieldDefinition.optionEvidenceClasses
+        ? [...fieldDefinition.optionEvidenceClasses]
+        : undefined,
     })),
   }));
   const versionedDefinition = {
@@ -591,7 +602,7 @@ const RESPONSE_INTEGRITY_DRILL_REGISTRY_V1: Record<
   ) as Record<TopicPhase, DrillSchemaDefinition>,
 };
 
-const verificationSetFor = (phase: TopicPhase): EvidenceSetDefinition => {
+const verificationSetForV2 = (phase: TopicPhase): EvidenceSetDefinition => {
   const inheritedProbe = DIAGNOSIS_SETS[phase][0];
   return {
     ...inheritedProbe,
@@ -602,6 +613,54 @@ const verificationSetFor = (phase: TopicPhase): EvidenceSetDefinition => {
   };
 };
 
+const RESPONSE_INTEGRITY_DRILL_REGISTRY_V2: Record<
+  EvidenceDrillMode,
+  Record<TopicPhase, DrillSchemaDefinition>
+> = {
+  diagnosis: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.diagnosis,
+  training: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.training,
+  verification: Object.fromEntries(
+    PHASES.map((phase) => [phase, schemaFor("verification", phase, [verificationSetForV2(phase)], 2)]),
+  ) as Record<TopicPhase, DrillSchemaDefinition>,
+};
+
+const compatibilityLevelForBehaviorClass = (
+  behaviorClass: DiagnosisBehaviorClass,
+): ObservationLevel => {
+  if (behaviorClass === "breakdown") return "weak";
+  if (behaviorClass === "supported") return "clear";
+  return "partial";
+};
+
+const verificationSetForV3 = (phase: TopicPhase): EvidenceSetDefinition => {
+  const inheritedProbe = DIAGNOSIS_SETS[phase][0];
+  const fields = inheritedProbe.fields.map((baseField) => {
+    const canonical = DIAGNOSIS_OBSERVATION_MATRIX[baseField.dimensionId as DiagnosisDimensionId];
+    if (!canonical) {
+      throw new Error(`Missing canonical Response Evidence behavior contract for ${baseField.dimensionId}`);
+    }
+    return {
+      ...baseField,
+      optionLabels: canonical.options.map((option) => option.label),
+      optionLevels: canonical.options.map((option) =>
+        compatibilityLevelForBehaviorClass(option.behaviorClass)
+      ),
+      optionEvidenceClasses: canonical.options.map((option) => option.behaviorClass),
+    };
+  });
+
+  return {
+    ...inheritedProbe,
+    reps: HANDOVER_VERIFICATION_MIN_DECISION_OPPORTUNITIES,
+    completionPolicy: "evidence_sufficient",
+    minimumReps: 1,
+    maximumReps: HANDOVER_VERIFICATION_MAX_OPPORTUNITIES,
+    fields,
+    repFieldOverrides: undefined,
+    repOptionLabelOverrides: undefined,
+  };
+};
+
 const RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT: Record<
   EvidenceDrillMode,
   Record<TopicPhase, DrillSchemaDefinition>
@@ -609,7 +668,7 @@ const RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT: Record<
   diagnosis: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.diagnosis,
   training: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.training,
   verification: Object.fromEntries(
-    PHASES.map((phase) => [phase, schemaFor("verification", phase, [verificationSetFor(phase)], 2)]),
+    PHASES.map((phase) => [phase, schemaFor("verification", phase, [verificationSetForV3(phase)], 3)]),
   ) as Record<TopicPhase, DrillSchemaDefinition>,
 };
 
@@ -623,7 +682,11 @@ export const RESPONSE_INTEGRITY_DRILL_REGISTRY_HISTORY: Record<
       PHASES.map((phase) => [
         phase,
         mode === "verification"
-          ? { 1: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.verification[phase], 2: RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT.verification[phase] }
+          ? {
+              1: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.verification[phase],
+              2: RESPONSE_INTEGRITY_DRILL_REGISTRY_V2.verification[phase],
+              3: RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT.verification[phase],
+            }
           : { 1: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1[mode][phase] },
       ]),
     ),
@@ -671,6 +734,9 @@ export const getFieldDefinitionForRep = (
     optionLabels: optionLabelOverride
       ? [...optionLabelOverride]
       : [...(base.optionLabels || [])],
+    optionEvidenceClasses: base.optionEvidenceClasses
+      ? [...base.optionEvidenceClasses]
+      : undefined,
   };
 };
 
@@ -711,6 +777,7 @@ export const getEvidenceSelectionIdentity = ({
     dimensionId: fieldDefinition.dimensionId,
     optionId: optionIdFor(definition, repIndex, fieldDefinition, optionIndex),
     level: fieldDefinition.optionLevels[optionIndex],
+    evidenceClass: fieldDefinition.optionEvidenceClasses?.[optionIndex] || null,
     constraints: definition.constraints,
   };
 };
@@ -747,6 +814,7 @@ export const resolveEvidenceSelection = ({
         field: fieldDefinition,
         optionIndex,
         level: fieldDefinition.optionLevels[optionIndex],
+        evidenceClass: fieldDefinition.optionEvidenceClasses?.[optionIndex] || null,
         repId: getRepPurposeId(definition, repIndex),
       };
     }
@@ -863,6 +931,9 @@ export const validateAndNormalizeSemanticEvidenceSet = ({
       const optionId = String(submittedRep[`${fieldDefinition.fieldKey}_option_id`] || "").trim();
       const dimensionId = String(submittedRep[`${fieldDefinition.fieldKey}_dimension_id`] || "").trim();
       const submittedLevel = String(submittedRep[`${fieldDefinition.fieldKey}_level`] || "").trim();
+      const submittedEvidenceClass = String(
+        submittedRep[`${fieldDefinition.fieldKey}_evidence_class`] || "",
+      ).trim();
       const resolved = resolveEvidenceSelection({
         mode,
         phase,
@@ -886,11 +957,20 @@ export const validateAndNormalizeSemanticEvidenceSet = ({
       if (submittedLevel !== resolved.level) {
         return { ok: false, error: `${location}, rep ${repIndex + 1} level does not match its option ID` };
       }
+      if (resolved.evidenceClass && submittedEvidenceClass !== resolved.evidenceClass) {
+        return {
+          ok: false,
+          error: `${location}, rep ${repIndex + 1} evidence class does not match its option ID`,
+        };
+      }
 
       normalizedRep[fieldDefinition.fieldKey] = registeredRawOption;
       normalizedRep[`${fieldDefinition.fieldKey}_option_id`] = optionId;
       normalizedRep[`${fieldDefinition.fieldKey}_dimension_id`] = resolved.field.dimensionId;
       normalizedRep[`${fieldDefinition.fieldKey}_level`] = resolved.level;
+      if (resolved.evidenceClass) {
+        normalizedRep[`${fieldDefinition.fieldKey}_evidence_class`] = resolved.evidenceClass;
+      }
     }
 
     normalizedObservations.push(normalizedRep);

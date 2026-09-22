@@ -102,7 +102,21 @@ export const evaluateHandoverVerificationEvidence = ({
       const field = getFieldDefinitionForRep(definition, repIndex, baseField.fieldKey) || baseField;
       const rawOption = String(rep[field.fieldKey] || "").trim();
       const normalizedLevel = String(rep[field.fieldKey + "_level"] || "").trim() as ObservationLevel;
+      const submittedEvidenceClass = String(
+        rep[field.fieldKey + "_evidence_class"] || "",
+      ).trim() as ResponseEvidenceClass;
       if (!rawOption || !["weak", "partial", "clear"].includes(normalizedLevel)) return;
+      const evidenceClass: ResponseEvidenceClass =
+        [
+          "breakdown",
+          "conditional",
+          "near_stable",
+          "supported",
+          "not_observed",
+          "confounded",
+        ].includes(submittedEvidenceClass)
+          ? submittedEvidenceClass
+          : responseEvidenceClassFromObservationLevel(normalizedLevel);
       occurrences.push({
         setId: definition.setId,
         setName: definition.setName,
@@ -111,7 +125,7 @@ export const evaluateHandoverVerificationEvidence = ({
         fieldKey: field.fieldKey,
         rawOption,
         normalizedLevel,
-        evidenceClass: responseEvidenceClassFromObservationLevel(normalizedLevel),
+        evidenceClass,
       });
     });
   });
@@ -135,17 +149,27 @@ export const evaluateHandoverVerificationEvidence = ({
   });
 
   if (dimensions.some((dimension) => dimension.state === "UNRESOLVED")) {
+    const maximumOpportunities = Math.max(
+      HANDOVER_VERIFICATION_MIN_DECISION_OPPORTUNITIES,
+      Number(definition.maximumReps || definition.reps),
+    );
+    const windowClosed =
+      validation.normalizedSet.observations.length >= maximumOpportunities;
     return {
       status: "evaluated",
       authority: "evidence_native",
       phase,
       previousStability,
-      verificationOutcome: "continue_verification",
+      verificationOutcome: windowClosed
+        ? "targeted_re_diagnosis_required"
+        : "continue_verification",
       confidence: "low",
       resultingPhase: phase,
       resultingStability: previousStability,
-      reDiagnosisRequired: false,
-      reason: "Continuity evidence is not yet sufficient to decide whether the inherited state should hold, adjust, or move into targeted re-diagnosis.",
+      reDiagnosisRequired: windowClosed,
+      reason: windowClosed
+        ? "The bounded Handover window ended without enough clean decision-eligible evidence. Do not convert missing or contaminated evidence into a state change; re-establish the topic state through targeted evidence-complete diagnosis."
+        : "Continuity evidence is not yet sufficient to decide whether the inherited state should hold, adjust, or move into targeted re-diagnosis.",
       dimensions,
     };
   }

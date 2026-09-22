@@ -4894,13 +4894,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return null;
           };
 
-          const reduceHandoverStability = (stability: TopicStability): TopicStability => {
-            if (stability === "High Maintenance") return "High";
-            if (stability === "High") return "Medium";
-            if (stability === "Medium") return "Low";
-            return "Low";
-          };
-
           const computeHandoverVerificationSummary = (
             phase: TopicPhase,
             previousStability: TopicStability,

@@ -61,6 +61,9 @@ const buildValidSet = ({
             rep[`${field.fieldKey}_option_id`] = identity.optionId;
             rep[`${field.fieldKey}_dimension_id`] = identity.dimensionId;
             rep[`${field.fieldKey}_level`] = identity.level;
+            if (identity.evidenceClass) {
+              rep[`${field.fieldKey}_evidence_class`] = identity.evidenceClass;
+            }
           });
           return rep;
         }),
@@ -129,6 +132,44 @@ test("ledger projection retains state, session, constraint, and score lineage", 
   assert.equal(stepEvidence.normalizedLevel, "partial");
   assert.equal(stepEvidence.scoreContribution, 18);
   assert.equal(stepEvidence.scoreContributionMax, 30);
+});
+
+test("handover not-observed and confounded evidence contributes no compatibility points", () => {
+  const set = buildValidSet({
+    mode: "verification",
+    phase: "Clarity",
+    setIndex: 0,
+    selectOptionIndex: (_repIndex, fieldKey) => {
+      if (fieldKey === "vocabulary") return 4;
+      if (fieldKey === "method") return 5;
+      return 3;
+    },
+  });
+  const input: EvidenceLedgerProjectionInput = {
+    ...baseProjectionInput([set]),
+    drillType: "verification",
+    sessionContext: "handover_verification",
+    observedPhase: "Clarity",
+    statePhaseBefore: "Clarity",
+    stabilityBefore: "High",
+    statePhaseAfter: "Clarity",
+    stabilityAfter: "High",
+    transitionReason: "hold",
+  };
+
+  const result = projectResponseIntegrityEvidenceLedger(input);
+  assert.equal(result.status, "projected");
+  if (result.status !== "projected") return;
+
+  const vocabulary = result.entries.filter((entry) => entry.dimensionId === "clarity.vocabulary");
+  const method = result.entries.filter((entry) => entry.dimensionId === "clarity.method");
+  const reason = result.entries.filter((entry) => entry.dimensionId === "clarity.reason");
+  assert.ok(vocabulary.length > 0);
+  assert.ok(method.length > 0);
+  assert.ok(reason.length > 0);
+  assert.equal(vocabulary.every((entry) => entry.scoreContribution === 0), true);
+  assert.equal(method.every((entry) => entry.scoreContribution === 0), true);
+  assert.equal(reason.every((entry) => entry.scoreContribution > 0), true);
 });
 
 test("ledger projection is deterministic across retries", () => {

@@ -4,6 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { observationLevelFromOptionIndex, type ObservationLevel } from "@shared/observationScoring";
 import { normalizeStability, tryParsePhase } from "@shared/topicConditioningEngine";
+import {
+  DIAGNOSIS_OBSERVATION_MATRIX,
+  type DiagnosisDimensionId,
+} from "@shared/diagnosisObservationMatrix";
 import { getNextActionData } from "./topicConditioningEngine";
 import {
   computeAdaptiveDiagnosisPhaseSummary,
@@ -47,6 +51,7 @@ type ObservationField = {
   label: string;
   options: string[];
   optionLevels?: Record<string, ObservationLevel>;
+  optionDetails?: Record<string, string>;
 };
 type DrillSetConfig = {
   setName: string;
@@ -68,6 +73,16 @@ type VerificationPrepSpec = {
   tutorRules: string[];
   derivedFrom: string;
   checklist: string[];
+};
+
+type HandoverEvidenceSummary = Extract<
+  ReturnType<typeof evaluateHandoverVerificationEvidence>,
+  { status: "evaluated" }
+> & {
+  verificationOutcomeLabel?: string;
+  evidenceReason?: string;
+  nextAction?: string;
+  constraint?: string | null;
 };
 
 type AdaptiveTransitionState = {
@@ -843,6 +858,8 @@ export default function IntroSessionDrillRunner() {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [scoring, setScoring] = useState<any[] | null>(null);
   const [responseSnapshots, setResponseSnapshots] = useState<ResponseSnapshotV1[]>([]);
+  const [handoverEvidenceSummary, setHandoverEvidenceSummary] =
+    useState<HandoverEvidenceSummary | null>(null);
   const [sessionTopicIndex, setSessionTopicIndex] = useState(0);
   const [sessionResults, setSessionResults] = useState<any[]>([]);
   const [prepReady, setPrepReady] = useState(false);
@@ -935,6 +952,7 @@ export default function IntroSessionDrillRunner() {
 
   useEffect(() => {
     setShowModeInstructions(true);
+    setHandoverEvidenceSummary(null);
   }, [drillMode, handoverReDiagnosisMode, currentTopicName, activeDiagnosisPhase, studentId]);
 
   const {
@@ -998,9 +1016,24 @@ export default function IntroSessionDrillRunner() {
     return configuredFields.map((configuredField) => {
       const registeredField = getFieldDefinitionForRep(registeredSet, repIndex, configuredField.key);
       if (!registeredField?.optionLabels?.length) return configuredField;
+      const canonicalDimension =
+        evidenceModeForSubmission === "verification"
+          ? DIAGNOSIS_OBSERVATION_MATRIX[
+              registeredField.dimensionId as DiagnosisDimensionId
+            ]
+          : null;
       return {
         ...configuredField,
+        label: canonicalDimension?.label || configuredField.label,
         options: [...registeredField.optionLabels],
+        optionDetails: canonicalDimension
+          ? Object.fromEntries(
+              canonicalDimension.options.map((option) => [
+                option.label,
+                option.detail,
+              ]),
+            )
+          : configuredField.optionDetails,
         optionLevels: Object.fromEntries(
           registeredField.optionLabels.map((label, optionIndex) => [
             label,
@@ -1463,6 +1496,9 @@ export default function IntroSessionDrillRunner() {
           if (semanticIdentity) {
             obs[`${block.key}_option_id`] = semanticIdentity.optionId;
             obs[`${block.key}_dimension_id`] = semanticIdentity.dimensionId;
+            if (semanticIdentity.evidenceClass) {
+              obs[`${block.key}_evidence_class`] = semanticIdentity.evidenceClass;
+            }
           }
         });
         return obs;
@@ -1476,6 +1512,7 @@ export default function IntroSessionDrillRunner() {
     setSubmitSuccess(false);
     setScoring(null);
     setResponseSnapshots([]);
+    setHandoverEvidenceSummary(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const headers: HeadersInit = { "Content-Type": "application/json" };
@@ -1500,6 +1537,29 @@ export default function IntroSessionDrillRunner() {
         throw error;
       }
       const data = await response.json();
+
+      const queryClient = (window as any).__queryClient;
+      if (queryClient) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["/api/tutor/pod"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/tutor/sessions"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/tutor/topic-conditioning", studentId] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/tutor/students", studentId, "topic-conditioning-activations"] }),
+          queryClient.invalidateQueries({ queryKey: [`/api/tutor/students/${studentId}/reports-center`] }),
+          queryClient.invalidateQueries({ queryKey: [`/api/tutor/students/${studentId}/assignments`] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/parent/reports"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/parent/student-stats"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/parent/student-info"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/parent/topic-conditioning-states"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/parent/assigned-tutor"] }),
+        ]);
+        await Promise.all([
+          queryClient.refetchQueries({ queryKey: ["/api/tutor/pod"] }),
+          queryClient.refetchQueries({ queryKey: ["/api/tutor/topic-conditioning", studentId] }),
+        ]);
+      }
+
+      setHandoverEvidenceSummary(data?.summary || null);
       setSubmitSuccess(true);
       setScoring(data?.scoring || null);
       setResponseSnapshots(data?.responseSnapshot ? [data.responseSnapshot] : []);
@@ -2029,12 +2089,145 @@ export default function IntroSessionDrillRunner() {
               Drill submitted. Evidence decision complete.
             </div>
 
-            {responseSnapshots.map((snapshot) => (
-              <ResponseSnapshotCard
-                key={snapshot.source.sourceDrillId || `${snapshot.source.topic}-${snapshot.source.observedPhase}`}
-                snapshot={snapshot}
-              />
-            ))}
+            {isHandoverContinuityVerification && handoverEvidenceSummary && (
+              <div className="rounded-2xl border border-primary/20 bg-background overflow-hidden">
+                <div className="bg-primary/5 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+                    Response Evidence Decision
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-foreground">
+                    {handoverEvidenceSummary.verificationOutcomeLabel ||
+                      handoverEvidenceSummary.verificationOutcome.replace(/_/g, " ")}
+                  </p>
+                </div>
+                <div className="space-y-4 px-4 py-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-primary/10 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Inherited state
+                      </p>
+                      <p className="mt-1 font-semibold">
+                        {handoverEvidenceSummary.phase} · {handoverEvidenceSummary.previousStability}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-primary/10 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Resulting state
+                      </p>
+                      <p className="mt-1 font-semibold">
+                        {handoverEvidenceSummary.resultingPhase} · {handoverEvidenceSummary.resultingStability}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-primary/10 p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Why the system decided this
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-foreground">
+                      {handoverEvidenceSummary.evidenceReason || handoverEvidenceSummary.reason}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Dimension evidence
+                    </p>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {handoverEvidenceSummary.dimensions.map((dimension) => {
+                        const canonical = DIAGNOSIS_OBSERVATION_MATRIX[
+                          dimension.dimensionId as DiagnosisDimensionId
+                        ];
+                        const latest = [...dimension.evidence].reverse()[0] || null;
+                        const latestEligible = [...dimension.evidence].reverse().find(
+                          (item) =>
+                            item.evidenceClass !== "not_observed" &&
+                            item.evidenceClass !== "confounded",
+                        ) || null;
+                        return (
+                          <div
+                            key={dimension.dimensionId}
+                            className="rounded-xl border border-primary/10 p-3"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-semibold">
+                                  {canonical?.label || dimension.dimensionId}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {latestEligible?.rawOption ||
+                                    latest?.rawOption ||
+                                    "No decision-eligible behavior yet"}
+                                </p>
+                              </div>
+                              <span className="rounded-full border border-primary/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide">
+                                {dimension.state.replace(/_/g, " ")}
+                              </span>
+                            </div>
+                            <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+                              {dimension.validOpportunityCount} valid · {dimension.supportedCount} supported · {dimension.nearStableCount} near-stable · {dimension.conditionalCount} conditional · {dimension.breakdownCount} breakdown
+                            </p>
+                            {dimension.recoveredAfterBreakdown && (
+                              <p className="mt-1 text-xs font-medium text-foreground">
+                                Recovery confirmed after earlier breakdown.
+                              </p>
+                            )}
+                            {latest && ["not_observed", "confounded"].includes(latest.evidenceClass) && !latestEligible && (
+                              <p className="mt-1 text-xs font-medium text-muted-foreground">
+                                Latest evidence is {latest.evidenceClass.replace("_", " ")} and does not count as weakness or strength.
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {handoverEvidenceSummary.nextAction && (
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                        What happens next
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-foreground">
+                        {handoverEvidenceSummary.nextAction}
+                      </p>
+                      {handoverEvidenceSummary.constraint && (
+                        <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                          Constraint: {handoverEvidenceSummary.constraint}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    No compatibility score decided this Handover outcome. The decision above comes from the recorded Response Evidence behavior classes.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {isHandoverContinuityVerification && responseSnapshots.length > 0 ? (
+              <details className="rounded-xl border border-primary/15 bg-background px-4 py-3">
+                <summary className="cursor-pointer text-sm font-semibold text-foreground">
+                  View technical Response Snapshot
+                </summary>
+                <div className="mt-3 space-y-3">
+                  {responseSnapshots.map((snapshot) => (
+                    <ResponseSnapshotCard
+                      key={snapshot.source.sourceDrillId || `${snapshot.source.topic}-${snapshot.source.observedPhase}`}
+                      snapshot={snapshot}
+                    />
+                  ))}
+                </div>
+              </details>
+            ) : (
+              responseSnapshots.map((snapshot) => (
+                <ResponseSnapshotCard
+                  key={snapshot.source.sourceDrillId || `${snapshot.source.topic}-${snapshot.source.observedPhase}`}
+                  snapshot={snapshot}
+                />
+              ))
+            )}
 
             <details className="rounded-xl border border-primary/15 bg-background px-4 py-3">
               <summary className="cursor-pointer text-sm font-semibold text-foreground">
@@ -2096,7 +2289,7 @@ export default function IntroSessionDrillRunner() {
             )}
 
             {/* Per-topic direction cards */}
-            {topicSummaries.map(({ topicName, lastRow, topicScore }) => {
+            {!isHandoverContinuityVerification && topicSummaries.map(({ topicName, lastRow, topicScore }) => {
               const stabilityColor = stabilityColorFor(lastRow?.stability);
               const actionDetails = getDisplayedActionDetails(lastRow);
               return (
@@ -2410,6 +2603,11 @@ export default function IntroSessionDrillRunner() {
                 ? "Run adaptive diagnosis only for this flagged topic until the correct current phase is clear."
                 : "Record one continuity opportunity at a time. The system stops Handover as soon as evidence is sufficient to hold, adjust, or require targeted re-diagnosis."}
             </li>
+            {!handoverReDiagnosisMode && (
+              <li>
+                If a behavior was not meaningfully observable, record that directly. If support, interruption, or another condition changed what you were observing, record it as confounded. Neither outcome counts as weakness or strength.
+              </li>
+            )}
           </ul>
         </div>
       )}
@@ -2661,15 +2859,35 @@ export default function IntroSessionDrillRunner() {
         {getLiveObservationBlockForRep(set, currentRep).map((obs) => (
           <div key={obs.key}>
             <label className="block font-medium mb-2 text-sm sm:text-base">{obs.label}</label>
-            <div className="flex flex-wrap gap-1 sm:gap-2">
+            <div className={isHandoverContinuityVerification ? "grid gap-2 sm:grid-cols-2" : "flex flex-wrap gap-1 sm:gap-2"}>
               {obs.options.map((option: string) => (
                 <button
                   type="button"
                   key={option}
-                  className={`px-2 sm:px-3 py-1 rounded-md border text-xs sm:text-sm transition-colors whitespace-nowrap ${observations[`set${currentSet}_rep${currentRep}_${obs.key}`] === option ? "bg-primary text-primary-foreground border-primary" : "bg-background border-primary/20 hover:bg-primary/5"}`}
+                  className={
+                    isHandoverContinuityVerification
+                      ? [
+                          "rounded-lg border p-3 text-left transition-colors",
+                          observations[`set${currentSet}_rep${currentRep}_${obs.key}`] === option
+                            ? "border-primary bg-primary/5 ring-1 ring-primary"
+                            : "border-primary/15 bg-background hover:bg-primary/5",
+                        ].join(" ")
+                      : `px-2 sm:px-3 py-1 rounded-md border text-xs sm:text-sm transition-colors whitespace-nowrap ${observations[`set${currentSet}_rep${currentRep}_${obs.key}`] === option ? "bg-primary text-primary-foreground border-primary" : "bg-background border-primary/20 hover:bg-primary/5"}`
+                  }
                   onClick={() => handleObservation(obs.key, option)}
                 >
-                  {option}
+                  {isHandoverContinuityVerification ? (
+                    <>
+                      <span className="block text-sm font-medium text-foreground">{option}</span>
+                      {obs.optionDetails?.[option] && (
+                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                          {obs.optionDetails[option]}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    option
+                  )}
                 </button>
               ))}
             </div>
