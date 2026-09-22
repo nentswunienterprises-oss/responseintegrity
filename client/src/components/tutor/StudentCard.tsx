@@ -701,6 +701,7 @@ export function StudentCard({
 
   return (
     <div
+      data-student-id={String(student.id)}
       className="relative rounded-2xl border border-black/25 bg-background p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6 tutor-pod-student-card"
       style={sandboxCardTheme ? { borderColor: sandboxCardTheme.border } : undefined}
     >
