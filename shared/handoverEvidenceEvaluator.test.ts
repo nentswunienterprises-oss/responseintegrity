@@ -13,6 +13,7 @@ import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
 const buildVerificationSet = (
   phase: TopicPhase,
   optionIndexFor: (fieldKey: string, repIndex: number, optionCount: number) => number,
+  repCount?: number,
 ): SubmittedEvidenceSet => {
   const schema = getDrillSchemaDefinition("verification", phase);
   const definition = schema.sets[0];
@@ -24,7 +25,7 @@ const buildVerificationSet = (
     drillSchemaVersion: schema.schemaVersion,
     drillDefinitionHash: schema.definitionHash,
     constraintProfile: { ...definition.constraints },
-    observations: Array.from({ length: definition.reps }, (_, repIndex) => {
+    observations: Array.from({ length: repCount ?? definition.reps }, (_, repIndex) => {
       const rep: Record<string, string> = {
         _rep_id: definition.repPurposeIds[repIndex],
         _rep_number: String(repIndex + 1),
@@ -61,6 +62,13 @@ const evaluate = (
   assert.equal(result.status, "evaluated");
   return result as Extract<typeof result, { status: "evaluated" }>;
 };
+
+test("one clean opportunity keeps handover open instead of forcing re-diagnosis", () => {
+  const set = buildVerificationSet("Clarity", (_field, _rep, count) => count - 1, 1);
+  const result = evaluate("Clarity", "High", set);
+  assert.equal(result.verificationOutcome, "continue_verification");
+  assert.equal(result.reDiagnosisRequired, false);
+});
 
 test("repeated supported continuity evidence holds the inherited state", () => {
   const set = buildVerificationSet("Structured Execution", (_field, _rep, count) => count - 1);
@@ -111,8 +119,10 @@ test("forged semantic evidence is unavailable rather than scored", () => {
 
 
 test("high compatibility cannot override a confirmed phase-defining breakdown", () => {
-  const set = buildVerificationSet("Time Pressure Stability", (field, rep, count) =>
-    field === "structureUnderTime" && rep >= 1 ? 0 : count - 1
+  const set = buildVerificationSet(
+    "Time Pressure Stability",
+    (field, rep, count) => field === "structureUnderTime" && rep >= 1 ? 0 : count - 1,
+    3,
   );
   const compatibility = computeAdaptiveDiagnosisPhaseSummary(
     "Time Pressure Stability",
@@ -133,8 +143,10 @@ test("high compatibility cannot override a confirmed phase-defining breakdown", 
 });
 
 test("one early breakdown plus two clean continuity reps is not falsely called recovered", () => {
-  const set = buildVerificationSet("Structured Execution", (field, rep, count) =>
-    field === "stepExecution" && rep === 0 ? 0 : count - 1
+  const set = buildVerificationSet(
+    "Structured Execution",
+    (field, rep, count) => field === "stepExecution" && rep === 0 ? 0 : count - 1,
+    3,
   );
   const result = evaluate("Structured Execution", "High", set);
   const stepDiscipline = result.dimensions.find(

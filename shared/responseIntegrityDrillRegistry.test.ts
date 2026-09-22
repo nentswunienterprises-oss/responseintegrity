@@ -20,6 +20,7 @@ const buildValidSet = (
   phase: TopicPhase,
   setIndex: number,
   optionIndex = 0,
+  repCount?: number,
 ): SubmittedEvidenceSet => {
   const schema = getDrillSchemaDefinition(mode, phase);
   const definition = schema.sets[setIndex];
@@ -33,7 +34,7 @@ const buildValidSet = (
     constraintProfile: definition.constraints,
     observations: definition.modelingOnly
       ? []
-      : Array.from({ length: definition.reps }, (_, repIndex) => {
+      : Array.from({ length: repCount ?? definition.reps }, (_, repIndex) => {
           const rep: Record<string, string> = {
             _rep_id: getRepPurposeId(definition, repIndex),
             _rep_number: String(repIndex + 1),
@@ -65,12 +66,16 @@ test("the versioned registry covers every mode and phase with complete option se
       const schema = RESPONSE_INTEGRITY_DRILL_REGISTRY[mode][phase];
       assert.equal(schema.mode, mode);
       assert.equal(schema.phase, phase);
-      assert.equal(schema.schemaVersion, 1);
+      assert.equal(schema.schemaVersion, mode === "verification" ? 2 : 1);
       assert.ok(schema.definitionHash);
       assert.ok(schema.sets.length > 0);
 
       schema.sets.forEach((definition) => {
-        assert.equal(definition.repPurposeIds.length, definition.reps);
+        if (definition.completionPolicy === "evidence_sufficient") {
+          assert.ok(definition.repPurposeIds.length >= definition.reps);
+        } else {
+          assert.equal(definition.repPurposeIds.length, definition.reps);
+        }
         assert.equal(
           definition.fields.reduce((sum, field) => sum + field.scoreWeight, 0),
           definition.modelingOnly ? 0 : 100,
@@ -119,6 +124,21 @@ test("published schema versions remain explicitly addressable", () => {
   const current = getDrillSchemaDefinition("training", "Controlled Discomfort");
   assert.equal(getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 1), current);
   assert.equal(getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 2), null);
+  assert.equal(getDrillSchemaDefinitionByVersion("verification", "Structured Execution", 1)?.schemaVersion, 1);
+  assert.equal(getDrillSchemaDefinition("verification", "Structured Execution").schemaVersion, 2);
+  assert.equal(getDrillSchemaDefinitionByVersion("verification", "Structured Execution", 2), getDrillSchemaDefinition("verification", "Structured Execution"));
+});
+
+test("handover verification accepts evidence-driven opportunity counts while fixed drills stay fixed", () => {
+  for (const count of [1, 2, 3, 4, 5]) {
+    const submittedSet = buildValidSet("verification", "Clarity", 0, 2, count);
+    const result = validateAndNormalizeSemanticEvidenceSet({ mode: "verification", phase: "Clarity", setIndex: 0, submittedSet });
+    assert.equal(result.ok, true);
+  }
+  const tooMany = buildValidSet("verification", "Clarity", 0, 2, 6);
+  assert.equal(validateAndNormalizeSemanticEvidenceSet({ mode: "verification", phase: "Clarity", setIndex: 0, submittedSet: tooMany }).ok, false);
+  const shortTraining = buildValidSet("training", "Structured Execution", 0, 2, 2);
+  assert.equal(validateAndNormalizeSemanticEvidenceSet({ mode: "training", phase: "Structured Execution", setIndex: 0, submittedSet: shortTraining }).ok, false);
 });
 
 test("semantic evidence validates and is normalized from the registered definition", () => {

@@ -1,6 +1,7 @@
 import {
   getDrillSchemaDefinition,
   getFieldDefinitionForRep,
+  HANDOVER_VERIFICATION_MIN_DECISION_OPPORTUNITIES,
   validateAndNormalizeSemanticEvidenceSet,
   type SubmittedEvidenceSet,
 } from "./responseIntegrityDrillRegistry";
@@ -42,7 +43,7 @@ export type HandoverEvidenceEvaluation =
       authority: "evidence_native";
       phase: TopicPhase;
       previousStability: TopicStability;
-      verificationOutcome: "hold" | "stability_adjust" | "targeted_re_diagnosis_required";
+      verificationOutcome: "continue_verification" | "hold" | "stability_adjust" | "targeted_re_diagnosis_required";
       confidence: "low" | "normal" | "strong";
       resultingPhase: TopicPhase;
       resultingStability: TopicStability;
@@ -116,7 +117,7 @@ export const evaluateHandoverVerificationEvidence = ({
   const dimensions = definition.fields.map((field) => {
     const resolution = resolveResponseEvidenceDimension({
       evidence: occurrences.filter((item) => item.dimensionId === field.dimensionId),
-      minimumValidOpportunities: 2,
+      minimumValidOpportunities: HANDOVER_VERIFICATION_MIN_DECISION_OPPORTUNITIES,
     });
     return {
       dimensionId: field.dimensionId,
@@ -137,13 +138,12 @@ export const evaluateHandoverVerificationEvidence = ({
       authority: "evidence_native",
       phase,
       previousStability,
-      verificationOutcome: "targeted_re_diagnosis_required",
+      verificationOutcome: "continue_verification",
       confidence: "low",
       resultingPhase: phase,
       resultingStability: previousStability,
-      reDiagnosisRequired: true,
-      reason:
-        "Continuity evidence was incomplete for at least one inherited phase dimension, so the inherited state cannot be trusted without targeted re-diagnosis.",
+      reDiagnosisRequired: false,
+      reason: "Continuity evidence is not yet sufficient to decide whether the inherited state should hold, adjust, or move into targeted re-diagnosis.",
       dimensions,
     };
   }

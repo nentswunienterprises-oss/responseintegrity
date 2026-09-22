@@ -23,6 +23,9 @@ export type EvidenceSetDefinition = {
   setName: string;
   purpose: string;
   reps: number;
+  completionPolicy?: "fixed" | "evidence_sufficient";
+  minimumReps?: number;
+  maximumReps?: number;
   modelingOnly?: boolean;
   repPurposeIds: string[];
   fields: EvidenceFieldDefinition[];
@@ -42,6 +45,9 @@ export type DrillSchemaDefinition = {
 
 const TRIAD: ObservationLevel[] = ["weak", "partial", "clear"];
 const FOUR_WITH_TWO_CLEAR: ObservationLevel[] = ["weak", "partial", "clear", "clear"];
+
+export const HANDOVER_VERIFICATION_MIN_DECISION_OPPORTUNITIES = 2;
+export const HANDOVER_VERIFICATION_MAX_OPPORTUNITIES = 5;
 
 const SCORE_WEIGHT_BY_DIMENSION: Record<string, number> = {
   "clarity.vocabulary": 30,
@@ -548,6 +554,7 @@ const schemaFor = (
   mode: EvidenceDrillMode,
   phase: TopicPhase,
   sets: EvidenceSetDefinition[],
+  schemaVersion = 1,
 ): DrillSchemaDefinition => {
   const registeredSets = sets.map((definition) => ({
     ...definition,
@@ -558,7 +565,7 @@ const schemaFor = (
   }));
   const versionedDefinition = {
     schemaId: schemaIdFor(mode, phase),
-    schemaVersion: 1,
+    schemaVersion,
     mode,
     phase,
     sets: registeredSets,
@@ -584,6 +591,28 @@ const RESPONSE_INTEGRITY_DRILL_REGISTRY_V1: Record<
   ) as Record<TopicPhase, DrillSchemaDefinition>,
 };
 
+const verificationSetFor = (phase: TopicPhase): EvidenceSetDefinition => {
+  const inheritedProbe = DIAGNOSIS_SETS[phase][0];
+  return {
+    ...inheritedProbe,
+    reps: HANDOVER_VERIFICATION_MIN_DECISION_OPPORTUNITIES,
+    completionPolicy: "evidence_sufficient",
+    minimumReps: 1,
+    maximumReps: HANDOVER_VERIFICATION_MAX_OPPORTUNITIES,
+  };
+};
+
+const RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT: Record<
+  EvidenceDrillMode,
+  Record<TopicPhase, DrillSchemaDefinition>
+> = {
+  diagnosis: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.diagnosis,
+  training: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.training,
+  verification: Object.fromEntries(
+    PHASES.map((phase) => [phase, schemaFor("verification", phase, [verificationSetFor(phase)], 2)]),
+  ) as Record<TopicPhase, DrillSchemaDefinition>,
+};
+
 export const RESPONSE_INTEGRITY_DRILL_REGISTRY_HISTORY: Record<
   EvidenceDrillMode,
   Record<TopicPhase, Record<number, DrillSchemaDefinition>>
@@ -591,14 +620,17 @@ export const RESPONSE_INTEGRITY_DRILL_REGISTRY_HISTORY: Record<
   (["diagnosis", "training", "verification"] as const).map((mode) => [
     mode,
     Object.fromEntries(
-      PHASES.map((phase) => [phase, { 1: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1[mode][phase] }]),
+      PHASES.map((phase) => [
+        phase,
+        mode === "verification"
+          ? { 1: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.verification[phase], 2: RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT.verification[phase] }
+          : { 1: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1[mode][phase] },
+      ]),
     ),
   ]),
 ) as unknown as Record<EvidenceDrillMode, Record<TopicPhase, Record<number, DrillSchemaDefinition>>>;
 
-// This alias is the schema emitted by the live runner. Published historical definitions remain
-// addressable through RESPONSE_INTEGRITY_DRILL_REGISTRY_HISTORY when a later version is activated.
-export const RESPONSE_INTEGRITY_DRILL_REGISTRY = RESPONSE_INTEGRITY_DRILL_REGISTRY_V1;
+export const RESPONSE_INTEGRITY_DRILL_REGISTRY = RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT;
 
 export const getDrillSchemaDefinition = (mode: EvidenceDrillMode, phase: TopicPhase) =>
   RESPONSE_INTEGRITY_DRILL_REGISTRY[mode][phase];
@@ -793,6 +825,12 @@ export const validateAndNormalizeSemanticEvidenceSet = ({
   if (definition.modelingOnly) {
     if (observations.length > 0) {
       return { ok: false, error: `${location} must not include scored observations` };
+    }
+  } else if (definition.completionPolicy === "evidence_sufficient") {
+    const minimumReps = Math.max(1, Number(definition.minimumReps || 1));
+    const maximumReps = Math.max(minimumReps, Number(definition.maximumReps || HANDOVER_VERIFICATION_MAX_OPPORTUNITIES));
+    if (observations.length < minimumReps || observations.length > maximumReps) {
+      return { ok: false, error: `${location} must include between ${minimumReps} and ${maximumReps} evidence opportunities` };
     }
   } else if (observations.length !== definition.reps) {
     return { ok: false, error: `${location} must include exactly ${definition.reps} reps` };

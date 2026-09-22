@@ -170,6 +170,13 @@ const DRILL_PURPOSE_BY_PHASE: Record<TopicPhase, string> = {
   "Time Pressure Stability": "Building stable method execution under time by testing controlled starts, structure retention, pace, completion, and tighter constraint.",
 };
 
+const HANDOVER_PURPOSE_BY_PHASE: Record<TopicPhase, string> = {
+  Clarity: "Verifying whether inherited clarity remains independently available before Training continues.",
+  "Structured Execution": "Verifying whether inherited structured execution remains trustworthy under the handover condition.",
+  "Controlled Discomfort": "Verifying whether inherited control under difficulty remains trustworthy under the handover condition.",
+  "Time Pressure Stability": "Verifying whether inherited structure and control under time remain trustworthy under the handover condition.",
+};
+
 const REP_PURPOSE_TEXT: Record<string, string> = {
   "clarity.recognition_probe.cold_name": "the student could name and recognize the topic from a cold first look without solving",
   "clarity.recognition_probe.second_look": "recognition and step awareness would hold on a second look",
@@ -941,7 +948,7 @@ export const buildResponseSnapshotV1 = ({
     },
     drill: {
       purposeId: `drill.${phase.toLowerCase().replace(/\s+/g, "_")}`,
-      purposeText: DRILL_PURPOSE_BY_PHASE[phase],
+      purposeText: mode === "verification" ? HANDOVER_PURPOSE_BY_PHASE[phase] : DRILL_PURPOSE_BY_PHASE[phase],
       score,
       responseLevel,
       responseLabel: responseLabelForLevel(responseLevel),

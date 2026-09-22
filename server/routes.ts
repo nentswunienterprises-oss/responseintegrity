@@ -4634,7 +4634,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return `Adaptive diagnosis block ${blockIndex + 1} must be "${expectedSet.setName}"`;
               }
 
-              if (observations.length !== expectedSet.reps) {
+              if (evidenceMode === "verification") {
+                const verificationDefinition = getDrillSchemaDefinition("verification", block.phase).sets[0];
+                const minimumReps = Math.max(1, Number(verificationDefinition.minimumReps || 1));
+                const maximumReps = Math.max(minimumReps, Number(verificationDefinition.maximumReps || verificationDefinition.reps));
+                if (observations.length < minimumReps || observations.length > maximumReps) {
+                  return `Handover verification block ${blockIndex + 1} must include between ${minimumReps} and ${maximumReps} evidence opportunities`;
+                }
+              } else if (observations.length !== expectedSet.reps) {
                 return `Adaptive diagnosis block ${blockIndex + 1} must include exactly ${expectedSet.reps} reps`;
               }
 
@@ -4931,30 +4938,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
             } = evidenceEvaluation;
 
             const nextActionConfig =
-              verificationOutcome === "targeted_re_diagnosis_required"
+              verificationOutcome === "targeted_re_diagnosis_required" || verificationOutcome === "continue_verification"
                 ? null
                 : (NEXT_ACTION_ENGINE as any)?.[resultingPhase]?.[resultingStability] || null;
 
             const verificationOutcomeLabel =
-              verificationOutcome === "targeted_re_diagnosis_required"
-                ? "Targeted re-diagnosis required"
-                : verificationOutcome === "stability_adjust"
-                  ? "Stability adjust"
-                  : confidence === "strong"
-                    ? "Inherited state confirmed"
-                    : "Inherited state held";
+              verificationOutcome === "continue_verification"
+                ? "More continuity evidence required"
+                : verificationOutcome === "targeted_re_diagnosis_required"
+                  ? "Targeted re-diagnosis required"
+                  : verificationOutcome === "stability_adjust"
+                    ? "Stability adjust"
+                    : confidence === "strong"
+                      ? "Inherited state confirmed"
+                      : "Inherited state held";
 
             const nextAction =
-              verificationOutcome === "targeted_re_diagnosis_required"
-                ? "Run evidence-complete targeted re-diagnosis on this topic before standard training resumes."
-                : verificationOutcome === "stability_adjust"
-                  ? `Adjust stability to ${resultingStability} and continue reinforcement from the inherited phase.`
-                  : nextActionConfig?.primaryAction || "Continue training from the inherited state.";
+              verificationOutcome === "continue_verification"
+                ? "Record another clean continuity opportunity under the same inherited phase conditions."
+                : verificationOutcome === "targeted_re_diagnosis_required"
+                  ? "Run evidence-complete targeted re-diagnosis on this topic before standard training resumes."
+                  : verificationOutcome === "stability_adjust"
+                    ? `Adjust stability to ${resultingStability} and continue reinforcement from the inherited phase.`
+                    : nextActionConfig?.primaryAction || "Continue training from the inherited state.";
 
             const constraint =
-              verificationOutcome === "targeted_re_diagnosis_required"
-                ? "Do not resume normal training until evidence-complete targeted re-diagnosis is completed."
-                : nextActionConfig?.rules?.[0] || null;
+              verificationOutcome === "continue_verification"
+                ? "Remain in continuity verification. Do not teach forward or progress the student while evidence is still unresolved."
+                : verificationOutcome === "targeted_re_diagnosis_required"
+                  ? "Do not resume normal training until evidence-complete targeted re-diagnosis is completed."
+                  : nextActionConfig?.rules?.[0] || null;
 
             return {
               status: "evaluated" as const,
@@ -7798,6 +7811,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 if (verificationSummary.status !== "evaluated") {
                   return res.status(400).json({
                     message: `Handover evidence is not decision-eligible: ${verificationSummary.reason}`,
+                  });
+                }
+                if (verificationSummary.verificationOutcome === "continue_verification") {
+                  return res.status(409).json({
+                    message: "Handover continuity evidence is not yet sufficient. Record another clean opportunity under the same inherited phase conditions.",
+                    decisionAuthority: "evidence_native",
+                    requiredAction: "record_additional_continuity_evidence",
+                    dimensions: verificationSummary.dimensions,
                   });
                 }
                 handoverSummary = verificationSummary;

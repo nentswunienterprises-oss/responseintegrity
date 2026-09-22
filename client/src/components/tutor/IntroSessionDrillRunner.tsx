@@ -3,7 +3,7 @@ import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { observationLevelFromOptionIndex, type ObservationLevel } from "@shared/observationScoring";
-import { tryParsePhase } from "@shared/topicConditioningEngine";
+import { normalizeStability, tryParsePhase } from "@shared/topicConditioningEngine";
 import { getNextActionData } from "./topicConditioningEngine";
 import {
   computeAdaptiveDiagnosisPhaseSummary,
@@ -12,6 +12,7 @@ import {
 import {
   getDrillSchemaDefinition,
   getEvidenceSelectionIdentity,
+  HANDOVER_VERIFICATION_MAX_OPPORTUNITIES,
   getFieldDefinitionForRep,
   type EvidenceDrillMode,
 } from "@shared/responseIntegrityDrillRegistry";
@@ -37,6 +38,7 @@ import {
   type TrainingPrerequisiteSentinelResult,
 } from "@shared/trainingEvidenceCapture";
 import { trainingRawObservationRequiresPrerequisiteSentinel } from "@shared/trainingEvidenceEvaluator";
+import { evaluateHandoverVerificationEvidence } from "@shared/handoverEvidenceEvaluator";
 
 type PhaseLabel = "Clarity" | "Structured Execution" | "Controlled Discomfort" | "Time Pressure Stability";
 type DrillMode = "diagnosis" | "training" | "session" | "handover";
@@ -646,7 +648,13 @@ function buildDrillStructure(mode: DrillMode, phase: PhaseLabel) {
     return TRAINING_SETS_BY_PHASE[phase];
   }
   if (mode === "handover") {
-    return [ADAPTIVE_DIAGNOSIS_BLOCK_BY_PHASE[phase]];
+    const inheritedProbe = ADAPTIVE_DIAGNOSIS_BLOCK_BY_PHASE[phase];
+    return [{
+      ...inheritedProbe,
+      reps: HANDOVER_VERIFICATION_MAX_OPPORTUNITIES,
+      purpose: `Continuity verification only. Verify whether the inherited ${phase} state remains trustworthy without training or progressing the student.`,
+      repInstruction: "Present one clean continuity opportunity under the inherited phase conditions. Observe the response without teaching through it.",
+    }];
   }
   return DIAGNOSIS_SETS_BY_PHASE[phase];
 }
@@ -703,17 +711,19 @@ function buildVerificationPrepSpec(
     return {
       title: "Handover Prep",
       objective: `Verify whether the inherited ${phase} topic-state is still trustworthy. ${phasePurpose}`,
-      problemPlan: `Prepare exactly ${diagnosisBlock.reps} clean verification problems at the inherited ${phase} level. Keep the same phase target, but do not open the full training drill.`,
+      problemPlan: `Prepare a small bank of clean ${phase} continuity problems. The system evaluates evidence after each opportunity and stops as soon as there is enough evidence to hold the inherited state, adjust stability, or require targeted re-diagnosis. Extra prepared problems are reserve only, not a completion target.`,
       tutorRules: [
         ...verificationRules,
         ...phaseRules,
         "Do not reteach from scratch.",
         "Do not progress the student during verification.",
+        "Stop as soon as the system has enough continuity evidence.",
+        "Do not add extra opportunities to chase a preferred result.",
       ],
-      derivedFrom: `Derived from the ${phase} training lane and reduced to the ${diagnosisBlock.setName} continuity-check block. Training reference: ${trainingReference}.`,
+      derivedFrom: `Derived from the inherited ${phase} conditions and the ${diagnosisBlock.setName} evidence dimensions, but Handover has no fixed rep-completion requirement. Training reference: ${trainingReference}.`,
       checklist: [
         `I reviewed the inherited ${phase} / ${phase === "Clarity" ? "concept-entry" : "response-state"} before starting.`,
-        `I prepared exactly ${diagnosisBlock.reps} clean ${phase} verification problems.`,
+        "I prepared a small reserve bank of clean continuity problems rather than a fixed drill sequence.",
         "I will verify continuity only and will not restart or train forward.",
       ],
     };
@@ -739,8 +749,16 @@ function buildVerificationPrepSpec(
 }
 
 function getObservationBlockForRep(setConfig: DrillSetConfig, repIndex: number): ObservationField[] {
-  if (setConfig.repObservationBlocks && setConfig.repObservationBlocks[repIndex]) {
-    return setConfig.repObservationBlocks[repIndex];
+  if (setConfig.repObservationBlocks?.length) {
+    const authoredBlock =
+      setConfig.repObservationBlocks[repIndex] ||
+      setConfig.repObservationBlocks[setConfig.repObservationBlocks.length - 1];
+    return (authoredBlock || []).map((field) => ({
+      ...field,
+      label: repIndex < setConfig.repObservationBlocks!.length
+        ? field.label
+        : field.label.replace(/\s*\(Rep\s+\d+[^)]*\)/gi, "").trim(),
+    }));
   }
   return setConfig.observationBlock || [];
 }
@@ -1032,6 +1050,7 @@ export default function IntroSessionDrillRunner() {
   const set = drillStructure?.[currentSet] ?? null;
   const isModelingSet = !!set?.isModelingSet;
   const isTrainingEvidenceCapture = modeToUse === "training" || isSessionMode;
+  const isHandoverContinuityVerification = isHandoverMode && !handoverReDiagnosisMode;
   const isFirstRep = currentRep === 0;
   const isFirstSet = currentSet === 0;
   const isTopicReferenceCaptureStep =
@@ -1356,6 +1375,9 @@ export default function IntroSessionDrillRunner() {
   };
 
   const getSubmissionRepCount = (setConfig: DrillSetConfig) => {
+    if (isHandoverContinuityVerification) {
+      return currentRep + 1;
+    }
     return setConfig.reps;
   };
 
@@ -1448,6 +1470,49 @@ export default function IntroSessionDrillRunner() {
     };
   };
 
+  const submitHandoverVerification = async (serializedSet: ReturnType<typeof serializeSetForSubmission>) => {
+    setSubmitting(true);
+    setSubmitError(null);
+    setSubmitSuccess(false);
+    setScoring(null);
+    setResponseSnapshots([]);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const response = await fetch(`${API_URL}/api/tutor/handover-verification-drill`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          studentId,
+          drill: [serializedSet],
+          handoverTopic: introTopic,
+          phase,
+          stability: previousStability,
+          scheduledSessionId,
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(errorData?.message || `Request failed with status code ${response.status}`) as any;
+        error.response = { status: response.status, data: errorData };
+        throw error;
+      }
+      const data = await response.json();
+      setSubmitSuccess(true);
+      setScoring(data?.scoring || null);
+      setResponseSnapshots(data?.responseSnapshot ? [data.responseSnapshot] : []);
+    } catch (err: any) {
+      console.error("Handover verification submission error:", err);
+      const errorMessage = err?.response?.data?.message || err?.message || "Submission failed. Please try again.";
+      const statusCode = err?.response?.status;
+      setSubmitError(statusCode ? `${errorMessage} (${statusCode})` : errorMessage);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleNext = async () => {
     if (!drillStructure) {
       setSubmitError("Drill structure is loading. Please wait.");
@@ -1479,6 +1544,32 @@ export default function IntroSessionDrillRunner() {
     const missingCurrent = getMissingFieldsForRep(currentSet, currentRep);
     if (missingCurrent.length > 0) {
       setSubmitError(`Complete all observation toggles before continuing. Missing: ${missingCurrent.map((field) => field.label).join(", ")}.`);
+      return;
+    }
+
+    if (isHandoverContinuityVerification) {
+      const serializedSet = serializeSetForSubmission(set, currentSet);
+      const evaluation = evaluateHandoverVerificationEvidence({
+        phase: displayPhase,
+        previousStability: normalizeStability(previousStability || "Low"),
+        set: serializedSet,
+      });
+      if (evaluation.status !== "evaluated") {
+        setSubmitError(`Continuity evidence is not decision-eligible: ${evaluation.reason}`);
+        return;
+      }
+      if (evaluation.verificationOutcome === "continue_verification") {
+        const completedOpportunities = currentRep + 1;
+        if (completedOpportunities >= HANDOVER_VERIFICATION_MAX_OPPORTUNITIES) {
+          setSubmitError("Continuity evidence is still unresolved at the verification safety cap. Stop Handover and move this topic into targeted re-diagnosis rather than turning verification into Training.");
+          return;
+        }
+        setAdaptiveDiagnosisMessage(`Continuity evidence is not yet sufficient after opportunity ${completedOpportunities}. Record one more clean opportunity under the same inherited ${displayPhase} conditions. Do not teach forward or chase a preferred result.`);
+        setCurrentRep((rep) => rep + 1);
+        return;
+      }
+      setAdaptiveDiagnosisMessage(null);
+      await submitHandoverVerification(serializedSet);
       return;
     }
 
@@ -2072,7 +2163,7 @@ export default function IntroSessionDrillRunner() {
           {submitError}
         </div>
       )}
-      {adaptiveDiagnosisMessage && !adaptiveTransition && !submitSuccess && isAdaptiveVerificationFlow && (
+      {adaptiveDiagnosisMessage && !adaptiveTransition && !submitSuccess && (isAdaptiveVerificationFlow || isHandoverContinuityVerification) && (
         <div className="mb-4 p-3 rounded-md border border-primary/20 bg-primary/5 text-sm text-foreground">
           {adaptiveDiagnosisMessage}
         </div>
@@ -2307,12 +2398,17 @@ export default function IntroSessionDrillRunner() {
                 ? "This is targeted re-diagnosis inside handover. The inherited topic-state was not trustworthy enough to continue from."
                 : "This is handover verification. You are checking whether the inherited topic-state is still trustworthy."}
             </li>
-            <li><strong>Before you begin:</strong> Prepare <span className="font-semibold">3 distinct problems</span> for this phase verification block.</li>
+            <li>
+              <strong>Before you begin:</strong>{" "}
+              {handoverReDiagnosisMode
+                ? "Prepare the diagnosis problems required for the targeted phase block."
+                : "Prepare a small reserve bank of clean continuity problems. There is no fixed Handover rep count."}
+            </li>
             <li>Do not turn this into normal training.</li>
             <li>
               {handoverReDiagnosisMode
                 ? "Run adaptive diagnosis only for this flagged topic until the correct current phase is clear."
-                : "Run the single verification block exactly as shown, score it honestly, and let the system decide whether the inherited state holds."}
+                : "Record one continuity opportunity at a time. The system stops Handover as soon as evidence is sufficient to hold, adjust, or require targeted re-diagnosis."}
             </li>
           </ul>
         </div>
@@ -2488,7 +2584,11 @@ export default function IntroSessionDrillRunner() {
             Set {currentSet + 1} of {drillStructure.length} · {set?.setName}
           </div>
           <div className="mt-1 text-2xl font-black tracking-tight text-foreground sm:text-3xl">
-            {isModelingSet ? "PRE-DRILL STEP" : `REP ${currentRep + 1} OF ${set?.reps ?? 0}`}
+            {isModelingSet
+              ? "PRE-DRILL STEP"
+              : isHandoverContinuityVerification
+                ? `EVIDENCE OPPORTUNITY ${currentRep + 1}`
+                : `REP ${currentRep + 1} OF ${set?.reps ?? 0}`}
           </div>
         </div>
         <div className="text-xs text-muted-foreground mb-2 sm:mb-3">{set?.purpose}</div>
@@ -2698,6 +2798,8 @@ export default function IntroSessionDrillRunner() {
             ? "Submitted"
             : submitting
             ? "Submitting..."
+            : isHandoverContinuityVerification
+            ? "Evaluate Continuity Evidence"
             : isAdaptiveVerificationFlow && isLastRep
             ? "Verify Phase"
             : isHandoverMode && isLastSet && isLastRep
