@@ -169,6 +169,11 @@ test("phase banks preserve live drill constraints and evidence doctrine", () => 
   assert.match(textFor("time_pressure_stability", 6), /full constraint|tight timer|tight/);
 
   assert.match(textFor("handover_verification", 1), /tutor replacement|replacement tutor|continuity/);
+  assert.match(textFor("handover_verification", 6), /one clean continuity opportunity|evidence|fixed rep/);
+  assert.match(textFor("handover_verification", 10), /not-observed|confounded/);
+  assert.match(textFor("handover_verification", 12), /recovery|support minimum|additional clean supported confirmation/);
+  assert.match(textFor("handover_verification", 13), /targeted evidence-complete re-diagnosis|targeted re-diagnosis/);
+  assert.match(textFor("handover_verification", 14), /confounded|not observed/);
   assert.match(textFor("tools_required", 1), /smartphone/);
   assert.match(textFor("tools_required", 1), /ring light/);
   assert.match(textFor("tools_required", 1), /earphones/);
