@@ -74,6 +74,11 @@ jobs:
             ]);
             const signinText = await signin.text();
             assert.ok(signin.ok(), "Login failed: " + signin.status() + " " + signinText);
+            const signinBody = JSON.parse(signinText);
+            console.log(
+              "PR47_AUTH_USER_ID=" +
+                String(signinBody?.dbUser?.id || signinBody?.user?.id || "").trim(),
+            );
           }
 
           async function topicState(studentId, topic) {
