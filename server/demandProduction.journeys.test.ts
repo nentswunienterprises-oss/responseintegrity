@@ -19,9 +19,13 @@ test('real HTTP signup → Gateway → qualification → handover → assignment
   const { registerRoutes } = await import('./routes.ts');
   const { setupAuth } = await import('./supabaseAuth.ts');
   const { pool } = await import('./db.ts');
+  // Keep every server-side SQL path inside the isolated proof database.
+  // The real route now uses the application pool for authoritative enrollment transitions.
+  const originalPoolQuery = pool.query.bind(pool);
+  (pool as any).query = ((text: string, params?: any[]) => db.query(text, params)) as any;
   const app = express();
   app.use(express.json());
-  // Only the session transport is substituted; real isAuthenticated and requireRole run for every API.
+  // Session transport is synthetic; real isAuthenticated and requireRole still run for every API.
   app.use((req:any,_res,next) => { req.session={userId:req.headers['x-proof-user'],touch(){},save(done:any){done();}}; next(); });
   const use = app.use;
   app.use = (() => app) as any; // Do not connect session storage to an external database.
@@ -31,7 +35,13 @@ test('real HTTP signup → Gateway → qualification → handover → assignment
   const server=createServer(app);
   await new Promise<void>(resolve => server.listen(0,'127.0.0.1',resolve));
   const url=`http://127.0.0.1:${(server.address() as any).port}`;
-  t.after(async () => { await new Promise<void>(resolve=>server.close(()=>resolve())); await transport.close(); await pool.end(); await db.close(); });
+  t.after(async () => {
+    await new Promise<void>(resolve=>server.close(()=>resolve()));
+    await transport.close();
+    (pool as any).query = originalPoolQuery as any;
+    await pool.end();
+    await db.close();
+  });
   const request=async (method:string,path:string,user?:string,body?:any) => {
     const response=await fetch(url+path,{method,headers:{'Content-Type':'application/json',...(user?{'x-proof-user':user}:{})},...(body?{body:JSON.stringify(body)}:{})});
     return {status:response.status,body:await response.json()};
