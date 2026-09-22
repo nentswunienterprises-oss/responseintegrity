@@ -295,16 +295,14 @@ jobs:
             );
             await studentContainer.getByRole("button", { name: /Topic Conditioning/ }).click();
 
-            const conditioningDialog = page.getByRole("dialog").filter({ hasText: "Active Conditioning Map" }).last();
+            const conditioningDialog = page.getByRole("dialog").last();
             await conditioningDialog.waitFor({ state: "visible", timeout: 30000 });
             await conditioningDialog.getByRole("tab", { name: /Training/ }).click();
             await page.waitForTimeout(1500);
-            const startButtons = conditioningDialog.getByRole("button", { name: "Start Session", exact: true });
+            const trainingDialog = page.getByRole("dialog").last();
+            const startButtons = trainingDialog.getByRole("button", { name: "Start Session", exact: true });
             const startButtonCount = await startButtons.count();
-            console.log("PR47_STUDENT1_TRAINING_TAB=" + JSON.stringify({
-              startButtonCount,
-              text: (await conditioningDialog.innerText()).slice(0, 12000),
-            }));
+            console.log("PR47_STUDENT1_TRAINING_TAB=" + JSON.stringify({ startButtonCount }));
             assert.ok(startButtonCount > 0, "Student 1 Training tab rendered no Start Session control.");
             await startButtons.first().click();
 
