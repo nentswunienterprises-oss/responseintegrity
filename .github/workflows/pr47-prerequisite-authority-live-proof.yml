@@ -1,0 +1,568 @@
+name: PR47 Prerequisite Authority Live Proof
+
+on:
+  push:
+    branches:
+      - feat/evidence-complete-diagnosis
+    paths:
+      - '.github/workflows/pr47-prerequisite-authority-live-proof.yml'
+
+permissions:
+  contents: read
+  statuses: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SMOKE_BASE_URL: https://tt-confidence-hub-git-feat-evi-31b8c6-relief-works-technologies.vercel.app
+      RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+      RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Run prerequisite authority matrix through deployed Specialist UI
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { mkdir, writeFile } from "node:fs/promises";
+          import { chromium } from "playwright";
+
+          const baseUrl = String(process.env.SMOKE_BASE_URL || "").replace(/\/$/, "");
+          const email = String(process.env.RI_PROOF_EMAIL || "").trim();
+          const password = String(process.env.RI_PROOF_PASSWORD || "");
+          const bypass = String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "").trim();
+          assert.ok(baseUrl && email && password, "Proof runtime credentials are required");
+          await mkdir("artifacts/pr47-prerequisite-authority", { recursive: true });
+
+          const PHASES = {
+            "Structured Execution": [
+              {
+                fields: [
+                  ["Cold Start", ["avoids", "delayed", "immediate"]],
+                  ["First Step Attempt", ["random / guessing", "partial steps", "full structure"]],
+                  ["Step Order", ["incorrect", "minor errors", "correct"]],
+                  ["Help-Seeking", ["waits for help", "asks after trying", "independent"]],
+                ],
+              },
+              {
+                fields: [
+                  ["Transfer", ["cannot adapt", "partial adaptation", "adapts cleanly"]],
+                  ["Accuracy", ["wrong", "minor errors", "correct"]],
+                  ["Structure", ["random", "partial", "full"]],
+                  ["Confidence", ["avoids", "uncertain", "steady"]],
+                ],
+              },
+              {
+                fields: [
+                  ["First Repeat - Consistency", ["breaks each time", "inconsistent", "stable"]],
+                  ["Step Recall", ["forgets", "partial", "full"]],
+                  ["Error Type", ["guessing", "careless", "structured"]],
+                  ["Completion", ["cannot finish", "partial", "complete"]],
+                ],
+                repFields: {
+                  1: [
+                    ["Second Repeat - Pattern", ["breaks each time", "inconsistent", "stable"]],
+                    ["Step Retention", ["forgets", "partial", "full"]],
+                    ["Self-Correction", ["guessing", "careless", "structured", "no correction needed"]],
+                    ["Completion", ["cannot finish", "partial", "complete"]],
+                  ],
+                  2: [
+                    ["Third Repeat - Final Stability", ["breaks each time", "inconsistent", "stable"]],
+                    ["Step Reliability", ["forgets", "partial", "full"]],
+                    ["Independence Signal", ["guessing", "careless", "structured"]],
+                    ["Completion", ["cannot finish", "partial", "complete"]],
+                  ],
+                },
+              },
+            ],
+            "Controlled Discomfort": [
+              {
+                fields: [
+                  ["Immediate Reaction", ["freeze", "hesitate", "attempt"]],
+                  ["First Step Without Prompt", ["none", "prompted", "independent"]],
+                  ["Emotional State", ["panic", "tension", "controlled"]],
+                  ["Rescue Seeking", ["asks immediately", "asks later", "no rescue"]],
+                ],
+              },
+              {
+                fields: [
+                  ["Sustained Engagement", ["gives up", "short attempt", "stays engaged"]],
+                  ["Rescue Under Sustained Hold", ["asks immediately", "asks later", "no rescue"]],
+                  ["Structure Retention", ["breaks", "partial", "maintained"]],
+                  ["Recovery After Struggle", ["collapses", "partial", "recovers", "no recovery needed"]],
+                ],
+                repFields: {
+                  1: [
+                    ["Tolerance Ceiling", ["gives up", "short attempt", "stays engaged"]],
+                    ["Rescue Pattern", ["asks immediately", "asks later", "no rescue"]],
+                    ["Can Still Sequence?", ["breaks", "partial", "maintained"]],
+                    ["Composed or Reactive?", ["collapses", "partial", "recovers"]],
+                  ],
+                  2: [
+                    ["Final Hold - Stability", ["gives up", "short attempt", "stays engaged"]],
+                    ["Final Rescue Check", ["asks immediately", "asks later", "no rescue"]],
+                    ["Structure Under Max Pressure", ["breaks", "partial", "maintained"]],
+                    ["Final Recovery", ["collapses", "partial", "recovers", "no recovery needed"]],
+                  ],
+                },
+              },
+              {
+                fields: [
+                  ["Sustained Engagement", ["gives up", "short attempt", "stays engaged"]],
+                  ["Structure Retention", ["breaks", "partial", "maintained"]],
+                  ["Rescue Under Sustained Hold", ["asks immediately", "asks later", "no rescue"]],
+                  ["Recovery After Struggle", ["collapses", "partial", "recovers", "no recovery needed"]],
+                ],
+                repFields: {
+                  1: [
+                    ["Tolerance Ceiling", ["gives up", "short attempt", "stays engaged"]],
+                    ["Can Still Sequence?", ["breaks", "partial", "maintained"]],
+                    ["Rescue Pattern", ["asks immediately", "asks later", "no rescue"]],
+                    ["Composed or Reactive?", ["collapses", "partial", "recovers"]],
+                  ],
+                  2: [
+                    ["Final Hold - Stability", ["gives up", "short attempt", "stays engaged"]],
+                    ["Structure Under Max Pressure", ["breaks", "partial", "maintained"]],
+                    ["Final Rescue Check", ["asks immediately", "asks later", "no rescue"]],
+                    ["Final Recovery", ["collapses", "partial", "recovers", "no recovery needed"]],
+                  ],
+                },
+              },
+            ],
+            "Time Pressure Stability": [
+              {
+                fields: [
+                  ["Start Under Timer", ["panic", "hesitant", "controlled"]],
+                  ["Structure Under Timer", ["lost", "partial", "maintained"]],
+                  ["Pace", ["rushed", "uneven", "controlled"]],
+                  ["Completion", ["fails", "partial", "complete"]],
+                ],
+              },
+              {
+                fields: [
+                  ["Consistency", ["breaks", "inconsistent", "stable"]],
+                  ["Pace", ["rushed", "uneven", "controlled"]],
+                  ["Structure", ["lost", "partial", "maintained"]],
+                  ["Start", ["panic", "hesitant", "controlled"]],
+                ],
+              },
+              {
+                fields: [
+                  ["Completion", ["fails", "partial", "complete"]],
+                  ["Integrity", ["collapses", "unstable", "stable"]],
+                  ["Pace", ["rushed", "uneven", "controlled"]],
+                  ["Start", ["panic", "hesitant", "controlled"]],
+                ],
+              },
+            ],
+          };
+
+          const SCENARIOS = [
+            {
+              id: "structured-held",
+              studentId: "828a5609-462c-4772-841a-0590ceb6a84e",
+              topic: "Geometry",
+              phase: "Structured Execution",
+              stability: "High Maintenance",
+              sessionId: "0cdb009a-c0d2-497d-8677-c6fc8a051b3d",
+              sentinelLabel: "Identifies the method and why it applies without help",
+              expectedPrereq: "cleared",
+              expectedFlag: false,
+              expectedTarget: null,
+              expectedPhase: "Structured Execution",
+              expectedStability: "High",
+            },
+            {
+              id: "structured-contradicted",
+              studentId: "828a5609-462c-4772-841a-0590ceb6a84e",
+              topic: "Geometry",
+              phase: "Structured Execution",
+              stability: "High",
+              sessionId: "3731d3c2-0ec6-4dad-a07b-b0e130ce923e",
+              sentinelLabel: "Cannot identify the method or why it applies without help",
+              expectedPrereq: "confirmed",
+              expectedFlag: true,
+              expectedTarget: "Clarity",
+              expectedPhase: "Structured Execution",
+              expectedStability: "High",
+            },
+            {
+              id: "discomfort-contradicted",
+              studentId: "e1c11823-05e7-47a1-a753-e6599954df1a",
+              topic: "Fractions",
+              phase: "Controlled Discomfort",
+              stability: "High",
+              sessionId: "8d72aede-033c-4596-b27c-5fadd6fb6252",
+              sentinelLabel: "Execution still breaks after difficulty is removed",
+              expectedPrereq: "confirmed",
+              expectedFlag: true,
+              expectedTarget: "Structured Execution",
+              expectedPhase: "Controlled Discomfort",
+              expectedStability: "High",
+            },
+            {
+              id: "time-contradicted",
+              studentId: "137ab2e5-00af-44c5-a15a-d32dd82beee6",
+              topic: "Linear equations",
+              phase: "Time Pressure Stability",
+              stability: "Low",
+              sessionId: "601570b1-56e9-4365-941f-d584321d4854",
+              sentinelLabel: "Structure still breaks with the timer removed",
+              expectedPrereq: "confirmed",
+              expectedFlag: true,
+              expectedTarget: "Structured Execution",
+              expectedPhase: "Time Pressure Stability",
+              expectedStability: "Low",
+            },
+            {
+              id: "time-confounded",
+              studentId: "4d08a1d4-bce6-4792-95a4-72f872da3474",
+              topic: "Algebra",
+              phase: "Time Pressure Stability",
+              stability: "High Maintenance",
+              sessionId: "002fb9b3-d86f-49c6-9cee-45b411c29b12",
+              sentinelLabel: "Prerequisite check was confounded",
+              expectedPrereq: "unresolved",
+              expectedFlag: true,
+              expectedTarget: "Structured Execution",
+              expectedPhase: "Time Pressure Stability",
+              expectedStability: "High Maintenance",
+            },
+          ];
+
+          const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+          const browser = await chromium.launch({ headless: true });
+          const context = await browser.newContext({
+            ...(bypass ? { extraHTTPHeaders: { "x-vercel-protection-bypass": bypass } } : {}),
+          });
+          const page = await context.newPage();
+
+          async function apiJson(path) {
+            const response = await page.request.get(baseUrl + path, { timeout: 60000 });
+            const body = await response.text();
+            assert.ok(response.ok(), path + " failed: " + response.status() + " " + body);
+            return JSON.parse(body);
+          }
+
+          async function persistedState(studentId, topic) {
+            const pod = await apiJson("/api/tutor/pod");
+            const students = Array.isArray(pod) ? pod : Array.isArray(pod?.students) ? pod.students : [];
+            const student = students.find((item) => String(item?.id || "") === studentId);
+            assert.ok(student, "Student missing from pod: " + studentId);
+            const topics =
+              student?.conceptMastery?.topicConditioning?.topics ||
+              student?.topicConditioning?.topics ||
+              {};
+            const values = Array.isArray(topics) ? topics : Object.values(topics);
+            const entry = values.find((item) =>
+              String(item?.topic || "").trim().toLowerCase() === topic.toLowerCase()
+            ) || (!Array.isArray(topics) ? topics[topic] : null);
+            assert.ok(entry, "Persisted topic state missing for " + topic);
+            return entry;
+          }
+
+          async function login() {
+            const proof = await page.request.get(baseUrl + "/api/proof-environment", { timeout: 60000 });
+            const proofText = await proof.text();
+            assert.ok(proof.ok(), "Proof environment failed: " + proof.status() + " " + proofText);
+            const proofBody = JSON.parse(proofText);
+            assert.equal(proofBody.vercelEnv, "preview");
+            assert.equal(proofBody.supabaseProjectRef, "jftlxeacphvbnhbsbpxc");
+
+            await page.goto(baseUrl + "/operational/signup?role=tutor&mode=login&lock=login&returnTo=/specialist/pod", {
+              waitUntil: "domcontentloaded",
+              timeout: 90000,
+            });
+            await page.locator("#login-email").fill(email);
+            await page.locator("#login-password").fill(password);
+            const [signin] = await Promise.all([
+              page.waitForResponse(
+                (r) => r.url().includes("/api/auth/signin") && r.request().method() === "POST",
+                { timeout: 60000 },
+              ),
+              page.getByRole("button", { name: "Login", exact: true }).click(),
+            ]);
+            const signinText = await signin.text();
+            assert.ok(signin.ok(), "Login failed: " + signin.status() + " " + signinText);
+            await page.waitForURL(/\/specialist\/pod/, { timeout: 60000 });
+          }
+
+          function fieldsFor(setIndex, repIndex, phase) {
+            const set = PHASES[phase][setIndex];
+            return set.repFields?.[repIndex] || set.fields;
+          }
+
+          async function chooseBreakdownFields(setIndex, repIndex, phase) {
+            for (const [label, options] of fieldsFor(setIndex, repIndex, phase)) {
+              const labelNode = page.getByText(label, { exact: true });
+              await labelNode.waitFor({ state: "visible", timeout: 30000 });
+              const fieldContainer = labelNode.locator("..").locator("..");
+              await fieldContainer.getByRole("button", { name: options[0], exact: true }).click();
+            }
+          }
+
+          async function runTrainingScenario(scenario) {
+            const access = await page.request.get(
+              baseUrl +
+                "/api/tutor/students/" +
+                encodeURIComponent(scenario.studentId) +
+                "/drill-session-access?kind=training&sessionId=" +
+                encodeURIComponent(scenario.sessionId),
+              { timeout: 60000 },
+            );
+            const accessText = await access.text();
+            assert.ok(access.ok(), scenario.id + " access failed: " + access.status() + " " + accessText);
+            assert.equal(JSON.parse(accessText)?.canLaunch, true, scenario.id + " is not launchable");
+
+            const before = await persistedState(scenario.studentId, scenario.topic);
+            assert.equal(before.phase, scenario.phase, scenario.id + " unexpected starting phase");
+            assert.equal(before.stability, scenario.stability, scenario.id + " unexpected starting stability");
+
+            const url =
+              baseUrl +
+              "/specialist/intro-session/" +
+              encodeURIComponent(scenario.studentId) +
+              "?mode=training&topic=" +
+              encodeURIComponent(scenario.topic) +
+              "&phase=" +
+              encodeURIComponent(scenario.phase) +
+              "&stability=" +
+              encodeURIComponent(scenario.stability) +
+              "&scheduledSessionId=" +
+              encodeURIComponent(scenario.sessionId);
+
+            await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
+            await page.getByText("Response Integrity Lesson", { exact: true }).waitFor({ state: "visible", timeout: 60000 });
+            await page.getByText(scenario.topic, { exact: true }).first().waitFor({ state: "visible", timeout: 30000 });
+
+            let responseJson = null;
+            for (let setIndex = 0; setIndex < PHASES[scenario.phase].length; setIndex += 1) {
+              for (let repIndex = 0; repIndex < 3; repIndex += 1) {
+                const begin = page.getByRole("button", { name: new RegExp("^Begin Rep " + (repIndex + 1) + "$") });
+                await begin.waitFor({ state: "visible", timeout: 30000 });
+                await begin.click();
+
+                await chooseBreakdownFields(setIndex, repIndex, scenario.phase);
+
+                await page.getByText("Prerequisite sentinel required", { exact: true }).waitFor({
+                  state: "visible",
+                  timeout: 30000,
+                });
+                await page.getByRole("button", {
+                  name: new RegExp("^" + escapeRegex(scenario.sentinelLabel)),
+                }).click();
+
+                const isLast = setIndex === PHASES[scenario.phase].length - 1 && repIndex === 2;
+                const finalResponse = isLast
+                  ? page.waitForResponse(
+                      (r) => r.url().includes("/api/tutor/training-session-drill") && r.request().method() === "POST",
+                      { timeout: 60000 },
+                    )
+                  : null;
+
+                const confirm = isLast
+                  ? page.getByRole("button", { name: "Submit Drill", exact: true })
+                  : repIndex === 2
+                    ? page.getByRole("button", { name: "Confirm Set", exact: true })
+                    : page.getByRole("button", { name: "Confirm Rep", exact: true });
+                await confirm.click();
+
+                if (finalResponse) {
+                  const response = await finalResponse;
+                  const bodyText = await response.text();
+                  assert.ok(response.ok(), scenario.id + " submit failed: " + response.status() + " " + bodyText);
+                  responseJson = JSON.parse(bodyText);
+                }
+              }
+            }
+
+            assert.ok(responseJson, scenario.id + " produced no training response");
+            const row = responseJson?.drillResults?.[0]?.scoring?.[0];
+            assert.ok(row, scenario.id + " missing scoring row");
+            assert.equal(row.decisionAuthority, "evidence_native", scenario.id + " authority drift");
+            assert.equal(row.prerequisiteContradictionStatus, scenario.expectedPrereq, scenario.id + " prerequisite status");
+            assert.equal(Boolean(row.requiresTargetedRediagnosis), scenario.expectedFlag, scenario.id + " route flag");
+            assert.equal(row.targetedRediagnosisStartPhase || null, scenario.expectedTarget, scenario.id + " target phase");
+            if (scenario.expectedFlag) {
+              assert.equal(row.transitionReason, "targeted re-diagnosis required", scenario.id + " transition reason");
+            } else {
+              assert.notEqual(row.transitionReason, "targeted re-diagnosis required", scenario.id + " must remain normal Training");
+            }
+
+            const after = await persistedState(scenario.studentId, scenario.topic);
+            assert.equal(after.phase, scenario.expectedPhase, scenario.id + " persisted phase");
+            assert.equal(after.stability, scenario.expectedStability, scenario.id + " persisted stability");
+            assert.equal(Boolean(after.requiresTargetedRediagnosis), scenario.expectedFlag, scenario.id + " persisted flag");
+            assert.equal(after.targetedRediagnosisStartPhase || null, scenario.expectedTarget, scenario.id + " persisted target");
+
+            const result = {
+              id: scenario.id,
+              row: {
+                phase: row.phase,
+                stability: row.stability,
+                observedStability: row.observedStability,
+                transitionReason: row.transitionReason,
+                prerequisiteContradictionStatus: row.prerequisiteContradictionStatus,
+                requiresTargetedRediagnosis: row.requiresTargetedRediagnosis,
+                targetedRediagnosisStartPhase: row.targetedRediagnosisStartPhase,
+              },
+              persisted: {
+                phase: after.phase,
+                stability: after.stability,
+                requiresTargetedRediagnosis: after.requiresTargetedRediagnosis,
+                targetedRediagnosisStartPhase: after.targetedRediagnosisStartPhase,
+                prerequisiteContradictionStatus: after.prerequisiteContradictionStatus,
+              },
+            };
+            console.log("PR47_PREREQ_SCENARIO=" + JSON.stringify(result));
+            await page.screenshot({
+              path: "artifacts/pr47-prerequisite-authority/" + scenario.id + ".png",
+              fullPage: true,
+            });
+            return result;
+          }
+
+          async function proveAutomaticRediagnosisAndClearGate() {
+            await page.goto(baseUrl + "/specialist/pod", { waitUntil: "domcontentloaded", timeout: 90000 });
+            const nameNode = page.getByText("Sandbox Student 1", { exact: true }).first();
+            await nameNode.waitFor({ state: "visible", timeout: 60000 });
+            const studentContainer = nameNode.locator(
+              "xpath=ancestor::*[.//button[contains(normalize-space(.), 'Topic Conditioning')]][1]",
+            );
+            await studentContainer.getByRole("button", { name: /Topic Conditioning/ }).click();
+
+            const outerDialog = page.getByRole("dialog").filter({ hasText: "Active Conditioning Map" });
+            await outerDialog.getByText("Re-Diagnosis Required", { exact: true }).waitFor({
+              state: "visible",
+              timeout: 30000,
+            });
+            await outerDialog.getByRole("tab", { name: "Training", exact: true }).click();
+            await outerDialog.getByRole("button", { name: "Start Session", exact: true }).first().click();
+
+            const startDialog = page.getByRole("dialog").filter({ hasText: "Prep Rules For Selected Topics" }).last();
+            await startDialog.waitFor({ state: "visible", timeout: 30000 });
+            const topicChecks = startDialog.locator('input[type="checkbox"][id^="session-topic-"]');
+            for (let i = 0; i < await topicChecks.count(); i += 1) {
+              const box = topicChecks.nth(i);
+              if (await box.isChecked()) await box.uncheck();
+            }
+            await startDialog.getByLabel(/Geometry \(Re-Diagnosis Required - Clarity\)/).check();
+            await startDialog.getByLabel(/I prepared the full drill set for Geometry/).check();
+
+            const launch = startDialog.getByRole("button", { name: /Start Session \(1 topics\)/ });
+            await launch.click();
+            await page.waitForURL(/\/specialist\/intro-session\//, { timeout: 60000 });
+
+            const launched = new URL(page.url());
+            assert.equal(launched.searchParams.get("topic"), "Geometry");
+            assert.equal(launched.searchParams.get("phase"), "Clarity");
+            assert.equal(launched.searchParams.get("context"), "training");
+            assert.equal(launched.searchParams.get("rediagnosis"), "1");
+            assert.equal(launched.searchParams.get("scheduledSessionId"), "b36f3e99-1b80-4617-b325-cd6af040c613");
+            assert.equal(launched.searchParams.get("mode"), null, "automatic launch must enter diagnosis, not Training");
+
+            await page.getByText("Evidence-native response diagnosis", { exact: true }).waitFor({
+              state: "visible",
+              timeout: 60000,
+            });
+            await page.getByText(
+              "Starting signal: Clarity. The signal chooses the first question only; observed behavior decides placement.",
+              { exact: true },
+            ).waitFor({ state: "visible", timeout: 30000 });
+            await page.screenshot({
+              path: "artifacts/pr47-prerequisite-authority/automatic-rediagnosis-launch.png",
+              fullPage: true,
+            });
+            console.log("PR47_PREREQ_AUTO_ROUTE_PASS=" + page.url());
+
+            await page.getByRole("button", { name: "Begin Opportunity 1", exact: true }).click();
+            const breakdownLabels = [
+              "Could not identify the important terms or symbols",
+              "Could not identify a relevant method",
+              "Could not give a relevant reason",
+              "Could not engage with the problem from their own understanding",
+            ];
+            for (const label of breakdownLabels) {
+              await page.getByRole("button", { name: new RegExp("^" + escapeRegex(label)) }).click();
+            }
+            await page.getByRole("button", { name: "Review Opportunity", exact: true }).click();
+            await page.getByRole("button", { name: "Confirm Opportunity 1", exact: true }).click();
+
+            await page.getByText("Diagnosis complete", { exact: true }).waitFor({
+              state: "visible",
+              timeout: 60000,
+            });
+            await page.screenshot({
+              path: "artifacts/pr47-prerequisite-authority/rediagnosis-complete.png",
+              fullPage: true,
+            });
+
+            const after = await persistedState(
+              "828a5609-462c-4772-841a-0590ceb6a84e",
+              "Geometry",
+            );
+            assert.equal(Boolean(after.requiresTargetedRediagnosis), false, "re-diagnosis gate did not clear");
+            assert.equal(after.targetedRediagnosisStartPhase || null, null, "re-diagnosis target did not clear");
+            assert.equal(after.prerequisiteContradictionStatus || null, null, "prerequisite contradiction status did not clear");
+            assert.equal(after.phase, "Clarity", "re-diagnosis did not own final phase");
+            assert.equal(after.stability, "Low", "re-diagnosis did not own final stability");
+
+            const result = {
+              phase: after.phase,
+              stability: after.stability,
+              requiresTargetedRediagnosis: after.requiresTargetedRediagnosis,
+              targetedRediagnosisStartPhase: after.targetedRediagnosisStartPhase,
+              prerequisiteContradictionStatus: after.prerequisiteContradictionStatus,
+            };
+            console.log("PR47_PREREQ_REDIAGNOSIS_CLEAR_PASS=" + JSON.stringify(result));
+            return result;
+          }
+
+          const evidence = { scenarios: [], automaticRoute: null, rediagnosisClear: null };
+          try {
+            await login();
+            for (const scenario of SCENARIOS) {
+              evidence.scenarios.push(await runTrainingScenario(scenario));
+            }
+            const final = await proveAutomaticRediagnosisAndClearGate();
+            evidence.automaticRoute = true;
+            evidence.rediagnosisClear = final;
+            await writeFile(
+              "artifacts/pr47-prerequisite-authority/result.json",
+              JSON.stringify(evidence, null, 2),
+            );
+            console.log("PR47_PREREQUISITE_AUTHORITY_LIVE_PASS");
+          } catch (error) {
+            await page.screenshot({
+              path: "artifacts/pr47-prerequisite-authority/failure.png",
+              fullPage: true,
+            }).catch(() => {});
+            await writeFile(
+              "artifacts/pr47-prerequisite-authority/failure.txt",
+              error instanceof Error ? (error.stack || error.message) : String(error),
+            );
+            throw error;
+          } finally {
+            await browser.close();
+          }
+          NODE
+      - name: Upload proof evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr47-prerequisite-authority-live-proof
+          path: artifacts/pr47-prerequisite-authority
+          if-no-files-found: warn
