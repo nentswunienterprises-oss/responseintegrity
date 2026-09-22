@@ -7626,8 +7626,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   : []
               );
               const adaptiveBlocks = normalizeAdaptiveDiagnosisBlocks(rawAdaptiveBlocks);
-              const isTargetedRediagnosis = !!rediagnosis || adaptiveBlocks.length > 0;
-              const verificationBlocks = isTargetedRediagnosis ? adaptiveBlocks : handoverBlocks;
+              const legacyTargetedRediagnosisRequested = !!rediagnosis || adaptiveBlocks.length > 0;
+              if (legacyTargetedRediagnosisRequested) {
+                return res.status(409).json({
+                  message:
+                    "Legacy Handover re-diagnosis is retired. Launch evidence-complete targeted re-diagnosis from the Handover result.",
+                  decisionAuthority: "evidence_native",
+                  requiredRoute: "evidence_complete_diagnosis",
+                });
+              }
+              const isTargetedRediagnosis = false;
+              const verificationBlocks = handoverBlocks;
               const verificationPhase = parseAuthoritativePhase(rawPhase);
               const startingPhase = parseAuthoritativePhase(rawStartingPhase) || verificationPhase;
               const previousStability = normalizeStability(rawStability || "Low");
