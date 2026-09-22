@@ -27,6 +27,47 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: Prepare encrypted Proof credential hash
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import bcrypt from "bcryptjs";
+          import { constants, publicEncrypt } from "node:crypto";
+          import { mkdir, writeFile } from "node:fs/promises";
+
+          const password = String(process.env.RI_PROOF_PASSWORD || "");
+          if (!password) throw new Error("RI_PROOF_PASSWORD is missing");
+
+          const publicKey = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkhW2aW8aeU3UgYsfKSxT
+9a6eGufKYKsAotNhDvFWOc4MH35nFpNXjrSID6rgEYZ7MK1HGOiW1u4KPXQvXI+Q
+QT6eCduMaKnOniafhpGpu2Thd2t+PckYjfBsF2FQksRwJVIdoz1Qhq1RYCoVPOUD
+Et1YnhV2QA30s5mF2fKXFVEi9EMVyxOf7+knzK119OZbbyPVAmskIvz8P8HSRPaj
+JH4dADEn0dWSpVuzdtlvhW1YI2ELEpQhCp86C+O6gsGHLyiS0aeauTTeZaxFPkZN
+BbEBDYPrtwn/Vc+GWIZje3F3jTcX1lQf/xMslT8niX77aWkfmdcqwtQKip4VPBN2
+XQIDAQAB
+-----END PUBLIC KEY-----`;
+
+          const passwordHash = await bcrypt.hash(password, 10);
+          const encrypted = publicEncrypt(
+            {
+              key: publicKey,
+              padding: constants.RSA_PKCS1_OAEP_PADDING,
+              oaepHash: "sha256",
+            },
+            Buffer.from(passwordHash, "utf8"),
+          );
+
+          await mkdir("artifacts/pr47-proof-credential", { recursive: true });
+          await writeFile("artifacts/pr47-proof-credential/credential.enc", encrypted);
+          console.log("PR47_PROOF_CREDENTIAL_BRIDGE=READY");
+          NODE
+      - name: Upload encrypted Proof credential hash
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr47-proof-credential-bridge
+          path: artifacts/pr47-proof-credential/credential.enc
+          retention-days: 1
       - name: Install Playwright
         run: |
           npm install --no-save playwright@1.55.0
