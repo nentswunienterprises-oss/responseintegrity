@@ -250,8 +250,31 @@ jobs:
           });
           const page = await context.newPage();
 
+          async function requestGetWithRetry(url, options = {}, attempts = 3) {
+            let lastError = null;
+            for (let attempt = 1; attempt <= attempts; attempt += 1) {
+              try {
+                const response = await page.request.get(url, {
+                  timeout: 60000,
+                  ...options,
+                });
+                if (response.ok() || response.status() < 500 || attempt === attempts) {
+                  return response;
+                }
+                lastError = new Error(
+                  "GET " + url + " returned " + response.status() + " on attempt " + attempt,
+                );
+              } catch (error) {
+                lastError = error;
+                if (attempt === attempts) throw error;
+              }
+              await new Promise((resolve) => setTimeout(resolve, 1500 * attempt));
+            }
+            throw lastError || new Error("GET failed without response: " + url);
+          }
+
           async function apiJson(path) {
-            const response = await page.request.get(baseUrl + path, { timeout: 60000 });
+            const response = await requestGetWithRetry(baseUrl + path);
             const body = await response.text();
             assert.ok(response.ok(), path + " failed: " + response.status() + " " + body);
             return JSON.parse(body);
@@ -275,7 +298,7 @@ jobs:
           }
 
           async function login() {
-            const proof = await page.request.get(baseUrl + "/api/proof-environment", { timeout: 60000 });
+            const proof = await requestGetWithRetry(baseUrl + "/api/proof-environment");
             const proofText = await proof.text();
             assert.ok(proof.ok(), "Proof environment failed: " + proof.status() + " " + proofText);
             const proofBody = JSON.parse(proofText);
@@ -315,13 +338,12 @@ jobs:
           }
 
           async function runTrainingScenario(scenario) {
-            const access = await page.request.get(
+            const access = await requestGetWithRetry(
               baseUrl +
                 "/api/tutor/students/" +
                 encodeURIComponent(scenario.studentId) +
                 "/drill-session-access?kind=training&sessionId=" +
                 encodeURIComponent(scenario.sessionId),
-              { timeout: 60000 },
             );
             const accessText = await access.text();
             assert.ok(access.ok(), scenario.id + " access failed: " + access.status() + " " + accessText);
