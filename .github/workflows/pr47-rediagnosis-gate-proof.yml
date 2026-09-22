@@ -298,9 +298,15 @@ jobs:
             const conditioningDialog = page.getByRole("dialog").filter({ hasText: "Active Conditioning Map" }).last();
             await conditioningDialog.waitFor({ state: "visible", timeout: 30000 });
             await conditioningDialog.getByRole("tab", { name: /Training/ }).click();
-            await conditioningDialog.getByRole("button", { name: "Start Session", exact: true }).first()
-              .waitFor({ state: "visible", timeout: 30000 });
-            await conditioningDialog.getByRole("button", { name: "Start Session", exact: true }).first().click();
+            await page.waitForTimeout(1500);
+            const startButtons = conditioningDialog.getByRole("button", { name: "Start Session", exact: true });
+            const startButtonCount = await startButtons.count();
+            console.log("PR47_STUDENT1_TRAINING_TAB=" + JSON.stringify({
+              startButtonCount,
+              text: (await conditioningDialog.innerText()).slice(0, 12000),
+            }));
+            assert.ok(startButtonCount > 0, "Student 1 Training tab rendered no Start Session control.");
+            await startButtons.first().click();
 
             const startDialog = page.getByRole("dialog").filter({ hasText: "Select one or more topics for this lesson" }).last();
             await startDialog.waitFor({ state: "visible", timeout: 30000 });
@@ -406,6 +412,26 @@ jobs:
             const before = await topicState(studentId, topic);
             assert.equal(Boolean(before.requiresTargetedRediagnosis), true);
             assert.equal(before.targetedRediagnosisStartPhase, "Clarity");
+
+            const workflowProbe = await page.request.get(
+              baseUrl + "/api/tutor/students/" + studentId + "/workflow-state",
+              { timeout: 60000 },
+            );
+            const workflowProbeText = await workflowProbe.text();
+            console.log("PR47_STUDENT1_WORKFLOW_PROBE=" + JSON.stringify({
+              status: workflowProbe.status(),
+              body: workflowProbeText,
+            }));
+
+            const sessionsProbe = await page.request.get(
+              baseUrl + "/api/tutor/students/" + studentId + "/training-sessions",
+              { timeout: 60000 },
+            );
+            const sessionsProbeText = await sessionsProbe.text();
+            console.log("PR47_STUDENT1_SESSIONS_PROBE=" + JSON.stringify({
+              status: sessionsProbe.status(),
+              body: sessionsProbeText,
+            }));
 
             let startDialog = await openStudentTraining("Sandbox Student 1");
             await selectOnlyTopic(startDialog, /Geometry \(Re-Diagnosis Required - Clarity\)/);
