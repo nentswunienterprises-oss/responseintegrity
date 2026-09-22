@@ -53,8 +53,10 @@ test("Proof Training reset is Preview-only, authenticated, Sandbox-scoped, and r
   assert.match(route, /process\.env\.VERCEL_ENV !== "preview"/);
   assert.match(route, /is_sandbox_account/);
   assert.match(route, /assignment_lane/);
-  assert.match(route, /requiresTargetedRediagnosis:\s*false/);
-  assert.match(route, /targetedRediagnosisStartPhase:\s*null/);
+  assert.match(route, /requestedRequiresTargetedRediagnosis/);
+  assert.match(route, /requestedTargetedRediagnosisStartPhase/);
+  assert.match(route, /requiresTargetedRediagnosis:\s*requestedRequiresTargetedRediagnosis/);
+  assert.match(route, /targetedRediagnosisStartPhase:[\s\S]*?requestedTargetedRediagnosisStartPhase/);
   assert.match(route, /purpose:\s*"repeatable_training_live_proof"/);
   assert.match(route, /concept_mastery = \$2::jsonb/);
   assert.match(route, /'training'/);

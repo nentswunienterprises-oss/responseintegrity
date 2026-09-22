@@ -1,5 +1,5 @@
 name: PR47 Handover Live Proof
-# 2026-09-22 repeatable current-head closure proof
+# 2026-09-22 deterministic targeted re-diagnosis fixture
 
 on:
   push:

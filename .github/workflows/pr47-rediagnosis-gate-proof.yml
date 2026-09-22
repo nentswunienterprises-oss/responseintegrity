@@ -98,9 +98,23 @@ jobs:
             );
           }
 
-          async function resetTrainingFixture({ studentId, topic, restorePhase, restoreStability }) {
+          async function resetTrainingFixture({
+            studentId,
+            topic,
+            restorePhase,
+            restoreStability,
+            requiresTargetedRediagnosis = false,
+            targetedRediagnosisStartPhase = null,
+          }) {
             const response = await page.request.post(baseUrl + "/api/proof/training-fixture/reset", {
-              data: { studentId, topic, restorePhase, restoreStability },
+              data: {
+                studentId,
+                topic,
+                restorePhase,
+                restoreStability,
+                requiresTargetedRediagnosis,
+                targetedRediagnosisStartPhase,
+              },
               timeout: 60000,
             });
             const responseText = await response.text();
@@ -118,6 +132,8 @@ jobs:
               stability: body.stability,
               sessionId: body.session.id,
               companionSessionId: body.companionSession?.id || null,
+              requiresTargetedRediagnosis,
+              targetedRediagnosisStartPhase,
             }));
             return body;
           }
@@ -631,6 +647,14 @@ jobs:
               sentinelLabel: "Prerequisite check was confounded",
             });
 
+            await resetTrainingFixture({
+              studentId: "828a5609-462c-4772-841a-0590ceb6a84e",
+              topic: "Geometry",
+              restorePhase: "Time Pressure Stability",
+              restoreStability: "High",
+              requiresTargetedRediagnosis: true,
+              targetedRediagnosisStartPhase: "Clarity",
+            });
             await proveRediagnosisGateLifecycle();
             console.log("PR47_REDIAGNOSIS_GATE_PROOF=PASS");
           } finally {
