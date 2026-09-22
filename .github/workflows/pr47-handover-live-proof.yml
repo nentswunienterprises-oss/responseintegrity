@@ -45,8 +45,8 @@ jobs:
       - name: Bind proof to deployed Preview
         shell: bash
         run: |
-          echo "PROOF_EXPECTED_APP_SHA=9a03e7103adbe0ae791121e98031d69d01515e21" >> "$GITHUB_ENV"
-          echo "Expected deployed Preview SHA: 9a03e7103adbe0ae791121e98031d69d01515e21"
+          echo "PROOF_EXPECTED_APP_SHA=${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo "Expected deployed Preview SHA: ${GITHUB_SHA}"
 
       - name: Install Playwright
         run: |
