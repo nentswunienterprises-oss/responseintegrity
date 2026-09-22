@@ -15,6 +15,11 @@ export type ResponseEvidenceReportSignal = {
   sourceAuthority: "training_evidence" | "diagnosis_evidence";
 };
 
+export type ResponseEvidenceReportAuthority =
+  | "response_evidence_model_v1"
+  | "mixed_response_evidence_legacy"
+  | "legacy_compatibility";
+
 const LABEL_BY_DIMENSION: Record<string, { weak: string; conditional: string; strong: string }> = {
   "clarity.vocabulary": {
     weak: "clarity breakdown",
@@ -235,7 +240,21 @@ export const reportClaimLabelsFromEvidence = (
     new Set(
       signals
         .filter((signal) => signal.claimEligible)
-        .map((signal) => signal.label)
+        .map((signal) =>
+          signal.recoveredAfterBreakdown && signal.polarity === "strong"
+            ? `recovered to ${signal.label}`
+            : signal.label
+        )
         .filter(Boolean),
     ),
   );
+
+export const resolveResponseEvidenceReportAuthority = (
+  signalGroups: ResponseEvidenceReportSignal[][],
+): ResponseEvidenceReportAuthority => {
+  if (signalGroups.length === 0) return "legacy_compatibility";
+  const authoritativeCount = signalGroups.filter((signals) => signals.length > 0).length;
+  if (authoritativeCount === signalGroups.length) return "response_evidence_model_v1";
+  if (authoritativeCount > 0) return "mixed_response_evidence_legacy";
+  return "legacy_compatibility";
+};

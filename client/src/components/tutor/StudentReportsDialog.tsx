@@ -370,7 +370,13 @@ export default function StudentReportsDialog({
                               <FieldRow label="Next Move" value={formatReportValue(structured.nextMove || report.nextSteps)} />
                               <FieldRow
                                 label="Evidence Authority"
-                                value={structured.reportDecisionAuthority === "response_evidence_model_v1" ? "Response Evidence Model" : "Legacy compatibility"}
+                                value={
+                                  structured.reportDecisionAuthority === "response_evidence_model_v1"
+                                    ? "Response Evidence Model"
+                                    : structured.reportDecisionAuthority === "mixed_response_evidence_legacy"
+                                      ? "Mixed evidence + legacy compatibility"
+                                      : "Legacy compatibility"
+                                }
                               />
                               {report.parentFeedback ? (
                                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">

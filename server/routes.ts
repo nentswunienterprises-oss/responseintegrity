@@ -76,6 +76,7 @@ import { buildResponseSnapshotV1, summarizeSnapshotObservedResponse } from "@sha
 import {
   extractAuthoritativeResponseEvidenceSignals,
   reportClaimLabelsFromEvidence,
+  resolveResponseEvidenceReportAuthority,
   type ResponseEvidenceReportSignal,
 } from "@shared/responseEvidenceReporting";
 import {
@@ -6436,6 +6437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               drillBehaviors: string[][];
               allBehaviors: string[];
               evidenceIds: string[];
+              claimEvidence: ResponseEvidenceReportSignal[];
               hasTrainingEvidence: boolean;
             }>
           ) =>
@@ -6458,6 +6460,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               latestNextAction: string;
               drillBehaviors: string[][];
               allBehaviors: string[];
+              evidenceIds: string[];
+              claimEvidence: ResponseEvidenceReportSignal[];
               hasTrainingEvidence: boolean;
             }> = {};
 
@@ -6476,9 +6480,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const behaviors = Array.isArray(session?.behaviorPatterns)
                 ? session.behaviorPatterns.filter((behavior: unknown) => String(behavior || "").trim())
                 : [];
+              const claimEvidence = (Array.isArray(session?.responseEvidenceSignals)
+                ? session.responseEvidenceSignals
+                : []
+              ).filter((signal: ResponseEvidenceReportSignal) => Boolean(signal?.evidenceId));
               const evidenceIds = Array.from(
                 new Set(
-                  (Array.isArray(session?.responseEvidenceSignals) ? session.responseEvidenceSignals : [])
+                  claimEvidence
                     .map((signal: ResponseEvidenceReportSignal) => String(signal?.evidenceId || "").trim())
                     .filter(Boolean),
                 ),
@@ -6495,6 +6503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     drillBehaviors: [behaviors],
                     allBehaviors: [...behaviors],
                     evidenceIds: [...evidenceIds],
+                    claimEvidence: [...claimEvidence],
                     hasTrainingEvidence: session?.drillType === "training" || session?.containsTraining === true,
                 };
                 return;
@@ -6514,6 +6523,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
               snapshots[topic].evidenceIds = Array.from(
                 new Set([...snapshots[topic].evidenceIds, ...evidenceIds]),
               );
+              const knownClaimIds = new Set(
+                snapshots[topic].claimEvidence.map((signal) => signal.evidenceId),
+              );
+              claimEvidence.forEach((signal: ResponseEvidenceReportSignal) => {
+                if (!knownClaimIds.has(signal.evidenceId)) {
+                  snapshots[topic].claimEvidence.push(signal);
+                  knownClaimIds.add(signal.evidenceId);
+                }
+              });
               if (session?.drillType === "training" || session?.containsTraining === true) {
                 snapshots[topic].hasTrainingEvidence = true;
               }
@@ -6676,6 +6694,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const startDate = sorted[0].date;
             const endDate = sorted[sorted.length - 1].date;
+            const reportDecisionAuthority = resolveResponseEvidenceReportAuthority(
+              sorted.map((session) =>
+                Array.isArray(session?.responseEvidenceSignals) ? session.responseEvidenceSignals : []
+              ),
+            );
 
             return {
               version: "weekly-v3-evidence",
@@ -6690,10 +6713,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
               internalWeeklyTutorNote: "",
               drillCount: deterministicSessions.length,
               sourceSessionIds: groupedSessions.map((session) => session.id),
-              reportDecisionAuthority: "response_evidence_model_v1",
+              reportDecisionAuthority,
               evidenceLineage: topics.map((topic) => ({
                 topic,
                 evidenceIds: topicSnapshots[topic].evidenceIds,
+                claims: topicSnapshots[topic].claimEvidence.map((signal) => ({
+                  evidenceId: signal.evidenceId,
+                  dimensionId: signal.dimensionId,
+                  rawOption: signal.rawOption,
+                  polarity: signal.polarity,
+                  label: signal.label,
+                  claimEligible: signal.claimEligible,
+                  recoveredAfterBreakdown: signal.recoveredAfterBreakdown,
+                  sourceAuthority: signal.sourceAuthority,
+                })),
               })),
             };
           };
@@ -6813,6 +6846,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const startDate = sorted[0].date;
             const endDate = sorted[sorted.length - 1].date;
+            const reportDecisionAuthority = resolveResponseEvidenceReportAuthority(
+              sorted.map((session) =>
+                Array.isArray(session?.responseEvidenceSignals) ? session.responseEvidenceSignals : []
+              ),
+            );
 
             return {
               version: "monthly-v3-evidence",
@@ -6829,10 +6867,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
               drillCount: topics.reduce((sum, topic) => sum + topicSnapshots[topic].drillCount, 0),
               monthRange: `${new Date(startDate).toISOString().slice(0, 10)} to ${new Date(endDate).toISOString().slice(0, 10)}`,
               sourceSessionIds: groupedSessions.map((session) => session.id),
-              reportDecisionAuthority: "response_evidence_model_v1",
+              reportDecisionAuthority,
               evidenceLineage: topics.map((topic) => ({
                 topic,
                 evidenceIds: topicSnapshots[topic].evidenceIds,
+                claims: topicSnapshots[topic].claimEvidence.map((signal) => ({
+                  evidenceId: signal.evidenceId,
+                  dimensionId: signal.dimensionId,
+                  rawOption: signal.rawOption,
+                  polarity: signal.polarity,
+                  label: signal.label,
+                  claimEligible: signal.claimEligible,
+                  recoveredAfterBreakdown: signal.recoveredAfterBreakdown,
+                  sourceAuthority: signal.sourceAuthority,
+                })),
               })),
             };
           };

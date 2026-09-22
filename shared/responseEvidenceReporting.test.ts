@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   extractAuthoritativeResponseEvidenceSignals,
   reportClaimLabelsFromEvidence,
+  resolveResponseEvidenceReportAuthority,
 } from "./responseEvidenceReporting";
 
 test("training reporting uses resolved dimension state and preserves recovery", () => {
@@ -35,7 +36,7 @@ test("training reporting uses resolved dimension state and preserves recovery", 
   assert.equal(signals[0].polarity, "strong");
   assert.equal(signals[0].label, "reliable step execution");
   assert.equal(signals[0].recoveredAfterBreakdown, true);
-  assert.deepEqual(reportClaimLabelsFromEvidence(signals), ["reliable step execution"]);
+  assert.deepEqual(reportClaimLabelsFromEvidence(signals), ["recovered to reliable step execution"]);
 });
 
 test("unresolved or contaminated training dimensions cannot authorize report claims", () => {
@@ -105,5 +106,32 @@ test("evidence-complete diagnosis reporting reads behavioral dimension authority
       ["clarity.method", "weak", "clarity breakdown"],
       ["clarity.vocabulary", "strong", "clear concept recall"],
     ],
+  );
+});
+
+
+test("report authority reflects the actual source window instead of overstating evidence authority", () => {
+  const signal = {
+    evidenceId: "drill-1::resolved::execution.step_discipline",
+    dimensionId: "execution.step_discipline",
+    rawOption: "full",
+    polarity: "strong" as const,
+    label: "reliable step execution",
+    claimEligible: true,
+    recoveredAfterBreakdown: false,
+    sourceAuthority: "training_evidence" as const,
+  };
+
+  assert.equal(
+    resolveResponseEvidenceReportAuthority([[signal], [signal]]),
+    "response_evidence_model_v1",
+  );
+  assert.equal(
+    resolveResponseEvidenceReportAuthority([[signal], []]),
+    "mixed_response_evidence_legacy",
+  );
+  assert.equal(
+    resolveResponseEvidenceReportAuthority([[], []]),
+    "legacy_compatibility",
   );
 });
