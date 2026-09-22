@@ -34,8 +34,8 @@ jobs:
       - name: Bind proof to deployed Preview
         shell: bash
         run: |
-          echo "PROOF_EXPECTED_APP_SHA=9a03e7103adbe0ae791121e98031d69d01515e21" >> "$GITHUB_ENV"
-          echo "Expected deployed Preview SHA: 9a03e7103adbe0ae791121e98031d69d01515e21"
+          echo "PROOF_EXPECTED_APP_SHA=5916421130c9c1b1d1813b0ca991105c4f079858" >> "$GITHUB_ENV"
+          echo "Expected deployed Preview SHA: 5916421130c9c1b1d1813b0ca991105c4f079858"
 
       - name: Install Playwright
         run: |
@@ -528,11 +528,9 @@ jobs:
 
           async function proveAutomaticRediagnosisAndClearGate() {
             await page.goto(baseUrl + "/specialist/pod", { waitUntil: "domcontentloaded", timeout: 90000 });
-            const nameNode = page.getByText("Sandbox Student 1", { exact: true }).first();
-            await nameNode.waitFor({ state: "visible", timeout: 60000 });
-            const studentContainer = nameNode.locator(
-              "xpath=ancestor::*[.//button[contains(normalize-space(.), 'Topic Conditioning')]][1]",
-            );
+            const lifecycleStudentId = "828a5609-462c-4772-841a-0590ceb6a84e";
+            const studentContainer = page.locator('[data-student-id="' + lifecycleStudentId + '"]').first();
+            await studentContainer.waitFor({ state: "visible", timeout: 60000 });
             await studentContainer.getByRole("button", { name: /Topic Conditioning/ }).first().click();
 
             const outerDialog = page.getByRole("dialog").filter({ hasText: "Active Conditioning Map" });
@@ -621,11 +619,8 @@ jobs:
             console.log("PR47_PREREQ_REDIAGNOSIS_CLEAR_PASS=" + JSON.stringify(result));
 
             await page.goto(baseUrl + "/specialist/pod", { waitUntil: "domcontentloaded", timeout: 90000 });
-            const restoredNameNode = page.getByText("Sandbox Student 1", { exact: true }).first();
-            await restoredNameNode.waitFor({ state: "visible", timeout: 60000 });
-            const restoredStudentContainer = restoredNameNode.locator(
-              "xpath=ancestor::*[.//button[contains(normalize-space(.), 'Topic Conditioning')]][1]",
-            );
+            const restoredStudentContainer = page.locator('[data-student-id="' + lifecycleStudentId + '"]').first();
+            await restoredStudentContainer.waitFor({ state: "visible", timeout: 60000 });
             await restoredStudentContainer.getByRole("button", { name: /Topic Conditioning/ }).first().click();
 
             const restoredOuterDialog = page.getByRole("dialog").filter({ hasText: "Active Conditioning Map" });
