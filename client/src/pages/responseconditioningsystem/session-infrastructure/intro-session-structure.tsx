@@ -172,9 +172,11 @@ export default function ResponseConditioningIntroSessionStructure() {
           </p>
           <p className="text-sm text-muted-foreground">
             If no trustworthy starting signal exists, the diagnosis begins from a neutral
-            independent baseline rather than assuming Clarity. The student's observed
-            behavior then determines whether the system stops, strips constraints, or
-            escalates.
+            independent baseline rather than assuming Clarity. This is normal independent
+            work with no added difficulty or time pressure, so the same opportunity can
+            directly observe both Clarity and Structured Execution where those behaviors are
+            meaningfully exposed. The student's observed behavior then determines whether the
+            system stops, strips constraints, or escalates.
           </p>
         </Card>
 
