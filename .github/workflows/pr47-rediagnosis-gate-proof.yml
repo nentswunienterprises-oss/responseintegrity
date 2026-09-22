@@ -1,5 +1,5 @@
 name: PR47 Re-Diagnosis Gate Proof
-# 2026-09-22 current-head closure proof
+# 2026-09-22 repeatable current-head closure proof
 
 on:
   push:
@@ -96,6 +96,30 @@ jobs:
               "PR47_AUTH_USER_ID=" +
                 String(signinBody?.dbUser?.id || signinBody?.user?.id || "").trim(),
             );
+          }
+
+          async function resetTrainingFixture({ studentId, topic, restorePhase, restoreStability }) {
+            const response = await page.request.post(baseUrl + "/api/proof/training-fixture/reset", {
+              data: { studentId, topic, restorePhase, restoreStability },
+              timeout: 60000,
+            });
+            const responseText = await response.text();
+            assert.ok(
+              response.ok(),
+              "Training fixture reset failed: " + response.status() + " " + responseText,
+            );
+            const body = JSON.parse(responseText);
+            assert.equal(body?.restoredCanonicalState, true);
+            assert.ok(body?.session?.id, "Training fixture reset did not create a primary session");
+            console.log("PR47_TRAINING_FIXTURE_RESET=" + JSON.stringify({
+              studentId,
+              topic: body.topic,
+              phase: body.phase,
+              stability: body.stability,
+              sessionId: body.session.id,
+              companionSessionId: body.companionSession?.id || null,
+            }));
+            return body;
           }
 
           async function topicState(studentId, topic) {
@@ -577,21 +601,33 @@ jobs:
           try {
             await login();
 
+            const notObservedFixture = await resetTrainingFixture({
+              studentId: "137ab2e5-00af-44c5-a15a-d32dd82beee6",
+              topic: "Linear equations",
+              restorePhase: "Time Pressure Stability",
+              restoreStability: "Low",
+            });
             await runUnresolvedScenario({
               id: "tps-prerequisite-not-observed",
               studentId: "137ab2e5-00af-44c5-a15a-d32dd82beee6",
               topic: "Linear equations",
               stability: "Low",
-              sessionId: "eab96894-a217-4884-983c-5d4c4c63c552",
+              sessionId: notObservedFixture.session.id,
               sentinelLabel: "Could not meaningfully observe the prerequisite",
             });
 
+            const confoundedFixture = await resetTrainingFixture({
+              studentId: "4d08a1d4-bce6-4792-95a4-72f872da3474",
+              topic: "Algebra",
+              restorePhase: "Time Pressure Stability",
+              restoreStability: "High Maintenance",
+            });
             await runUnresolvedScenario({
               id: "tps-prerequisite-confounded",
               studentId: "4d08a1d4-bce6-4792-95a4-72f872da3474",
               topic: "Algebra",
               stability: "High Maintenance",
-              sessionId: "02dc3d95-a72b-4598-9a2c-502d5351803e",
+              sessionId: confoundedFixture.session.id,
               sentinelLabel: "Prerequisite check was confounded",
             });
 
