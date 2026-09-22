@@ -7,7 +7,7 @@ const operatingRules = [
   "Intro is topic-entry placement, not a training lesson.",
   "Diagnosis is evidence-complete, not rep-complete.",
   "Every opportunity exists to answer a named evidence question.",
-  "The Specialist records concrete observed behavior; they do not choose a score, phase, stability, or next probe.",
+  "The Specialist records concrete observed behavior; they do not choose the phase, stability, or next probe.",
   "A higher-constraint failure does not automatically prove an earlier capability failed.",
   "Teaching, correction, rescue, or first-step confirmation cannot determine clean baseline placement.",
   "Diagnosis may place Low, Medium, or High. High Maintenance remains training-earned.",
@@ -25,7 +25,7 @@ const specialistResponsibilities = [
 
 const systemResponsibilities = [
   "Select the first probe from the starting signal, or use a neutral independent baseline when no trustworthy signal exists.",
-  "Interpret concrete behavior into evidence state without asking the Specialist to select Weak, Partial, Clear, Low, Medium, High, or a score.",
+  "Interpret concrete behavior into evidence state without asking the Specialist to select Weak, Partial, Clear, Low, Medium, or High.",
   "Decide whether placement is complete, another named probe is needed, or the evidence must remain blocked rather than guessed.",
   "Strip constraints when a higher-condition breakdown does not reveal which earlier layer actually failed.",
   "Require additional opportunities only when repeatability, recovery, consistency, contamination, or conflicting evidence genuinely remains unresolved.",
@@ -230,8 +230,8 @@ export default function ResponseConditioningIntroSessionStructure() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What the Specialist Actually Records</h2>
           <p className="text-muted-foreground">
-            The Specialist does not select Weak, Partial, Clear, Low, Medium, High, or a
-            numeric score. The Specialist answers one question: <span className="font-medium text-foreground">what actually happened?</span>
+            The Specialist does not translate the response into Weak, Partial, Clear, Low,
+            Medium, High, a phase, or a next action. The Specialist answers one question: <span className="font-medium text-foreground">what actually happened?</span>
           </p>
           <p className="text-muted-foreground">
             Each exposed dimension presents concrete behavior choices. These include
@@ -300,8 +300,9 @@ export default function ResponseConditioningIntroSessionStructure() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">How Starting Stability Is Derived</h2>
           <p className="text-muted-foreground">
-            Diagnosis stability is categorical, not score-band driven. Numeric compatibility
-            fields may exist for technical lineage, but they do not own the decision.
+            Diagnosis stability is derived from the decisive clean behavior inside the entry
+            phase. The Specialist records what happened; the evidence model derives the
+            starting stability.
           </p>
           <div className="grid gap-3 md:grid-cols-2">
             {stabilityMeanings.map((item) => (
@@ -415,7 +416,7 @@ export default function ResponseConditioningIntroSessionStructure() {
             {operatingRules.map((rule) => (
               <li key={rule}>{rule}</li>
             ))}
-            <li>Do not use the retired fixed phase-block score bands to decide movement.</li>
+            <li>Do not translate observed behavior into a phase or stability by personal judgment.</li>
             <li>Do not continue testing merely because session time remains.</li>
             <li>Do not invent a missing behavior when the correct record is not-observed or confounded.</li>
             <li>Do not let a strong later-condition result erase a visible earlier-layer break.</li>
