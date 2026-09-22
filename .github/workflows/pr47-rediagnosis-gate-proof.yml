@@ -264,13 +264,16 @@ jobs:
           }
 
           async function openStudentTraining(studentName) {
-            await page.goto(baseUrl + "/operational/tutor/pod", {
+            await page.goto(baseUrl + "/specialist/pod", {
               waitUntil: "domcontentloaded",
               timeout: 90000,
             });
-            const card = page.locator(".tutor-pod-student-card").filter({ hasText: studentName }).first();
-            await card.waitFor({ state: "visible", timeout: 60000 });
-            await card.getByRole("button", { name: /Topic Conditioning/ }).click();
+            const nameNode = page.getByText(studentName, { exact: true }).first();
+            await nameNode.waitFor({ state: "visible", timeout: 60000 });
+            const studentContainer = nameNode.locator(
+              "xpath=ancestor::*[.//button[contains(normalize-space(.), 'Topic Conditioning')]][1]",
+            );
+            await studentContainer.getByRole("button", { name: /Topic Conditioning/ }).click();
 
             const conditioningDialog = page.getByRole("dialog").filter({ hasText: "Active Conditioning Map" }).last();
             await conditioningDialog.waitFor({ state: "visible", timeout: 30000 });
