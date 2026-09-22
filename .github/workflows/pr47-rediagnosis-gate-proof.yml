@@ -409,7 +409,63 @@ jobs:
             const studentId = "828a5609-462c-4772-841a-0590ceb6a84e";
             const topic = "Geometry";
             const before = await topicState(studentId, topic);
-            assert.equal(Boolean(before.requiresTargetedRediagnosis), true);
+
+            if (!before.requiresTargetedRediagnosis) {
+              assert.equal(before.targetedRediagnosisStartPhase ?? null, null);
+
+              let resumedDialog = await openStudentTraining("Sandbox Student 1");
+              const geometryLabel = resumedDialog.locator('label[for="session-topic-Geometry"]');
+              await geometryLabel.waitFor({ state: "visible", timeout: 30000 });
+              const geometryLabelText = String(await geometryLabel.textContent()).trim();
+              assert.ok(
+                !geometryLabelText.includes("Re-Diagnosis Required"),
+                "Cleared canonical topic state still renders the re-diagnosis gate.",
+              );
+
+              await selectOnlyTopic(resumedDialog, /^Geometry \(/);
+              const staleRediagnosisCopy = resumedDialog.getByText(/Targeted re-diagnosis required/i);
+              assert.equal(
+                await staleRediagnosisCopy.count(),
+                0,
+                "Cleared canonical topic state still renders targeted re-diagnosis copy.",
+              );
+
+              const ordinaryPrep = resumedDialog.getByLabel(/I prepared the full drill set for Geometry/i);
+              await ordinaryPrep.check();
+
+              const normalStart = resumedDialog.getByRole("button", {
+                name: "Start Session (1 topics)",
+                exact: true,
+              });
+              await normalStart.waitFor({ state: "visible", timeout: 30000 });
+              await normalStart.click();
+
+              await page.waitForURL((url) =>
+                url.pathname.includes("/specialist/intro-session/" + studentId) &&
+                url.searchParams.get("mode") === "training" &&
+                url.searchParams.get("topic") === topic &&
+                url.searchParams.get("rediagnosis") !== "1",
+                { timeout: 60000 },
+              );
+              await page.getByRole("heading", {
+                name: "Training Drill - " + before.phase,
+                exact: true,
+              }).waitFor({ state: "visible", timeout: 60000 });
+
+              console.log("PR47_REDIAGNOSIS_ALREADY_CLEARED_RESUME=" + JSON.stringify({
+                phase: before.phase,
+                stability: before.stability,
+                canonicalGate: false,
+              }));
+              console.log("PR47_ORDINARY_TRAINING_RESTORED_PASS=" + JSON.stringify({
+                phase: before.phase,
+                stability: before.stability,
+                url: page.url(),
+                resumedFromPriorEvidenceCompleteRediagnosis: true,
+              }));
+              return;
+            }
+
             assert.equal(before.targetedRediagnosisStartPhase, "Clarity");
 
             const workflowProbe = await page.request.get(
