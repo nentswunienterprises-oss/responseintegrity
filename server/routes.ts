@@ -4452,6 +4452,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const dbUser = (req as any).dbUser;
         const studentId = String(req.body?.studentId || "").trim();
         const requestedTopic = String(req.body?.topic || "").trim();
+        const restoreCanonicalState = req.body?.restoreCanonicalState === true;
+        const requestedRestorePhase = restoreCanonicalState
+          ? tryParsePhase(req.body?.restorePhase)
+          : null;
+        const requestedRestoreStabilityRaw = restoreCanonicalState
+          ? String(req.body?.restoreStability || "").trim()
+          : "";
+        const requestedRestoreStability =
+          restoreCanonicalState &&
+          ["Low", "Medium", "High", "High Maintenance"].includes(requestedRestoreStabilityRaw)
+            ? (requestedRestoreStabilityRaw as TopicStability)
+            : null;
 
         if (!studentId) {
           return res.status(400).json({ message: "studentId is required" });
@@ -4514,8 +4526,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: "Sandbox student needs a canonical topic state before Handover proof can reset",
           });
         }
+        if (restoreCanonicalState && (!requestedRestorePhase || !requestedRestoreStability)) {
+          return res.status(400).json({
+            message: "restorePhase and restoreStability must be valid when restoreCanonicalState is enabled",
+          });
+        }
 
         const nowIso = new Date().toISOString();
+        let effectivePhase = phase;
+        let effectiveStability = stability;
+        let updatedConceptMastery = conceptMastery;
+
+        if (restoreCanonicalState && requestedRestorePhase && requestedRestoreStability) {
+          const nextActionConfig =
+            (NEXT_ACTION_ENGINE as any)?.[requestedRestorePhase]?.[requestedRestoreStability] || null;
+          const restoredTopicState = {
+            ...topicState,
+            phase: requestedRestorePhase,
+            stability: requestedRestoreStability,
+            lastUpdated: nowIso,
+            nextAction: nextActionConfig?.primaryAction || topicState.nextAction || null,
+            requiresTargetedRediagnosis: false,
+            targetedRediagnosisStartPhase: null,
+            prerequisiteContradictionReason: null,
+            prerequisiteContradictionStatus: null,
+            history: [
+              ...(Array.isArray(topicState.history) ? topicState.history : []),
+              {
+                date: nowIso,
+                phase: requestedRestorePhase,
+                stability: requestedRestoreStability,
+                nextAction: nextActionConfig?.primaryAction || topicState.nextAction || null,
+                observationNotes: "Proof fixture reset to canonical Handover baseline.",
+                structuredObservation: {
+                  drillType: "proof_fixture_reset",
+                  decisionAuthority: "proof_fixture",
+                  purpose: "repeatable_handover_live_proof",
+                },
+              },
+            ].slice(-60),
+          };
+          const restoredTopics = {
+            ...(topicStore.topics && typeof topicStore.topics === "object"
+              ? topicStore.topics
+              : {}),
+            [topic]: restoredTopicState,
+          };
+          const restoredTopicConditioning = {
+            ...topicStore,
+            topics: restoredTopics,
+            lastUpdatedAt: nowIso,
+          };
+          updatedConceptMastery = {
+            ...conceptMastery,
+            topicConditioning: restoredTopicConditioning,
+          };
+          effectivePhase = requestedRestorePhase;
+          effectiveStability = requestedRestoreStability;
+        }
         const existingProfile =
           row.personal_profile && typeof row.personal_profile === "object"
             ? row.personal_profile
@@ -4532,9 +4600,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await pool.query(
           `UPDATE public.students
               SET personal_profile = $2::jsonb,
+                  concept_mastery = $3::jsonb,
                   updated_at = NOW()
             WHERE id = $1`,
-          [studentId, JSON.stringify(updatedProfile)],
+          [studentId, JSON.stringify(updatedProfile), JSON.stringify(updatedConceptMastery)],
         );
 
         if (row.enrollment_id) {
@@ -4587,8 +4656,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           studentId,
           studentName: row.name,
           topic,
-          phase,
-          stability,
+          phase: effectivePhase,
+          stability: effectiveStability,
+          restoredCanonicalState: restoreCanonicalState,
           handoverRequiredAt: nowIso,
           session,
         });

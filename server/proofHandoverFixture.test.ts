@@ -18,6 +18,11 @@ test("Proof Handover reset is Preview-only, authenticated, and Sandbox-scoped", 
   assert.match(route, /assignment_lane/);
   assert.match(route, /handoverRequiredAt/);
   assert.match(route, /handoverCompletedAt:\s*null/);
+  assert.match(route, /restoreCanonicalState/);
+  assert.match(route, /proof_fixture_reset/);
+  assert.match(route, /requiresTargetedRediagnosis:\s*false/);
+  assert.match(route, /targetedRediagnosisStartPhase:\s*null/);
+  assert.match(route, /concept_mastery = \$3::jsonb/);
   assert.match(route, /type,[\s\S]*?'handover'/);
   assert.match(route, /status,[\s\S]*?'confirmed'/);
 });
