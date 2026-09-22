@@ -1271,7 +1271,7 @@ function HandoverVerificationSection({
                 const sessionParam = session?.id
                   ? `&scheduledSessionId=${encodeURIComponent(session.id)}`
                   : "";
-                navigate(`/specialist/intro-session/${studentId}?mode=handover&rediagnosis=1&topic=${topicParam}${phaseParam}${stabilityParam}${sessionParam}`);
+                navigate(`/specialist/intro-session/${studentId}?mode=diagnosis&context=handover&rediagnosis=1&topic=${topicParam}${phaseParam}${stabilityParam}${sessionParam}`);
               }}
               disabled={!session?.id}
             >

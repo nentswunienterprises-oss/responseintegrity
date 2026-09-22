@@ -34,7 +34,7 @@ type DiagnosisRunRow = {
   topic: string;
   starting_phase: TopicPhase;
   scheduled_session_id?: string | null;
-  session_context: "intro" | "active_training";
+  session_context: "intro" | "active_training" | "handover_verification";
   status: "in_progress" | "blocked" | "completed";
   probe_history: DiagnosisProbeResult[] | string | null;
   decision: Record<string, unknown> | string | null;
@@ -48,13 +48,19 @@ type ScheduledSession = {
   id: string;
   tutor_id: string;
   student_id: string;
-  type: "intro" | "training";
+  type: "intro" | "training" | "handover";
   status: string;
   scheduled_time?: string | null;
 };
 
 const RUN_TABLE = "response_integrity_diagnosis_runs";
 const LAUNCHABLE_SESSION_STATUSES = new Set(["confirmed", "scheduled", "ready", "live"]);
+const isLaunchableDiagnosisSessionStatus = (
+  status: unknown,
+  requestedKind: "intro" | "training" | "handover",
+) =>
+  LAUNCHABLE_SESSION_STATUSES.has(String(status || "")) ||
+  (requestedKind === "handover" && String(status || "") === "completed");
 const LIVE_SCHEDULING_MODES = new Set(["trial", "certified_live"]);
 
 const isUuid = (value: string) =>
@@ -109,7 +115,7 @@ async function saveDiagnosisRun(input: {
   topic: string;
   startingPhase: TopicPhase;
   scheduledSessionId: string | null;
-  sessionContext: "intro" | "active_training";
+  sessionContext: "intro" | "active_training" | "handover_verification";
   status: "in_progress" | "blocked" | "completed";
   probeHistory: DiagnosisProbeResult[];
   decision: Record<string, unknown>;
@@ -239,7 +245,7 @@ async function loadScheduledSession(input: {
   tutorId: string;
   studentId: string;
   scheduledSessionId?: string | null;
-  requestedKind: "intro" | "training";
+  requestedKind: "intro" | "training" | "handover";
 }): Promise<ScheduledSession | null> {
   const { tutorId, studentId, scheduledSessionId, requestedKind } = input;
 
@@ -257,7 +263,9 @@ async function loadScheduledSession(input: {
     }
     const result = await pool.query(sql, values);
     if (scheduledSessionId) return (result.rows[0] as ScheduledSession | undefined) || null;
-    return (result.rows.find((row: any) => LAUNCHABLE_SESSION_STATUSES.has(String(row.status || ""))) as ScheduledSession | undefined) || null;
+    return (result.rows.find((row: any) =>
+      isLaunchableDiagnosisSessionStatus(row.status, requestedKind)
+    ) as ScheduledSession | undefined) || null;
   }
 
   let query = supabase
@@ -281,14 +289,14 @@ async function loadScheduledSession(input: {
   if (error) throw new Error(`Failed to validate scheduled session: ${error.message}`);
 
   const rows = (data || []) as ScheduledSession[];
-  return rows.find((row) => LAUNCHABLE_SESSION_STATUSES.has(String(row.status || ""))) || null;
+  return rows.find((row) => isLaunchableDiagnosisSessionStatus(row.status, requestedKind)) || null;
 }
 
 async function resolveSessionContext(input: {
   tutorId: string;
   studentId: string;
   scheduledSessionId?: string | null;
-  requestedKind: "intro" | "training";
+  requestedKind: "intro" | "training" | "handover";
 }) {
   const normalizedScheduledSessionId = String(input.scheduledSessionId || "").trim() || null;
   const operationalMode = await getTutorOperationalMode(input.tutorId);
@@ -308,30 +316,44 @@ async function resolveSessionContext(input: {
     });
     if (!scheduledSession) {
       return {
-        error: input.requestedKind === "training"
-          ? "A confirmed training lesson is required before re-diagnosis can run."
-          : "A confirmed scheduled intro session is required before diagnosis can run.",
+        error:
+          input.requestedKind === "handover"
+            ? "A continuity-check session is required before targeted re-diagnosis can run."
+            : input.requestedKind === "training"
+              ? "A confirmed training lesson is required before re-diagnosis can run."
+              : "A confirmed scheduled intro session is required before diagnosis can run.",
       } as const;
     }
   }
 
-  if (scheduledSession && !LAUNCHABLE_SESSION_STATUSES.has(String(scheduledSession.status || ""))) {
+  if (scheduledSession && !isLaunchableDiagnosisSessionStatus(scheduledSession.status, input.requestedKind)) {
     return {
-      error: scheduledSession.type === "training"
-        ? "Diagnosis is blocked until the training lesson is confirmed."
-        : "Diagnosis is blocked until the intro session is confirmed.",
+      error:
+        input.requestedKind === "handover"
+          ? "Targeted re-diagnosis is blocked until the continuity-check session is available."
+          : scheduledSession.type === "training"
+            ? "Diagnosis is blocked until the training lesson is confirmed."
+            : "Diagnosis is blocked until the intro session is confirmed.",
     } as const;
   }
 
-  const kind = scheduledSession?.type === "training" || input.requestedKind === "training"
-    ? "training"
-    : "intro";
+  const kind =
+    scheduledSession?.type === "handover" || input.requestedKind === "handover"
+      ? "handover"
+      : scheduledSession?.type === "training" || input.requestedKind === "training"
+        ? "training"
+        : "intro";
 
   return {
     error: null,
     scheduledSession,
     scheduledSessionId: scheduledSession ? String(scheduledSession.id) : null,
-    sessionContext: kind === "training" ? "active_training" as const : "intro" as const,
+    sessionContext:
+      kind === "handover"
+        ? "handover_verification" as const
+        : kind === "training"
+          ? "active_training" as const
+          : "intro" as const,
     sessionKind: kind,
   };
 }
@@ -415,7 +437,7 @@ async function ensureIntroDrill(input: {
   topic: string;
   startingPhase: TopicPhase;
   scheduledSessionId: string | null;
-  sessionKind: "intro" | "training";
+  sessionKind: "intro" | "training" | "handover";
   replay: Extract<ReturnType<typeof replayEvidenceCompleteDiagnosis>, { ok: true }>;
 }) {
   const { decision, state } = input.replay;
@@ -431,7 +453,8 @@ async function ensureIntroDrill(input: {
     schemaVersion: "evidence-native-v2",
     sourceDrillId: input.runId,
     topic: input.topic,
-    mode: "diagnosis",
+    mode: input.sessionKind === "handover" ? "handover_rediagnosis" : "diagnosis",
+    sessionContextKind: input.sessionKind,
     startingPhase: input.startingPhase,
     placementPhase: decision.placementPhase,
     placementStability: decision.stability,
@@ -453,7 +476,17 @@ async function ensureIntroDrill(input: {
     startingPhase: input.startingPhase,
     phase: decision.placementPhase,
     stability: decision.stability,
+    resultingPhase: decision.placementPhase,
+    resultingStability: decision.stability,
     diagnosisScore: null,
+    ...(input.sessionKind === "handover"
+      ? {
+          verificationOutcome: "targeted_re_diagnosis_completed" as const,
+          verificationOutcomeLabel: "Targeted re-diagnosis completed",
+          reDiagnosisRequired: false,
+          handoverMode: "targeted_re_diagnosis",
+        }
+      : {}),
     decisionAuthority: "behavioral_evidence",
     placementEvidence: decision.placementEvidence,
     nextAction,
@@ -471,7 +504,8 @@ async function ensureIntroDrill(input: {
     introTopic: input.topic,
     phase: decision.placementPhase,
     startingPhase: input.startingPhase,
-    drillType: "diagnosis",
+    drillType: input.sessionKind === "handover" ? "handover_verification" : "diagnosis",
+    handoverMode: input.sessionKind === "handover" ? "targeted_re_diagnosis" : undefined,
     diagnosisMode: "evidence_native",
     diagnosisEngine: "evidence_native_v2",
     scheduledSessionId: input.scheduledSessionId,
@@ -513,7 +547,12 @@ async function ensureIntroDrill(input: {
     topic: input.topic,
     scheduledSessionId: input.scheduledSessionId,
     sessionGroupId: input.scheduledSessionId || input.runId,
-    sessionContext: input.sessionKind === "training" ? "active_training" : "intro",
+    sessionContext:
+      input.sessionKind === "handover"
+        ? "handover_verification"
+        : input.sessionKind === "training"
+          ? "active_training"
+          : "intro",
     observedAt,
     state,
     decision,
@@ -574,7 +613,8 @@ async function ensureIntroDrill(input: {
       nextAction,
       observationNotes: `Evidence-complete diagnosis. ${decision.reason}`,
       structuredObservation: {
-        drillType: "diagnosis",
+        drillType: input.sessionKind === "handover" ? "handover_verification" : "diagnosis",
+        handoverMode: input.sessionKind === "handover" ? "targeted_re_diagnosis" : undefined,
         diagnosisMode: "evidence_native",
         diagnosisEngine: "evidence_native_v2",
         decisionAuthority: "behavioral_evidence",
@@ -624,7 +664,9 @@ async function ensureIntroDrill(input: {
     existingProfile.workflow && typeof existingProfile.workflow === "object"
       ? { ...existingProfile.workflow }
       : {};
-  if (!workflow.introCompletedAt) workflow.introCompletedAt = observedAt;
+  if (input.sessionKind === "intro" && !workflow.introCompletedAt) {
+    workflow.introCompletedAt = observedAt;
+  }
 
   await storage.updateStudent(input.studentId, {
     conceptMastery,
@@ -716,10 +758,13 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         const topic = String(req.body?.topic || "").trim();
         const startingPhase = tryParsePhase(req.body?.startingPhase);
         const scheduledSessionId = String(req.body?.scheduledSessionId || "").trim() || null;
+        const requestedContext = String(req.body?.sessionContextKind || "").trim().toLowerCase();
         const requestedKind =
-          String(req.body?.sessionContextKind || "").trim().toLowerCase() === "training"
-            ? "training" as const
-            : "intro" as const;
+          requestedContext === "handover"
+            ? "handover" as const
+            : requestedContext === "training"
+              ? "training" as const
+              : "intro" as const;
 
         if (!isUuid(runId)) return res.status(400).json({ message: "A valid diagnosisRunId is required" });
         if (!studentId) return res.status(400).json({ message: "studentId is required" });
@@ -755,6 +800,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           if (
             submittedContext &&
             ((existingRun.session_context === "active_training" && submittedContext !== "training") ||
+              (existingRun.session_context === "handover_verification" && submittedContext !== "handover") ||
               (existingRun.session_context === "intro" && submittedContext !== "intro"))
           ) {
             return res.status(409).json({ message: "Diagnosis run session context cannot be reassigned" });
@@ -792,11 +838,13 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         const effectiveScheduledSessionId =
           String(existingRun?.scheduled_session_id || scheduledSessionId || "").trim() || null;
         const effectiveRequestedKind =
-          existingRun?.session_context === "active_training"
-            ? "training" as const
-            : existingRun?.session_context === "intro"
-              ? "intro" as const
-              : requestedKind;
+          existingRun?.session_context === "handover_verification"
+            ? "handover" as const
+            : existingRun?.session_context === "active_training"
+              ? "training" as const
+              : existingRun?.session_context === "intro"
+                ? "intro" as const
+                : requestedKind;
 
         const sessionResult = await resolveSessionContext({
           tutorId,

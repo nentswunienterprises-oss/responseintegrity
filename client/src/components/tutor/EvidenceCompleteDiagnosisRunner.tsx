@@ -113,7 +113,11 @@ export default function EvidenceCompleteDiagnosisRunner() {
     .trim()
     .toLowerCase();
   const sessionContextKind =
-    requestedSessionContext === "training" ? "training" : "intro";
+    requestedSessionContext === "handover"
+      ? "handover"
+      : requestedSessionContext === "training"
+        ? "training"
+        : "intro";
 
   const storageKey = useMemo(
     () => buildStorageKey(studentId, topic, scheduledSessionId),

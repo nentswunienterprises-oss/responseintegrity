@@ -210,7 +210,7 @@ export type EvidenceCompleteDiagnosisLedgerRow = {
   scheduled_session_id: string | null;
   training_session_run_id: string | null;
   session_group_id: string;
-  session_context: "intro" | "active_training";
+  session_context: "intro" | "active_training" | "handover_verification";
   drill_type: "diagnosis";
   drill_schema_id: string;
   drill_schema_version: number;
@@ -245,7 +245,7 @@ export function buildEvidenceCompleteDiagnosisLedgerRows(input: {
   topic: string;
   scheduledSessionId?: string | null;
   sessionGroupId?: string | null;
-  sessionContext: "intro" | "active_training";
+  sessionContext: "intro" | "active_training" | "handover_verification";
   observedAt: string;
   state: EvidenceCompleteDiagnosisState;
   decision: EvidenceCompleteDiagnosisDecision;
