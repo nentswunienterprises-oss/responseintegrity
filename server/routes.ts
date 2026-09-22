@@ -30477,4 +30477,843 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const studentRecord = await resolveCanonicalStudentForEnrollment
+      const studentRecord = await resolveCanonicalStudentForEnrollment(enrollment);
+      const studentId = studentRecord?.id || enrollment.assigned_student_id || null;
+
+      const stats = studentId
+        ? await getStudentDashboardStats(studentId)
+        : {
+            bossBattlesCompleted: 0,
+            solutionsUnlocked: 0,
+            currentStreak: 0,
+            totalSessions: 0,
+            trainingSessionsCompleted: 0,
+            confidenceLevel: 50,
+          };
+
+      // Get commitments count
+      let commitments: any[] | null = null;
+      if (studentId) {
+        const { data } = await supabase
+          .from("student_commitments")
+          .select("id")
+          .eq("student_id", studentId)
+          .eq("is_active", true);
+        commitments = data || [];
+      }
+
+      res.json({
+        introDiagnosisCompleted: (stats as any).introDiagnosisCompleted ?? 0,
+        bossBattlesCompleted: stats.bossBattlesCompleted,
+        solutionsUnlocked: stats.solutionsUnlocked,
+        confidenceGrowth: 50,
+        sessionsCompleted: stats.totalSessions,
+        trainingSessionsCompleted: stats.trainingSessionsCompleted,
+        currentStreak: stats.currentStreak,
+        totalCommitments: commitments?.length || 0,
+      });
+    } catch (error) {
+      console.error("Error fetching parent student stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // Get parent's student info
+  app.get("/api/parent/student-info", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+    try {
+      const parentId = (req as any).dbUser.id;
+
+      if (isEmergencyDbMode()) {
+        const { data: enrollment } = await selectLatestParentEnrollment({
+          parentId,
+          primarySelect: "*",
+        });
+        if (!enrollment) return res.status(404).json({ message: "No enrollment found" });
+        const student = await resolveCanonicalStudentForEnrollment(enrollment);
+        let podName: string | null = null;
+        if (enrollment.assigned_tutor_id) {
+          const podResult = await pool.query(
+            `SELECT p.pod_name
+               FROM public.tutor_assignments ta
+               JOIN public.pods p ON p.id = ta.pod_id
+              WHERE ta.tutor_id = $1 AND p.deleted_at IS NULL
+              LIMIT 1`,
+            [enrollment.assigned_tutor_id],
+          );
+          podName = podResult.rows[0]?.pod_name || null;
+        }
+        return res.json({
+          name: student?.name || enrollment.student_full_name,
+          grade: student?.grade || enrollment.student_grade,
+          podName,
+        });
+      }
+
+      const { data: enrollment, error: enrollmentError } = await selectLatestParentEnrollment({
+        parentId,
+        primarySelect: "id, user_id, student_full_name, student_grade, assigned_tutor_id, assigned_student_id, parent_email",
+        fallbackSelect: "id, user_id, student_full_name, student_grade, assigned_tutor_id, parent_email",
+      });
+
+      if (enrollmentError) {
+        console.error("Error fetching parent enrollment:", enrollmentError);
+      }
+
+      if (!enrollment) {
+        return res.status(404).json({ message: "No enrollment found" });
+      }
+
+      const studentRecord = await resolveCanonicalStudentForEnrollment(enrollment);
+
+      // Get tutor's pod if assigned
+      let podName = null;
+      if (enrollment.assigned_tutor_id) {
+        const { data: tutorAssignment, error: podError } = await supabase
+          .from("tutor_assignments")
+          .select("pod:pods(pod_name)")
+          .eq("tutor_id", enrollment.assigned_tutor_id)
+          .maybeSingle();
+
+        if (podError) {
+          console.error("Error fetching tutor pod:", podError);
+        }
+
+        const pod = tutorAssignment?.pod as { pod_name?: string } | null;
+        if (pod) {
+          podName = pod.pod_name || null;
+        }
+      }
+
+      console.log("📊 Parent student info response:", {
+        name: studentRecord?.name || enrollment.student_full_name,
+        grade: studentRecord?.grade || enrollment.student_grade,
+        podName: podName,
+      });
+
+      res.json({
+        name: studentRecord?.name || enrollment.student_full_name,
+        grade: studentRecord?.grade || enrollment.student_grade,
+        podName: podName,
+      });
+    } catch (error) {
+      console.error("Error fetching student info:", error);
+      res.status(500).json({ message: "Failed to fetch student info" });
+    }
+  });
+
+  app.get("/api/parent/topic-conditioning-states", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+    try {
+      const parentId = (req as any).dbUser.id;
+
+      const { data: enrollment, error: enrollmentError } = await selectLatestParentEnrollment({
+        parentId,
+        primarySelect: "id, user_id, student_full_name, student_grade, assigned_tutor_id, assigned_student_id, parent_email",
+        fallbackSelect: "id, user_id, student_full_name, student_grade, assigned_tutor_id, parent_email",
+      });
+
+      if (enrollmentError) {
+        return res.status(500).json({ message: "Failed to fetch enrollment" });
+      }
+
+      if (!enrollment?.assigned_tutor_id || !enrollment?.student_full_name) {
+        return res.json([]);
+      }
+
+      const sanitizeTopic = (value?: string | null) => {
+        const cleaned = String(value || "").trim();
+        if (!cleaned) return null;
+        if (cleaned.toLowerCase() === "onboarding baseline diagnostic") return null;
+        return cleaned;
+      };
+
+      let studentRecord = await resolveCanonicalStudentForEnrollment(enrollment);
+
+      if (!studentRecord && enrollment?.proposal_id) {
+        const { data: proposalStudent } = await supabase
+          .from("onboarding_proposals")
+          .select("student_id")
+          .eq("id", enrollment.proposal_id)
+          .maybeSingle();
+
+        if (proposalStudent?.student_id) {
+          const proposalLinkedStudent = await storage.getStudent(String(proposalStudent.student_id));
+          if (proposalLinkedStudent) {
+            studentRecord = normalizeStudentRecord(proposalLinkedStudent);
+          }
+        }
+      }
+
+      if (!studentRecord) return res.json([]);
+
+      const conceptMastery: any =
+        studentRecord.conceptMastery && typeof studentRecord.conceptMastery === "object"
+          ? studentRecord.conceptMastery
+          : {};
+      const topicConditioningStore: any =
+        conceptMastery.topicConditioning && typeof conceptMastery.topicConditioning === "object"
+          ? conceptMastery.topicConditioning
+          : {};
+      const topicsStore: Record<string, any> =
+        topicConditioningStore.topics && typeof topicConditioningStore.topics === "object"
+          ? topicConditioningStore.topics
+          : {};
+
+      const now = Date.now();
+      const rows = Object.entries(topicsStore)
+        .map(([topicKey, entry]) => {
+          const topic = sanitizeTopic(topicKey) || sanitizeTopic(entry?.topic) || null;
+          if (!topic) return null;
+
+          const latestPhase = tryParsePhase(entry?.phase) || tryParsePhase(topicConditioningStore.entry_phase);
+          if (!latestPhase) return null;
+          const latestStability = normalizeStability(entry?.stability || topicConditioningStore.stability || "Low");
+
+          const normalizedHistory = Array.isArray(entry?.history)
+            ? entry.history
+                .map((item: any) => ({
+                  phase: tryParsePhase(item?.phase) || latestPhase,
+                  stability: normalizeStability(item?.stability || latestStability),
+                  date: String(item?.date || "").trim(),
+                }))
+                .filter((item: any) => !!item.date)
+                .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            : [];
+
+          const latest = normalizedHistory[normalizedHistory.length - 1] || {
+            phase: latestPhase,
+            stability: latestStability,
+            date: entry?.lastUpdated || topicConditioningStore.lastUpdatedAt || new Date().toISOString(),
+          };
+          const previous = normalizedHistory.length > 1 ? normalizedHistory[normalizedHistory.length - 2] : null;
+
+          const latestPhaseIdx = PHASE_ORDER.indexOf(latest.phase);
+          const previousPhaseIdx = previous ? PHASE_ORDER.indexOf(previous.phase) : -1;
+          const latestStabilityScore = stabilityToScore(latest.stability);
+          const previousStabilityScore = previous ? stabilityToScore(previous.stability) : 0;
+
+          let movement: "none" | "improved" | "regressed" | "changed" = "none";
+          if (previous) {
+            if (latestPhaseIdx > previousPhaseIdx || (latestPhaseIdx === previousPhaseIdx && latestStabilityScore > previousStabilityScore)) {
+              movement = "improved";
+            } else if (latestPhaseIdx < previousPhaseIdx || (latestPhaseIdx === previousPhaseIdx && latestStabilityScore < previousStabilityScore)) {
+              movement = "regressed";
+            } else if (latest.phase !== previous.phase || latest.stability !== previous.stability) {
+              movement = "changed";
+            }
+          }
+
+          const daysSinceUpdate = Math.floor((now - new Date(latest.date).getTime()) / (1000 * 60 * 60 * 24));
+          const bucket = daysSinceUpdate <= 14 ? "active" : daysSinceUpdate <= 45 ? "recent" : "older";
+
+          // Translate internal states to parent-friendly language per Response Integrity Drift Correction Spec
+          const translatedState = getParentDashboardCopyByState(latest.phase, latest.stability);
+
+          return {
+            topic,
+            phase: latest.phase,
+            stability: latest.stability,
+            // Parent-facing translations (never expose "High Maintenance", etc.)
+            parentStatus: translatedState.status,
+            parentMeaning: translatedState.meaning,
+            parentFocus: translatedState.focus,
+            lastUpdated: latest.date,
+            previousPhase: previous?.phase || null,
+            previousStability: previous?.stability || null,
+            movement,
+            bucket,
+          };
+        })
+        .filter((row): row is NonNullable<typeof row> => !!row)
+        .filter((row) => row.bucket !== "older")
+        .sort((a, b) => {
+          if (a.bucket !== b.bucket) return a.bucket === "active" ? -1 : 1;
+          return new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime();
+        });
+
+      const dedupedRows = Array.from(
+        rows.reduce((map, row) => {
+          const key = String(row.topic || "").trim().toLowerCase();
+          const existing = map.get(key);
+
+          if (!existing) {
+            map.set(key, row);
+            return map;
+          }
+
+          const existingDate = new Date(existing.lastUpdated || 0).getTime();
+          const rowDate = new Date(row.lastUpdated || 0).getTime();
+
+          if (rowDate >= existingDate) {
+            map.set(key, row);
+          }
+
+          return map;
+        }, new Map<string, any>())
+        .values()
+      ).sort((a, b) => {
+        if (a.bucket !== b.bucket) return a.bucket === "active" ? -1 : 1;
+        return new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime();
+      });
+
+      res.json(dedupedRows);
+    } catch (error) {
+      console.error("Error fetching parent topic conditioning states:", error);
+      res.status(500).json({ message: "Failed to fetch topic conditioning states" });
+    }
+  });
+
+  app.put("/api/tutor/topic-conditioning/:studentId/topic-reference", isAuthenticated, requireRole(["tutor"]), async (req: Request, res: Response) => {
+    try {
+      const tutorId = (req as any).dbUser.id;
+      const { studentId } = req.params;
+      const topic = String(req.body?.topic || "").trim();
+      const topicReferenceContent = normalizeTopicReferenceContent(req.body?.topicReference);
+
+      if (!studentId || !topic) {
+        return res.status(400).json({ message: "Student and topic are required." });
+      }
+      if (!topicReferenceContent) {
+        return res.status(400).json({
+          message: "Complete Vocabulary, Recognition / Method, Ordered Steps, and Reason before saving.",
+        });
+      }
+
+      const student = await storage.getStudent(studentId);
+      if (!student || student.tutorId !== tutorId) {
+        return res.status(403).json({ message: "Unauthorized: Student does not belong to this specialist." });
+      }
+
+      const conceptMastery: any =
+        student.conceptMastery && typeof student.conceptMastery === "object"
+          ? { ...(student.conceptMastery as any) }
+          : {};
+      const topicConditioningStore: any =
+        conceptMastery.topicConditioning && typeof conceptMastery.topicConditioning === "object"
+          ? { ...conceptMastery.topicConditioning }
+          : {};
+      const topicsStore: Record<string, any> =
+        topicConditioningStore.topics && typeof topicConditioningStore.topics === "object"
+          ? { ...topicConditioningStore.topics }
+          : {};
+      const topicKey = Object.keys(topicsStore).find(
+        (candidate) => candidate.trim().toLowerCase() === topic.toLowerCase(),
+      );
+
+      if (!topicKey || !topicsStore[topicKey] || typeof topicsStore[topicKey] !== "object") {
+        return res.status(404).json({ message: "This topic is not active for the student." });
+      }
+
+      const existingReference = parseStoredTopicReference(topicsStore[topicKey].topicReference);
+      if (existingReference) {
+        return res.json({ success: true, created: false, topicReference: existingReference });
+      }
+
+      const topicReference = {
+        ...topicReferenceContent,
+        schemaVersion: TOPIC_REFERENCE_SCHEMA_VERSION,
+        createdAt: new Date().toISOString(),
+        createdByTutorId: tutorId,
+      };
+      topicsStore[topicKey] = {
+        ...topicsStore[topicKey],
+        topicReference,
+      };
+      topicConditioningStore.topics = topicsStore;
+      topicConditioningStore.lastUpdatedAt = new Date().toISOString();
+      conceptMastery.topicConditioning = topicConditioningStore;
+
+      const updatedStudent = await storage.updateStudent(studentId, { conceptMastery });
+      if (!updatedStudent) {
+        return res.status(500).json({ message: "Failed to save the Topic Reference." });
+      }
+
+      res.status(201).json({ success: true, created: true, topicReference });
+    } catch (error) {
+      console.error("Error saving tutor topic reference:", error);
+      res.status(500).json({ message: "Failed to save the Topic Reference." });
+    }
+  });
+
+  app.get("/api/tutor/topic-conditioning/:studentId", isAuthenticated, requireRole(["tutor"]), async (req: Request, res: Response) => {
+    try {
+      const tutorId = (req as any).dbUser.id;
+      const { studentId } = req.params;
+
+      if (!studentId) {
+        return res.status(400).json({ message: "Missing studentId" });
+      }
+
+      const student = await storage.getStudent(studentId);
+      if (!student || student.tutorId !== tutorId) {
+        return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+      }
+
+      const sanitizeTopic = (value?: string | null) => {
+        const cleaned = String(value || "").trim();
+        if (!cleaned) return null;
+        if (cleaned.toLowerCase() === "onboarding baseline diagnostic") return null;
+        return cleaned;
+      };
+
+      const conceptMastery: any =
+        student.conceptMastery && typeof student.conceptMastery === "object"
+          ? student.conceptMastery
+          : {};
+      const topicConditioningStore: any =
+        conceptMastery.topicConditioning && typeof conceptMastery.topicConditioning === "object"
+          ? conceptMastery.topicConditioning
+          : {};
+      const topicsStore: Record<string, any> =
+        topicConditioningStore.topics && typeof topicConditioningStore.topics === "object"
+          ? topicConditioningStore.topics
+          : {};
+
+      const now = Date.now();
+      const topics = Object.entries(topicsStore)
+        .map(([topicKey, entry]) => {
+          const topic = sanitizeTopic(topicKey) || sanitizeTopic(entry?.topic) || null;
+          if (!topic) return null;
+
+          const latestPhase = tryParsePhase(entry?.phase) || tryParsePhase(topicConditioningStore.entry_phase);
+          if (!latestPhase) return null;
+          const latestStability = normalizeStability(entry?.stability || topicConditioningStore.stability || "Low");
+
+          const normalizedHistory = Array.isArray(entry?.history)
+            ? entry.history
+                .map((item: any) => ({
+                  phase: tryParsePhase(item?.phase) || latestPhase,
+                  stability: normalizeStability(item?.stability || latestStability),
+                  date: String(item?.date || "").trim(),
+                }))
+                .filter((item: any) => !!item.date)
+                .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            : [];
+
+          const latest = normalizedHistory[normalizedHistory.length - 1] || {
+            phase: latestPhase,
+            stability: latestStability,
+            date: entry?.lastUpdated || topicConditioningStore.lastUpdatedAt || new Date().toISOString(),
+          };
+
+          const requiresTargetedRediagnosis = entry?.requiresTargetedRediagnosis === true;
+          const targetedRediagnosisStartPhase = requiresTargetedRediagnosis
+            ? tryParsePhase(entry?.targetedRediagnosisStartPhase)
+            : null;
+          const prerequisiteContradictionStatus =
+            typeof entry?.prerequisiteContradictionStatus === "string"
+              ? entry.prerequisiteContradictionStatus
+              : null;
+          const prerequisiteContradictionReason =
+            typeof entry?.prerequisiteContradictionReason === "string"
+              ? entry.prerequisiteContradictionReason
+              : null;
+
+          return {
+            topic,
+            phase: latest.phase,
+            stability: latest.stability,
+            lastUpdated: latest.date,
+            topicReference: parseStoredTopicReference(entry?.topicReference),
+            requiresTargetedRediagnosis,
+            targetedRediagnosisStartPhase,
+            prerequisiteContradictionStatus,
+            prerequisiteContradictionReason,
+          };
+        })
+        .filter((row): row is NonNullable<typeof row> => !!row)
+        .sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime());
+
+      res.json({ topics });
+    } catch (error) {
+      console.error("Error fetching tutor topic conditioning states:", error);
+      res.status(500).json({ message: "Failed to fetch topic conditioning states" });
+    }
+  });
+
+  // Get parent reports
+  app.get("/api/parent/reports", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+    try {
+      const parentId = (req as any).dbUser.id;
+
+      if (isEmergencyDbMode()) {
+        const reportResult = await pool.query(
+          `SELECT pr.*, u.name AS tutor_name
+             FROM public.parent_reports pr
+             LEFT JOIN public.users u ON u.id = pr.tutor_id
+            WHERE pr.parent_id = $1
+            ORDER BY pr.sent_at DESC`,
+          [parentId],
+        );
+        return res.json(reportResult.rows.map((report: any) => mapParentFacingReport(report, report.tutor_name)));
+      }
+
+      const { data: reports, error } = await supabase
+        .from("parent_reports")
+        .select("*")
+        .eq("parent_id", parentId)
+        .order("sent_at", { ascending: false });
+
+      if (error) throw error;
+
+      const tutorIds = Array.from(new Set((reports || []).map((report: any) => report.tutor_id).filter(Boolean)));
+      let tutorNameMap: Record<string, string> = {};
+
+      if (tutorIds.length > 0) {
+        const { data: tutors, error: tutorError } = await supabase
+          .from("users")
+          .select("id, name")
+          .in("id", tutorIds);
+
+        if (tutorError) {
+          console.error("Error fetching tutor names for parent reports:", tutorError);
+        } else {
+          tutorNameMap = (tutors || []).reduce((acc: Record<string, string>, tutor: any) => {
+            acc[tutor.id] = tutor.name || "Tutor";
+            return acc;
+          }, {});
+        }
+      }
+
+      const parentFacingReports = (reports || []).map((report: any) =>
+        mapParentFacingReport(report, tutorNameMap[report.tutor_id])
+      );
+
+      res.json(parentFacingReports);
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+      res.status(500).json({ message: "Failed to fetch reports" });
+    }
+  });
+
+  // Submit parent feedback on report
+  app.post("/api/parent/reports/:id/feedback", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { feedback } = req.body;
+
+      const { data: existingReport, error: existingReportError } = await supabase
+        .from("parent_reports")
+        .select("id, parent_id, report_type")
+        .eq("id", id)
+        .single();
+
+      if (existingReportError) throw existingReportError;
+      if (!existingReport || existingReport.parent_id !== (req as any).dbUser.id) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+      if (existingReport.report_type !== "monthly") {
+        return res.status(400).json({ message: "Feedback is only available for monthly reports" });
+      }
+
+      const { data: report, error } = await supabase
+        .from("parent_reports")
+        .update({
+          parent_feedback: feedback,
+          parent_feedback_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      res.json(report);
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+      res.status(500).json({ message: "Failed to submit feedback" });
+    }
+  });
+
+  // Get parent broadcasts (filter for parents)
+  app.get("/api/parent/broadcasts", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+    try {
+      const userCreatedAt = (req as any).dbUser?.createdAt;
+      let query = supabase
+        .from("broadcasts")
+        .select("*")
+        .contains("target_roles", ["parent"])
+        .order("created_at", { ascending: false });
+      
+      // Only show broadcasts created after user's account was created
+      if (userCreatedAt) {
+        query = query.gte("created_at", userCreatedAt);
+      }
+      
+      const { data: broadcasts, error } = await query;
+
+      if (error) throw error;
+      res.json(broadcasts || []);
+    } catch (error) {
+      console.error("Error fetching broadcasts:", error);
+      res.status(500).json({ message: "Failed to fetch broadcasts" });
+    }
+  });
+
+  app.get("/api/parent/communications", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+    try {
+      const parentId = (req as any).dbUser.id;
+
+      if (isEmergencyDbMode()) {
+        const enrollmentResult = await pool.query(
+          `SELECT id, assigned_tutor_id, student_full_name, student_grade
+             FROM public.parent_enrollments
+            WHERE user_id = $1
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [parentId],
+        );
+        const enrollment = enrollmentResult.rows[0] || null;
+        if (!enrollment) return res.status(404).json({ message: "No active enrollment found" });
+
+        const studentResult = await pool.query(
+          `SELECT id, name, grade, tutor_id
+             FROM public.students
+            WHERE parent_enrollment_id = $1
+            ORDER BY created_at DESC
+            LIMIT 1`,
+          [enrollment.id],
+        );
+        const student = studentResult.rows[0] || null;
+        if (!student || String(student.tutor_id || "") !== String(enrollment.assigned_tutor_id || "")) {
+          return res.status(404).json({ message: "Student not found" });
+        }
+
+        const [tutorResult, parentResult, threadResult] = await Promise.all([
+          pool.query("SELECT id, name FROM public.users WHERE id = $1 LIMIT 1", [student.tutor_id]),
+          pool.query("SELECT id, name FROM public.users WHERE id = $1 LIMIT 1", [parentId]),
+          pool.query(
+            `SELECT id, student_id, tutor_id, parent_id, audience
+               FROM public.student_communication_threads
+              WHERE student_id = $1 AND parent_id = $2 AND audience = 'parent'
+              LIMIT 1`,
+            [student.id, parentId],
+          ),
+        ]);
+        let thread = threadResult.rows[0] || null;
+        if (!thread) {
+          const insertedThread = await pool.query(
+            `INSERT INTO public.student_communication_threads (student_id, tutor_id, parent_id, audience)
+             VALUES ($1, $2, $3, 'parent')
+             RETURNING id, student_id, tutor_id, parent_id, audience`,
+            [student.id, student.tutor_id, parentId],
+          );
+          thread = insertedThread.rows[0] || null;
+        }
+        if (!thread) return res.status(500).json({ message: "Communication thread unavailable" });
+
+        const messageResult = await pool.query(
+          `SELECT id, thread_id, student_id, tutor_id, parent_id, audience, sender_role,
+                  sender_user_id, sender_student_user_id, reply_to_message_id, message,
+                  created_at, read_by_tutor_at, read_by_parent_at, read_by_student_at
+             FROM public.student_communication_messages
+            WHERE thread_id = $1 AND student_id = $2 AND parent_id = $3 AND audience = 'parent'
+            ORDER BY created_at ASC`,
+          [thread.id, student.id, parentId],
+        );
+        const messagesById = new Map<string, any>(messageResult.rows.map((row: any) => [String(row.id), row]));
+        const tutorName = tutorResult.rows[0]?.name || "Tutor";
+        const parentName = parentResult.rows[0]?.name || "Parent";
+        const senderName = (row: any) => row.sender_role === "tutor"
+          ? tutorName
+          : row.sender_role === "parent"
+            ? parentName
+            : String(student.name || "Student").trim() || "Student";
+        const messages = messageResult.rows.map((row: any) => {
+          const replyTarget = row.reply_to_message_id ? messagesById.get(String(row.reply_to_message_id)) : null;
+          return {
+            id: row.id,
+            threadId: row.thread_id,
+            studentId: row.student_id,
+            tutorId: row.tutor_id,
+            parentId: row.parent_id,
+            audience: row.audience,
+            senderRole: row.sender_role,
+            senderUserId: row.sender_user_id,
+            senderStudentUserId: row.sender_student_user_id,
+            senderName: senderName(row),
+            replyToMessageId: row.reply_to_message_id || null,
+            replyTo: replyTarget ? {
+              id: replyTarget.id,
+              senderName: senderName(replyTarget),
+              message: replyTarget.message,
+            } : null,
+            message: row.message,
+            createdAt: row.created_at,
+            readByTutorAt: row.read_by_tutor_at,
+            readByParentAt: row.read_by_parent_at,
+            readByStudentAt: row.read_by_student_at,
+          };
+        });
+
+        await pool.query(
+          `UPDATE public.student_communication_messages
+              SET read_by_parent_at = NOW()
+            WHERE thread_id = $1 AND student_id = $2 AND parent_id = $3
+              AND audience = 'parent' AND read_by_parent_at IS NULL`,
+          [thread.id, student.id, parentId],
+        );
+
+        return res.json({
+          student: { id: student.id, name: student.name, grade: student.grade || null },
+          tutor: { id: student.tutor_id, name: tutorName },
+          parent: { id: parentId, name: parentName, available: !!parentResult.rows[0] },
+          thread: { threadId: thread.id, audience: "parent", messages },
+        });
+      }
+
+      const { data: enrollment, error } = await selectLatestParentEnrollment({
+        parentId,
+        primarySelect: "id, user_id, assigned_tutor_id, assigned_student_id, student_full_name, student_grade, parent_email",
+        fallbackSelect: "id, user_id, assigned_tutor_id, student_full_name, student_grade, parent_email",
+      });
+
+      if (error) throw error;
+      if (!enrollment) {
+        return res.status(404).json({ message: "No active enrollment found" });
+      }
+
+      const student = await resolveCanonicalStudentForEnrollment(enrollment);
+      if (!student || !student.tutorId) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      const bundle = await buildStudentCommunicationBundle({ student, parentId });
+      await markCommunicationThreadRead({ studentId: student.id, audience: "parent", viewerRole: "parent" });
+      res.json({
+        student: bundle.student,
+        tutor: bundle.tutor,
+        parent: bundle.parent,
+        thread: bundle.threads.parent,
+      });
+    } catch (error) {
+      console.error("Error fetching parent communications:", error);
+      res.status(500).json({ message: "Failed to fetch communications" });
+    }
+  });
+
+  app.get("/api/parent/communications/unread-count", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+    try {
+      const parentId = (req as any).dbUser.id;
+
+      if (isEmergencyDbMode()) {
+        const enrollmentResult = await pool.query(
+          `SELECT id, assigned_tutor_id, student_full_name
+             FROM public.parent_enrollments
+            WHERE user_id = $1
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [parentId],
+        );
+        const enrollment = enrollmentResult.rows[0] || null;
+        if (!enrollment?.assigned_tutor_id) return res.json({ unreadCount: 0 });
+
+        const studentResult = await pool.query(
+          `SELECT id, tutor_id
+             FROM public.students
+            WHERE parent_enrollment_id = $1
+            ORDER BY created_at DESC
+            LIMIT 1`,
+           [enrollment.id],
+        );
+        const student = studentResult.rows[0] || null;
+        if (!student || String(student.tutor_id) !== String(enrollment.assigned_tutor_id)) {
+          return res.json({ unreadCount: 0 });
+        }
+
+        const unreadResult = await pool.query(
+          `SELECT count(*)::int AS count
+             FROM public.student_communication_messages
+            WHERE student_id = $1
+              AND parent_id = $2
+              AND audience = 'parent'
+              AND read_by_parent_at IS NULL
+              AND sender_role <> 'parent'`,
+          [student.id, parentId],
+        );
+        return res.json({ unreadCount: Number(unreadResult.rows[0]?.count || 0) });
+      }
+
+      const { data: enrollment, error } = await selectLatestParentEnrollment({
+        parentId,
+        primarySelect: "id, user_id, assigned_tutor_id, assigned_student_id, student_full_name, student_grade, parent_email",
+        fallbackSelect: "id, user_id, assigned_tutor_id, student_full_name, student_grade, parent_email",
+      });
+
+      if (error) throw error;
+      if (!enrollment) {
+        return res.json({ unreadCount: 0 });
+      }
+
+      const student = await resolveCanonicalStudentForEnrollment(enrollment);
+      if (!student || !student.tutorId) {
+        return res.json({ unreadCount: 0 });
+      }
+
+      const thread = await ensureStudentCommunicationThread({
+        studentId: student.id,
+        tutorId: student.tutorId,
+        parentId,
+        audience: "parent",
+      });
+
+      const { data, error: unreadError } = await supabase
+        .from("student_communication_messages")
+        .select("id")
+        .eq("thread_id", thread.id)
+        .neq("sender_role", "parent")
+        .is("read_by_parent_at", null);
+
+      if (unreadError) throw unreadError;
+
+      res.json({ unreadCount: (data || []).length });
+    } catch (error) {
+      console.error("Error fetching parent communication unread count:", error);
+      res.status(500).json({ message: "Failed to fetch unread count" });
+    }
+  });
+
+  app.post("/api/parent/communications", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
+    try {
+      const parentId = (req as any).dbUser.id;
+      const parsed = insertStudentCommunicationMessageSchema.parse({ ...(req.body || {}), audience: "parent" });
+      const { data: enrollment, error } = await selectLatestParentEnrollment({
+        parentId,
+        primarySelect: "id, user_id, assigned_tutor_id, assigned_student_id, student_full_name, student_grade, parent_email",
+        fallbackSelect: "id, user_id, assigned_tutor_id, student_full_name, student_grade, parent_email",
+      });
+
+      if (error) throw error;
+      if (!enrollment) {
+        return res.status(404).json({ message: "No active enrollment found" });
+      }
+
+      const student = await resolveCanonicalStudentForEnrollment(enrollment);
+      if (!student || !student.tutorId) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      const inserted = await createStudentCommunicationMessage({
+        student,
+        parentId,
+        audience: "parent",
+        senderRole: "parent",
+        senderUserId: parentId,
+        replyToMessageId: parsed.replyToMessageId,
+        message: parsed.message,
+      });
+
+      res.json({
+        id: inserted.id,
+        audience: inserted.audience,
+        createdAt: inserted.created_at,
+      });
+    } catch (error) {
+      console.error("Error sending parent communication:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to send message" });
+    }
+  });
+
+  registerExecutiveCommandRhythmRoutes(app, isAuthenticated);
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
