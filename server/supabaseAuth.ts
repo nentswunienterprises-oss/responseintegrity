@@ -23,6 +23,7 @@ import {
   authenticateEmergencyUser,
   createEmergencyTutorAccount,
   emergencyExpectedRoleMatches,
+  isPreviewProofPersonaEmail,
 } from "./emergencyAuth";
 import {
   describeRuntimeDatabaseTarget,
@@ -583,7 +584,7 @@ export async function setupAuth(app: Express) {
 
           if (!("error" in fallback)) {
             const fallbackUser = await storage.getUser(fallback.authUser.id);
-            const sandboxAssignment = fallbackUser
+            const sandboxAssignment = fallbackUser?.role === "tutor"
               ? await pool.query(
                   `SELECT 1
                      FROM public.tutor_assignments
@@ -593,10 +594,16 @@ export async function setupAuth(app: Express) {
                   [fallbackUser.id],
                 )
               : null;
+            const isProofPersona =
+              !!fallbackUser &&
+              isPreviewProofPersonaEmail(normalizedEmail);
+            const isSandboxSpecialist =
+              fallbackUser?.role === "tutor" &&
+              !!sandboxAssignment?.rows?.[0];
 
             if (
-              fallbackUser?.role === "tutor" &&
-              sandboxAssignment?.rows?.[0] &&
+              fallbackUser &&
+              (isProofPersona || isSandboxSpecialist) &&
               emergencyExpectedRoleMatches(fallbackUser.role, expectedRole)
             ) {
               (req.session as any).userId = fallbackUser.id;
@@ -611,8 +618,11 @@ export async function setupAuth(app: Express) {
                   return res.status(500).json({ message: "Session error" });
                 }
 
-                console.log("[AUTH] Preview sandbox Specialist fallback accepted", {
+                console.log("[AUTH] Preview private proof credential fallback accepted", {
                   userId: fallbackUser.id,
+                  role: fallbackUser.role,
+                  proofPersona: isProofPersona,
+                  sandboxSpecialist: isSandboxSpecialist,
                 });
 
                 return res.json({

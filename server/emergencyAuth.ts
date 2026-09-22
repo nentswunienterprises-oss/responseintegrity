@@ -67,6 +67,10 @@ export function emergencyExpectedRoleMatches(userRole: string, expectedRole?: st
   return !expectedRole || userRole === expectedRole;
 }
 
+export function isPreviewProofPersonaEmail(email: string) {
+  return email.trim().toLowerCase().endsWith("@proof.responseintegrity.co.za");
+}
+
 export type EmergencyTutorSignupInput = {
   email: string;
   password: string;
