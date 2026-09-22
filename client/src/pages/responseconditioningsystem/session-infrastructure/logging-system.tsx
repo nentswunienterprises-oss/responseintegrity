@@ -1460,6 +1460,97 @@ function DemoRunnerOverlay({
 
   if (!open) return null;
 
+  if (mode === "handover") {
+    return (
+      <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm">
+        <div className="flex h-full flex-col">
+          <div className="border-b bg-card/95">
+            <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+                  Handover Verification - {phase}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Evidence-driven continuity walkthrough · not a fixed-rep scoring demo
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close demo runner">
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <div className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6">
+              <Card className="space-y-3 border-2 border-primary/20 bg-primary/5 p-5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Handover law</p>
+                <p className="text-lg font-semibold">
+                  Verify inherited truth; do not train capability and do not re-place the student by instinct.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Prepare a small reserve bank of {phase} continuity problems. Present one clean opportunity at a time.
+                  There is no fixed number of Handover reps to complete.
+                </p>
+              </Card>
+
+              <Card className="space-y-3 p-5">
+                <h3 className="text-lg font-semibold">1. Hold the inherited condition</h3>
+                <p className="text-sm text-muted-foreground">
+                  Keep the {phase} constraint intact. Do not teach forward, relax the condition to make the result look better,
+                  or add extra opportunities after the evidence decision has resolved.
+                </p>
+              </Card>
+
+              <Card className="space-y-3 p-5">
+                <h3 className="text-lg font-semibold">2. Record concrete behavior</h3>
+                <p className="text-sm text-muted-foreground">
+                  The live runner uses the same behavior vocabulary as Diagnosis. Breakdown, conditional, near-stable,
+                  supported, not-observed, and confounded are system-owned evidence classes behind concrete behavior choices.
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {[
+                    ["Not observed", "Use when the opportunity did not meaningfully expose the behavior."],
+                    ["Confounded", "Use when assistance, interruption, timer change, or another condition changed what was being observed."],
+                  ].map(([title, detail]) => (
+                    <div key={title} className="rounded-lg border border-primary/15 p-3">
+                      <p className="text-sm font-semibold">{title}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs font-medium text-foreground">
+                  Neither not-observed nor confounded evidence becomes weakness or strength.
+                </p>
+              </Card>
+
+              <Card className="space-y-3 p-5">
+                <h3 className="text-lg font-semibold">3. Let evidence decide whether to continue</h3>
+                <ul className="space-y-1 pl-5 text-sm text-muted-foreground list-disc">
+                  <li>Insufficient or recoverable mixed evidence → another clean comparable continuity opportunity.</li>
+                  <li>Supported / near-stable continuity → hold inherited state.</li>
+                  <li>Persistent conditional evidence at the bounded limit → same-phase stability adjustment.</li>
+                  <li>Confirmed phase-defining breakdown → targeted evidence-complete re-diagnosis.</li>
+                  <li>Still unresolved at the bounded limit → targeted re-diagnosis rather than invented certainty.</li>
+                </ul>
+              </Card>
+
+              <Card className="space-y-3 p-5">
+                <h3 className="text-lg font-semibold">4. Read the evidence result, not a score</h3>
+                <p className="text-sm text-muted-foreground">
+                  The live result surface shows inherited state, resulting state, evidence reason, dimension decisions,
+                  recovery status, next action, and constraints. Compatibility scoring is technical reference only.
+                </p>
+                <p className="font-semibold">
+                  The Specialist records behavior. The Response Evidence Model owns recovery, regression, stability adjustment,
+                  and the re-diagnosis decision.
+                </p>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm">
       <div className="flex h-full flex-col">
@@ -2120,10 +2211,10 @@ export default function ResponseConditioningLoggingSystem() {
                       {demoMode === "training"
                         ? "A phase-based training drill"
                         : demoMode === "handover"
-                        ? "A continuity-check verification block"
+                        ? "An evidence-driven continuity verification walkthrough"
                         : "An adaptive phase verification block"}
                     </li>
-                    <li>Clickable observation choices for each rep</li>
+                    <li>{demoMode === "handover" ? "Canonical evidence outcomes and stopping rules" : "Clickable observation choices for each rep"}</li>
                     <li>A result screen that mirrors the live runner more closely</li>
                   </ul>
                 </div>

@@ -1644,81 +1644,121 @@ Each state stores:
 
 Implementation:
 
-- `server/routes.ts`
-- `shared/adaptiveDiagnosis.ts`
-- `client/src/components/tutor/IntroSessionDrillRunner.tsx`
+- `shared/responseIntegrityDrillRegistry.ts` — current Verification schema v3 and retained historical v1/v2 definitions
+- `shared/diagnosisObservationMatrix.ts` — canonical concrete behavior vocabulary
+- `shared/responseEvidenceModel.ts` — shared dimension resolution and recovery law
+- `shared/handoverEvidenceEvaluator.ts` — evidence-native continuity decision
+- `client/src/components/tutor/IntroSessionDrillRunner.tsx` — live Specialist continuity runner and evidence result
+- `server/routes.ts` — authoritative persistence, topic-state update, and targeted re-diagnosis gate
 
-### Purpose
+### Purpose and authority boundary
 
-Handover verification exists so that a new tutor does not blindly inherit topic states that might no longer be trustworthy.
+Handover exists so that a replacement Specialist does not blindly inherit a topic state and does not erase a valid history by starting over.
 
-It checks continuity before ordinary training resumes.
+The separation is:
 
-### Live handover structure
+- **Diagnosis establishes or re-establishes truth.**
+- **Training changes capability.**
+- **Handover verifies inherited truth.**
 
-The live handover verification flow uses:
+Handover therefore has no Training-forward authority and no manual re-placement authority.
 
-- a single verification block at the inherited phase
-- handover-specific prep copy
-- continuity-only intent
-- no training-forward permission inside the verification step
+### Evidence-driven structure
 
-### Live handover verification blocks
+Handover begins from the inherited topic, phase, and stability.
 
-Clarity:
+The Specialist reviews inherited evidence and constraints, prepares a small reserve bank of phase-appropriate continuity problems, presents one clean continuity opportunity at a time, records concrete phase-defining behavior, and lets the Response Evidence Model decide whether another comparable opportunity is required.
 
-- block: `Recognition Probe`
-- 3 clean phase-appropriate verification problems
+Handover is **evidence-complete, not rep-complete**. The reserve problem bank is not a completion target.
 
-Structured Execution:
+Current live guardrails:
 
-- block: `Start + Structure`
-- 3 clean phase-appropriate verification problems
+- decision minimum: 2 valid opportunities per phase-defining dimension;
+- bounded verification window: at most 5 continuity opportunities;
+- the system may stop earlier as soon as the evidence decision resolves;
+- if clean decision-eligible evidence remains unresolved at the bounded limit, Handover exits to targeted evidence-complete re-diagnosis rather than becoming Training.
 
-Controlled Discomfort:
+### Canonical observation contract
 
-- block: `First Contact`
-- 3 clean phase-appropriate verification problems
+Verification schema v3 derives its behavior options directly from `DIAGNOSIS_OBSERVATION_MATRIX`.
 
-Time Pressure Stability:
+Each dimension uses the same Response Evidence classes as Diagnosis:
 
-- block: `Light Timer`
-- 3 clean phase-appropriate verification problems
+- `breakdown`
+- `conditional`
+- `near_stable`
+- `supported`
+- `not_observed`
+- `confounded`
 
-### Handover prep doctrine
+The Specialist sees and selects concrete behaviors. They do not select these classes directly and do not select the state outcome.
 
-The tutor is expected to:
+`not_observed` and `confounded` are not decision-eligible. They count as neither weakness nor strength and contribute no technical compatibility points.
 
-- verify inherited state only
-- not reteach from scratch
-- not progress the student during verification
-- hold the phase rules exactly
+### Shared dimension resolution
 
-### Verification outcomes
+The shared `resolveResponseEvidenceDimension` law controls dimension truth.
 
-The live handover verification thresholds are:
+With the current Handover minimum of 2 valid opportunities:
 
-- `0-39` -> `targeted_re_diagnosis_required`
-- `40-59` -> `stability_adjust`
-- `60-84` -> `hold`
-- `85-100` -> `hold` with strong confidence
+- fewer than 2 decision-eligible opportunities -> `UNRESOLVED`;
+- sufficient clean support -> `SUPPORTED` or `NEAR_STABLE`;
+- persistent mixed evidence -> `CONDITIONAL`;
+- a latest breakdown or repeated breakdown -> `BREAKDOWN`.
 
-### Stability reduction rule
+A real earlier breakdown cannot be erased by one isolated good response.
 
-If `stability_adjust` is triggered:
+Recovery requires the normal support minimum plus one additional clean comparable supported observation after any earlier breakdown. With a minimum of 2, that means **3 trailing supported opportunities after the breakdown** before `recoveredAfterBreakdown` becomes true.
 
-- `High Maintenance` -> `High`
-- `High` -> `Medium`
-- `Medium` -> `Low`
-- `Low` -> `Low`
+### Handover decision law
 
-### Targeted re-diagnosis path
+The whole-topic Handover decision is derived from the dimension states:
 
-If the verification result is too weak to trust the inherited state:
+- any `UNRESOLVED` before the bounded limit -> `continue_verification`;
+- any `UNRESOLVED` at the bounded limit -> `targeted_re_diagnosis_required`, inherited state frozen;
+- any confirmed `BREAKDOWN` -> `targeted_re_diagnosis_required`, inherited state frozen;
+- any `CONDITIONAL` while clean resolution remains possible -> `continue_verification`;
+- persistent `CONDITIONAL` at the bounded limit -> `stability_adjust` within the inherited phase;
+- only `SUPPORTED` / `NEAR_STABLE` dimensions with enough evidence -> `hold`;
+- all dimensions `SUPPORTED` -> `hold` with strong confidence.
 
-- the system does not resume ordinary training
-- the topic is reclassified through the dedicated handover re-diagnosis flow
-- the result becomes the new trustworthy starting point
+Compatibility scores may still be stored or displayed behind technical-detail surfaces. They have `scoreAuthority: false` and must never decide phase, stability, regression, recovery, or re-diagnosis.
+
+### Stability adjustment rule
+
+A Handover stability adjustment cannot manufacture a lower response layer.
+
+Current rule:
+
+- `High Maintenance -> High`
+- `High -> Medium`
+- `Medium -> Medium`
+- `Low -> Low`
+
+Conditional evidence alone cannot mint `Low`. Low is breakdown-derived; a phase-defining breakdown routes to targeted re-diagnosis instead of letting Handover manually reclassify the phase.
+
+### Targeted re-diagnosis boundary
+
+When Handover can no longer safely trust inherited truth:
+
+- normal Training remains closed;
+- Handover does not keep running extra opportunities to make the inherited state pass;
+- the topic enters the evidence-complete Diagnosis runner at the appropriate starting signal;
+- Diagnosis owns final phase/stability reclassification;
+- once re-diagnosis completes, the gate clears and ordinary Training reads the new canonical topic state.
+
+### Specialist result surface
+
+The live Handover result teaches from evidence authority first:
+
+- inherited state;
+- resulting state;
+- evidence reason;
+- dimension-level Response Evidence states and counts;
+- recovery status where applicable;
+- next action and constraint.
+
+Response Snapshot and compatibility output are technical secondary detail, not the operating decision.
 
 ## Behavior-Language Engine
 

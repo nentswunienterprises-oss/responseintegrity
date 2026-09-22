@@ -243,181 +243,131 @@ This avoids making reassignment too heavy.
 
 ## Verification Unit
 
-Like adaptive diagnosis, handover verification should be short and decisive.
+Handover verification is evidence-driven rather than score-block-driven.
 
-It should not use full training drill structure.
+The live model is:
 
-Recommended model:
+- inherit the topic's current phase and stability as the state under test;
+- prepare a small reserve bank of phase-appropriate continuity problems;
+- present one clean opportunity at a time;
+- record concrete behavior against the inherited phase dimensions;
+- stop as soon as the Response Evidence Model has enough evidence to hold, adjust, or exit to targeted re-diagnosis.
 
-- one short verification block per selected topic
-- block is built from the topic’s current stored phase
-- score block out of `100`
-- decide whether inherited state holds
+There is no fixed rep-completion requirement. The bounded window prevents continuity verification from quietly becoming Training.
+
+## Canonical Behavior Contract
+
+Handover uses the same concrete behavior definitions as evidence-complete Diagnosis.
+
+Every phase-defining dimension can resolve from breakdown, conditional, near-stable, supported, not observed, or confounded.
+
+The replacement Specialist records the behavior that happened. The system owns the evidence class, dimension state, recovery law, and whole-topic outcome.
+
+Missing or contaminated evidence is never translated into weakness or strength.
 
 ## Verification Logic
 
-Handover verification should inherit the topic’s current state as the starting assumption.
+Handover starts from inherited truth rather than neutral placement.
 
 Example:
 
 - Topic: Fractions
-- Current stored state: `Structured Execution / Medium`
+- Inherited state: `Structured Execution / High`
 
-The verification block should check:
+The continuity question is whether the inherited Structured Execution capability still holds under the correct no-help execution condition and whether the inherited stability remains defensible from clean evidence.
 
-- does observed performance still look like Structured Execution?
-- does the current stability still make sense?
+The question is not what phase the replacement Specialist would personally choose.
 
-## Recommended Verification Outcomes
-
-Handover verification should support 4 outcomes.
+## Live Outcomes
 
 ### 1. Hold
 
-Meaning:
+Enough decision-eligible evidence supports the inherited phase and stability without a contradiction requiring reclassification.
 
-- inherited phase is correct
-- inherited stability is still acceptable
-
-Action:
-
-- continue from current stored state
+Action: preserve inherited phase and stability and clear continuation once the Handover workflow is complete.
 
 ### 2. Stability adjust
 
-Meaning:
+The inherited phase remains usable, but conditional evidence persists through the bounded continuity window.
 
-- phase still looks correct
-- but stability is slightly off
+Current reduction law:
 
-Action:
+- `High Maintenance -> High`
+- `High -> Medium`
+- `Medium -> Medium`
+- `Low -> Low`
 
-- adjust stability within the same phase
-
-Example:
-
-- Structured Execution / Medium -> Structured Execution / Low
-- Controlled Discomfort / High -> Controlled Discomfort / Medium
+Conditional evidence alone cannot mint `Low`.
 
 ### 3. Targeted re-diagnosis required
 
-Meaning:
+A phase-defining breakdown is confirmed, or the bounded Handover window ends without enough clean decision-eligible evidence.
 
-- the stored phase itself now looks questionable
-- topic likely needs sharper reclassification
+Action: freeze the inherited state for continuity purposes, keep normal Training closed, and launch targeted evidence-complete Diagnosis. Diagnosis owns reclassification.
 
-Action:
+This is not full student re-onboarding.
 
-- run targeted topic re-diagnosis for that topic only
+## Recovery Law
 
-This is not full intro re-onboarding.
+With the current minimum of two valid opportunities, an earlier real breakdown requires three trailing clean supported comparable opportunities before recovery is confirmed.
 
-### 4. Severe mismatch / stale state
+Therefore:
 
-Meaning:
+- breakdown + two clean opportunities is not yet recovery;
+- breakdown + three trailing supported opportunities can resolve as recovered;
+- the Specialist must not keep adding opportunities after the system has already resolved an outcome.
 
-- inherited data is too weak, too old, or too contradictory
+## Compatibility Scores
 
-Action:
+Compatibility scoring may remain in storage or technical diagnostic surfaces for historical continuity. It has no Handover decision authority.
 
-- escalate to a larger reset decision
-- still avoid full re-intro unless absolutely necessary
-
-This should be rare.
-
-## Suggested Scoring Bands
-
-The exact law can be refined later, but a clean first version is:
-
-- `0-39` -> severe mismatch -> targeted re-diagnosis
-- `40-59` -> phase likely holds, but reduce stability
-- `60-84` -> hold current state
-- `85-100` -> hold and mark confidence strong
-
-This is different from adaptive intro diagnosis because handover verification is not trying to discover first entry phase across the whole ladder.
-
-It is trying to validate an existing state assumption.
-
-## Practical Example
-
-Student history:
-
-- Topic: Linear Equations
-- Stored state: `Controlled Discomfort / Medium`
-- Tutor changes
-
-New tutor runs handover verification.
-
-### Outcome A: Score 72
-
-Interpretation:
-
-- current phase looks right
-- current stability looks usable
-
-Action:
-
-- keep `Controlled Discomfort / Medium`
-- continue training
-
-### Outcome B: Score 48
-
-Interpretation:
-
-- current phase may still be right
-- but stability is too optimistic
-
-Action:
-
-- adjust to `Controlled Discomfort / Low`
-- continue with reinforcement
-
-### Outcome C: Score 28
-
-Interpretation:
-
-- current state does not look trustworthy
-
-Action:
-
-- trigger targeted re-diagnosis on `Linear Equations`
+Do not use score bands to decide phase, stability, regression, recovery, or re-diagnosis.
 
 ## Data Integrity Rule
 
-Handover verification must not overwrite intro history.
+Handover must not overwrite Intro history or Training history.
 
-That means:
+Each Handover event preserves:
 
-- original intro diagnosis remains intact
-- training history remains intact
-- handover verification is stored as its own drill/event type
+- student and Specialist lineage;
+- topic;
+- inherited phase and stability;
+- verification schema ID, version, and definition hash;
+- constraint profile;
+- concrete behavior option identity and label;
+- Response Evidence class;
+- not-observed or confounded status where applicable;
+- per-dimension resolution;
+- recovery status;
+- Handover outcome and reason;
+- resulting phase/stability;
+- targeted re-diagnosis requirement;
+- next action and constraint;
+- timestamp.
 
-Recommended event type:
+Any compatibility score is technical metadata only.
 
-`handover_verification`
+## Practical Evidence Examples
 
-This is important because:
+### Clean continuity
 
-- intro must remain the first placement event
-- handover verification is a continuity event
-- reporting and audits should be able to distinguish them
+Two clean supported opportunities across the inherited phase dimensions are enough for a normal hold when no earlier contradiction exists.
 
-## Recommended Stored Data
+### Near-stable continuity
 
-Each handover verification event should store:
+Near-stable behavior can still support a hold. It must not be collapsed into generic weakness merely because it is not perfectly clean.
 
-- student_id
-- previous_tutor_id
-- new_tutor_id
-- topic
-- phase_at_verification
-- stability_at_verification
-- verification_score
-- verification_outcome
-- resulting_phase
-- resulting_stability
-- whether re-diagnosis was triggered
-- timestamp
+### Recoverable contradiction
+
+One earlier breakdown followed by only two clean opportunities remains unresolved/conditional. A third trailing supported comparable opportunity is required before recovery can be confirmed.
+
+### Missing or contaminated evidence
+
+If a behavior is not meaningfully observable, record `not_observed`.
+
+If an intervention, interruption, timer change, or another condition changes what is being observed, record `confounded`.
+
+Neither becomes weakness or strength. The system asks for clean evidence or routes to targeted re-diagnosis if the bounded window closes unresolved.
 
 ## Tutor UI State
 

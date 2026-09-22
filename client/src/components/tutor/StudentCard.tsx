@@ -1228,12 +1228,12 @@ function HandoverVerificationSection({
               <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.resultingStability || "-"}</p>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">{latestSummary.nextAction || "No next action recorded."}</p>
-          {typeof latestSummary.verificationScore === "number" ? (
-            <p className="text-[11px] text-muted-foreground">
-              Compatibility score: {latestSummary.verificationScore}/100 · technical reference only, not decision authority.
+          {latestSummary.evidenceReason ? (
+            <p className="text-xs leading-5 text-muted-foreground">
+              <span className="font-medium text-foreground">Evidence:</span> {latestSummary.evidenceReason}
             </p>
           ) : null}
+          <p className="text-xs text-muted-foreground">{latestSummary.nextAction || "No next action recorded."}</p>
           {latestSummary.constraint ? (
             <p className="text-xs text-muted-foreground">Constraint: <span className="font-medium text-foreground">{latestSummary.constraint}</span></p>
           ) : null}
