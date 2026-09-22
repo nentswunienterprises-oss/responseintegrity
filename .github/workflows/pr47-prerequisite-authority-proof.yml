@@ -12,9 +12,9 @@ permissions:
   statuses: read
 
 jobs:
-  inventory:
+  live-prerequisite-authority:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       SMOKE_BASE_URL: https://tt-confidence-hub-git-feat-evi-31b8c6-relief-works-technologies.vercel.app
       RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
@@ -31,11 +31,12 @@ jobs:
         run: |
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
-      - name: Inventory current proof fixtures
+      - name: Run live prerequisite sentinel A/B proof
         shell: bash
         run: |
           node --input-type=module <<'NODE'
           import assert from "node:assert/strict";
+          import fs from "node:fs/promises";
           import { chromium } from "playwright";
 
           const baseUrl = String(process.env.SMOKE_BASE_URL || "").replace(/\/$/, "");
@@ -44,23 +45,109 @@ jobs:
           const bypass = String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "").trim();
           assert.ok(baseUrl && email && password, "Proof runtime credentials are required");
 
+          const STRUCTURED = [
+            {
+              name: "Required Structure",
+              fields: [
+                ["Start", "delayed", "immediate"],
+                ["Step Discipline", "skips", "full"],
+                ["Structure Response", "resists", "already structured correctly"],
+                ["Independence", "needs help", "independent"],
+              ],
+            },
+            {
+              name: "Independent Execution",
+              fields: [
+                ["Independence", "needs help", "independent"],
+                ["Repeatability", "breaks", "stable"],
+                ["Step Discipline", "guesses", "no correction needed"],
+                ["Start", "delayed", "immediate"],
+              ],
+            },
+            {
+              name: "Variation Control",
+              fields: [
+                ["Transfer", "cannot adapt", "adapts"],
+                ["Step Retention", "lost", "stable"],
+                ["Independence", "fails", "complete"],
+                ["Start", "delayed", "immediate"],
+              ],
+            },
+          ];
+
+          const CONTROLLED = [
+            {
+              name: "Controlled Entry",
+              fields: [
+                ["Start Control", "freeze", "controlled"],
+                ["First-Step Accuracy", "wrong", "correct"],
+                ["Stability", "breaks", "stable"],
+                ["Rescue Behavior", "frequent", "none"],
+              ],
+            },
+            {
+              name: "No Rescue",
+              fields: [
+                ["Independence", "dependent", "independent"],
+                ["Stability", "breaks", "stable"],
+                ["Recovery", "collapses", "no recovery needed"],
+                ["First-Step Control", "none", "independent"],
+              ],
+            },
+            {
+              name: "Repeat Exposure",
+              fields: [
+                ["Consistency", "breaks", "stable"],
+                ["Recovery", "collapses", "no recovery needed"],
+                ["Rescue Behavior", "frequent", "none"],
+                ["First-Step Control", "none", "independent"],
+              ],
+            },
+          ];
+
+          const scenarios = [
+            {
+              id: "controlled-discomfort-sentinel-held",
+              studentId: "e1c11823-05e7-47a1-a753-e6599954df1a",
+              topic: "Fractions",
+              phase: "Controlled Discomfort",
+              startStability: "High",
+              sessionId: "8af34bee-1bfe-49a1-8402-b731dfcc05f1",
+              sets: CONTROLLED,
+              sentinelLabel: "Executes the known method independently once difficulty is removed",
+              expectedPrerequisiteStatus: "cleared",
+              expectedRequiresRediagnosis: false,
+            },
+            {
+              id: "structured-execution-sentinel-contradicted",
+              studentId: "828a5609-462c-4772-841a-0590ceb6a84e",
+              topic: "Geometry",
+              phase: "Structured Execution",
+              startStability: "High Maintenance",
+              sessionId: "eafdd8a0-d07d-4326-b94e-003cbbc434ae",
+              sets: STRUCTURED,
+              sentinelLabel: "Cannot identify the method or why it applies without help",
+              expectedPrerequisiteStatus: "confirmed",
+              expectedRequiresRediagnosis: true,
+              expectedTarget: "Clarity",
+            },
+          ];
+
           const browser = await chromium.launch({ headless: true });
           const context = await browser.newContext({
+            viewport: { width: 1440, height: 1100 },
             ...(bypass ? { extraHTTPHeaders: { "x-vercel-protection-bypass": bypass } } : {}),
           });
           const page = await context.newPage();
 
-          try {
+          async function login() {
             const proof = await page.request.get(baseUrl + "/api/proof-environment", { timeout: 60000 });
             const proofText = await proof.text();
             assert.ok(proof.ok(), "Proof environment failed: " + proof.status() + " " + proofText);
-            const proofBody = JSON.parse(proofText);
-            assert.equal(proofBody.vercelEnv, "preview");
-            assert.equal(proofBody.requiredEnv?.SUPABASE_SERVICE_ROLE_KEY, true);
-            console.log("PR47_PREREQ_ENV=" + JSON.stringify({
-              vercelEnv: proofBody.vercelEnv,
-              supabaseProjectRef: proofBody.supabaseProjectRef,
-            }));
+            const body = JSON.parse(proofText);
+            assert.equal(body.vercelEnv, "preview");
+            assert.equal(body.supabaseProjectRef, "jftlxeacphvbnhbsbpxc");
+            assert.equal(body.requiredEnv?.SUPABASE_SERVICE_ROLE_KEY, true);
 
             await page.goto(baseUrl + "/operational/signup?role=tutor&mode=login&lock=login&returnTo=/specialist/pod", {
               waitUntil: "domcontentloaded",
@@ -77,47 +164,147 @@ jobs:
             ]);
             const signinText = await signin.text();
             assert.ok(signin.ok(), "Login failed: " + signin.status() + " " + signinText);
+          }
 
-            const podResponse = await page.request.get(baseUrl + "/api/tutor/pod", { timeout: 60000 });
-            const podText = await podResponse.text();
-            assert.ok(podResponse.ok(), "Pod failed: " + podResponse.status() + " " + podText);
-            const pod = JSON.parse(podText);
-            const students = Array.isArray(pod) ? pod : Array.isArray(pod?.students) ? pod.students : [];
+          async function topicState(scenario) {
+            const response = await page.request.get(
+              baseUrl + "/api/tutor/topic-conditioning/" + encodeURIComponent(scenario.studentId),
+              { timeout: 60000 },
+            );
+            const text = await response.text();
+            assert.ok(response.ok(), scenario.id + ": topic lookup failed " + response.status() + " " + text);
+            const body = JSON.parse(text);
+            const rows = Array.isArray(body) ? body : Array.isArray(body?.topics) ? body.topics : [];
+            const row = rows.find((candidate) =>
+              String(candidate?.topic || "").trim().toLowerCase() === scenario.topic.toLowerCase()
+            );
+            assert.ok(row, scenario.id + ": topic missing");
+            return row;
+          }
 
-            const sessionsResponse = await page.request.get(baseUrl + "/api/tutor/sessions", { timeout: 60000 });
-            const sessionsText = await sessionsResponse.text();
-            const sessionsBody = sessionsResponse.ok() ? JSON.parse(sessionsText) : { error: sessionsText };
-            console.log("PR47_PREREQ_SESSIONS=" + JSON.stringify(sessionsBody));
+          async function chooseField(label, option) {
+            const labelNode = page.locator("label").filter({ hasText: label }).first();
+            await labelNode.waitFor({ state: "visible", timeout: 30000 });
+            const block = labelNode.locator("..");
+            const button = block.getByRole("button", { name: option, exact: true });
+            await button.waitFor({ state: "visible", timeout: 30000 });
+            await button.click();
+          }
 
-            const inventory = [];
-            for (const student of students) {
-              const studentId = String(student?.id || "").trim();
-              if (!studentId) continue;
-              const topicsResponse = await page.request.get(
-                baseUrl + "/api/tutor/topic-conditioning/" + encodeURIComponent(studentId),
-                { timeout: 60000 },
-              );
-              const topicsText = await topicsResponse.text();
-              const topics = topicsResponse.ok() ? JSON.parse(topicsText) : { error: topicsText };
+          async function runScenario(scenario) {
+            const before = await topicState(scenario);
+            assert.equal(before.phase, scenario.phase, scenario.id + ": unexpected starting phase");
+            assert.equal(before.stability, scenario.startStability, scenario.id + ": unexpected starting stability");
 
-              const accessResponse = await page.request.get(
-                baseUrl + "/api/tutor/students/" + encodeURIComponent(studentId) + "/drill-session-access?kind=training",
-                { timeout: 60000 },
-              );
-              const accessText = await accessResponse.text();
-              const trainingAccess = accessResponse.ok() ? JSON.parse(accessText) : { error: accessText };
+            const access = await page.request.get(
+              baseUrl + "/api/tutor/students/" + encodeURIComponent(scenario.studentId) +
+                "/drill-session-access?kind=training&sessionId=" + encodeURIComponent(scenario.sessionId),
+              { timeout: 60000 },
+            );
+            const accessText = await access.text();
+            assert.ok(access.ok(), scenario.id + ": session access failed " + access.status() + " " + accessText);
+            const accessBody = JSON.parse(accessText);
+            assert.equal(accessBody.canLaunch, true, scenario.id + ": session is not launch-ready");
 
-              inventory.push({
-                id: studentId,
-                name: student?.name || student?.fullName || student?.full_name || null,
-                operationalMode: student?.operationalMode || student?.operational_mode || null,
-                topics,
-                trainingAccess,
-              });
+            const url =
+              baseUrl + "/specialist/intro-session/" + encodeURIComponent(scenario.studentId) +
+              "?mode=training&topic=" + encodeURIComponent(scenario.topic) +
+              "&phase=" + encodeURIComponent(scenario.phase) +
+              "&stability=" + encodeURIComponent(scenario.startStability) +
+              "&scheduledSessionId=" + encodeURIComponent(scenario.sessionId);
+
+            await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
+            await page.getByRole("heading", { name: "Training Drill - " + scenario.phase, exact: true })
+              .waitFor({ state: "visible", timeout: 60000 });
+
+            for (let setIndex = 0; setIndex < scenario.sets.length; setIndex += 1) {
+              const set = scenario.sets[setIndex];
+              for (let repIndex = 0; repIndex < 3; repIndex += 1) {
+                const repNumber = repIndex + 1;
+                await page.getByRole("button", { name: "Begin Rep " + repNumber, exact: true })
+                  .waitFor({ state: "visible", timeout: 30000 });
+                await page.getByRole("button", { name: "Begin Rep " + repNumber, exact: true }).click();
+
+                for (let fieldIndex = 0; fieldIndex < set.fields.length; fieldIndex += 1) {
+                  const field = set.fields[fieldIndex];
+                  const shouldBreak = setIndex === 0 && repIndex === 0 && fieldIndex === 0;
+                  await chooseField(field[0], shouldBreak ? field[1] : field[2]);
+                }
+
+                if (setIndex === 0 && repIndex === 0) {
+                  const sentinel = page.getByRole("button", { name: scenario.sentinelLabel, exact: true });
+                  await sentinel.waitFor({ state: "visible", timeout: 30000 });
+                  await sentinel.click();
+                }
+
+                const isLastSet = setIndex === scenario.sets.length - 1;
+                const isLastRep = repIndex === 2;
+                if (isLastSet && isLastRep) {
+                  const responsePromise = page.waitForResponse(
+                    (candidate) =>
+                      candidate.url().includes("/api/tutor/training-session-drill") &&
+                      candidate.request().method() === "POST",
+                    { timeout: 120000 },
+                  );
+                  await page.getByRole("button", { name: "Submit Drill", exact: true }).click();
+                  const response = await responsePromise;
+                  const responseText = await response.text();
+                  assert.ok(response.ok(), scenario.id + ": submit failed " + response.status() + " " + responseText);
+                  const result = JSON.parse(responseText);
+                  const rows = Array.isArray(result?.scoring) ? result.scoring : [];
+                  assert.ok(rows.length > 0, scenario.id + ": no scoring rows");
+                  const decision = rows[rows.length - 1];
+                  const summary = result?.drillResults?.[0]?.summary || null;
+
+                  assert.equal(decision.decisionAuthority, "evidence_native");
+                  assert.equal(
+                    decision.prerequisiteContradictionStatus,
+                    scenario.expectedPrerequisiteStatus,
+                    scenario.id + ": prerequisite status mismatch",
+                  );
+                  assert.equal(
+                    Boolean(decision.requiresTargetedRediagnosis),
+                    scenario.expectedRequiresRediagnosis,
+                    scenario.id + ": re-diagnosis flag mismatch",
+                  );
+
+                  if (scenario.expectedRequiresRediagnosis) {
+                    assert.equal(decision.phase, before.phase, scenario.id + ": phase must freeze");
+                    assert.equal(decision.stability, before.stability, scenario.id + ": stability must freeze");
+                    assert.equal(decision.transitionReason, "targeted re-diagnosis required");
+                    assert.equal(decision.targetedRediagnosisStartPhase, scenario.expectedTarget);
+                    assert.equal(summary?.prerequisiteContradiction?.targetPhase, scenario.expectedTarget);
+                    await page.getByText(
+                      new RegExp("state is held pending targeted re-diagnosis", "i"),
+                    ).waitFor({ state: "visible", timeout: 60000 });
+                  } else {
+                    assert.notEqual(decision.transitionReason, "targeted re-diagnosis required");
+                  }
+
+                  console.log("PR47_PREREQ_SCENARIO_PASS=" + scenario.id + " " + JSON.stringify({
+                    before: { phase: before.phase, stability: before.stability },
+                    observedStability: decision.observedStability,
+                    resultingState: { phase: decision.phase, stability: decision.stability },
+                    prerequisiteContradictionStatus: decision.prerequisiteContradictionStatus,
+                    requiresTargetedRediagnosis: decision.requiresTargetedRediagnosis,
+                    targetedRediagnosisStartPhase: decision.targetedRediagnosisStartPhase || null,
+                    transitionReason: decision.transitionReason,
+                  }));
+                  return;
+                }
+
+                await page.getByRole("button", {
+                  name: repIndex === 2 ? "Confirm Set" : "Confirm Rep",
+                  exact: true,
+                }).click();
+              }
             }
+          }
 
-            console.log("PR47_PREREQ_INVENTORY=" + JSON.stringify(inventory));
-            console.log("PR47_PREREQ_INVENTORY_PASS");
+          try {
+            await login();
+            for (const scenario of scenarios) await runScenario(scenario);
+            console.log("PR47_PREREQ_AB_PROOF=PASS");
           } finally {
             await browser.close();
           }
