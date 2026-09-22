@@ -59,6 +59,18 @@ jobs:
             assert.equal(proofBody.vercelEnv, "preview");
             assert.equal(proofBody.supabaseProjectRef, "jftlxeacphvbnhbsbpxc");
 
+            const mode = await page.request.get(baseUrl + "/api/auth/mode", { timeout: 60000 });
+            const modeText = await mode.text();
+            assert.ok(mode.ok(), "Auth mode probe failed: " + mode.status() + " " + modeText);
+            const modeBody = JSON.parse(modeText);
+            console.log("PR47_AUTH_MODE=" + JSON.stringify({
+              emergencyDbMode: modeBody?.emergencyDbMode,
+              authMode: modeBody?.authMode,
+              databaseProjectRef: modeBody?.databaseTarget?.projectRef || null,
+              supabaseProjectRef: modeBody?.supabaseTarget?.projectRef || null,
+              runtimeTargetsAligned: modeBody?.runtimeTargetsAligned,
+            }));
+
             await page.goto(baseUrl + "/operational/signup?role=tutor&mode=login&lock=login&returnTo=/specialist/pod", {
               waitUntil: "domcontentloaded",
               timeout: 90000,
