@@ -7,6 +7,7 @@ import {
   type SubmittedEvidenceSet,
 } from "./responseIntegrityDrillRegistry";
 import { evaluateHandoverVerificationEvidence } from "./handoverEvidenceEvaluator";
+import { computeAdaptiveDiagnosisPhaseSummary } from "./adaptiveDiagnosis";
 import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
 
 const buildVerificationSet = (
@@ -106,4 +107,46 @@ test("forged semantic evidence is unavailable rather than scored", () => {
     set,
   });
   assert.equal(result.status, "unavailable");
+});
+
+
+test("high compatibility cannot override a confirmed phase-defining breakdown", () => {
+  const set = buildVerificationSet("Time Pressure Stability", (field, rep, count) =>
+    field === "structureUnderTime" && rep >= 1 ? 0 : count - 1
+  );
+  const compatibility = computeAdaptiveDiagnosisPhaseSummary(
+    "Time Pressure Stability",
+    set.observations,
+  );
+  assert.ok(
+    compatibility.phaseScore >= 70,
+    `Expected a superficially strong compatibility score, received ${compatibility.phaseScore}`,
+  );
+
+  const result = evaluate("Time Pressure Stability", "High", set);
+  assert.equal(result.verificationOutcome, "targeted_re_diagnosis_required");
+  assert.equal(result.reDiagnosisRequired, true);
+  assert.equal(
+    result.dimensions.find((dimension) => dimension.dimensionId === "time.structure")?.state,
+    "BREAKDOWN",
+  );
+});
+
+test("one early breakdown plus two clean continuity reps is not falsely called recovered", () => {
+  const set = buildVerificationSet("Structured Execution", (field, rep, count) =>
+    field === "stepExecution" && rep === 0 ? 0 : count - 1
+  );
+  const result = evaluate("Structured Execution", "High", set);
+  const stepDiscipline = result.dimensions.find(
+    (dimension) => dimension.dimensionId === "execution.step_discipline",
+  );
+
+  assert.equal(stepDiscipline?.breakdownCount, 1);
+  assert.equal(stepDiscipline?.supportedCount, 2);
+  assert.equal(stepDiscipline?.recoveredAfterBreakdown, false);
+  assert.equal(stepDiscipline?.state, "CONDITIONAL");
+  assert.equal(result.verificationOutcome, "stability_adjust");
+  assert.equal(result.resultingPhase, "Structured Execution");
+  assert.equal(result.resultingStability, "Medium");
+  assert.equal(result.reDiagnosisRequired, false);
 });

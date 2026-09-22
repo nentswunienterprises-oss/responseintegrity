@@ -52,6 +52,12 @@ function getSessionTimeLabel(value: string): string {
   return format(sessionDate, "h:mm a");
 }
 
+function formatEvidenceAuthority(value: unknown): string {
+  if (value === "response_evidence_model_v1") return "Response Evidence Model";
+  if (value === "mixed_response_evidence_legacy") return "Mixed evidence + legacy compatibility";
+  return "Legacy compatibility";
+}
+
 function formatReportValue(value: any): string {
   if (Array.isArray(value)) {
     const singleCurrentPosition =
@@ -370,13 +376,7 @@ export default function StudentReportsDialog({
                               <FieldRow label="Next Move" value={formatReportValue(structured.nextMove || report.nextSteps)} />
                               <FieldRow
                                 label="Evidence Authority"
-                                value={
-                                  structured.reportDecisionAuthority === "response_evidence_model_v1"
-                                    ? "Response Evidence Model"
-                                    : structured.reportDecisionAuthority === "mixed_response_evidence_legacy"
-                                      ? "Mixed evidence + legacy compatibility"
-                                      : "Legacy compatibility"
-                                }
+                                value={formatEvidenceAuthority(structured.reportDecisionAuthority)}
                               />
                               {report.parentFeedback ? (
                                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
@@ -428,6 +428,10 @@ export default function StudentReportsDialog({
                               <FieldRow label="Current Position" value={formatReportValue(structured.currentPosition)} />
                               <FieldRow label="What This Means" value={formatReportValue(structured.whatThisMeans)} />
                               <FieldRow label="Next Month Move" value={formatReportValue(structured.nextMonthMove || report.nextSteps)} />
+                              <FieldRow
+                                label="Evidence Authority"
+                                value={formatEvidenceAuthority(structured.reportDecisionAuthority)}
+                              />
                               <FieldRow label="Parent Feedback" value={formatReportValue(report.parentFeedback)} />
                             </AccordionContent>
                           </AccordionItem>

@@ -1858,6 +1858,11 @@ export default function IntroSessionDrillRunner() {
         const overallSessionScore = Math.round(
           topicSummaries.reduce((sum, topic) => sum + topic.topicScore, 0) / Math.max(topicSummaries.length, 1)
         );
+        const compatibilityIsTechnicalOnly = scoring.every((row: any) =>
+          row?.scoreAuthority === false ||
+          row?.decisionAuthority === "evidence_native" ||
+          row?.decisionAuthority === "behavioral_evidence"
+        );
         const stabilityColorFor = (stability?: string | null) =>
           stability === "High Maintenance"
             ? "text-blue-700"
@@ -1944,6 +1949,11 @@ export default function IntroSessionDrillRunner() {
               <summary className="cursor-pointer text-sm font-semibold text-foreground">
                 View compatibility scoring breakdown
               </summary>
+              {compatibilityIsTechnicalOnly && (
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  Technical reference only. These values do not determine phase, stability, regression, recovery, or re-diagnosis.
+                </p>
+              )}
               <div className="mt-3 space-y-3">
                 {setNames.map((setName) => {
                   const rows = setGroups[setName];
@@ -1965,7 +1975,13 @@ export default function IntroSessionDrillRunner() {
                           <div key={i} className="px-4 py-2 flex justify-between items-center text-sm bg-background">
                             <span className="text-muted-foreground">Rep {row.rep}</span>
                             <span className={`font-medium ${
-                              row.score >= 70 ? "text-green-700" : row.score >= 45 ? "text-yellow-700" : "text-red-700"
+                              compatibilityIsTechnicalOnly
+                                ? "text-muted-foreground"
+                                : row.score >= 70
+                                  ? "text-green-700"
+                                  : row.score >= 45
+                                    ? "text-yellow-700"
+                                    : "text-red-700"
                             }`}>{row.score}/100</span>
                           </div>
                         ))}
@@ -1976,15 +1992,17 @@ export default function IntroSessionDrillRunner() {
               </div>
             </details>
 
-            {/* Session total */}
-            <div className="rounded-xl border border-primary/15 bg-background px-4 py-3 flex justify-between items-center">
-              <span className="font-semibold">
-                {topicSummaries.length > 1 ? "Overall Compatibility Average" : "Compatibility Score"}
-              </span>
-              <span className={`text-lg font-bold ${
-                overallSessionScore >= 70 ? "text-green-700" : overallSessionScore >= 45 ? "text-yellow-700" : "text-red-700"
-              }`}>{overallSessionScore}/100</span>
-            </div>
+            {/* Compatibility total remains visible only where score is still authoritative legacy metadata. */}
+            {!compatibilityIsTechnicalOnly && (
+              <div className="rounded-xl border border-primary/15 bg-background px-4 py-3 flex justify-between items-center">
+                <span className="font-semibold">
+                  {topicSummaries.length > 1 ? "Overall Compatibility Average" : "Compatibility Score"}
+                </span>
+                <span className={`text-lg font-bold ${
+                  overallSessionScore >= 70 ? "text-green-700" : overallSessionScore >= 45 ? "text-yellow-700" : "text-red-700"
+                }`}>{overallSessionScore}/100</span>
+              </div>
+            )}
 
             {/* Per-topic direction cards */}
             {topicSummaries.map(({ topicName, lastRow, topicScore }) => {
@@ -2002,12 +2020,18 @@ export default function IntroSessionDrillRunner() {
                       <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">This Session Result</p>
                       <p className={`font-semibold ${stabilityColor}`}>{resultLabelFor(lastRow, topicName)}</p>
                     </div>
-                    <div className="flex justify-between items-center pt-1 border-t">
-                      <span className="text-muted-foreground">Topic Score</span>
-                      <span className={`font-bold ${
-                        topicScore >= 70 ? "text-green-700" : topicScore >= 45 ? "text-yellow-700" : "text-red-700"
-                      }`}>{topicScore}/100</span>
-                    </div>
+                    {!(
+                      lastRow?.scoreAuthority === false ||
+                      lastRow?.decisionAuthority === "evidence_native" ||
+                      lastRow?.decisionAuthority === "behavioral_evidence"
+                    ) && (
+                      <div className="flex justify-between items-center pt-1 border-t">
+                        <span className="text-muted-foreground">Topic Score</span>
+                        <span className={`font-bold ${
+                          topicScore >= 70 ? "text-green-700" : topicScore >= 45 ? "text-yellow-700" : "text-red-700"
+                        }`}>{topicScore}/100</span>
+                      </div>
+                    )}
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Before</span>
                       <span className="font-medium">{formatState(lastRow?.phaseBefore, lastRow?.stabilityBefore)}</span>

@@ -7922,8 +7922,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       handoverMode: isTargetedRediagnosis ? "targeted_re_diagnosis" : "verification",
                       observedPhase: handoverSummary.phase,
                       previousStability: handoverSummary.previousStability,
-                      decisionAuthority: (handoverSummary as any).decisionAuthority || "legacy_adaptive_score",
-                      scoreAuthority: (handoverSummary as any).scoreAuthority ?? true,
+                      decisionAuthority: (handoverSummary as any).decisionAuthority || "evidence_native",
+                      scoreAuthority: (handoverSummary as any).scoreAuthority ?? false,
                       compatibilityScore: handoverSummary.verificationScore,
                       verificationScore: handoverSummary.verificationScore,
                       verificationOutcome: handoverSummary.verificationOutcome,
@@ -7967,6 +7967,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 setPoints: handoverSummary.verificationScore,
                 setMaxPoints: 100,
                 sessionScore: handoverSummary.verificationScore,
+                decisionAuthority: (handoverSummary as any).decisionAuthority || "evidence_native",
+                scoreAuthority: (handoverSummary as any).scoreAuthority ?? false,
                 phase: handoverSummary.phase,
                 stability: handoverSummary.resultingStability,
                 previousStability: handoverSummary.previousStability,
@@ -8272,7 +8274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     trainingSummary.requiresTargetedRediagnosis
                       ? `Targeted re-diagnosis start: ${trainingSummary.targetedRediagnosisStartPhase || trainingSummary.observedPhase}`
                       : null,
-                    `Compatibility score: ${trainingSummary.sessionScore}`,
+                    `Compatibility score (non-authoritative): ${trainingSummary.sessionScore}`,
                     trainingSummary.constraint ? `Constraint: ${trainingSummary.constraint}` : null,
                   ]
                     .filter(Boolean)
@@ -8284,7 +8286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       phase: trainingSummary.phase,
                       stability: trainingSummary.stability,
                       nextAction: trainingSummary.nextAction,
-                      observationNotes: `Training drill update. Evidence decision ${trainingSummary.transitionReason}; compatibility score ${trainingSummary.sessionScore}.`,
+                      observationNotes: `Training drill update. Evidence decision ${trainingSummary.transitionReason}; compatibility score ${trainingSummary.sessionScore} (non-authoritative).`,
                       structuredObservation: {
                         drillType: "training",
                         observedPhase: trainingSummary.observedPhase,
@@ -8328,6 +8330,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       setMaxPoints: 100,
                       sessionScore: trainingSummary.sessionScore,
                       decisionAuthority: trainingSummary.decisionAuthority,
+                      scoreAuthority: false,
                       observedStability: trainingSummary.observedStability,
                       phaseBefore: trainingSummary.observedPhase,
                       phase: trainingSummary.phase,
