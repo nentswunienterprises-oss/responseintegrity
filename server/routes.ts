@@ -71,6 +71,7 @@ import {
   evaluateTrainingEvidence,
   resolveTrainingEvidenceAuthorityRoute,
 } from "@shared/trainingEvidenceEvaluator";
+import { evaluateHandoverVerificationEvidence } from "@shared/handoverEvidenceEvaluator";
 import { buildResponseSnapshotV1, summarizeSnapshotObservedResponse } from "@shared/responseSnapshot";
 import {
   cancellationNeedsReplacement,
@@ -4890,32 +4891,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const computeHandoverVerificationSummary = (
             phase: TopicPhase,
             previousStability: TopicStability,
-            observations: Array<Record<string, string>>
+            submittedSet: any,
           ) => {
-            const phaseSummary = computeAdaptiveDiagnosisPhaseSummary(phase, observations);
-            const verificationScore = phaseSummary.phaseScore;
+            // Retain the old score only as a compatibility measurement. It must
+            // never authorize the continuity decision.
+            const compatibilitySummary = computeAdaptiveDiagnosisPhaseSummary(
+              phase,
+              Array.isArray(submittedSet?.observations) ? submittedSet.observations : [],
+            );
+            const evidenceEvaluation = evaluateHandoverVerificationEvidence({
+              phase,
+              previousStability,
+              set: submittedSet,
+            });
 
-            let verificationOutcome:
-              | "hold"
-              | "stability_adjust"
-              | "targeted_re_diagnosis_required" = "hold";
-            let confidence: "low" | "normal" | "strong" = "normal";
-            let resultingPhase: TopicPhase = phase;
-            let resultingStability: TopicStability = previousStability;
-
-            if (verificationScore <= 39) {
-              verificationOutcome = "targeted_re_diagnosis_required";
-              confidence = "low";
-            } else if (verificationScore <= 59) {
-              verificationOutcome = "stability_adjust";
-              resultingStability = reduceHandoverStability(previousStability);
-            } else if (verificationScore <= 84) {
-              verificationOutcome = "hold";
-              confidence = "normal";
-            } else {
-              verificationOutcome = "hold";
-              confidence = "strong";
+            if (evidenceEvaluation.status !== "evaluated") {
+              return {
+                status: "unavailable" as const,
+                phase,
+                previousStability,
+                reason: evidenceEvaluation.reason,
+              };
             }
+
+            const {
+              verificationOutcome,
+              confidence,
+              resultingPhase,
+              resultingStability,
+              reDiagnosisRequired,
+              reason,
+              dimensions,
+            } = evidenceEvaluation;
 
             const nextActionConfig =
               verificationOutcome === "targeted_re_diagnosis_required"
@@ -4928,34 +4935,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 : verificationOutcome === "stability_adjust"
                   ? "Stability adjust"
                   : confidence === "strong"
-                    ? "Hold with strong confidence"
-                    : "Hold";
+                    ? "Inherited state confirmed"
+                    : "Inherited state held";
 
             const nextAction =
               verificationOutcome === "targeted_re_diagnosis_required"
-                ? "Run targeted re-diagnosis on this topic before standard training resumes."
+                ? "Run evidence-complete targeted re-diagnosis on this topic before standard training resumes."
                 : verificationOutcome === "stability_adjust"
-                  ? `Adjust stability to ${resultingStability} and continue with reinforcement from the current phase.`
+                  ? `Adjust stability to ${resultingStability} and continue reinforcement from the inherited phase.`
                   : nextActionConfig?.primaryAction || "Continue training from the inherited state.";
 
             const constraint =
               verificationOutcome === "targeted_re_diagnosis_required"
-                ? "Do not resume normal training until targeted re-diagnosis is completed."
+                ? "Do not resume normal training until evidence-complete targeted re-diagnosis is completed."
                 : nextActionConfig?.rules?.[0] || null;
 
             return {
+              status: "evaluated" as const,
               phase,
               previousStability,
-              verificationScore,
+              verificationScore: compatibilitySummary.phaseScore,
+              compatibilityScore: compatibilitySummary.phaseScore,
+              scoreAuthority: false as const,
+              decisionAuthority: "evidence_native" as const,
               verificationOutcome,
               verificationOutcomeLabel,
               confidence,
               resultingPhase,
               resultingStability,
-              reDiagnosisRequired: verificationOutcome === "targeted_re_diagnosis_required",
+              reDiagnosisRequired,
+              evidenceReason: reason,
+              dimensions,
               nextAction,
               constraint,
-              repRows: phaseSummary.repRows,
+              repRows: compatibilitySummary.repRows,
             };
           };
 
@@ -7659,11 +7672,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   verificationBlocks
                 );
               } else {
-                handoverSummary = computeHandoverVerificationSummary(
+                const verificationSummary = computeHandoverVerificationSummary(
                   verificationPhase,
                   previousStability,
-                  verificationBlock.observations
+                  verificationBlock,
                 );
+                if (verificationSummary.status !== "evaluated") {
+                  return res.status(400).json({
+                    message: `Handover evidence is not decision-eligible: ${verificationSummary.reason}`,
+                  });
+                }
+                handoverSummary = verificationSummary;
               }
 
               const id = uuidv4();
@@ -7761,9 +7780,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 lastUpdated: nowIso,
                 nextAction: handoverSummary.nextAction,
                 observationNotes: [
-                  `Handover Verification Score: ${handoverSummary.verificationScore}`,
-                  `Outcome: ${handoverSummary.verificationOutcomeLabel}`,
+                  `Handover evidence decision: ${handoverSummary.verificationOutcomeLabel}`,
+                  (handoverSummary as any).evidenceReason
+                    ? `Evidence: ${(handoverSummary as any).evidenceReason}`
+                    : null,
                   handoverSummary.constraint ? `Constraint: ${handoverSummary.constraint}` : null,
+                  typeof handoverSummary.verificationScore === "number"
+                    ? `Compatibility score (non-authoritative): ${handoverSummary.verificationScore}`
+                    : null,
                 ]
                   .filter(Boolean)
                   .join(" | "),
@@ -7774,16 +7798,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     phase: handoverSummary.resultingPhase,
                     stability: handoverSummary.resultingStability,
                     nextAction: handoverSummary.nextAction,
-                    observationNotes: `Handover verification update. Score ${handoverSummary.verificationScore}.`,
+                    observationNotes: `Handover evidence decision: ${handoverSummary.verificationOutcomeLabel}.`,
                     structuredObservation: {
                       drillType: "handover_verification",
                       handoverMode: isTargetedRediagnosis ? "targeted_re_diagnosis" : "verification",
                       observedPhase: handoverSummary.phase,
                       previousStability: handoverSummary.previousStability,
+                      decisionAuthority: (handoverSummary as any).decisionAuthority || "legacy_adaptive_score",
+                      scoreAuthority: (handoverSummary as any).scoreAuthority ?? true,
+                      compatibilityScore: handoverSummary.verificationScore,
                       verificationScore: handoverSummary.verificationScore,
                       verificationOutcome: handoverSummary.verificationOutcome,
                       verificationOutcomeLabel: handoverSummary.verificationOutcomeLabel,
                       verificationConfidence: handoverSummary.confidence,
+                      evidenceReason: (handoverSummary as any).evidenceReason || null,
+                      dimensionDecisions: (handoverSummary as any).dimensions || [],
                       resultingPhase: handoverSummary.resultingPhase,
                       resultingStability: handoverSummary.resultingStability,
                       reDiagnosisRequired: handoverSummary.reDiagnosisRequired,

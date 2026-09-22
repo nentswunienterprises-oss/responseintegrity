@@ -1214,8 +1214,10 @@ function HandoverVerificationSection({
           <p className="text-sm font-medium text-foreground">{latestSummary.verificationOutcomeLabel || "Verification submitted"}</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Score</p>
-              <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.verificationScore ?? "-"}/100</p>
+              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Decision Authority</p>
+              <p className="mt-1 text-sm font-medium text-foreground">
+                {latestSummary.decisionAuthority === "evidence_native" ? "Evidence-native" : "Legacy compatibility"}
+              </p>
             </div>
             <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Resulting Phase</p>
@@ -1227,6 +1229,11 @@ function HandoverVerificationSection({
             </div>
           </div>
           <p className="text-xs text-muted-foreground">{latestSummary.nextAction || "No next action recorded."}</p>
+          {typeof latestSummary.verificationScore === "number" ? (
+            <p className="text-[11px] text-muted-foreground">
+              Compatibility score: {latestSummary.verificationScore}/100 · technical reference only, not decision authority.
+            </p>
+          ) : null}
           {latestSummary.constraint ? (
             <p className="text-xs text-muted-foreground">Constraint: <span className="font-medium text-foreground">{latestSummary.constraint}</span></p>
           ) : null}
