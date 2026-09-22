@@ -250,7 +250,7 @@ jobs:
 
                 for (let fieldIndex = 0; fieldIndex < set.fields.length; fieldIndex += 1) {
                   const field = set.fields[fieldIndex];
-                  const shouldBreak = setIndex === 0 && repIndex === 0 && fieldIndex === 0;
+                  const shouldBreak = setIndex === 0 && repIndex === 0;
                   await chooseField(field[0], shouldBreak ? field[1] : field[2]);
                 }
 
