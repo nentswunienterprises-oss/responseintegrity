@@ -551,9 +551,9 @@ jobs:
               if (await box.isChecked()) await box.uncheck();
             }
             await startDialog.getByLabel(/Geometry \(Re-Diagnosis Required - Clarity\)/).check();
-            await startDialog.getByLabel(/I prepared the full drill set for Geometry/).check();
+            await startDialog.getByLabel(/I prepared only the current system-selected evidence opportunity for Geometry/i).check();
 
-            const launch = startDialog.getByRole("button", { name: /Start Session \(1 topics\)/ });
+            const launch = startDialog.getByRole("button", { name: "Start Re-Diagnosis (1 topics)", exact: true });
             await launch.click();
             await page.waitForURL(/\/specialist\/intro-session\//, { timeout: 60000 });
 
@@ -562,7 +562,7 @@ jobs:
             assert.equal(launched.searchParams.get("phase"), "Clarity");
             assert.equal(launched.searchParams.get("context"), "training");
             assert.equal(launched.searchParams.get("rediagnosis"), "1");
-            assert.equal(launched.searchParams.get("scheduledSessionId"), "b36f3e99-1b80-4617-b325-cd6af040c613");
+            assert.ok(launched.searchParams.get("scheduledSessionId"), "re-diagnosis launch missing scheduled session lineage");
             assert.equal(launched.searchParams.get("mode"), null, "automatic launch must enter diagnosis, not Training");
 
             await page.getByText("Evidence-native response diagnosis", { exact: true }).waitFor({
@@ -619,6 +619,64 @@ jobs:
               prerequisiteContradictionStatus: after.prerequisiteContradictionStatus,
             };
             console.log("PR47_PREREQ_REDIAGNOSIS_CLEAR_PASS=" + JSON.stringify(result));
+
+            await page.goto(baseUrl + "/specialist/pod", { waitUntil: "domcontentloaded", timeout: 90000 });
+            const restoredNameNode = page.getByText("Sandbox Student 1", { exact: true }).first();
+            await restoredNameNode.waitFor({ state: "visible", timeout: 60000 });
+            const restoredStudentContainer = restoredNameNode.locator(
+              "xpath=ancestor::*[.//button[contains(normalize-space(.), 'Topic Conditioning')]][1]",
+            );
+            await restoredStudentContainer.getByRole("button", { name: /Topic Conditioning/ }).click();
+
+            const restoredOuterDialog = page.getByRole("dialog").filter({ hasText: "Active Conditioning Map" });
+            await restoredOuterDialog.waitFor({ state: "visible", timeout: 30000 });
+            assert.equal(
+              await restoredOuterDialog.getByText("Re-Diagnosis Required", { exact: true }).count(),
+              0,
+              "cleared canonical topic state still renders the re-diagnosis gate",
+            );
+            await restoredOuterDialog.getByRole("tab", { name: "Training", exact: true }).click();
+            await restoredOuterDialog.getByRole("button", { name: "Start Session", exact: true }).first().click();
+
+            const restoredStartDialog = page.getByRole("dialog").filter({ hasText: "Prep Rules For Selected Topics" }).last();
+            await restoredStartDialog.waitFor({ state: "visible", timeout: 30000 });
+            const restoredTopicChecks = restoredStartDialog.locator('input[type="checkbox"][id^="session-topic-"]');
+            for (let i = 0; i < await restoredTopicChecks.count(); i += 1) {
+              const box = restoredTopicChecks.nth(i);
+              if (await box.isChecked()) await box.uncheck();
+            }
+            const restoredGeometryLabel = restoredStartDialog.locator('label[for="session-topic-Geometry"]');
+            await restoredGeometryLabel.waitFor({ state: "visible", timeout: 30000 });
+            const restoredGeometryText = String(await restoredGeometryLabel.textContent()).trim();
+            assert.ok(
+              !restoredGeometryText.includes("Re-Diagnosis Required"),
+              "cleared Geometry still shows a re-diagnosis launch label",
+            );
+            await restoredStartDialog.getByLabel(/^Geometry \(/).check();
+            await restoredStartDialog.getByLabel(/I prepared the full drill set for Geometry/i).check();
+
+            const normalLaunch = restoredStartDialog.getByRole("button", {
+              name: "Start Session (1 topics)",
+              exact: true,
+            });
+            await normalLaunch.click();
+            await page.waitForURL((url) =>
+              url.pathname.includes("/specialist/intro-session/") &&
+              url.searchParams.get("topic") === "Geometry" &&
+              url.searchParams.get("mode") === "training" &&
+              url.searchParams.get("rediagnosis") !== "1",
+              { timeout: 60000 },
+            );
+            await page.getByRole("heading", {
+              name: "Training Drill - " + after.phase,
+              exact: true,
+            }).waitFor({ state: "visible", timeout: 60000 });
+            console.log("PR47_ORDINARY_TRAINING_RESTORED_PASS=" + JSON.stringify({
+              phase: after.phase,
+              stability: after.stability,
+              url: page.url(),
+            }));
+
             return result;
           }
 
@@ -629,6 +687,7 @@ jobs:
             for (const scenario of SCENARIOS) {
               evidence.scenarios.push(await runTrainingScenario(scenario));
             }
+            evidence.rediagnosisLifecycle = await proveAutomaticRediagnosisAndClearGate();
             await writeFile(
               "artifacts/pr47-prerequisite-authority/result.json",
               JSON.stringify(evidence, null, 2),
