@@ -12,6 +12,7 @@ import {
   evaluateTrainingEvidence,
   evaluateTrainingEvidenceShadow,
   resolveTrainingEvidenceAuthorityRoute,
+  trainingRawObservationRequiresPrerequisiteSentinel,
 } from "./trainingEvidenceEvaluator";
 import {
   TRAINING_INTERVENTION_FIELD,
@@ -474,4 +475,49 @@ test("missing sentinel evidence freezes Training authority and routes to re-diag
   assert.equal(route.nextPhase, "Time Pressure Stability");
   assert.equal(route.nextStability, "Medium");
   assert.equal(route.targetPhase, "Structured Execution");
+});
+
+
+test("live prerequisite trigger uses raw field evidence without a registry round-trip", () => {
+  assert.equal(
+    trainingRawObservationRequiresPrerequisiteSentinel({
+      phase: "Controlled Discomfort",
+      fieldKey: "initialResponse",
+      rawOption: "freeze",
+    }),
+    true,
+  );
+  assert.equal(
+    trainingRawObservationRequiresPrerequisiteSentinel({
+      phase: "Structured Execution",
+      fieldKey: "stepExecution",
+      rawOption: "skips",
+    }),
+    true,
+  );
+  assert.equal(
+    trainingRawObservationRequiresPrerequisiteSentinel({
+      phase: "Structured Execution",
+      fieldKey: "startBehavior",
+      rawOption: "delayed",
+    }),
+    false,
+  );
+  assert.equal(
+    trainingRawObservationRequiresPrerequisiteSentinel({
+      phase: "Controlled Discomfort",
+      fieldKey: "initialResponse",
+      rawOption: "freeze",
+      explicitStatus: "confounded",
+    }),
+    false,
+  );
+  assert.equal(
+    trainingRawObservationRequiresPrerequisiteSentinel({
+      phase: "Clarity",
+      fieldKey: "method",
+      rawOption: "missing",
+    }),
+    false,
+  );
 });

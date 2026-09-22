@@ -233,6 +233,56 @@ export const trainingEvidenceClassForRawBehavior = (
   return RAW_BEHAVIOR_CLASS[dimensionId]?.[normalizeRaw(rawOption)] || null;
 };
 
+const TRAINING_DIMENSION_BY_FIELD_KEY: Record<string, TrainingDimensionId> = {
+  vocabulary: "clarity.vocabulary",
+  method: "clarity.method",
+  reason: "clarity.reason",
+  immediateApply: "clarity.immediate_apply",
+  startBehavior: "execution.start",
+  stepExecution: "execution.step_discipline",
+  repeatability: "execution.repeatability",
+  independence: "execution.independence",
+  initialResponse: "difficulty.initial_response",
+  firstStepControl: "difficulty.first_step_control",
+  discomfortTolerance: "difficulty.tolerance",
+  rescueDependence: "difficulty.rescue_dependence",
+  startUnderTime: "time.start",
+  structureUnderTime: "time.structure",
+  paceControl: "time.pace",
+  completionIntegrity: "time.completion_integrity",
+};
+
+export const trainingDimensionForFieldKey = (
+  fieldKey: string,
+): TrainingDimensionId | null =>
+  TRAINING_DIMENSION_BY_FIELD_KEY[String(fieldKey || "").trim()] || null;
+
+export const trainingRawObservationRequiresPrerequisiteSentinel = ({
+  phase,
+  fieldKey,
+  rawOption,
+  explicitStatus = "observed",
+  interventionEvent = "none",
+}: {
+  phase: TopicPhase;
+  fieldKey: string;
+  rawOption: string;
+  explicitStatus?: TrainingEvidenceStatus;
+  interventionEvent?: TrainingInterventionEvent;
+}): boolean => {
+  if (!getTrainingPrerequisiteSentinelDefinition(phase)) return false;
+  const dimensionId = trainingDimensionForFieldKey(fieldKey);
+  if (!dimensionId) return false;
+  const eligibility = resolveTrainingEvidenceEligibility({
+    phase,
+    dimensionId,
+    explicitStatus,
+    interventionEvent,
+  });
+  if (eligibility.status !== "observed") return false;
+  return trainingEvidenceClassForRawBehavior(dimensionId, rawOption) === "breakdown";
+};
+
 const resolveDimension = (
   dimensionId: TrainingDimensionId,
   evidence: TrainingEvidenceOccurrence[],

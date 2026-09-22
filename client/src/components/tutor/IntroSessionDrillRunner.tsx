@@ -36,7 +36,7 @@ import {
   type TrainingInterventionEvent,
   type TrainingPrerequisiteSentinelResult,
 } from "@shared/trainingEvidenceCapture";
-import { trainingEvidenceClassForRawBehavior } from "@shared/trainingEvidenceEvaluator";
+import { trainingRawObservationRequiresPrerequisiteSentinel } from "@shared/trainingEvidenceEvaluator";
 
 type PhaseLabel = "Clarity" | "Structured Execution" | "Controlled Discomfort" | "Time Pressure Stability";
 type DrillMode = "diagnosis" | "training" | "session" | "handover";
@@ -1229,10 +1229,6 @@ export default function IntroSessionDrillRunner() {
 
     const repSet = drillStructure?.[setIndex];
     if (!repSet || repSet.isModelingSet) return false;
-    const schema = getDrillSchemaDefinition("training", displayPhase);
-    const registeredSet = schema.sets.find((candidate) => candidate.setName === repSet.setName) || null;
-    if (!registeredSet) return false;
-
     const storedIntervention = String(
       observations["set" + setIndex + "_rep" + repIndex + "_" + TRAINING_INTERVENTION_FIELD] || "none",
     ) as TrainingInterventionEvent;
@@ -1241,8 +1237,6 @@ export default function IntroSessionDrillRunner() {
       : "none";
 
     return getLiveObservationBlockForRep(repSet, repIndex).some((field) => {
-      const registeredField = getFieldDefinitionForRep(registeredSet, repIndex, field.key);
-      if (!registeredField) return false;
       const rawOption = String(
         observations["set" + setIndex + "_rep" + repIndex + "_" + field.key] || "",
       ).trim();
@@ -1255,15 +1249,14 @@ export default function IntroSessionDrillRunner() {
       );
       const explicitStatus: TrainingEvidenceStatus =
         statusRaw === "not_observed" || statusRaw === "confounded" ? statusRaw : "observed";
-      const dimensionId = registeredField.dimensionId as any;
-      const eligibility = resolveTrainingEvidenceEligibility({
+
+      return trainingRawObservationRequiresPrerequisiteSentinel({
         phase: displayPhase,
-        dimensionId,
+        fieldKey: field.key,
+        rawOption,
         explicitStatus,
         interventionEvent,
       });
-      if (eligibility.status !== "observed") return false;
-      return trainingEvidenceClassForRawBehavior(dimensionId, rawOption) === "breakdown";
     });
   };
 
