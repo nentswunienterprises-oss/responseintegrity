@@ -83,7 +83,7 @@ export const evaluateHandoverVerificationEvidence = ({
     setIndex: 0,
     submittedSet: set,
   });
-  if (!validation.ok) {
+  if ("error" in validation) {
     return {
       status: "unavailable",
       authority: "evidence_native",
