@@ -1,6 +1,6 @@
 # Capability V2R8 Manual Authoring Checkpoint — 2026-09-17
 
-Status: AUTHORING PAUSED AT INTRO SESSION STRUCTURE
+Status: INTRO SESSION STRUCTURE AUTHORING RESUMED — 2026-09-22
 Branch: `proof/capability-engine-shadow-validation`
 PR: #45 `Capability Engine shadow validation`
 Production: untouched
@@ -40,6 +40,17 @@ The remaining mastery order is:
 6. Tools Required
 
 Only after those six mastery banks are complete should V2R8 proceed to the cumulative Retrieval/Transfer banks.
+
+
+## Resume update — 2026-09-22
+
+The Intro authoring freeze has been lifted for content work after re-verifying PR #47 against its current evidence-complete diagnosis runtime.
+
+The restart gate is now treated as satisfied for authoring because the live PR #47 path has the evidence-complete Specialist runner, server-authoritative replay, durable partial-run persistence, concrete behavior observation matrix, contamination handling, topic-scoped multi-topic operation, evidence-ledger explanation, behavior-derived Low/Medium/High placement, targeted re-diagnosis integration, and green core CI/proof evidence. The only remaining PR #47 acceptance item is the Founder's final merge decision.
+
+A source drift was found during restart review: the live `Intro Session Structure` Deep Dive still described the retired fixed phase-block / numeric score-band workflow even though the actual runtime had moved to evidence-complete diagnosis. That Deep Dive was reconciled on PR #47 at commit `e2c79687af322eb83341791a1c9bc0bab7470fe9` before authoring resumed. The new Deep Dive now reflects evidence-complete diagnosis, concrete behavior recording, not-observed/confounded outcomes, intervention separation, constraint stripping, evidence-justified repetition, categorical stability, multi-topic diagnosis, completion explanation, and the boundary that High Maintenance is training-earned.
+
+Therefore the authoring rule from this point is: use the final PR #47 runtime + the reconciled Intro Deep Dive as the source of truth. Do not reuse the withdrawn old Intro items 3-5 or any fixed-score-band logic.
 
 ## Exact stop point: Intro Session Structure
 
