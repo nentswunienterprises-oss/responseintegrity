@@ -31,6 +31,29 @@ jobs:
         run: |
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
+      - name: Verify deployed frontend contains prerequisite sentinel build
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const base = process.env.SMOKE_BASE_URL.replace(/\/$/, "");
+          const html = await (await fetch(base + "/specialist/pod")).text();
+          const srcs = [...html.matchAll(/<script[^>]+src=["']([^"']+)["']/g)].map(m => m[1]);
+          let found = false;
+          for (const src of srcs) {
+            const url = new URL(src, base).toString();
+            const js = await (await fetch(url)).text();
+            if (js.includes("Prerequisite sentinel required") || js.includes("_training_prerequisite_sentinel")) {
+              found = true;
+              console.log("PR47_PREREQ_DEPLOYED_BUNDLE=FOUND " + url);
+              break;
+            }
+          }
+          if (!found) {
+            console.error("PR47_PREREQ_DEPLOYED_BUNDLE=MISSING");
+            process.exit(42);
+          }
+          NODE
+
       - name: Run live prerequisite sentinel A/B proof
         shell: bash
         run: |
