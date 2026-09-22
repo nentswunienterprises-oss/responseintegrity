@@ -282,9 +282,13 @@ The server must validate the same deterministic engine rules. A client may guide
 
 ## Integration rule
 
-The existing adaptive diagnosis remains valid as the previous generation, but its fixed phase-block completion boundary is no longer the target architecture.
+Evidence-complete diagnosis is the only supported intro-diagnosis runtime.
 
-Migration must preserve current evidence identities and reporting lineage while changing the decision unit from a completed three-rep phase block to a sequence of named evidence opportunities.
+The previous adaptive/fixed phase-block diagnosis is retired from intro launch paths. No query parameter, client route, or Specialist control may opt an intro diagnosis back into that previous-generation flow.
+
+Historical code or stored payload compatibility may remain only where deleting it would damage already-captured records or a separate workflow. In particular, targeted handover re-diagnosis is a distinct handover verification path; it is not an intro-diagnosis fallback and must not be exposed as one.
+
+Migration must preserve existing evidence identities and reporting lineage while the live intro decision unit remains a sequence of named evidence opportunities.
 
 Do not fake unused repetitions, duplicate one observation into missing reps, or mark skipped opportunities as `partial`. If the engine stops after one opportunity, the durable record must honestly contain one opportunity.
 

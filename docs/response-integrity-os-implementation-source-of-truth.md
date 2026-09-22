@@ -566,7 +566,7 @@ The human-facing Response Snapshot bands are display-only:
 - `45-69` -> `Partial response`
 - `70-100` -> `Strong response`
 
-These bands mirror the result-screen colors and must not be confused with adaptive diagnosis thresholds, handover verification thresholds, or training transition thresholds.
+These bands mirror the result-screen colors and must not be confused with diagnosis placement logic, handover verification thresholds, or training transition thresholds.
 
 Snapshot prose is generated from the validated evidence payload and registered drill semantics. It must not be tutor-authored, LLM-generated, or used as a new progression gate. A weak or partial observation remains visible even when the overall rep, set, or drill displays as Strong.
 
@@ -839,282 +839,80 @@ Diagnosis still has to verify the topic with drill evidence.
 
 ## Diagnosis System
 
-There are two diagnosis-related paths in the codebase and they should be distinguished clearly.
-
-### A. Live runner diagnosis path
-
-This is the main live diagnosis experience in the drill runner.
-
-It is adaptive.
-
-It uses:
-
-- one verification block at a time
-- one phase at a time
-- adjacent phase movement only
-- stop conditions when the placement is found or a boundary is reached
-
-### B. Backend fixed intro diagnosis summary
-
-The backend still contains a fixed intro diagnosis scoring summary path.
-
-That path:
-
-- scores the first two diagnosis sets of a payload
-- averages them equally
-- returns phase, stability, diagnosis score, next action, and constraint
-
-This is useful to retain in the canonical spec because it still exists in the backend logic.
-
-But the live runner experience is the adaptive block path described below.
-
-## Live Adaptive Diagnosis Engine
+The live intro diagnosis path is evidence-complete and behavior-native. There is one supported intro-diagnosis runtime.
 
 Implementation:
 
-- `shared/adaptiveDiagnosis.ts`
-- `server/routes.ts`
-- `client/src/components/tutor/IntroSessionDrillRunner.tsx`
+- `shared/diagnosisObservationMatrix.ts`
+- `shared/evidenceCompleteDiagnosis.ts`
+- `shared/evidenceCompleteDiagnosisSubmission.ts`
+- `server/evidenceCompleteDiagnosisRoutes.ts`
+- `client/src/components/tutor/EvidenceCompleteDiagnosisRunner.tsx`
 
-### Core logic
+### Runtime law
 
-For each phase block:
+The diagnosis authority chain is:
 
-1. the system scores each rep using the phase weights
-2. the rep scores are averaged into one `phaseScore`
-3. the phase score is classified into one adaptive band
-4. the system decides whether to:
-   - drop to the previous phase
-   - place in the current phase
-   - move up to the next phase
+`concrete observed behavior -> evidence state -> earliest unsupported layer -> evidence-derived stability -> next action`
 
-### Adaptive bands
+The starting signal routes the first evidence question only. It does not decide placement.
 
-- `0-44` -> `de-escalate` and `Low`
-- `45-79` -> `place` and `Medium`
-- `80-100` -> `escalate` and `High`
+The live engine:
 
-### Path movement rule
+- presents one system-selected named probe at a time;
+- uses one curriculum-appropriate problem per opportunity;
+- records concrete observable behavior rather than Weak / Partial / Clear selections;
+- records not-observed and confounded outcomes explicitly;
+- requests another opportunity only when repeatability, recovery, consistency, contamination, conflict, or another named evidence question remains unresolved;
+- strips constraints when a higher-pressure failure does not establish which lower layer failed;
+- excludes teaching, rescue, supplied steps, and other contaminated evidence from baseline placement authority;
+- can stop after a single decisive opportunity when the required evidence is already sufficient;
+- never creates fake unused repetitions;
+- derives Low / Medium / High categorically from behavior classes rather than numeric score thresholds;
+- cannot mint High Maintenance during diagnosis.
 
-The system may only move to the immediately adjacent phase.
+The Specialist does not choose the next probe, phase, stability, or final placement.
 
-It cannot jump multiple phases.
+### Probe families
 
-### Stop conditions
+The current probe catalog includes:
 
-The adaptive path stops when:
+- `stack.timed_challenge` - Timed Challenge Probe
+- `stack.challenge_no_timer` - Untimed Challenge Probe
+- `stack.normal_independent` - Independent Normal Probe
+- `clarity.recognition` - Clarity Recognition Probe
+- `execution.repeatability` - Execution Repeatability Probe
+- `difficulty.recovery` - Difficulty Recovery Probe
+- `time.consistency` - Timed Consistency Probe
 
-- the current phase is a placement match
-- the current phase is at the top or bottom boundary and the system cannot move further
-- the current block was the last needed verification step
+Each opportunity carries its own evidence question, constraint profile, purpose, observed dimensions, and support/contamination event.
 
-### Meaning of the final diagnosis result
+### Completion and blocking
 
-The final adaptive diagnosis result outputs:
+Diagnosis completes as soon as the evidence is sufficient to identify the earliest unsupported response layer and its starting stability.
 
-- resulting phase
-- resulting stability
-- diagnosis score
-- final band
-- next action
-- constraint
+If the required evidence remains unresolved after the permitted clean probes, the engine blocks for evidence review rather than inventing a placement.
 
-## Live Adaptive Diagnosis Block Library
+High Maintenance remains training-earned. A diagnosis may place a topic at High, after which ordinary same-phase training must establish High Maintenance before later confirmation can authorize progression.
 
-The current adaptive diagnosis runner uses one block per phase step.
+### Persistence and server authority
 
-The older multi-set diagnosis explainers are not the live runner truth.
+The server independently replays the submitted probe history and recomputes:
 
-The live runner truth is:
+- the expected next probe;
+- evidence states;
+- phase support;
+- final placement;
+- starting stability;
+- completion reason.
 
-- one current phase block
-- score it
-- move up, place, or move down
-- repeat only if the engine says to move
+Durable diagnosis state preserves the ordered probe history, starting signal, constraints, evidence outcomes, final placement, and evidence ledger lineage. Interrupted runs resume from persisted state rather than asking the Specialist to re-enter already accepted evidence.
 
-### Clarity diagnosis block
+### Legacy boundary
 
-Block name:
+The previous fixed-repetition/adaptive intro diagnosis is not a supported live intro path and cannot be selected with a query flag or Specialist control.
 
-- `Recognition Probe`
-
-Objective:
-
-- place the topic correctly inside `Clarity`
-
-Structure:
-
-- 3 reps
-- recognition only
-- student does not solve
-
-Prep rules:
-
-- prepare the starting phase and adjacent coverage around it
-- keep this as placement verification, not normal training
-- no full teaching cycle
-
-Fields:
-
-- vocabulary
-- method
-- reason
-- immediate apply / first response
-
-Typical option scales:
-
-- vocabulary: `cannot name / partial / clear`
-- method: `wrong / hesitant / correct`
-- reason: `none / partial / clear`
-- immediate apply: `avoids / unsure / engages`
-
-### Structured Execution diagnosis block
-
-Block name:
-
-- `Start + Structure`
-
-Objective:
-
-- place the topic correctly inside `Structured Execution`
-
-Structure:
-
-- 3 reps
-- cold-start execution verification
-- no help for the opening window
-
-Prep rules:
-
-- prepare adjacent phase coverage
-- hold the no-help start window
-- use this only for phase verification
-
-Fields:
-
-- start behavior
-- step execution
-- repeatability / step order
-- independence
-
-Typical option scales:
-
-- start: `avoids / delayed / immediate`
-- step execution: `random or guessing / partial steps / full structure`
-- repeatability: `incorrect / minor errors / correct`
-- independence: `waits for help / asks after trying / independent`
-
-### Controlled Discomfort diagnosis block
-
-Block name:
-
-- `First Contact`
-
-Objective:
-
-- place the topic correctly inside `Controlled Discomfort`
-
-Structure:
-
-- 3 reps
-- challenging but solvable problems
-- no help for the opening window
-
-Prep rules:
-
-- prepare adjacent phase coverage
-- hold the discomfort window
-- do not rescue
-
-Fields:
-
-- initial response
-- first-step control
-- discomfort tolerance
-- rescue dependence
-
-Typical option scales:
-
-- initial response: `freeze / hesitate / attempt`
-- first-step control: `none / prompted / independent`
-- discomfort tolerance: `panic / tension / controlled`
-- rescue dependence: `asks immediately / asks later / no rescue`
-
-### Time Pressure Stability diagnosis block
-
-Block name:
-
-- `Light Timer`
-
-Objective:
-
-- place the topic correctly inside `Time Pressure Stability`
-
-Structure:
-
-- 3 reps
-- timed verification only
-- structure is more important than speed
-
-Prep rules:
-
-- prepare adjacent lower-phase coverage
-- keep pressure controlled
-- use timer to verify structure survival under urgency
-
-Fields:
-
-- start under time
-- structure under time
-- pace control
-- completion integrity
-
-Typical option scales:
-
-- start under time: `freeze / delayed / immediate`
-- structure under time: `breaks / partial / maintained`
-- pace control: `panic / rushed / controlled`
-- completion integrity: `fails / partial / complete`
-
-## Backend Fixed Intro Diagnosis Summary
-
-Implementation:
-
-- `server/routes.ts`
-
-### What it does
-
-This summary:
-
-- uses the first two diagnosis sets in the payload
-- scores all reps by phase weight
-- averages the first two set scores equally
-- decides a diagnosis stability
-- returns `nextAction` and `constraint` from the next-action engine
-
-### Current summary thresholds
-
-- `0-49` -> `Low`
-- `50-69` -> `Medium`
-- `70-100` -> `High` only if `highGuardPasses` is true, otherwise `Medium`
-
-### Current high-guard checks in this summary path
-
-Clarity:
-
-- no zero-scoring field contribution across the scored reps
-
-Structured Execution:
-
-- no guessing and no avoidant start behavior
-
-Controlled Discomfort:
-
-- no avoid, freeze, or first-step collapse signal
-
-Time Pressure Stability:
-
-- structure must read as maintained and pace must read as controlled
+Historical compatibility code and stored records may remain where removal would damage existing evidence. Targeted handover re-diagnosis remains a separate handover workflow and must not be described or exposed as an intro fallback.
 
 ## Training System
 
@@ -1919,7 +1717,7 @@ If `stability_adjust` is triggered:
 If the verification result is too weak to trust the inherited state:
 
 - the system does not resume ordinary training
-- the topic is reclassified through the adaptive diagnosis flow
+- the topic is reclassified through the dedicated handover re-diagnosis flow
 - the result becomes the new trustworthy starting point
 
 ## Behavior-Language Engine
@@ -2988,14 +2786,19 @@ Trust the live runner and this file.
 
 ### 2. Diagnosis-structure drift
 
-Older docs sometimes described broader multi-set diagnosis flows.
+Older docs described fixed multi-set or score-band adaptive intro diagnosis.
 
-The live adaptive diagnosis runner currently uses:
+The live intro diagnosis now uses:
 
-- one current phase verification block at a time
-- adjacent movement only
+- one named, system-selected evidence opportunity at a time;
+- one problem per opportunity;
+- evidence-complete stopping rather than a fixed rep count;
+- constraint stripping and deconfounding when needed;
+- behavior-native Low / Medium / High placement;
+- no numeric score authority;
+- no intro fallback to the previous adaptive runner.
 
-Trust the live runner and this file.
+Trust the evidence-complete diagnosis contract and the live evidence-complete runner.
 
 ### 3. Training-guard drift
 

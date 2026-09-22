@@ -587,17 +587,16 @@ function tutorPrepPlanFor(
 
   if (!hasObservedState) {
     return {
-      drillType: "Adaptive Diagnosis",
+      drillType: "Evidence-complete Diagnosis",
       setPlans: [
-        { label: "Adaptive Diagnosis Set 1: Recognition Probe", problems: 3, difficulty: baseDifficulty },
-        { label: "Adaptive Diagnosis Set 2: Light Apply Probe", problems: 3, difficulty: baseDifficulty },
+        { label: "Current system-selected opportunity", problems: 1, difficulty: "Match displayed probe" },
       ],
       prepNotes: [
-        "Prepare 6 total problems (2 sets x 3 reps).",
-        "Use simple/normal versions only; no time pressure.",
-        "Goal is adaptive diagnosis and first placement, not phase progression.",
-        "Do not assume Clarity, Structured Execution, or any stability level before the first scored result.",
-        "Difficulty guidance: keep all problems at Simple/Normal level.",
+        "Prepare one curriculum-appropriate problem for the current system-selected opportunity.",
+        "Do not pre-commit to a fixed rep count; another opportunity exists only when the evidence question remains unresolved.",
+        "Follow the displayed probe constraints exactly. Do not teach, cue, rescue, or add time pressure unless that probe requires it.",
+        "The starting signal routes the first question only; observed behavior determines placement.",
+        "If another probe is required, prepare the next comparable problem only after the system selects it.",
       ],
     };
   }
@@ -1776,7 +1775,7 @@ export default function StudentTopicConditioningDialog({
                         </p>
 
                         <p className="text-sm text-foreground font-medium">
-                          Next Move: {row.hasObservedState ? topicIntel.nextAction : "Run adaptive diagnosis to establish first placement."}
+                          Next Move: {row.hasObservedState ? topicIntel.nextAction : "Run evidence-complete diagnosis to establish first placement."}
                         </p>
 
                         <p className="text-sm text-muted-foreground">
@@ -1886,7 +1885,7 @@ export default function StudentTopicConditioningDialog({
                     <p><span className="font-medium">Transition Status:</span> {selectedInterpretation?.transitionStatus || "Awaiting Observation"}</p>
                     <p><span className="font-medium">Tutor Meaning:</span> {selectedInterpretation?.tutorMeaning || "Topic is active but not yet observed."}</p>
                     <p><span className="font-medium">Parent Meaning:</span> {selectedInterpretation?.parentMeaning || "Observed state will appear after first scored drill/session."}</p>
-                    <p><span className="font-medium">Direction:</span> {selectedInterpretation?.direction || "Run adaptive diagnosis first."}</p>
+                    <p><span className="font-medium">Direction:</span> {selectedInterpretation?.direction || "Run evidence-complete diagnosis first."}</p>
                     <p><span className="font-medium">Constraint:</span> {selectedInterpretation?.rules[0] || "Do not infer phase movement without observations."}</p>
                     <p><span className="font-medium">Entry Diagnosis:</span> {selectedRow.entryDiagnosis}</p>
                   </div>

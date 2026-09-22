@@ -13,10 +13,9 @@ function MissingEvidenceDiagnosisContext() {
           Evidence-native diagnosis needs a topic before it can start.
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          This route no longer falls back to the old fixed six-repetition
-          diagnosis flow. Return to the student topic view and start diagnosis
-          from a selected topic so the evidence ledger, topic state, and
-          diagnosis decision all use the same evidence-native contract.
+          Return to the student topic view and start diagnosis from a selected
+          topic so the evidence ledger, topic state, and diagnosis decision all
+          use the same evidence-native contract.
         </p>
       </div>
     </div>
@@ -26,11 +25,10 @@ function MissingEvidenceDiagnosisContext() {
 export default function IntroSessionRoute() {
   const [searchParams] = useSearchParams();
   const mode = String(searchParams.get("mode") || "diagnosis").trim().toLowerCase();
-  const diagnosisEngine = String(searchParams.get("diagnosisEngine") || "").trim().toLowerCase();
   const topic = String(searchParams.get("topic") || "").trim();
 
   if (mode === "diagnosis") {
-    if (!topic || diagnosisEngine === "legacy") {
+    if (!topic) {
       return <MissingEvidenceDiagnosisContext />;
     }
     return <EvidenceCompleteDiagnosisRunner />;
