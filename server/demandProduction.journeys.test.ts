@@ -12,7 +12,7 @@ test('real HTTP signup → Gateway → qualification → handover → assignment
   Object.assign(process.env, {
     SUPABASE_URL:transport.url, SUPABASE_ANON_KEY:'isolated-test', SUPABASE_SERVICE_ROLE_KEY:'isolated-test',
     DATABASE_URL:'postgresql://test:test@127.0.0.1:1/test', SESSION_SECRET:'isolated-proof-session',
-    EMERGENCY_DB_MODE:'false', PAYFAST_MERCHANT_ID:'sandbox-test', PAYFAST_MERCHANT_KEY:'sandbox-test',
+    EMERGENCY_DB_MODE:'false', PAYFAST_MERCHANT_ID:'12345678', PAYFAST_MERCHANT_KEY:'abc123def4567',
     PAYFAST_SANDBOX_MERCHANT_ID:'sandbox-test', PAYFAST_SANDBOX_MERCHANT_KEY:'sandbox-test',
     PAYFAST_PASSPHRASE:'', PAYFAST_SANDBOX_PASSPHRASE:'', VAPID_PUBLIC_KEY:'', VAPID_PRIVATE_KEY:'',
   });
