@@ -1490,20 +1490,36 @@ export default function StudentTopicConditioningDialog({
     .map((topicName) => {
       const topicState = topics.find((topic) => topic.topic === topicName);
       if (!topicState) return null;
+      const requiresTargetedRediagnosis = topicState.requiresTargetedRediagnosis === true;
+      const rediagnosisStartPhase =
+        topicState.targetedRediagnosisStartPhase || topicState.phase;
       return {
         topic: topicName,
         phase: topicState.hasObservedState ? topicState.phase : "Unknown",
         stability: topicState.hasObservedState ? topicState.stability : "Unknown",
         hasObservedState: topicState.hasObservedState,
-        prepPlan: tutorPrepPlanFor(topicState.phase, topicState.stability, topicState.hasObservedState),
+        requiresTargetedRediagnosis,
+        targetedRediagnosisStartPhase: requiresTargetedRediagnosis
+          ? rediagnosisStartPhase
+          : null,
+        prepPlan: tutorPrepPlanFor(
+          requiresTargetedRediagnosis ? rediagnosisStartPhase : topicState.phase,
+          requiresTargetedRediagnosis ? "Low" : topicState.stability,
+          requiresTargetedRediagnosis ? false : topicState.hasObservedState,
+        ),
       };
     })
     .filter((entry): entry is NonNullable<typeof entry> => !!entry);
   const selectedSessionUnknownTopics = selectedSessionPrepPlans.filter((entry) => !entry.hasObservedState);
+  const selectedSessionRediagnosisTopics = selectedSessionPrepPlans.filter(
+    (entry) => entry.requiresTargetedRediagnosis,
+  );
   const selectedSessionStartLabel =
-    selectedSessionUnknownTopics.length === 1 && selectedSessionPrepPlans.length === 1
-      ? "Start Diagnosis"
-      : "Start Session";
+    selectedSessionRediagnosisTopics.length === 1 && selectedSessionPrepPlans.length === 1
+      ? "Start Re-Diagnosis"
+      : selectedSessionUnknownTopics.length === 1 && selectedSessionPrepPlans.length === 1
+        ? "Start Diagnosis"
+        : "Start Session";
   const sessionPrepChecklistComplete =
     selectedSessionPrepPlans.length > 0 &&
     selectedSessionPrepPlans.every((entry) => !!sessionPrepChecks[`session-prep-${entry.topic}`]);
@@ -2787,6 +2803,12 @@ export default function StudentTopicConditioningDialog({
                   </div>
                 </div>
 
+                {selectedSessionRediagnosisTopics.length > 0 && selectedSessionPrepPlans.length > 1 ? (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    {selectedSessionRediagnosisTopics[0].topic} is locked for targeted re-diagnosis. Run that topic by itself before combining it with ordinary Training topics.
+                  </div>
+                ) : null}
+
                 {selectedSessionUnknownTopics.length > 1 ? (
                   <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                     More than one unobserved topic is selected. Entry placement must run one topic at a time.
@@ -2806,14 +2828,35 @@ export default function StudentTopicConditioningDialog({
                       Review the exact drill load before you enter the lesson. Each selected topic still needs its own problem prep and explicit Specialist confirmation before launch.
                     </p>
                     <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-                      {selectedSessionPrepPlans.map(({ topic, phase, stability, hasObservedState, prepPlan }) => (
+                      {selectedSessionPrepPlans.map(({
+                        topic,
+                        phase,
+                        stability,
+                        hasObservedState,
+                        requiresTargetedRediagnosis,
+                        targetedRediagnosisStartPhase,
+                        prepPlan,
+                      }) => (
                         <div key={`session-prep-${topic}`} className="rounded-md border border-primary/20 bg-background p-3 space-y-2">
                           <div>
                             <p className="font-medium text-sm">{topic}</p>
-                            {!hasObservedState ? (
+                            {requiresTargetedRediagnosis ? (
+                              <>
+                                <p className="text-xs font-medium text-amber-800">
+                                  Targeted re-diagnosis required · starting signal {targetedRediagnosisStartPhase}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Current state is held at {phase} · {stability} until evidence-native re-diagnosis establishes the trustworthy entry state.
+                                </p>
+                              </>
+                            ) : !hasObservedState ? (
                               <p className="text-xs text-muted-foreground">Unobserved topic · diagnosis-first placement</p>
-                            ) : null}
-                            <p className="text-xs text-muted-foreground">{phase} · {stability}</p>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">{phase} · {stability}</p>
+                            )}
+                            <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                              {requiresTargetedRediagnosis ? "Re-Diagnosis Prep" : prepPlan.drillType}
+                            </p>
                           </div>
                           <ul className="text-xs text-muted-foreground space-y-1">
                             {prepPlan.setPlans.map((setPlan) => (
@@ -2846,7 +2889,15 @@ export default function StudentTopicConditioningDialog({
                               className="mt-0.5 rounded border-gray-300"
                             />
                             <span>
-                              I prepared the full drill set for <span className="font-medium">{topic}</span> and I am ready to run this weekly training lesson.
+                              {requiresTargetedRediagnosis ? (
+                                <>
+                                  I prepared only the current system-selected evidence opportunity for <span className="font-medium">{topic}</span>, and I will preserve the displayed diagnosis conditions without teaching, cueing, rescuing, or adding constraints unless the system asks for them.
+                                </>
+                              ) : (
+                                <>
+                                  I prepared the full drill set for <span className="font-medium">{topic}</span> and I am ready to run this weekly training lesson.
+                                </>
+                              )}
                             </span>
                           </label>
                         </div>
