@@ -48,6 +48,8 @@ export type TrainingDimensionDecision = {
   nearStableCount: number;
   conditionalCount: number;
   breakdownCount: number;
+  recoveredAfterBreakdown: boolean;
+  recoverySupportedRequirement: number;
   evidence: TrainingEvidenceOccurrence[];
 };
 
@@ -301,6 +303,8 @@ const resolveDimension = (
     nearStableCount: resolution.nearStableCount,
     conditionalCount: resolution.conditionalCount,
     breakdownCount: resolution.breakdownCount,
+    recoveredAfterBreakdown: resolution.recoveredAfterBreakdown,
+    recoverySupportedRequirement: resolution.recoverySupportedRequirement,
     evidence,
   };
 };
