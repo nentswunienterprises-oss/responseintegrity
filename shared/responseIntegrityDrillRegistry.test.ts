@@ -192,7 +192,7 @@ test("semantic evidence rejects a raw option paired with another option ID", () 
 
 test("semantic evidence rejects an unregistered schema version", () => {
   const submittedSet = buildValidSet("verification", "Time Pressure Stability", 0, 2);
-  submittedSet.drillSchemaVersion = 2;
+  submittedSet.drillSchemaVersion = 3;
 
   const result = validateAndNormalizeSemanticEvidenceSet({
     mode: "verification",
