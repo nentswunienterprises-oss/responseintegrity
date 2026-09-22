@@ -11,9 +11,11 @@ import {
   compareTrainingEvidenceShadowToLegacy,
   evaluateTrainingEvidence,
   evaluateTrainingEvidenceShadow,
+  resolveTrainingEvidenceAuthorityRoute,
 } from "./trainingEvidenceEvaluator";
 import {
   TRAINING_INTERVENTION_FIELD,
+  TRAINING_PREREQUISITE_SENTINEL_FIELD,
   trainingEvidenceStatusKey,
 } from "./trainingEvidenceCapture";
 import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
@@ -95,6 +97,20 @@ const buildTrainingSets = ({
   });
 };
 
+const setPrerequisiteSentinel = (
+  sets: SubmittedEvidenceSet[],
+  setId: string,
+  repIndexes: number[],
+  result: "held" | "contradicted" | "not_observed" | "confounded",
+) => {
+  const set = sets.find((candidate) => candidate.setId === setId);
+  assert.ok(set);
+  for (const repIndex of repIndexes) {
+    assert.ok(set.observations[repIndex]);
+    set.observations[repIndex][TRAINING_PREREQUISITE_SENTINEL_FIELD] = result;
+  }
+};
+
 const evaluate = (
   phase: TopicPhase,
   previousStability: TopicStability,
@@ -138,6 +154,8 @@ test("repeated phase-critical breakdown cannot be averaged away by otherwise sup
     },
   });
 
+  setPrerequisiteSentinel(sets, "structured_execution.variation_control", [1, 2], "held");
+
   const result = evaluate("Structured Execution", "High", sets);
   const stepDiscipline = result.dimensions.find(
     (item) => item.dimensionId === "execution.step_discipline",
@@ -163,6 +181,8 @@ test("one early breakdown followed by clean recovery does not automatically make
       return optionLabels.length - 1;
     },
   });
+
+  setPrerequisiteSentinel(sets, "structured_execution.required_structure", [0], "held");
 
   const result = evaluate("Structured Execution", "Medium", sets);
   const start = result.dimensions.find((item) => item.dimensionId === "execution.start");
@@ -400,4 +420,58 @@ test("High Maintenance exit can use a clean recovery run inside the designated e
   assert.equal(result.predictedTransition.nextPhase, "Structured Execution");
   assert.equal(result.predictedTransition.nextStability, "Low");
   assert.equal(result.predictedTransition.transitionReason, "phase progress");
+});
+
+
+test("confirmed Structured Execution prerequisite loss routes to Clarity re-diagnosis without moving state backward", () => {
+  const sets = buildTrainingSets({
+    phase: "Structured Execution",
+    optionIndexFor: ({ setId, repIndex, fieldKey, optionLabels }) => {
+      if (setId === "structured_execution.variation_control" && fieldKey === "stepExecution" && repIndex === 1) return 0;
+      return optionLabels.length - 1;
+    },
+  });
+  setPrerequisiteSentinel(sets, "structured_execution.variation_control", [1], "contradicted");
+
+  const result = evaluate("Structured Execution", "High", sets);
+  assert.equal(result.prerequisiteContradiction.status, "confirmed");
+  assert.equal(result.prerequisiteContradiction.targetPhase, "Clarity");
+  const route = resolveTrainingEvidenceAuthorityRoute(result);
+  assert.equal(route.route, "targeted_rediagnosis");
+  assert.equal(route.targetPhase, "Clarity");
+  assert.equal(route.nextPhase, "Structured Execution");
+  assert.equal(route.nextStability, "High");
+  assert.equal(route.transitionReason, "targeted re-diagnosis required");
+});
+
+test("a held prerequisite sentinel keeps the breakdown inside the current training phase", () => {
+  const sets = buildTrainingSets({
+    phase: "Controlled Discomfort",
+    optionIndexFor: ({ setId, repIndex, fieldKey, optionLabels }) => {
+      if (setId === "controlled_discomfort.repeat_exposure" && fieldKey === "initialResponse" && repIndex === 2) return 0;
+      return optionLabels.length - 1;
+    },
+  });
+  setPrerequisiteSentinel(sets, "controlled_discomfort.repeat_exposure", [2], "held");
+  const result = evaluate("Controlled Discomfort", "High", sets);
+  assert.equal(result.prerequisiteContradiction.status, "cleared");
+  assert.equal(resolveTrainingEvidenceAuthorityRoute(result).route, "normal_training");
+});
+
+test("missing sentinel evidence freezes Training authority and routes to re-diagnosis", () => {
+  const sets = buildTrainingSets({
+    phase: "Time Pressure Stability",
+    optionIndexFor: ({ setId, repIndex, fieldKey, optionLabels }) => {
+      if (setId === "time_pressure.full_constraint" && fieldKey === "structureUnderTime" && repIndex === 0) return 0;
+      return optionLabels.length - 1;
+    },
+  });
+  const result = evaluate("Time Pressure Stability", "Medium", sets);
+  assert.equal(result.prerequisiteContradiction.status, "unresolved");
+  assert.equal(result.prerequisiteContradiction.targetPhase, "Structured Execution");
+  const route = resolveTrainingEvidenceAuthorityRoute(result);
+  assert.equal(route.route, "targeted_rediagnosis");
+  assert.equal(route.nextPhase, "Time Pressure Stability");
+  assert.equal(route.nextStability, "Medium");
+  assert.equal(route.targetPhase, "Structured Execution");
 });

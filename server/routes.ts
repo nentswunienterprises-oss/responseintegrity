@@ -69,6 +69,7 @@ import {
 import {
   compareTrainingEvidenceShadowToLegacy,
   evaluateTrainingEvidence,
+  resolveTrainingEvidenceAuthorityRoute,
 } from "@shared/trainingEvidenceEvaluator";
 import { buildResponseSnapshotV1, summarizeSnapshotObservedResponse } from "@shared/responseSnapshot";
 import {
@@ -5119,25 +5120,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
               evidenceShadow: evidenceEvaluation,
             });
 
-            const evidenceTransition = evidenceEvaluation.predictedTransition;
-            const nextActionConfig =
-              (NEXT_ACTION_ENGINE as any)?.[evidenceTransition.nextPhase]?.[
-                evidenceTransition.nextStability
-              ] || null;
+            const authorityRoute =
+              resolveTrainingEvidenceAuthorityRoute(evidenceEvaluation);
+            const requiresTargetedRediagnosis =
+              authorityRoute.route === "targeted_rediagnosis";
+            const nextActionConfig = requiresTargetedRediagnosis
+              ? null
+              : (NEXT_ACTION_ENGINE as any)?.[authorityRoute.nextPhase]?.[
+                  authorityRoute.nextStability
+                ] || null;
+            const nextAction = requiresTargetedRediagnosis
+              ? `Run targeted evidence-native re-diagnosis beginning at ${authorityRoute.targetPhase || observedPhase}.`
+              : nextActionConfig?.primaryAction || null;
+            const constraint = requiresTargetedRediagnosis
+              ? "Do not continue ordinary Training for this topic until evidence-native re-diagnosis establishes a trustworthy entry state."
+              : nextActionConfig?.rules?.[0] || null;
 
             return {
               observedPhase,
               previousStability,
               observedStability: evidenceEvaluation.observedStability,
-              phase: evidenceTransition.nextPhase,
-              stability: evidenceTransition.nextStability,
-              transitionReason: evidenceTransition.transitionReason,
-              phaseDecision: evidenceTransition.transitionReason === "phase progress" ? "advance" :
-                           evidenceTransition.transitionReason === "stability regress" ? "regress" : "remain",
+              phase: authorityRoute.nextPhase,
+              stability: authorityRoute.nextStability,
+              transitionReason: authorityRoute.transitionReason,
+              phaseDecision: requiresTargetedRediagnosis
+                ? "re-diagnose"
+                : authorityRoute.transitionReason === "phase progress"
+                  ? "advance"
+                  : authorityRoute.transitionReason === "stability regress"
+                    ? "regress"
+                    : "remain",
               sessionScore,
               decisionAuthority: "evidence_native" as const,
-              nextAction: nextActionConfig?.primaryAction || null,
-              constraint: nextActionConfig?.rules?.[0] || null,
+              nextAction,
+              constraint,
+              requiresTargetedRediagnosis,
+              targetedRediagnosisStartPhase: requiresTargetedRediagnosis
+                ? authorityRoute.targetPhase
+                : null,
+              prerequisiteContradiction: evidenceEvaluation.prerequisiteContradiction,
               repRows,
               setScores,
               highGuardPasses,
@@ -8094,9 +8115,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   stability: trainingSummary.stability,
                   lastUpdated: nowIso,
                   nextAction: trainingSummary.nextAction,
+                  requiresTargetedRediagnosis: trainingSummary.requiresTargetedRediagnosis,
+                  targetedRediagnosisStartPhase: trainingSummary.targetedRediagnosisStartPhase,
+                  prerequisiteContradictionStatus: trainingSummary.prerequisiteContradiction.status,
+                  prerequisiteContradictionReason: trainingSummary.prerequisiteContradiction.reason,
                   observationNotes: [
                     `Training evidence decision: ${trainingSummary.observedStability} observed stability`,
                     `Decision: ${trainingSummary.transitionReason.toUpperCase()}`,
+                    trainingSummary.requiresTargetedRediagnosis
+                      ? `Targeted re-diagnosis start: ${trainingSummary.targetedRediagnosisStartPhase || trainingSummary.observedPhase}`
+                      : null,
                     `Compatibility score: ${trainingSummary.sessionScore}`,
                     trainingSummary.constraint ? `Constraint: ${trainingSummary.constraint}` : null,
                   ]
@@ -8121,6 +8149,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         sessionScore: trainingSummary.sessionScore,
                         nextAction: trainingSummary.nextAction,
                         constraint: trainingSummary.constraint,
+                        requiresTargetedRediagnosis: trainingSummary.requiresTargetedRediagnosis,
+                        targetedRediagnosisStartPhase: trainingSummary.targetedRediagnosisStartPhase,
+                        prerequisiteContradiction: trainingSummary.prerequisiteContradiction,
                       },
                       drillId: inserted.id,
                       sessionId: sessionId,
@@ -8159,6 +8190,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       phaseDecision: trainingSummary.phaseDecision,
                       nextAction: trainingSummary.nextAction,
                       constraint: trainingSummary.constraint,
+                      requiresTargetedRediagnosis: trainingSummary.requiresTargetedRediagnosis,
+                      targetedRediagnosisStartPhase: trainingSummary.targetedRediagnosisStartPhase,
+                      prerequisiteContradictionStatus: trainingSummary.prerequisiteContradiction.status,
                     };
                   }),
                   summary: trainingSummary,

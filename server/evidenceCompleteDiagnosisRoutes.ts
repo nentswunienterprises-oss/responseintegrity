@@ -603,6 +603,10 @@ async function ensureIntroDrill(input: {
     diagnosisDecisionAuthority: "behavioral_evidence",
     diagnosisPlacementEvidence: decision.placementEvidence,
     diagnosisConfidence: decision.confidence,
+    requiresTargetedRediagnosis: false,
+    targetedRediagnosisStartPhase: null,
+    prerequisiteContradictionStatus: null,
+    prerequisiteContradictionReason: null,
     history: existingHistory.slice(-60),
   };
   topicConditioning.topic = input.topic;

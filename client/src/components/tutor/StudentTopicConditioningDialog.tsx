@@ -66,6 +66,10 @@ type TopicRow = {
   phase: PhaseLabel;
   stability: StabilityLabel;
   hasObservedState: boolean;
+  requiresTargetedRediagnosis: boolean;
+  targetedRediagnosisStartPhase: PhaseLabel | null;
+  systemNextAction: string | null;
+  prerequisiteContradictionReason: string | null;
   stateSource: "observed" | "seeded" | "activated";
   lastSession: string;
   trend: TopicTrend;
@@ -370,6 +374,10 @@ interface StudentTopicConditioningDialogProps {
       stability?: string | null;
       lastUpdated?: string | null;
       observationNotes?: string | null;
+      nextAction?: string | null;
+      requiresTargetedRediagnosis?: boolean | null;
+      targetedRediagnosisStartPhase?: string | null;
+      prerequisiteContradictionReason?: string | null;
       history?: Array<{
         date?: string | null;
         phase?: string | null;
@@ -765,6 +773,10 @@ function buildTopics(
     {
       history: Array<{ date: string; phase: PhaseLabel; stability: StabilityLabel; note: string; kind: ObservationKind }>;
       seeded?: { phase: PhaseLabel; stability: StabilityLabel };
+      requiresTargetedRediagnosis?: boolean;
+      targetedRediagnosisStartPhase?: PhaseLabel | null;
+      systemNextAction?: string | null;
+      prerequisiteContradictionReason?: string | null;
     }
   >();
 
@@ -803,6 +815,13 @@ function buildTopics(
         phase: normalizePhase(entry?.phase || map?.entry_phase),
         stability: normalizeStability(entry?.stability || map?.stability),
       },
+      requiresTargetedRediagnosis: entry?.requiresTargetedRediagnosis === true,
+      targetedRediagnosisStartPhase: entry?.targetedRediagnosisStartPhase
+        ? normalizePhase(entry.targetedRediagnosisStartPhase)
+        : null,
+      systemNextAction: String(entry?.nextAction || "").trim() || null,
+      prerequisiteContradictionReason:
+        String(entry?.prerequisiteContradictionReason || "").trim() || null,
     });
   });
 
@@ -873,6 +892,10 @@ function buildTopics(
       phase,
       stability,
       hasObservedState,
+      requiresTargetedRediagnosis: entry.requiresTargetedRediagnosis === true,
+      targetedRediagnosisStartPhase: entry.targetedRediagnosisStartPhase || null,
+      systemNextAction: entry.systemNextAction || null,
+      prerequisiteContradictionReason: entry.prerequisiteContradictionReason || null,
       stateSource: hasObservedState ? "observed" : "seeded",
       lastSession: formatLastUpdatedLabel(lastSessionDate),
       trend: trendFromHistory(
@@ -1045,6 +1068,14 @@ export default function StudentTopicConditioningDialog({
       .map((topicName) => topics.find((topic) => topic.topic === topicName))
       .filter((topic): topic is TopicRow => !!topic);
     const unobservedTopics = selectedTopicStates.filter((topic) => !topic.hasObservedState);
+    const rediagnosisTopics = selectedTopicStates.filter((topic) => topic.requiresTargetedRediagnosis);
+
+    if (rediagnosisTopics.length > 0 && selectedTopicStates.length > 1) {
+      setTrainingSessionMeetMessage(
+        `${rediagnosisTopics[0].topic} requires targeted evidence-native re-diagnosis before it can return to ordinary Training. Select that topic by itself first.`,
+      );
+      return;
+    }
 
     if (unobservedTopics.length > 1) {
       setTrainingSessionMeetMessage("Newly activated topics must be placed one at a time. Select a single unobserved topic and run diagnosis first.");
@@ -1066,6 +1097,15 @@ export default function StudentTopicConditioningDialog({
       setSessionTopicsModalOpen(false);
       if (!topicState.hasObservedState) {
         navigate(`/specialist/intro-session/${studentId}?topic=${topicParam}&phase=${phaseParam}&stability=${stabilityParam}&context=training${sessionParam}`);
+        return;
+      }
+      if (topicState.requiresTargetedRediagnosis) {
+        const rediagnosisPhaseParam = encodeURIComponent(
+          topicState.targetedRediagnosisStartPhase || topicState.phase,
+        );
+        navigate(
+          `/specialist/intro-session/${studentId}?topic=${topicParam}&phase=${rediagnosisPhaseParam}&stability=${stabilityParam}&context=training&rediagnosis=1${sessionParam}`,
+        );
         return;
       }
       navigate(`/specialist/intro-session/${studentId}?mode=training&topic=${topicParam}&phase=${phaseParam}&stability=${stabilityParam}${sessionParam}`);
@@ -1342,7 +1382,13 @@ export default function StudentTopicConditioningDialog({
     : null;
 
   const prepPlan = selectedRow
-    ? tutorPrepPlanFor(selectedRow.phase, selectedRow.stability, hasObservedSelection)
+    ? tutorPrepPlanFor(
+        selectedRow.requiresTargetedRediagnosis
+          ? selectedRow.targetedRediagnosisStartPhase || selectedRow.phase
+          : selectedRow.phase,
+        selectedRow.requiresTargetedRediagnosis ? "Low" : selectedRow.stability,
+        selectedRow.requiresTargetedRediagnosis ? false : hasObservedSelection,
+      )
     : null;
   const selectedTimeline = (selectedRow?.timeline || []).map((point, index) => ({
     ...point,
@@ -1681,7 +1727,13 @@ export default function StudentTopicConditioningDialog({
                         row.timeline,
                       ),
                     });
-                    const rowPrepPlan = tutorPrepPlanFor(row.phase, row.stability, row.hasObservedState);
+                    const rowPrepPlan = tutorPrepPlanFor(
+                      row.requiresTargetedRediagnosis
+                        ? row.targetedRediagnosisStartPhase || row.phase
+                        : row.phase,
+                      row.requiresTargetedRediagnosis ? "Low" : row.stability,
+                      row.requiresTargetedRediagnosis ? false : row.hasObservedState,
+                    );
                     const isExpanded = expandedTopics.has(row.topic);
                     const phaseLabel = row.hasObservedState ? row.phase : "Unknown";
                     const stabilityLabel = row.hasObservedState ? row.stability : "Unknown";
@@ -1775,11 +1827,19 @@ export default function StudentTopicConditioningDialog({
                         </p>
 
                         <p className="text-sm text-foreground font-medium">
-                          Next Move: {row.hasObservedState ? topicIntel.nextAction : "Run evidence-complete diagnosis to establish first placement."}
+                          Next Move: {row.requiresTargetedRediagnosis
+                            ? row.systemNextAction || "Run targeted evidence-native re-diagnosis before ordinary Training resumes."
+                            : row.hasObservedState
+                              ? topicIntel.nextAction
+                              : "Run evidence-complete diagnosis to establish first placement."}
                         </p>
 
                         <p className="text-sm text-muted-foreground">
-                          Constraint: {row.hasObservedState ? (topicIntel.rules[0] || "Follow phase constraints") : "Do not assume phase or stability before first observed state."}
+                          Constraint: {row.requiresTargetedRediagnosis
+                            ? "Ordinary Training is locked for this topic until re-diagnosis restores a trustworthy entry state."
+                            : row.hasObservedState
+                              ? (topicIntel.rules[0] || "Follow phase constraints")
+                              : "Do not assume phase or stability before first observed state."}
                         </p>
 
                         <div className="rounded-md border border-primary/20 bg-primary/5 p-2.5 space-y-1.5">
@@ -1809,6 +1869,11 @@ export default function StudentTopicConditioningDialog({
                           <Badge variant="outline" className="border-primary/20 bg-muted/20 text-foreground">
                             {row.hasObservedState ? topicIntel.transitionStatus : "Awaiting Observation"}
                           </Badge>
+                          {row.requiresTargetedRediagnosis && (
+                            <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-900">
+                              Re-Diagnosis Required
+                            </Badge>
+                          )}
                           {row.hasObservedState && (
                             <Badge className={stabilityTone(row.stability)}>
                               <span
@@ -2681,13 +2746,13 @@ export default function StudentTopicConditioningDialog({
                 <DialogHeader>
                   <DialogTitle>Start Session</DialogTitle>
                   <DialogDescription>
-                    Select one or more topics for this lesson. Unobserved topics are diagnosis-first and cannot enter training until first placement exists.
+                    Select one or more topics for this lesson. Unobserved topics are diagnosis-first. Topics with a prerequisite contradiction are re-diagnosis-first and cannot return to ordinary Training until placement is re-established.
                   </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Choose the topics you want to cover in this lesson. A single unobserved topic launches diagnosis. Observed topics launch training. Mixed launches are blocked until placement is complete.
+                    Choose the topics you want to cover in this lesson. A single unobserved topic launches diagnosis. A topic flagged by a prerequisite sentinel launches targeted re-diagnosis. Ordinary observed topics launch Training. Diagnosis and re-diagnosis topics must be handled one at a time.
                   </p>
                   <div className="grid gap-2 max-h-60 overflow-y-auto">
                     {topics.map((topic) => (
@@ -2711,7 +2776,11 @@ export default function StudentTopicConditioningDialog({
                           htmlFor={`session-topic-${topic.topic}`}
                           className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                         >
-                          {topic.topic} ({topic.hasObservedState ? `${topic.phase} - ${topic.stability}` : "Unobserved - Diagnosis First"})
+                          {topic.topic} ({topic.requiresTargetedRediagnosis
+                            ? `Re-Diagnosis Required - ${topic.targetedRediagnosisStartPhase || topic.phase}`
+                            : topic.hasObservedState
+                              ? `${topic.phase} - ${topic.stability}`
+                              : "Unobserved - Diagnosis First"})
                         </label>
                       </div>
                     ))}

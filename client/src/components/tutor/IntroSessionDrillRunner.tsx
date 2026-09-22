@@ -28,10 +28,15 @@ import { API_URL } from "@/lib/config";
 import {
   TRAINING_INTERVENTION_FIELD,
   TRAINING_INTERVENTION_OPTIONS,
+  TRAINING_PREREQUISITE_SENTINEL_FIELD,
+  getTrainingPrerequisiteSentinelDefinition,
+  resolveTrainingEvidenceEligibility,
   trainingEvidenceStatusKey,
   type TrainingEvidenceStatus,
   type TrainingInterventionEvent,
+  type TrainingPrerequisiteSentinelResult,
 } from "@shared/trainingEvidenceCapture";
+import { trainingEvidenceClassForRawBehavior } from "@shared/trainingEvidenceEvaluator";
 
 type PhaseLabel = "Clarity" | "Structured Execution" | "Controlled Discomfort" | "Time Pressure Stability";
 type DrillMode = "diagnosis" | "training" | "session" | "handover";
@@ -1197,6 +1202,71 @@ export default function IntroSessionDrillRunner() {
       : "observed";
   };
 
+  const trainingPrerequisiteSentinelKey = (setIndex: number, repIndex: number) =>
+    "set" + setIndex + "_rep" + repIndex + "_" + TRAINING_PREREQUISITE_SENTINEL_FIELD;
+
+  const trainingPrerequisiteSentinelResultFor = (
+    setIndex: number,
+    repIndex: number,
+  ): TrainingPrerequisiteSentinelResult | null => {
+    const raw = String(observations[trainingPrerequisiteSentinelKey(setIndex, repIndex)] || "").trim();
+    return raw === "held" || raw === "contradicted" || raw === "not_observed" || raw === "confounded"
+      ? raw
+      : null;
+  };
+
+  const handleTrainingPrerequisiteSentinel = (result: TrainingPrerequisiteSentinelResult) => {
+    setObservations((prev: any) => ({
+      ...prev,
+      [trainingPrerequisiteSentinelKey(currentSet, currentRep)]: result,
+    }));
+  };
+
+  const repNeedsTrainingPrerequisiteSentinel = (setIndex: number, repIndex: number) => {
+    if (!isTrainingEvidenceCapture) return false;
+    const sentinelDefinition = getTrainingPrerequisiteSentinelDefinition(displayPhase);
+    if (!sentinelDefinition) return false;
+
+    const repSet = drillStructure?.[setIndex];
+    if (!repSet || repSet.isModelingSet) return false;
+    const schema = getDrillSchemaDefinition("training", displayPhase);
+    const registeredSet = schema.sets.find((candidate) => candidate.setName === repSet.setName) || null;
+    if (!registeredSet) return false;
+
+    const storedIntervention = String(
+      observations["set" + setIndex + "_rep" + repIndex + "_" + TRAINING_INTERVENTION_FIELD] || "none",
+    ) as TrainingInterventionEvent;
+    const interventionEvent = TRAINING_INTERVENTION_OPTIONS.some((option) => option.id === storedIntervention)
+      ? storedIntervention
+      : "none";
+
+    return getLiveObservationBlockForRep(repSet, repIndex).some((field) => {
+      const registeredField = getFieldDefinitionForRep(registeredSet, repIndex, field.key);
+      if (!registeredField) return false;
+      const rawOption = String(
+        observations["set" + setIndex + "_rep" + repIndex + "_" + field.key] || "",
+      ).trim();
+      if (!rawOption) return false;
+
+      const statusRaw = String(
+        observations[
+          "set" + setIndex + "_rep" + repIndex + "_" + trainingEvidenceStatusKey(field.key)
+        ] || "observed",
+      );
+      const explicitStatus: TrainingEvidenceStatus =
+        statusRaw === "not_observed" || statusRaw === "confounded" ? statusRaw : "observed";
+      const dimensionId = registeredField.dimensionId as any;
+      const eligibility = resolveTrainingEvidenceEligibility({
+        phase: displayPhase,
+        dimensionId,
+        explicitStatus,
+        interventionEvent,
+      });
+      if (eligibility.status !== "observed") return false;
+      return trainingEvidenceClassForRawBehavior(dimensionId, rawOption) === "breakdown";
+    });
+  };
+
   const handleTopicReferenceChange = (field: keyof TopicReferenceContent, value: string) => {
     setTopicReferenceError(null);
     setTopicReferenceDraft((current) => ({ ...current, [field]: value }));
@@ -1262,9 +1332,20 @@ export default function IntroSessionDrillRunner() {
   const getMissingFieldsForRep = (setIndex: number, repIndex: number) => {
     const repSet = drillStructure[setIndex];
     const observationBlock = getLiveObservationBlockForRep(repSet, repIndex);
-    return observationBlock.filter(
+    const missing: ObservationField[] = observationBlock.filter(
       (field) => !String(observations[`set${setIndex}_rep${repIndex}_${field.key}`] || "").trim()
     );
+    if (
+      repNeedsTrainingPrerequisiteSentinel(setIndex, repIndex) &&
+      !trainingPrerequisiteSentinelResultFor(setIndex, repIndex)
+    ) {
+      missing.push({
+        key: TRAINING_PREREQUISITE_SENTINEL_FIELD,
+        label: "Prerequisite sentinel",
+        options: [],
+      });
+    }
+    return missing;
   };
 
   const getFirstMissingRep = () => {
@@ -1338,6 +1419,11 @@ export default function IntroSessionDrillRunner() {
             observations[
               "set" + setIndex + "_rep" + repIdx + "_" + TRAINING_INTERVENTION_FIELD
             ] || "none";
+          const prerequisiteSentinel =
+            trainingPrerequisiteSentinelResultFor(setIndex, repIdx);
+          if (prerequisiteSentinel) {
+            obs[TRAINING_PREREQUISITE_SENTINEL_FIELD] = prerequisiteSentinel;
+          }
         }
         observationBlock.forEach((block) => {
           if (isTrainingEvidenceCapture) {
@@ -1792,6 +1878,9 @@ export default function IntroSessionDrillRunner() {
             return `${topicName}: placed in ${row?.phase} at ${row?.stability} stability`;
           }
           const transitionReason = String(row?.transitionReason || row?.phaseDecision || "remain").toLowerCase();
+          if (transitionReason === "targeted re-diagnosis required" || row?.requiresTargetedRediagnosis) {
+            return `${topicName}: prerequisite trust is no longer sufficient for ordinary Training; state is held pending targeted re-diagnosis`;
+          }
           if ((transitionReason === "phase progress" || row?.phaseDecision === "advance") && row?.phaseBefore !== row?.phase) {
             return `${topicName}: phase advanced to ${row?.phase} at ${row?.stability} stability`;
           }
@@ -2495,6 +2584,75 @@ export default function IntroSessionDrillRunner() {
             )}
           </div>
         ))}
+        {isTrainingEvidenceCapture &&
+          !set?.isModelingSet &&
+          repStarted &&
+          repNeedsTrainingPrerequisiteSentinel(currentSet, currentRep) &&
+          (() => {
+            const sentinelDefinition = getTrainingPrerequisiteSentinelDefinition(displayPhase);
+            if (!sentinelDefinition) return null;
+            const selected = trainingPrerequisiteSentinelResultFor(currentSet, currentRep);
+            const options: Array<{
+              id: TrainingPrerequisiteSentinelResult;
+              label: string;
+              detail: string;
+            }> = [
+              {
+                id: "held",
+                label: sentinelDefinition.heldLabel,
+                detail: "The stripped-constraint check preserves trust in the earlier prerequisite. Keep this breakdown inside the current phase.",
+              },
+              {
+                id: "contradicted",
+                label: sentinelDefinition.contradictedLabel,
+                detail: "The lower prerequisite is contradicted. The system will freeze ordinary Training and require evidence-native re-diagnosis.",
+              },
+              {
+                id: "not_observed",
+                label: "Could not meaningfully observe the prerequisite",
+                detail: "The prerequisite is unresolved. The system will require re-diagnosis rather than guess.",
+              },
+              {
+                id: "confounded",
+                label: "Prerequisite check was confounded",
+                detail: "Support, interruption, task mismatch, or another factor prevented a clean prerequisite check.",
+              },
+            ];
+            return (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+                  Prerequisite sentinel required
+                </div>
+                <p className="mt-2 text-sm font-semibold text-amber-950">
+                  {sentinelDefinition.evidenceQuestion}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-amber-900">
+                  {sentinelDefinition.specialistInstruction}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-amber-800">
+                  This check does not move the topic backward. It only decides whether the earlier prerequisite can still be trusted or whether the evidence-complete diagnosis engine must re-establish the entry state.
+                </p>
+                <div className="mt-3 grid gap-2">
+                  {options.map((option) => (
+                    <button
+                      type="button"
+                      key={option.id}
+                      onClick={() => handleTrainingPrerequisiteSentinel(option.id)}
+                      className={[
+                        "rounded-lg border p-3 text-left",
+                        selected === option.id
+                          ? "border-amber-600 bg-white ring-1 ring-amber-600"
+                          : "border-amber-200 bg-white/70 hover:bg-white",
+                      ].join(" ")}
+                    >
+                      <span className="block text-sm font-medium text-foreground">{option.label}</span>
+                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.detail}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
       </form>
         </>
         )

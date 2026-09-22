@@ -110,13 +110,29 @@ For these decisions, the tested chain is:
 
 The compatibility score is observational only.
 
-## Explicit boundary
+## Prerequisite-loss follow-up
 
-This proof does **not** establish automatic prerequisite-layer loss detection.
+The 7 / 7 live UI proof above established Training evidence authority for same-phase decisions, but that proof predates the cross-layer prerequisite sentinel added after founder review.
 
-The current Training evaluator reports prerequisite contradiction as not evaluable with the present same-phase Training capture. A Training drill can therefore authoritatively judge the current phase evidence it receives, but it should not independently infer that a lower prerequisite response layer has collapsed and automatically initiate re-diagnosis without additional cross-layer sentinel evidence.
+The current PR head now implements:
 
-Until that capture exists, prerequisite-loss re-diagnosis should remain an explicit/manual escalation rather than an inferred Training authority.
+- automatic sentinel activation after a clean current-phase breakdown;
+- stripped-constraint checks for Structured Execution, Controlled Discomfort, and Time Pressure Stability;
+- persisted `targeted re-diagnosis required` authority without backward state mutation;
+- automatic next-launch routing into the evidence-complete diagnosis runner;
+- clearing of the prerequisite gate only after evidence-native diagnosis completes.
+
+This new authority surface requires its own deployed acceptance proof before merge. The minimum proof cases are:
+
+1. Structured Execution breakdown + Clarity sentinel holds -> ordinary current-phase regression/hold, no re-diagnosis flag.
+2. Structured Execution breakdown + Clarity sentinel contradicts -> state frozen, re-diagnosis target = Clarity.
+3. Controlled Discomfort breakdown + stripped normal execution contradicts -> state frozen, re-diagnosis target = Structured Execution.
+4. Time Pressure breakdown + untimed structure contradicts -> state frozen, re-diagnosis target = Structured Execution.
+5. Missing/confounded required sentinel -> no guessed state movement; targeted re-diagnosis required.
+6. Next launch opens evidence-complete diagnosis automatically.
+7. Completed re-diagnosis clears the prerequisite gate and persists the newly established phase/stability.
+
+Until those deployed cases are proven, the implementation is complete but this new prerequisite-loss authority remains an open merge gate.
 
 ## Cleanup
 

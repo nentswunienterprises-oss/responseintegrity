@@ -2,7 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  TRAINING_PREREQUISITE_SENTINEL_FIELD,
+  getTrainingPrerequisiteSentinelDefinition,
   interventionConfoundsTrainingDimension,
+  readTrainingPrerequisiteSentinel,
   resolveTrainingEvidenceEligibility,
 } from "./trainingEvidenceCapture";
 
@@ -68,4 +71,22 @@ test("explicit not-observed outranks an otherwise clean intervention", () => {
 
   assert.equal(result.status, "not_observed");
   assert.match(String(result.reason), /not meaningfully observable/i);
+});
+
+
+test("training prerequisite sentinels strip the active constraint before escalating", () => {
+  assert.equal(getTrainingPrerequisiteSentinelDefinition("Structured Execution")?.targetPhase, "Clarity");
+  assert.equal(getTrainingPrerequisiteSentinelDefinition("Controlled Discomfort")?.targetPhase, "Structured Execution");
+  assert.equal(getTrainingPrerequisiteSentinelDefinition("Time Pressure Stability")?.targetPhase, "Structured Execution");
+  assert.equal(getTrainingPrerequisiteSentinelDefinition("Clarity"), null);
+});
+
+test("prerequisite sentinel results are explicit and never inferred from absence", () => {
+  assert.equal(readTrainingPrerequisiteSentinel({
+    [TRAINING_PREREQUISITE_SENTINEL_FIELD]: "contradicted",
+  }), "contradicted");
+  assert.equal(readTrainingPrerequisiteSentinel({}), null);
+  assert.equal(readTrainingPrerequisiteSentinel({
+    [TRAINING_PREREQUISITE_SENTINEL_FIELD]: "something_else",
+  }), null);
 });

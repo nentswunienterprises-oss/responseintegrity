@@ -421,23 +421,76 @@ The next session must still confirm the exit contract before a phase can progres
 
 ## 12. Prerequisite contradiction and targeted re-diagnosis
 
-Ordinary training never directly regresses a topic to an earlier phase.
+Ordinary Training never directly regresses a topic to an earlier phase.
 
-If current-phase behavior suggests that an earlier prerequisite may no longer be trustworthy, the correct outcome is:
+Instead, a **clean current-phase breakdown** in any phase above Clarity activates a cross-layer prerequisite sentinel. The sentinel deliberately strips the active constraint so the system can distinguish a current-phase breakdown from loss of an earlier prerequisite.
 
-`POSSIBLE_PREREQUISITE_CONTRADICTION -> targeted evidence-native re-diagnosis`
+### Structured Execution
 
-Examples:
+Trigger:
 
-- Structured Execution behavior suggests the student may no longer recognize the method.
-- Controlled Discomfort behavior suggests the student cannot execute the known method even after difficulty is removed.
-- Time Pressure behavior suggests the structure also fails when the timer is removed.
+- clean Structured Execution breakdown.
 
-Current same-phase training fields cannot always distinguish a genuine earlier-layer loss from a current-layer breakdown.
+Sentinel:
 
-Therefore a prerequisite contradiction is a re-diagnosis trigger, not an automatic backward phase decision.
+- use one comparable normal problem;
+- before solving, ask the student to identify the method and why it applies;
+- no teaching, method cue, or supplied step.
 
-The targeted diagnosis engine owns the final reclassification.
+Interpretation:
+
+- method/reason hold independently -> keep the breakdown inside Structured Execution;
+- method/reason fail independently -> targeted re-diagnosis begins from Clarity.
+
+### Controlled Discomfort
+
+Trigger:
+
+- clean Controlled Discomfort breakdown.
+
+Sentinel:
+
+- strip difficulty;
+- use one comparable normal problem;
+- no timer, rescue, or method prompt.
+
+Interpretation:
+
+- independent execution returns -> keep the breakdown inside Controlled Discomfort;
+- execution still breaks -> targeted re-diagnosis begins from Structured Execution.
+
+### Time Pressure Stability
+
+Trigger:
+
+- clean Time Pressure Stability breakdown.
+
+Sentinel:
+
+- remove the timer;
+- use one comparable untimed problem;
+- no coaching or rescue.
+
+Interpretation:
+
+- structure and independent execution return -> keep the breakdown inside Time Pressure Stability;
+- structure still breaks -> targeted re-diagnosis begins from Structured Execution.
+
+### Authority rule
+
+The sentinel does **not** itself move a topic backward.
+
+If the sentinel contradicts the prerequisite, or if the required sentinel is missing, not observed, or confounded:
+
+1. the current persisted phase and stability are held;
+2. the Training transition is replaced with `targeted re-diagnosis required`;
+3. ordinary Training is locked for that topic;
+4. the target re-diagnosis starting signal is persisted;
+5. the next Specialist launch automatically opens the evidence-complete diagnosis runner;
+6. the evidence-complete diagnosis engine owns the final reclassification;
+7. successful diagnosis completion clears the Training prerequisite gate.
+
+This removes manual prerequisite-loss escalation while preserving the rule that Training may detect loss of trust but may not invent the earlier phase placement.
 
 ## 13. Scores after this contract
 
@@ -515,7 +568,7 @@ The safe migration order is:
 5. Replay sandbox and proof drills and compare score authority against evidence authority.
 6. Add explicit support-aware evidence eligibility where current capture is insufficient.
 7. Define and validate High Maintenance entry and exit evidence in the live UI.
-8. Add prerequisite contradiction detection and targeted re-diagnosis routing.
+8. Prerequisite contradiction detection and targeted re-diagnosis routing implemented through cross-layer sentinels.
 9. Cut state authority over from score to evidence only after proof.
 10. Migrate Response Snapshot and reporting claim authority.
 11. Retain numeric scores only where they remain useful as non-authoritative analytics.

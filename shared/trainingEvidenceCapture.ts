@@ -13,6 +13,76 @@ export type TrainingInterventionEvent =
 
 export const TRAINING_INTERVENTION_FIELD = "_training_intervention_event";
 
+export type TrainingPrerequisiteSentinelResult =
+  | "held"
+  | "contradicted"
+  | "not_observed"
+  | "confounded";
+
+export const TRAINING_PREREQUISITE_SENTINEL_FIELD =
+  "_training_prerequisite_sentinel";
+
+export type TrainingPrerequisiteSentinelDefinition = {
+  trainingPhase: Exclude<TopicPhase, "Clarity">;
+  targetPhase: TopicPhase;
+  evidenceQuestion: string;
+  specialistInstruction: string;
+  heldLabel: string;
+  contradictedLabel: string;
+};
+
+export const TRAINING_PREREQUISITE_SENTINELS: Partial<
+  Record<TopicPhase, TrainingPrerequisiteSentinelDefinition>
+> = {
+  "Structured Execution": {
+    trainingPhase: "Structured Execution",
+    targetPhase: "Clarity",
+    evidenceQuestion:
+      "Does Clarity still hold independently, or is the execution breakdown actually sitting below Structured Execution?",
+    specialistInstruction:
+      "Before another solve, use one comparable normal problem and ask the student to identify the method and why it applies. Do not teach, cue the method, or supply a step.",
+    heldLabel: "Identifies the method and why it applies without help",
+    contradictedLabel: "Cannot identify the method or why it applies without help",
+  },
+  "Controlled Discomfort": {
+    trainingPhase: "Controlled Discomfort",
+    targetPhase: "Structured Execution",
+    evidenceQuestion:
+      "Does independent execution return when difficulty is stripped away?",
+    specialistInstruction:
+      "Strip the difficulty. Give one comparable normal problem with no timer, rescue, or method prompt. Observe whether the known method executes independently.",
+    heldLabel: "Executes the known method independently once difficulty is removed",
+    contradictedLabel: "Execution still breaks after difficulty is removed",
+  },
+  "Time Pressure Stability": {
+    trainingPhase: "Time Pressure Stability",
+    targetPhase: "Structured Execution",
+    evidenceQuestion:
+      "Does structure return when the timer is removed, or has an earlier execution prerequisite become untrustworthy?",
+    specialistInstruction:
+      "Remove the timer. Give one comparable untimed problem with no coaching or rescue. Observe whether structure and independent execution return.",
+    heldLabel: "Structure returns and the method executes independently without the timer",
+    contradictedLabel: "Structure still breaks with the timer removed",
+  },
+};
+
+export const getTrainingPrerequisiteSentinelDefinition = (
+  phase: TopicPhase,
+): TrainingPrerequisiteSentinelDefinition | null =>
+  TRAINING_PREREQUISITE_SENTINELS[phase] || null;
+
+export const readTrainingPrerequisiteSentinel = (
+  rep: Record<string, string>,
+): TrainingPrerequisiteSentinelResult | null => {
+  const raw = String(rep?.[TRAINING_PREREQUISITE_SENTINEL_FIELD] || "").trim();
+  return raw === "held" ||
+    raw === "contradicted" ||
+    raw === "not_observed" ||
+    raw === "confounded"
+    ? raw
+    : null;
+};
+
 export const TRAINING_INTERVENTION_OPTIONS: Array<{
   id: TrainingInterventionEvent;
   label: string;

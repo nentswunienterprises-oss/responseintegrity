@@ -11,15 +11,19 @@ import {
   type TrainingDimensionId,
   type TrainingDimensionState,
   type TrainingEvidenceClass,
+  type TrainingEvidenceTransitionReason,
   type TrainingObservedStability,
 } from "./trainingEvidenceContract";
 import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
 import {
+  getTrainingPrerequisiteSentinelDefinition,
   readTrainingEvidenceStatus,
   readTrainingInterventionEvent,
+  readTrainingPrerequisiteSentinel,
   resolveTrainingEvidenceEligibility,
   type TrainingEvidenceStatus,
   type TrainingInterventionEvent,
+  type TrainingPrerequisiteSentinelResult,
 } from "./trainingEvidenceCapture";
 
 export type TrainingEvidenceOccurrence = {
@@ -46,6 +50,32 @@ export type TrainingDimensionDecision = {
   evidence: TrainingEvidenceOccurrence[];
 };
 
+export type TrainingPrerequisiteSentinelOccurrence = {
+  setId: string;
+  setName: string;
+  setOrder: number;
+  repNumber: number;
+  targetPhase: TopicPhase;
+  triggerDimensions: TrainingDimensionId[];
+  result: TrainingPrerequisiteSentinelResult | "missing";
+};
+
+export type TrainingPrerequisiteContradiction = {
+  status: "not_applicable" | "not_triggered" | "cleared" | "confirmed" | "unresolved";
+  targetPhase: TopicPhase | null;
+  reason: string;
+  evidence: TrainingPrerequisiteSentinelOccurrence[];
+};
+
+export type TrainingEvidenceAuthorityRoute = {
+  route: "normal_training" | "targeted_rediagnosis";
+  nextPhase: TopicPhase;
+  nextStability: TopicStability;
+  transitionReason: TrainingEvidenceTransitionReason | "targeted re-diagnosis required";
+  targetPhase: TopicPhase | null;
+  reason: string;
+};
+
 export type TrainingEvidenceEvaluation =
   | {
       status: "evaluated";
@@ -59,10 +89,7 @@ export type TrainingEvidenceEvaluation =
       predictedTransition: ReturnType<typeof transitionTrainingStateFromEvidence>;
       ineligibleEvidenceCount: number;
       interventionEvents: TrainingInterventionEvent[];
-      prerequisiteContradiction: {
-        status: "not_evaluable_with_current_training_capture";
-        reason: string;
-      };
+      prerequisiteContradiction: TrainingPrerequisiteContradiction;
     }
   | {
       status: "unavailable";
@@ -331,12 +358,15 @@ export const evaluateTrainingEvidence = ({
   }
 
   const occurrences: TrainingEvidenceOccurrence[] = [];
+  const prerequisiteSentinelEvidence: TrainingPrerequisiteSentinelOccurrence[] = [];
+  const prerequisiteSentinelDefinition = getTrainingPrerequisiteSentinelDefinition(phase);
 
   normalizedSets.forEach((submittedSet, setIndex) => {
     const definition = schema.sets[setIndex];
     if (definition.modelingOnly) return;
 
     submittedSet.observations.forEach((rep, repIndex) => {
+      const repOccurrences: TrainingEvidenceOccurrence[] = [];
       definition.fields.forEach((baseField) => {
         const field = getFieldDefinitionForRep(definition, repIndex, baseField.fieldKey) || baseField;
         const dimensionId = field.dimensionId as TrainingDimensionId;
@@ -357,7 +387,7 @@ export const evaluateTrainingEvidence = ({
               ? "confounded"
               : rawEvidenceClass || "confounded";
 
-        occurrences.push({
+        const occurrence: TrainingEvidenceOccurrence = {
           setId: definition.setId,
           setName: definition.setName,
           setOrder: setIndex + 1,
@@ -368,12 +398,27 @@ export const evaluateTrainingEvidence = ({
           interventionEvent,
           eligibilityReason:
             eligibility.reason ||
-            (rawEvidenceClass
-              ? null
-              : "The raw training behavior is not mapped into the evidence-native shadow contract."),
+            (rawEvidenceClass ? null : "The raw training behavior is not mapped into the evidence-native shadow contract."),
           evidenceClass,
-        });
+        };
+        occurrences.push(occurrence);
+        repOccurrences.push(occurrence);
       });
+
+      const triggerDimensions = repOccurrences
+        .filter((item) => item.evidenceClass === "breakdown")
+        .map((item) => item.dimensionId);
+      if (prerequisiteSentinelDefinition && triggerDimensions.length > 0) {
+        prerequisiteSentinelEvidence.push({
+          setId: definition.setId,
+          setName: definition.setName,
+          setOrder: setIndex + 1,
+          repNumber: repIndex + 1,
+          targetPhase: prerequisiteSentinelDefinition.targetPhase,
+          triggerDimensions,
+          result: readTrainingPrerequisiteSentinel(rep) || "missing",
+        });
+      }
     });
   });
 
@@ -404,6 +449,45 @@ export const evaluateTrainingEvidence = ({
     decisions.every((decision) => decision.state === "SUPPORTED") &&
     allDimensionsHaveSupportInSets(decisions, contract.exitConfirmationSetIds, 2);
 
+  let prerequisiteContradiction: TrainingPrerequisiteContradiction;
+  if (!prerequisiteSentinelDefinition) {
+    prerequisiteContradiction = {
+      status: "not_applicable",
+      targetPhase: null,
+      reason: "Clarity has no earlier response-layer prerequisite to re-diagnose.",
+      evidence: [],
+    };
+  } else if (prerequisiteSentinelEvidence.length === 0) {
+    prerequisiteContradiction = {
+      status: "not_triggered",
+      targetPhase: prerequisiteSentinelDefinition.targetPhase,
+      reason: "No clean current-phase breakdown required a stripped-constraint prerequisite sentinel.",
+      evidence: [],
+    };
+  } else if (prerequisiteSentinelEvidence.some((item) => item.result === "contradicted")) {
+    prerequisiteContradiction = {
+      status: "confirmed",
+      targetPhase: prerequisiteSentinelDefinition.targetPhase,
+      reason: "A clean current-phase breakdown remained present after the active constraint was stripped. The earlier prerequisite can no longer be trusted from prior state alone.",
+      evidence: prerequisiteSentinelEvidence,
+    };
+  } else if (prerequisiteSentinelEvidence.some((item) =>
+    item.result === "missing" || item.result === "not_observed" || item.result === "confounded")) {
+    prerequisiteContradiction = {
+      status: "unresolved",
+      targetPhase: prerequisiteSentinelDefinition.targetPhase,
+      reason: "A clean current-phase breakdown required a prerequisite sentinel, but the stripped-constraint check was not cleanly established. Ordinary training cannot continue on an untrusted prerequisite.",
+      evidence: prerequisiteSentinelEvidence,
+    };
+  } else {
+    prerequisiteContradiction = {
+      status: "cleared",
+      targetPhase: prerequisiteSentinelDefinition.targetPhase,
+      reason: "The stripped-constraint prerequisite sentinel held, so the breakdown remains attributable to the current training phase.",
+      evidence: prerequisiteSentinelEvidence,
+    };
+  }
+
   return {
     status: "evaluated",
     authority: "evidence_native",
@@ -430,11 +514,33 @@ export const evaluateTrainingEvidence = ({
           .filter((event) => event !== "none"),
       ),
     ),
-    prerequisiteContradiction: {
-      status: "not_evaluable_with_current_training_capture",
-      reason:
-        "Current same-phase training fields cannot reliably distinguish an earlier-layer prerequisite loss from a current-layer breakdown. Targeted cross-layer sentinels must be added before automatic re-diagnosis routing is authorized.",
-    },
+    prerequisiteContradiction,
+  };
+};
+
+export const resolveTrainingEvidenceAuthorityRoute = (
+  evaluation: Extract<TrainingEvidenceEvaluation, { status: "evaluated" }>,
+): TrainingEvidenceAuthorityRoute => {
+  const prerequisite = evaluation.prerequisiteContradiction;
+  if (prerequisite.status === "confirmed" || prerequisite.status === "unresolved") {
+    return {
+      route: "targeted_rediagnosis",
+      nextPhase: evaluation.phase,
+      nextStability: evaluation.previousStability,
+      transitionReason: "targeted re-diagnosis required",
+      targetPhase: prerequisite.targetPhase,
+      reason: prerequisite.reason,
+    };
+  }
+  return {
+    route: "normal_training",
+    nextPhase: evaluation.predictedTransition.nextPhase,
+    nextStability: evaluation.predictedTransition.nextStability,
+    transitionReason: evaluation.predictedTransition.transitionReason,
+    targetPhase: null,
+    reason: prerequisite.status === "cleared"
+      ? prerequisite.reason
+      : "No prerequisite contradiction blocks the evidence-native training transition.",
   };
 };
 
