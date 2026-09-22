@@ -74,6 +74,11 @@ import {
 import { evaluateHandoverVerificationEvidence } from "@shared/handoverEvidenceEvaluator";
 import { buildResponseSnapshotV1, summarizeSnapshotObservedResponse } from "@shared/responseSnapshot";
 import {
+  extractAuthoritativeResponseEvidenceSignals,
+  reportClaimLabelsFromEvidence,
+  type ResponseEvidenceReportSignal,
+} from "@shared/responseEvidenceReporting";
+import {
   cancellationNeedsReplacement,
   deriveTrainingSessionCancellationDisposition,
   type TrainingSessionCancellationDisposition,
@@ -5293,6 +5298,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             if (!parsed || typeof parsed !== "object") return null;
 
+            const responseEvidenceSignals = extractAuthoritativeResponseEvidenceSignals(parsed);
+            const hasAuthoritativeResponseEvidence = responseEvidenceSignals.length > 0;
+            const authoritativeBehaviorPatterns = reportClaimLabelsFromEvidence(responseEvidenceSignals);
+            const authoritativeBehaviorSummary = (() => {
+              if (!hasAuthoritativeResponseEvidence) return "";
+              const strong = responseEvidenceSignals.filter((signal) => signal.polarity === "strong");
+              const weak = responseEvidenceSignals.filter((signal) => signal.polarity === "weak");
+              const conditional = responseEvidenceSignals.filter((signal) => signal.polarity === "conditional");
+              const recovered = strong.filter((signal) => signal.recoveredAfterBreakdown);
+
+              const parts = [
+                ...recovered.map((signal) => `recovered to ${signal.label}`),
+                ...strong.filter((signal) => !signal.recoveredAfterBreakdown).map((signal) => signal.label),
+                ...weak.map((signal) => signal.label),
+                ...conditional.map((signal) => signal.label),
+              ];
+              const unique = Array.from(new Set(parts.filter(Boolean)));
+              return unique.length > 0
+                ? `Evidence resolved as ${naturalJoin(unique.slice(0, 4))}.`
+                : "No decision-eligible strength or breakdown claim was established from this evidence.";
+            })();
+
             const normalizedDrillType = String(parsed.drillType || "diagnosis").trim().toLowerCase();
             const drillType =
               normalizedDrillType === "training"
@@ -5334,7 +5361,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 topic,
                 drillType: "diagnosis",
                 responseSnapshot: isResponseSnapshotV1(parsed.responseSnapshot) ? parsed.responseSnapshot : null,
-                behaviorPatterns: rawBehaviorPatterns(observationSignals),
+                responseEvidenceSignals,
+                behaviorPatterns: hasAuthoritativeResponseEvidence
+                  ? authoritativeBehaviorPatterns
+                  : rawBehaviorPatterns(observationSignals),
                 score: diagnosisScore,
                 phaseBefore: diagnosisPhase,
                 phaseAfter: trainingEntryPhase,
@@ -5345,7 +5375,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 deterministicLog: {
                   topicFocus: `This session focused on ${topic}, targeting baseline diagnosis in ${diagnosisPhase}.`,
                   whatWasTrained: `A diagnosis drill was used to identify ${DRILL_PURPOSE_BY_PHASE[diagnosisPhase] || "phase-specific response patterns"}.`,
-                  behaviorSummary: snapshotBehaviorSummary || buildBehaviorSummary(observationSignals, "diagnosis", stability),
+                  behaviorSummary: hasAuthoritativeResponseEvidence
+                    ? authoritativeBehaviorSummary
+                    : snapshotBehaviorSummary || buildBehaviorSummary(observationSignals, "diagnosis", stability),
                   performanceResult: describePerformanceResult({
                     phaseBefore: diagnosisPhase,
                     phaseAfter: trainingEntryPhase,
@@ -5412,7 +5444,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 topic,
                 drillType: "training",
                 responseSnapshot: isResponseSnapshotV1(parsed.responseSnapshot) ? parsed.responseSnapshot : null,
-                behaviorPatterns: rawBehaviorPatterns(observationSignals),
+                responseEvidenceSignals,
+                behaviorPatterns: hasAuthoritativeResponseEvidence
+                  ? authoritativeBehaviorPatterns
+                  : rawBehaviorPatterns(observationSignals),
                 score: sessionScore,
                 phaseBefore: observedPhase,
                 phaseAfter: resultingPhase,
@@ -5423,7 +5458,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 deterministicLog: {
                 topicFocus: `This session focused on ${topic}, targeting ${observedPhase} phase skills.`,
                   whatWasTrained: `A training drill was used to train ${DRILL_PURPOSE_BY_PHASE[observedPhase] || "phase-specific behavior"}.`,
-                  behaviorSummary: snapshotBehaviorSummary || buildBehaviorSummary(observationSignals, "the drill", stability),
+                  behaviorSummary: hasAuthoritativeResponseEvidence
+                    ? authoritativeBehaviorSummary
+                    : snapshotBehaviorSummary || buildBehaviorSummary(observationSignals, "the drill", stability),
                   performanceResult: describePerformanceResult({
                     phaseBefore: observedPhase,
                     phaseAfter: resultingPhase,
@@ -5512,7 +5549,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   return `${entry.topic}: ${behaviors}`;
                 });
                 const performanceLines = sortedEntries.map((entry) =>
-                  `${entry.topic}: ${entry.score}/100, ${entry.stabilityBefore} -> ${entry.stabilityAfter}`
+                  `${entry.topic}: ${entry.phaseBefore} / ${entry.stabilityBefore} -> ${entry.phaseAfter} / ${entry.stabilityAfter}`
                 );
                 const stateMovementLines = sortedEntries.map((entry) =>
                   `${entry.topic}: ${entry.deterministicLog?.stateMovement || "State recorded"}`
@@ -5535,6 +5572,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   topic: topics[0] || "Unknown topic",
                   drillType: sessionTypes.length === 1 ? sessionTypes[0] : "mixed",
                   responseSnapshots: sortedEntries.map((entry) => entry.responseSnapshot).filter(Boolean),
+                  responseEvidenceSignals: sortedEntries.flatMap((entry) =>
+                    Array.isArray(entry.responseEvidenceSignals) ? entry.responseEvidenceSignals : []
+                  ),
                   sessionTypes,
                   containsDiagnosis,
                   containsTraining,
@@ -5918,22 +5958,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             phaseBefore,
             phaseAfter,
             stabilityAfter,
-            score,
             transitionReason,
           }: {
             phaseBefore: string;
             phaseAfter: string;
             stabilityAfter: string;
-            score: number;
+            score?: number;
             transitionReason: TransitionReason;
           }) => {
             if (didPhaseProgress({ phaseBefore, phaseAfter, transitionReason })) {
-              return `Based on performance, phase is now ${phaseAfter} and stability is ${stabilityAfter} (${score}/100).`;
+              return `Evidence established movement into ${phaseAfter}, with current stability at ${stabilityAfter}.`;
             }
             if (isFinalPhaseMaintenanceState(phaseAfter, stabilityAfter)) {
-              return `Based on performance, phase remains ${phaseAfter} at ${stabilityAfter} (${score}/100).`;
+              return `Evidence confirmed ${phaseAfter} at ${stabilityAfter}.`;
             }
-            return `Based on performance, stability is now ${stabilityAfter} in ${phaseAfter} (${score}/100).`;
+            return `Evidence places the current response at ${phaseAfter} / ${stabilityAfter}.`;
           };
 
           const describeSessionMovement = ({
@@ -6396,6 +6435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               latestNextAction: string;
               drillBehaviors: string[][];
               allBehaviors: string[];
+              evidenceIds: string[];
               hasTrainingEvidence: boolean;
             }>
           ) =>
@@ -6436,6 +6476,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const behaviors = Array.isArray(session?.behaviorPatterns)
                 ? session.behaviorPatterns.filter((behavior: unknown) => String(behavior || "").trim())
                 : [];
+              const evidenceIds = Array.from(
+                new Set(
+                  (Array.isArray(session?.responseEvidenceSignals) ? session.responseEvidenceSignals : [])
+                    .map((signal: ResponseEvidenceReportSignal) => String(signal?.evidenceId || "").trim())
+                    .filter(Boolean),
+                ),
+              );
               const nextAction = String(session?.nextAction || session?.deterministicLog?.nextMove || "").trim();
 
               if (!snapshots[topic]) {
@@ -6447,6 +6494,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     latestNextAction: nextAction,
                     drillBehaviors: [behaviors],
                     allBehaviors: [...behaviors],
+                    evidenceIds: [...evidenceIds],
                     hasTrainingEvidence: session?.drillType === "training" || session?.containsTraining === true,
                 };
                 return;
@@ -6463,6 +6511,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               snapshots[topic].transitionReasons.push(transitionReason);
               snapshots[topic].drillBehaviors.push(behaviors);
               snapshots[topic].allBehaviors.push(...behaviors);
+              snapshots[topic].evidenceIds = Array.from(
+                new Set([...snapshots[topic].evidenceIds, ...evidenceIds]),
+              );
               if (session?.drillType === "training" || session?.containsTraining === true) {
                 snapshots[topic].hasTrainingEvidence = true;
               }
@@ -6627,7 +6678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const endDate = sorted[sorted.length - 1].date;
 
             return {
-              version: "weekly-v2-auto",
+              version: "weekly-v3-evidence",
               weekStartDate: new Date(startDate).toISOString().slice(0, 10),
               weekEndDate: new Date(endDate).toISOString().slice(0, 10),
               sessionsCompletedThisWeek: groupedSessions.length,
@@ -6639,6 +6690,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               internalWeeklyTutorNote: "",
               drillCount: deterministicSessions.length,
               sourceSessionIds: groupedSessions.map((session) => session.id),
+              reportDecisionAuthority: "response_evidence_model_v1",
+              evidenceLineage: topics.map((topic) => ({
+                topic,
+                evidenceIds: topicSnapshots[topic].evidenceIds,
+              })),
             };
           };
 
@@ -6759,7 +6815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const endDate = sorted[sorted.length - 1].date;
 
             return {
-              version: "monthly-v2-auto",
+              version: "monthly-v3-evidence",
               monthStartDate: new Date(startDate).toISOString().slice(0, 10),
               monthEndDate: new Date(endDate).toISOString().slice(0, 10),
               totalSessionsCompletedThisMonth: groupedSessions.length,
@@ -6773,6 +6829,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               drillCount: topics.reduce((sum, topic) => sum + topicSnapshots[topic].drillCount, 0),
               monthRange: `${new Date(startDate).toISOString().slice(0, 10)} to ${new Date(endDate).toISOString().slice(0, 10)}`,
               sourceSessionIds: groupedSessions.map((session) => session.id),
+              reportDecisionAuthority: "response_evidence_model_v1",
+              evidenceLineage: topics.map((topic) => ({
+                topic,
+                evidenceIds: topicSnapshots[topic].evidenceIds,
+              })),
             };
           };
 

@@ -195,8 +195,9 @@ function DeterministicSessionLog({ session }: { session: SessionRecord }) {
           <p className="mt-1 font-medium">{log.drillLabel || "Session Drill"}</p>
         </Card>
         <Card className="rounded-xl border border-primary/15 bg-muted/20 p-3 shadow-none">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Session Score</p>
-          <p className="mt-1 font-medium">{typeof log.score === "number" ? `${log.score}/100` : "Not scored"}</p>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Compatibility Score</p>
+          <p className="mt-1 font-medium">{typeof log.score === "number" ? `${log.score}/100` : "Not recorded"}</p>
+          <p className="mt-1 text-[10px] text-muted-foreground">Technical reference only; state and report claims use evidence authority.</p>
         </Card>
         <Card className="rounded-xl border border-primary/15 bg-muted/20 p-3 shadow-none">
           <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">State</p>
@@ -367,6 +368,10 @@ export default function StudentReportsDialog({
                               <FieldRow label="Breakdown Pattern" value={formatReportValue(structured.breakdownPattern || report.areasForGrowth)} />
                               <FieldRow label="What This Means" value={formatReportValue(structured.whatThisMeans)} />
                               <FieldRow label="Next Move" value={formatReportValue(structured.nextMove || report.nextSteps)} />
+                              <FieldRow
+                                label="Evidence Authority"
+                                value={structured.reportDecisionAuthority === "response_evidence_model_v1" ? "Response Evidence Model" : "Legacy compatibility"}
+                              />
                               {report.parentFeedback ? (
                                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
                                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-900">Parent Feedback</p>
