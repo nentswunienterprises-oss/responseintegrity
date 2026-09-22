@@ -337,7 +337,7 @@ async function resolveSessionContext(input: {
     } as const;
   }
 
-  const kind =
+  const kind: "intro" | "training" | "handover" =
     scheduledSession?.type === "handover" || input.requestedKind === "handover"
       ? "handover"
       : scheduledSession?.type === "training" || input.requestedKind === "training"
@@ -728,7 +728,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
 
         const history = parseJsonValue<DiagnosisProbeResult[]>(run.probe_history, []);
         const replay = replayEvidenceCompleteDiagnosis(run.starting_phase, history);
-        if (!replay.ok) {
+        if (replay.ok === false) {
           return res.status(409).json({ message: `Stored diagnosis evidence is invalid: ${replay.error}` });
         }
 
@@ -809,7 +809,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           if (existingRun.status === "completed") {
             const storedHistory = parseJsonValue<DiagnosisProbeResult[]>(existingRun.probe_history, []);
             const storedReplay = replayEvidenceCompleteDiagnosis(existingRun.starting_phase, storedHistory);
-            if (!storedReplay.ok) {
+            if (storedReplay.ok === false) {
               return res.status(409).json({ message: "Completed diagnosis evidence is internally inconsistent" });
             }
             return res.json(responseForReplay(
@@ -822,7 +822,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         }
 
         const replay = replayEvidenceCompleteDiagnosis(startingPhase, req.body?.probeHistory || []);
-        if (!replay.ok) {
+        if (replay.ok === false) {
           return res.status(400).json({
             message: replay.error,
             failedAtProbeIndex: replay.failedAtProbeIndex ?? null,
