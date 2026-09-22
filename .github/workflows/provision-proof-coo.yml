@@ -1,0 +1,47 @@
+name: Provision Proof COO
+
+on:
+  push:
+    branches:
+      - feat/evidence-complete-diagnosis
+    paths:
+      - '.github/workflows/provision-proof-coo.yml'
+      - '.github/scripts/provision-proof-coo.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provision-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PROOF_BASE_URL: https://tt-confidence-hub-git-feat-evi-31b8c6-relief-works-technologies.vercel.app
+      RI_PROOF_SPECIALIST_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+      RI_PROOF_SPECIALIST_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      RI_PROOF_COO_PASSWORD: ${{ secrets.RI_PROOF_COO_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve deployed Preview app SHA
+        shell: bash
+        run: |
+          APP_SHA="$GITHUB_SHA"
+          while true; do
+            CHANGED_FILES="$(git diff-tree --no-commit-id --name-only -r "$APP_SHA")"
+            if echo "$CHANGED_FILES" | grep -Eq '^\.github/(workflows/provision-proof-coo\.yml|scripts/provision-proof-coo\.mjs)$' && [ "$(echo "$CHANGED_FILES" | wc -l)" -le 2 ]; then
+              APP_SHA="$(git rev-parse "$APP_SHA^")"
+            else
+              break
+            fi
+          done
+          echo "PROOF_EXPECTED_APP_SHA=$APP_SHA" >> "$GITHUB_ENV"
+          echo "Resolved deployed app SHA: $APP_SHA"
+
+      - name: Provision and verify Proof COO
+        run: node .github/scripts/provision-proof-coo.mjs
