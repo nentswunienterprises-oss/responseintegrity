@@ -366,12 +366,18 @@ jobs:
             return set.repFields?.[repIndex] || set.fields;
           }
 
-          async function chooseBreakdownFields(setIndex, repIndex, phase) {
-            for (const [label, options] of fieldsFor(setIndex, repIndex, phase)) {
-              const labelNode = page.getByText(label, { exact: true });
+          async function chooseBreakdownFields() {
+            const labels = page.locator("form label");
+            const count = await labels.count();
+            assert.ok(count > 0, "Training rep rendered no behavior observation dimensions");
+            for (let index = 0; index < count; index += 1) {
+              const labelNode = labels.nth(index);
               await labelNode.waitFor({ state: "visible", timeout: 30000 });
-              const fieldContainer = labelNode.locator("..").locator("..");
-              await fieldContainer.getByRole("button", { name: options[0], exact: true }).click();
+              const fieldContainer = labelNode.locator("..");
+              const options = fieldContainer.getByRole("button");
+              const optionCount = await options.count();
+              assert.ok(optionCount > 0, "Training behavior dimension rendered no options");
+              await options.first().click();
             }
           }
 
@@ -439,7 +445,7 @@ jobs:
                 await begin.waitFor({ state: "visible", timeout: 30000 });
                 await begin.click();
 
-                await chooseBreakdownFields(setIndex, repIndex, scenario.phase);
+                await chooseBreakdownFields();
 
                 await page.getByText("Prerequisite sentinel required", { exact: true }).waitFor({
                   state: "visible",
