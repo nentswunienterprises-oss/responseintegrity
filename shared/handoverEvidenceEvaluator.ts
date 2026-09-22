@@ -62,7 +62,9 @@ export type HandoverEvidenceEvaluation =
 const reduceHandoverStability = (stability: TopicStability): TopicStability => {
   if (stability === "High Maintenance") return "High";
   if (stability === "High") return "Medium";
-  if (stability === "Medium") return "Low";
+  // Conditional evidence means the capability still exists but is not fully stable.
+  // It cannot by itself mint a Low state, which is reserved for breakdown evidence.
+  if (stability === "Medium") return "Medium";
   return "Low";
 };
 
@@ -166,6 +168,26 @@ export const evaluateHandoverVerificationEvidence = ({
   }
 
   if (dimensions.some((dimension) => dimension.state === "CONDITIONAL")) {
+    const maximumOpportunities = Math.max(
+      HANDOVER_VERIFICATION_MIN_DECISION_OPPORTUNITIES,
+      Number(definition.maximumReps || definition.reps),
+    );
+    if (validation.normalizedSet.observations.length < maximumOpportunities) {
+      return {
+        status: "evaluated",
+        authority: "evidence_native",
+        phase,
+        previousStability,
+        verificationOutcome: "continue_verification",
+        confidence: "low",
+        resultingPhase: phase,
+        resultingStability: previousStability,
+        reDiagnosisRequired: false,
+        reason:
+          "Continuity evidence is mixed but still recoverable. Record another clean comparable opportunity before changing the inherited state.",
+        dimensions,
+      };
+    }
     return {
       status: "evaluated",
       authority: "evidence_native",
@@ -177,7 +199,7 @@ export const evaluateHandoverVerificationEvidence = ({
       resultingStability: reduceHandoverStability(previousStability),
       reDiagnosisRequired: false,
       reason:
-        "The inherited phase still has usable evidence, but at least one dimension is conditional rather than independently supported.",
+        "The verification window closed with persistent conditional evidence. The inherited phase remains usable, but its stability cannot be preserved at the prior checkpoint.",
       dimensions,
     };
   }

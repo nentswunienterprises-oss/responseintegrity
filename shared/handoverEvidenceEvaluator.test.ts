@@ -27,7 +27,7 @@ const buildVerificationSet = (
     constraintProfile: { ...definition.constraints },
     observations: Array.from({ length: repCount ?? definition.reps }, (_, repIndex) => {
       const rep: Record<string, string> = {
-        _rep_id: definition.repPurposeIds[repIndex],
+        _rep_id: definition.repPurposeIds[repIndex] || `${definition.setId}.opportunity_${repIndex + 1}`,
         _rep_number: String(repIndex + 1),
       };
       definition.fields.forEach((baseField) => {
@@ -80,14 +80,40 @@ test("repeated supported continuity evidence holds the inherited state", () => {
   assert.equal(result.reDiagnosisRequired, false);
 });
 
-test("conditional continuity evidence adjusts stability without changing phase", () => {
-  const set = buildVerificationSet("Controlled Discomfort", (field, _rep, count) =>
-    field === "discomfortTolerance" ? 1 : count - 1
+test("conditional continuity evidence stays open while clean confirmation can still resolve it", () => {
+  const set = buildVerificationSet(
+    "Controlled Discomfort",
+    (field, _rep, count) => field === "discomfortTolerance" ? 1 : count - 1,
+    2,
+  );
+  const result = evaluate("Controlled Discomfort", "High Maintenance", set);
+  assert.equal(result.verificationOutcome, "continue_verification");
+  assert.equal(result.resultingStability, "High Maintenance");
+  assert.equal(result.reDiagnosisRequired, false);
+});
+
+test("persistent conditional evidence adjusts only after the bounded verification window closes", () => {
+  const set = buildVerificationSet(
+    "Controlled Discomfort",
+    (field, _rep, count) => field === "discomfortTolerance" ? 1 : count - 1,
+    5,
   );
   const result = evaluate("Controlled Discomfort", "High Maintenance", set);
   assert.equal(result.verificationOutcome, "stability_adjust");
   assert.equal(result.resultingPhase, "Controlled Discomfort");
   assert.equal(result.resultingStability, "High");
+  assert.equal(result.reDiagnosisRequired, false);
+});
+
+test("conditional evidence cannot demote Medium to Low without breakdown evidence", () => {
+  const set = buildVerificationSet(
+    "Clarity",
+    (field, _rep, count) => field === "reason" ? 1 : count - 1,
+    5,
+  );
+  const result = evaluate("Clarity", "Medium", set);
+  assert.equal(result.verificationOutcome, "stability_adjust");
+  assert.equal(result.resultingStability, "Medium");
   assert.equal(result.reDiagnosisRequired, false);
 });
 
@@ -142,7 +168,7 @@ test("high compatibility cannot override a confirmed phase-defining breakdown", 
   );
 });
 
-test("one early breakdown plus two clean continuity reps is not falsely called recovered", () => {
+test("one early breakdown plus two clean continuity opportunities stays open rather than falsely recovering or adjusting", () => {
   const set = buildVerificationSet(
     "Structured Execution",
     (field, rep, count) => field === "stepExecution" && rep === 0 ? 0 : count - 1,
@@ -157,8 +183,46 @@ test("one early breakdown plus two clean continuity reps is not falsely called r
   assert.equal(stepDiscipline?.supportedCount, 2);
   assert.equal(stepDiscipline?.recoveredAfterBreakdown, false);
   assert.equal(stepDiscipline?.state, "CONDITIONAL");
-  assert.equal(result.verificationOutcome, "stability_adjust");
+  assert.equal(result.verificationOutcome, "continue_verification");
   assert.equal(result.resultingPhase, "Structured Execution");
-  assert.equal(result.resultingStability, "Medium");
+  assert.equal(result.resultingStability, "High");
   assert.equal(result.reDiagnosisRequired, false);
+});
+
+test("an early breakdown followed by the required clean continuity sequence can recover before the cap", () => {
+  const set = buildVerificationSet(
+    "Structured Execution",
+    (field, rep, count) => field === "stepExecution" && rep === 0 ? 0 : count - 1,
+    4,
+  );
+  const result = evaluate("Structured Execution", "High", set);
+  const stepDiscipline = result.dimensions.find(
+    (dimension) => dimension.dimensionId === "execution.step_discipline",
+  );
+
+  assert.equal(stepDiscipline?.breakdownCount, 1);
+  assert.equal(stepDiscipline?.supportedCount, 3);
+  assert.equal(stepDiscipline?.recoveredAfterBreakdown, true);
+  assert.equal(stepDiscipline?.state, "SUPPORTED");
+  assert.equal(result.verificationOutcome, "hold");
+  assert.equal(result.resultingStability, "High");
+  assert.equal(result.reDiagnosisRequired, false);
+});
+
+test("mixed conditional evidence can resolve to supported before the cap", () => {
+  const set = buildVerificationSet(
+    "Clarity",
+    (field, rep, count) => field === "method" && rep === 0 ? 1 : count - 1,
+    3,
+  );
+  const result = evaluate("Clarity", "High", set);
+  const method = result.dimensions.find(
+    (dimension) => dimension.dimensionId === "clarity.method",
+  );
+
+  assert.equal(method?.conditionalCount, 1);
+  assert.equal(method?.supportedCount, 2);
+  assert.equal(method?.state, "SUPPORTED");
+  assert.equal(result.verificationOutcome, "hold");
+  assert.equal(result.resultingStability, "High");
 });
