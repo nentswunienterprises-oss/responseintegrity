@@ -533,7 +533,7 @@ jobs:
             const studentContainer = nameNode.locator(
               "xpath=ancestor::*[.//button[contains(normalize-space(.), 'Topic Conditioning')]][1]",
             );
-            await studentContainer.getByRole("button", { name: /Topic Conditioning/ }).click();
+            await studentContainer.getByRole("button", { name: /Topic Conditioning/ }).first().click();
 
             const outerDialog = page.getByRole("dialog").filter({ hasText: "Active Conditioning Map" });
             await outerDialog.getByText("Re-Diagnosis Required", { exact: true }).waitFor({
@@ -626,7 +626,7 @@ jobs:
             const restoredStudentContainer = restoredNameNode.locator(
               "xpath=ancestor::*[.//button[contains(normalize-space(.), 'Topic Conditioning')]][1]",
             );
-            await restoredStudentContainer.getByRole("button", { name: /Topic Conditioning/ }).click();
+            await restoredStudentContainer.getByRole("button", { name: /Topic Conditioning/ }).first().click();
 
             const restoredOuterDialog = page.getByRole("dialog").filter({ hasText: "Active Conditioning Map" });
             await restoredOuterDialog.waitFor({ state: "visible", timeout: 30000 });
