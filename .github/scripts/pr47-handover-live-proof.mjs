@@ -9,8 +9,8 @@ const expectedCommit = String(
   process.env.PROOF_EXPECTED_APP_SHA || process.env.GITHUB_SHA || "",
 ).trim();
 
-const studentId = "828a5609-462c-4772-841a-0590ceb6a84e";
-const expectedTopic = "Geometry";
+const studentId = "6df7d0be-79be-4f30-9d41-86fe9c66e609";
+const expectedTopic = "Ratios";
 const baselinePhase = "Time Pressure Stability";
 const baselineStability = "High";
 

@@ -42,21 +42,11 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
 
-      - name: Resolve expected Preview app SHA
+      - name: Bind proof to this exact Preview commit
         shell: bash
         run: |
-          APP_SHA="$GITHUB_SHA"
-          while true; do
-            CHANGED_FILES="$(git diff-tree --no-commit-id --name-only -r "$APP_SHA")"
-            NON_GITHUB_FILES="$(printf '%s\n' "$CHANGED_FILES" | grep -v '^\.github/' || true)"
-            if [ -n "$CHANGED_FILES" ] && [ -z "$NON_GITHUB_FILES" ]; then
-              APP_SHA="$(git rev-parse "$APP_SHA^")"
-            else
-              break
-            fi
-          done
-          echo "PROOF_EXPECTED_APP_SHA=$APP_SHA" >> "$GITHUB_ENV"
-          echo "Resolved deployed app SHA: $APP_SHA"
+          echo "PROOF_EXPECTED_APP_SHA=$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "Expected deployed Preview SHA: $GITHUB_SHA"
 
       - name: Install Playwright
         run: |

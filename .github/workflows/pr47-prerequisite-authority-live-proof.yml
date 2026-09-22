@@ -31,21 +31,11 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
 
-      - name: Resolve expected Preview app SHA
+      - name: Bind proof to this exact Preview commit
         shell: bash
         run: |
-          APP_SHA="$GITHUB_SHA"
-          while true; do
-            CHANGED_FILES="$(git diff-tree --no-commit-id --name-only -r "$APP_SHA")"
-            NON_GITHUB_FILES="$(printf '%s\n' "$CHANGED_FILES" | grep -v '^\.github/' || true)"
-            if [ -n "$CHANGED_FILES" ] && [ -z "$NON_GITHUB_FILES" ]; then
-              APP_SHA="$(git rev-parse "$APP_SHA^")"
-            else
-              break
-            fi
-          done
-          echo "PROOF_EXPECTED_APP_SHA=$APP_SHA" >> "$GITHUB_ENV"
-          echo "Resolved deployed app SHA: $APP_SHA"
+          echo "PROOF_EXPECTED_APP_SHA=$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "Expected deployed Preview SHA: $GITHUB_SHA"
 
       - name: Install Playwright
         run: |
@@ -437,7 +427,10 @@ jobs:
 
             await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
             await page.getByText("Response Integrity Lesson", { exact: true }).waitFor({ state: "visible", timeout: 60000 });
-            await page.getByText(scenario.topic, { exact: true }).first().waitFor({ state: "visible", timeout: 30000 });
+            await page.getByRole("heading", {
+              name: "Training Drill - " + scenario.phase,
+              exact: true,
+            }).waitFor({ state: "visible", timeout: 30000 });
 
             let responseJson = null;
             for (let setIndex = 0; setIndex < PHASES[scenario.phase].length; setIndex += 1) {
