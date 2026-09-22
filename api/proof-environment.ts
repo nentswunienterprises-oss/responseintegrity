@@ -24,6 +24,7 @@ export default function handler(_req: VercelRequest, res: VercelResponse) {
 
   return res.status(200).json({
     vercelEnv: process.env.VERCEL_ENV || null,
+    commitSha: process.env.VERCEL_GIT_COMMIT_SHA || null,
     supabaseProjectRef,
     databaseHost,
     requiredEnv: {

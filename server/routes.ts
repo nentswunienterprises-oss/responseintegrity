@@ -4327,6 +4327,166 @@ async function getPendingTrainingConfirmationSession(tutorId: string, studentId:
 
 export async function registerRoutes(app: Express): Promise<Server> {
   registerDemandProductionRoutes(app, { client: supabase, isAuthenticated, requireRole });
+
+  app.post(
+    "/api/proof/handover-fixture/reset",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      if (process.env.VERCEL_ENV !== "preview") {
+        return res.status(404).json({ message: "Not found" });
+      }
+
+      try {
+        const dbUser = (req as any).dbUser;
+        const studentId = String(req.body?.studentId || "").trim();
+        const requestedTopic = String(req.body?.topic || "").trim();
+
+        if (!studentId) {
+          return res.status(400).json({ message: "studentId is required" });
+        }
+
+        const result = await pool.query(
+          `SELECT s.id,
+                  s.name,
+                  s.tutor_id,
+                  s.parent_id,
+                  s.parent_enrollment_id,
+                  s.personal_profile,
+                  s.concept_mastery,
+                  e.id AS enrollment_id,
+                  e.is_sandbox_account,
+                  e.assignment_lane
+             FROM public.students s
+             LEFT JOIN public.parent_enrollments e
+               ON e.id = s.parent_enrollment_id
+            WHERE s.id = $1
+              AND s.tutor_id = $2
+            LIMIT 1`,
+          [studentId, dbUser.id],
+        );
+
+        const row = result.rows[0] || null;
+        if (!row) {
+          return res.status(404).json({ message: "Proof student not found for this Specialist" });
+        }
+
+        const isSandbox =
+          row.is_sandbox_account === true ||
+          String(row.assignment_lane || "").trim().toLowerCase() === "sandbox";
+        if (!isSandbox) {
+          return res.status(403).json({ message: "Proof Handover fixtures are limited to Sandbox students" });
+        }
+
+        const conceptMastery =
+          row.concept_mastery && typeof row.concept_mastery === "object"
+            ? row.concept_mastery
+            : {};
+        const topicStore =
+          conceptMastery.topicConditioning && typeof conceptMastery.topicConditioning === "object"
+            ? conceptMastery.topicConditioning
+            : {};
+        const topic = requestedTopic || String(topicStore.topic || "").trim();
+        const topicState =
+          topic &&
+          topicStore.topics &&
+          typeof topicStore.topics === "object" &&
+          topicStore.topics[topic] &&
+          typeof topicStore.topics[topic] === "object"
+            ? topicStore.topics[topic]
+            : null;
+        const phase = tryParsePhase(topicState?.phase || topicStore.entry_phase || topicStore.entryPhase);
+        const stability = normalizeStability(topicState?.stability || topicStore.stability || "Low");
+
+        if (!topic || !phase || !topicState) {
+          return res.status(400).json({
+            message: "Sandbox student needs a canonical topic state before Handover proof can reset",
+          });
+        }
+
+        const nowIso = new Date().toISOString();
+        const existingProfile =
+          row.personal_profile && typeof row.personal_profile === "object"
+            ? row.personal_profile
+            : {};
+        const updatedProfile = {
+          ...existingProfile,
+          workflow: {
+            ...(existingProfile.workflow || {}),
+            handoverRequiredAt: nowIso,
+            handoverCompletedAt: null,
+          },
+        };
+
+        await pool.query(
+          `UPDATE public.students
+              SET personal_profile = $2::jsonb,
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [studentId, JSON.stringify(updatedProfile)],
+        );
+
+        if (row.enrollment_id) {
+          await pool.query(
+            `UPDATE public.parent_enrollments
+                SET current_step = 'handover_session_booked',
+                    updated_at = NOW()
+              WHERE id = $1`,
+            [row.enrollment_id],
+          );
+        }
+
+        const sessionResult = await pool.query(
+          `INSERT INTO public.scheduled_sessions (
+              parent_id,
+              tutor_id,
+              student_id,
+              scheduled_time,
+              scheduled_end,
+              timezone,
+              type,
+              status,
+              parent_confirmed,
+              tutor_confirmed,
+              workflow_stage,
+              created_at,
+              updated_at
+            )
+            VALUES (
+              $1,
+              $2,
+              $3::uuid,
+              NOW(),
+              NOW() + INTERVAL '60 minutes',
+              'Africa/Johannesburg',
+              'handover',
+              'confirmed',
+              TRUE,
+              TRUE,
+              'handover_verification',
+              NOW(),
+              NOW()
+            )
+            RETURNING id, student_id, tutor_id, type, status, scheduled_time`,
+          [String(row.parent_id || ""), String(dbUser.id), studentId],
+        );
+
+        const session = sessionResult.rows[0];
+        return res.json({
+          studentId,
+          studentName: row.name,
+          topic,
+          phase,
+          stability,
+          handoverRequiredAt: nowIso,
+          session,
+        });
+      } catch (error) {
+        console.error("[PROOF] Failed to reset Handover fixture", error);
+        return res.status(500).json({ message: "Failed to reset Proof Handover fixture" });
+      }
+    },
+  );
           const persistEvidenceLedgerShadow = async (input: EvidenceLedgerProjectionInput) => {
             const result = isEmergencyDbMode()
               ? await persistResponseIntegrityEvidenceLedgerShadowDirect(pool, input)
@@ -16566,6 +16726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .eq("student_id", studentId)
           .eq("type", "handover")
           .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         if (!["confirmed", "ready", "live", "completed"].includes(String(handoverSession?.status || ""))) {
