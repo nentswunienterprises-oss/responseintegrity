@@ -1,5 +1,5 @@
 name: PR47 Re-Diagnosis Gate Proof
-# rerun canonical live topic authority 4e495da0
+# 2026-09-22 current-head closure proof
 
 on:
   push:

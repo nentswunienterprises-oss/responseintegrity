@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+// PR47 closure proof: keep this endpoint deployed with the current proof SHA.
+
 export default function handler(_req: VercelRequest, res: VercelResponse) {
   if (process.env.VERCEL_ENV !== 'preview') {
     return res.status(404).json({ error: 'Not found' });
