@@ -15,6 +15,7 @@ import {
   type TrainingObservedStability,
 } from "./trainingEvidenceContract";
 import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
+import { resolveResponseEvidenceDimension } from "./responseEvidenceModel";
 import {
   getTrainingPrerequisiteSentinelDefinition,
   readTrainingEvidenceStatus,
@@ -288,57 +289,18 @@ const resolveDimension = (
   evidence: TrainingEvidenceOccurrence[],
   minimumValidOpportunities: number,
 ): TrainingDimensionDecision => {
-  const decisionEvidence = evidence.filter(
-    (item) => item.evidenceClass !== "not_observed" && item.evidenceClass !== "confounded",
-  );
-  const supportedCount = decisionEvidence.filter((item) => item.evidenceClass === "supported").length;
-  const nearStableCount = decisionEvidence.filter((item) => item.evidenceClass === "near_stable").length;
-  const conditionalCount = decisionEvidence.filter((item) => item.evidenceClass === "conditional").length;
-  const breakdownCount = decisionEvidence.filter((item) => item.evidenceClass === "breakdown").length;
-  const last = decisionEvidence[decisionEvidence.length - 1];
-
-  let trailingSupportedCount = 0;
-  for (let index = decisionEvidence.length - 1; index >= 0; index -= 1) {
-    if (decisionEvidence[index].evidenceClass !== "supported") break;
-    trailingSupportedCount += 1;
-  }
-
-  // Earlier instability can be repaired by later clean comparable evidence.
-  // A prior breakdown requires one extra clean confirmation beyond the normal
-  // dimension minimum; conditional/near-stable behavior requires the normal
-  // minimum. This keeps recovery authoritative without letting one clean rep
-  // erase a genuine break.
-  const recoverySupportedRequirement =
-    minimumValidOpportunities + (breakdownCount > 0 ? 1 : 0);
-
-  let state: TrainingDimensionState = "UNRESOLVED";
-
-  if (decisionEvidence.length < minimumValidOpportunities) {
-    state = "UNRESOLVED";
-  } else if (trailingSupportedCount >= recoverySupportedRequirement) {
-    state = "SUPPORTED";
-  } else if (last?.evidenceClass === "breakdown" || breakdownCount >= 2) {
-    state = "BREAKDOWN";
-  } else if (
-    breakdownCount === 0 &&
-    conditionalCount === 0 &&
-    decisionEvidence.every(
-      (item) => item.evidenceClass === "supported" || item.evidenceClass === "near_stable",
-    )
-  ) {
-    state = "NEAR_STABLE";
-  } else {
-    state = "CONDITIONAL";
-  }
-
+  const resolution = resolveResponseEvidenceDimension({
+    evidence,
+    minimumValidOpportunities,
+  });
   return {
     dimensionId,
-    state,
-    validOpportunityCount: decisionEvidence.length,
-    supportedCount,
-    nearStableCount,
-    conditionalCount,
-    breakdownCount,
+    state: resolution.state as TrainingDimensionState,
+    validOpportunityCount: resolution.validOpportunityCount,
+    supportedCount: resolution.supportedCount,
+    nearStableCount: resolution.nearStableCount,
+    conditionalCount: resolution.conditionalCount,
+    breakdownCount: resolution.breakdownCount,
     evidence,
   };
 };
