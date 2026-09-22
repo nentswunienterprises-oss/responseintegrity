@@ -1,4 +1,5 @@
 name: PR47 Re-Diagnosis Gate Proof
+# rerun canonical live topic authority 4e495da0
 
 on:
   push:
