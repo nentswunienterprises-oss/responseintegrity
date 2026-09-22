@@ -162,7 +162,7 @@ jobs:
             const labelNode = page.locator("label").filter({ hasText: label }).first();
             await labelNode.waitFor({ state: "visible", timeout: 30000 });
             const block = labelNode.locator("..");
-            const button = block.getByRole("button", { name: option, exact: true });
+            const button = block.getByRole("button").filter({ hasText: option }).first();
             await button.waitFor({ state: "visible", timeout: 30000 });
             await button.click();
           }
