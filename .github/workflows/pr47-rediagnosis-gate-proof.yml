@@ -293,7 +293,7 @@ jobs:
             const studentContainer = nameNode.locator(
               "xpath=ancestor::*[.//button[contains(normalize-space(.), 'Topic Conditioning')]][1]",
             );
-            await studentContainer.getByRole("button", { name: /Topic Conditioning/ }).click();
+            await studentContainer.getByRole("button", { name: /Topic Conditioning/ }).first().click();
 
             const conditioningDialog = page.getByRole("dialog").last();
             await conditioningDialog.waitFor({ state: "visible", timeout: 30000 });
