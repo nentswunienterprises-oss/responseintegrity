@@ -19,6 +19,7 @@ import {
   createEmergencyFileBundle,
   decryptEmergencyFileBundle,
   provisionEmergencyCredentialForExistingUser,
+  setEmergencyCredentialForExistingUser,
 } from "./emergencyAuth";
 import { fileURLToPath } from "url";
 import {
@@ -4327,6 +4328,116 @@ async function getPendingTrainingConfirmationSession(tutorId: string, studentId:
 
 export async function registerRoutes(app: Express): Promise<Server> {
   registerDemandProductionRoutes(app, { client: supabase, isAuthenticated, requireRole });
+
+  app.post(
+    "/api/proof/personas/provision",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      if (process.env.VERCEL_ENV !== "preview") {
+        return res.status(404).json({ message: "Not found" });
+      }
+
+      try {
+        const actor = (req as any).dbUser;
+        const actorSandbox = await pool.query(
+          `SELECT 1
+             FROM public.tutor_assignments
+            WHERE tutor_id = $1
+              AND operational_mode = 'sandbox'
+            LIMIT 1`,
+          [actor.id],
+        );
+        if (!actorSandbox.rows[0]) {
+          return res.status(403).json({ message: "Proof persona provisioning requires a Sandbox Specialist" });
+        }
+
+        const email = normalizeEmail(req.body?.email);
+        const role = String(req.body?.role || "").trim().toLowerCase();
+        const firstName = String(req.body?.firstName || "Proof").trim() || "Proof";
+        const lastName = String(req.body?.lastName || role.toUpperCase()).trim() || role.toUpperCase();
+        const password = String(req.body?.password || "");
+
+        if (!email.endsWith("@proof.responseintegrity.co.za")) {
+          return res.status(400).json({ message: "Proof personas must use the dedicated Proof identity domain" });
+        }
+        if (!["coo", "hr", "cto", "cmo", "td", "tutor"].includes(role)) {
+          return res.status(400).json({ message: "Unsupported Proof persona role" });
+        }
+        if (password.length < 8) {
+          return res.status(400).json({ message: "Proof persona password must be at least 8 characters" });
+        }
+
+        const existing = await pool.query<{ id: string }>(
+          `SELECT id
+             FROM public.users
+            WHERE lower(email) = $1
+            LIMIT 1`,
+          [email],
+        );
+        const userId = existing.rows[0]?.id || uuidv4();
+        const fullName = `${firstName} ${lastName}`.trim();
+
+        const userResult = await pool.query(
+          `INSERT INTO public.users (
+             id, email, first_name, last_name, role, name, verified, created_at, updated_at
+           )
+           VALUES ($1, $2, $3, $4, $5::public.role, $6, TRUE, NOW(), NOW())
+           ON CONFLICT (email) DO UPDATE
+             SET first_name = EXCLUDED.first_name,
+                 last_name = EXCLUDED.last_name,
+                 role = EXCLUDED.role,
+                 name = EXCLUDED.name,
+                 verified = TRUE,
+                 updated_at = NOW()
+           RETURNING id, email, first_name, last_name, role, name, verified`,
+          [userId, email, firstName, lastName, role, fullName],
+        );
+        const user = userResult.rows[0];
+
+        await setEmergencyCredentialForExistingUser(pool, user.id, password);
+
+        if (role === "coo") {
+          await pool.query(
+            `INSERT INTO public.executive_role_appointments (
+               role,
+               appointed_user_id,
+               appointed_by_user_id,
+               notes,
+               appointed_at,
+               created_at,
+               updated_at
+             )
+             VALUES (
+               'coo'::public.executive_department,
+               $1,
+               $2,
+               'Proof environment persistent COO control-plane persona',
+               NOW(),
+               NOW(),
+               NOW()
+             )
+             ON CONFLICT (role) DO UPDATE
+               SET appointed_user_id = EXCLUDED.appointed_user_id,
+                   appointed_by_user_id = EXCLUDED.appointed_by_user_id,
+                   notes = EXCLUDED.notes,
+                   appointed_at = EXCLUDED.appointed_at,
+                   updated_at = NOW()`,
+            [user.id, actor.id],
+          );
+        }
+
+        return res.json({
+          user,
+          appointedExecutiveRole: role === "coo" ? "coo" : null,
+          credentialProvisioned: true,
+        });
+      } catch (error) {
+        console.error("[PROOF] Failed to provision Proof persona", error);
+        return res.status(500).json({ message: "Failed to provision Proof persona" });
+      }
+    },
+  );
 
   app.post(
     "/api/proof/handover-fixture/reset",

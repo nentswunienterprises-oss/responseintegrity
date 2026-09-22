@@ -43,6 +43,14 @@ PR47 live-proof workflows currently use the stable branch alias:
 
 Prefer this alias over one-off deployment URLs for repeatable browser proof.
 
+## Provisioning a reusable Proof persona
+
+Use the Preview-only `POST /api/proof/personas/provision` route while authenticated as a Sandbox Specialist. The route is intentionally unavailable outside Vercel Preview and only accepts identities under `@proof.responseintegrity.co.za`.
+
+It creates or repairs the canonical `public.users` record, writes only a bcrypt hash to the private credential table, and appoints the COO seat when the requested role is `coo`. This is the preferred mechanism for reusable COO and future Proof personas because it is idempotent and does not require direct Auth-table mutation.
+
+The password itself must come from the active secure secret source; never add it to this document or to source control.
+
 ## Seeding rule
 
 Seed only the Proof database. A reusable Proof persona should have:

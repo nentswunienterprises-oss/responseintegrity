@@ -164,6 +164,21 @@ export async function provisionEmergencyCredentialForExistingUser(
   );
 }
 
+export async function setEmergencyCredentialForExistingUser(
+  pool: Pool,
+  userId: string,
+  password: string,
+) {
+  const passwordHash = await bcrypt.hash(password, EMERGENCY_BCRYPT_WORK_FACTOR);
+  await pool.query(
+    `INSERT INTO private.emergency_auth_credentials (user_id, password_hash)
+     VALUES ($1, $2)
+     ON CONFLICT (user_id) DO UPDATE
+       SET password_hash = EXCLUDED.password_hash`,
+    [userId, passwordHash],
+  );
+}
+
 export function parseEmergencyDocumentEncryptionKey(rawKey?: string): Buffer {
   if (!rawKey || !rawKey.trim()) {
     throw new Error("EMERGENCY_DOCUMENT_ENCRYPTION_KEY is required for emergency onboarding file encryption.");
