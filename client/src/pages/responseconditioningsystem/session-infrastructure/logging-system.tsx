@@ -940,8 +940,8 @@ function demoPrepPlanFor(phase: PhaseLabel, mode: DemoMode): DemoPrepPlan | null
         : `Run the correct ${phase} training drill for the current topic-state.`;
   const verificationSetPlan = [
     {
-      label: mode === "handover" ? "Verification Block" : "Diagnosis Block",
-      problems: 3,
+      label: mode === "handover" ? "Reserve Bank (system may stop earlier)" : "Diagnosis Block",
+      problems: mode === "handover" ? 5 : 3,
       difficulty:
         phase === "Clarity"
           ? "Simple/Normal"
@@ -985,7 +985,7 @@ function demoPrepPlanFor(phase: PhaseLabel, mode: DemoMode): DemoPrepPlan | null
                     "Also prepare the phase just below and the phase just above it, because the system may move there during diagnosis.",
                   ]
                 : [
-                    "Prepare exactly 3 clean Clarity phase-block problems.",
+                    "Prepare a reserve bank of up to 5 clean Clarity continuity problems; the live system may stop earlier when evidence is sufficient.",
                   ]),
               "Use the Clarity phase target, but strip the system down to verification only.",
               "No full teaching cycle and no normal training expansion.",
@@ -1001,7 +1001,7 @@ function demoPrepPlanFor(phase: PhaseLabel, mode: DemoMode): DemoPrepPlan | null
         ? [
             mode === "diagnosis"
               ? `I prepared the starting phase and adjacent coverage for: ${adaptiveCoverage.join(", ")}.`
-              : "I prepared exactly 3 clean Clarity verification problems.",
+              : "I prepared a small reserve bank of clean Clarity continuity problems; I will not treat the bank as a completion quota.",
             mode === "diagnosis"
               ? "I will use this to place the topic, not to run a normal training session."
               : "I will use this to verify inherited state, not to restart or train forward.",
@@ -1015,7 +1015,7 @@ function demoPrepPlanFor(phase: PhaseLabel, mode: DemoMode): DemoPrepPlan | null
       derivedFrom: isVerificationMode
         ? mode === "diagnosis"
           ? "Derived from the Clarity training lane and expanded to bidirectional adaptive diagnosis coverage."
-          : "Derived from the Clarity training lane and reduced to a single phase verification block."
+          : "Derived from the inherited Clarity condition and adapted into evidence-driven continuity verification."
         : "Full Clarity training structure.",
     };
   }
@@ -1043,7 +1043,7 @@ function demoPrepPlanFor(phase: PhaseLabel, mode: DemoMode): DemoPrepPlan | null
                     "Also prepare the phase just below and the phase just above it, because the system may move there during diagnosis.",
                   ]
                 : [
-                    "Prepare exactly 3 clean Structured Execution phase-block problems.",
+                    "Prepare a reserve bank of up to 5 clean Structured Execution continuity problems; the live system may stop earlier when evidence is sufficient.",
                   ]),
               "Use the same cold-start execution target as training, but only for verification.",
               "No extra tutor prompting beyond the phase rules.",
@@ -1058,7 +1058,7 @@ function demoPrepPlanFor(phase: PhaseLabel, mode: DemoMode): DemoPrepPlan | null
         ? [
             mode === "diagnosis"
               ? `I prepared the starting phase and adjacent coverage for: ${adaptiveCoverage.join(", ")}.`
-              : "I prepared exactly 3 Structured Execution verification problems.",
+              : "I prepared a small reserve bank of Structured Execution continuity problems; I will not treat the bank as a completion quota.",
             "I will hold the no-help start window and structure target.",
             mode === "diagnosis"
               ? "I will place the topic only."
@@ -1072,7 +1072,7 @@ function demoPrepPlanFor(phase: PhaseLabel, mode: DemoMode): DemoPrepPlan | null
       derivedFrom: isVerificationMode
         ? mode === "diagnosis"
           ? "Derived from the Structured Execution training lane and expanded to bidirectional adaptive diagnosis coverage."
-          : "Derived from the Structured Execution training lane and reduced to a single phase verification block."
+          : "Derived from the inherited Structured Execution condition and adapted into evidence-driven continuity verification."
         : "Full Structured Execution training structure.",
     };
   }
@@ -1100,7 +1100,7 @@ function demoPrepPlanFor(phase: PhaseLabel, mode: DemoMode): DemoPrepPlan | null
                     "Also prepare the phase just below and the phase just above it, because the system may move there during diagnosis.",
                   ]
                 : [
-                    "Prepare exactly 3 clean Controlled Discomfort verification problems.",
+                    "Prepare a reserve bank of up to 5 clean Controlled Discomfort continuity problems; the live system may stop earlier when evidence is sufficient.",
                   ]),
               "Problems should be challenging enough to expose discomfort behavior, but still solvable.",
               "No rescue beyond the phase allowance.",
@@ -1114,7 +1114,7 @@ function demoPrepPlanFor(phase: PhaseLabel, mode: DemoMode): DemoPrepPlan | null
         ? [
             mode === "diagnosis"
               ? `I prepared the starting phase and adjacent coverage for: ${adaptiveCoverage.join(", ")}.`
-              : "I prepared exactly 3 Controlled Discomfort verification problems.",
+              : "I prepared a small reserve bank of Controlled Discomfort continuity problems; I will not treat the bank as a completion quota.",
             "The problems are challenging enough to test the phase honestly.",
             mode === "diagnosis"
               ? "I will classify the topic only."
@@ -1128,7 +1128,7 @@ function demoPrepPlanFor(phase: PhaseLabel, mode: DemoMode): DemoPrepPlan | null
       derivedFrom: isVerificationMode
         ? mode === "diagnosis"
           ? "Derived from the Controlled Discomfort training lane and expanded to bidirectional adaptive diagnosis coverage."
-          : "Derived from the Controlled Discomfort training lane and reduced to a single phase verification block."
+          : "Derived from the inherited Controlled Discomfort condition and adapted into evidence-driven continuity verification."
         : "Full Controlled Discomfort training structure.",
     };
   }
@@ -1155,7 +1155,7 @@ function demoPrepPlanFor(phase: PhaseLabel, mode: DemoMode): DemoPrepPlan | null
                     "Also prepare the nearest adjacent phase the system may move into during diagnosis.",
                   ]
                 : [
-                    "Prepare exactly 3 clean Time Pressure Stability verification problems.",
+                    "Prepare a reserve bank of up to 5 clean Time Pressure Stability continuity problems; the live system may stop earlier when evidence is sufficient.",
                   ]),
             "Use timed pressure only to verify whether structure survives urgency.",
             "Keep pressure controlled. Structure matters more than speed.",
@@ -1169,7 +1169,7 @@ function demoPrepPlanFor(phase: PhaseLabel, mode: DemoMode): DemoPrepPlan | null
       ? [
           mode === "diagnosis"
             ? `I prepared the starting phase and adjacent coverage for: ${adaptiveCoverage.join(", ")}.`
-            : "I prepared exactly 3 Time Pressure Stability verification problems.",
+            : "I prepared a small reserve bank of Time Pressure Stability continuity problems; I will not treat the bank as a completion quota.",
           "I will keep pressure controlled and score structure honestly.",
           mode === "diagnosis"
             ? "I will place the topic only."
@@ -1183,7 +1183,7 @@ function demoPrepPlanFor(phase: PhaseLabel, mode: DemoMode): DemoPrepPlan | null
     derivedFrom: isVerificationMode
       ? mode === "diagnosis"
         ? "Derived from the Time Pressure Stability training lane and expanded to bidirectional adaptive diagnosis coverage."
-        : "Derived from the Time Pressure Stability training lane and reduced to a single phase verification block."
+        : "Derived from the inherited Time Pressure Stability condition and adapted into evidence-driven continuity verification."
       : "Full Time Pressure Stability training structure.",
   };
 }

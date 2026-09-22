@@ -23,86 +23,70 @@ Logging supports continuity, reinforcement, and next-step selection.
 
 ### Handover verification
 
-Logging supports continuity checks after tutor reassignment.
+Logging supports continuity checks after Specialist reassignment.
 
-## What This Page Shows
+Handover is evidence-driven continuity verification. It is not a fixed rep sequence and it is not a Training drill.
 
-This page shows how tutors use the drill runner in intro diagnosis, active training, and handover verification. You can switch modes, open the runner, complete reps, and review the result screen.
+### Handover operating chain
 
-## Choose a Mode and Phase
+1. Inherit the active topic, phase, stability, evidence history, next action, and constraints.
+2. Prepare a small reserve bank of phase-appropriate continuity problems.
+3. Present one clean continuity opportunity at a time.
+4. Record the concrete behavior that actually happened.
+5. Record not-observed or confounded evidence when the behavior cannot be interpreted cleanly.
+6. Let the Response Evidence Model decide whether another comparable opportunity is required.
+7. Stop when evidence resolves to hold, bounded same-phase stability adjustment, or targeted evidence-complete re-diagnosis.
 
-Switch between training, diagnosis, and handover. For diagnosis, the selected phase is the starting point, not the final placement.
+The reserve problem bank is not a completion quota.
 
-### Training
+### Handover evidence language
 
-Use the active training drill flow for the selected phase.
+The live Handover runner uses the same canonical behavior contract as Diagnosis:
 
-### Diagnosis
+- breakdown
+- conditional
+- near-stable
+- supported
+- not observed
+- confounded
 
-Use the diagnosis flow to start from a phase block and let the system move up, place, or move down.
+The Specialist sees concrete behavior options rather than choosing these state classes directly.
 
-### Handover
+Not-observed and confounded evidence count as neither weakness nor strength.
 
-Use the continuity-check flow to verify where training should resume with a new tutor.
+### Recovery and contradiction
 
-## Selected Demo
+A real breakdown is not erased by one later clean response.
 
-### Training: Structured Execution
+With the current minimum of two valid opportunities, recovery after an earlier breakdown requires three trailing supported comparable opportunities.
 
-Test and build ability to execute the known method independently. Student knows - now prove they can do it alone, repeatably.
+Confirmed phase-defining breakdown stops Handover and routes the topic to targeted evidence-complete re-diagnosis.
 
-Constraints:
+Persistent conditional evidence can adjust stability only after the bounded verification window closes.
 
-- State steps before solving
-- No guessing tolerated
-- No skipping steps
+### Handover result screen
 
-## In This Demo
+The live result is evidence-first and shows:
 
-- Tutor prep before the drill starts
-- A phase-based training drill
-- Clickable observation choices for each rep
-- A result screen that mirrors the live runner more closely
+- inherited state
+- resulting state
+- evidence reason
+- dimension-level evidence decisions
+- recovery status
+- next action
+- active constraint
 
-## Primary Rules
+Compatibility scoring is technical reference only and has no authority over phase, stability, recovery, regression, or re-diagnosis.
 
-- Only log what the student actually did.
-- Do not guess or fill gaps with your own interpretation.
-- Use the drill options exactly as they are written.
-- If you did not see it happen, do not log it.
+### Audit relevance
 
-## How Choices Turn Into a Result
+Evidence integrity is the operating standard:
 
-- The first option is the weakest response.
-- The middle option is partial.
-- The last option is the strongest response.
-- The selected options roll up into rep scores, set totals, and the final phase summary.
+- do not strengthen an observation beyond what happened;
+- do not convert missing evidence into weakness;
+- do not use post-help behavior as independent evidence;
+- do not add extra Handover opportunities to chase a preferred result;
+- do not manually change state against the system decision.
 
-## What Tutors Do in the Runner
+If the observation record is manipulated, the Handover decision and downstream institutional record are compromised.
 
-1. Open the verification block and review the tutor prep step first.
-2. Run each rep exactly as written.
-3. Choose the option that best matches what the student actually did.
-4. Finish the block without rewriting what happened.
-5. Submit to see the evidence summary and system output.
-
-## What the Result Screen Shows
-
-- Rep totals and grouped drill totals
-- Phase total
-- System output
-- Reason
-- Tutor meaning
-- Next action
-- Current phase rule or drill constraint
-
-## Audit Relevance
-
-Because Response Integrity logging is tied directly to evidence and system output, dishonest logging means dishonest evidence capture. That is a compliance issue, not a note-taking issue.
-
-- Selecting stronger observation options than the rep justified
-- Logging a smoother response pattern than the drill score supports
-- Altering or misreporting the automatic system result after scoring
-- Writing around a rescue, pressure break, or structure collapse
-
-If the observation record is manipulated, the system output is compromised and the tutor can be flagged for audit failure.
