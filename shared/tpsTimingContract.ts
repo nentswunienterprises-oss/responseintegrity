@@ -3,6 +3,7 @@ export const TPS_BASELINE_SAMPLE_SIZE = 3 as const;
 export const TPS_FULL_CONSTRAINT_FACTOR = 0.85 as const;
 export const TPS_TRAINING_BASELINE_SET_ID = "structured_execution.independent_execution" as const;
 export const PASSIVE_EXECUTION_TIMING_WIRE_KEY = "_passive_execution_timing_v1" as const;
+export const PASSIVE_EXECUTION_ATTEMPT_WIRE_KEY = "_passive_execution_attempt_v1" as const;
 export const TPS_TIMED_ATTEMPT_WIRE_KEY = "_tps_timed_attempt_v1" as const;
 
 export type TimedExecutionEvidenceV1 = {
@@ -129,6 +130,174 @@ export const decodePassiveExecutionTimingEvidence = (
     });
     if (!recomputed || recomputed.elapsedMs !== parsed.elapsedMs) return null;
     return recomputed;
+  } catch {
+    return null;
+  }
+};
+
+export type TpsPassiveAttemptSource = "training" | "diagnosis";
+export type TpsPassiveAttemptEndReason =
+  | "student_finished"
+  | "technical_failure";
+
+export type TpsPassiveAttemptSubmissionV1 = {
+  attemptId: string;
+  source: TpsPassiveAttemptSource;
+  sourceContextId: string;
+  sourceItemId: string;
+  slotNumber: number;
+  attemptNumber: number;
+  startedAt: string;
+  endedAt: string;
+  elapsedMs: number;
+  timingValidity: "valid" | "timing_invalid_technical";
+  endReason: TpsPassiveAttemptEndReason;
+  replacementForAttemptId?: string | null;
+};
+
+export type TpsPassiveAttemptEvidenceRefV1 = {
+  version: 1;
+  attemptId: string;
+  source: TpsPassiveAttemptSource;
+  sourceContextId: string;
+  sourceItemId: string;
+  slotNumber: number;
+  attemptNumber: number;
+  timingValidity: "valid";
+  endReason: "student_finished";
+};
+
+export type TpsPassiveAttemptValidation =
+  | { ok: true; attempt: TpsPassiveAttemptSubmissionV1 }
+  | { ok: false; error: string };
+
+export const validateTpsPassiveAttemptSubmission = (
+  attempt: TpsPassiveAttemptSubmissionV1,
+): TpsPassiveAttemptValidation => {
+  if (!String(attempt?.attemptId || "").trim()) {
+    return { ok: false, error: "Passive timing attempt ID is required." };
+  }
+  if (attempt.source !== "training" && attempt.source !== "diagnosis") {
+    return { ok: false, error: "Passive timing attempt source is invalid." };
+  }
+  if (!String(attempt.sourceContextId || "").trim()) {
+    return { ok: false, error: "Passive timing source context is required." };
+  }
+  if (!String(attempt.sourceItemId || "").trim()) {
+    return { ok: false, error: "Passive timing source item is required." };
+  }
+  if (!Number.isInteger(attempt.slotNumber) || attempt.slotNumber < 1) {
+    return { ok: false, error: "Passive timing slot number must be a positive integer." };
+  }
+  if (!Number.isInteger(attempt.attemptNumber) || attempt.attemptNumber < 1) {
+    return { ok: false, error: "Passive timing attempt number must be a positive integer." };
+  }
+  if (
+    attempt.replacementForAttemptId &&
+    attempt.replacementForAttemptId === attempt.attemptId
+  ) {
+    return { ok: false, error: "A passive timing attempt cannot replace itself." };
+  }
+
+  const startedMs = Date.parse(attempt.startedAt);
+  const endedMs = Date.parse(attempt.endedAt);
+  if (
+    !Number.isFinite(startedMs) ||
+    !Number.isFinite(endedMs) ||
+    endedMs < startedMs
+  ) {
+    return { ok: false, error: "Passive timing attempt timestamps are invalid." };
+  }
+  const elapsedMs = endedMs - startedMs;
+  if (
+    !Number.isFinite(attempt.elapsedMs) ||
+    attempt.elapsedMs < 0 ||
+    attempt.elapsedMs !== elapsedMs
+  ) {
+    return {
+      ok: false,
+      error: "Passive timing elapsed time does not match its system boundaries.",
+    };
+  }
+
+  if (attempt.timingValidity === "timing_invalid_technical") {
+    if (attempt.endReason !== "technical_failure") {
+      return {
+        ok: false,
+        error: "Technical-invalid passive timing must end as a technical failure.",
+      };
+    }
+    return { ok: true, attempt };
+  }
+
+  if (attempt.timingValidity !== "valid") {
+    return { ok: false, error: "Passive timing validity is invalid." };
+  }
+  if (attempt.endReason !== "student_finished") {
+    return {
+      ok: false,
+      error: "Valid passive timing must end at Student Finished.",
+    };
+  }
+  if (elapsedMs <= 0) {
+    return {
+      ok: false,
+      error: "Valid passive timing must contain a positive execution interval.",
+    };
+  }
+  return { ok: true, attempt };
+};
+
+export const encodeTpsPassiveAttemptEvidenceRef = (
+  evidence: TpsPassiveAttemptEvidenceRefV1,
+) => JSON.stringify(evidence);
+
+export const decodeTpsPassiveAttemptEvidenceRef = (
+  raw: unknown,
+): TpsPassiveAttemptEvidenceRefV1 | null => {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<TpsPassiveAttemptEvidenceRefV1>;
+    if (
+      parsed.version !== 1 ||
+      typeof parsed.attemptId !== "string" ||
+      !parsed.attemptId.trim() ||
+      (parsed.source !== "training" && parsed.source !== "diagnosis") ||
+      typeof parsed.sourceContextId !== "string" ||
+      !parsed.sourceContextId.trim() ||
+      typeof parsed.sourceItemId !== "string" ||
+      !parsed.sourceItemId.trim() ||
+      !Number.isInteger(parsed.slotNumber) ||
+      Number(parsed.slotNumber) < 1 ||
+      !Number.isInteger(parsed.attemptNumber) ||
+      Number(parsed.attemptNumber) < 1 ||
+      parsed.timingValidity !== "valid" ||
+      parsed.endReason !== "student_finished"
+    ) {
+      return null;
+    }
+    return {
+      version: 1,
+      attemptId: parsed.attemptId,
+      source: parsed.source,
+      sourceContextId: parsed.sourceContextId,
+      sourceItemId: parsed.sourceItemId,
+      slotNumber: Number(parsed.slotNumber),
+      attemptNumber: Number(parsed.attemptNumber),
+      timingValidity: "valid",
+      endReason: "student_finished",
+    };
+  } catch {
+    return null;
+  }
+};
+
+export const validateTpsPassiveAttemptEvidenceRef = (
+  value: unknown,
+): TpsPassiveAttemptEvidenceRefV1 | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  try {
+    return decodeTpsPassiveAttemptEvidenceRef(JSON.stringify(value));
   } catch {
     return null;
   }

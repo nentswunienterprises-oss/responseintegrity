@@ -149,13 +149,73 @@ GRANT SELECT, INSERT, DELETE ON TABLE public.response_integrity_tps_timed_attemp
 COMMENT ON TABLE public.response_integrity_tps_timed_attempts IS
   'Append-only runner-owned TPS timing lineage. Technical failures remain durable and replacement attempts are linked explicitly.';
 
+CREATE TABLE IF NOT EXISTS public.response_integrity_tps_baseline_attempts (
+  attempt_id text PRIMARY KEY,
+  student_id varchar(64) NOT NULL,
+  topic text NOT NULL,
+  topic_key text NOT NULL,
+  collected_by_tutor_id varchar(64) NOT NULL,
+  source varchar(20) NOT NULL CHECK (source IN ('training', 'diagnosis')),
+  source_context_id text NOT NULL,
+  source_item_id text NOT NULL,
+  slot_number integer NOT NULL CHECK (slot_number > 0),
+  attempt_number integer NOT NULL CHECK (attempt_number > 0),
+  started_at timestamptz NOT NULL,
+  ended_at timestamptz NOT NULL,
+  elapsed_ms integer NOT NULL CHECK (elapsed_ms >= 0),
+  timing_validity varchar(40) NOT NULL CHECK (
+    timing_validity IN ('valid', 'timing_invalid_technical')
+  ),
+  end_reason varchar(32) NOT NULL CHECK (
+    end_reason IN ('student_finished', 'technical_failure')
+  ),
+  replacement_for_attempt_id text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (
+    student_id,
+    topic_key,
+    source,
+    source_context_id,
+    source_item_id,
+    slot_number,
+    attempt_number
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_ri_tps_baseline_attempt_student_topic_time
+  ON public.response_integrity_tps_baseline_attempts
+    (student_id, topic_key, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ri_tps_baseline_attempt_context_slot
+  ON public.response_integrity_tps_baseline_attempts
+    (source, source_context_id, source_item_id, slot_number, attempt_number);
+
+DROP TRIGGER IF EXISTS trg_response_integrity_tps_baseline_attempt_immutable
+  ON public.response_integrity_tps_baseline_attempts;
+
+CREATE TRIGGER trg_response_integrity_tps_baseline_attempt_immutable
+BEFORE UPDATE ON public.response_integrity_tps_baseline_attempts
+FOR EACH ROW EXECUTE FUNCTION public.prevent_response_integrity_tps_contract_update();
+
+ALTER TABLE public.response_integrity_tps_baseline_attempts ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.response_integrity_tps_baseline_attempts FROM anon, authenticated;
+GRANT SELECT, INSERT, DELETE ON TABLE public.response_integrity_tps_baseline_attempts TO service_role;
+
+COMMENT ON TABLE public.response_integrity_tps_baseline_attempts IS
+  'Append-only passive baseline measurement lineage for canonical SE Independent Execution and evidence-native Diagnosis. Technical failures remain durable and replacements are linked explicitly; this is not a calibration activity.';
+
 -- Recovery/rollback (manual and only before runtime consumers are activated):
 -- ALTER TABLE public.response_integrity_diagnosis_runs
 --   DROP COLUMN IF EXISTS timing_authority_baseline_seconds,
 --   DROP COLUMN IF EXISTS timing_authority_contract_id,
 --   DROP COLUMN IF EXISTS timing_policy_version;
+-- DROP TRIGGER IF EXISTS trg_response_integrity_tps_baseline_attempt_immutable
+--   ON public.response_integrity_tps_baseline_attempts;
+-- DROP TRIGGER IF EXISTS trg_response_integrity_tps_attempt_immutable
+--   ON public.response_integrity_tps_timed_attempts;
 -- DROP TRIGGER IF EXISTS trg_response_integrity_tps_contract_immutable
 --   ON public.response_integrity_tps_timer_contracts;
--- DROP FUNCTION IF EXISTS public.prevent_response_integrity_tps_contract_update();
+-- DROP TABLE IF EXISTS public.response_integrity_tps_baseline_attempts;
 -- DROP TABLE IF EXISTS public.response_integrity_tps_timed_attempts;
 -- DROP TABLE IF EXISTS public.response_integrity_tps_timer_contracts;
+-- DROP FUNCTION IF EXISTS public.prevent_response_integrity_tps_contract_update();

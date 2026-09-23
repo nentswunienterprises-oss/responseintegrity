@@ -4,9 +4,13 @@ import { storage } from "./storage";
 import {
   loadLatestTpsTimerContract,
   loadTpsTimerContractById,
+  persistTpsPassiveAttempt,
   persistTpsTimedAttempt,
 } from "./tpsTimingAuthority";
-import type { TpsTimedAttemptSubmissionV1 } from "../shared/tpsTimingContract";
+import type {
+  TpsPassiveAttemptSubmissionV1,
+  TpsTimedAttemptSubmissionV1,
+} from "../shared/tpsTimingContract";
 import { TPS_TIMER_BASELINE_INCOMPLETE } from "../shared/tpsTrainingReadiness";
 
 const clean = (value: unknown) => String(value ?? "").trim();
@@ -81,6 +85,69 @@ export function registerTpsTimingRoutes(app: Express) {
       } catch (error) {
         console.error("Failed to load TPS Timer Contract:", error);
         return res.status(500).json({ message: "Failed to load TPS timing authority." });
+      }
+    },
+  );
+
+  app.post(
+    "/api/tutor/students/:studentId/tps-passive-attempt",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const specialist = requireSpecialist(req, res);
+        if (!specialist) return;
+
+        const studentId = clean(req.params.studentId);
+        const topic = clean(req.body?.topic);
+        if (!studentId || !topic) {
+          return res.status(400).json({
+            message: "studentId and topic are required.",
+          });
+        }
+        const student = await requireOwnedStudent(studentId, specialist.id, res);
+        if (!student) return;
+
+        const attempt = req.body?.attempt as TpsPassiveAttemptSubmissionV1;
+        const persisted = await persistTpsPassiveAttempt({
+          studentId,
+          topic,
+          attempt,
+          tutorId: specialist.id,
+        });
+
+        return res.json({
+          success: true,
+          attempt: {
+            attemptId: persisted.attemptId,
+            source: persisted.source,
+            sourceContextId: persisted.sourceContextId,
+            sourceItemId: persisted.sourceItemId,
+            slotNumber: persisted.slotNumber,
+            attemptNumber: persisted.attemptNumber,
+            elapsedMs: persisted.elapsedMs,
+            timingValidity: persisted.timingValidity,
+            endReason: persisted.endReason,
+            replacementForAttemptId: persisted.replacementForAttemptId,
+          },
+        });
+      } catch (error) {
+        console.error("Failed to persist passive baseline timing attempt:", error);
+        const statusCode = Number((error as any)?.statusCode);
+        return res
+          .status(
+            Number.isInteger(statusCode) && statusCode >= 400 && statusCode < 600
+              ? statusCode
+              : 500,
+          )
+          .json({
+            code:
+              clean((error as any)?.code) ||
+              "TPS_PASSIVE_ATTEMPT_FAILED",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Passive baseline timing attempt could not be persisted.",
+          });
       }
     },
   );

@@ -49,13 +49,16 @@ import {
 } from "@shared/trainingEvidenceEvaluator";
 import { evaluateHandoverVerificationEvidence } from "@shared/handoverEvidenceEvaluator";
 import {
+  PASSIVE_EXECUTION_ATTEMPT_WIRE_KEY,
   PASSIVE_EXECUTION_TIMING_WIRE_KEY,
   TPS_TIMED_ATTEMPT_WIRE_KEY,
   TPS_TRAINING_BASELINE_SET_ID,
   buildPassiveExecutionTimingEvidence,
   encodePassiveExecutionTimingEvidence,
+  encodeTpsPassiveAttemptEvidenceRef,
   encodeTpsTimedAttemptEvidenceRef,
   getTpsTrainingPressureForSet,
+  type TpsPassiveAttemptSubmissionV1,
   type TpsTimedAttemptEndReason,
   type TpsTimedAttemptSubmissionV1,
   type TpsTimedPressureLevel,
@@ -219,6 +222,17 @@ type TpsTimerContractView = {
   structureUnderTimerSeconds: number;
   repeatedTimedExecutionSeconds: number;
   fullConstraintSeconds: number;
+};
+
+type TpsActivePassiveAttempt = {
+  attemptId: string;
+  sourceContextId: string;
+  sourceItemId: string;
+  slotNumber: number;
+  attemptNumber: number;
+  startedAt: string;
+  replacementForAttemptId: string | null;
+  frozenAttempt: TpsPassiveAttemptSubmissionV1 | null;
 };
 
 type TpsActiveAttempt = {
@@ -1008,7 +1022,15 @@ export default function IntroSessionDrillRunner() {
     reference: TopicReference;
   } | null>(null);
   const [repStarted, setRepStarted] = useState(false);
-  const passiveTimingStartedAtRef = useRef<Record<string, string>>({});
+  const [activePassiveAttempt, setActivePassiveAttempt] =
+    useState<TpsActivePassiveAttempt | null>(null);
+  const [passiveReplacementState, setPassiveReplacementState] = useState<
+    Record<string, TpsReplacementState>
+  >({});
+  const [passiveAttemptPersisting, setPassiveAttemptPersisting] = useState(false);
+  const [passiveTimingNotice, setPassiveTimingNotice] = useState<string | null>(null);
+  const passiveFinalizingRef = useRef(false);
+  const fallbackTrainingTimingContextRef = useRef(createTpsAttemptId());
   const [activeTpsAttempt, setActiveTpsAttempt] = useState<TpsActiveAttempt | null>(null);
   const [tpsReplacementState, setTpsReplacementState] = useState<Record<string, TpsReplacementState>>({});
   const [tpsTimerNowMs, setTpsTimerNowMs] = useState(() => Date.now());
@@ -1138,6 +1160,10 @@ export default function IntroSessionDrillRunner() {
   });
   const canUseScheduledSession = drillSessionAccess?.canLaunch ?? false;
   const scheduledSession = drillSessionAccess?.session || null;
+
+  const trainingTimingContextId =
+    String(scheduledSession?.id || scheduledSessionId || "").trim() ||
+    fallbackTrainingTimingContextRef.current;
 
   const modeToUse: DrillMode = isSessionMode ? "training" : drillMode;
   const isAdaptiveDiagnosisMode = modeToUse === "diagnosis";
@@ -1272,16 +1298,21 @@ export default function IntroSessionDrillRunner() {
     Boolean(activeTpsPressureLevel);
   const passiveTimingObservationKey = (setIndex: number, repIndex: number) =>
     `set${setIndex}_rep${repIndex}_${PASSIVE_EXECUTION_TIMING_WIRE_KEY}`;
+  const passiveAttemptObservationKey = (setIndex: number, repIndex: number) =>
+    `set${setIndex}_rep${repIndex}_${PASSIVE_EXECUTION_ATTEMPT_WIRE_KEY}`;
   const tpsTimingObservationKey = (setIndex: number, repIndex: number) =>
     `set${setIndex}_rep${repIndex}_${TPS_TIMED_ATTEMPT_WIRE_KEY}`;
   const activePassiveTimingKey = passiveTimingObservationKey(currentSet, currentRep);
+  const activePassiveAttemptKey = passiveAttemptObservationKey(currentSet, currentRep);
   const activeTpsTimingKey = tpsTimingObservationKey(currentSet, currentRep);
   const activePassiveTimingCaptured = Boolean(
-    String(observations[activePassiveTimingKey] || "").trim(),
+    String(observations[activePassiveTimingKey] || "").trim() &&
+      String(observations[activePassiveAttemptKey] || "").trim(),
   );
   const activeTpsTimingCaptured = Boolean(
     String(observations[activeTpsTimingKey] || "").trim(),
   );
+  const activePassiveRepIdentity = `${currentTopicName.trim().toLowerCase()}::${TPS_TRAINING_BASELINE_SET_ID}::rep-${currentRep + 1}`;
   const activeTpsRepIdentity = `${currentTopicName.trim().toLowerCase()}::${activeRegistrySet?.setId || "unknown"}::rep-${currentRep + 1}`;
 
   const {
@@ -1401,6 +1432,10 @@ export default function IntroSessionDrillRunner() {
       ).trim(),
     );
     setRepStarted(existingTimingCaptured);
+    setActivePassiveAttempt(null);
+    setPassiveAttemptPersisting(false);
+    passiveFinalizingRef.current = false;
+    setPassiveTimingNotice(null);
     setActiveTpsAttempt(null);
     setTpsAttemptPersisting(false);
     tpsFinalizingRef.current = false;
@@ -1419,6 +1454,21 @@ export default function IntroSessionDrillRunner() {
   };
 
   const beginTrainingRep = () => {
+    if (
+      modeToUse === "training" &&
+      (topicDataLoading || drillSessionAccessLoading)
+    ) {
+      setSubmitError(
+        "Wait for the canonical topic state, session authority, and timing readiness checks before beginning this rep.",
+      );
+      return;
+    }
+    if (modeToUse === "training" && !canUseScheduledSession) {
+      setSubmitError(
+        "A launch-ready Response Integrity training lesson is required before this rep can begin.",
+      );
+      return;
+    }
     if (timingReadinessBlockedTopic) {
       setSubmitError(
         `${timingReadinessBlockedTopic.topic} requires targeted evidence-native re-diagnosis before ordinary Training continues.`,
@@ -1463,11 +1513,22 @@ export default function IntroSessionDrillRunner() {
     }
 
     if (activeRepRequiresPassiveTiming) {
-      const startedAt = new Date().toISOString();
-      passiveTimingStartedAtRef.current[activePassiveTimingKey] = startedAt;
+      const replacement = passiveReplacementState[activePassiveRepIdentity];
+      setActivePassiveAttempt({
+        attemptId: createTpsAttemptId(),
+        sourceContextId: trainingTimingContextId,
+        sourceItemId: TPS_TRAINING_BASELINE_SET_ID,
+        slotNumber: currentRep + 1,
+        attemptNumber: replacement?.nextAttemptNumber || 1,
+        startedAt: new Date().toISOString(),
+        replacementForAttemptId: replacement?.replacementForAttemptId || null,
+        frozenAttempt: null,
+      });
+      setPassiveTimingNotice(null);
       setObservations((current: any) => {
         const next = { ...current };
         delete next[activePassiveTimingKey];
+        delete next[activePassiveAttemptKey];
         return next;
       });
     }
@@ -1475,26 +1536,155 @@ export default function IntroSessionDrillRunner() {
     setRepStarted(true);
   };
 
-  const finishActivePassiveTiming = () => {
-    if (!activeRepRequiresPassiveTiming || activePassiveTimingCaptured) return;
-    const startedAt = passiveTimingStartedAtRef.current[activePassiveTimingKey];
-    if (!startedAt) {
-      setSubmitError("This execution boundary did not start correctly. Restart the rep before recording observations.");
+  const persistPassiveAttempt = async (
+    attempt: TpsPassiveAttemptSubmissionV1,
+  ) => {
+    if (!studentId) throw new Error("Student identity is unavailable.");
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const response = await fetch(
+      `${API_URL}/api/tutor/students/${studentId}/tps-passive-attempt`,
+      {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          topic: currentTopicName,
+          attempt,
+        }),
+      },
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        body?.message ||
+          `Failed to persist passive timing evidence (${response.status})`,
+      );
+    }
+    return body?.attempt;
+  };
+
+  const finishActivePassiveTiming = async (
+    requestedEndReason: "student_finished" | "technical_failure" = "student_finished",
+  ) => {
+    if (
+      !activeRepRequiresPassiveTiming ||
+      !activePassiveAttempt ||
+      activePassiveTimingCaptured ||
+      passiveFinalizingRef.current
+    ) {
       return;
     }
-    const evidence = buildPassiveExecutionTimingEvidence({
-      startedAt,
-      endedAt: new Date().toISOString(),
-    });
-    if (!evidence) {
-      setSubmitError("The passive execution interval could not be recorded. Restart the rep.");
-      return;
+
+    let attempt = activePassiveAttempt.frozenAttempt;
+    if (!attempt) {
+      const endedAt = new Date().toISOString();
+      const startedMs = Date.parse(activePassiveAttempt.startedAt);
+      const endedMs = Date.parse(endedAt);
+      if (!Number.isFinite(startedMs) || !Number.isFinite(endedMs) || endedMs < startedMs) {
+        setSubmitError(
+          "The passive execution boundary is invalid. Record a technical timing failure and retry.",
+        );
+        return;
+      }
+      attempt = {
+        attemptId: activePassiveAttempt.attemptId,
+        source: "training",
+        sourceContextId: activePassiveAttempt.sourceContextId,
+        sourceItemId: activePassiveAttempt.sourceItemId,
+        slotNumber: activePassiveAttempt.slotNumber,
+        attemptNumber: activePassiveAttempt.attemptNumber,
+        startedAt: activePassiveAttempt.startedAt,
+        endedAt,
+        elapsedMs: endedMs - startedMs,
+        timingValidity:
+          requestedEndReason === "technical_failure"
+            ? "timing_invalid_technical"
+            : "valid",
+        endReason: requestedEndReason,
+        replacementForAttemptId:
+          activePassiveAttempt.replacementForAttemptId,
+      };
+      setActivePassiveAttempt((current) =>
+        current?.attemptId === activePassiveAttempt.attemptId
+          ? { ...current, frozenAttempt: attempt }
+          : current,
+      );
     }
-    setObservations((current: any) => ({
-      ...current,
-      [activePassiveTimingKey]: encodePassiveExecutionTimingEvidence(evidence),
-    }));
+
+    passiveFinalizingRef.current = true;
+    setPassiveAttemptPersisting(true);
     setSubmitError(null);
+    try {
+      const persisted = await persistPassiveAttempt(attempt);
+      if (!persisted?.attemptId) {
+        throw new Error("Passive timing evidence was not returned after persistence.");
+      }
+
+      if (attempt.timingValidity === "timing_invalid_technical") {
+        setPassiveReplacementState((current) => ({
+          ...current,
+          [activePassiveRepIdentity]: {
+            nextAttemptNumber: attempt.attemptNumber + 1,
+            replacementForAttemptId: persisted.attemptId,
+          },
+        }));
+        clearRepObservationState(currentSet, currentRep);
+        setActivePassiveAttempt(null);
+        setRepStarted(false);
+        setPassiveTimingNotice(
+          "Technical passive-timing failure preserved in lineage. Retry this same Independent Execution rep under the same no-pressure condition.",
+        );
+        return;
+      }
+
+      const evidence = buildPassiveExecutionTimingEvidence({
+        startedAt: attempt.startedAt,
+        endedAt: attempt.endedAt,
+      });
+      if (!evidence || evidence.elapsedMs !== attempt.elapsedMs) {
+        throw new Error(
+          "The persisted passive attempt does not match the execution boundary.",
+        );
+      }
+
+      setObservations((current: any) => ({
+        ...current,
+        [activePassiveTimingKey]:
+          encodePassiveExecutionTimingEvidence(evidence),
+        [activePassiveAttemptKey]:
+          encodeTpsPassiveAttemptEvidenceRef({
+            version: 1,
+            attemptId: persisted.attemptId,
+            source: "training",
+            sourceContextId: persisted.sourceContextId,
+            sourceItemId: persisted.sourceItemId,
+            slotNumber: persisted.slotNumber,
+            attemptNumber: persisted.attemptNumber,
+            timingValidity: "valid",
+            endReason: "student_finished",
+          }),
+      }));
+      setPassiveReplacementState((current) => {
+        const next = { ...current };
+        delete next[activePassiveRepIdentity];
+        return next;
+      });
+      setPassiveTimingNotice(
+        "Student execution boundary recorded. Finish the observations without adding Specialist admin time to the interval.",
+      );
+      setActivePassiveAttempt(null);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? `${error.message} The execution boundary is frozen; retry saving it rather than restarting the clock.`
+          : "Passive timing evidence could not be persisted. The execution boundary is frozen.",
+      );
+    } finally {
+      passiveFinalizingRef.current = false;
+      setPassiveAttemptPersisting(false);
+    }
   };
 
   const persistTpsAttempt = async (attempt: TpsTimedAttemptSubmissionV1) => {
@@ -1734,6 +1924,16 @@ export default function IntroSessionDrillRunner() {
 
   const handleBackStep = () => {
     if (submitting || submitSuccess) return;
+    if (
+      activeRepRequiresPassiveTiming &&
+      repStarted &&
+      !activePassiveTimingCaptured
+    ) {
+      setSubmitError(
+        "Finish the active passive execution boundary or record a technical timing failure before leaving this rep.",
+      );
+      return;
+    }
     if (
       activeRepRequiresTpsTiming &&
       repStarted &&
@@ -2069,6 +2269,12 @@ export default function IntroSessionDrillRunner() {
             if (timingEvidence) {
               obs[PASSIVE_EXECUTION_TIMING_WIRE_KEY] = timingEvidence;
             }
+            const attemptEvidence = String(
+              observations[passiveAttemptObservationKey(setIndex, repIdx)] || "",
+            ).trim();
+            if (attemptEvidence) {
+              obs[PASSIVE_EXECUTION_ATTEMPT_WIRE_KEY] = attemptEvidence;
+            }
           }
           if (
             displayPhase === "Time Pressure Stability" &&
@@ -2394,6 +2600,7 @@ export default function IntroSessionDrillRunner() {
           trainingTopic: currentTopicName,
           phase: currentTopicPhase,
           previousStability: currentTopicStability,
+          tpsTimingSourceContextId: trainingTimingContextId,
           drill: drillStructure.map((set, setIdx) => serializeSetForSubmission(set, setIdx)),
         };
         
@@ -2428,6 +2635,7 @@ export default function IntroSessionDrillRunner() {
           trainingTopic: isSessionMode ? currentTopicName : introTopic,
           phase: isSessionMode ? currentTopicPhase : phase,
           previousStability: isSessionMode ? currentTopicStability : previousStability,
+          tpsTimingSourceContextId: trainingTimingContextId,
           // IMPORTANT: Include all sets from drillStructure - no filtering
           // Training drills MUST have exactly 3 sets per validation rules
           drill: drillStructure.map((set, setIdx) => serializeSetForSubmission(set, setIdx)),
@@ -3443,6 +3651,11 @@ export default function IntroSessionDrillRunner() {
               )}
             </div>
           )}
+          {passiveTimingNotice && !repStarted && (
+            <div className="mt-3 rounded-lg border border-primary/15 bg-background p-3 text-xs leading-5 text-muted-foreground">
+              {passiveTimingNotice}
+            </div>
+          )}
           {tpsTimingNotice && (
             <div className="mt-3 rounded-lg border border-primary/15 bg-background p-3 text-xs leading-5 text-muted-foreground">
               {tpsTimingNotice}
@@ -3457,6 +3670,10 @@ export default function IntroSessionDrillRunner() {
               className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
               onClick={beginTrainingRep}
               disabled={
+                (modeToUse === "training" &&
+                  (topicDataLoading ||
+                    drillSessionAccessLoading ||
+                    !canUseScheduledSession)) ||
                 Boolean(timingReadinessBlockedTopic) ||
                 (activeRepRequiresTpsTiming &&
                   (tpsTimerContractLoading ||
@@ -3491,15 +3708,46 @@ export default function IntroSessionDrillRunner() {
                 No countdown and no time target. Let the student execute naturally. The system began measuring at Begin Rep.
                 Freeze the interval the moment the student's mathematical execution ends, before finishing observation admin.
               </p>
+              {passiveTimingNotice && (
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {passiveTimingNotice}
+                </p>
+              )}
             </div>
-            <button
-              type="button"
-              className="shrink-0 rounded-md border border-primary/20 bg-background px-4 py-2 text-sm font-semibold hover:bg-primary/5 disabled:cursor-default disabled:opacity-70"
-              onClick={finishActivePassiveTiming}
-              disabled={activePassiveTimingCaptured}
-            >
-              {activePassiveTimingCaptured ? "Student Finished ✓" : "Student Finished"}
-            </button>
+            <div className="flex shrink-0 flex-col gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-primary/20 bg-background px-4 py-2 text-sm font-semibold hover:bg-primary/5 disabled:cursor-default disabled:opacity-70"
+                onClick={() => void finishActivePassiveTiming("student_finished")}
+                disabled={
+                  activePassiveTimingCaptured ||
+                  passiveAttemptPersisting ||
+                  !activePassiveAttempt
+                }
+              >
+                {passiveAttemptPersisting
+                  ? "Saving timing..."
+                  : activePassiveAttempt?.frozenAttempt
+                    ? "Retry Timing Save"
+                    : activePassiveTimingCaptured
+                      ? "Student Finished ✓"
+                      : "Student Finished"}
+              </button>
+              {!activePassiveTimingCaptured && (
+                <button
+                  type="button"
+                  className="rounded-md border border-amber-300 bg-background px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50 disabled:cursor-default disabled:opacity-60"
+                  onClick={() => void finishActivePassiveTiming("technical_failure")}
+                  disabled={
+                    passiveAttemptPersisting ||
+                    !activePassiveAttempt ||
+                    Boolean(activePassiveAttempt?.frozenAttempt)
+                  }
+                >
+                  Technical Timing Failure
+                </button>
+              )}
+            </div>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
             Do not rush the student because timing is being measured, and do not let avoidable dead time enter the execution interval.

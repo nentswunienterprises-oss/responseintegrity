@@ -3,11 +3,20 @@ import { pool } from "./db";
 import { isEmergencyDbMode } from "./emergencyMode";
 import { supabase } from "./storage";
 import {
+  PASSIVE_EXECUTION_ATTEMPT_WIRE_KEY,
+  PASSIVE_EXECUTION_TIMING_WIRE_KEY,
   TPS_TIMED_ATTEMPT_WIRE_KEY,
+  TPS_TRAINING_BASELINE_SET_ID,
+  decodePassiveExecutionTimingEvidence,
+  decodeTpsPassiveAttemptEvidenceRef,
   decodeTpsTimedAttemptEvidenceRef,
   getTpsPrescribedSeconds,
   getTpsTrainingPressureForSet,
+  validateTpsPassiveAttemptEvidenceRef,
+  validateTpsPassiveAttemptSubmission,
   validateTpsTimedAttemptAgainstContract,
+  type TpsPassiveAttemptEvidenceRefV1,
+  type TpsPassiveAttemptSubmissionV1,
   type TpsTimedAttemptSubmissionV1,
   type TpsTimerContractV1,
 } from "../shared/tpsTimingContract";
@@ -433,6 +442,376 @@ export const persistTpsTimerContract = async ({
   return persisted;
 };
 
+
+const BASELINE_ATTEMPT_TABLE = "response_integrity_tps_baseline_attempts";
+
+export type PersistedTpsPassiveAttempt = TpsPassiveAttemptSubmissionV1 & {
+  studentId: string;
+  topic: string;
+  collectedByTutorId: string;
+  createdAt: string | null;
+};
+
+const rowToPassiveAttempt = (
+  row: Record<string, any>,
+): PersistedTpsPassiveAttempt => ({
+  attemptId: clean(row.attempt_id),
+  studentId: clean(row.student_id),
+  topic: clean(row.topic),
+  collectedByTutorId: clean(row.collected_by_tutor_id),
+  source: clean(row.source) as TpsPassiveAttemptSubmissionV1["source"],
+  sourceContextId: clean(row.source_context_id),
+  sourceItemId: clean(row.source_item_id),
+  slotNumber: Number(row.slot_number),
+  attemptNumber: Number(row.attempt_number),
+  startedAt: new Date(row.started_at).toISOString(),
+  endedAt: new Date(row.ended_at).toISOString(),
+  elapsedMs: Number(row.elapsed_ms),
+  timingValidity: clean(
+    row.timing_validity,
+  ) as TpsPassiveAttemptSubmissionV1["timingValidity"],
+  endReason: clean(
+    row.end_reason,
+  ) as TpsPassiveAttemptSubmissionV1["endReason"],
+  replacementForAttemptId: clean(row.replacement_for_attempt_id) || null,
+  createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
+});
+
+export const loadTpsPassiveAttemptById = async (
+  attemptId: string,
+): Promise<PersistedTpsPassiveAttempt | null> => {
+  const normalizedId = clean(attemptId);
+  if (!normalizedId) return null;
+
+  if (isEmergencyDbMode()) {
+    const result = await pool.query(
+      `SELECT *
+         FROM public.${BASELINE_ATTEMPT_TABLE}
+        WHERE attempt_id = $1
+        LIMIT 1`,
+      [normalizedId],
+    );
+    return result.rows[0] ? rowToPassiveAttempt(result.rows[0]) : null;
+  }
+
+  const { data, error } = await supabase
+    .from(BASELINE_ATTEMPT_TABLE)
+    .select("*")
+    .eq("attempt_id", normalizedId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Failed to load passive baseline timing attempt: ${error.message}`);
+  }
+  return data ? rowToPassiveAttempt(data as Record<string, any>) : null;
+};
+
+export const persistTpsPassiveAttempt = async ({
+  studentId,
+  topic,
+  attempt,
+  tutorId,
+}: {
+  studentId: string;
+  topic: string;
+  attempt: TpsPassiveAttemptSubmissionV1;
+  tutorId: string;
+}): Promise<PersistedTpsPassiveAttempt> => {
+  const validation = validateTpsPassiveAttemptSubmission(attempt);
+  if (!validation.ok) {
+    throw Object.assign(new Error(validation.error), {
+      statusCode: 400,
+      code: "TPS_PASSIVE_ATTEMPT_INVALID",
+    });
+  }
+
+  const normalizedStudentId = clean(studentId);
+  const normalizedTopic = clean(topic);
+  if (!normalizedStudentId || !normalizedTopic) {
+    throw Object.assign(
+      new Error("Student and topic are required for passive baseline timing."),
+      { statusCode: 400, code: "TPS_PASSIVE_ATTEMPT_IDENTITY_REQUIRED" },
+    );
+  }
+  if (
+    attempt.source === "training" &&
+    attempt.sourceItemId !== TPS_TRAINING_BASELINE_SET_ID
+  ) {
+    throw Object.assign(
+      new Error("Training passive timing is only valid for canonical Independent Execution."),
+      { statusCode: 400, code: "TPS_PASSIVE_ATTEMPT_SOURCE_INVALID" },
+    );
+  }
+  if (
+    attempt.source === "diagnosis" &&
+    attempt.sourceItemId !== "stack.normal_independent" &&
+    attempt.sourceItemId !== "execution.repeatability"
+  ) {
+    throw Object.assign(
+      new Error("Diagnosis passive timing is only valid for clean comparable independent opportunities."),
+      { statusCode: 400, code: "TPS_PASSIVE_ATTEMPT_SOURCE_INVALID" },
+    );
+  }
+
+  const existing = await loadTpsPassiveAttemptById(attempt.attemptId);
+  if (existing) {
+    const same =
+      existing.studentId === normalizedStudentId &&
+      topicKey(existing.topic) === topicKey(normalizedTopic) &&
+      existing.source === attempt.source &&
+      existing.sourceContextId === attempt.sourceContextId &&
+      existing.sourceItemId === attempt.sourceItemId &&
+      existing.slotNumber === attempt.slotNumber &&
+      existing.attemptNumber === attempt.attemptNumber &&
+      existing.startedAt === new Date(attempt.startedAt).toISOString() &&
+      existing.endedAt === new Date(attempt.endedAt).toISOString() &&
+      existing.elapsedMs === attempt.elapsedMs &&
+      existing.timingValidity === attempt.timingValidity &&
+      existing.endReason === attempt.endReason &&
+      (existing.replacementForAttemptId || null) ===
+        (attempt.replacementForAttemptId || null);
+    if (!same) {
+      throw Object.assign(
+        new Error("Passive timing attempt ID is already bound to different immutable evidence."),
+        { statusCode: 409, code: "TPS_PASSIVE_ATTEMPT_ID_CONFLICT" },
+      );
+    }
+    return existing;
+  }
+
+  if (attempt.replacementForAttemptId) {
+    const replaced = await loadTpsPassiveAttemptById(
+      attempt.replacementForAttemptId,
+    );
+    if (
+      !replaced ||
+      replaced.studentId !== normalizedStudentId ||
+      topicKey(replaced.topic) !== topicKey(normalizedTopic) ||
+      replaced.source !== attempt.source ||
+      replaced.sourceContextId !== attempt.sourceContextId ||
+      replaced.sourceItemId !== attempt.sourceItemId ||
+      replaced.slotNumber !== attempt.slotNumber ||
+      replaced.timingValidity !== "timing_invalid_technical"
+    ) {
+      throw Object.assign(
+        new Error("Passive replacement lineage must point to a technical-invalid attempt for the same student/topic/source/context/opportunity."),
+        { statusCode: 409, code: "TPS_PASSIVE_REPLACEMENT_LINEAGE_INVALID" },
+      );
+    }
+  } else if (attempt.attemptNumber > 1) {
+    throw Object.assign(
+      new Error("Passive replacement attempts must identify the technical-invalid attempt they replace."),
+      { statusCode: 409, code: "TPS_PASSIVE_REPLACEMENT_LINEAGE_REQUIRED" },
+    );
+  }
+
+  const row = {
+    attempt_id: attempt.attemptId,
+    student_id: normalizedStudentId,
+    topic: normalizedTopic,
+    topic_key: topicKey(normalizedTopic),
+    collected_by_tutor_id: clean(tutorId),
+    source: attempt.source,
+    source_context_id: attempt.sourceContextId,
+    source_item_id: attempt.sourceItemId,
+    slot_number: attempt.slotNumber,
+    attempt_number: attempt.attemptNumber,
+    started_at: attempt.startedAt,
+    ended_at: attempt.endedAt,
+    elapsed_ms: attempt.elapsedMs,
+    timing_validity: attempt.timingValidity,
+    end_reason: attempt.endReason,
+    replacement_for_attempt_id: attempt.replacementForAttemptId || null,
+  };
+
+  if (isEmergencyDbMode()) {
+    await pool.query(
+      `INSERT INTO public.${BASELINE_ATTEMPT_TABLE} (
+        attempt_id, student_id, topic, topic_key, collected_by_tutor_id,
+        source, source_context_id, source_item_id, slot_number, attempt_number,
+        started_at, ended_at, elapsed_ms, timing_validity, end_reason,
+        replacement_for_attempt_id
+      ) VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16
+      )`,
+      [
+        row.attempt_id,
+        row.student_id,
+        row.topic,
+        row.topic_key,
+        row.collected_by_tutor_id,
+        row.source,
+        row.source_context_id,
+        row.source_item_id,
+        row.slot_number,
+        row.attempt_number,
+        row.started_at,
+        row.ended_at,
+        row.elapsed_ms,
+        row.timing_validity,
+        row.end_reason,
+        row.replacement_for_attempt_id,
+      ],
+    );
+  } else {
+    const { error } = await supabase
+      .from(BASELINE_ATTEMPT_TABLE)
+      .insert(row);
+    if (error) {
+      throw Object.assign(
+        new Error(`Failed to persist passive baseline timing attempt: ${error.message}`),
+        {
+          statusCode: error.code === "23505" ? 409 : 500,
+          code: error.code || "TPS_PASSIVE_ATTEMPT_PERSISTENCE_FAILED",
+        },
+      );
+    }
+  }
+
+  const persisted = await loadTpsPassiveAttemptById(attempt.attemptId);
+  if (!persisted) {
+    throw new Error("Passive baseline timing attempt was not readable after persistence");
+  }
+  return persisted;
+};
+
+const validatePassiveAttemptReference = async ({
+  reference,
+  studentId,
+  topic,
+  source,
+  sourceContextId,
+  sourceItemId,
+  slotNumber,
+  rawTiming,
+}: {
+  reference: TpsPassiveAttemptEvidenceRefV1 | null;
+  studentId: string;
+  topic: string;
+  source: TpsPassiveAttemptSubmissionV1["source"];
+  sourceContextId: string;
+  sourceItemId: string;
+  slotNumber: number;
+  rawTiming: unknown;
+}): Promise<string | null> => {
+  if (!reference) return "Passive timing is missing durable attempt lineage.";
+  if (
+    reference.source !== source ||
+    reference.sourceContextId !== sourceContextId ||
+    reference.sourceItemId !== sourceItemId ||
+    reference.slotNumber !== slotNumber
+  ) {
+    return "Passive timing lineage does not match the canonical source context/opportunity.";
+  }
+
+  const timing =
+    typeof rawTiming === "string"
+      ? decodePassiveExecutionTimingEvidence(rawTiming)
+      : rawTiming && typeof rawTiming === "object"
+        ? (() => {
+            try {
+              return decodePassiveExecutionTimingEvidence(JSON.stringify(rawTiming));
+            } catch {
+              return null;
+            }
+          })()
+        : null;
+  if (!timing) return "Passive timing evidence is missing or invalid.";
+
+  const persisted = await loadTpsPassiveAttemptById(reference.attemptId);
+  if (!persisted) return "Passive timing lineage points to a missing persisted attempt.";
+  if (
+    persisted.studentId !== studentId ||
+    topicKey(persisted.topic) !== topicKey(topic) ||
+    persisted.source !== source ||
+    persisted.sourceContextId !== sourceContextId ||
+    persisted.sourceItemId !== sourceItemId ||
+    persisted.slotNumber !== slotNumber ||
+    persisted.attemptNumber !== reference.attemptNumber ||
+    persisted.timingValidity !== "valid" ||
+    persisted.endReason !== "student_finished" ||
+    persisted.startedAt !== timing.startedAt ||
+    persisted.endedAt !== timing.endedAt ||
+    persisted.elapsedMs !== timing.elapsedMs
+  ) {
+    return "Passive timing lineage does not match the accepted execution boundary.";
+  }
+  return null;
+};
+
+export const validateTrainingPassiveTimingAttemptLineage = async ({
+  studentId,
+  topic,
+  sourceContextId,
+  sets,
+}: {
+  studentId: string;
+  topic: string;
+  sourceContextId: string;
+  sets: any[];
+}): Promise<string | null> => {
+  const baselineSet = (Array.isArray(sets) ? sets : []).find(
+    (set: any) => clean(set?.setId) === TPS_TRAINING_BASELINE_SET_ID,
+  );
+  if (!baselineSet) return "Structured Execution is missing canonical Independent Execution.";
+
+  const observations = Array.isArray(baselineSet.observations)
+    ? baselineSet.observations
+    : [];
+  for (let index = 0; index < observations.length; index += 1) {
+    const repNumber = Number(observations[index]?._rep_number || index + 1);
+    const reference = decodeTpsPassiveAttemptEvidenceRef(
+      observations[index]?.[PASSIVE_EXECUTION_ATTEMPT_WIRE_KEY],
+    );
+    const error = await validatePassiveAttemptReference({
+      reference,
+      studentId,
+      topic,
+      source: "training",
+      sourceContextId,
+      sourceItemId: TPS_TRAINING_BASELINE_SET_ID,
+      slotNumber: repNumber,
+      rawTiming: observations[index]?.[PASSIVE_EXECUTION_TIMING_WIRE_KEY],
+    });
+    if (error) {
+      return `Independent Execution Rep ${repNumber}: ${error}`;
+    }
+  }
+  return null;
+};
+
+export const validateDiagnosisPassiveTimingAttemptLineage = async ({
+  studentId,
+  topic,
+  runId,
+  probeHistory,
+}: {
+  studentId: string;
+  topic: string;
+  runId: string;
+  probeHistory: Array<Record<string, any>>;
+}): Promise<string | null> => {
+  for (let index = 0; index < probeHistory.length; index += 1) {
+    const result = probeHistory[index];
+    if (!result?.passiveTiming) continue;
+    const reference = validateTpsPassiveAttemptEvidenceRef(
+      result.passiveTimingAttempt,
+    );
+    const error = await validatePassiveAttemptReference({
+      reference,
+      studentId,
+      topic,
+      source: "diagnosis",
+      sourceContextId: runId,
+      sourceItemId: clean(result.probeId),
+      slotNumber: index + 1,
+      rawTiming: JSON.stringify(result.passiveTiming),
+    });
+    if (error) {
+      return `Diagnosis Opportunity ${index + 1}: ${error}`;
+    }
+  }
+  return null;
+};
 
 const TIMED_ATTEMPT_TABLE = "response_integrity_tps_timed_attempts";
 

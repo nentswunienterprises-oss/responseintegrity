@@ -23,6 +23,7 @@ import {
 import {
   buildPassiveExecutionTimingEvidence,
   validateTimedExecutionEvidence,
+  validateTpsPassiveAttemptEvidenceRef,
 } from "./tpsTimingContract";
 
 export const EVIDENCE_COMPLETE_DIAGNOSIS_SCHEMA_ID = "ri.diagnosis.evidence_native";
@@ -109,6 +110,13 @@ const cleanProbeResult = (value: unknown): DiagnosisProbeResult | null => {
     return null;
   }
 
+  const rawPassiveTimingAttempt = input.passiveTimingAttempt;
+  const passiveTimingAttempt =
+    rawPassiveTimingAttempt === undefined
+      ? null
+      : validateTpsPassiveAttemptEvidenceRef(rawPassiveTimingAttempt);
+  if (rawPassiveTimingAttempt !== undefined && !passiveTimingAttempt) return null;
+
   const rawTimedTiming = input.timedTiming;
   const timedTiming =
     rawTimedTiming === undefined ? null : validateTimedExecutionEvidence(rawTimedTiming);
@@ -122,6 +130,7 @@ const cleanProbeResult = (value: unknown): DiagnosisProbeResult | null => {
       behaviorId: string;
     }>,
     ...(passiveTiming ? { passiveTiming } : {}),
+    ...(passiveTimingAttempt ? { passiveTimingAttempt } : {}),
     ...(timedTiming ? { timedTiming } : {}),
   };
 };

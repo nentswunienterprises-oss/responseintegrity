@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  PASSIVE_EXECUTION_ATTEMPT_WIRE_KEY,
   PASSIVE_EXECUTION_TIMING_WIRE_KEY,
   TPS_TIMED_ATTEMPT_WIRE_KEY,
   TPS_FULL_CONSTRAINT_FACTOR,
   TPS_TRAINING_BASELINE_SET_ID,
   buildPassiveExecutionTimingEvidence,
   decodePassiveExecutionTimingEvidence,
+  decodeTpsPassiveAttemptEvidenceRef,
   decodeTpsTimedAttemptEvidenceRef,
   encodePassiveExecutionTimingEvidence,
+  encodeTpsPassiveAttemptEvidenceRef,
   encodeTpsTimedAttemptEvidenceRef,
   deriveTpsBaselineSnapshot,
   deriveTpsTimerContractV1,
@@ -17,6 +20,8 @@ import {
   selectCompleteDiagnosisBaseline,
   selectLatestCompleteTrainingBaselineSet,
   type TpsBaselineTimingRecord,
+  type TpsPassiveAttemptSubmissionV1,
+  validateTpsPassiveAttemptSubmission,
   validateTpsTimedAttemptAgainstContract,
   getTpsTrainingPressureForSet,
   type TpsTimedAttemptSubmissionV1,
@@ -468,6 +473,65 @@ test("TPS Training drill wire stores only accepted valid timed-attempt lineage",
     decodeTpsTimedAttemptEvidenceRef(JSON.stringify({
       ...reference,
       setId: "structured_execution.independent_execution",
+    })),
+    null,
+  );
+});
+
+
+test("passive baseline attempt lineage preserves technical failures and valid replacements separately", () => {
+  const technical: TpsPassiveAttemptSubmissionV1 = {
+    attemptId: "passive-tech-1",
+    source: "training",
+    sourceContextId: "scheduled-session-1",
+    sourceItemId: "structured_execution.independent_execution",
+    slotNumber: 2,
+    attemptNumber: 1,
+    startedAt: "2026-09-23T18:00:00.000Z",
+    endedAt: "2026-09-23T18:00:10.000Z",
+    elapsedMs: 10_000,
+    timingValidity: "timing_invalid_technical",
+    endReason: "technical_failure",
+    replacementForAttemptId: null,
+  };
+  assert.equal(validateTpsPassiveAttemptSubmission(technical).ok, true);
+
+  const replacement: TpsPassiveAttemptSubmissionV1 = {
+    ...technical,
+    attemptId: "passive-valid-2",
+    attemptNumber: 2,
+    endedAt: "2026-09-23T18:00:44.000Z",
+    elapsedMs: 44_000,
+    timingValidity: "valid",
+    endReason: "student_finished",
+    replacementForAttemptId: "passive-tech-1",
+  };
+  assert.equal(validateTpsPassiveAttemptSubmission(replacement).ok, true);
+
+  const reference = {
+    version: 1 as const,
+    attemptId: replacement.attemptId,
+    source: replacement.source,
+    sourceContextId: replacement.sourceContextId,
+    sourceItemId: replacement.sourceItemId,
+    slotNumber: replacement.slotNumber,
+    attemptNumber: replacement.attemptNumber,
+    timingValidity: "valid" as const,
+    endReason: "student_finished" as const,
+  };
+  assert.equal(PASSIVE_EXECUTION_ATTEMPT_WIRE_KEY, "_passive_execution_attempt_v1");
+  assert.deepEqual(
+    decodeTpsPassiveAttemptEvidenceRef(
+      encodeTpsPassiveAttemptEvidenceRef(reference),
+    ),
+    reference,
+  );
+
+  assert.equal(
+    decodeTpsPassiveAttemptEvidenceRef(JSON.stringify({
+      ...reference,
+      timingValidity: "timing_invalid_technical",
+      endReason: "technical_failure",
     })),
     null,
   );

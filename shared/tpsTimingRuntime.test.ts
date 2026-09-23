@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  PASSIVE_EXECUTION_ATTEMPT_WIRE_KEY,
   PASSIVE_EXECUTION_TIMING_WIRE_KEY,
   TPS_TRAINING_BASELINE_SET_ID,
   buildPassiveExecutionTimingEvidence,
   encodePassiveExecutionTimingEvidence,
+  encodeTpsPassiveAttemptEvidenceRef,
 } from "./tpsTimingContract";
 import {
   collectDiagnosisTpsBaselineTimingRecords,
@@ -366,4 +368,43 @@ test("diagnosis baseline timing derives the same V1 Timer Contract without prete
   assert.equal(contract.structureUnderTimerSeconds, 60);
   assert.equal(contract.repeatedTimedExecutionSeconds, 60);
   assert.equal(contract.fullConstraintSeconds, 51);
+});
+
+
+test("Timer Contract baseline record IDs follow durable passive-attempt lineage when present", () => {
+  const row = trainingRow({
+    id: "round-lineage",
+    hour: 10,
+    seconds: [44, 45, 46],
+  });
+
+  row.drill.sets[1].observations.forEach((rep: any, index: number) => {
+    const slot = index + 1;
+    rep[PASSIVE_EXECUTION_ATTEMPT_WIRE_KEY] =
+      encodeTpsPassiveAttemptEvidenceRef({
+        version: 1,
+        attemptId: `passive-attempt-${slot}`,
+        source: "training",
+        sourceContextId: "scheduled-session-1",
+        sourceItemId: TPS_TRAINING_BASELINE_SET_ID,
+        slotNumber: slot,
+        attemptNumber: 1,
+        timingValidity: "valid",
+        endReason: "student_finished",
+      });
+  });
+
+  const contract = deriveTrainingTpsTimerContract({
+    rows: [row],
+    studentId: "student-1",
+    topic: "Fractions",
+    sourceEpochKey: "se-v1-epoch-1",
+  });
+
+  assert.ok(contract);
+  assert.deepEqual(contract.baselineRecordIds, [
+    "passive-attempt-1",
+    "passive-attempt-2",
+    "passive-attempt-3",
+  ]);
 });

@@ -1,7 +1,9 @@
 import {
+  PASSIVE_EXECUTION_ATTEMPT_WIRE_KEY,
   PASSIVE_EXECUTION_TIMING_WIRE_KEY,
   TPS_TRAINING_BASELINE_SET_ID,
   decodePassiveExecutionTimingEvidence,
+  decodeTpsPassiveAttemptEvidenceRef,
   selectLatestCompleteTrainingBaselineSet,
   deriveTpsBaselineSnapshot,
   deriveTpsTimerContractV1,
@@ -206,16 +208,21 @@ export const collectTrainingTpsBaselineTimingRecords = ({
         rep[PASSIVE_EXECUTION_TIMING_WIRE_KEY],
       );
       if (!timing) return;
+      const attemptReference = decodeTpsPassiveAttemptEvidenceRef(
+        rep[PASSIVE_EXECUTION_ATTEMPT_WIRE_KEY],
+      );
 
       output.push({
-        recordId: `${clean(row.id)}::${TPS_TRAINING_BASELINE_SET_ID}::rep-${slot}`,
+        recordId:
+          attemptReference?.attemptId ||
+          `${clean(row.id)}::${TPS_TRAINING_BASELINE_SET_ID}::rep-${slot}`,
         studentId,
         topic: clean(drill.trainingTopic || drill.introTopic),
         source: "training",
         sourceEpochKey: clean(drill.tpsTimingAuthority?.sourceEpochKey),
         baselineGroupId,
         baselineSlot: slot,
-        attemptNumber: 1,
+        attemptNumber: attemptReference?.attemptNumber || 1,
         sourcePhase: "Structured Execution",
         sourceSetId: TPS_TRAINING_BASELINE_SET_ID,
         completedAt: timing.endedAt,
@@ -276,14 +283,16 @@ export const collectDiagnosisTpsBaselineTimingRecords = ({
 }): TpsBaselineTimingRecord[] => {
   const samples = getDiagnosisBaselineTimingSamples(state).slice(-3);
   return samples.map((sample: DiagnosisProbeResult, index) => ({
-    recordId: `${baselineGroupId}::${sample.probeId}::sample-${index + 1}`,
+    recordId:
+      sample.passiveTimingAttempt?.attemptId ||
+      `${baselineGroupId}::${sample.probeId}::sample-${index + 1}`,
     studentId,
     topic,
     source: "diagnosis" as const,
     sourceEpochKey,
     baselineGroupId,
     baselineSlot: (index + 1) as 1 | 2 | 3,
-    attemptNumber: 1,
+    attemptNumber: sample.passiveTimingAttempt?.attemptNumber || 1,
     sourcePhase: "diagnosis" as const,
     sourceSetId: sample.probeId,
     completedAt: sample.passiveTiming!.endedAt,

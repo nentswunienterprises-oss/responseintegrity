@@ -180,6 +180,7 @@ import {
   loadTpsTimingDrillRows,
   persistTpsTimerContract,
   persistTpsTimerContractDirect,
+  validateTrainingPassiveTimingAttemptLineage,
   validateTpsTrainingDrillTimedAttemptLineage,
   type PersistedTpsTimerContract,
 } from "./tpsTimingAuthority";
@@ -8730,7 +8731,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
               // Process each drill in the session
               for (const drillData of sessionDrills) {
-                const { trainingTopic, drill, phase: rawPhase, previousStability: rawPreviousStability } = drillData;
+                const {
+                  trainingTopic,
+                  drill,
+                  phase: rawPhase,
+                  previousStability: rawPreviousStability,
+                  tpsTimingSourceContextId,
+                } = drillData;
                 const drillSets = normalizeIntroDrillSets(drill);
                 const observedPhase = parseAuthoritativePhase(rawPhase);
                 const normalizedTopic = String(trainingTopic || "").trim();
@@ -8763,6 +8770,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       code: "TPS_TIMING_EVIDENCE_INVALID",
                     },
                   );
+                }
+
+                if (observedPhase === "Structured Execution") {
+                  const passiveTimingSourceContextId =
+                    scheduledSessionRecordId ||
+                    String(tpsTimingSourceContextId || "").trim();
+                  if (!passiveTimingSourceContextId) {
+                    throw Object.assign(
+                      new Error(
+                        `Timing evidence invalid for ${normalizedTopic}: passive baseline lineage is missing its session context.`,
+                      ),
+                      {
+                        statusCode: 400,
+                        code: "TPS_PASSIVE_TIMING_LINEAGE_INVALID",
+                      },
+                    );
+                  }
+                  const passiveTimingLineageError =
+                    await validateTrainingPassiveTimingAttemptLineage({
+                      studentId,
+                      topic: normalizedTopic,
+                      sourceContextId: passiveTimingSourceContextId,
+                      sets: drillSets,
+                    });
+                  if (passiveTimingLineageError) {
+                    throw Object.assign(
+                      new Error(
+                        `Timing evidence invalid for ${normalizedTopic}: ${passiveTimingLineageError}`,
+                      ),
+                      {
+                        statusCode: 409,
+                        code: "TPS_PASSIVE_TIMING_LINEAGE_INVALID",
+                      },
+                    );
+                  }
                 }
 
                 // Get current topic state

@@ -33,6 +33,7 @@ import {
   loadLatestTpsTimerContract,
   loadTpsTimerContractById,
   persistTpsTimerContract,
+  validateDiagnosisPassiveTimingAttemptLineage,
   type PersistedTpsTimerContract,
 } from "./tpsTimingAuthority";
 
@@ -1021,6 +1022,20 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           return res.status(400).json({
             message: replay.error,
             failedAtProbeIndex: replay.failedAtProbeIndex ?? null,
+          });
+        }
+
+        const passiveTimingLineageError =
+          await validateDiagnosisPassiveTimingAttemptLineage({
+            studentId,
+            topic,
+            runId,
+            probeHistory: replay.state.probeHistory as Array<Record<string, any>>,
+          });
+        if (passiveTimingLineageError) {
+          return res.status(409).json({
+            code: "TPS_PASSIVE_TIMING_LINEAGE_INVALID",
+            message: passiveTimingLineageError,
           });
         }
 

@@ -3,6 +3,7 @@ import {
   TPS_BASELINE_SAMPLE_SIZE,
   type PassiveExecutionTimingEvidenceV1,
   type TimedExecutionEvidenceV1,
+  type TpsPassiveAttemptEvidenceRefV1,
 } from "./tpsTimingContract";
 import {
   DIAGNOSIS_OBSERVATION_MATRIX,
@@ -61,6 +62,7 @@ export type DiagnosisProbeResult = {
   observations: DiagnosisProbeObservation[];
   supportEvent?: DiagnosisSupportEvent;
   passiveTiming?: PassiveExecutionTimingEvidenceV1;
+  passiveTimingAttempt?: TpsPassiveAttemptEvidenceRefV1;
   timedTiming?: TimedExecutionEvidenceV1;
 };
 

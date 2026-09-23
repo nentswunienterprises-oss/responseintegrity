@@ -22,6 +22,8 @@ import {
   buildTimedExecutionEvidence,
   type PassiveExecutionTimingEvidenceV1,
   type TimedExecutionEvidenceV1,
+  type TpsPassiveAttemptEvidenceRefV1,
+  type TpsPassiveAttemptSubmissionV1,
 } from "@shared/tpsTimingContract";
 
 type DiagnosisApiResponse = {
@@ -44,6 +46,26 @@ type DiagnosisApiResponse = {
     prescribedSeconds: number | null;
   };
 };
+
+type ActiveDiagnosisPassiveAttempt = {
+  attemptId: string;
+  sourceContextId: string;
+  sourceItemId: string;
+  slotNumber: number;
+  attemptNumber: number;
+  startedAt: string;
+  replacementForAttemptId: string | null;
+  frozenAttempt: TpsPassiveAttemptSubmissionV1 | null;
+};
+
+type DiagnosisPassiveReplacementState = {
+  nextAttemptNumber: number;
+  replacementForAttemptId: string;
+};
+
+const createTimingAttemptId = () =>
+  globalThis.crypto?.randomUUID?.() ||
+  `ri-dx-timing-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const SUPPORT_OPTIONS: Array<{
   value: DiagnosisSupportEvent;
@@ -155,6 +177,17 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const opportunityStartedAtRef = useRef<string | null>(null);
   const [passiveTiming, setPassiveTiming] =
     useState<PassiveExecutionTimingEvidenceV1 | null>(null);
+  const [passiveTimingAttempt, setPassiveTimingAttempt] =
+    useState<TpsPassiveAttemptEvidenceRefV1 | null>(null);
+  const [activePassiveAttempt, setActivePassiveAttempt] =
+    useState<ActiveDiagnosisPassiveAttempt | null>(null);
+  const [passiveReplacement, setPassiveReplacement] =
+    useState<DiagnosisPassiveReplacementState | null>(null);
+  const [passiveAttemptPersisting, setPassiveAttemptPersisting] =
+    useState(false);
+  const [passiveTimingNotice, setPassiveTimingNotice] =
+    useState<string | null>(null);
+  const passiveFinalizingRef = useRef(false);
   const [timedTiming, setTimedTiming] =
     useState<TimedExecutionEvidenceV1 | null>(null);
   const [timerNowMs, setTimerNowMs] = useState(() => Date.now());
@@ -278,7 +311,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
     currentTimingMode === "passive_baseline" || currentTimingMode === "timed";
   const timingBoundaryCaptured =
     currentTimingMode === "passive_baseline"
-      ? Boolean(passiveTiming)
+      ? Boolean(passiveTiming && passiveTimingAttempt)
       : currentTimingMode === "timed"
         ? Boolean(timedTiming)
         : true;
@@ -335,6 +368,27 @@ export default function EvidenceCompleteDiagnosisRunner() {
     const startedAt = new Date().toISOString();
     opportunityStartedAtRef.current = startedAt;
     setPassiveTiming(null);
+    setPassiveTimingAttempt(null);
+    setPassiveTimingNotice(null);
+    if (currentTimingMode === "passive_baseline") {
+      if (!runId || !currentProbe) {
+        setError("Diagnosis timing context is unavailable.");
+        return;
+      }
+      setActivePassiveAttempt({
+        attemptId: createTimingAttemptId(),
+        sourceContextId: runId,
+        sourceItemId: currentProbe.id,
+        slotNumber: opportunityNumber,
+        attemptNumber: passiveReplacement?.nextAttemptNumber || 1,
+        startedAt,
+        replacementForAttemptId:
+          passiveReplacement?.replacementForAttemptId || null,
+        frozenAttempt: null,
+      });
+    } else {
+      setActivePassiveAttempt(null);
+    }
     setTimedTiming(null);
     setTimerNowMs(Date.now());
     setOpportunityStarted(true);
@@ -344,25 +398,158 @@ export default function EvidenceCompleteDiagnosisRunner() {
     scrollRunnerTop();
   };
 
-  const finishOpportunityTiming = () => {
+  const persistPassiveDiagnosisAttempt = async (
+    attempt: TpsPassiveAttemptSubmissionV1,
+  ) => {
+    const headers = await authHeaders();
+    const response = await fetch(
+      `${API_URL}/api/tutor/students/${studentId}/tps-passive-attempt`,
+      {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ topic, attempt }),
+      },
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        body?.message ||
+          `Failed to persist diagnosis timing evidence (${response.status})`,
+      );
+    }
+    return body?.attempt;
+  };
+
+  const finishOpportunityTiming = async (
+    requestedPassiveEndReason:
+      | "student_finished"
+      | "technical_failure" = "student_finished",
+  ) => {
     if (!timingBoundaryRequired || timingBoundaryCaptured) return;
     const startedAt = opportunityStartedAtRef.current;
     if (!startedAt) {
       setError("The execution boundary did not start correctly. Return to Ready and restart this opportunity.");
       return;
     }
-    const endedAt = new Date().toISOString();
+
     if (currentTimingMode === "passive_baseline") {
-      const evidence = buildPassiveExecutionTimingEvidence({ startedAt, endedAt });
-      if (!evidence) {
-        setError("The passive execution interval could not be recorded. Restart this opportunity.");
-        return;
+      if (!activePassiveAttempt || passiveFinalizingRef.current) return;
+
+      let attempt = activePassiveAttempt.frozenAttempt;
+      if (!attempt) {
+        const endedAt = new Date().toISOString();
+        const startedMs = Date.parse(activePassiveAttempt.startedAt);
+        const endedMs = Date.parse(endedAt);
+        if (
+          !Number.isFinite(startedMs) ||
+          !Number.isFinite(endedMs) ||
+          endedMs < startedMs
+        ) {
+          setError(
+            "The passive diagnosis timing boundary is invalid. Record a technical timing failure and retry.",
+          );
+          return;
+        }
+        attempt = {
+          attemptId: activePassiveAttempt.attemptId,
+          source: "diagnosis",
+          sourceContextId: activePassiveAttempt.sourceContextId,
+          sourceItemId: activePassiveAttempt.sourceItemId,
+          slotNumber: activePassiveAttempt.slotNumber,
+          attemptNumber: activePassiveAttempt.attemptNumber,
+          startedAt: activePassiveAttempt.startedAt,
+          endedAt,
+          elapsedMs: endedMs - startedMs,
+          timingValidity:
+            requestedPassiveEndReason === "technical_failure"
+              ? "timing_invalid_technical"
+              : "valid",
+          endReason: requestedPassiveEndReason,
+          replacementForAttemptId:
+            activePassiveAttempt.replacementForAttemptId,
+        };
+        setActivePassiveAttempt((current) =>
+          current?.attemptId === activePassiveAttempt.attemptId
+            ? { ...current, frozenAttempt: attempt }
+            : current,
+        );
       }
-      setPassiveTiming(evidence);
+
+      passiveFinalizingRef.current = true;
+      setPassiveAttemptPersisting(true);
       setError(null);
+      try {
+        const persisted = await persistPassiveDiagnosisAttempt(attempt);
+        if (!persisted?.attemptId) {
+          throw new Error(
+            "Diagnosis timing evidence was not returned after persistence.",
+          );
+        }
+
+        if (attempt.timingValidity === "timing_invalid_technical") {
+          setPassiveReplacement({
+            nextAttemptNumber: attempt.attemptNumber + 1,
+            replacementForAttemptId: persisted.attemptId,
+          });
+          setOpportunityStarted(false);
+          setActiveLayerIndex(0);
+          setConfirmStep(false);
+          setObservations({});
+          setSupportEvent("none");
+          opportunityStartedAtRef.current = null;
+          setPassiveTiming(null);
+          setPassiveTimingAttempt(null);
+          setActivePassiveAttempt(null);
+          setPassiveTimingNotice(
+            "Technical passive-timing failure preserved in lineage. Retry the same Diagnosis opportunity under the same no-pressure condition.",
+          );
+          scrollRunnerTop();
+          return;
+        }
+
+        const evidence = buildPassiveExecutionTimingEvidence({
+          startedAt: attempt.startedAt,
+          endedAt: attempt.endedAt,
+        });
+        if (!evidence || evidence.elapsedMs !== attempt.elapsedMs) {
+          throw new Error(
+            "The persisted diagnosis timing attempt does not match the execution boundary.",
+          );
+        }
+        setPassiveTiming(evidence);
+        setPassiveTimingAttempt({
+          version: 1,
+          attemptId: persisted.attemptId,
+          source: "diagnosis",
+          sourceContextId: persisted.sourceContextId,
+          sourceItemId: persisted.sourceItemId,
+          slotNumber: persisted.slotNumber,
+          attemptNumber: persisted.attemptNumber,
+          timingValidity: "valid",
+          endReason: "student_finished",
+        });
+        setPassiveReplacement(null);
+        setActivePassiveAttempt(null);
+        setPassiveTimingNotice(
+          "Student execution boundary recorded. Finish the observations without adding Specialist admin time to the interval.",
+        );
+        setError(null);
+      } catch (persistError) {
+        setError(
+          persistError instanceof Error
+            ? `${persistError.message} The execution boundary is frozen; retry saving it rather than restarting the clock.`
+            : "Diagnosis timing evidence could not be persisted. The execution boundary is frozen.",
+        );
+      } finally {
+        passiveFinalizingRef.current = false;
+        setPassiveAttemptPersisting(false);
+      }
       return;
     }
+
     if (currentTimingMode === "timed") {
+      const endedAt = new Date().toISOString();
       const evidence = buildTimedExecutionEvidence({
         startedAt,
         endedAt,
@@ -396,6 +583,26 @@ export default function EvidenceCompleteDiagnosisRunner() {
   };
 
   const backWithinOpportunity = () => {
+    if (
+      opportunityStarted &&
+      currentTimingMode === "passive_baseline" &&
+      !timingBoundaryCaptured
+    ) {
+      setError(
+        "Finish the passive execution boundary or record a technical timing failure before leaving this opportunity.",
+      );
+      return;
+    }
+    if (
+      opportunityStarted &&
+      currentTimingMode === "timed" &&
+      !timingBoundaryCaptured
+    ) {
+      setError(
+        "Finish the timed execution boundary before leaving this opportunity.",
+      );
+      return;
+    }
     if (confirmStep) {
       setConfirmStep(false);
       setActiveLayerIndex(Math.max(0, groupedDimensions.length - 1));
@@ -405,6 +612,8 @@ export default function EvidenceCompleteDiagnosisRunner() {
       setOpportunityStarted(false);
       opportunityStartedAtRef.current = null;
       setPassiveTiming(null);
+      setPassiveTimingAttempt(null);
+      setActivePassiveAttempt(null);
       setTimedTiming(null);
     }
     scrollRunnerTop();
@@ -432,6 +641,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
           behaviorId: observations[dimensionId]!,
         })),
         ...(passiveTiming ? { passiveTiming } : {}),
+        ...(passiveTimingAttempt ? { passiveTimingAttempt } : {}),
         ...(timedTiming ? { timedTiming } : {}),
       };
 
@@ -447,6 +657,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
       setConfirmStep(false);
       opportunityStartedAtRef.current = null;
       setPassiveTiming(null);
+      setPassiveTimingAttempt(null);
+      setActivePassiveAttempt(null);
+      setPassiveTimingNotice(null);
       setTimedTiming(null);
 
       if (nextState.finalized) {
@@ -866,6 +1079,11 @@ export default function EvidenceCompleteDiagnosisRunner() {
                   <p className="mt-2 text-xs text-muted-foreground">
                     Baseline evidence: {apiState?.timingAuthority?.sampleCount || 0} / {apiState?.timingAuthority?.requiredSampleCount || 3} clean comparable executions.
                   </p>
+                  {passiveTimingNotice && (
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                      {passiveTimingNotice}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -1062,23 +1280,61 @@ export default function EvidenceCompleteDiagnosisRunner() {
                           </p>
                         </>
                       ) : (
-                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                          Measurement is running silently. Freeze it at actual student completion before finishing observation admin.
-                        </p>
+                        <>
+                          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                            Measurement is running silently. Freeze it at actual student completion before finishing observation admin.
+                          </p>
+                          {passiveTimingNotice && (
+                            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                              {passiveTimingNotice}
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={finishOpportunityTiming}
-                      disabled={timingBoundaryCaptured}
-                      className="shrink-0 rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-muted/50 disabled:cursor-default disabled:opacity-60"
-                    >
-                      {timingBoundaryCaptured
-                        ? currentTimingMode === "timed" && timedTiming && !timedTiming.completedBeforeExpiry
-                          ? "Timer Expired ✓"
-                          : "Student Finished ✓"
-                        : "Student Finished"}
-                    </button>
+                    <div className="flex shrink-0 flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void finishOpportunityTiming("student_finished")
+                        }
+                        disabled={
+                          timingBoundaryCaptured ||
+                          passiveAttemptPersisting
+                        }
+                        className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-muted/50 disabled:cursor-default disabled:opacity-60"
+                      >
+                        {passiveAttemptPersisting
+                          ? "Saving timing..."
+                          : currentTimingMode === "passive_baseline" &&
+                              activePassiveAttempt?.frozenAttempt
+                            ? "Retry Timing Save"
+                            : timingBoundaryCaptured
+                              ? currentTimingMode === "timed" &&
+                                  timedTiming &&
+                                  !timedTiming.completedBeforeExpiry
+                                ? "Timer Expired ✓"
+                                : "Student Finished ✓"
+                              : "Student Finished"}
+                      </button>
+                      {currentTimingMode === "passive_baseline" &&
+                        !timingBoundaryCaptured && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void finishOpportunityTiming("technical_failure")
+                            }
+                            disabled={
+                              passiveAttemptPersisting ||
+                              !activePassiveAttempt ||
+                              Boolean(activePassiveAttempt.frozenAttempt)
+                            }
+                            className="rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50 disabled:cursor-default disabled:opacity-60"
+                          >
+                            Technical Timing Failure
+                          </button>
+                        )}
+                    </div>
                   </div>
                 </div>
               )}
