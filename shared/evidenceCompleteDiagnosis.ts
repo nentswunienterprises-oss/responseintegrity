@@ -127,6 +127,7 @@ export type DiagnosisPhaseSupportEvidence = {
 
 export type EvidenceCompleteDiagnosisState = {
   recommendedStartingPhase: TopicPhase | null;
+  inheritedTimingBaselineSeconds: number | null;
   evidence: DiagnosisEvidenceEvent[];
   probeHistory: DiagnosisProbeResult[];
 };
@@ -136,6 +137,7 @@ export type DiagnosisTimingBaselineStatus = {
   sampleCount: number;
   ready: boolean;
   baselineSeconds: number | null;
+  source: "inherited_contract" | "diagnosis_run" | "none";
 };
 
 export type EvidenceCompleteDiagnosisDecision = {
@@ -361,6 +363,17 @@ export const getDiagnosisBaselineTimingSamples = (
 export const getDiagnosisTimingBaselineStatus = (
   state: EvidenceCompleteDiagnosisState,
 ): DiagnosisTimingBaselineStatus => {
+  const inheritedSeconds = Number(state.inheritedTimingBaselineSeconds);
+  if (Number.isFinite(inheritedSeconds) && inheritedSeconds > 0) {
+    return {
+      requiredSampleCount: TPS_BASELINE_SAMPLE_SIZE,
+      sampleCount: TPS_BASELINE_SAMPLE_SIZE,
+      ready: true,
+      baselineSeconds: Math.max(1, Math.round(inheritedSeconds)),
+      source: "inherited_contract",
+    };
+  }
+
   const samples = getDiagnosisBaselineTimingSamples(state).slice(-TPS_BASELINE_SAMPLE_SIZE);
   if (samples.length < TPS_BASELINE_SAMPLE_SIZE) {
     return {
@@ -368,6 +381,7 @@ export const getDiagnosisTimingBaselineStatus = (
       sampleCount: samples.length,
       ready: false,
       baselineSeconds: null,
+      source: "none",
     };
   }
 
@@ -380,6 +394,7 @@ export const getDiagnosisTimingBaselineStatus = (
     sampleCount: samples.length,
     ready: true,
     baselineSeconds: Math.max(1, Math.round(medianMs / 1000)),
+    source: "diagnosis_run",
   };
 };
 
@@ -390,8 +405,14 @@ export const isDiagnosisTimedProbe = (probeId: DiagnosisProbeId) => {
 
 export const createEvidenceCompleteDiagnosisState = (
   recommendedStartingPhase: TopicPhase | null,
+  inheritedTimingBaselineSeconds: number | null = null,
 ): EvidenceCompleteDiagnosisState => ({
   recommendedStartingPhase,
+  inheritedTimingBaselineSeconds:
+    Number.isFinite(Number(inheritedTimingBaselineSeconds)) &&
+    Number(inheritedTimingBaselineSeconds) > 0
+      ? Math.max(1, Math.round(Number(inheritedTimingBaselineSeconds)))
+      : null,
   evidence: [],
   probeHistory: [],
 });
