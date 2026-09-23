@@ -92,6 +92,10 @@ import {
 } from "@shared/topicReference";
 import type { EvidenceLedgerProjectionInput } from "@shared/responseIntegrityEvidenceLedger";
 import {
+  deriveStructuredExecutionEpochKeyForTraining,
+  validateTrainingPassiveTimingSubmission,
+} from "@shared/tpsTimingRuntime";
+import {
   buildStartingPhaseRationale,
   getResponseSymptomLabels,
   normalizeResponseSymptoms,
@@ -8731,6 +8735,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 if (drillValidationError) {
                   throw new Error(`Validation error for ${normalizedTopic}: ${drillValidationError}`);
                 }
+                const passiveTimingValidationError = validateTrainingPassiveTimingSubmission({
+                  observedPhase,
+                  sets: drillSets,
+                });
+                if (passiveTimingValidationError) {
+                  return res.status(400).json({
+                    message: `Timing evidence invalid for ${normalizedTopic}: ${passiveTimingValidationError}`,
+                  });
+                }
 
                 // Get current topic state
                 const existing = topicsStore[normalizedTopic] && typeof topicsStore[normalizedTopic] === "object"
@@ -8758,6 +8771,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 } else if (previousStability === "Low") {
                   priorConsecutiveLows = 1;
                 }
+
+                const tpsTimingSourceEpochKey = deriveStructuredExecutionEpochKeyForTraining({
+                  history: existingHistory,
+                  observedPhase: effectivePhase,
+                });
 
                 const trainingSummary = computeTrainingSessionSummary(
                   effectivePhase,
@@ -8793,6 +8811,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   responseSnapshot,
                   sessionId: sessionId,
                   scheduledSessionId: scheduledSessionRecordId,
+                  tpsTimingAuthority: tpsTimingSourceEpochKey
+                    ? {
+                        version: 1,
+                        source: "training_independent_execution",
+                        sourceEpochKey: tpsTimingSourceEpochKey,
+                        measurementBoundary: "begin_to_student_finished",
+                        assignedBy: "server",
+                      }
+                    : null,
                 };
                 const inserted = isEmergencyDbMode()
                   ? (await emergencyDbClient!.query(
