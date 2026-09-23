@@ -710,11 +710,91 @@ async function ensureIntroDrill(input: {
   return { summary, responseSnapshot, observedAt };
 }
 
+const boundTimingBaselineSeconds = (run: DiagnosisRunRow | null) => {
+  const value = Number(run?.timing_authority_baseline_seconds);
+  return Number.isFinite(value) && value > 0 ? Math.max(1, Math.round(value)) : null;
+};
+
+const resolveBoundTimingAuthority = async ({
+  run,
+  studentId,
+  topic,
+  startingPhase,
+}: {
+  run: DiagnosisRunRow | null;
+  studentId: string;
+  topic: string;
+  startingPhase: TopicPhase;
+}): Promise<PersistedTpsTimerContract | null> => {
+  const boundContractId = String(run?.timing_authority_contract_id || "").trim();
+  if (boundContractId) {
+    const bound = await loadTpsTimerContractById(boundContractId);
+    if (!bound) {
+      throw new Error("The Timer Contract bound to this diagnosis run is missing.");
+    }
+    if (
+      String(bound.studentId) !== String(studentId) ||
+      bound.topic.trim().toLowerCase() !== topic.trim().toLowerCase()
+    ) {
+      throw new Error("The Timer Contract bound to this diagnosis run does not match the student/topic.");
+    }
+    return bound;
+  }
+
+  if (run) return null;
+  if (startingPhase !== "Controlled Discomfort" && startingPhase !== "Time Pressure Stability") {
+    return null;
+  }
+  return loadLatestTpsTimerContract({ studentId, topic });
+};
+
+const responseForLegacyCompletedRun = (run: DiagnosisRunRow) => {
+  const history = parseJsonValue<DiagnosisProbeResult[]>(run.probe_history, []);
+  const storedDecision = parseJsonValue<Record<string, any>>(run.decision, {});
+  const placementPhase = tryParsePhase(storedDecision.placementPhase);
+  const stability = String(storedDecision.stability || "").trim();
+  return {
+    success: true,
+    runId: run.id,
+    finalized: true,
+    sourceDrillId: run.source_drill_id || run.id,
+    startingPhase: run.starting_phase,
+    probeHistory: history,
+    decision: {
+      ...storedDecision,
+      complete: true,
+      placementPhase: placementPhase || storedDecision.placementPhase || run.starting_phase,
+      stability: stability || null,
+      timingBaseline: {
+        requiredSampleCount: 3,
+        sampleCount: 0,
+        ready: false,
+        baselineSeconds: null,
+        source: "none",
+      },
+    },
+    nextProbe: null,
+    opportunityNumber: null,
+    opportunityPurpose: null,
+    timingAuthority: {
+      mode: "none",
+      requiredSampleCount: 3,
+      sampleCount: 0,
+      baselineReady: false,
+      baselineSeconds: null,
+      prescribedSeconds: null,
+      contractId: null,
+      legacyHistoricalRun: true,
+    },
+  };
+};
+
 const responseForReplay = (
   runId: string,
   replay: Extract<ReturnType<typeof replayEvidenceCompleteDiagnosis>, { ok: true }>,
   finalized: boolean,
   sourceDrillId?: string | null,
+  timingAuthorityContractId?: string | null,
 ) => {
   const nextProbeId = replay.decision.nextProbeId;
   const occurrenceNumber = nextProbeId
@@ -752,6 +832,8 @@ const responseForReplay = (
         currentProbeTimingMode === "timed"
           ? replay.decision.timingBaseline.baselineSeconds
           : null,
+      contractId: timingAuthorityContractId || null,
+      legacyHistoricalRun: false,
     },
   };
 };
