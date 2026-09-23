@@ -1134,7 +1134,7 @@ Purpose:
 
 Rep instruction:
 
-- state steps first, then solve
+- before solving, the student states the step plan, then solves using that plan
 
 Active rules:
 

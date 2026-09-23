@@ -12,6 +12,8 @@ import {
   evaluateTrainingEvidence,
   evaluateTrainingEvidenceShadow,
   resolveTrainingEvidenceAuthorityRoute,
+  trainingDimensionForFieldKey,
+  trainingEvidenceClassForRawBehavior,
   trainingRawObservationRequiresPrerequisiteSentinel,
 } from "./trainingEvidenceEvaluator";
 import {
@@ -20,6 +22,34 @@ import {
   trainingEvidenceStatusKey,
 } from "./trainingEvidenceCapture";
 import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
+
+test("all registered training raw options map into evidence classes", () => {
+  const phases: TopicPhase[] = [
+    "Clarity",
+    "Structured Execution",
+    "Controlled Discomfort",
+    "Time Pressure Stability",
+  ];
+
+  phases.forEach((phase) => {
+    const schema = getDrillSchemaDefinition("training", phase);
+    schema.sets.forEach((setDefinition) => {
+      if (setDefinition.modelingOnly) return;
+
+      setDefinition.fields.forEach((field) => {
+        const dimensionId = trainingDimensionForFieldKey(field.fieldKey);
+        assert.ok(dimensionId, `Expected dimension mapping for ${phase} / ${setDefinition.setId} / ${field.fieldKey}`);
+
+        field.optionLabels?.forEach((rawOption) => {
+          assert.ok(
+            trainingEvidenceClassForRawBehavior(dimensionId, rawOption),
+            `Expected evidence class for ${phase} / ${setDefinition.setId} / ${field.fieldKey}: ${rawOption}`,
+          );
+        });
+      });
+    });
+  });
+});
 
 const buildTrainingSets = ({
   phase,

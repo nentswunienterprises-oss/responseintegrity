@@ -433,7 +433,7 @@ const TRAINING_SETS: Record<TopicPhase, EvidenceSetDefinition[]> = {
     set({
       setId: "structured_execution.independent_execution",
       setName: "Independent Execution",
-      purpose: "Test repeated full execution without tutor help.",
+      purpose: "Test repeated full execution without Specialist help.",
       reps: 3,
       fields: structuredExecutionFields().map((definition) =>
         definition.fieldKey === "stepExecution"

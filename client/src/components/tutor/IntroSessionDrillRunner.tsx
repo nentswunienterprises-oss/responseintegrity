@@ -150,6 +150,12 @@ function describeTrainingObservationQuestion(fieldKey: string, label: string) {
   if (fieldKey === "repeatability" && label.includes("Step Statement Accuracy")) {
     return "How accurate was the student's stated step plan before solving?";
   }
+  if (fieldKey === "independence" && label.includes("Independent Completion")) {
+    return "How independently did the student complete the transfer?";
+  }
+  if (fieldKey === "rescueDependence" && label.includes("Rescue Dependence")) {
+    return "How dependent was the student on rescue under difficulty?";
+  }
 
   const questions: Record<string, string> = {
     vocabulary: "How did the student recognize the problem type or required vocabulary?",
@@ -686,7 +692,7 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       observationBlock: [
         { key: "stepExecution", label: "Transfer", options: ["cannot adapt", "partial", "adapts"] },
         { key: "repeatability", label: "Step Retention", options: ["lost", "partial", "stable"] },
-        { key: "independence", label: "Independence", options: ["fails", "partial", "complete"] },
+        { key: "independence", label: "Independent Completion", options: ["fails", "partial", "complete"] },
         { key: "startBehavior", label: "Start", options: ["delayed", "hesitant", "immediate"] },
       ],
     },
@@ -712,7 +718,7 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       repInstruction: "Continue. No full help.",
       activeRules: ["No rescue allowed", "Hold the hold - do not relieve", "Observe rescue-seeking pattern"],
       observationBlock: [
-        { key: "rescueDependence", label: "Independence", options: ["dependent", "partial", "independent"] },
+        { key: "rescueDependence", label: "Rescue Dependence", options: ["dependent", "partial", "independent"] },
         { key: "discomfortTolerance", label: "Stability", options: ["breaks", "unstable", "stable"] },
         {
           key: "initialResponse",
