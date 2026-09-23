@@ -1007,6 +1007,39 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           if (prefixError) return res.status(409).json({ message: prefixError });
         }
 
+        let effectiveTimingContract = preexistingTimingContract;
+        if (
+          !effectiveTimingContract &&
+          replay.decision.timingBaseline.ready &&
+          replay.decision.timingBaseline.source === "diagnosis_run"
+        ) {
+          const diagnosisContract = deriveDiagnosisTpsTimerContract({
+            state: replay.state,
+            studentId,
+            topic,
+            sourceEpochKey: `diagnosis-v1:${runId}`,
+            baselineGroupId: `diagnosis:${runId}`,
+          });
+          if (!diagnosisContract) {
+            return res.status(409).json({
+              message:
+                "Diagnosis timing evidence reports ready but the Timer Contract could not be derived. Do not run a timed probe.",
+            });
+          }
+          effectiveTimingContract = await persistTpsTimerContract({
+            contract: diagnosisContract,
+            tutorId,
+          });
+        }
+
+        const effectiveTimingContractId =
+          effectiveTimingContract?.contractId ||
+          existingRun?.timing_authority_contract_id ||
+          null;
+        const effectiveTimingBaselineSeconds =
+          effectiveTimingContract?.baselineSeconds ??
+          boundTimingBaselineSeconds(existingRun);
+
         const effectiveScheduledSessionId =
           String(existingRun?.scheduled_session_id || scheduledSessionId || "").trim() || null;
         const effectiveRequestedKind =
@@ -1045,10 +1078,21 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           status: runStatus,
           probeHistory: replay.state.probeHistory,
           decision: replay.decision as unknown as Record<string, unknown>,
+          timingPolicyVersion: 1,
+          timingAuthorityContractId: effectiveTimingContractId,
+          timingAuthorityBaselineSeconds: effectiveTimingBaselineSeconds,
         });
 
         if (!replay.decision.complete) {
-          return res.json(responseForReplay(runId, replay, false));
+          return res.json(
+            responseForReplay(
+              runId,
+              replay,
+              false,
+              null,
+              effectiveTimingContractId,
+            ),
+          );
         }
 
         const finalized = await ensureIntroDrill({
@@ -1075,10 +1119,19 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           decision: replay.decision as unknown as Record<string, unknown>,
           sourceDrillId: runId,
           completedAt: finalized.observedAt,
+          timingPolicyVersion: 1,
+          timingAuthorityContractId: effectiveTimingContractId,
+          timingAuthorityBaselineSeconds: effectiveTimingBaselineSeconds,
         });
 
         return res.json({
-          ...responseForReplay(runId, replay, true, runId),
+          ...responseForReplay(
+            runId,
+            replay,
+            true,
+            runId,
+            effectiveTimingContractId,
+          ),
           summary: finalized.summary,
           responseSnapshot: finalized.responseSnapshot,
         });
