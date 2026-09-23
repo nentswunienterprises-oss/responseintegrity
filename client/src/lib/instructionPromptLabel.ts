@@ -17,3 +17,14 @@ export function instructionPromptLabelFor(instruction: string): InstructionPromp
   if (asksForSpeech) return "SAY";
   return "DO THIS NOW";
 }
+
+export function instructionPromptDisplayText(instruction: string): string {
+  const trimmed = instruction.trim();
+  if (!trimmed) return instruction;
+
+  const label = instructionPromptLabelFor(trimmed);
+  const alreadyQuoted = trimmed.startsWith('"') && trimmed.endsWith('"');
+  if (label.includes("SAY") && !alreadyQuoted) return `"${trimmed}"`;
+
+  return instruction;
+}
