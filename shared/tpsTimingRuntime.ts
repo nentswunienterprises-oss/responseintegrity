@@ -20,6 +20,113 @@ type StoredDrillRow = {
 const clean = (value: unknown) => String(value ?? "").trim();
 const topicKey = (value: unknown) => clean(value).toLowerCase();
 
+const STRUCTURED_EXECUTION_PHASE = "Structured Execution";
+
+export const deriveStructuredExecutionEpochKeyForTraining = ({
+  history,
+  observedPhase,
+}: {
+  history: Array<{ phase?: unknown; date?: unknown }>;
+  observedPhase: string;
+}): string | null => {
+  if (clean(observedPhase) !== STRUCTURED_EXECUTION_PHASE) return null;
+
+  const ordered = [...(Array.isArray(history) ? history : [])].sort((left, right) => {
+    const leftMs = Date.parse(clean(left?.date));
+    const rightMs = Date.parse(clean(right?.date));
+    if (!Number.isFinite(leftMs) && !Number.isFinite(rightMs)) return 0;
+    if (!Number.isFinite(leftMs)) return 1;
+    if (!Number.isFinite(rightMs)) return -1;
+    return leftMs - rightMs;
+  });
+
+  let entriesIntoStructuredExecution = 0;
+  let previousPhase = "";
+  for (const entry of ordered) {
+    const phase = clean(entry?.phase);
+    if (phase === STRUCTURED_EXECUTION_PHASE && previousPhase !== STRUCTURED_EXECUTION_PHASE) {
+      entriesIntoStructuredExecution += 1;
+    }
+    if (phase) previousPhase = phase;
+  }
+
+  const latestPhase = [...ordered]
+    .reverse()
+    .map((entry) => clean(entry?.phase))
+    .find(Boolean) || "";
+
+  const epochNumber =
+    latestPhase === STRUCTURED_EXECUTION_PHASE
+      ? Math.max(1, entriesIntoStructuredExecution)
+      : entriesIntoStructuredExecution + 1;
+
+  return `se-v1-epoch-${epochNumber}`;
+};
+
+export const validateTrainingPassiveTimingSubmission = ({
+  observedPhase,
+  sets,
+}: {
+  observedPhase: string;
+  sets: any[];
+}): string | null => {
+  const normalizedSets = Array.isArray(sets) ? sets : [];
+  const passiveTimingOccurrences: Array<{ setId: string; repNumber: number; raw: unknown }> = [];
+
+  normalizedSets.forEach((set: any) => {
+    const setId = clean(set?.setId);
+    const observations = Array.isArray(set?.observations) ? set.observations : [];
+    observations.forEach((rep: any, index: number) => {
+      const raw = rep?.[PASSIVE_EXECUTION_TIMING_WIRE_KEY];
+      if (raw !== undefined && clean(raw)) {
+        passiveTimingOccurrences.push({
+          setId,
+          repNumber: Number(rep?._rep_number || index + 1),
+          raw,
+        });
+      }
+    });
+  });
+
+  if (clean(observedPhase) !== STRUCTURED_EXECUTION_PHASE) {
+    return passiveTimingOccurrences.length > 0
+      ? "Passive TPS baseline timing is only valid inside Structured Execution Independent Execution."
+      : null;
+  }
+
+  const wrongSetTiming = passiveTimingOccurrences.find(
+    (occurrence) => occurrence.setId !== TPS_TRAINING_BASELINE_SET_ID,
+  );
+  if (wrongSetTiming) {
+    return `Passive baseline timing cannot be recorded in ${wrongSetTiming.setId || "an unknown set"}; only Independent Execution is eligible.`;
+  }
+
+  const independentSet = normalizedSets.find(
+    (set: any) => clean(set?.setId) === TPS_TRAINING_BASELINE_SET_ID,
+  );
+  if (!independentSet) {
+    return "Structured Execution is missing its canonical Independent Execution set.";
+  }
+
+  const observations = Array.isArray(independentSet.observations)
+    ? independentSet.observations
+    : [];
+  if (observations.length !== 3) {
+    return "Structured Execution Independent Execution must contain exactly three canonical reps.";
+  }
+
+  for (let index = 0; index < observations.length; index += 1) {
+    const timing = decodePassiveExecutionTimingEvidence(
+      observations[index]?.[PASSIVE_EXECUTION_TIMING_WIRE_KEY],
+    );
+    if (!timing) {
+      return `Independent Execution Rep ${index + 1} is missing valid Begin Rep -> Student Finished timing evidence.`;
+    }
+  }
+
+  return null;
+};
+
 const parseDrill = (value: unknown): Record<string, any> | null => {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     return value as Record<string, any>;
@@ -68,6 +175,7 @@ export const collectTrainingTpsBaselineTimingRecords = ({
     if (!drill) continue;
     if (clean(drill.drillType).toLowerCase() !== "training") continue;
     if (topicKey(drill.trainingTopic || drill.introTopic) !== topicKey(topic)) continue;
+    if (clean(drill.tpsTimingAuthority?.sourceEpochKey) !== sourceEpochKey) continue;
 
     const observedPhase = clean(drill.summary?.observedPhase || drill.phase);
     if (observedPhase !== "Structured Execution") continue;
@@ -99,7 +207,7 @@ export const collectTrainingTpsBaselineTimingRecords = ({
         studentId,
         topic: clean(drill.trainingTopic || drill.introTopic),
         source: "training",
-        sourceEpochKey,
+        sourceEpochKey: clean(drill.tpsTimingAuthority?.sourceEpochKey),
         baselineGroupId,
         baselineSlot: slot,
         attemptNumber: 1,
