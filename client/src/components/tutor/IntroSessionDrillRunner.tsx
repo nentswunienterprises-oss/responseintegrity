@@ -48,6 +48,12 @@ import {
   trainingRawObservationRequiresPrerequisiteSentinel,
 } from "@shared/trainingEvidenceEvaluator";
 import { evaluateHandoverVerificationEvidence } from "@shared/handoverEvidenceEvaluator";
+import {
+  PASSIVE_EXECUTION_TIMING_WIRE_KEY,
+  TPS_TRAINING_BASELINE_SET_ID,
+  buildPassiveExecutionTimingEvidence,
+  encodePassiveExecutionTimingEvidence,
+} from "@shared/tpsTimingContract";
 
 type PhaseLabel = "Clarity" | "Structured Execution" | "Controlled Discomfort" | "Time Pressure Stability";
 type DrillMode = "diagnosis" | "training" | "session" | "handover";
@@ -932,6 +938,7 @@ export default function IntroSessionDrillRunner() {
     reference: TopicReference;
   } | null>(null);
   const [repStarted, setRepStarted] = useState(false);
+  const passiveTimingStartedAtRef = useRef<Record<string, string>>({});
   const [supportPickerOpen, setSupportPickerOpen] = useState(false);
   const [showEvidenceExceptions, setShowEvidenceExceptions] = useState(false);
 
@@ -1157,6 +1164,21 @@ export default function IntroSessionDrillRunner() {
   const set = drillStructure?.[currentSet] ?? null;
   const isModelingSet = !!set?.isModelingSet;
   const isTrainingEvidenceCapture = modeToUse === "training" || isSessionMode;
+  const activeRegistrySet = set
+    ? getDrillSchemaDefinition(evidenceModeForSubmission, displayPhase).sets.find(
+        (candidate) => candidate.setName === set.setName,
+      ) || null
+    : null;
+  const activeRepRequiresPassiveTiming =
+    isTrainingEvidenceCapture &&
+    displayPhase === "Structured Execution" &&
+    activeRegistrySet?.setId === TPS_TRAINING_BASELINE_SET_ID;
+  const passiveTimingObservationKey = (setIndex: number, repIndex: number) =>
+    `set${setIndex}_rep${repIndex}_${PASSIVE_EXECUTION_TIMING_WIRE_KEY}`;
+  const activePassiveTimingKey = passiveTimingObservationKey(currentSet, currentRep);
+  const activePassiveTimingCaptured = Boolean(
+    String(observations[activePassiveTimingKey] || "").trim(),
+  );
   const isHandoverContinuityVerification = isHandoverMode && !handoverReDiagnosisMode;
   const isFirstRep = currentRep === 0;
   const isFirstSet = currentSet === 0;
@@ -1208,6 +1230,41 @@ export default function IntroSessionDrillRunner() {
     setSupportPickerOpen(false);
     setShowEvidenceExceptions(false);
   }, [currentSet, currentRep, sessionTopicIndex, activeDiagnosisPhase, currentTopicName]);
+
+  const beginTrainingRep = () => {
+    if (activeRepRequiresPassiveTiming) {
+      const startedAt = new Date().toISOString();
+      passiveTimingStartedAtRef.current[activePassiveTimingKey] = startedAt;
+      setObservations((current: any) => {
+        const next = { ...current };
+        delete next[activePassiveTimingKey];
+        return next;
+      });
+    }
+    setRepStarted(true);
+  };
+
+  const finishActivePassiveTiming = () => {
+    if (!activeRepRequiresPassiveTiming || activePassiveTimingCaptured) return;
+    const startedAt = passiveTimingStartedAtRef.current[activePassiveTimingKey];
+    if (!startedAt) {
+      setSubmitError("This execution boundary did not start correctly. Restart the rep before recording observations.");
+      return;
+    }
+    const evidence = buildPassiveExecutionTimingEvidence({
+      startedAt,
+      endedAt: new Date().toISOString(),
+    });
+    if (!evidence) {
+      setSubmitError("The passive execution interval could not be recorded. Restart the rep.");
+      return;
+    }
+    setObservations((current: any) => ({
+      ...current,
+      [activePassiveTimingKey]: encodePassiveExecutionTimingEvidence(evidence),
+    }));
+    setSubmitError(null);
+  };
 
   useEffect(() => {
     if (!submitSuccess) return;
@@ -1546,6 +1603,17 @@ export default function IntroSessionDrillRunner() {
           if (prerequisiteSentinel) {
             obs[TRAINING_PREREQUISITE_SENTINEL_FIELD] = prerequisiteSentinel;
           }
+          if (
+            displayPhase === "Structured Execution" &&
+            registrySet?.setId === TPS_TRAINING_BASELINE_SET_ID
+          ) {
+            const timingEvidence = String(
+              observations[passiveTimingObservationKey(setIndex, repIdx)] || "",
+            ).trim();
+            if (timingEvidence) {
+              obs[PASSIVE_EXECUTION_TIMING_WIRE_KEY] = timingEvidence;
+            }
+          }
         }
         observationBlock.forEach((block) => {
           if (isTrainingEvidenceCapture) {
@@ -1672,6 +1740,13 @@ export default function IntroSessionDrillRunner() {
 
     if (shouldShowTopicReferenceCapture) {
       setTopicReferenceError("Save the Topic Reference before starting the scored drill sets.");
+      return;
+    }
+
+    if (activeRepRequiresPassiveTiming && !activePassiveTimingCaptured) {
+      setSubmitError(
+        "Mark Student Finished before confirming this Independent Execution rep so Specialist admin time is excluded from the student's baseline.",
+      );
       return;
     }
 
@@ -2836,7 +2911,7 @@ export default function IntroSessionDrillRunner() {
             <button
               type="button"
               className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-              onClick={() => setRepStarted(true)}
+              onClick={beginTrainingRep}
             >
               Begin Rep {currentRep + 1}
             </button>
@@ -2850,6 +2925,33 @@ export default function IntroSessionDrillRunner() {
           <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">Observe</span>
           <span className="text-primary/30">→</span>
           <span>Confirm</span>
+        </div>
+      )}
+
+      {activeRepRequiresPassiveTiming && repStarted && (
+        <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                Passive baseline measurement
+              </div>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                No countdown and no time target. Let the student execute naturally. The system began measuring at Begin Rep.
+                Freeze the interval the moment the student's mathematical execution ends, before finishing observation admin.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="shrink-0 rounded-md border border-primary/20 bg-background px-4 py-2 text-sm font-semibold hover:bg-primary/5 disabled:cursor-default disabled:opacity-70"
+              onClick={finishActivePassiveTiming}
+              disabled={activePassiveTimingCaptured}
+            >
+              {activePassiveTimingCaptured ? "Student Finished ✓" : "Student Finished"}
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Do not rush the student because timing is being measured, and do not let avoidable dead time enter the execution interval.
+          </p>
         </div>
       )}
 
@@ -3101,7 +3203,17 @@ export default function IntroSessionDrillRunner() {
             submitSuccess ? "bg-primary cursor-default" : "bg-primary hover:bg-primary/90"
           }`}
           onClick={handleNext}
-          disabled={submitting || submitSuccess || topicReferenceSaving || (!isSessionMode && !hasIntroTopic) || (modeToUse === "training" && topicDataLoading && !shouldShowTopicReferenceCapture) || !drillStructure || !set || shouldShowTopicReferenceCapture}
+          disabled={
+            submitting ||
+            submitSuccess ||
+            topicReferenceSaving ||
+            (!isSessionMode && !hasIntroTopic) ||
+            (modeToUse === "training" && topicDataLoading && !shouldShowTopicReferenceCapture) ||
+            !drillStructure ||
+            !set ||
+            shouldShowTopicReferenceCapture ||
+            (activeRepRequiresPassiveTiming && !activePassiveTimingCaptured)
+          }
         >
           {submitSuccess
             ? "Submitted"
