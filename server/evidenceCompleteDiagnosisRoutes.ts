@@ -855,8 +855,22 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           return res.status(403).json({ message: "Diagnosis run does not belong to this specialist" });
         }
 
+        if (run.status === "completed" && run.timing_policy_version !== 1) {
+          return res.json(responseForLegacyCompletedRun(run));
+        }
+
         const history = parseJsonValue<DiagnosisProbeResult[]>(run.probe_history, []);
-        const replay = replayEvidenceCompleteDiagnosis(run.starting_phase, history);
+        const boundContract = await resolveBoundTimingAuthority({
+          run,
+          studentId: run.student_id,
+          topic: run.topic,
+          startingPhase: run.starting_phase,
+        });
+        const replay = replayEvidenceCompleteDiagnosis(
+          run.starting_phase,
+          history,
+          boundContract?.baselineSeconds ?? boundTimingBaselineSeconds(run),
+        );
         if (replay.ok === false) {
           return res.status(409).json({ message: `Stored diagnosis evidence is invalid: ${replay.error}` });
         }
@@ -866,6 +880,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           replay,
           run.status === "completed",
           run.source_drill_id,
+          boundContract?.contractId || run.timing_authority_contract_id || null,
         ));
       } catch (error) {
         console.error("[EVIDENCE_DIAGNOSIS] load failed", error);
@@ -936,8 +951,22 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           }
 
           if (existingRun.status === "completed") {
+            if (existingRun.timing_policy_version !== 1) {
+              return res.json(responseForLegacyCompletedRun(existingRun));
+            }
             const storedHistory = parseJsonValue<DiagnosisProbeResult[]>(existingRun.probe_history, []);
-            const storedReplay = replayEvidenceCompleteDiagnosis(existingRun.starting_phase, storedHistory);
+            const completedBoundContract = await resolveBoundTimingAuthority({
+              run: existingRun,
+              studentId,
+              topic,
+              startingPhase,
+            });
+            const storedReplay = replayEvidenceCompleteDiagnosis(
+              existingRun.starting_phase,
+              storedHistory,
+              completedBoundContract?.baselineSeconds ??
+                boundTimingBaselineSeconds(existingRun),
+            );
             if (storedReplay.ok === false) {
               return res.status(409).json({ message: "Completed diagnosis evidence is internally inconsistent" });
             }
@@ -946,11 +975,25 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
               storedReplay,
               true,
               existingRun.source_drill_id || runId,
+              completedBoundContract?.contractId ||
+                existingRun.timing_authority_contract_id ||
+                null,
             ));
           }
         }
 
-        const replay = replayEvidenceCompleteDiagnosis(startingPhase, req.body?.probeHistory || []);
+        const preexistingTimingContract = await resolveBoundTimingAuthority({
+          run: existingRun,
+          studentId,
+          topic,
+          startingPhase,
+        });
+        const replay = replayEvidenceCompleteDiagnosis(
+          startingPhase,
+          req.body?.probeHistory || [],
+          preexistingTimingContract?.baselineSeconds ??
+            boundTimingBaselineSeconds(existingRun),
+        );
         if (replay.ok === false) {
           return res.status(400).json({
             message: replay.error,
