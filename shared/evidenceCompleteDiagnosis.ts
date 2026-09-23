@@ -1,5 +1,11 @@
 import { PHASES, type TopicPhase, type TopicStability } from "./topicConditioningEngine";
 import {
+  TPS_BASELINE_SAMPLE_SIZE,
+  type PassiveExecutionTimingEvidenceV1,
+  type TimedExecutionEvidenceV1,
+  type TpsPassiveAttemptEvidenceRefV1,
+} from "./tpsTimingContract";
+import {
   DIAGNOSIS_OBSERVATION_MATRIX,
   behaviorClassToDiagnosisStability,
   getDiagnosisObservationOption,
@@ -55,6 +61,9 @@ export type DiagnosisProbeResult = {
   probeId: DiagnosisProbeId;
   observations: DiagnosisProbeObservation[];
   supportEvent?: DiagnosisSupportEvent;
+  passiveTiming?: PassiveExecutionTimingEvidenceV1;
+  passiveTimingAttempt?: TpsPassiveAttemptEvidenceRefV1;
+  timedTiming?: TimedExecutionEvidenceV1;
 };
 
 export type DiagnosisEvidenceEvent = DiagnosisProbeObservation & {
@@ -120,8 +129,17 @@ export type DiagnosisPhaseSupportEvidence = {
 
 export type EvidenceCompleteDiagnosisState = {
   recommendedStartingPhase: TopicPhase | null;
+  inheritedTimingBaselineSeconds: number | null;
   evidence: DiagnosisEvidenceEvent[];
   probeHistory: DiagnosisProbeResult[];
+};
+
+export type DiagnosisTimingBaselineStatus = {
+  requiredSampleCount: typeof TPS_BASELINE_SAMPLE_SIZE;
+  sampleCount: number;
+  ready: boolean;
+  baselineSeconds: number | null;
+  source: "inherited_contract" | "diagnosis_run" | "none";
 };
 
 export type EvidenceCompleteDiagnosisDecision = {
@@ -135,6 +153,7 @@ export type EvidenceCompleteDiagnosisDecision = {
   placementEvidence: DiagnosisPlacementEvidence[];
   cleanProbeCount: number;
   contaminatedProbeCount: number;
+  timingBaseline: DiagnosisTimingBaselineStatus;
   decisionAuthority: "behavioral_evidence";
 };
 
@@ -237,6 +256,7 @@ export const DIAGNOSIS_PROBES: Record<DiagnosisProbeId, DiagnosisProbeDefinition
       "Independent baseline with difficulty and time removed.",
       "Confirmation only if immediate execution evidence remains unresolved.",
     ],
+    "same_form",
   ),
   "clarity.recognition": probe(
     "clarity.recognition",
@@ -258,15 +278,17 @@ export const DIAGNOSIS_PROBES: Record<DiagnosisProbeId, DiagnosisProbeDefinition
     "Execution Repeatability Probe",
     "Structured Execution",
     "Does independent execution repeat without the system teaching it?",
-    "Give another comparable normal problem. No method prompts. Compare the execution with the earlier independent opportunity and record what actually repeated.",
+    "Give another comparable normal same-form problem. No method prompts. Compare the execution with the earlier independent opportunity and record what actually repeated.",
     BY_PHASE["Structured Execution"],
     "none",
     "normal",
     [
       "Repeatability confirmation against the earlier execution opportunity.",
-      "Conflict resolution only.",
+      "Complete only the remaining clean comparable baseline measurement when above-Structured-Execution placement requires it.",
+      "Complete only the remaining clean comparable baseline measurement when above-Structured-Execution placement still requires it.",
     ],
-    "changed_form",
+    "same_form",
+    3,
   ),
   "difficulty.recovery": probe(
     "difficulty.recovery",
@@ -301,10 +323,98 @@ export const DIAGNOSIS_PROBES: Record<DiagnosisProbeId, DiagnosisProbeDefinition
 const contaminated = (event: DiagnosisSupportEvent) =>
   event === "first_step_confirmation" || event === "teaching";
 
+const cleanSupportForTiming = (event: DiagnosisSupportEvent) =>
+  event === "none" || event === "neutral_clarification";
+
+const DIAGNOSIS_BASELINE_PROBES = new Set<DiagnosisProbeId>([
+  "stack.normal_independent",
+  "execution.repeatability",
+]);
+
+export const isDiagnosisBaselineTimingOpportunity = (probeId: DiagnosisProbeId) => {
+  const definition = DIAGNOSIS_PROBES[probeId];
+  return (
+    DIAGNOSIS_BASELINE_PROBES.has(probeId) &&
+    definition.constraints.pressureLevel === "none" &&
+    definition.constraints.difficultyLevel === "normal" &&
+    definition.constraints.variationLevel === "same_form"
+  );
+};
+
+const isSupportedDiagnosisTimingSample = (result: DiagnosisProbeResult) => {
+  if (!isDiagnosisBaselineTimingOpportunity(result.probeId)) return false;
+  if (!result.passiveTiming || result.passiveTiming.timingValidity !== "valid") return false;
+  if (!cleanSupportForTiming(result.supportEvent || "none")) return false;
+
+  const definition = DIAGNOSIS_PROBES[result.probeId];
+  if (result.observations.length !== definition.dimensions.length) return false;
+
+  return result.observations.every((observation) => {
+    const option = getDiagnosisObservationOption(
+      observation.dimensionId,
+      observation.behaviorId,
+    );
+    return option?.behaviorClass === "supported";
+  });
+};
+
+export const getDiagnosisBaselineTimingSamples = (
+  state: EvidenceCompleteDiagnosisState,
+) => state.probeHistory.filter(isSupportedDiagnosisTimingSample);
+
+export const getDiagnosisTimingBaselineStatus = (
+  state: EvidenceCompleteDiagnosisState,
+): DiagnosisTimingBaselineStatus => {
+  const inheritedSeconds = Number(state.inheritedTimingBaselineSeconds);
+  if (Number.isFinite(inheritedSeconds) && inheritedSeconds > 0) {
+    return {
+      requiredSampleCount: TPS_BASELINE_SAMPLE_SIZE,
+      sampleCount: TPS_BASELINE_SAMPLE_SIZE,
+      ready: true,
+      baselineSeconds: Math.max(1, Math.round(inheritedSeconds)),
+      source: "inherited_contract",
+    };
+  }
+
+  const samples = getDiagnosisBaselineTimingSamples(state).slice(-TPS_BASELINE_SAMPLE_SIZE);
+  if (samples.length < TPS_BASELINE_SAMPLE_SIZE) {
+    return {
+      requiredSampleCount: TPS_BASELINE_SAMPLE_SIZE,
+      sampleCount: samples.length,
+      ready: false,
+      baselineSeconds: null,
+      source: "none",
+    };
+  }
+
+  const elapsed = samples
+    .map((sample) => sample.passiveTiming?.elapsedMs || 0)
+    .sort((left, right) => left - right);
+  const medianMs = elapsed[Math.floor(elapsed.length / 2)];
+  return {
+    requiredSampleCount: TPS_BASELINE_SAMPLE_SIZE,
+    sampleCount: samples.length,
+    ready: true,
+    baselineSeconds: Math.max(1, Math.round(medianMs / 1000)),
+    source: "diagnosis_run",
+  };
+};
+
+export const isDiagnosisTimedProbe = (probeId: DiagnosisProbeId) => {
+  const pressure = DIAGNOSIS_PROBES[probeId].constraints.pressureLevel;
+  return pressure === "timed" || pressure === "timed_difficulty";
+};
+
 export const createEvidenceCompleteDiagnosisState = (
   recommendedStartingPhase: TopicPhase | null,
+  inheritedTimingBaselineSeconds: number | null = null,
 ): EvidenceCompleteDiagnosisState => ({
   recommendedStartingPhase,
+  inheritedTimingBaselineSeconds:
+    Number.isFinite(Number(inheritedTimingBaselineSeconds)) &&
+    Number(inheritedTimingBaselineSeconds) > 0
+      ? Math.max(1, Math.round(Number(inheritedTimingBaselineSeconds)))
+      : null,
   evidence: [],
   probeHistory: [],
 });
@@ -471,9 +581,14 @@ function phaseState(
   };
 }
 
-function initialProbe(phase: TopicPhase | null): DiagnosisProbeId {
+function initialProbe(
+  phase: TopicPhase | null,
+  timingAuthorityReady: boolean,
+): DiagnosisProbeId {
   if (!phase) return "stack.normal_independent";
-  if (phase === "Time Pressure Stability") return "stack.timed_challenge";
+  if (phase === "Time Pressure Stability") {
+    return timingAuthorityReady ? "stack.timed_challenge" : "stack.normal_independent";
+  }
   if (phase === "Controlled Discomfort") return "stack.challenge_no_timer";
   if (phase === "Structured Execution") return "stack.normal_independent";
   return "clarity.recognition";
@@ -533,6 +648,23 @@ function safeNextProbe(
     (item) => item.probeId === proposed && !contaminated(item.supportEvent || "none"),
   ).length;
   return used < DIAGNOSIS_PROBES[proposed].maxCleanAttempts ? proposed : null;
+}
+
+function nextBaselineMeasurementProbe(
+  state: EvidenceCompleteDiagnosisState,
+): DiagnosisProbeId | null {
+  const timing = getDiagnosisTimingBaselineStatus(state);
+  if (timing.ready) return null;
+
+  const hasCleanNormalBaseline = getDiagnosisBaselineTimingSamples(state).some(
+    (result) => result.probeId === "stack.normal_independent",
+  );
+  if (!hasCleanNormalBaseline) {
+    const normal = safeNextProbe(state, "stack.normal_independent");
+    if (normal) return normal;
+  }
+
+  return safeNextProbe(state, "execution.repeatability");
 }
 
 export function getDiagnosisProbeOpportunityPurpose(
@@ -599,10 +731,12 @@ export function evaluateEvidenceCompleteDiagnosis(
     (item) => !contaminated(item.supportEvent || "none"),
   ).length;
   const contaminatedProbeCount = state.probeHistory.length - cleanProbeCount;
+  const timingBaseline = getDiagnosisTimingBaselineStatus(state);
   const base = {
     phaseStates,
     cleanProbeCount,
     contaminatedProbeCount,
+    timingBaseline,
     decisionAuthority: "behavioral_evidence" as const,
   };
 
@@ -613,10 +747,19 @@ export function evaluateEvidenceCompleteDiagnosis(
       placementPhase: null,
       stability: null,
       confidence: "insufficient",
-      nextProbeId: initialProbe(state.recommendedStartingPhase),
-      reason: state.recommendedStartingPhase
-        ? `Begin with the system-selected ${state.recommendedStartingPhase} probe. The starting signal routes the first question only; behavioral evidence decides placement.`
-        : "No starting signal is available. Begin with a neutral independent baseline that can observe Clarity and Structured Execution without adding difficulty or time.",
+      nextProbeId: initialProbe(
+        state.recommendedStartingPhase,
+        timingBaseline.ready,
+      ),
+      reason:
+        state.recommendedStartingPhase === "Time Pressure Stability" &&
+        timingBaseline.ready
+          ? `A valid individualized timing authority is already bound at ${timingBaseline.baselineSeconds}s. The TPS starting signal may therefore begin with the system-prescribed timed challenge; behavioral evidence still decides placement.`
+          : state.recommendedStartingPhase === "Time Pressure Stability"
+            ? "The TPS starting signal routes the search, but no arbitrary timer is allowed. Begin with a neutral independent baseline so the system can establish lower-layer truth and individualized timing authority before any timed probe."
+            : state.recommendedStartingPhase
+              ? `Begin with the system-selected ${state.recommendedStartingPhase} probe. The starting signal routes the first question only; behavioral evidence decides placement.`
+              : "No starting signal is available. Begin with a neutral independent baseline that can observe Clarity and Structured Execution without adding difficulty or time.",
       placementEvidence: [],
     };
   }
@@ -642,6 +785,26 @@ export function evaluateEvidenceCompleteDiagnosis(
         reason: nextProbeId
           ? `${phase} cannot be interpreted yet because ${firstEarlierNotSupported.phase} is not cleanly supported. The system is stripping constraints or requesting the smallest confirmation needed to resolve that earlier layer.`
           : `${firstEarlierNotSupported.phase} remains unresolved after the permitted clean probes. Do not guess a placement; block for evidence review.`,
+        placementEvidence: [],
+      };
+    }
+
+    const requiresTimingAuthorityBeforeDecision =
+      (phase === "Controlled Discomfort" && current.status === "unsupported") ||
+      phase === "Time Pressure Stability";
+
+    if (requiresTimingAuthorityBeforeDecision && !timingBaseline.ready) {
+      const nextProbeId = nextBaselineMeasurementProbe(state);
+      return {
+        ...base,
+        complete: false,
+        placementPhase: null,
+        stability: null,
+        confidence: "insufficient",
+        nextProbeId,
+        reason: nextProbeId
+          ? `Structured Execution is cleanly supported, but individualized timing authority is still incomplete (${timingBaseline.sampleCount}/${timingBaseline.requiredSampleCount} clean comparable independent executions). The next untimed opportunity exists only to complete that diagnosis-readiness question before above-Structured-Execution placement or timed evidence can be authoritative.`
+          : "Structured Execution is supported but individualized timing authority remains incomplete after the permitted clean comparable opportunities. Do not invent a timer or finalize an above-Structured-Execution placement; block for evidence review.",
         placementEvidence: [],
       };
     }

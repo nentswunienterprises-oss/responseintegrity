@@ -92,6 +92,16 @@ import {
 } from "@shared/topicReference";
 import type { EvidenceLedgerProjectionInput } from "@shared/responseIntegrityEvidenceLedger";
 import {
+  deriveStructuredExecutionEpochKeyForTraining,
+  deriveTrainingTpsTimerContract,
+  validateTrainingPassiveTimingSubmission,
+  type StoredDrillRow,
+} from "@shared/tpsTimingRuntime";
+import {
+  TPS_TIMER_BASELINE_INCOMPLETE,
+  resolveTpsTrainingReadiness,
+} from "@shared/tpsTrainingReadiness";
+import {
   buildStartingPhaseRationale,
   getResponseSymptomLabels,
   normalizeResponseSymptoms,
@@ -165,6 +175,15 @@ import {
   persistTrainingEvidenceShadowComparisonDirect,
   type TrainingEvidenceShadowDatasetInput,
 } from "./trainingEvidenceShadowComparison";
+import {
+  loadLatestTpsTimerContract,
+  loadTpsTimingDrillRows,
+  persistTpsTimerContract,
+  persistTpsTimerContractDirect,
+  validateTrainingPassiveTimingAttemptLineage,
+  validateTpsTrainingDrillTimedAttemptLineage,
+  type PersistedTpsTimerContract,
+} from "./tpsTimingAuthority";
 import {
   createTrialCase,
   createTrialPlacement,
@@ -8712,7 +8731,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
               // Process each drill in the session
               for (const drillData of sessionDrills) {
-                const { trainingTopic, drill, phase: rawPhase, previousStability: rawPreviousStability } = drillData;
+                const {
+                  trainingTopic,
+                  drill,
+                  phase: rawPhase,
+                  previousStability: rawPreviousStability,
+                  tpsTimingSourceContextId,
+                } = drillData;
                 const drillSets = normalizeIntroDrillSets(drill);
                 const observedPhase = parseAuthoritativePhase(rawPhase);
                 const normalizedTopic = String(trainingTopic || "").trim();
@@ -8730,6 +8755,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const drillValidationError = validateDrillStructure("training", observedPhase, drillSets);
                 if (drillValidationError) {
                   throw new Error(`Validation error for ${normalizedTopic}: ${drillValidationError}`);
+                }
+                const passiveTimingValidationError = validateTrainingPassiveTimingSubmission({
+                  observedPhase,
+                  sets: drillSets,
+                });
+                if (passiveTimingValidationError) {
+                  throw Object.assign(
+                    new Error(
+                      `Timing evidence invalid for ${normalizedTopic}: ${passiveTimingValidationError}`,
+                    ),
+                    {
+                      statusCode: 400,
+                      code: "TPS_TIMING_EVIDENCE_INVALID",
+                    },
+                  );
+                }
+
+                if (observedPhase === "Structured Execution") {
+                  const passiveTimingSourceContextId =
+                    scheduledSessionRecordId ||
+                    String(tpsTimingSourceContextId || "").trim();
+                  if (!passiveTimingSourceContextId) {
+                    throw Object.assign(
+                      new Error(
+                        `Timing evidence invalid for ${normalizedTopic}: passive baseline lineage is missing its session context.`,
+                      ),
+                      {
+                        statusCode: 400,
+                        code: "TPS_PASSIVE_TIMING_LINEAGE_INVALID",
+                      },
+                    );
+                  }
+                  const passiveTimingLineageError =
+                    await validateTrainingPassiveTimingAttemptLineage({
+                      studentId,
+                      topic: normalizedTopic,
+                      sourceContextId: passiveTimingSourceContextId,
+                      sets: drillSets,
+                    });
+                  if (passiveTimingLineageError) {
+                    throw Object.assign(
+                      new Error(
+                        `Timing evidence invalid for ${normalizedTopic}: ${passiveTimingLineageError}`,
+                      ),
+                      {
+                        statusCode: 409,
+                        code: "TPS_PASSIVE_TIMING_LINEAGE_INVALID",
+                      },
+                    );
+                  }
                 }
 
                 // Get current topic state
@@ -8759,7 +8834,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   priorConsecutiveLows = 1;
                 }
 
-                const trainingSummary = computeTrainingSessionSummary(
+                const tpsTimingSourceEpochKey = deriveStructuredExecutionEpochKeyForTraining({
+                  history: existingHistory,
+                  observedPhase: effectivePhase,
+                });
+
+                const proposedTrainingSummary = computeTrainingSessionSummary(
                   effectivePhase,
                   previousStability,
                   drillSets,
@@ -8767,6 +8847,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 );
 
                 const drillId = uuidv4();
+                let pendingTrainingTimerContract = null as ReturnType<
+                  typeof deriveTrainingTpsTimerContract
+                >;
+                let persistedTimerContract: PersistedTpsTimerContract | null = null;
+
+                const progressingFromStructuredExecution =
+                  effectivePhase === "Structured Execution" &&
+                  proposedTrainingSummary.phase === "Controlled Discomfort" &&
+                  proposedTrainingSummary.transitionReason === "phase progress";
+
+                if (progressingFromStructuredExecution && tpsTimingSourceEpochKey) {
+                  const priorTimingRows = await loadTpsTimingDrillRows({
+                    studentId,
+                    queryClient: isEmergencyDbMode() ? emergencyDbClient : null,
+                  });
+                  const currentTimingRow: StoredDrillRow = {
+                    id: drillId,
+                    student_id: studentId,
+                    submitted_at: sessionStartTime,
+                    drill: {
+                      drillType: "training",
+                      trainingTopic: normalizedTopic,
+                      phase: effectivePhase,
+                      sets: drillSets,
+                      tpsTimingAuthority: {
+                        version: 1,
+                        source: "training_independent_execution",
+                        sourceEpochKey: tpsTimingSourceEpochKey,
+                        measurementBoundary: "begin_to_student_finished",
+                        assignedBy: "server",
+                      },
+                    },
+                  };
+                  pendingTrainingTimerContract = deriveTrainingTpsTimerContract({
+                    rows: [...priorTimingRows, currentTimingRow],
+                    studentId,
+                    topic: normalizedTopic,
+                    sourceEpochKey: tpsTimingSourceEpochKey,
+                  });
+                }
+
+                const needsExistingTimerContract =
+                  effectivePhase === "Time Pressure Stability" ||
+                  effectivePhase === "Controlled Discomfort";
+
+                if (needsExistingTimerContract) {
+                  persistedTimerContract = await loadLatestTpsTimerContract({
+                    studentId,
+                    topic: normalizedTopic,
+                  });
+                }
+
+                const timingReadiness = resolveTpsTrainingReadiness({
+                  observedPhase: effectivePhase,
+                  previousStability,
+                  proposedPhase: proposedTrainingSummary.phase,
+                  proposedStability: proposedTrainingSummary.stability,
+                  transitionReason: proposedTrainingSummary.transitionReason,
+                  hasTimerContract: Boolean(persistedTimerContract),
+                  canFreezeTrainingBaseline: Boolean(pendingTrainingTimerContract),
+                });
+
+                if (timingReadiness.action === "targeted_rediagnosis") {
+                  const timingError = Object.assign(
+                    new Error(timingReadiness.reason),
+                    {
+                      statusCode: 409,
+                      code: TPS_TIMER_BASELINE_INCOMPLETE,
+                      targetedRediagnosisStartPhase:
+                        timingReadiness.targetedRediagnosisStartPhase,
+                    },
+                  );
+                  throw timingError;
+                }
+
+                if (
+                  effectivePhase === "Time Pressure Stability" &&
+                  persistedTimerContract
+                ) {
+                  const timedAttemptLineageError =
+                    await validateTpsTrainingDrillTimedAttemptLineage({
+                      contract: persistedTimerContract,
+                      sets: drillSets,
+                    });
+                  if (timedAttemptLineageError) {
+                    throw Object.assign(new Error(timedAttemptLineageError), {
+                      statusCode: 409,
+                      code: "TPS_TIMED_EVIDENCE_INVALID",
+                    });
+                  }
+                }
+
+                let trainingSummary = proposedTrainingSummary;
+                if (timingReadiness.action === "hold_structured_execution") {
+                  trainingSummary = {
+                    ...proposedTrainingSummary,
+                    phase: timingReadiness.resultingPhase,
+                    stability: timingReadiness.resultingStability,
+                    transitionReason: "remain",
+                    phaseDecision: "remain",
+                    nextAction:
+                      "Run the next legitimate Structured Execution Training cycle and preserve a complete clean Independent Execution timing set.",
+                    constraint:
+                      "Do not progress to Controlled Discomfort until the current Structured Execution epoch has a complete clean Independent Execution baseline set.",
+                    requiresTargetedRediagnosis: false,
+                    targetedRediagnosisStartPhase: null,
+                    timingReadiness: {
+                      code: timingReadiness.issueCode,
+                      status: "hold_structured_execution",
+                      reason: timingReadiness.reason,
+                    },
+                  };
+                }
+
                 const responseSnapshot = buildResponseSnapshotV1({
                   sourceDrillId: drillId,
                   topic: normalizedTopic,
@@ -8793,6 +8987,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   responseSnapshot,
                   sessionId: sessionId,
                   scheduledSessionId: scheduledSessionRecordId,
+                  tpsTimingAuthority: tpsTimingSourceEpochKey
+                    ? {
+                        version: 1,
+                        source: "training_independent_execution",
+                        sourceEpochKey: tpsTimingSourceEpochKey,
+                        measurementBoundary: "begin_to_student_finished",
+                        assignedBy: "server",
+                      }
+                    : null,
                 };
                 const inserted = isEmergencyDbMode()
                   ? (await emergencyDbClient!.query(
@@ -8819,6 +9022,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
                 if (error) {
                   throw new Error(`Failed to store drill for ${normalizedTopic}`);
+                }
+
+                if (
+                  timingReadiness.action === "allow" &&
+                  timingReadiness.shouldFreezeTrainingContract &&
+                  pendingTrainingTimerContract
+                ) {
+                  persistedTimerContract = isEmergencyDbMode()
+                    ? await persistTpsTimerContractDirect({
+                        queryClient: emergencyDbClient!,
+                        contract: pendingTrainingTimerContract,
+                        tutorId,
+                      })
+                    : await persistTpsTimerContract({
+                        contract: pendingTrainingTimerContract,
+                        tutorId,
+                      });
                 }
 
                 const ledgerInput: EvidenceLedgerProjectionInput = {
@@ -8878,6 +9098,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   targetedRediagnosisStartPhase: trainingSummary.targetedRediagnosisStartPhase,
                   prerequisiteContradictionStatus: trainingSummary.prerequisiteContradiction.status,
                   prerequisiteContradictionReason: trainingSummary.prerequisiteContradiction.reason,
+                  tpsTimerContractId:
+                    persistedTimerContract?.contractId ||
+                    existing?.tpsTimerContractId ||
+                    null,
+                  tpsTimerBaselineSeconds:
+                    persistedTimerContract?.baselineSeconds ||
+                    existing?.tpsTimerBaselineSeconds ||
+                    null,
                   observationNotes: [
                     `Training evidence decision: ${trainingSummary.observedStability} observed stability`,
                     `Decision: ${trainingSummary.transitionReason.toUpperCase()}`,
@@ -8956,6 +9184,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     };
                   }),
                   summary: trainingSummary,
+                  timingAuthority: persistedTimerContract
+                    ? {
+                        contractId: persistedTimerContract.contractId,
+                        baselineSeconds: persistedTimerContract.baselineSeconds,
+                        source: persistedTimerContract.baselineSource,
+                      }
+                    : null,
                 });
               }
 
@@ -9108,7 +9343,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
               }
               console.error("Exception in training session drill submission:", err);
-              res.status(500).json({ message: "Internal server error" });
+              const statusCode = Number((err as any)?.statusCode);
+              const safeStatus =
+                Number.isInteger(statusCode) && statusCode >= 400 && statusCode < 600
+                  ? statusCode
+                  : 500;
+              res.status(safeStatus).json({
+                message:
+                  safeStatus === 500
+                    ? "Internal server error"
+                    : err instanceof Error
+                      ? err.message
+                      : "Training submission could not continue.",
+                code: String((err as any)?.code || "").trim() || undefined,
+                targetedRediagnosisStartPhase:
+                  (err as any)?.targetedRediagnosisStartPhase || undefined,
+              });
             }
           });
         // Tutor: Get all topic activations for a student
@@ -30900,60 +31150,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? topicConditioningStore.topics
           : {};
 
-      const now = Date.now();
-      const topics = Object.entries(topicsStore)
-        .map(([topicKey, entry]) => {
-          const topic = sanitizeTopic(topicKey) || sanitizeTopic(entry?.topic) || null;
-          if (!topic) return null;
+      const topics = (
+        await Promise.all(
+          Object.entries(topicsStore).map(async ([topicKey, entry]) => {
+            const topic = sanitizeTopic(topicKey) || sanitizeTopic(entry?.topic) || null;
+            if (!topic) return null;
 
-          const latestPhase = tryParsePhase(entry?.phase) || tryParsePhase(topicConditioningStore.entry_phase);
-          if (!latestPhase) return null;
-          const latestStability = normalizeStability(entry?.stability || topicConditioningStore.stability || "Low");
+            const latestPhase =
+              tryParsePhase(entry?.phase) ||
+              tryParsePhase(topicConditioningStore.entry_phase);
+            if (!latestPhase) return null;
+            const latestStability = normalizeStability(
+              entry?.stability || topicConditioningStore.stability || "Low",
+            );
 
-          const normalizedHistory = Array.isArray(entry?.history)
-            ? entry.history
-                .map((item: any) => ({
-                  phase: tryParsePhase(item?.phase) || latestPhase,
-                  stability: normalizeStability(item?.stability || latestStability),
-                  date: String(item?.date || "").trim(),
-                }))
-                .filter((item: any) => !!item.date)
-                .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
-            : [];
+            const normalizedHistory = Array.isArray(entry?.history)
+              ? entry.history
+                  .map((item: any) => ({
+                    phase: tryParsePhase(item?.phase) || latestPhase,
+                    stability: normalizeStability(item?.stability || latestStability),
+                    date: String(item?.date || "").trim(),
+                  }))
+                  .filter((item: any) => !!item.date)
+                  .sort(
+                    (a: any, b: any) =>
+                      new Date(a.date).getTime() - new Date(b.date).getTime(),
+                  )
+              : [];
 
-          const latest = normalizedHistory[normalizedHistory.length - 1] || {
-            phase: latestPhase,
-            stability: latestStability,
-            date: entry?.lastUpdated || topicConditioningStore.lastUpdatedAt || new Date().toISOString(),
-          };
+            const latest = normalizedHistory[normalizedHistory.length - 1] || {
+              phase: latestPhase,
+              stability: latestStability,
+              date:
+                entry?.lastUpdated ||
+                topicConditioningStore.lastUpdatedAt ||
+                new Date().toISOString(),
+            };
 
-          const requiresTargetedRediagnosis = entry?.requiresTargetedRediagnosis === true;
-          const targetedRediagnosisStartPhase = requiresTargetedRediagnosis
-            ? tryParsePhase(entry?.targetedRediagnosisStartPhase)
-            : null;
-          const prerequisiteContradictionStatus =
-            typeof entry?.prerequisiteContradictionStatus === "string"
-              ? entry.prerequisiteContradictionStatus
+            const aboveStructuredExecution =
+              latest.phase === "Controlled Discomfort" ||
+              latest.phase === "Time Pressure Stability";
+            const timerContract = aboveStructuredExecution
+              ? await loadLatestTpsTimerContract({ studentId, topic })
               : null;
-          const prerequisiteContradictionReason =
-            typeof entry?.prerequisiteContradictionReason === "string"
-              ? entry.prerequisiteContradictionReason
-              : null;
+            const timingBaselineIncomplete =
+              aboveStructuredExecution && !timerContract;
 
-          return {
-            topic,
-            phase: latest.phase,
-            stability: latest.stability,
-            lastUpdated: latest.date,
-            topicReference: parseStoredTopicReference(entry?.topicReference),
-            requiresTargetedRediagnosis,
-            targetedRediagnosisStartPhase,
-            prerequisiteContradictionStatus,
-            prerequisiteContradictionReason,
-          };
-        })
+            const persistedRequiresTargetedRediagnosis =
+              entry?.requiresTargetedRediagnosis === true;
+            const requiresTargetedRediagnosis =
+              persistedRequiresTargetedRediagnosis || timingBaselineIncomplete;
+            const targetedRediagnosisStartPhase =
+              persistedRequiresTargetedRediagnosis
+                ? tryParsePhase(entry?.targetedRediagnosisStartPhase)
+                : timingBaselineIncomplete
+                  ? "Structured Execution"
+                  : null;
+            const prerequisiteContradictionStatus =
+              typeof entry?.prerequisiteContradictionStatus === "string"
+                ? entry.prerequisiteContradictionStatus
+                : null;
+            const prerequisiteContradictionReason =
+              typeof entry?.prerequisiteContradictionReason === "string"
+                ? entry.prerequisiteContradictionReason
+                : null;
+
+            return {
+              topic,
+              phase: latest.phase,
+              stability: latest.stability,
+              lastUpdated: latest.date,
+              topicReference: parseStoredTopicReference(entry?.topicReference),
+              requiresTargetedRediagnosis,
+              targetedRediagnosisStartPhase,
+              prerequisiteContradictionStatus,
+              prerequisiteContradictionReason,
+              timingReadiness: {
+                status: !aboveStructuredExecution
+                  ? "not_required"
+                  : timerContract
+                    ? "ready"
+                    : "targeted_rediagnosis",
+                issueCode: timingBaselineIncomplete
+                  ? TPS_TIMER_BASELINE_INCOMPLETE
+                  : null,
+                contractId: timerContract?.contractId || null,
+                baselineSeconds: timerContract?.baselineSeconds || null,
+                reason: timingBaselineIncomplete
+                  ? "This above-Structured-Execution topic predates or lacks valid individualized timing authority. Ordinary Training is held until targeted evidence-native re-diagnosis establishes the missing baseline."
+                  : null,
+              },
+            };
+          }),
+        )
+      )
         .filter((row): row is NonNullable<typeof row> => !!row)
-        .sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime());
+        .sort(
+          (a, b) =>
+            new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
+        );
 
       res.json({ topics });
     } catch (error) {

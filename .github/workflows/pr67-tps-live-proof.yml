@@ -1,0 +1,45 @@
+name: PR67 TPS Live Proof
+
+on:
+  push:
+    branches:
+      - feat/tps-timing-runtime-v2
+    paths:
+      - '.github/workflows/pr67-tps-live-proof.yml'
+      - '.github/scripts/pr67-tps-live-proof.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: read
+
+jobs:
+  tps-live-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      SMOKE_BASE_URL: https://tt-confidence-hub-git-feat-tps-34b25b-relief-works-technologies.vercel.app
+      RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+      RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      PROOF_PINNED_APP_SHA: 53b41926c3848d56e0791bfa771d751e5edc25f3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Run live TPS timing proof
+        run: node .github/scripts/pr67-tps-live-proof.mjs
+      - name: Upload proof screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr67-tps-live-proof
+          path: artifacts/pr67-tps-live-proof
+          if-no-files-found: ignore

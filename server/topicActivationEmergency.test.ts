@@ -37,7 +37,16 @@ test("tutor topic-conditioning read model exposes targeted re-diagnosis authorit
   assert.ok(routeEnd > routeStart, "tutor topic-conditioning read route must have a stable boundary");
 
   const routeSource = routesSource.slice(routeStart, routeEnd);
-  assert.match(routeSource, /requiresTargetedRediagnosis = entry\?\.requiresTargetedRediagnosis === true/);
+  assert.match(
+    routeSource,
+    /persistedRequiresTargetedRediagnosis =\s*entry\?\.requiresTargetedRediagnosis === true/,
+  );
+  assert.match(
+    routeSource,
+    /persistedRequiresTargetedRediagnosis \|\| timingBaselineIncomplete/,
+  );
+  assert.match(routeSource, /loadLatestTpsTimerContract/);
+  assert.match(routeSource, /TPS_TIMER_BASELINE_INCOMPLETE/);
   assert.match(routeSource, /targetedRediagnosisStartPhase/);
   assert.match(routeSource, /prerequisiteContradictionStatus/);
   assert.match(routeSource, /prerequisiteContradictionReason/);

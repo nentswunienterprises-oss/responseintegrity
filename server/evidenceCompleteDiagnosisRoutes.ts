@@ -11,6 +11,8 @@ import {
 import {
   DIAGNOSIS_PROBES,
   getDiagnosisProbeOpportunityPurpose,
+  isDiagnosisBaselineTimingOpportunity,
+  isDiagnosisTimedProbe,
   type DiagnosisDimensionId,
   type DiagnosisProbeResult,
 } from "@shared/evidenceCompleteDiagnosis";
@@ -26,6 +28,14 @@ import {
   canonicalizeEvidenceJson,
   replayEvidenceCompleteDiagnosis,
 } from "@shared/evidenceCompleteDiagnosisSubmission";
+import { deriveDiagnosisTpsTimerContract } from "@shared/tpsTimingRuntime";
+import {
+  loadLatestTpsTimerContract,
+  loadTpsTimerContractById,
+  persistTpsTimerContract,
+  validateDiagnosisPassiveTimingAttemptLineage,
+  type PersistedTpsTimerContract,
+} from "./tpsTimingAuthority";
 
 type DiagnosisRunRow = {
   id: string;
@@ -42,6 +52,9 @@ type DiagnosisRunRow = {
   created_at?: string;
   updated_at?: string;
   completed_at?: string | null;
+  timing_policy_version?: number | null;
+  timing_authority_contract_id?: string | null;
+  timing_authority_baseline_seconds?: number | null;
 };
 
 type ScheduledSession = {
@@ -121,6 +134,9 @@ async function saveDiagnosisRun(input: {
   decision: Record<string, unknown>;
   sourceDrillId?: string | null;
   completedAt?: string | null;
+  timingPolicyVersion?: 1 | null;
+  timingAuthorityContractId?: string | null;
+  timingAuthorityBaselineSeconds?: number | null;
 }) {
   const nowIso = new Date().toISOString();
   const row = {
@@ -135,6 +151,13 @@ async function saveDiagnosisRun(input: {
     probe_history: input.probeHistory,
     decision: input.decision,
     source_drill_id: input.sourceDrillId || null,
+    timing_policy_version: input.timingPolicyVersion ?? 1,
+    timing_authority_contract_id: input.timingAuthorityContractId || null,
+    timing_authority_baseline_seconds:
+      Number.isFinite(Number(input.timingAuthorityBaselineSeconds)) &&
+      Number(input.timingAuthorityBaselineSeconds) > 0
+        ? Math.max(1, Math.round(Number(input.timingAuthorityBaselineSeconds)))
+        : null,
     updated_at: nowIso,
     completed_at: input.completedAt || null,
   };
@@ -143,8 +166,9 @@ async function saveDiagnosisRun(input: {
     await pool.query(
       `INSERT INTO public.${RUN_TABLE}
         (id, student_id, tutor_id, topic, starting_phase, scheduled_session_id, session_context,
-         status, probe_history, decision, source_drill_id, updated_at, completed_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$13)
+         status, probe_history, decision, source_drill_id, timing_policy_version,
+         timing_authority_contract_id, timing_authority_baseline_seconds, updated_at, completed_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$13,$14,$15,$16)
        ON CONFLICT (id) DO UPDATE SET
          scheduled_session_id = EXCLUDED.scheduled_session_id,
          session_context = EXCLUDED.session_context,
@@ -152,6 +176,9 @@ async function saveDiagnosisRun(input: {
          probe_history = EXCLUDED.probe_history,
          decision = EXCLUDED.decision,
          source_drill_id = EXCLUDED.source_drill_id,
+         timing_policy_version = COALESCE(public.${RUN_TABLE}.timing_policy_version, EXCLUDED.timing_policy_version),
+         timing_authority_contract_id = COALESCE(public.${RUN_TABLE}.timing_authority_contract_id, EXCLUDED.timing_authority_contract_id),
+         timing_authority_baseline_seconds = COALESCE(public.${RUN_TABLE}.timing_authority_baseline_seconds, EXCLUDED.timing_authority_baseline_seconds),
          updated_at = EXCLUDED.updated_at,
          completed_at = EXCLUDED.completed_at`,
       [
@@ -166,6 +193,9 @@ async function saveDiagnosisRun(input: {
         JSON.stringify(row.probe_history),
         JSON.stringify(row.decision),
         row.source_drill_id,
+        row.timing_policy_version,
+        row.timing_authority_contract_id,
+        row.timing_authority_baseline_seconds,
         row.updated_at,
         row.completed_at,
       ],
@@ -439,6 +469,7 @@ async function ensureIntroDrill(input: {
   scheduledSessionId: string | null;
   sessionKind: "intro" | "training" | "handover";
   replay: Extract<ReturnType<typeof replayEvidenceCompleteDiagnosis>, { ok: true }>;
+  timingAuthorityContract?: PersistedTpsTimerContract | null;
 }) {
   const { decision, state } = input.replay;
   if (!decision.complete || !decision.placementPhase || !decision.stability) {
@@ -460,6 +491,13 @@ async function ensureIntroDrill(input: {
     placementStability: decision.stability,
     confidence: decision.confidence,
     stopReason: decision.reason,
+    timingAuthority: input.timingAuthorityContract
+      ? {
+          contractId: input.timingAuthorityContract.contractId,
+          baselineSeconds: input.timingAuthorityContract.baselineSeconds,
+          source: input.timingAuthorityContract.baselineSource,
+        }
+      : null,
     opportunities: state.probeHistory.map((result, index) => ({
       order: index + 1,
       probeId: result.probeId,
@@ -498,6 +536,13 @@ async function ensureIntroDrill(input: {
     cleanProbeCount: decision.cleanProbeCount,
     contaminatedProbeCount: decision.contaminatedProbeCount,
     phaseStates: decision.phaseStates,
+    timingAuthority: input.timingAuthorityContract
+      ? {
+          contractId: input.timingAuthorityContract.contractId,
+          baselineSeconds: input.timingAuthorityContract.baselineSeconds,
+          source: input.timingAuthorityContract.baselineSource,
+        }
+      : null,
   };
 
   const drillPayload = JSON.stringify({
@@ -643,6 +688,14 @@ async function ensureIntroDrill(input: {
     diagnosisDecisionAuthority: "behavioral_evidence",
     diagnosisPlacementEvidence: decision.placementEvidence,
     diagnosisConfidence: decision.confidence,
+    tpsTimerContractId:
+      input.timingAuthorityContract?.contractId ||
+      existingTopic.tpsTimerContractId ||
+      null,
+    tpsTimerBaselineSeconds:
+      input.timingAuthorityContract?.baselineSeconds ||
+      existingTopic.tpsTimerBaselineSeconds ||
+      null,
     requiresTargetedRediagnosis: false,
     targetedRediagnosisStartPhase: null,
     prerequisiteContradictionStatus: null,
@@ -681,16 +734,103 @@ async function ensureIntroDrill(input: {
   return { summary, responseSnapshot, observedAt };
 }
 
+const boundTimingBaselineSeconds = (run: DiagnosisRunRow | null) => {
+  const value = Number(run?.timing_authority_baseline_seconds);
+  return Number.isFinite(value) && value > 0 ? Math.max(1, Math.round(value)) : null;
+};
+
+const resolveBoundTimingAuthority = async ({
+  run,
+  studentId,
+  topic,
+  startingPhase,
+}: {
+  run: DiagnosisRunRow | null;
+  studentId: string;
+  topic: string;
+  startingPhase: TopicPhase;
+}): Promise<PersistedTpsTimerContract | null> => {
+  const boundContractId = String(run?.timing_authority_contract_id || "").trim();
+  if (boundContractId) {
+    const bound = await loadTpsTimerContractById(boundContractId);
+    if (!bound) {
+      throw new Error("The Timer Contract bound to this diagnosis run is missing.");
+    }
+    if (
+      String(bound.studentId) !== String(studentId) ||
+      bound.topic.trim().toLowerCase() !== topic.trim().toLowerCase()
+    ) {
+      throw new Error("The Timer Contract bound to this diagnosis run does not match the student/topic.");
+    }
+    return bound;
+  }
+
+  if (run) return null;
+  if (startingPhase !== "Controlled Discomfort" && startingPhase !== "Time Pressure Stability") {
+    return null;
+  }
+  return loadLatestTpsTimerContract({ studentId, topic });
+};
+
+const responseForLegacyCompletedRun = (run: DiagnosisRunRow) => {
+  const history = parseJsonValue<DiagnosisProbeResult[]>(run.probe_history, []);
+  const storedDecision = parseJsonValue<Record<string, any>>(run.decision, {});
+  const placementPhase = tryParsePhase(storedDecision.placementPhase);
+  const stability = String(storedDecision.stability || "").trim();
+  return {
+    success: true,
+    runId: run.id,
+    finalized: true,
+    sourceDrillId: run.source_drill_id || run.id,
+    startingPhase: run.starting_phase,
+    probeHistory: history,
+    decision: {
+      ...storedDecision,
+      complete: true,
+      placementPhase: placementPhase || storedDecision.placementPhase || run.starting_phase,
+      stability: stability || null,
+      timingBaseline: {
+        requiredSampleCount: 3,
+        sampleCount: 0,
+        ready: false,
+        baselineSeconds: null,
+        source: "none",
+      },
+    },
+    nextProbe: null,
+    opportunityNumber: null,
+    opportunityPurpose: null,
+    timingAuthority: {
+      mode: "none",
+      requiredSampleCount: 3,
+      sampleCount: 0,
+      baselineReady: false,
+      baselineSeconds: null,
+      prescribedSeconds: null,
+      contractId: null,
+      legacyHistoricalRun: true,
+    },
+  };
+};
+
 const responseForReplay = (
   runId: string,
   replay: Extract<ReturnType<typeof replayEvidenceCompleteDiagnosis>, { ok: true }>,
   finalized: boolean,
   sourceDrillId?: string | null,
+  timingAuthorityContractId?: string | null,
 ) => {
   const nextProbeId = replay.decision.nextProbeId;
   const occurrenceNumber = nextProbeId
     ? replay.state.probeHistory.filter((row) => row.probeId === nextProbeId).length + 1
     : null;
+  const currentProbeTimingMode = nextProbeId
+    ? isDiagnosisTimedProbe(nextProbeId)
+      ? "timed"
+      : isDiagnosisBaselineTimingOpportunity(nextProbeId)
+        ? "passive_baseline"
+        : "none"
+    : "none";
 
   return {
     success: true,
@@ -706,6 +846,19 @@ const responseForReplay = (
       nextProbeId && occurrenceNumber
         ? getDiagnosisProbeOpportunityPurpose(nextProbeId, occurrenceNumber)
         : null,
+    timingAuthority: {
+      mode: currentProbeTimingMode,
+      requiredSampleCount: replay.decision.timingBaseline.requiredSampleCount,
+      sampleCount: replay.decision.timingBaseline.sampleCount,
+      baselineReady: replay.decision.timingBaseline.ready,
+      baselineSeconds: replay.decision.timingBaseline.baselineSeconds,
+      prescribedSeconds:
+        currentProbeTimingMode === "timed"
+          ? replay.decision.timingBaseline.baselineSeconds
+          : null,
+      contractId: timingAuthorityContractId || null,
+      legacyHistoricalRun: false,
+    },
   };
 };
 
@@ -726,8 +879,22 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           return res.status(403).json({ message: "Diagnosis run does not belong to this specialist" });
         }
 
+        if (run.status === "completed" && run.timing_policy_version !== 1) {
+          return res.json(responseForLegacyCompletedRun(run));
+        }
+
         const history = parseJsonValue<DiagnosisProbeResult[]>(run.probe_history, []);
-        const replay = replayEvidenceCompleteDiagnosis(run.starting_phase, history);
+        const boundContract = await resolveBoundTimingAuthority({
+          run,
+          studentId: run.student_id,
+          topic: run.topic,
+          startingPhase: run.starting_phase,
+        });
+        const replay = replayEvidenceCompleteDiagnosis(
+          run.starting_phase,
+          history,
+          boundContract?.baselineSeconds ?? boundTimingBaselineSeconds(run),
+        );
         if (replay.ok === false) {
           return res.status(409).json({ message: `Stored diagnosis evidence is invalid: ${replay.error}` });
         }
@@ -737,6 +904,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           replay,
           run.status === "completed",
           run.source_drill_id,
+          boundContract?.contractId || run.timing_authority_contract_id || null,
         ));
       } catch (error) {
         console.error("[EVIDENCE_DIAGNOSIS] load failed", error);
@@ -807,8 +975,22 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           }
 
           if (existingRun.status === "completed") {
+            if (existingRun.timing_policy_version !== 1) {
+              return res.json(responseForLegacyCompletedRun(existingRun));
+            }
             const storedHistory = parseJsonValue<DiagnosisProbeResult[]>(existingRun.probe_history, []);
-            const storedReplay = replayEvidenceCompleteDiagnosis(existingRun.starting_phase, storedHistory);
+            const completedBoundContract = await resolveBoundTimingAuthority({
+              run: existingRun,
+              studentId,
+              topic,
+              startingPhase,
+            });
+            const storedReplay = replayEvidenceCompleteDiagnosis(
+              existingRun.starting_phase,
+              storedHistory,
+              completedBoundContract?.baselineSeconds ??
+                boundTimingBaselineSeconds(existingRun),
+            );
             if (storedReplay.ok === false) {
               return res.status(409).json({ message: "Completed diagnosis evidence is internally inconsistent" });
             }
@@ -817,15 +999,43 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
               storedReplay,
               true,
               existingRun.source_drill_id || runId,
+              completedBoundContract?.contractId ||
+                existingRun.timing_authority_contract_id ||
+                null,
             ));
           }
         }
 
-        const replay = replayEvidenceCompleteDiagnosis(startingPhase, req.body?.probeHistory || []);
+        const preexistingTimingContract = await resolveBoundTimingAuthority({
+          run: existingRun,
+          studentId,
+          topic,
+          startingPhase,
+        });
+        const replay = replayEvidenceCompleteDiagnosis(
+          startingPhase,
+          req.body?.probeHistory || [],
+          preexistingTimingContract?.baselineSeconds ??
+            boundTimingBaselineSeconds(existingRun),
+        );
         if (replay.ok === false) {
           return res.status(400).json({
             message: replay.error,
             failedAtProbeIndex: replay.failedAtProbeIndex ?? null,
+          });
+        }
+
+        const passiveTimingLineageError =
+          await validateDiagnosisPassiveTimingAttemptLineage({
+            studentId,
+            topic,
+            runId,
+            probeHistory: replay.state.probeHistory as Array<Record<string, any>>,
+          });
+        if (passiveTimingLineageError) {
+          return res.status(409).json({
+            code: "TPS_PASSIVE_TIMING_LINEAGE_INVALID",
+            message: passiveTimingLineageError,
           });
         }
 
@@ -834,6 +1044,39 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           const prefixError = assertHistoryPrefix(storedHistory, replay.state.probeHistory);
           if (prefixError) return res.status(409).json({ message: prefixError });
         }
+
+        let effectiveTimingContract = preexistingTimingContract;
+        if (
+          !effectiveTimingContract &&
+          replay.decision.timingBaseline.ready &&
+          replay.decision.timingBaseline.source === "diagnosis_run"
+        ) {
+          const diagnosisContract = deriveDiagnosisTpsTimerContract({
+            state: replay.state,
+            studentId,
+            topic,
+            sourceEpochKey: `diagnosis-v1:${runId}`,
+            baselineGroupId: `diagnosis:${runId}`,
+          });
+          if (!diagnosisContract) {
+            return res.status(409).json({
+              message:
+                "Diagnosis timing evidence reports ready but the Timer Contract could not be derived. Do not run a timed probe.",
+            });
+          }
+          effectiveTimingContract = await persistTpsTimerContract({
+            contract: diagnosisContract,
+            tutorId,
+          });
+        }
+
+        const effectiveTimingContractId =
+          effectiveTimingContract?.contractId ||
+          existingRun?.timing_authority_contract_id ||
+          null;
+        const effectiveTimingBaselineSeconds =
+          effectiveTimingContract?.baselineSeconds ??
+          boundTimingBaselineSeconds(existingRun);
 
         const effectiveScheduledSessionId =
           String(existingRun?.scheduled_session_id || scheduledSessionId || "").trim() || null;
@@ -873,10 +1116,21 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           status: runStatus,
           probeHistory: replay.state.probeHistory,
           decision: replay.decision as unknown as Record<string, unknown>,
+          timingPolicyVersion: 1,
+          timingAuthorityContractId: effectiveTimingContractId,
+          timingAuthorityBaselineSeconds: effectiveTimingBaselineSeconds,
         });
 
         if (!replay.decision.complete) {
-          return res.json(responseForReplay(runId, replay, false));
+          return res.json(
+            responseForReplay(
+              runId,
+              replay,
+              false,
+              null,
+              effectiveTimingContractId,
+            ),
+          );
         }
 
         const finalized = await ensureIntroDrill({
@@ -888,6 +1142,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           scheduledSessionId: sessionResult.scheduledSessionId,
           sessionKind: sessionResult.sessionKind,
           replay,
+          timingAuthorityContract: effectiveTimingContract,
         });
 
         await saveDiagnosisRun({
@@ -903,10 +1158,19 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           decision: replay.decision as unknown as Record<string, unknown>,
           sourceDrillId: runId,
           completedAt: finalized.observedAt,
+          timingPolicyVersion: 1,
+          timingAuthorityContractId: effectiveTimingContractId,
+          timingAuthorityBaselineSeconds: effectiveTimingBaselineSeconds,
         });
 
         return res.json({
-          ...responseForReplay(runId, replay, true, runId),
+          ...responseForReplay(
+            runId,
+            replay,
+            true,
+            runId,
+            effectiveTimingContractId,
+          ),
           summary: finalized.summary,
           responseSnapshot: finalized.responseSnapshot,
         });
