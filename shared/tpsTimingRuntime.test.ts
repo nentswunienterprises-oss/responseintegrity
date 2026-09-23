@@ -7,12 +7,18 @@ import {
   encodePassiveExecutionTimingEvidence,
 } from "./tpsTimingContract";
 import {
+  collectDiagnosisTpsBaselineTimingRecords,
   collectTrainingTpsBaselineTimingRecords,
+  deriveDiagnosisTpsTimerContract,
   deriveStructuredExecutionEpochKeyForTraining,
   deriveTrainingTpsTimerContract,
   validateTrainingPassiveTimingSubmission,
 } from "./tpsTimingRuntime";
 import { TRAINING_INTERVENTION_FIELD } from "./trainingEvidenceCapture";
+import {
+  createEvidenceCompleteDiagnosisState,
+  recordEvidenceCompleteDiagnosisProbe,
+} from "./evidenceCompleteDiagnosis";
 
 const timing = (seconds: number, hour: number) => {
   const startedAt = `2026-09-23T${String(hour).padStart(2, "0")}:00:00.000Z`;
@@ -285,4 +291,79 @@ test("runtime ignores otherwise valid SE timing from a different conditioning ep
   assert.ok(contract);
   assert.equal(contract.baselineGroupId, `current-round::${TPS_TRAINING_BASELINE_SET_ID}`);
   assert.equal(contract.baselineSeconds, 51);
+});
+
+
+test("diagnosis baseline timing derives the same V1 Timer Contract without pretending Training occurred", () => {
+  const diagnosisTiming = (seconds: number) => {
+    const startedAt = "2026-09-23T18:00:00.000Z";
+    const endedAt = new Date(Date.parse(startedAt) + seconds * 1000).toISOString();
+    const evidence = buildPassiveExecutionTimingEvidence({ startedAt, endedAt });
+    assert.ok(evidence);
+    return evidence;
+  };
+
+  const clarity = [
+    { dimensionId: "clarity.vocabulary" as const, behaviorId: "accurate_recognition" },
+    { dimensionId: "clarity.method" as const, behaviorId: "correct_method_cleanly" },
+    { dimensionId: "clarity.reason" as const, behaviorId: "clear_reason" },
+    { dimensionId: "clarity.immediate_apply" as const, behaviorId: "engages_cleanly" },
+  ];
+  const executionImmediate = [
+    { dimensionId: "execution.start" as const, behaviorId: "valid_independent_start" },
+    { dimensionId: "execution.step_discipline" as const, behaviorId: "structure_maintained" },
+    { dimensionId: "execution.independence" as const, behaviorId: "independent_throughout" },
+  ];
+  const executionFull = [
+    ...executionImmediate,
+    { dimensionId: "execution.repeatability" as const, behaviorId: "repeat_clean" },
+  ];
+
+  let state = createEvidenceCompleteDiagnosisState("Time Pressure Stability");
+  state = recordEvidenceCompleteDiagnosisProbe(state, {
+    probeId: "stack.normal_independent",
+    supportEvent: "none",
+    observations: [...clarity, ...executionImmediate],
+    passiveTiming: diagnosisTiming(58),
+  });
+  state = recordEvidenceCompleteDiagnosisProbe(state, {
+    probeId: "execution.repeatability",
+    supportEvent: "none",
+    observations: executionFull,
+    passiveTiming: diagnosisTiming(60),
+  });
+  state = recordEvidenceCompleteDiagnosisProbe(state, {
+    probeId: "execution.repeatability",
+    supportEvent: "none",
+    observations: executionFull,
+    passiveTiming: diagnosisTiming(62),
+  });
+
+  const records = collectDiagnosisTpsBaselineTimingRecords({
+    state,
+    studentId: "student-1",
+    topic: "Fractions",
+    sourceEpochKey: "diagnosis-v1-run-1",
+    baselineGroupId: "diagnosis-run-1",
+  });
+
+  assert.equal(records.length, 3);
+  assert.ok(records.every((record) => record.source === "diagnosis"));
+  assert.ok(records.every((record) => record.sourcePhase === "diagnosis"));
+
+  const contract = deriveDiagnosisTpsTimerContract({
+    state,
+    studentId: "student-1",
+    topic: "Fractions",
+    sourceEpochKey: "diagnosis-v1-run-1",
+    baselineGroupId: "diagnosis-run-1",
+  });
+
+  assert.ok(contract);
+  assert.equal(contract.baselineSource, "diagnosis_independent_baseline");
+  assert.deepEqual(contract.baselineElapsedMs, [58_000, 60_000, 62_000]);
+  assert.equal(contract.baselineSeconds, 60);
+  assert.equal(contract.structureUnderTimerSeconds, 60);
+  assert.equal(contract.repeatedTimedExecutionSeconds, 60);
+  assert.equal(contract.fullConstraintSeconds, 51);
 });
