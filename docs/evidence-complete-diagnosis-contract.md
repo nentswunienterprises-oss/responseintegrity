@@ -133,6 +133,27 @@ A decisive clean breakdown can place the student after one opportunity when the 
 
 A single strong opportunity cannot prove a capability whose definition requires repeatability or stability. The engine requests the smallest additional probe needed to prove that question.
 
+## Individualized timing-readiness law
+
+Diagnosis must never use an arbitrary generic timer to decide Time Pressure Stability.
+
+When the evidence path can legitimately finish above Structured Execution and no valid current timing authority already exists, Diagnosis must also resolve the timing-readiness question before finalizing that above-SE placement.
+
+This does not create a fixed three-rep diagnosis block. The three-sample requirement belongs to the timing measurement contract:
+
+- normal difficulty;
+- same-form independent execution;
+- no active timer or urgency cue;
+- no method/step supply or rescue;
+- clean supported execution evidence;
+- system-owned `Begin Opportunity -> Student Finished` measurement.
+
+Eligible timing may be gathered passively from the neutral `stack.normal_independent` and `execution.repeatability` opportunities that Diagnosis already needs. If an earlier unsupported layer becomes decisive, Diagnosis stops there and does not continue collecting timing merely for future use.
+
+If Diagnosis is about to place in Controlled Discomfort or test/finish Time Pressure Stability and fewer than three clean comparable intervals exist, the engine requests only the remaining evidence-native independent opportunity required to complete timing authority.
+
+Once three clean comparable intervals exist, RI uses their median as the individualized diagnosis baseline. Only then may a system-owned timed diagnosis probe run. The Specialist cannot choose, edit, pause, round, or replace that prescribed time.
+
 ## Probe catalog
 
 ### `clarity.recognition`
@@ -161,7 +182,7 @@ Primary question: Does independent execution hold on another comparable problem 
 
 Opportunity 1: repeatability confirmation against the first execution opportunity.
 
-Opportunity 2: conflict resolution only.
+Later opportunities are requested only when unresolved repeatability/conflict evidence remains or when an otherwise above-SE diagnosis still needs clean same-form independent timing samples to complete individualized timing authority. They are Diagnosis opportunities, not backfilled Structured Execution Training.
 
 ### `stack.challenge_no_timer`
 
@@ -187,7 +208,7 @@ Primary question: Where does the response stack first become unstable when diffi
 
 Captures: all four response layers.
 
-Opportunity 1: cold composite timed exposure.
+Opportunity 1: individualized composite timed exposure after valid timing authority exists. A TPS starting signal does not bypass the neutral baseline and does not authorize an arbitrary timer.
 
 Opportunity 2: only if the engine still needs unresolved composite timed evidence.
 
@@ -338,9 +359,11 @@ The evidence ledger must preserve the exact behavior option ID and label that pr
 
 ## No-signal start
 
-A parent or prior-system signal routes the first diagnostic question only.
+A parent or prior-system signal routes the diagnostic search only.
 
-When no trustworthy starting signal exists, diagnosis begins with the neutral `stack.normal_independent` probe rather than assuming Clarity. That baseline can observe Clarity and Structured Execution without adding difficulty or time. The resulting behavior then determines whether the system stops, strips downward, or escalates.
+A Time Pressure Stability starting signal does not start with a timed challenge when individualized timing authority is absent. Diagnosis begins with the neutral `stack.normal_independent` route, establishes lower-layer truth and the no-pressure timing reference as needed, verifies Controlled Discomfort, and only then applies the individualized timed condition.
+
+When no trustworthy starting signal exists, diagnosis also begins with the neutral `stack.normal_independent` probe rather than assuming Clarity. That baseline can observe Clarity and Structured Execution without adding difficulty or time. The resulting behavior then determines whether the system stops, strips downward, or escalates.
 
 ## Content-exposure protection
 
