@@ -2,6 +2,65 @@ export const TPS_TIMER_CONTRACT_VERSION = 1 as const;
 export const TPS_BASELINE_SAMPLE_SIZE = 3 as const;
 export const TPS_FULL_CONSTRAINT_FACTOR = 0.85 as const;
 export const TPS_TRAINING_BASELINE_SET_ID = "structured_execution.independent_execution" as const;
+export const PASSIVE_EXECUTION_TIMING_WIRE_KEY = "_passive_execution_timing_v1" as const;
+
+export type PassiveExecutionTimingEvidenceV1 = {
+  version: 1;
+  boundary: "begin_to_student_finished";
+  startedAt: string;
+  endedAt: string;
+  elapsedMs: number;
+  timingValidity: "valid";
+};
+
+export const buildPassiveExecutionTimingEvidence = ({
+  startedAt,
+  endedAt,
+}: {
+  startedAt: string;
+  endedAt: string;
+}): PassiveExecutionTimingEvidenceV1 | null => {
+  const startMs = Date.parse(startedAt);
+  const endMs = Date.parse(endedAt);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return null;
+  return {
+    version: 1,
+    boundary: "begin_to_student_finished",
+    startedAt: new Date(startMs).toISOString(),
+    endedAt: new Date(endMs).toISOString(),
+    elapsedMs: endMs - startMs,
+    timingValidity: "valid",
+  };
+};
+
+export const encodePassiveExecutionTimingEvidence = (
+  evidence: PassiveExecutionTimingEvidenceV1,
+) => JSON.stringify(evidence);
+
+export const decodePassiveExecutionTimingEvidence = (
+  raw: unknown,
+): PassiveExecutionTimingEvidenceV1 | null => {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<PassiveExecutionTimingEvidenceV1>;
+    if (
+      parsed.version !== 1 ||
+      parsed.boundary !== "begin_to_student_finished" ||
+      parsed.timingValidity !== "valid" ||
+      typeof parsed.startedAt !== "string" ||
+      typeof parsed.endedAt !== "string" ||
+      typeof parsed.elapsedMs !== "number"
+    ) return null;
+    const recomputed = buildPassiveExecutionTimingEvidence({
+      startedAt: parsed.startedAt,
+      endedAt: parsed.endedAt,
+    });
+    if (!recomputed || recomputed.elapsedMs !== parsed.elapsedMs) return null;
+    return recomputed;
+  } catch {
+    return null;
+  }
+};
 
 export type TpsBaselineSource = "training" | "diagnosis";
 export type TpsBaselinePressureLevel =
