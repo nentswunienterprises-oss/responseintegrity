@@ -1243,27 +1243,29 @@ function HandoverVerificationSection({
 
       {sessionConfirmed && (
         <div className="space-y-2">
-          <Button
-            className="w-full"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const topicParam = encodeURIComponent(displayTopic);
-              const phaseParam = `&phase=${encodeURIComponent(displayPhase)}`;
-              const stabilityParam = `&stability=${encodeURIComponent(displayStability)}`;
-              const sessionParam = session?.id
-                ? `&scheduledSessionId=${encodeURIComponent(session.id)}`
-                : "";
-              navigate(`/specialist/intro-session/${studentId}?mode=handover&topic=${topicParam}${phaseParam}${stabilityParam}${sessionParam}`);
-            }}
-            disabled={!session?.id}
-          >
-            Open Handover Verification
-          </Button>
-          {reDiagnosisRequired ? (
+          {!reDiagnosisRequired ? (
             <Button
               className="w-full"
               variant="outline"
+              size="sm"
+              onClick={() => {
+                const topicParam = encodeURIComponent(displayTopic);
+                const phaseParam = `&phase=${encodeURIComponent(displayPhase)}`;
+                const stabilityParam = `&stability=${encodeURIComponent(displayStability)}`;
+                const sessionParam = session?.id
+                  ? `&scheduledSessionId=${encodeURIComponent(session.id)}`
+                  : "";
+                navigate(`/specialist/intro-session/${studentId}?mode=handover&topic=${topicParam}${phaseParam}${stabilityParam}${sessionParam}`);
+              }}
+              disabled={!session?.id}
+            >
+              Open Handover Verification
+            </Button>
+          ) : null}
+          {reDiagnosisRequired ? (
+            <Button
+              className="w-full"
+              variant="default"
               size="sm"
               onClick={() => {
                 const topicParam = encodeURIComponent(latestVerification?.topic || displayTopic);
