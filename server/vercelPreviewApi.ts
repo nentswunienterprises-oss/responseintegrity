@@ -3,6 +3,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import { registerRoutes } from "./routes.ts";
 import { registerEvidenceCompleteDiagnosisRoutes } from "./evidenceCompleteDiagnosisRoutes.ts";
+import { registerTpsTimingRoutes } from "./tpsTimingRoutes.ts";
 import { setupAuth } from "./supabaseAuth.ts";
 
 let appPromise: Promise<Express> | null = null;
@@ -71,6 +72,7 @@ async function initializeApp(): Promise<Express> {
   });
 
   registerEvidenceCompleteDiagnosisRoutes(app);
+  registerTpsTimingRoutes(app);
   await registerRoutes(app);
 
   app.use((req, res) => {
