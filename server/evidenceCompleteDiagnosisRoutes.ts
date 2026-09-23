@@ -468,6 +468,7 @@ async function ensureIntroDrill(input: {
   scheduledSessionId: string | null;
   sessionKind: "intro" | "training" | "handover";
   replay: Extract<ReturnType<typeof replayEvidenceCompleteDiagnosis>, { ok: true }>;
+  timingAuthorityContract?: PersistedTpsTimerContract | null;
 }) {
   const { decision, state } = input.replay;
   if (!decision.complete || !decision.placementPhase || !decision.stability) {
@@ -489,6 +490,13 @@ async function ensureIntroDrill(input: {
     placementStability: decision.stability,
     confidence: decision.confidence,
     stopReason: decision.reason,
+    timingAuthority: input.timingAuthorityContract
+      ? {
+          contractId: input.timingAuthorityContract.contractId,
+          baselineSeconds: input.timingAuthorityContract.baselineSeconds,
+          source: input.timingAuthorityContract.baselineSource,
+        }
+      : null,
     opportunities: state.probeHistory.map((result, index) => ({
       order: index + 1,
       probeId: result.probeId,
@@ -527,6 +535,13 @@ async function ensureIntroDrill(input: {
     cleanProbeCount: decision.cleanProbeCount,
     contaminatedProbeCount: decision.contaminatedProbeCount,
     phaseStates: decision.phaseStates,
+    timingAuthority: input.timingAuthorityContract
+      ? {
+          contractId: input.timingAuthorityContract.contractId,
+          baselineSeconds: input.timingAuthorityContract.baselineSeconds,
+          source: input.timingAuthorityContract.baselineSource,
+        }
+      : null,
   };
 
   const drillPayload = JSON.stringify({
@@ -672,6 +687,14 @@ async function ensureIntroDrill(input: {
     diagnosisDecisionAuthority: "behavioral_evidence",
     diagnosisPlacementEvidence: decision.placementEvidence,
     diagnosisConfidence: decision.confidence,
+    tpsTimerContractId:
+      input.timingAuthorityContract?.contractId ||
+      existingTopic.tpsTimerContractId ||
+      null,
+    tpsTimerBaselineSeconds:
+      input.timingAuthorityContract?.baselineSeconds ||
+      existingTopic.tpsTimerBaselineSeconds ||
+      null,
     requiresTargetedRediagnosis: false,
     targetedRediagnosisStartPhase: null,
     prerequisiteContradictionStatus: null,
@@ -1104,6 +1127,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           scheduledSessionId: sessionResult.scheduledSessionId,
           sessionKind: sessionResult.sessionKind,
           replay,
+          timingAuthorityContract: effectiveTimingContract,
         });
 
         await saveDiagnosisRun({
