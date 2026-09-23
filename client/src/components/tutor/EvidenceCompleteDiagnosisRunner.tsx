@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { API_URL } from "@/lib/config";
 import { supabase } from "@/lib/supabaseClient";
-import { instructionPromptLabelFor } from "@/lib/instructionPromptLabel";
+import { instructionPromptDisplayText, instructionPromptLabelFor } from "@/lib/instructionPromptLabel";
 import {
   type DiagnosisDimensionId,
   type DiagnosisProbeDefinition,
@@ -696,7 +696,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
                   {instructionPromptLabelFor(currentProbe.specialistInstruction)}
                 </p>
                 <p className="mt-1 text-base font-semibold leading-6">
-                  {currentProbe.specialistInstruction}
+                  {instructionPromptDisplayText(currentProbe.specialistInstruction)}
                 </p>
               </div>
 
