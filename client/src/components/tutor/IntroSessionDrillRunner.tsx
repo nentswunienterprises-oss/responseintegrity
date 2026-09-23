@@ -54,6 +54,7 @@ type ObservationField = {
   key: string;
   label: string;
   options: string[];
+  observationQuestion?: string;
   optionLevels?: Record<string, ObservationLevel>;
   optionDetails?: Record<string, string>;
 };
@@ -126,6 +127,32 @@ function describeTrainingEvidenceOption(fieldKey: string, option: string) {
   }
 
   return null;
+}
+
+function describeTrainingObservationQuestion(fieldKey: string, label: string) {
+  const questions: Record<string, string> = {
+    vocabulary: "How did the student recognize the problem type or required vocabulary?",
+    method: "How did the student recall and use the required steps?",
+    reason: "How did the student explain why the method works?",
+    immediateApply: "How did the student respond when asked to use the understanding?",
+    startBehavior: "How did the student start this rep?",
+    stepExecution: "How did the student execute the steps?",
+    repeatability: "How consistently did the structure hold?",
+    independence: "How much support did the student need?",
+    initialResponse: "How did the student respond to the difficulty at first contact?",
+    firstStepControl: "How controlled and accurate was the first step?",
+    discomfortTolerance: "How stable was the student under discomfort?",
+    rescueDependence: "How much did the student seek rescue?",
+    startUnderTime: "How did the student start under time pressure?",
+    structureUnderTime: "How well did structure hold under time pressure?",
+    paceControl: "How controlled was the student's pace?",
+    completionIntegrity: "How intact was completion under the constraint?",
+  };
+
+  if (questions[fieldKey]) return questions[fieldKey];
+
+  const compactLabel = label.replace(/\s*\(Rep\s+\d+[^)]*\)/gi, "").trim();
+  return `What did the student actually show for ${compactLabel}?`;
 }
 
 function explainAdaptiveTransition(
@@ -1062,6 +1089,11 @@ export default function IntroSessionDrillRunner() {
       return {
         ...configuredField,
         label: canonicalDimension?.label || configuredField.label,
+        observationQuestion: canonicalDimension?.observationQuestion || (
+          evidenceModeForSubmission === "training"
+            ? describeTrainingObservationQuestion(registeredField.fieldKey, configuredField.label)
+            : configuredField.observationQuestion
+        ),
         options: [...registeredField.optionLabels],
         optionDetails: canonicalDimension
           ? Object.fromEntries(
@@ -2895,7 +2927,16 @@ export default function IntroSessionDrillRunner() {
         )}
         {getLiveObservationBlockForRep(set, currentRep).map((obs) => (
           <div key={obs.key}>
-            <label className="block font-medium mb-2 text-sm sm:text-base">{obs.label}</label>
+            <div className="mb-2">
+              <label className="block font-medium text-sm sm:text-base">
+                {obs.observationQuestion || obs.label}
+              </label>
+              {obs.observationQuestion && (
+                <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  {obs.label}
+                </p>
+              )}
+            </div>
             <div className={(isHandoverContinuityVerification || isTrainingEvidenceCapture) ? "grid gap-2 sm:grid-cols-2" : "flex flex-wrap gap-1 sm:gap-2"}>
               {obs.options.map((option: string) => (
                 <button
