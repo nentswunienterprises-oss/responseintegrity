@@ -53,6 +53,7 @@ const asNumberArray = (value: unknown): [number, number, number] | null => {
 };
 
 const rowToContract = (row: TimerContractRow): PersistedTpsTimerContract | null => {
+  if (Number(row.contract_version) !== 1) return null;
   const recordIds = asStringArray(row.baseline_record_ids);
   const elapsedMs = asNumberArray(row.baseline_elapsed_ms);
   if (!recordIds || !elapsedMs) return null;
