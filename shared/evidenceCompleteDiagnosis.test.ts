@@ -291,6 +291,11 @@ test("TPS starting signal establishes lower-layer and timing authority before an
     ...executionImmediateSupported,
     ...difficultySupported,
   });
+  assert.equal(
+    evaluateEvidenceCompleteDiagnosis(state).nextProbeId,
+    "difficulty.recovery",
+  );
+  state = run(state, "difficulty.recovery", difficultySupported);
   const beforeThirdBaseline = evaluateEvidenceCompleteDiagnosis(state);
   assert.equal(beforeThirdBaseline.nextProbeId, "execution.repeatability");
   assert.equal(beforeThirdBaseline.timingBaseline.sampleCount, 2);
@@ -315,6 +320,7 @@ test("individualized timed failure isolates a Time Pressure breakdown after lowe
     ...executionImmediateSupported,
     ...difficultySupported,
   });
+  state = run(state, "difficulty.recovery", difficultySupported);
   state = run(state, "execution.repeatability", executionSupported, "none", 62);
   state = run(state, "stack.timed_challenge", {
     ...claritySupported,
@@ -421,6 +427,7 @@ function placementDecisionFor(
     ...executionImmediateSupported,
     ...difficultySupported,
   });
+  state = run(state, "difficulty.recovery", difficultySupported);
   state = run(state, "execution.repeatability", executionSupported, "none", 62);
   state = run(state, "stack.timed_challenge", {
     ...claritySupported,
@@ -504,6 +511,7 @@ test("all-clear diagnosis requires individualized baseline plus repeated tempora
     ...executionImmediateSupported,
     ...difficultySupported,
   });
+  state = run(state, "difficulty.recovery", difficultySupported);
   state = run(state, "execution.repeatability", executionSupported, "none", 62);
 
   assert.equal(
