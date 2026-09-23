@@ -507,9 +507,10 @@ async function proveLegacyAboveSeRoutesToDiagnosis() {
   const contract = await getTimerContract(LEGACY_STUDENT, LEGACY_TOPIC, false);
   assert.equal(
     contract.response.status(),
-    409,
+    404,
     "Legacy proof topic unexpectedly has a Timer Contract",
   );
+  assert.equal(contract.body?.code, "TPS_TIMER_BASELINE_INCOMPLETE");
 
   await openTraining(
     LEGACY_STUDENT,
