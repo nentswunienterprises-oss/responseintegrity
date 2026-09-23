@@ -42,6 +42,35 @@ The remaining mastery order is:
 Only after those five mastery banks are complete should V2R8 proceed to the cumulative Retrieval/Transfer banks.
 
 
+## Logging source reconciliation — 2026-09-23
+
+Before Logging System authoring began, the live Specialist-facing Logging Deep Dive was audited against the current evidence-native product.
+
+The audit found that the page still exposed stale fixed phase-block / score-centric diagnosis teaching and an older score-led result explanation even though current Diagnosis, Training, and Handover authority now operate from persisted behavioral evidence.
+
+The live Deep Dive was reconciled on PR #47:
+
+- `90fa7c94d43ff79549485d3fc56fefe7c610900e` — Specialist-facing Logging System page reconciled to evidence-native operation.
+- `2fbc74ac7c538fa20030e4cb8df5000ad4968d25` and `4f401739b22068bf357a951f559c0cb569c09da1` — derivative Logging Deep Dive copies aligned.
+
+The reconciled Logging doctrine now teaches:
+
+- concrete observed behavior as source evidence;
+- observed / not-observed / confounded evidence status;
+- intervention recorded separately from student behavior;
+- condition preservation as part of evidence integrity;
+- Diagnosis as evidence-complete and system-routed;
+- Training as exposure-complete but evidence-authorized;
+- dimension-level eligibility under legitimate Training support;
+- recovery evidence stronger than one isolated good attempt after breakdown;
+- prerequisite contradiction routing to targeted re-diagnosis rather than guessed backward movement;
+- Handover as evidence-driven continuity verification;
+- Specialist ownership of observation truth and system ownership of evidence interpretation / operating decision.
+
+Legacy compatibility or display scoring is not part of the Specialist-facing Logging doctrine and must not become V2R8 assessment authority.
+
+Logging System authoring may now proceed against the reconciled live Deep Dive and current evidence-native contracts. Raw evaluator content remains private.
+
 ## Intro completion update — 2026-09-23
 
 Intro Session Structure is now **45/45 manually authored and Founder-approved**.
