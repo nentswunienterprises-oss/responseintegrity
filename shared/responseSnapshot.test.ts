@@ -152,19 +152,19 @@ test("response snapshot keeps weak evidence visible inside a strong rep", () => 
       {
         startBehavior: "delayed",
         stepExecution: "full",
-        repeatability: "adjusts",
+        repeatability: "mostly accurate",
         independence: "independent",
       },
       {
         startBehavior: "immediate",
         stepExecution: "full",
-        repeatability: "already structured correctly",
+        repeatability: "accurate",
         independence: "independent",
       },
       {
         startBehavior: "immediate",
         stepExecution: "full",
-        repeatability: "already structured correctly",
+        repeatability: "accurate",
         independence: "independent",
       },
     ],

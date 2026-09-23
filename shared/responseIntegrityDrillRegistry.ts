@@ -417,11 +417,15 @@ const TRAINING_SETS: Record<TopicPhase, EvidenceSetDefinition[]> = {
     set({
       setId: "structured_execution.required_structure",
       setName: "Required Structure",
-      purpose: "Require stated step order before solving.",
+      purpose: "Train ordered execution by requiring the student to state the step order before solving.",
       reps: 3,
       fields: structuredExecutionFields().map((definition) =>
         definition.fieldKey === "repeatability"
-          ? { ...definition, optionLevels: [...FOUR_WITH_TWO_CLEAR] }
+          ? {
+              ...definition,
+              optionLabels: ["missing", "out of order", "mostly accurate", "accurate"],
+              optionLevels: [...FOUR_WITH_TWO_CLEAR],
+            }
           : definition,
       ),
       constraints: NO_PRESSURE_MINIMAL,
