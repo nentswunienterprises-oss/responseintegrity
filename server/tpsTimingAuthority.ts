@@ -3,8 +3,13 @@ import { pool } from "./db";
 import { isEmergencyDbMode } from "./emergencyMode";
 import { supabase } from "./storage";
 import type { TpsTimerContractV1 } from "../shared/tpsTimingContract";
+import type { StoredDrillRow } from "../shared/tpsTimingRuntime";
 
 const TABLE = "response_integrity_tps_timer_contracts";
+
+type QueryClient = {
+  query: (text: string, values?: unknown[]) => Promise<{ rows: any[] }>;
+};
 
 const clean = (value: unknown) => String(value ?? "").trim();
 const topicKey = (value: unknown) => clean(value).toLowerCase();
@@ -99,6 +104,92 @@ const deterministicContractId = (
   return `ri-tps-v1-${digest}`;
 };
 
+const loadTpsTimerContractByIdDirect = async (
+  queryClient: QueryClient,
+  contractId: string,
+): Promise<PersistedTpsTimerContract | null> => {
+  const normalizedId = clean(contractId);
+  if (!normalizedId) return null;
+  const result = await queryClient.query(
+    `SELECT *
+       FROM public.${TABLE}
+      WHERE contract_id = $1
+      LIMIT 1`,
+    [normalizedId],
+  );
+  return result.rows[0]
+    ? rowToContract(result.rows[0] as TimerContractRow)
+    : null;
+};
+
+const loadLatestTpsTimerContractDirect = async (
+  queryClient: QueryClient,
+  studentId: string,
+  topic: string,
+): Promise<PersistedTpsTimerContract | null> => {
+  const normalizedStudentId = clean(studentId);
+  const normalizedTopicKey = topicKey(topic);
+  if (!normalizedStudentId || !normalizedTopicKey) return null;
+  const result = await queryClient.query(
+    `SELECT *
+       FROM public.${TABLE}
+      WHERE student_id = $1
+        AND topic_key = $2
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [normalizedStudentId, normalizedTopicKey],
+  );
+  return result.rows[0]
+    ? rowToContract(result.rows[0] as TimerContractRow)
+    : null;
+};
+
+export const loadTpsTimingDrillRows = async ({
+  studentId,
+  queryClient,
+}: {
+  studentId: string;
+  queryClient?: QueryClient | null;
+}): Promise<StoredDrillRow[]> => {
+  const normalizedStudentId = clean(studentId);
+  if (!normalizedStudentId) return [];
+
+  if (queryClient) {
+    const result = await queryClient.query(
+      `SELECT id, student_id, submitted_at, drill
+         FROM public.intro_session_drills
+        WHERE student_id = $1
+        ORDER BY submitted_at ASC
+        LIMIT 500`,
+      [normalizedStudentId],
+    );
+    return result.rows || [];
+  }
+
+  if (isEmergencyDbMode()) {
+    const result = await pool.query(
+      `SELECT id, student_id, submitted_at, drill
+         FROM public.intro_session_drills
+        WHERE student_id = $1
+        ORDER BY submitted_at ASC
+        LIMIT 500`,
+      [normalizedStudentId],
+    );
+    return result.rows || [];
+  }
+
+  const { data, error } = await supabase
+    .from("intro_session_drills")
+    .select("id, student_id, submitted_at, drill")
+    .eq("student_id", normalizedStudentId)
+    .order("submitted_at", { ascending: true })
+    .limit(500);
+  if (error) {
+    throw new Error(`Failed to load TPS timing drill lineage: ${error.message}`);
+  }
+  return (data || []) as StoredDrillRow[];
+};
+
 export const loadTpsTimerContractById = async (
   contractId: string,
 ): Promise<PersistedTpsTimerContract | null> => {
@@ -167,6 +258,77 @@ export const loadLatestTpsTimerContract = async ({
     throw new Error(`Failed to load latest TPS Timer Contract: ${error.message}`);
   }
   return data ? rowToContract(data as TimerContractRow) : null;
+};
+
+export const persistTpsTimerContractDirect = async ({
+  queryClient,
+  contract,
+  tutorId,
+}: {
+  queryClient: QueryClient;
+  contract: TpsTimerContractV1;
+  tutorId: string;
+}): Promise<PersistedTpsTimerContract> => {
+  const contractId = deterministicContractId(contract);
+  const existing = await loadTpsTimerContractByIdDirect(queryClient, contractId);
+  if (existing) return existing;
+
+  const latest = await loadLatestTpsTimerContractDirect(
+    queryClient,
+    contract.studentId,
+    contract.topic,
+  );
+  const supersedesContractId =
+    latest && latest.contractId !== contractId ? latest.contractId : null;
+
+  await queryClient.query(
+    `INSERT INTO public.${TABLE} (
+      contract_id,
+      contract_version,
+      student_id,
+      topic,
+      topic_key,
+      baseline_source,
+      baseline_source_epoch_key,
+      baseline_group_id,
+      baseline_record_ids,
+      baseline_elapsed_ms,
+      baseline_seconds,
+      structure_under_timer_seconds,
+      repeated_timed_execution_seconds,
+      full_constraint_seconds,
+      created_by_tutor_id,
+      supersedes_contract_id
+    )
+    VALUES (
+      $1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$13,$14,$15,$16
+    )
+    ON CONFLICT (contract_id) DO NOTHING`,
+    [
+      contractId,
+      contract.version,
+      contract.studentId,
+      contract.topic,
+      topicKey(contract.topic),
+      contract.baselineSource,
+      contract.baselineSourceEpochKey,
+      contract.baselineGroupId,
+      JSON.stringify(contract.baselineRecordIds),
+      JSON.stringify(contract.baselineElapsedMs),
+      contract.baselineSeconds,
+      contract.structureUnderTimerSeconds,
+      contract.repeatedTimedExecutionSeconds,
+      contract.fullConstraintSeconds,
+      clean(tutorId),
+      supersedesContractId,
+    ],
+  );
+
+  const persisted = await loadTpsTimerContractByIdDirect(queryClient, contractId);
+  if (!persisted) {
+    throw new Error("TPS Timer Contract was not readable after transactional persistence");
+  }
+  return persisted;
 };
 
 export const persistTpsTimerContract = async ({
