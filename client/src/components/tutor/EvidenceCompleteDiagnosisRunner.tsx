@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { API_URL } from "@/lib/config";
 import { supabase } from "@/lib/supabaseClient";
@@ -17,6 +17,12 @@ import {
   type DiagnosisObservationOption,
 } from "@shared/diagnosisObservationMatrix";
 import { NEXT_ACTION_ENGINE, tryParsePhase, type TopicPhase } from "@shared/topicConditioningEngine";
+import {
+  buildPassiveExecutionTimingEvidence,
+  buildTimedExecutionEvidence,
+  type PassiveExecutionTimingEvidenceV1,
+  type TimedExecutionEvidenceV1,
+} from "@shared/tpsTimingContract";
 
 type DiagnosisApiResponse = {
   success: boolean;
@@ -29,6 +35,14 @@ type DiagnosisApiResponse = {
   opportunityNumber: number | null;
   opportunityPurpose: string | null;
   summary?: Record<string, unknown>;
+  timingAuthority?: {
+    mode: "none" | "passive_baseline" | "timed";
+    requiredSampleCount: number;
+    sampleCount: number;
+    baselineReady: boolean;
+    baselineSeconds: number | null;
+    prescribedSeconds: number | null;
+  };
 };
 
 const SUPPORT_OPTIONS: Array<{
@@ -138,6 +152,12 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const [opportunityStarted, setOpportunityStarted] = useState(false);
   const [activeLayerIndex, setActiveLayerIndex] = useState(0);
   const [confirmStep, setConfirmStep] = useState(false);
+  const opportunityStartedAtRef = useRef<string | null>(null);
+  const [passiveTiming, setPassiveTiming] =
+    useState<PassiveExecutionTimingEvidenceV1 | null>(null);
+  const [timedTiming, setTimedTiming] =
+    useState<TimedExecutionEvidenceV1 | null>(null);
+  const [timerNowMs, setTimerNowMs] = useState(() => Date.now());
 
   const postHistory = async (
     id: string,
@@ -219,6 +239,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
           setOpportunityStarted(false);
           setActiveLayerIndex(0);
           setConfirmStep(false);
+          opportunityStartedAtRef.current = null;
+          setPassiveTiming(null);
+          setTimedTiming(null);
         }
       } catch (bootError) {
         if (!cancelled) {
@@ -249,6 +272,29 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const currentProbe = apiState?.nextProbe || null;
   const opportunityNumber =
     apiState?.opportunityNumber || (apiState?.probeHistory.length || 0) + 1;
+  const currentTimingMode = apiState?.timingAuthority?.mode || "none";
+  const prescribedSeconds = Number(apiState?.timingAuthority?.prescribedSeconds || 0);
+  const timingBoundaryRequired =
+    currentTimingMode === "passive_baseline" || currentTimingMode === "timed";
+  const timingBoundaryCaptured =
+    currentTimingMode === "passive_baseline"
+      ? Boolean(passiveTiming)
+      : currentTimingMode === "timed"
+        ? Boolean(timedTiming)
+        : true;
+  const timedStartedAtMs = opportunityStartedAtRef.current
+    ? Date.parse(opportunityStartedAtRef.current)
+    : NaN;
+  const timedRemainingMs =
+    currentTimingMode === "timed" &&
+    Number.isFinite(timedStartedAtMs) &&
+    prescribedSeconds > 0
+      ? Math.max(0, prescribedSeconds * 1000 - (timerNowMs - timedStartedAtMs))
+      : 0;
+  const timedRemainingSeconds =
+    currentTimingMode === "timed" && prescribedSeconds > 0
+      ? Math.ceil(timedRemainingMs / 1000)
+      : null;
   const allDimensionsComplete = currentProbe
     ? currentProbe.dimensions.every((dimensionId) => !!observations[dimensionId])
     : false;
@@ -282,10 +328,53 @@ export default function EvidenceCompleteDiagnosisRunner() {
   };
 
   const beginOpportunity = () => {
+    if (currentTimingMode === "timed" && (!prescribedSeconds || prescribedSeconds <= 0)) {
+      setError("This timed diagnosis opportunity is blocked because individualized timing authority is not ready.");
+      return;
+    }
+    const startedAt = new Date().toISOString();
+    opportunityStartedAtRef.current = startedAt;
+    setPassiveTiming(null);
+    setTimedTiming(null);
+    setTimerNowMs(Date.now());
     setOpportunityStarted(true);
     setActiveLayerIndex(0);
     setConfirmStep(false);
+    setError(null);
     scrollRunnerTop();
+  };
+
+  const finishOpportunityTiming = () => {
+    if (!timingBoundaryRequired || timingBoundaryCaptured) return;
+    const startedAt = opportunityStartedAtRef.current;
+    if (!startedAt) {
+      setError("The execution boundary did not start correctly. Return to Ready and restart this opportunity.");
+      return;
+    }
+    const endedAt = new Date().toISOString();
+    if (currentTimingMode === "passive_baseline") {
+      const evidence = buildPassiveExecutionTimingEvidence({ startedAt, endedAt });
+      if (!evidence) {
+        setError("The passive execution interval could not be recorded. Restart this opportunity.");
+        return;
+      }
+      setPassiveTiming(evidence);
+      setError(null);
+      return;
+    }
+    if (currentTimingMode === "timed") {
+      const evidence = buildTimedExecutionEvidence({
+        startedAt,
+        endedAt,
+        prescribedSeconds,
+      });
+      if (!evidence) {
+        setError("The timed execution interval could not be recorded. Restart this opportunity.");
+        return;
+      }
+      setTimedTiming(evidence);
+      setError(null);
+    }
   };
 
   const continueFromLayer = () => {
@@ -293,6 +382,14 @@ export default function EvidenceCompleteDiagnosisRunner() {
     if (activeLayerIndex < groupedDimensions.length - 1) {
       setActiveLayerIndex((current) => current + 1);
     } else {
+      if (timingBoundaryRequired && !timingBoundaryCaptured) {
+        setError(
+          currentTimingMode === "timed"
+            ? "Mark Student Finished or allow the system timer to expire before reviewing this timed opportunity."
+            : "Mark Student Finished before reviewing this baseline opportunity so observation/admin time is excluded.",
+        );
+        return;
+      }
       setConfirmStep(true);
     }
     scrollRunnerTop();
@@ -306,12 +403,23 @@ export default function EvidenceCompleteDiagnosisRunner() {
       setActiveLayerIndex((current) => current - 1);
     } else {
       setOpportunityStarted(false);
+      opportunityStartedAtRef.current = null;
+      setPassiveTiming(null);
+      setTimedTiming(null);
     }
     scrollRunnerTop();
   };
 
   const submitProbe = async () => {
     if (!runId || !apiState || !currentProbe || !allDimensionsComplete) return;
+    if (timingBoundaryRequired && !timingBoundaryCaptured) {
+      setError(
+        currentTimingMode === "timed"
+          ? "Timed evidence is incomplete. Mark Student Finished or allow the countdown to expire."
+          : "Passive baseline timing is incomplete. Mark Student Finished before confirming.",
+      );
+      return;
+    }
     setSubmitting(true);
     setError(null);
 
@@ -323,6 +431,8 @@ export default function EvidenceCompleteDiagnosisRunner() {
           dimensionId,
           behaviorId: observations[dimensionId]!,
         })),
+        ...(passiveTiming ? { passiveTiming } : {}),
+        ...(timedTiming ? { timedTiming } : {}),
       };
 
       const nextState = await postHistory(runId, [
@@ -335,6 +445,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
       setOpportunityStarted(false);
       setActiveLayerIndex(0);
       setConfirmStep(false);
+      opportunityStartedAtRef.current = null;
+      setPassiveTiming(null);
+      setTimedTiming(null);
 
       if (nextState.finalized) {
         window.sessionStorage.removeItem(storageKey);
@@ -350,6 +463,56 @@ export default function EvidenceCompleteDiagnosisRunner() {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (
+      !opportunityStarted ||
+      currentTimingMode !== "timed" ||
+      timedTiming ||
+      !prescribedSeconds ||
+      prescribedSeconds <= 0
+    ) {
+      return;
+    }
+    const interval = window.setInterval(() => {
+      setTimerNowMs(Date.now());
+    }, 250);
+    return () => window.clearInterval(interval);
+  }, [opportunityStarted, currentTimingMode, timedTiming, prescribedSeconds, currentProbe?.id]);
+
+  useEffect(() => {
+    if (
+      !opportunityStarted ||
+      currentTimingMode !== "timed" ||
+      timedTiming ||
+      timedRemainingMs > 0 ||
+      !prescribedSeconds ||
+      prescribedSeconds <= 0
+    ) {
+      return;
+    }
+    const startedAt = opportunityStartedAtRef.current;
+    if (!startedAt) return;
+    const startedMs = Date.parse(startedAt);
+    if (!Number.isFinite(startedMs)) return;
+    const endedAt = new Date(startedMs + prescribedSeconds * 1000).toISOString();
+    const evidence = buildTimedExecutionEvidence({
+      startedAt,
+      endedAt,
+      prescribedSeconds,
+    });
+    if (!evidence) return;
+    setTimedTiming({
+      ...evidence,
+      completedBeforeExpiry: false,
+    });
+  }, [
+    opportunityStarted,
+    currentTimingMode,
+    timedTiming,
+    timedRemainingMs,
+    prescribedSeconds,
+  ]);
 
   if (loading) {
     return (
@@ -691,6 +854,33 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 {currentProbe.evidenceQuestion}
               </p>
 
+              {currentTimingMode === "passive_baseline" && (
+                <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                    Passive baseline measurement
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    The system will measure this normal independent execution silently from Begin Opportunity to Student Finished.
+                    Do not show a countdown, announce a target, rush the student, or allow avoidable dead time.
+                  </p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Baseline evidence: {apiState?.timingAuthority?.sampleCount || 0} / {apiState?.timingAuthority?.requiredSampleCount || 3} clean comparable executions.
+                  </p>
+                </div>
+              )}
+
+              {currentTimingMode === "timed" && (
+                <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                    Individualized diagnosis timer
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    The system will run this opportunity at the student's established {prescribedSeconds}-second baseline condition.
+                    Do not substitute another timer or change the target.
+                  </p>
+                </div>
+              )}
+
               <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
                   {instructionPromptLabelFor(currentProbe.specialistInstruction)}
@@ -750,6 +940,17 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 {recordedBehaviorCount} / {currentProbe.dimensions.length} behaviors recorded.
                 Record any intervention separately before committing this opportunity.
               </p>
+
+              {timingBoundaryRequired && (
+                <div className="mt-4 rounded-xl border p-4 text-sm">
+                  <span className="font-medium">
+                    {currentTimingMode === "timed" ? "Timed boundary recorded." : "Passive execution boundary recorded."}
+                  </span>
+                  <span className="ml-1 text-muted-foreground">
+                    Specialist observation/admin time is outside the student's execution interval.
+                  </span>
+                </div>
+              )}
 
               <div className="mt-5">
                 <h3 className="text-lg font-semibold">Did you intervene?</h3>
@@ -839,6 +1040,48 @@ export default function EvidenceCompleteDiagnosisRunner() {
                   {currentProbe.specialistInstruction}
                 </p>
               </div>
+
+              {timingBoundaryRequired && (
+                <div className="mt-4 rounded-xl border p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {currentTimingMode === "timed" ? "System timer" : "Execution boundary"}
+                      </p>
+                      {currentTimingMode === "timed" ? (
+                        <>
+                          <p className="mt-1 text-3xl font-semibold tabular-nums">
+                            {timedTiming
+                              ? timedTiming.completedBeforeExpiry
+                                ? "Finished"
+                                : "Expired"
+                              : `${timedRemainingSeconds ?? prescribedSeconds}s`}
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            Prescribed from this student's diagnosis baseline. The Specialist cannot edit or pause it.
+                          </p>
+                        </>
+                      ) : (
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          Measurement is running silently. Freeze it at actual student completion before finishing observation admin.
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={finishOpportunityTiming}
+                      disabled={timingBoundaryCaptured}
+                      className="shrink-0 rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-muted/50 disabled:cursor-default disabled:opacity-60"
+                    >
+                      {timingBoundaryCaptured
+                        ? currentTimingMode === "timed" && timedTiming && !timedTiming.completedBeforeExpiry
+                          ? "Timer Expired ✓"
+                          : "Student Finished ✓"
+                        : "Student Finished"}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-4 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
                 <p className="text-sm font-semibold">Record behavior, not a judgment</p>
