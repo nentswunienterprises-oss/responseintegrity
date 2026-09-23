@@ -88,6 +88,67 @@ COMMENT ON COLUMN public.response_integrity_diagnosis_runs.timing_authority_cont
 COMMENT ON COLUMN public.response_integrity_diagnosis_runs.timing_authority_baseline_seconds IS
   'Bound individualized baseline seconds copied from the Timer Contract so replay does not drift if later topic contracts supersede it.';
 
+
+CREATE TABLE IF NOT EXISTS public.response_integrity_tps_timed_attempts (
+  attempt_id text PRIMARY KEY,
+  contract_id text NOT NULL REFERENCES public.response_integrity_tps_timer_contracts(contract_id),
+  contract_version integer NOT NULL CHECK (contract_version = 1),
+  student_id varchar(64) NOT NULL,
+  topic text NOT NULL,
+  topic_key text NOT NULL,
+  collected_by_tutor_id varchar(64) NOT NULL,
+  set_id text NOT NULL CHECK (
+    set_id IN (
+      'time_pressure.structure_under_timer',
+      'time_pressure.repeated_timed_execution',
+      'time_pressure.full_constraint'
+    )
+  ),
+  set_name text NOT NULL,
+  rep_number integer NOT NULL CHECK (rep_number > 0),
+  attempt_number integer NOT NULL CHECK (attempt_number > 0),
+  pressure_level varchar(32) NOT NULL CHECK (
+    pressure_level IN ('light_timer', 'repeated_timer', 'full_constraint')
+  ),
+  baseline_seconds integer NOT NULL CHECK (baseline_seconds > 0),
+  prescribed_seconds integer NOT NULL CHECK (prescribed_seconds > 0),
+  started_at timestamptz NOT NULL,
+  ended_at timestamptz NOT NULL,
+  elapsed_ms integer NOT NULL CHECK (elapsed_ms >= 0),
+  completed_before_expiry boolean NOT NULL,
+  timing_validity varchar(40) NOT NULL CHECK (
+    timing_validity IN ('valid', 'timing_invalid_technical')
+  ),
+  end_reason varchar(32) NOT NULL CHECK (
+    end_reason IN ('student_finished', 'timer_expired', 'technical_failure')
+  ),
+  replacement_for_attempt_id text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (contract_id, set_id, rep_number, attempt_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ri_tps_attempt_student_topic_time
+  ON public.response_integrity_tps_timed_attempts
+    (student_id, topic_key, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ri_tps_attempt_contract_rep
+  ON public.response_integrity_tps_timed_attempts
+    (contract_id, set_id, rep_number, attempt_number);
+
+DROP TRIGGER IF EXISTS trg_response_integrity_tps_attempt_immutable
+  ON public.response_integrity_tps_timed_attempts;
+
+CREATE TRIGGER trg_response_integrity_tps_attempt_immutable
+BEFORE UPDATE ON public.response_integrity_tps_timed_attempts
+FOR EACH ROW EXECUTE FUNCTION public.prevent_response_integrity_tps_contract_update();
+
+ALTER TABLE public.response_integrity_tps_timed_attempts ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.response_integrity_tps_timed_attempts FROM anon, authenticated;
+GRANT SELECT, INSERT, DELETE ON TABLE public.response_integrity_tps_timed_attempts TO service_role;
+
+COMMENT ON TABLE public.response_integrity_tps_timed_attempts IS
+  'Append-only runner-owned TPS timing lineage. Technical failures remain durable and replacement attempts are linked explicitly.';
+
 -- Recovery/rollback (manual and only before runtime consumers are activated):
 -- ALTER TABLE public.response_integrity_diagnosis_runs
 --   DROP COLUMN IF EXISTS timing_authority_baseline_seconds,
@@ -96,4 +157,5 @@ COMMENT ON COLUMN public.response_integrity_diagnosis_runs.timing_authority_base
 -- DROP TRIGGER IF EXISTS trg_response_integrity_tps_contract_immutable
 --   ON public.response_integrity_tps_timer_contracts;
 -- DROP FUNCTION IF EXISTS public.prevent_response_integrity_tps_contract_update();
+-- DROP TABLE IF EXISTS public.response_integrity_tps_timed_attempts;
 -- DROP TABLE IF EXISTS public.response_integrity_tps_timer_contracts;

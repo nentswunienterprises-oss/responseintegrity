@@ -2,7 +2,11 @@ import { createHash } from "crypto";
 import { pool } from "./db";
 import { isEmergencyDbMode } from "./emergencyMode";
 import { supabase } from "./storage";
-import type { TpsTimerContractV1 } from "../shared/tpsTimingContract";
+import {
+  validateTpsTimedAttemptAgainstContract,
+  type TpsTimedAttemptSubmissionV1,
+  type TpsTimerContractV1,
+} from "../shared/tpsTimingContract";
 import type { StoredDrillRow } from "../shared/tpsTimingRuntime";
 
 const TABLE = "response_integrity_tps_timer_contracts";
@@ -421,6 +425,194 @@ export const persistTpsTimerContract = async ({
   const persisted = await loadTpsTimerContractById(contractId);
   if (!persisted) {
     throw new Error("TPS Timer Contract was not readable after persistence");
+  }
+  return persisted;
+};
+
+
+const TIMED_ATTEMPT_TABLE = "response_integrity_tps_timed_attempts";
+
+export type PersistedTpsTimedAttempt = TpsTimedAttemptSubmissionV1 & {
+  contractId: string;
+  contractVersion: 1;
+  studentId: string;
+  topic: string;
+  baselineSeconds: number;
+  collectedByTutorId: string;
+  createdAt: string | null;
+};
+
+const rowToTimedAttempt = (row: Record<string, any>): PersistedTpsTimedAttempt => ({
+  attemptId: clean(row.attempt_id),
+  contractId: clean(row.contract_id),
+  contractVersion: 1,
+  studentId: clean(row.student_id),
+  topic: clean(row.topic),
+  collectedByTutorId: clean(row.collected_by_tutor_id),
+  setId: clean(row.set_id) as TpsTimedAttemptSubmissionV1["setId"],
+  setName: clean(row.set_name),
+  repNumber: Number(row.rep_number),
+  attemptNumber: Number(row.attempt_number),
+  pressureLevel: clean(row.pressure_level) as TpsTimedAttemptSubmissionV1["pressureLevel"],
+  baselineSeconds: Number(row.baseline_seconds),
+  prescribedSeconds: Number(row.prescribed_seconds),
+  startedAt: new Date(row.started_at).toISOString(),
+  endedAt: new Date(row.ended_at).toISOString(),
+  elapsedMs: Number(row.elapsed_ms),
+  completedBeforeExpiry: row.completed_before_expiry === true,
+  timingValidity: clean(row.timing_validity) as TpsTimedAttemptSubmissionV1["timingValidity"],
+  endReason: clean(row.end_reason) as TpsTimedAttemptSubmissionV1["endReason"],
+  replacementForAttemptId: clean(row.replacement_for_attempt_id) || null,
+  createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
+});
+
+export const loadTpsTimedAttemptById = async (
+  attemptId: string,
+): Promise<PersistedTpsTimedAttempt | null> => {
+  const normalizedId = clean(attemptId);
+  if (!normalizedId) return null;
+
+  if (isEmergencyDbMode()) {
+    const result = await pool.query(
+      `SELECT *
+         FROM public.${TIMED_ATTEMPT_TABLE}
+        WHERE attempt_id = $1
+        LIMIT 1`,
+      [normalizedId],
+    );
+    return result.rows[0] ? rowToTimedAttempt(result.rows[0]) : null;
+  }
+
+  const { data, error } = await supabase
+    .from(TIMED_ATTEMPT_TABLE)
+    .select("*")
+    .eq("attempt_id", normalizedId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Failed to load TPS timed attempt: ${error.message}`);
+  }
+  return data ? rowToTimedAttempt(data as Record<string, any>) : null;
+};
+
+export const persistTpsTimedAttempt = async ({
+  contract,
+  attempt,
+  tutorId,
+}: {
+  contract: PersistedTpsTimerContract;
+  attempt: TpsTimedAttemptSubmissionV1;
+  tutorId: string;
+}): Promise<PersistedTpsTimedAttempt> => {
+  const validation = validateTpsTimedAttemptAgainstContract({
+    contract,
+    attempt,
+  });
+  if (!validation.ok) {
+    throw Object.assign(new Error(validation.error), {
+      statusCode: 400,
+      code: "TPS_TIMED_ATTEMPT_INVALID",
+    });
+  }
+
+  const existing = await loadTpsTimedAttemptById(attempt.attemptId);
+  if (existing) {
+    const same =
+      existing.contractId === contract.contractId &&
+      existing.setId === attempt.setId &&
+      existing.repNumber === attempt.repNumber &&
+      existing.attemptNumber === attempt.attemptNumber &&
+      existing.startedAt === new Date(attempt.startedAt).toISOString() &&
+      existing.endedAt === new Date(attempt.endedAt).toISOString() &&
+      existing.elapsedMs === attempt.elapsedMs &&
+      existing.timingValidity === attempt.timingValidity &&
+      existing.endReason === attempt.endReason;
+    if (!same) {
+      throw Object.assign(
+        new Error("TPS attempt ID is already bound to different immutable timing evidence."),
+        { statusCode: 409, code: "TPS_ATTEMPT_ID_CONFLICT" },
+      );
+    }
+    return existing;
+  }
+
+  if (attempt.replacementForAttemptId) {
+    const replaced = await loadTpsTimedAttemptById(attempt.replacementForAttemptId);
+    if (
+      !replaced ||
+      replaced.contractId !== contract.contractId ||
+      replaced.setId !== attempt.setId ||
+      replaced.repNumber !== attempt.repNumber ||
+      replaced.timingValidity !== "timing_invalid_technical"
+    ) {
+      throw Object.assign(
+        new Error("TPS replacement lineage must point to a technical-invalid attempt for the same contract/set/rep."),
+        { statusCode: 409, code: "TPS_REPLACEMENT_LINEAGE_INVALID" },
+      );
+    }
+  } else if (attempt.attemptNumber > 1) {
+    throw Object.assign(
+      new Error("TPS replacement attempts must identify the technical-invalid attempt they replace."),
+      { statusCode: 409, code: "TPS_REPLACEMENT_LINEAGE_REQUIRED" },
+    );
+  }
+
+  const row = {
+    attempt_id: attempt.attemptId,
+    contract_id: contract.contractId,
+    contract_version: contract.version,
+    student_id: contract.studentId,
+    topic: contract.topic,
+    topic_key: topicKey(contract.topic),
+    collected_by_tutor_id: clean(tutorId),
+    set_id: attempt.setId,
+    set_name: attempt.setName,
+    rep_number: attempt.repNumber,
+    attempt_number: attempt.attemptNumber,
+    pressure_level: attempt.pressureLevel,
+    baseline_seconds: contract.baselineSeconds,
+    prescribed_seconds: attempt.prescribedSeconds,
+    started_at: attempt.startedAt,
+    ended_at: attempt.endedAt,
+    elapsed_ms: attempt.elapsedMs,
+    completed_before_expiry: attempt.completedBeforeExpiry,
+    timing_validity: attempt.timingValidity,
+    end_reason: attempt.endReason,
+    replacement_for_attempt_id: attempt.replacementForAttemptId || null,
+  };
+
+  if (isEmergencyDbMode()) {
+    await pool.query(
+      `INSERT INTO public.${TIMED_ATTEMPT_TABLE} (
+        attempt_id, contract_id, contract_version, student_id, topic, topic_key,
+        collected_by_tutor_id, set_id, set_name, rep_number, attempt_number,
+        pressure_level, baseline_seconds, prescribed_seconds, started_at, ended_at,
+        elapsed_ms, completed_before_expiry, timing_validity, end_reason,
+        replacement_for_attempt_id
+      ) VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21
+      )`,
+      [
+        row.attempt_id, row.contract_id, row.contract_version, row.student_id,
+        row.topic, row.topic_key, row.collected_by_tutor_id, row.set_id,
+        row.set_name, row.rep_number, row.attempt_number, row.pressure_level,
+        row.baseline_seconds, row.prescribed_seconds, row.started_at, row.ended_at,
+        row.elapsed_ms, row.completed_before_expiry, row.timing_validity,
+        row.end_reason, row.replacement_for_attempt_id,
+      ],
+    );
+  } else {
+    const { error } = await supabase.from(TIMED_ATTEMPT_TABLE).insert(row);
+    if (error) {
+      throw Object.assign(
+        new Error(`Failed to persist TPS timed attempt: ${error.message}`),
+        { statusCode: error.code === "23505" ? 409 : 500, code: error.code || "TPS_ATTEMPT_PERSISTENCE_FAILED" },
+      );
+    }
+  }
+
+  const persisted = await loadTpsTimedAttemptById(attempt.attemptId);
+  if (!persisted) {
+    throw new Error("TPS timed attempt was not readable after persistence");
   }
   return persisted;
 };

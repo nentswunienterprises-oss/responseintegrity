@@ -14,6 +14,9 @@ import {
   selectCompleteDiagnosisBaseline,
   selectLatestCompleteTrainingBaselineSet,
   type TpsBaselineTimingRecord,
+  validateTpsTimedAttemptAgainstContract,
+  getTpsTrainingPressureForSet,
+  type TpsTimedAttemptSubmissionV1,
 } from "./tpsTimingContract";
 
 const baseRecord = (
@@ -313,5 +316,121 @@ test("passive timing wire rejects invalid or tampered duration evidence", () => 
       timingValidity: "valid",
     })),
     null,
+  );
+});
+
+
+test("TPS Training set IDs deterministically select the Timer Contract condition", () => {
+  const contract = {
+    version: 1 as const,
+    studentId: "student-1",
+    topic: "Fractions",
+    baselineSource: "training_independent_execution" as const,
+    baselineSourceEpochKey: "se-v1-epoch-1",
+    baselineGroupId: "round-c",
+    baselineRecordIds: ["a", "b", "c"] as [string, string, string],
+    baselineElapsedMs: [43_000, 45_000, 44_000] as [number, number, number],
+    baselineSeconds: 44,
+    structureUnderTimerSeconds: 44,
+    repeatedTimedExecutionSeconds: 44,
+    fullConstraintSeconds: 37,
+  };
+
+  assert.equal(
+    getTpsTrainingPressureForSet("time_pressure.structure_under_timer"),
+    "light_timer",
+  );
+  assert.equal(
+    getTpsTrainingPressureForSet("time_pressure.repeated_timed_execution"),
+    "repeated_timer",
+  );
+  assert.equal(
+    getTpsTrainingPressureForSet("time_pressure.full_constraint"),
+    "full_constraint",
+  );
+
+  const validAttempt: TpsTimedAttemptSubmissionV1 = {
+    attemptId: "attempt-1",
+    setId: "time_pressure.structure_under_timer",
+    setName: "Structure Under Timer",
+    repNumber: 1,
+    attemptNumber: 1,
+    pressureLevel: "light_timer",
+    prescribedSeconds: 44,
+    startedAt: "2026-09-23T18:00:00.000Z",
+    endedAt: "2026-09-23T18:00:40.000Z",
+    elapsedMs: 40_000,
+    completedBeforeExpiry: true,
+    timingValidity: "valid",
+    endReason: "student_finished",
+    replacementForAttemptId: null,
+  };
+
+  assert.deepEqual(
+    validateTpsTimedAttemptAgainstContract({ contract, attempt: validAttempt }),
+    { ok: true, attempt: validAttempt },
+  );
+
+  assert.match(
+    (
+      validateTpsTimedAttemptAgainstContract({
+        contract,
+        attempt: { ...validAttempt, prescribedSeconds: 60 },
+      }) as { ok: false; error: string }
+    ).error,
+    /requires 44s/,
+  );
+});
+
+test("TPS timed lineage distinguishes clean expiry from technical failure", () => {
+  const contract = {
+    version: 1 as const,
+    studentId: "student-1",
+    topic: "Fractions",
+    baselineSource: "diagnosis_independent_baseline" as const,
+    baselineSourceEpochKey: "diagnosis-v1:run-1",
+    baselineGroupId: "diagnosis:run-1",
+    baselineRecordIds: ["a", "b", "c"] as [string, string, string],
+    baselineElapsedMs: [60_000, 58_000, 62_000] as [number, number, number],
+    baselineSeconds: 60,
+    structureUnderTimerSeconds: 60,
+    repeatedTimedExecutionSeconds: 60,
+    fullConstraintSeconds: 51,
+  };
+
+  const expired: TpsTimedAttemptSubmissionV1 = {
+    attemptId: "attempt-expired",
+    setId: "time_pressure.full_constraint",
+    setName: "Full Constraint",
+    repNumber: 2,
+    attemptNumber: 1,
+    pressureLevel: "full_constraint",
+    prescribedSeconds: 51,
+    startedAt: "2026-09-23T18:00:00.000Z",
+    endedAt: "2026-09-23T18:00:51.000Z",
+    elapsedMs: 51_000,
+    completedBeforeExpiry: false,
+    timingValidity: "valid",
+    endReason: "timer_expired",
+    replacementForAttemptId: null,
+  };
+  assert.equal(
+    validateTpsTimedAttemptAgainstContract({ contract, attempt: expired }).ok,
+    true,
+  );
+
+  const technical: TpsTimedAttemptSubmissionV1 = {
+    ...expired,
+    attemptId: "attempt-technical",
+    attemptNumber: 2,
+    endedAt: "2026-09-23T18:00:12.000Z",
+    elapsedMs: 12_000,
+    timingValidity: "timing_invalid_technical",
+    endReason: "technical_failure",
+    replacementForAttemptId: "attempt-expired",
+  };
+  assert.equal(
+    validateTpsTimedAttemptAgainstContract({ contract, attempt: technical }).ok,
+    true,
   );
 });

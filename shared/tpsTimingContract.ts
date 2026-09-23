@@ -421,3 +421,146 @@ export const getTpsPrescribedSeconds = (
   if (pressureLevel === "repeated_timer") return contract.repeatedTimedExecutionSeconds;
   return contract.fullConstraintSeconds;
 };
+
+
+export const TPS_TRAINING_TIMED_SET_PRESSURE = {
+  "time_pressure.structure_under_timer": "light_timer",
+  "time_pressure.repeated_timed_execution": "repeated_timer",
+  "time_pressure.full_constraint": "full_constraint",
+} as const;
+
+export type TpsTimedTrainingSetId = keyof typeof TPS_TRAINING_TIMED_SET_PRESSURE;
+export type TpsTimedPressureLevel =
+  (typeof TPS_TRAINING_TIMED_SET_PRESSURE)[TpsTimedTrainingSetId];
+export type TpsTimedAttemptEndReason =
+  | "student_finished"
+  | "timer_expired"
+  | "technical_failure";
+
+export type TpsTimedAttemptSubmissionV1 = {
+  attemptId: string;
+  setId: TpsTimedTrainingSetId;
+  setName: string;
+  repNumber: number;
+  attemptNumber: number;
+  pressureLevel: TpsTimedPressureLevel;
+  prescribedSeconds: number;
+  startedAt: string;
+  endedAt: string;
+  elapsedMs: number;
+  completedBeforeExpiry: boolean;
+  timingValidity: "valid" | "timing_invalid_technical";
+  endReason: TpsTimedAttemptEndReason;
+  replacementForAttemptId?: string | null;
+};
+
+export const getTpsTrainingPressureForSet = (
+  setId: string,
+): TpsTimedPressureLevel | null =>
+  TPS_TRAINING_TIMED_SET_PRESSURE[setId as TpsTimedTrainingSetId] || null;
+
+export type TpsTimedAttemptValidation =
+  | { ok: true; attempt: TpsTimedAttemptSubmissionV1 }
+  | { ok: false; error: string };
+
+export const validateTpsTimedAttemptAgainstContract = ({
+  contract,
+  attempt,
+}: {
+  contract: TpsTimerContractV1;
+  attempt: TpsTimedAttemptSubmissionV1;
+}): TpsTimedAttemptValidation => {
+  const expectedPressure = getTpsTrainingPressureForSet(attempt.setId);
+  if (!expectedPressure) {
+    return { ok: false, error: "Unknown TPS Training set." };
+  }
+  if (attempt.pressureLevel !== expectedPressure) {
+    return {
+      ok: false,
+      error: `TPS pressure mismatch: ${attempt.setId} requires ${expectedPressure}.`,
+    };
+  }
+
+  const expectedSeconds = getTpsPrescribedSeconds(contract, expectedPressure);
+  if (
+    !Number.isInteger(attempt.prescribedSeconds) ||
+    attempt.prescribedSeconds !== expectedSeconds
+  ) {
+    return {
+      ok: false,
+      error: `TPS timer mismatch: ${attempt.setId} requires ${expectedSeconds}s.`,
+    };
+  }
+
+  if (!String(attempt.attemptId || "").trim()) {
+    return { ok: false, error: "TPS attempt ID is required." };
+  }
+  if (!Number.isInteger(attempt.repNumber) || attempt.repNumber < 1) {
+    return { ok: false, error: "TPS rep number must be a positive integer." };
+  }
+  if (!Number.isInteger(attempt.attemptNumber) || attempt.attemptNumber < 1) {
+    return { ok: false, error: "TPS attempt number must be a positive integer." };
+  }
+  if (
+    attempt.replacementForAttemptId &&
+    attempt.replacementForAttemptId === attempt.attemptId
+  ) {
+    return { ok: false, error: "A TPS attempt cannot replace itself." };
+  }
+
+  const startedMs = Date.parse(attempt.startedAt);
+  const endedMs = Date.parse(attempt.endedAt);
+  if (!Number.isFinite(startedMs) || !Number.isFinite(endedMs) || endedMs < startedMs) {
+    return { ok: false, error: "TPS attempt timestamps are invalid." };
+  }
+  const recomputedElapsedMs = endedMs - startedMs;
+  if (
+    !Number.isFinite(attempt.elapsedMs) ||
+    attempt.elapsedMs < 0 ||
+    attempt.elapsedMs !== recomputedElapsedMs
+  ) {
+    return { ok: false, error: "TPS elapsed time does not match its system boundaries." };
+  }
+
+  const expiryMs = expectedSeconds * 1000;
+  if (attempt.timingValidity === "timing_invalid_technical") {
+    if (attempt.endReason !== "technical_failure") {
+      return {
+        ok: false,
+        error: "Technical-invalid TPS attempts must end as technical failures.",
+      };
+    }
+    if (attempt.completedBeforeExpiry) {
+      return {
+        ok: false,
+        error: "Technical-invalid TPS attempts cannot claim clean completion.",
+      };
+    }
+    return { ok: true, attempt };
+  }
+
+  if (attempt.endReason === "technical_failure") {
+    return {
+      ok: false,
+      error: "A valid TPS attempt cannot end as a technical failure.",
+    };
+  }
+
+  if (attempt.endReason === "timer_expired") {
+    if (attempt.elapsedMs !== expiryMs || attempt.completedBeforeExpiry) {
+      return {
+        ok: false,
+        error: "Expired TPS attempts must end exactly at the prescribed system boundary.",
+      };
+    }
+    return { ok: true, attempt };
+  }
+
+  if (attempt.elapsedMs >= expiryMs || !attempt.completedBeforeExpiry) {
+    return {
+      ok: false,
+      error: "Student-finished TPS attempts must finish before the prescribed expiry boundary.",
+    };
+  }
+  return { ok: true, attempt };
+};
