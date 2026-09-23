@@ -9696,6 +9696,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .eq("student_id", studentId)
             .eq("type", sessionType)
             .order("created_at", { ascending: false })
+            .limit(1)
             .maybeSingle();
           const { data: session, error: sessionError } = sessionLookupResult;
 
@@ -9712,6 +9713,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 .eq("parent_id", parentId)
                 .eq("type", sessionType)
                 .order("created_at", { ascending: false })
+                .limit(1)
                 .maybeSingle();
               const { data: fallbackSession, error: fallbackError } = fallbackSessionResult;
 
