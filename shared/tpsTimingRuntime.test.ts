@@ -38,7 +38,7 @@ const trainingRow = ({
   id: string;
   hour: number;
   seconds: [number, number, number];
-}) => ({
+}): any => ({
   id,
   student_id: "student-1",
   submitted_at: `2026-09-23T${String(hour).padStart(2, "0")}:30:00.000Z`,
