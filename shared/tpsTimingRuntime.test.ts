@@ -84,7 +84,7 @@ test("stored Training drill timing reconstructs complete Independent Execution b
     rows,
     studentId: "student-1",
     topic: "Fractions",
-    sourceEpochKey: "se-epoch-1",
+    sourceEpochKey: "se-v1-epoch-1",
   });
 
   assert.equal(records.length, 9);
@@ -94,7 +94,7 @@ test("stored Training drill timing reconstructs complete Independent Execution b
     rows,
     studentId: "student-1",
     topic: "fractions",
-    sourceEpochKey: "se-epoch-1",
+    sourceEpochKey: "se-v1-epoch-1",
   });
 
   assert.ok(contract);
@@ -117,7 +117,7 @@ test("contaminated or non-supported Independent Execution timing cannot become b
     rows: [row],
     studentId: "student-1",
     topic: "Fractions",
-    sourceEpochKey: "se-epoch-1",
+    sourceEpochKey: "se-v1-epoch-1",
   });
 
   assert.equal(records.length, 3);
@@ -130,7 +130,7 @@ test("contaminated or non-supported Independent Execution timing cannot become b
       rows: [row],
       studentId: "student-1",
       topic: "Fractions",
-      sourceEpochKey: "se-epoch-1",
+      sourceEpochKey: "se-v1-epoch-1",
     }),
     null,
   );
@@ -149,7 +149,7 @@ test("Required Structure and Variation Control wire timing are ignored even if p
     rows: [row],
     studentId: "student-1",
     topic: "Fractions",
-    sourceEpochKey: "se-epoch-1",
+    sourceEpochKey: "se-v1-epoch-1",
   });
 
   assert.equal(records.length, 3);
