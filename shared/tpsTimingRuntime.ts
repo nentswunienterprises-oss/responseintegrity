@@ -10,7 +10,15 @@ import {
   type TpsBaselineTimingRecord,
   type TpsTimerContractV1,
 } from "./tpsTimingContract";
-import { readTrainingInterventionEvent } from "./trainingEvidenceCapture";
+import {
+  readTrainingEvidenceStatus,
+  readTrainingInterventionEvent,
+  resolveTrainingEvidenceEligibility,
+} from "./trainingEvidenceCapture";
+import {
+  trainingDimensionForFieldKey,
+  trainingEvidenceClassForRawBehavior,
+} from "./trainingEvidenceEvaluator";
 import {
   getDiagnosisBaselineTimingSamples,
   type DiagnosisProbeResult,
@@ -149,13 +157,45 @@ const parseDrill = (value: unknown): Record<string, any> | null => {
   }
 };
 
-const repHasSupportedExecutionEvidence = (rep: Record<string, unknown>) => {
-  const evidenceClasses = Object.entries(rep)
-    .filter(([key]) => key.endsWith("_evidence_class"))
-    .map(([, value]) => clean(value));
+const STRUCTURED_EXECUTION_BASELINE_FIELDS = [
+  "startBehavior",
+  "stepExecution",
+  "repeatability",
+  "independence",
+] as const;
 
-  if (evidenceClasses.length === 0) return false;
-  return evidenceClasses.every((value) => value === "supported");
+const repHasSupportedExecutionEvidence = (rep: Record<string, unknown>) => {
+  const typedRep = rep as Record<string, string>;
+  const interventionEvent = readTrainingInterventionEvent(typedRep);
+  const liveEvidenceClasses = STRUCTURED_EXECUTION_BASELINE_FIELDS.map((fieldKey) => {
+    const rawOption = clean(typedRep[fieldKey]);
+    const dimensionId = trainingDimensionForFieldKey(fieldKey);
+    if (!rawOption || !dimensionId) return null;
+
+    const eligibility = resolveTrainingEvidenceEligibility({
+      phase: STRUCTURED_EXECUTION_PHASE,
+      dimensionId,
+      explicitStatus: readTrainingEvidenceStatus(typedRep, fieldKey),
+      interventionEvent,
+    });
+    if (eligibility.status !== "observed") return eligibility.status;
+
+    return trainingEvidenceClassForRawBehavior(dimensionId, rawOption);
+  });
+
+  if (liveEvidenceClasses.every((value) => value !== null)) {
+    return liveEvidenceClasses.every((value) => value === "supported");
+  }
+
+  // Historical fixtures/rows may already materialize evidence classes.
+  const legacyEvidenceClasses = STRUCTURED_EXECUTION_BASELINE_FIELDS
+    .map((fieldKey) => clean(typedRep[fieldKey + "_evidence_class"]))
+    .filter(Boolean);
+
+  return (
+    legacyEvidenceClasses.length === STRUCTURED_EXECUTION_BASELINE_FIELDS.length &&
+    legacyEvidenceClasses.every((value) => value === "supported")
+  );
 };
 
 const repPreservesIndependentExecution = (rep: Record<string, string>) => {

@@ -40,6 +40,20 @@ const supportedRep = (slot: number, seconds: number, hour: number) => ({
   [PASSIVE_EXECUTION_TIMING_WIRE_KEY]: timing(seconds, hour),
 });
 
+const liveSupportedRep = (slot: number, seconds: number, hour: number) => ({
+  _rep_number: String(slot),
+  [TRAINING_INTERVENTION_FIELD]: "none",
+  startBehavior: "immediate",
+  startBehavior_evidence_status: "observed",
+  stepExecution: "no correction needed",
+  stepExecution_evidence_status: "observed",
+  repeatability: "stable",
+  repeatability_evidence_status: "observed",
+  independence: "independent",
+  independence_evidence_status: "observed",
+  [PASSIVE_EXECUTION_TIMING_WIRE_KEY]: timing(seconds, hour),
+});
+
 const trainingRow = ({
   id,
   hour,
@@ -109,6 +123,72 @@ test("stored Training drill timing reconstructs complete Independent Execution b
   assert.equal(contract.baselineGroupId, `round-c::${TPS_TRAINING_BASELINE_SET_ID}`);
   assert.deepEqual(contract.baselineElapsedMs, [43_000, 45_000, 44_000]);
   assert.equal(contract.baselineSeconds, 44);
+});
+
+test("live Training payload freezes a Timer Contract from raw evidence-native observations", () => {
+  const row = trainingRow({
+    id: "live-round",
+    hour: 8,
+    seconds: [52, 50, 51],
+  });
+  row.drill.sets[1].observations = [
+    liveSupportedRep(1, 52, 8),
+    liveSupportedRep(2, 50, 9),
+    liveSupportedRep(3, 51, 10),
+  ];
+
+  const records = collectTrainingTpsBaselineTimingRecords({
+    rows: [row],
+    studentId: "student-1",
+    topic: "Fractions",
+    sourceEpochKey: "se-v1-epoch-1",
+  });
+
+  assert.equal(records.length, 3);
+  assert.ok(records.every((record) => record.structurallyValidCompletion));
+
+  const contract = deriveTrainingTpsTimerContract({
+    rows: [row],
+    studentId: "student-1",
+    topic: "Fractions",
+    sourceEpochKey: "se-v1-epoch-1",
+  });
+
+  assert.ok(contract);
+  assert.deepEqual(contract.baselineElapsedMs, [52_000, 50_000, 51_000]);
+  assert.equal(contract.baselineSeconds, 51);
+});
+
+test("live Training payload cannot freeze a baseline when evidence is explicitly confounded", () => {
+  const row = trainingRow({
+    id: "live-confounded",
+    hour: 8,
+    seconds: [52, 50, 51],
+  });
+  row.drill.sets[1].observations = [
+    liveSupportedRep(1, 52, 8),
+    liveSupportedRep(2, 50, 9),
+    liveSupportedRep(3, 51, 10),
+  ];
+  row.drill.sets[1].observations[1].independence_evidence_status = "confounded";
+
+  const records = collectTrainingTpsBaselineTimingRecords({
+    rows: [row],
+    studentId: "student-1",
+    topic: "Fractions",
+    sourceEpochKey: "se-v1-epoch-1",
+  });
+
+  assert.equal(records[1].structurallyValidCompletion, false);
+  assert.equal(
+    deriveTrainingTpsTimerContract({
+      rows: [row],
+      studentId: "student-1",
+      topic: "Fractions",
+      sourceEpochKey: "se-v1-epoch-1",
+    }),
+    null,
+  );
 });
 
 test("contaminated or non-supported Independent Execution timing cannot become baseline authority", () => {
