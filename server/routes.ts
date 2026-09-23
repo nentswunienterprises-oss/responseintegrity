@@ -8790,7 +8790,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   observedPhase: effectivePhase,
                 });
 
-                const trainingSummary = computeTrainingSessionSummary(
+                const proposedTrainingSummary = computeTrainingSessionSummary(
                   effectivePhase,
                   previousStability,
                   drillSets,
@@ -8798,6 +8798,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 );
 
                 const drillId = uuidv4();
+                let pendingTrainingTimerContract = null as ReturnType<
+                  typeof deriveTrainingTpsTimerContract
+                >;
+                let persistedTimerContract: PersistedTpsTimerContract | null = null;
+
+                const progressingFromStructuredExecution =
+                  effectivePhase === "Structured Execution" &&
+                  proposedTrainingSummary.phase === "Controlled Discomfort" &&
+                  proposedTrainingSummary.transitionReason === "phase progress";
+
+                if (progressingFromStructuredExecution && tpsTimingSourceEpochKey) {
+                  const priorTimingRows = await loadTpsTimingDrillRows({
+                    studentId,
+                    queryClient: isEmergencyDbMode() ? emergencyDbClient : null,
+                  });
+                  const currentTimingRow: StoredDrillRow = {
+                    id: drillId,
+                    student_id: studentId,
+                    submitted_at: sessionStartTime,
+                    drill: {
+                      drillType: "training",
+                      trainingTopic: normalizedTopic,
+                      phase: effectivePhase,
+                      sets: drillSets,
+                      tpsTimingAuthority: {
+                        version: 1,
+                        source: "training_independent_execution",
+                        sourceEpochKey: tpsTimingSourceEpochKey,
+                        measurementBoundary: "begin_to_student_finished",
+                        assignedBy: "server",
+                      },
+                    },
+                  };
+                  pendingTrainingTimerContract = deriveTrainingTpsTimerContract({
+                    rows: [...priorTimingRows, currentTimingRow],
+                    studentId,
+                    topic: normalizedTopic,
+                    sourceEpochKey: tpsTimingSourceEpochKey,
+                  });
+                }
+
+                const needsExistingTimerContract =
+                  effectivePhase === "Time Pressure Stability" ||
+                  (effectivePhase === "Controlled Discomfort" &&
+                    proposedTrainingSummary.phase === "Time Pressure Stability" &&
+                    proposedTrainingSummary.transitionReason === "phase progress");
+
+                if (needsExistingTimerContract) {
+                  persistedTimerContract = await loadLatestTpsTimerContract({
+                    studentId,
+                    topic: normalizedTopic,
+                  });
+                }
+
+                const timingReadiness = resolveTpsTrainingReadiness({
+                  observedPhase: effectivePhase,
+                  previousStability,
+                  proposedPhase: proposedTrainingSummary.phase,
+                  proposedStability: proposedTrainingSummary.stability,
+                  transitionReason: proposedTrainingSummary.transitionReason,
+                  hasTimerContract: Boolean(persistedTimerContract),
+                  canFreezeTrainingBaseline: Boolean(pendingTrainingTimerContract),
+                });
+
+                if (
+                  timingReadiness.action === "targeted_rediagnosis" &&
+                  effectivePhase === "Time Pressure Stability"
+                ) {
+                  const timingError = Object.assign(
+                    new Error(timingReadiness.reason),
+                    {
+                      statusCode: 409,
+                      code: TPS_TIMER_BASELINE_INCOMPLETE,
+                      targetedRediagnosisStartPhase:
+                        timingReadiness.targetedRediagnosisStartPhase,
+                    },
+                  );
+                  throw timingError;
+                }
+
+                let trainingSummary = proposedTrainingSummary;
+                if (timingReadiness.action === "hold_structured_execution") {
+                  trainingSummary = {
+                    ...proposedTrainingSummary,
+                    phase: timingReadiness.resultingPhase,
+                    stability: timingReadiness.resultingStability,
+                    transitionReason: "remain",
+                    phaseDecision: "remain",
+                    nextAction:
+                      "Run the next legitimate Structured Execution Training cycle and preserve a complete clean Independent Execution timing set.",
+                    constraint:
+                      "Do not progress to Controlled Discomfort until the current Structured Execution epoch has a complete clean Independent Execution baseline set.",
+                    requiresTargetedRediagnosis: false,
+                    targetedRediagnosisStartPhase: null,
+                    timingReadiness: {
+                      code: timingReadiness.issueCode,
+                      status: "hold_structured_execution",
+                      reason: timingReadiness.reason,
+                    },
+                  };
+                } else if (timingReadiness.action === "targeted_rediagnosis") {
+                  trainingSummary = {
+                    ...proposedTrainingSummary,
+                    phase: timingReadiness.resultingPhase,
+                    stability: timingReadiness.resultingStability,
+                    transitionReason: "remain",
+                    phaseDecision: "re-diagnose",
+                    nextAction:
+                      "Run targeted evidence-native re-diagnosis beginning at Structured Execution to establish individualized timing authority.",
+                    constraint:
+                      "Do not begin Time Pressure Stability until a valid individualized Timer Contract exists.",
+                    requiresTargetedRediagnosis: true,
+                    targetedRediagnosisStartPhase:
+                      timingReadiness.targetedRediagnosisStartPhase,
+                    timingReadiness: {
+                      code: timingReadiness.issueCode,
+                      status: "targeted_rediagnosis",
+                      reason: timingReadiness.reason,
+                    },
+                  };
+                }
+
                 const responseSnapshot = buildResponseSnapshotV1({
                   sourceDrillId: drillId,
                   topic: normalizedTopic,
