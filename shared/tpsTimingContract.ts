@@ -41,7 +41,7 @@ export const buildTimedExecutionEvidence = ({
     startedAt: new Date(startMs).toISOString(),
     endedAt: new Date(endMs).toISOString(),
     elapsedMs,
-    completedBeforeExpiry: elapsedMs <= Math.max(1, Math.round(prescribedSeconds)) * 1000,
+    completedBeforeExpiry: elapsedMs < Math.max(1, Math.round(prescribedSeconds)) * 1000,
     timingValidity: "valid",
   };
 };
