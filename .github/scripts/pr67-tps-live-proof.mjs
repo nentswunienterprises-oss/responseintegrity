@@ -11,6 +11,16 @@ const harnessSha = String(process.env.GITHUB_SHA || "").trim();
 
 assert.ok(baseUrl && email && password && pinnedAppSha, "Proof runtime configuration is required");
 
+checkpointBoot();
+function checkpointBoot() {
+  console.log("PR67_PROOF_BOOT=" + JSON.stringify({
+    baseUrl,
+    bypassConfigured: Boolean(bypass),
+    pinnedAppSha,
+    harnessSha,
+  }));
+}
+
 const GEOMETRY_STUDENT = "828a5609-462c-4772-841a-0590ceb6a84e";
 const GEOMETRY_TOPIC = "Geometry";
 const LEGACY_STUDENT = "e1c11823-05e7-47a1-a753-e6599954df1a";
@@ -45,6 +55,11 @@ async function proofEnvironment() {
   });
   const text = await response.text();
   assert.ok(response.ok(), "Proof environment failed: " + response.status() + " " + text);
+  if (text.trim().startsWith("<!DOCTYPE") || text.includes("Vercel")) {
+    throw new Error(
+      "Preview deployment protection blocked the live proof. Disable Preview Protection temporarily or configure VERCEL_AUTOMATION_BYPASS_SECRET for this repository.",
+    );
+  }
   const body = JSON.parse(text);
   assert.equal(body.vercelEnv, "preview");
   assert.equal(body.supabaseProjectRef, "jftlxeacphvbnhbsbpxc");
