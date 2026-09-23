@@ -1,6 +1,6 @@
 # Capability V2R8 Manual Authoring Checkpoint — 2026-09-17
 
-Status: INTRO SESSION STRUCTURE AUTHORING RESUMED — 2026-09-22
+Status: INTRO SESSION STRUCTURE 45/45 APPROVED — LOGGING SYSTEM NEXT — 2026-09-23
 Branch: `proof/capability-engine-shadow-validation`
 PR: #45 `Capability Engine shadow validation`
 Production: untouched
@@ -16,7 +16,7 @@ The private assessment corpus itself must remain outside the public repository. 
 
 V2R8 is no longer being treated as a generated 895-item content rebuild. The current approach is manual human authoring bank by bank. Scripts may validate structure later, but they do not write prompts, options, correct answers, or explanations.
 
-Five mastery banks have now completed manual item-level authoring and human approval:
+Six mastery banks have now completed manual item-level authoring and human approval:
 
 | Bank | Status | Approved items |
 | --- | --- | ---: |
@@ -25,22 +25,39 @@ Five mastery banks have now completed manual item-level authoring and human appr
 | Controlled Discomfort | manually authored and human-approved | 45/45 |
 | Time Pressure Stability | manually authored and human-approved | 45/45 |
 | Topic Conditioning | manually authored and human-approved | 45/45 |
+| Intro Session Structure | manually authored and human-approved | 45/45 |
 
-Total currently approved mastery content: **225 items across 5 banks**.
+Total currently approved mastery content: **270 items across 6 banks**.
 
 These banks are **approved for the current human-authoring stage, not frozen for release**. Final source, coverage, duplicate, critical-boundary, answer-position, distractor-quality, option-parity, and package-integrity audits still happen after the complete bank set is authored.
 
 The remaining mastery order is:
 
-1. Intro Session Structure
-2. Logging System
-3. Session Flow Control
-4. Drill Library
-5. Handover Verification
-6. Tools Required
+1. Logging System
+2. Session Flow Control
+3. Drill Library
+4. Handover Verification
+5. Tools Required
 
-Only after those six mastery banks are complete should V2R8 proceed to the cumulative Retrieval/Transfer banks.
+Only after those five mastery banks are complete should V2R8 proceed to the cumulative Retrieval/Transfer banks.
 
+
+## Intro completion update — 2026-09-23
+
+Intro Session Structure is now **45/45 manually authored and Founder-approved**.
+
+The completed bank was authored against the evidence-complete diagnosis runtime and the reconciled live Intro Deep Dive rather than the retired fixed phase-block / score-band design. During authoring, additional Specialist-facing drift was corrected where necessary, including:
+
+- neutral no-signal baseline explicitly teaching that one normal independent opportunity can directly observe Clarity and Structured Execution where meaningfully exposed;
+- removal of PR / engineering provenance from Specialist-facing explanations;
+- retirement of numeric / compatibility-score language from the Intro Deep Dive and diagnosis result UI;
+- preservation of the live blocked state when permitted clean probes are exhausted and evidence remains unresolved/confounded.
+
+The bank's unique ownership is now locked as Specialist understanding of how a student enters Response Integrity Training through evidence-complete topic diagnosis.
+
+Raw assessment prompts, options, keys, and explanations remain private and are not committed to this public checkpoint.
+
+The next mastery bank is **Logging System**. Before new Logging items are authored, the live Logging Deep Dive must be checked against current product truth because historical material still contains older score-centric and fixed-rep diagnosis demonstrations that must not become assessment authority.
 
 ## Resume update — 2026-09-22
 
@@ -436,4 +453,4 @@ Only after this human audit should automated release validation, private artifac
 
 If this work is resumed in a new session, the shortest correct summary is:
 
-**Five mastery banks are manually authored and approved: Clarity, Structured Execution, Controlled Discomfort, Time Pressure Stability, and Topic Conditioning. Topic Conditioning is 45/45 and is the current distractor-quality benchmark. Intro Session Structure started but authoring is paused because PR #47 is replacing fixed rep/phase-block diagnosis with an evidence-complete diagnosis engine. Keep only the concepts from Intro draft items 1-2, discard old items 3-5, and do not resume until the new diagnosis flow is live, persisted, server-reproducible, documented, and end-to-end proven. The Specialist Development pathway is Application → Training → Sandbox → Practicals → Trial → Certification → Certified Live; Capability Engine/V2R8 assessment work belongs in Training, Sandbox is deterministic simulated observation/operation, Practicals are visible execution, Trial is governed real-family validation, Certification is the gate, and Certified Live is the resulting operating state. Then author Intro from the final truthful Specialist experience.**
+**Six mastery banks are manually authored and approved: Clarity, Structured Execution, Controlled Discomfort, Time Pressure Stability, Topic Conditioning, and Intro Session Structure. Intro is 45/45 and was authored against the evidence-complete diagnosis architecture after reconciling the live Deep Dive. The next bank is Logging System, but its live Deep Dive must be reconciled before authoring because older score-centric / fixed-rep demonstrations still exist. Keep raw evaluator content private. The Specialist Development pathway remains Application → Training → Sandbox → Practicals → Trial → Certification → Certified Live; Capability Engine/V2R8 assessment work belongs in Training.***
