@@ -514,19 +514,19 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       activeRules: ["Student states step order before solving", "Specialist does not supply the steps", "Student solves using the stated order"],
       observationBlock: [
         { key: "startBehavior", label: "Start", options: ["delayed", "hesitant", "immediate"] },
-        { key: "stepExecution", label: "Step Discipline", options: ["skips", "partial", "full"] },
         {
           key: "repeatability",
-          label: "Correction Response",
-          options: ["resists", "accepts", "adjusts", "already structured correctly"],
+          label: "Step Statement Accuracy",
+          options: ["missing", "out of order", "mostly accurate", "accurate"],
           optionLevels: {
-            resists: "weak",
-            accepts: "partial",
-            adjusts: "clear",
-            "already structured correctly": "clear",
+            missing: "weak",
+            "out of order": "partial",
+            "mostly accurate": "clear",
+            accurate: "clear",
           },
         },
-        { key: "independence", label: "Independence", options: ["needs help", "light support", "independent"] },
+        { key: "stepExecution", label: "Step Discipline", options: ["skips", "partial", "full"] },
+        { key: "independence", label: "Student Independence After Start", options: ["needs help", "light support", "independent"] },
       ],
     },
     {
