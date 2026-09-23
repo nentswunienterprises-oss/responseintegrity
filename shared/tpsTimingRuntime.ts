@@ -9,6 +9,11 @@ import {
   type TpsTimerContractV1,
 } from "./tpsTimingContract";
 import { readTrainingInterventionEvent } from "./trainingEvidenceCapture";
+import {
+  getDiagnosisBaselineTimingSamples,
+  type DiagnosisProbeResult,
+  type EvidenceCompleteDiagnosisState,
+} from "./evidenceCompleteDiagnosis";
 
 type StoredDrillRow = {
   id?: unknown;
@@ -253,4 +258,81 @@ export const deriveTrainingTpsTimerContract = ({
   });
   if (!selected) return null;
   return deriveTpsTimerContractV1(deriveTpsBaselineSnapshot(selected));
+};
+
+
+export const collectDiagnosisTpsBaselineTimingRecords = ({
+  state,
+  studentId,
+  topic,
+  sourceEpochKey,
+  baselineGroupId,
+}: {
+  state: EvidenceCompleteDiagnosisState;
+  studentId: string;
+  topic: string;
+  sourceEpochKey: string;
+  baselineGroupId: string;
+}): TpsBaselineTimingRecord[] => {
+  const samples = getDiagnosisBaselineTimingSamples(state).slice(-3);
+  return samples.map((sample: DiagnosisProbeResult, index) => ({
+    recordId: `${baselineGroupId}::${sample.probeId}::sample-${index + 1}`,
+    studentId,
+    topic,
+    source: "diagnosis" as const,
+    sourceEpochKey,
+    baselineGroupId,
+    baselineSlot: (index + 1) as 1 | 2 | 3,
+    attemptNumber: 1,
+    sourcePhase: "diagnosis" as const,
+    sourceSetId: sample.probeId,
+    completedAt: sample.passiveTiming!.endedAt,
+    elapsedMs: sample.passiveTiming!.elapsedMs,
+    pressureLevel: "none" as const,
+    variationLevel: "same_form" as const,
+    difficultyLevel: "normal" as const,
+    independencePreserved: true,
+    structurallyValidCompletion: true,
+    timingValidity: "valid" as const,
+  }));
+};
+
+export const deriveDiagnosisTpsTimerContract = ({
+  state,
+  studentId,
+  topic,
+  sourceEpochKey,
+  baselineGroupId,
+}: {
+  state: EvidenceCompleteDiagnosisState;
+  studentId: string;
+  topic: string;
+  sourceEpochKey: string;
+  baselineGroupId: string;
+}): TpsTimerContractV1 | null => {
+  const records = collectDiagnosisTpsBaselineTimingRecords({
+    state,
+    studentId,
+    topic,
+    sourceEpochKey,
+    baselineGroupId,
+  });
+  if (records.length !== 3) return null;
+
+  const selected = [
+    records.find((record) => record.baselineSlot === 1),
+    records.find((record) => record.baselineSlot === 2),
+    records.find((record) => record.baselineSlot === 3),
+  ];
+  if (selected.some((record) => !record)) return null;
+
+  return deriveTpsTimerContractV1(
+    deriveTpsBaselineSnapshot(
+      selected as [
+        TpsBaselineTimingRecord,
+        TpsBaselineTimingRecord,
+        TpsBaselineTimingRecord,
+      ],
+    ),
+  );
 };
