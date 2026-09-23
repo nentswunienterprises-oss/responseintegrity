@@ -8,7 +8,9 @@ import {
 } from "./tpsTimingContract";
 import {
   collectTrainingTpsBaselineTimingRecords,
+  deriveStructuredExecutionEpochKeyForTraining,
   deriveTrainingTpsTimerContract,
+  validateTrainingPassiveTimingSubmission,
 } from "./tpsTimingRuntime";
 import { TRAINING_INTERVENTION_FIELD } from "./trainingEvidenceCapture";
 
@@ -46,6 +48,10 @@ const trainingRow = ({
     drillType: "training",
     trainingTopic: "Fractions",
     phase: "Structured Execution",
+    tpsTimingAuthority: {
+      sourceEpochKey: "se-v1-epoch-1",
+      source: "training_independent_execution",
+    },
     sets: [
       {
         setId: "structured_execution.required_structure",
@@ -148,4 +154,135 @@ test("Required Structure and Variation Control wire timing are ignored even if p
 
   assert.equal(records.length, 3);
   assert.ok(records.every((record) => record.sourceSetId === TPS_TRAINING_BASELINE_SET_ID));
+});
+
+
+test("Structured Execution epoch remains stable across repeated SE rounds and increments only on re-entry", () => {
+  assert.equal(
+    deriveStructuredExecutionEpochKeyForTraining({
+      history: [],
+      observedPhase: "Structured Execution",
+    }),
+    "se-v1-epoch-1",
+  );
+
+  assert.equal(
+    deriveStructuredExecutionEpochKeyForTraining({
+      history: [
+        { date: "2026-09-20T08:00:00.000Z", phase: "Structured Execution" },
+        { date: "2026-09-21T08:00:00.000Z", phase: "Structured Execution" },
+      ],
+      observedPhase: "Structured Execution",
+    }),
+    "se-v1-epoch-1",
+  );
+
+  assert.equal(
+    deriveStructuredExecutionEpochKeyForTraining({
+      history: [
+        { date: "2026-09-18T08:00:00.000Z", phase: "Structured Execution" },
+        { date: "2026-09-19T08:00:00.000Z", phase: "Controlled Discomfort" },
+        { date: "2026-09-22T08:00:00.000Z", phase: "Structured Execution" },
+      ],
+      observedPhase: "Structured Execution",
+    }),
+    "se-v1-epoch-2",
+  );
+
+  assert.equal(
+    deriveStructuredExecutionEpochKeyForTraining({
+      history: [
+        { date: "2026-09-18T08:00:00.000Z", phase: "Structured Execution" },
+        { date: "2026-09-19T08:00:00.000Z", phase: "Controlled Discomfort" },
+      ],
+      observedPhase: "Structured Execution",
+    }),
+    "se-v1-epoch-2",
+  );
+
+  assert.equal(
+    deriveStructuredExecutionEpochKeyForTraining({
+      history: [],
+      observedPhase: "Controlled Discomfort",
+    }),
+    null,
+  );
+});
+
+test("server timing validator requires all three IE boundaries and rejects passive timing outside IE", () => {
+  const validRow = trainingRow({
+    id: "round-a",
+    hour: 8,
+    seconds: [60, 61, 62],
+  });
+  assert.equal(
+    validateTrainingPassiveTimingSubmission({
+      observedPhase: "Structured Execution",
+      sets: validRow.drill.sets,
+    }),
+    null,
+  );
+
+  const missingRep = trainingRow({
+    id: "round-b",
+    hour: 8,
+    seconds: [60, 61, 62],
+  });
+  delete missingRep.drill.sets[1].observations[1][PASSIVE_EXECUTION_TIMING_WIRE_KEY];
+  assert.match(
+    validateTrainingPassiveTimingSubmission({
+      observedPhase: "Structured Execution",
+      sets: missingRep.drill.sets,
+    }) || "",
+    /Rep 2 is missing valid/,
+  );
+
+  const wrongSet = trainingRow({
+    id: "round-c",
+    hour: 8,
+    seconds: [60, 61, 62],
+  });
+  wrongSet.drill.sets[0].observations = [supportedRep(1, 30, 6)];
+  assert.match(
+    validateTrainingPassiveTimingSubmission({
+      observedPhase: "Structured Execution",
+      sets: wrongSet.drill.sets,
+    }) || "",
+    /only Independent Execution is eligible/,
+  );
+
+  assert.match(
+    validateTrainingPassiveTimingSubmission({
+      observedPhase: "Controlled Discomfort",
+      sets: wrongSet.drill.sets,
+    }) || "",
+    /only valid inside Structured Execution/,
+  );
+});
+
+test("runtime ignores otherwise valid SE timing from a different conditioning epoch", () => {
+  const old = trainingRow({
+    id: "old-round",
+    hour: 8,
+    seconds: [90, 91, 92],
+  });
+  old.drill.tpsTimingAuthority.sourceEpochKey = "se-v1-epoch-1";
+
+  const current = trainingRow({
+    id: "current-round",
+    hour: 14,
+    seconds: [50, 51, 52],
+  });
+  current.drill.tpsTimingAuthority.sourceEpochKey = "se-v1-epoch-2";
+
+  const contract = deriveTrainingTpsTimerContract({
+    rows: [old, current],
+    studentId: "student-1",
+    topic: "Fractions",
+    sourceEpochKey: "se-v1-epoch-2",
+  });
+
+  assert.ok(contract);
+  assert.equal(contract.baselineGroupId, `current-round::${TPS_TRAINING_BASELINE_SET_ID}`);
+  assert.equal(contract.baselineSeconds, 51);
 });
