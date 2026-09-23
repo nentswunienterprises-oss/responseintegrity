@@ -4,6 +4,77 @@ export const TPS_FULL_CONSTRAINT_FACTOR = 0.85 as const;
 export const TPS_TRAINING_BASELINE_SET_ID = "structured_execution.independent_execution" as const;
 export const PASSIVE_EXECUTION_TIMING_WIRE_KEY = "_passive_execution_timing_v1" as const;
 
+export type TimedExecutionEvidenceV1 = {
+  version: 1;
+  boundary: "system_countdown";
+  prescribedSeconds: number;
+  startedAt: string;
+  endedAt: string;
+  elapsedMs: number;
+  completedBeforeExpiry: boolean;
+  timingValidity: "valid";
+};
+
+export const buildTimedExecutionEvidence = ({
+  startedAt,
+  endedAt,
+  prescribedSeconds,
+}: {
+  startedAt: string;
+  endedAt: string;
+  prescribedSeconds: number;
+}): TimedExecutionEvidenceV1 | null => {
+  const startMs = Date.parse(startedAt);
+  const endMs = Date.parse(endedAt);
+  if (
+    !Number.isFinite(startMs) ||
+    !Number.isFinite(endMs) ||
+    endMs <= startMs ||
+    !Number.isFinite(prescribedSeconds) ||
+    prescribedSeconds <= 0
+  ) return null;
+  const elapsedMs = endMs - startMs;
+  return {
+    version: 1,
+    boundary: "system_countdown",
+    prescribedSeconds: Math.max(1, Math.round(prescribedSeconds)),
+    startedAt: new Date(startMs).toISOString(),
+    endedAt: new Date(endMs).toISOString(),
+    elapsedMs,
+    completedBeforeExpiry: elapsedMs <= Math.max(1, Math.round(prescribedSeconds)) * 1000,
+    timingValidity: "valid",
+  };
+};
+
+export const validateTimedExecutionEvidence = (
+  value: unknown,
+): TimedExecutionEvidenceV1 | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const parsed = value as Partial<TimedExecutionEvidenceV1>;
+  if (
+    parsed.version !== 1 ||
+    parsed.boundary !== "system_countdown" ||
+    parsed.timingValidity !== "valid" ||
+    typeof parsed.prescribedSeconds !== "number" ||
+    typeof parsed.startedAt !== "string" ||
+    typeof parsed.endedAt !== "string" ||
+    typeof parsed.elapsedMs !== "number" ||
+    typeof parsed.completedBeforeExpiry !== "boolean"
+  ) return null;
+
+  const rebuilt = buildTimedExecutionEvidence({
+    startedAt: parsed.startedAt,
+    endedAt: parsed.endedAt,
+    prescribedSeconds: parsed.prescribedSeconds,
+  });
+  if (
+    !rebuilt ||
+    rebuilt.elapsedMs !== parsed.elapsedMs ||
+    rebuilt.completedBeforeExpiry !== parsed.completedBeforeExpiry
+  ) return null;
+  return rebuilt;
+};
+
 export type PassiveExecutionTimingEvidenceV1 = {
   version: 1;
   boundary: "begin_to_student_finished";
