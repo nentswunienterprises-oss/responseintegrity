@@ -58,6 +58,25 @@ test("CD cannot cross into TPS without a persisted Timer Contract", () => {
   assert.equal(decision.targetedRediagnosisStartPhase, "Structured Execution");
 });
 
+test("legacy Controlled Discomfort without timing authority routes to re-diagnosis before more ordinary Training", () => {
+  const decision = resolveTpsTrainingReadiness({
+    observedPhase: "Controlled Discomfort",
+    previousStability: "Medium",
+    proposedPhase: "Controlled Discomfort",
+    proposedStability: "Medium",
+    transitionReason: "remain",
+    hasTimerContract: false,
+    canFreezeTrainingBaseline: false,
+  });
+
+  assert.equal(decision.action, "targeted_rediagnosis");
+  if (decision.action !== "targeted_rediagnosis") return;
+  assert.equal(decision.issueCode, TPS_TIMER_BASELINE_INCOMPLETE);
+  assert.equal(decision.resultingPhase, "Controlled Discomfort");
+  assert.equal(decision.resultingStability, "Medium");
+  assert.equal(decision.targetedRediagnosisStartPhase, "Structured Execution");
+});
+
 test("CD progression into TPS is unchanged when timing authority already exists", () => {
   const decision = resolveTpsTrainingReadiness({
     observedPhase: "Controlled Discomfort",

@@ -3,6 +3,10 @@ import { pool } from "./db";
 import { isEmergencyDbMode } from "./emergencyMode";
 import { supabase } from "./storage";
 import {
+  TPS_TIMED_ATTEMPT_WIRE_KEY,
+  decodeTpsTimedAttemptEvidenceRef,
+  getTpsPrescribedSeconds,
+  getTpsTrainingPressureForSet,
   validateTpsTimedAttemptAgainstContract,
   type TpsTimedAttemptSubmissionV1,
   type TpsTimerContractV1,
@@ -615,4 +619,69 @@ export const persistTpsTimedAttempt = async ({
     throw new Error("TPS timed attempt was not readable after persistence");
   }
   return persisted;
+};
+
+
+export const validateTpsTrainingDrillTimedAttemptLineage = async ({
+  contract,
+  sets,
+}: {
+  contract: PersistedTpsTimerContract;
+  sets: any[];
+}): Promise<string | null> => {
+  const normalizedSets = Array.isArray(sets) ? sets : [];
+  const seenAttemptIds = new Set<string>();
+
+  for (const set of normalizedSets) {
+    const setId = clean(set?.setId);
+    const pressureLevel = getTpsTrainingPressureForSet(setId);
+    if (!pressureLevel) {
+      return `TPS Training contains an unknown timed set: ${setId || "missing set ID"}.`;
+    }
+
+    const prescribedSeconds = getTpsPrescribedSeconds(contract, pressureLevel);
+    const observations = Array.isArray(set?.observations) ? set.observations : [];
+    for (let index = 0; index < observations.length; index += 1) {
+      const repNumber = Number(observations[index]?._rep_number || index + 1);
+      const reference = decodeTpsTimedAttemptEvidenceRef(
+        observations[index]?.[TPS_TIMED_ATTEMPT_WIRE_KEY],
+      );
+      if (!reference) {
+        return `${clean(set?.setName) || setId} Rep ${repNumber} is missing valid system-owned TPS timing lineage.`;
+      }
+      if (
+        reference.contractId !== contract.contractId ||
+        reference.setId !== setId ||
+        reference.repNumber !== repNumber
+      ) {
+        return `${clean(set?.setName) || setId} Rep ${repNumber} timing lineage does not match the active Timer Contract and canonical rep identity.`;
+      }
+      if (seenAttemptIds.has(reference.attemptId)) {
+        return `TPS timed attempt ${reference.attemptId} was reused across more than one canonical rep.`;
+      }
+      seenAttemptIds.add(reference.attemptId);
+
+      const attempt = await loadTpsTimedAttemptById(reference.attemptId);
+      if (!attempt) {
+        return `${clean(set?.setName) || setId} Rep ${repNumber} does not have a persisted TPS timed-attempt record.`;
+      }
+      if (
+        attempt.contractId !== contract.contractId ||
+        attempt.studentId !== contract.studentId ||
+        topicKey(attempt.topic) !== topicKey(contract.topic) ||
+        attempt.setId !== setId ||
+        attempt.repNumber !== repNumber ||
+        attempt.attemptNumber !== reference.attemptNumber ||
+        attempt.pressureLevel !== pressureLevel ||
+        attempt.prescribedSeconds !== prescribedSeconds ||
+        attempt.timingValidity !== "valid" ||
+        attempt.endReason !== reference.endReason ||
+        reference.timingValidity !== "valid"
+      ) {
+        return `${clean(set?.setName) || setId} Rep ${repNumber} timed-attempt lineage is not valid for the active individualized Timer Contract.`;
+      }
+    }
+  }
+
+  return null;
 };

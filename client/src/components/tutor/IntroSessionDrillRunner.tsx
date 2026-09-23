@@ -50,9 +50,16 @@ import {
 import { evaluateHandoverVerificationEvidence } from "@shared/handoverEvidenceEvaluator";
 import {
   PASSIVE_EXECUTION_TIMING_WIRE_KEY,
+  TPS_TIMED_ATTEMPT_WIRE_KEY,
   TPS_TRAINING_BASELINE_SET_ID,
   buildPassiveExecutionTimingEvidence,
   encodePassiveExecutionTimingEvidence,
+  encodeTpsTimedAttemptEvidenceRef,
+  getTpsTrainingPressureForSet,
+  type TpsTimedAttemptEndReason,
+  type TpsTimedAttemptSubmissionV1,
+  type TpsTimedPressureLevel,
+  type TpsTimedTrainingSetId,
 } from "@shared/tpsTimingContract";
 
 type PhaseLabel = "Clarity" | "Structured Execution" | "Controlled Discomfort" | "Time Pressure Stability";
@@ -191,7 +198,70 @@ type TopicConditioningRow = {
   phase: string;
   stability: string;
   topicReference?: TopicReference | null;
+  requiresTargetedRediagnosis?: boolean;
+  targetedRediagnosisStartPhase?: string | null;
+  timingReadiness?: {
+    status: "not_required" | "ready" | "targeted_rediagnosis";
+    issueCode: string | null;
+    contractId: string | null;
+    baselineSeconds: number | null;
+    reason: string | null;
+  };
 };
+
+type TpsTimerContractView = {
+  contractId: string;
+  version: 1;
+  topic: string;
+  baselineSource: string;
+  baselineSourceEpochKey: string;
+  baselineSeconds: number;
+  structureUnderTimerSeconds: number;
+  repeatedTimedExecutionSeconds: number;
+  fullConstraintSeconds: number;
+};
+
+type TpsActiveAttempt = {
+  attemptId: string;
+  setId: TpsTimedTrainingSetId;
+  setName: string;
+  repNumber: number;
+  attemptNumber: number;
+  pressureLevel: TpsTimedPressureLevel;
+  prescribedSeconds: number;
+  startedAt: string;
+  replacementForAttemptId: string | null;
+  frozenAttempt: TpsTimedAttemptSubmissionV1 | null;
+};
+
+type TpsReplacementState = {
+  nextAttemptNumber: number;
+  replacementForAttemptId: string;
+};
+
+const TPS_TIMER_BASELINE_INCOMPLETE = "TPS_TIMER_BASELINE_INCOMPLETE";
+
+const prescribedSecondsForTpsPressure = (
+  contract: TpsTimerContractView,
+  pressureLevel: TpsTimedPressureLevel,
+) => {
+  if (pressureLevel === "light_timer") return contract.structureUnderTimerSeconds;
+  if (pressureLevel === "repeated_timer") return contract.repeatedTimedExecutionSeconds;
+  return contract.fullConstraintSeconds;
+};
+
+const formatCountdownSeconds = (milliseconds: number) => {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0
+    ? `${minutes}:${String(seconds).padStart(2, "0")}`
+    : `${seconds}s`;
+};
+
+const createTpsAttemptId = () =>
+  globalThis.crypto?.randomUUID?.() ||
+  `ri-tps-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const EMPTY_TOPIC_REFERENCE: TopicReferenceContent = {
   vocabulary: "",
@@ -939,6 +1009,12 @@ export default function IntroSessionDrillRunner() {
   } | null>(null);
   const [repStarted, setRepStarted] = useState(false);
   const passiveTimingStartedAtRef = useRef<Record<string, string>>({});
+  const [activeTpsAttempt, setActiveTpsAttempt] = useState<TpsActiveAttempt | null>(null);
+  const [tpsReplacementState, setTpsReplacementState] = useState<Record<string, TpsReplacementState>>({});
+  const [tpsTimerNowMs, setTpsTimerNowMs] = useState(() => Date.now());
+  const [tpsAttemptPersisting, setTpsAttemptPersisting] = useState(false);
+  const [tpsTimingNotice, setTpsTimingNotice] = useState<string | null>(null);
+  const tpsFinalizingRef = useRef(false);
   const [supportPickerOpen, setSupportPickerOpen] = useState(false);
   const [showEvidenceExceptions, setShowEvidenceExceptions] = useState(false);
 
@@ -1005,6 +1081,20 @@ export default function IntroSessionDrillRunner() {
     ) || null,
     [topicData, currentTopicName],
   );
+  const timingReadinessBlockedTopic = useMemo(() => {
+    const candidates = isSessionMode ? sessionTopics : [currentTopicName];
+    for (const topicName of candidates) {
+      const topic = topicData?.topics?.find(
+        (entry) => entry.topic.trim().toLowerCase() === topicName.trim().toLowerCase(),
+      );
+      if (
+        topic?.timingReadiness?.issueCode === TPS_TIMER_BASELINE_INCOMPLETE
+      ) {
+        return topic;
+      }
+    }
+    return null;
+  }, [isSessionMode, sessionTopics, currentTopicName, topicData]);
   const activeTopicReference =
     savedTopicReferenceOverride?.topic.trim().toLowerCase() === currentTopicName.trim().toLowerCase()
       ? savedTopicReferenceOverride.reference
@@ -1173,12 +1263,89 @@ export default function IntroSessionDrillRunner() {
     isTrainingEvidenceCapture &&
     displayPhase === "Structured Execution" &&
     activeRegistrySet?.setId === TPS_TRAINING_BASELINE_SET_ID;
+  const activeTpsPressureLevel = activeRegistrySet
+    ? getTpsTrainingPressureForSet(activeRegistrySet.setId)
+    : null;
+  const activeRepRequiresTpsTiming =
+    isTrainingEvidenceCapture &&
+    displayPhase === "Time Pressure Stability" &&
+    Boolean(activeTpsPressureLevel);
   const passiveTimingObservationKey = (setIndex: number, repIndex: number) =>
     `set${setIndex}_rep${repIndex}_${PASSIVE_EXECUTION_TIMING_WIRE_KEY}`;
+  const tpsTimingObservationKey = (setIndex: number, repIndex: number) =>
+    `set${setIndex}_rep${repIndex}_${TPS_TIMED_ATTEMPT_WIRE_KEY}`;
   const activePassiveTimingKey = passiveTimingObservationKey(currentSet, currentRep);
+  const activeTpsTimingKey = tpsTimingObservationKey(currentSet, currentRep);
   const activePassiveTimingCaptured = Boolean(
     String(observations[activePassiveTimingKey] || "").trim(),
   );
+  const activeTpsTimingCaptured = Boolean(
+    String(observations[activeTpsTimingKey] || "").trim(),
+  );
+  const activeTpsRepIdentity = `${currentTopicName.trim().toLowerCase()}::${activeRegistrySet?.setId || "unknown"}::rep-${currentRep + 1}`;
+
+  const {
+    data: tpsTimerContractResponse,
+    isLoading: tpsTimerContractLoading,
+    error: tpsTimerContractError,
+  } = useQuery<{ contract: TpsTimerContractView }>({
+    queryKey: [
+      "/api/tutor/students",
+      studentId,
+      "tps-timer-contract",
+      currentTopicName,
+    ],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = {};
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const response = await fetch(
+        `${API_URL}/api/tutor/students/${studentId}/tps-timer-contract?topic=${encodeURIComponent(currentTopicName)}`,
+        {
+          headers,
+          credentials: "include",
+        },
+      );
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(
+          body?.message || `Failed to load TPS Timer Contract (${response.status})`,
+        ) as Error & { code?: string; status?: number };
+        error.code = body?.code;
+        error.status = response.status;
+        throw error;
+      }
+      return body;
+    },
+    enabled:
+      activeRepRequiresTpsTiming &&
+      !!studentId &&
+      !!currentTopicName &&
+      !timingReadinessBlockedTopic,
+    retry: false,
+    staleTime: 30_000,
+  });
+  const tpsTimerContract = tpsTimerContractResponse?.contract || null;
+  const activeTpsPrescribedSeconds =
+    tpsTimerContract && activeTpsPressureLevel
+      ? prescribedSecondsForTpsPressure(
+          tpsTimerContract,
+          activeTpsPressureLevel,
+        )
+      : null;
+  const activeTpsStartedAtMs = activeTpsAttempt
+    ? Date.parse(activeTpsAttempt.startedAt)
+    : NaN;
+  const activeTpsRemainingMs =
+    activeTpsAttempt &&
+    !activeTpsAttempt.frozenAttempt &&
+    Number.isFinite(activeTpsStartedAtMs)
+      ? Math.max(
+          0,
+          activeTpsAttempt.prescribedSeconds * 1000 -
+            (tpsTimerNowMs - activeTpsStartedAtMs),
+        )
+      : 0;
   const isHandoverContinuityVerification = isHandoverMode && !handoverReDiagnosisMode;
   const isFirstRep = currentRep === 0;
   const isFirstSet = currentSet === 0;
@@ -1226,12 +1393,75 @@ export default function IntroSessionDrillRunner() {
   }, [studentId, currentTopicName]);
 
   useEffect(() => {
-    setRepStarted(false);
+    const existingTimingCaptured = Boolean(
+      String(
+        observations[passiveTimingObservationKey(currentSet, currentRep)] ||
+          observations[tpsTimingObservationKey(currentSet, currentRep)] ||
+          "",
+      ).trim(),
+    );
+    setRepStarted(existingTimingCaptured);
+    setActiveTpsAttempt(null);
+    setTpsAttemptPersisting(false);
+    tpsFinalizingRef.current = false;
+    setTpsTimingNotice(null);
     setSupportPickerOpen(false);
     setShowEvidenceExceptions(false);
   }, [currentSet, currentRep, sessionTopicIndex, activeDiagnosisPhase, currentTopicName]);
 
+  const clearRepObservationState = (setIndex: number, repIndex: number) => {
+    const prefix = `set${setIndex}_rep${repIndex}_`;
+    setObservations((current: any) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([key]) => !key.startsWith(prefix)),
+      ),
+    );
+  };
+
   const beginTrainingRep = () => {
+    if (timingReadinessBlockedTopic) {
+      setSubmitError(
+        `${timingReadinessBlockedTopic.topic} requires targeted evidence-native re-diagnosis before ordinary Training continues.`,
+      );
+      return;
+    }
+
+    if (activeRepRequiresTpsTiming) {
+      if (tpsTimerContractLoading) {
+        setSubmitError("Individualized timing authority is still loading.");
+        return;
+      }
+      if (!tpsTimerContract || !activeTpsPressureLevel || !activeTpsPrescribedSeconds) {
+        setSubmitError(
+          tpsTimerContractError instanceof Error
+            ? tpsTimerContractError.message
+            : "A valid individualized Timer Contract is required before this TPS rep can begin.",
+        );
+        return;
+      }
+
+      const replacement = tpsReplacementState[activeTpsRepIdentity];
+      setActiveTpsAttempt({
+        attemptId: createTpsAttemptId(),
+        setId: activeRegistrySet!.setId as TpsTimedTrainingSetId,
+        setName: set?.setName || activeRegistrySet!.setName,
+        repNumber: currentRep + 1,
+        attemptNumber: replacement?.nextAttemptNumber || 1,
+        pressureLevel: activeTpsPressureLevel,
+        prescribedSeconds: activeTpsPrescribedSeconds,
+        startedAt: new Date().toISOString(),
+        replacementForAttemptId: replacement?.replacementForAttemptId || null,
+        frozenAttempt: null,
+      });
+      setTpsTimerNowMs(Date.now());
+      setTpsTimingNotice(null);
+      setObservations((current: any) => {
+        const next = { ...current };
+        delete next[activeTpsTimingKey];
+        return next;
+      });
+    }
+
     if (activeRepRequiresPassiveTiming) {
       const startedAt = new Date().toISOString();
       passiveTimingStartedAtRef.current[activePassiveTimingKey] = startedAt;
@@ -1241,6 +1471,7 @@ export default function IntroSessionDrillRunner() {
         return next;
       });
     }
+    setSubmitError(null);
     setRepStarted(true);
   };
 
@@ -1266,6 +1497,203 @@ export default function IntroSessionDrillRunner() {
     setSubmitError(null);
   };
 
+  const persistTpsAttempt = async (attempt: TpsTimedAttemptSubmissionV1) => {
+    if (!studentId || !tpsTimerContract) {
+      throw new Error("TPS timing authority is unavailable.");
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const response = await fetch(
+      `${API_URL}/api/tutor/students/${studentId}/tps-timed-attempt`,
+      {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          topic: currentTopicName,
+          contractId: tpsTimerContract.contractId,
+          attempt,
+        }),
+      },
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        body?.message || `Failed to persist TPS timing evidence (${response.status})`,
+      );
+    }
+    return body?.attempt;
+  };
+
+  const finishActiveTpsTiming = async (
+    requestedEndReason: TpsTimedAttemptEndReason,
+  ) => {
+    if (
+      !activeRepRequiresTpsTiming ||
+      !activeTpsAttempt ||
+      !tpsTimerContract ||
+      activeTpsTimingCaptured ||
+      tpsFinalizingRef.current
+    ) {
+      return;
+    }
+
+    let attempt = activeTpsAttempt.frozenAttempt;
+    if (!attempt) {
+      const startedMs = Date.parse(activeTpsAttempt.startedAt);
+      if (!Number.isFinite(startedMs)) {
+        setSubmitError("The TPS timer start boundary is invalid. Record a technical failure and retry the rep.");
+        return;
+      }
+
+      const expiryMs =
+        startedMs + activeTpsAttempt.prescribedSeconds * 1000;
+      const nowMs = Date.now();
+      let endReason = requestedEndReason;
+      let endedMs = nowMs;
+      if (
+        requestedEndReason === "timer_expired" ||
+        (requestedEndReason === "student_finished" && nowMs >= expiryMs)
+      ) {
+        endReason = "timer_expired";
+        endedMs = expiryMs;
+      }
+
+      attempt = {
+        attemptId: activeTpsAttempt.attemptId,
+        setId: activeTpsAttempt.setId,
+        setName: activeTpsAttempt.setName,
+        repNumber: activeTpsAttempt.repNumber,
+        attemptNumber: activeTpsAttempt.attemptNumber,
+        pressureLevel: activeTpsAttempt.pressureLevel,
+        prescribedSeconds: activeTpsAttempt.prescribedSeconds,
+        startedAt: activeTpsAttempt.startedAt,
+        endedAt: new Date(endedMs).toISOString(),
+        elapsedMs: Math.max(0, endedMs - startedMs),
+        completedBeforeExpiry: endReason === "student_finished",
+        timingValidity:
+          endReason === "technical_failure"
+            ? "timing_invalid_technical"
+            : "valid",
+        endReason,
+        replacementForAttemptId:
+          activeTpsAttempt.replacementForAttemptId,
+      };
+      setActiveTpsAttempt((current) =>
+        current?.attemptId === activeTpsAttempt.attemptId
+          ? { ...current, frozenAttempt: attempt }
+          : current,
+      );
+    }
+
+    tpsFinalizingRef.current = true;
+    setTpsAttemptPersisting(true);
+    setSubmitError(null);
+    try {
+      const persisted = await persistTpsAttempt(attempt);
+      if (!persisted?.attemptId) {
+        throw new Error("TPS timing evidence was not returned after persistence.");
+      }
+
+      if (attempt.timingValidity === "timing_invalid_technical") {
+        setTpsReplacementState((current) => ({
+          ...current,
+          [activeTpsRepIdentity]: {
+            nextAttemptNumber: attempt.attemptNumber + 1,
+            replacementForAttemptId: persisted.attemptId,
+          },
+        }));
+        clearRepObservationState(currentSet, currentRep);
+        setActiveTpsAttempt(null);
+        setRepStarted(false);
+        setTpsTimingNotice(
+          "Technical timer failure preserved in lineage. Retry this same rep; the replacement will use the same Timer Contract.",
+        );
+        return;
+      }
+
+      setObservations((current: any) => ({
+        ...current,
+        [activeTpsTimingKey]: encodeTpsTimedAttemptEvidenceRef({
+          version: 1,
+          attemptId: persisted.attemptId,
+          contractId: tpsTimerContract.contractId,
+          setId: activeTpsAttempt.setId,
+          repNumber: activeTpsAttempt.repNumber,
+          attemptNumber: persisted.attemptNumber,
+          timingValidity: "valid",
+          endReason: persisted.endReason,
+        }),
+      }));
+      setTpsReplacementState((current) => {
+        const next = { ...current };
+        delete next[activeTpsRepIdentity];
+        return next;
+      });
+      setTpsTimingNotice(
+        persisted.endReason === "timer_expired"
+          ? "Timer expired at the prescribed boundary. Record the student's response exactly as it stood at expiry."
+          : "Student execution boundary recorded. Finish the observations without adding admin time to the rep.",
+      );
+      setActiveTpsAttempt(null);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? `${error.message} The execution boundary is frozen; retry saving it rather than restarting the clock.`
+          : "TPS timing evidence could not be persisted. The execution boundary is frozen.",
+      );
+    } finally {
+      tpsFinalizingRef.current = false;
+      setTpsAttemptPersisting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (
+      !activeRepRequiresTpsTiming ||
+      !repStarted ||
+      !activeTpsAttempt ||
+      activeTpsAttempt.frozenAttempt ||
+      activeTpsTimingCaptured
+    ) {
+      return;
+    }
+    const interval = window.setInterval(() => {
+      setTpsTimerNowMs(Date.now());
+    }, 250);
+    return () => window.clearInterval(interval);
+  }, [
+    activeRepRequiresTpsTiming,
+    repStarted,
+    activeTpsAttempt?.attemptId,
+    activeTpsAttempt?.frozenAttempt,
+    activeTpsTimingCaptured,
+  ]);
+
+  useEffect(() => {
+    if (
+      !activeRepRequiresTpsTiming ||
+      !repStarted ||
+      !activeTpsAttempt ||
+      activeTpsAttempt.frozenAttempt ||
+      activeTpsTimingCaptured ||
+      activeTpsRemainingMs > 0 ||
+      tpsAttemptPersisting
+    ) {
+      return;
+    }
+    void finishActiveTpsTiming("timer_expired");
+  }, [
+    activeRepRequiresTpsTiming,
+    repStarted,
+    activeTpsAttempt?.attemptId,
+    activeTpsAttempt?.frozenAttempt,
+    activeTpsTimingCaptured,
+    activeTpsRemainingMs,
+    tpsAttemptPersisting,
+  ]);
+
   useEffect(() => {
     if (!submitSuccess) return;
     window.requestAnimationFrame(() => {
@@ -1275,6 +1703,24 @@ export default function IntroSessionDrillRunner() {
 
   const handleExitToPod = () => {
     navigate("/specialist/pod");
+  };
+
+  const handleOpenTimingRediagnosis = () => {
+    if (!studentId || !timingReadinessBlockedTopic) return;
+    const topicParam = encodeURIComponent(timingReadinessBlockedTopic.topic);
+    const phaseParam = encodeURIComponent(
+      timingReadinessBlockedTopic.targetedRediagnosisStartPhase ||
+        "Structured Execution",
+    );
+    const stabilityParam = encodeURIComponent(
+      timingReadinessBlockedTopic.stability || "Low",
+    );
+    const sessionParam = scheduledSessionId
+      ? `&scheduledSessionId=${encodeURIComponent(scheduledSessionId)}`
+      : "";
+    navigate(
+      `/specialist/intro-session/${studentId}?topic=${topicParam}&phase=${phaseParam}&stability=${stabilityParam}&context=training&rediagnosis=1${sessionParam}`,
+    );
   };
 
   const handleContinueToProposal = () => {
@@ -1288,6 +1734,16 @@ export default function IntroSessionDrillRunner() {
 
   const handleBackStep = () => {
     if (submitting || submitSuccess) return;
+    if (
+      activeRepRequiresTpsTiming &&
+      repStarted &&
+      !activeTpsTimingCaptured
+    ) {
+      setSubmitError(
+        "Finish the active TPS timing boundary or record a technical timer failure before leaving this rep.",
+      );
+      return;
+    }
     if (adaptiveTransition) {
       setAdaptiveTransition(null);
       setAdaptiveDiagnosisMessage(null);
@@ -1614,6 +2070,18 @@ export default function IntroSessionDrillRunner() {
               obs[PASSIVE_EXECUTION_TIMING_WIRE_KEY] = timingEvidence;
             }
           }
+          if (
+            displayPhase === "Time Pressure Stability" &&
+            registrySet &&
+            getTpsTrainingPressureForSet(registrySet.setId)
+          ) {
+            const timingEvidence = String(
+              observations[tpsTimingObservationKey(setIndex, repIdx)] || "",
+            ).trim();
+            if (timingEvidence) {
+              obs[TPS_TIMED_ATTEMPT_WIRE_KEY] = timingEvidence;
+            }
+          }
         }
         observationBlock.forEach((block) => {
           if (isTrainingEvidenceCapture) {
@@ -1740,6 +2208,20 @@ export default function IntroSessionDrillRunner() {
 
     if (shouldShowTopicReferenceCapture) {
       setTopicReferenceError("Save the Topic Reference before starting the scored drill sets.");
+      return;
+    }
+
+    if (timingReadinessBlockedTopic) {
+      setSubmitError(
+        `${timingReadinessBlockedTopic.topic} requires targeted evidence-native re-diagnosis before ordinary Training continues.`,
+      );
+      return;
+    }
+
+    if (activeRepRequiresTpsTiming && !activeTpsTimingCaptured) {
+      setSubmitError(
+        "Complete and persist the system-owned TPS timer boundary before confirming this rep.",
+      );
       return;
     }
 
@@ -2114,6 +2596,36 @@ export default function IntroSessionDrillRunner() {
       {!drillSessionAccessLoading && canUseScheduledSession && !((drillMode === "training" || isSessionMode) && !workflowLoading && !assignmentAccepted) && (
       <>
       <div ref={resultTopRef} />
+      {timingReadinessBlockedTopic && !submitSuccess && (
+        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+            Timing readiness required
+          </div>
+          <p className="mt-2 font-semibold">
+            {timingReadinessBlockedTopic.topic} cannot continue ordinary Training yet.
+          </p>
+          <p className="mt-2 text-sm leading-6 text-amber-900">
+            This topic is already above Structured Execution but does not have valid individualized timing authority.
+            RI is preserving the current phase truth and routing targeted evidence-native re-diagnosis instead of inserting calibration side reps.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded-md bg-amber-900 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800"
+              onClick={handleOpenTimingRediagnosis}
+            >
+              Open Targeted Re-Diagnosis
+            </button>
+            <button
+              type="button"
+              className="rounded-md border border-amber-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-amber-100"
+              onClick={handleExitToPod}
+            >
+              Exit to Pod
+            </button>
+          </div>
+        </div>
+      )}
       {(!drillStructure || (isSessionMode && topicDataLoading)) && (
         <div className="mb-4 p-3 rounded-md border border-primary/20 bg-primary/5">
           <p className="text-sm">Loading drill structure...</p>
@@ -2904,6 +3416,38 @@ export default function IntroSessionDrillRunner() {
               </span>
             ))}
           </div>
+          {activeRepRequiresTpsTiming && (
+            <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                Individualized Timer Contract
+              </div>
+              {tpsTimerContractLoading ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Loading the student/topic timing authority...
+                </p>
+              ) : tpsTimerContract && activeTpsPrescribedSeconds ? (
+                <>
+                  <p className="mt-1 text-sm font-semibold">
+                    This rep runs for {activeTpsPrescribedSeconds}s.
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Baseline: {tpsTimerContract.baselineSeconds}s · Timer is system-owned and cannot be paused, edited, rounded, or replaced by a Specialist stopwatch.
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1 text-sm text-amber-800">
+                  {tpsTimerContractError instanceof Error
+                    ? tpsTimerContractError.message
+                    : "TPS timing authority is unavailable. Do not begin this rep."}
+                </p>
+              )}
+            </div>
+          )}
+          {tpsTimingNotice && (
+            <div className="mt-3 rounded-lg border border-primary/15 bg-background p-3 text-xs leading-5 text-muted-foreground">
+              {tpsTimingNotice}
+            </div>
+          )}
           <p className="mt-4 text-xs leading-5 text-muted-foreground">
             Use the problem prepared before the session. Once the rep starts, keep attention on the student's response rather than on form administration.
           </p>
@@ -2912,6 +3456,14 @@ export default function IntroSessionDrillRunner() {
               type="button"
               className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
               onClick={beginTrainingRep}
+              disabled={
+                Boolean(timingReadinessBlockedTopic) ||
+                (activeRepRequiresTpsTiming &&
+                  (tpsTimerContractLoading ||
+                    !tpsTimerContract ||
+                    !activeTpsPrescribedSeconds ||
+                    tpsAttemptPersisting))
+              }
             >
               Begin Rep {currentRep + 1}
             </button>
@@ -2952,6 +3504,58 @@ export default function IntroSessionDrillRunner() {
           <p className="mt-2 text-xs text-muted-foreground">
             Do not rush the student because timing is being measured, and do not let avoidable dead time enter the execution interval.
           </p>
+        </div>
+      )}
+
+      {activeRepRequiresTpsTiming && repStarted && !activeTpsTimingCaptured && (
+        <div className="mb-4 rounded-xl border border-primary/25 bg-primary/5 p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                System timer · {set?.setName}
+              </div>
+              <div className="mt-1 text-4xl font-black tabular-nums tracking-tight">
+                {activeTpsAttempt?.frozenAttempt
+                  ? "Boundary frozen"
+                  : formatCountdownSeconds(activeTpsRemainingMs)}
+              </div>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                Prescribed: {activeTpsAttempt?.prescribedSeconds || activeTpsPrescribedSeconds || 0}s. There is no pause or manual override.
+                Mark Student Finished at actual completion. If the timing system itself fails, record Technical Timer Failure so this attempt stays in lineage and the same rep can be replaced cleanly.
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col gap-2">
+              <button
+                type="button"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-default disabled:opacity-60"
+                onClick={() =>
+                  void finishActiveTpsTiming(
+                    activeTpsAttempt?.frozenAttempt?.endReason ||
+                      "student_finished",
+                  )
+                }
+                disabled={tpsAttemptPersisting || !activeTpsAttempt}
+              >
+                {tpsAttemptPersisting
+                  ? "Saving timing..."
+                  : activeTpsAttempt?.frozenAttempt
+                    ? "Retry Timing Save"
+                    : "Student Finished"}
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-amber-300 bg-background px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50 disabled:cursor-default disabled:opacity-60"
+                onClick={() => void finishActiveTpsTiming("technical_failure")}
+                disabled={
+                  tpsAttemptPersisting ||
+                  !activeTpsAttempt ||
+                  Boolean(activeTpsAttempt?.frozenAttempt)
+                }
+              >
+                Technical Timer Failure
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -3212,7 +3816,9 @@ export default function IntroSessionDrillRunner() {
             !drillStructure ||
             !set ||
             shouldShowTopicReferenceCapture ||
-            (activeRepRequiresPassiveTiming && !activePassiveTimingCaptured)
+            Boolean(timingReadinessBlockedTopic) ||
+            (activeRepRequiresPassiveTiming && !activePassiveTimingCaptured) ||
+            (activeRepRequiresTpsTiming && !activeTpsTimingCaptured)
           }
         >
           {submitSuccess

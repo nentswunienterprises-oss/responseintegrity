@@ -3,6 +3,7 @@ export const TPS_BASELINE_SAMPLE_SIZE = 3 as const;
 export const TPS_FULL_CONSTRAINT_FACTOR = 0.85 as const;
 export const TPS_TRAINING_BASELINE_SET_ID = "structured_execution.independent_execution" as const;
 export const PASSIVE_EXECUTION_TIMING_WIRE_KEY = "_passive_execution_timing_v1" as const;
+export const TPS_TIMED_ATTEMPT_WIRE_KEY = "_tps_timed_attempt_v1" as const;
 
 export type TimedExecutionEvidenceV1 = {
   version: 1;
@@ -452,6 +453,60 @@ export type TpsTimedAttemptSubmissionV1 = {
   timingValidity: "valid" | "timing_invalid_technical";
   endReason: TpsTimedAttemptEndReason;
   replacementForAttemptId?: string | null;
+};
+
+export type TpsTimedAttemptEvidenceRefV1 = {
+  version: 1;
+  attemptId: string;
+  contractId: string;
+  setId: TpsTimedTrainingSetId;
+  repNumber: number;
+  attemptNumber: number;
+  timingValidity: "valid";
+  endReason: "student_finished" | "timer_expired";
+};
+
+export const encodeTpsTimedAttemptEvidenceRef = (
+  evidence: TpsTimedAttemptEvidenceRefV1,
+) => JSON.stringify(evidence);
+
+export const decodeTpsTimedAttemptEvidenceRef = (
+  raw: unknown,
+): TpsTimedAttemptEvidenceRefV1 | null => {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<TpsTimedAttemptEvidenceRefV1>;
+    if (
+      parsed.version !== 1 ||
+      typeof parsed.attemptId !== "string" ||
+      !parsed.attemptId.trim() ||
+      typeof parsed.contractId !== "string" ||
+      !parsed.contractId.trim() ||
+      typeof parsed.setId !== "string" ||
+      !getTpsTrainingPressureForSet(parsed.setId) ||
+      !Number.isInteger(parsed.repNumber) ||
+      Number(parsed.repNumber) < 1 ||
+      !Number.isInteger(parsed.attemptNumber) ||
+      Number(parsed.attemptNumber) < 1 ||
+      parsed.timingValidity !== "valid" ||
+      (parsed.endReason !== "student_finished" &&
+        parsed.endReason !== "timer_expired")
+    ) {
+      return null;
+    }
+    return {
+      version: 1,
+      attemptId: parsed.attemptId,
+      contractId: parsed.contractId,
+      setId: parsed.setId as TpsTimedTrainingSetId,
+      repNumber: Number(parsed.repNumber),
+      attemptNumber: Number(parsed.attemptNumber),
+      timingValidity: "valid",
+      endReason: parsed.endReason,
+    };
+  } catch {
+    return null;
+  }
 };
 
 export const getTpsTrainingPressureForSet = (

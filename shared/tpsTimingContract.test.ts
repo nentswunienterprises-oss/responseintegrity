@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   PASSIVE_EXECUTION_TIMING_WIRE_KEY,
+  TPS_TIMED_ATTEMPT_WIRE_KEY,
   TPS_FULL_CONSTRAINT_FACTOR,
   TPS_TRAINING_BASELINE_SET_ID,
   buildPassiveExecutionTimingEvidence,
   decodePassiveExecutionTimingEvidence,
+  decodeTpsTimedAttemptEvidenceRef,
   encodePassiveExecutionTimingEvidence,
+  encodeTpsTimedAttemptEvidenceRef,
   deriveTpsBaselineSnapshot,
   deriveTpsTimerContractV1,
   getTpsPrescribedSeconds,
@@ -432,5 +435,40 @@ test("TPS timed lineage distinguishes clean expiry from technical failure", () =
   assert.equal(
     validateTpsTimedAttemptAgainstContract({ contract, attempt: technical }).ok,
     true,
+  );
+});
+
+
+test("TPS Training drill wire stores only accepted valid timed-attempt lineage", () => {
+  const reference = {
+    version: 1 as const,
+    attemptId: "attempt-valid-2",
+    contractId: "contract-1",
+    setId: "time_pressure.repeated_timed_execution" as const,
+    repNumber: 2,
+    attemptNumber: 2,
+    timingValidity: "valid" as const,
+    endReason: "student_finished" as const,
+  };
+
+  const encoded = encodeTpsTimedAttemptEvidenceRef(reference);
+  assert.equal(TPS_TIMED_ATTEMPT_WIRE_KEY, "_tps_timed_attempt_v1");
+  assert.deepEqual(decodeTpsTimedAttemptEvidenceRef(encoded), reference);
+
+  assert.equal(
+    decodeTpsTimedAttemptEvidenceRef(JSON.stringify({
+      ...reference,
+      timingValidity: "timing_invalid_technical",
+      endReason: "technical_failure",
+    })),
+    null,
+  );
+
+  assert.equal(
+    decodeTpsTimedAttemptEvidenceRef(JSON.stringify({
+      ...reference,
+      setId: "structured_execution.independent_execution",
+    })),
+    null,
   );
 });

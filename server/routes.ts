@@ -180,6 +180,7 @@ import {
   loadTpsTimingDrillRows,
   persistTpsTimerContract,
   persistTpsTimerContractDirect,
+  validateTpsTrainingDrillTimedAttemptLineage,
   type PersistedTpsTimerContract,
 } from "./tpsTimingAuthority";
 import {
@@ -8847,9 +8848,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
                 const needsExistingTimerContract =
                   effectivePhase === "Time Pressure Stability" ||
-                  (effectivePhase === "Controlled Discomfort" &&
-                    proposedTrainingSummary.phase === "Time Pressure Stability" &&
-                    proposedTrainingSummary.transitionReason === "phase progress");
+                  effectivePhase === "Controlled Discomfort";
 
                 if (needsExistingTimerContract) {
                   persistedTimerContract = await loadLatestTpsTimerContract({
@@ -8868,10 +8867,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   canFreezeTrainingBaseline: Boolean(pendingTrainingTimerContract),
                 });
 
-                if (
-                  timingReadiness.action === "targeted_rediagnosis" &&
-                  effectivePhase === "Time Pressure Stability"
-                ) {
+                if (timingReadiness.action === "targeted_rediagnosis") {
                   const timingError = Object.assign(
                     new Error(timingReadiness.reason),
                     {
@@ -8882,6 +8878,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     },
                   );
                   throw timingError;
+                }
+
+                if (
+                  effectivePhase === "Time Pressure Stability" &&
+                  persistedTimerContract
+                ) {
+                  const timedAttemptLineageError =
+                    await validateTpsTrainingDrillTimedAttemptLineage({
+                      contract: persistedTimerContract,
+                      sets: drillSets,
+                    });
+                  if (timedAttemptLineageError) {
+                    throw Object.assign(new Error(timedAttemptLineageError), {
+                      statusCode: 409,
+                      code: "TPS_TIMED_EVIDENCE_INVALID",
+                    });
+                  }
                 }
 
                 let trainingSummary = proposedTrainingSummary;
@@ -8901,26 +8914,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     timingReadiness: {
                       code: timingReadiness.issueCode,
                       status: "hold_structured_execution",
-                      reason: timingReadiness.reason,
-                    },
-                  };
-                } else if (timingReadiness.action === "targeted_rediagnosis") {
-                  trainingSummary = {
-                    ...proposedTrainingSummary,
-                    phase: timingReadiness.resultingPhase,
-                    stability: timingReadiness.resultingStability,
-                    transitionReason: "remain",
-                    phaseDecision: "re-diagnose",
-                    nextAction:
-                      "Run targeted evidence-native re-diagnosis beginning at Structured Execution to establish individualized timing authority.",
-                    constraint:
-                      "Do not begin Time Pressure Stability until a valid individualized Timer Contract exists.",
-                    requiresTargetedRediagnosis: true,
-                    targetedRediagnosisStartPhase:
-                      timingReadiness.targetedRediagnosisStartPhase,
-                    timingReadiness: {
-                      code: timingReadiness.issueCode,
-                      status: "targeted_rediagnosis",
                       reason: timingReadiness.reason,
                     },
                   };
@@ -31115,60 +31108,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? topicConditioningStore.topics
           : {};
 
-      const now = Date.now();
-      const topics = Object.entries(topicsStore)
-        .map(([topicKey, entry]) => {
-          const topic = sanitizeTopic(topicKey) || sanitizeTopic(entry?.topic) || null;
-          if (!topic) return null;
+      const topics = (
+        await Promise.all(
+          Object.entries(topicsStore).map(async ([topicKey, entry]) => {
+            const topic = sanitizeTopic(topicKey) || sanitizeTopic(entry?.topic) || null;
+            if (!topic) return null;
 
-          const latestPhase = tryParsePhase(entry?.phase) || tryParsePhase(topicConditioningStore.entry_phase);
-          if (!latestPhase) return null;
-          const latestStability = normalizeStability(entry?.stability || topicConditioningStore.stability || "Low");
+            const latestPhase =
+              tryParsePhase(entry?.phase) ||
+              tryParsePhase(topicConditioningStore.entry_phase);
+            if (!latestPhase) return null;
+            const latestStability = normalizeStability(
+              entry?.stability || topicConditioningStore.stability || "Low",
+            );
 
-          const normalizedHistory = Array.isArray(entry?.history)
-            ? entry.history
-                .map((item: any) => ({
-                  phase: tryParsePhase(item?.phase) || latestPhase,
-                  stability: normalizeStability(item?.stability || latestStability),
-                  date: String(item?.date || "").trim(),
-                }))
-                .filter((item: any) => !!item.date)
-                .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
-            : [];
+            const normalizedHistory = Array.isArray(entry?.history)
+              ? entry.history
+                  .map((item: any) => ({
+                    phase: tryParsePhase(item?.phase) || latestPhase,
+                    stability: normalizeStability(item?.stability || latestStability),
+                    date: String(item?.date || "").trim(),
+                  }))
+                  .filter((item: any) => !!item.date)
+                  .sort(
+                    (a: any, b: any) =>
+                      new Date(a.date).getTime() - new Date(b.date).getTime(),
+                  )
+              : [];
 
-          const latest = normalizedHistory[normalizedHistory.length - 1] || {
-            phase: latestPhase,
-            stability: latestStability,
-            date: entry?.lastUpdated || topicConditioningStore.lastUpdatedAt || new Date().toISOString(),
-          };
+            const latest = normalizedHistory[normalizedHistory.length - 1] || {
+              phase: latestPhase,
+              stability: latestStability,
+              date:
+                entry?.lastUpdated ||
+                topicConditioningStore.lastUpdatedAt ||
+                new Date().toISOString(),
+            };
 
-          const requiresTargetedRediagnosis = entry?.requiresTargetedRediagnosis === true;
-          const targetedRediagnosisStartPhase = requiresTargetedRediagnosis
-            ? tryParsePhase(entry?.targetedRediagnosisStartPhase)
-            : null;
-          const prerequisiteContradictionStatus =
-            typeof entry?.prerequisiteContradictionStatus === "string"
-              ? entry.prerequisiteContradictionStatus
+            const aboveStructuredExecution =
+              latest.phase === "Controlled Discomfort" ||
+              latest.phase === "Time Pressure Stability";
+            const timerContract = aboveStructuredExecution
+              ? await loadLatestTpsTimerContract({ studentId, topic })
               : null;
-          const prerequisiteContradictionReason =
-            typeof entry?.prerequisiteContradictionReason === "string"
-              ? entry.prerequisiteContradictionReason
-              : null;
+            const timingBaselineIncomplete =
+              aboveStructuredExecution && !timerContract;
 
-          return {
-            topic,
-            phase: latest.phase,
-            stability: latest.stability,
-            lastUpdated: latest.date,
-            topicReference: parseStoredTopicReference(entry?.topicReference),
-            requiresTargetedRediagnosis,
-            targetedRediagnosisStartPhase,
-            prerequisiteContradictionStatus,
-            prerequisiteContradictionReason,
-          };
-        })
+            const persistedRequiresTargetedRediagnosis =
+              entry?.requiresTargetedRediagnosis === true;
+            const requiresTargetedRediagnosis =
+              persistedRequiresTargetedRediagnosis || timingBaselineIncomplete;
+            const targetedRediagnosisStartPhase =
+              persistedRequiresTargetedRediagnosis
+                ? tryParsePhase(entry?.targetedRediagnosisStartPhase)
+                : timingBaselineIncomplete
+                  ? "Structured Execution"
+                  : null;
+            const prerequisiteContradictionStatus =
+              typeof entry?.prerequisiteContradictionStatus === "string"
+                ? entry.prerequisiteContradictionStatus
+                : null;
+            const prerequisiteContradictionReason =
+              typeof entry?.prerequisiteContradictionReason === "string"
+                ? entry.prerequisiteContradictionReason
+                : null;
+
+            return {
+              topic,
+              phase: latest.phase,
+              stability: latest.stability,
+              lastUpdated: latest.date,
+              topicReference: parseStoredTopicReference(entry?.topicReference),
+              requiresTargetedRediagnosis,
+              targetedRediagnosisStartPhase,
+              prerequisiteContradictionStatus,
+              prerequisiteContradictionReason,
+              timingReadiness: {
+                status: !aboveStructuredExecution
+                  ? "not_required"
+                  : timerContract
+                    ? "ready"
+                    : "targeted_rediagnosis",
+                issueCode: timingBaselineIncomplete
+                  ? TPS_TIMER_BASELINE_INCOMPLETE
+                  : null,
+                contractId: timerContract?.contractId || null,
+                baselineSeconds: timerContract?.baselineSeconds || null,
+                reason: timingBaselineIncomplete
+                  ? "This above-Structured-Execution topic predates or lacks valid individualized timing authority. Ordinary Training is held until targeted evidence-native re-diagnosis establishes the missing baseline."
+                  : null,
+              },
+            };
+          }),
+        )
+      )
         .filter((row): row is NonNullable<typeof row> => !!row)
-        .sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime());
+        .sort(
+          (a, b) =>
+            new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(),
+        );
 
       res.json({ topics });
     } catch (error) {

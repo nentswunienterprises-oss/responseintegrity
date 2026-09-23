@@ -77,12 +77,7 @@ export const resolveTpsTrainingReadiness = ({
     };
   }
 
-  const progressingIntoTps =
-    observedPhase === "Controlled Discomfort" &&
-    proposedPhase === "Time Pressure Stability" &&
-    transitionReason === "phase progress";
-
-  if (progressingIntoTps && !hasTimerContract) {
+  if (observedPhase === "Controlled Discomfort" && !hasTimerContract) {
     return {
       action: "targeted_rediagnosis",
       issueCode: TPS_TIMER_BASELINE_INCOMPLETE,
@@ -90,9 +85,9 @@ export const resolveTpsTrainingReadiness = ({
       requiresTargetedRediagnosis: true,
       targetedRediagnosisStartPhase: "Structured Execution",
       resultingPhase: "Controlled Discomfort",
-      resultingStability: "High Maintenance",
+      resultingStability: previousStability,
       reason:
-        "Controlled Discomfort is ready to progress, but TPS cannot begin without individualized timing authority. Preserve the current phase truth and route targeted evidence-native re-diagnosis to establish the missing no-pressure baseline.",
+        "This topic is already above Structured Execution but has no valid individualized Timer Contract. Preserve the current Controlled Discomfort state and route targeted evidence-native re-diagnosis to establish the missing no-pressure baseline before ordinary Training continues.",
     };
   }
 
