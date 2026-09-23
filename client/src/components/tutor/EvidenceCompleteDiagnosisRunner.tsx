@@ -692,7 +692,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
 
               <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
-                  Say / do this now
+                  DO THIS NOW
                 </p>
                 <p className="mt-1 text-base font-semibold leading-6">
                   {currentProbe.specialistInstruction}

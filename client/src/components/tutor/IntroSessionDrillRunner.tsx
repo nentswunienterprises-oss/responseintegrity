@@ -62,6 +62,7 @@ type DrillSetConfig = {
   reps: number;
   purpose: string;
   repInstruction: string;
+  repInstructionCue: "say" | "do";
   isModelingSet?: boolean;
   activeRules: string[];
   observationBlock?: ObservationField[];
@@ -183,8 +184,8 @@ const PHASE_CONTEXT: Record<PhaseLabel, { purpose: string; constraints: string[]
 
 // ---------------------------------------------------------------------------
 // DRILL SET CONFIGURATIONS
-// Each set carries: purpose (why), repInstruction (what the Specialist says/does),
-// activeRules (constraints live during this set), and per-rep observation blocks.
+// Each set carries: purpose (why), an explicit instruction cue (SAY vs DO THIS NOW),
+// repInstruction (the actual spoken prompt or operating action), activeRules, and per-rep observation blocks.
 // ---------------------------------------------------------------------------
 const DIAGNOSIS_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
   Clarity: [
@@ -193,6 +194,7 @@ const DIAGNOSIS_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Student does NOT solve. Tests vocabulary, type recognition, and step awareness only.",
       repInstruction: "Show the problem. Ask student to name terms, identify type, and state the steps. Do not let them solve.",
+      repInstructionCue: "do",
       activeRules: ["Student does not solve", "Recognition only - no execution", "No hints or steps from Specialist"],
       repObservationBlocks: [
         [
@@ -220,6 +222,7 @@ const DIAGNOSIS_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Student solves with minimal help. Tests start behavior, structure, and clarity carryover.",
       repInstruction: "Ask student to solve. Minimal guidance only. Observe start behavior and step discipline.",
+      repInstructionCue: "do",
       activeRules: ["Minimal guidance only", "No step-by-step help", "Observe independent start and execution"],
       repObservationBlocks: [
         [
@@ -249,6 +252,7 @@ const DIAGNOSIS_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Test ability to execute from a cold start with no assistance. Observe whether structure exists from the first move.",
       repInstruction: "Solve the problem. No help for 10 seconds.",
+      repInstructionCue: "say",
       activeRules: ["No help for 10 seconds", "Observe cold start behavior", "Record exactly what happens - no prompting"],
       repObservationBlocks: [
         [
@@ -276,6 +280,7 @@ const DIAGNOSIS_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Test whether execution holds across similar problems without breaking down.",
       repInstruction: "Solve similar problem.",
+      repInstructionCue: "say",
       activeRules: ["Similar problem - same method", "No step-by-step guidance", "Observe consistency across reps"],
       repObservationBlocks: [
         [
@@ -315,6 +320,7 @@ const DIAGNOSIS_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Test initial response to difficulty under a no-help condition. What does the student do first?",
       repInstruction: "Try this. No help for 10 seconds.",
+      repInstructionCue: "say",
       activeRules: ["No help for 10 seconds", "Hold the discomfort window", "Do not rescue - observe"],
       repObservationBlocks: [
         [
@@ -342,6 +348,7 @@ const DIAGNOSIS_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Test sustained engagement under difficulty. Can the student persist without rescue?",
       repInstruction: "Continue. I will only confirm the first step.",
+      repInstructionCue: "say",
       activeRules: ["One-step confirmation only", "No rescue allowed", "Hold pressure - do not relieve it"],
       repObservationBlocks: [
         [
@@ -391,6 +398,7 @@ const DIAGNOSIS_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Test structure and start behavior under a timer. First exposure to time constraint.",
       repInstruction: "Solve under short timer.",
+      repInstructionCue: "say",
       activeRules: ["Timer is active", "Observe structure - not just speed", "Record panic vs controlled response"],
       repObservationBlocks: [
         [
@@ -418,6 +426,7 @@ const DIAGNOSIS_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Test whether structure holds across repeated timed attempts. Look for drift.",
       repInstruction: "Repeat under same time constraint.",
+      repInstructionCue: "say",
       activeRules: ["Same timer", "Observe drift and consistency", "Behavioral pattern - not just completion"],
       repObservationBlocks: [
         [
@@ -450,6 +459,7 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 1,
       purpose: "Build the mental map before drilling.",
       repInstruction: "Teach Vocabulary → Recognition / Method → Ordered Steps → Reason, then ask the student to explain back.",
+      repInstructionCue: "do",
       isModelingSet: true,
       activeRules: ["Specialist models - student does NOT solve", "Vocabulary → Recognition / Method → Ordered Steps → Reason sequence", "Ask student to explain back after each model"],
     },
@@ -458,6 +468,7 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Recognition without solving. Student names terms, identifies type, states steps, explains why.",
       repInstruction: "Show the problem. Ask student to: name the terms, identify the type, state the steps, explain why it works. No solving allowed.",
+      repInstructionCue: "do",
       activeRules: ["No solving allowed", "Push for vocabulary precision", "All 4 layers: terms, type, steps, reason"],
       repObservationBlocks: [
         [
@@ -485,6 +496,7 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Test clarity under active solving. Minimal guidance only. Observe whether clarity holds when they execute.",
       repInstruction: "Ask student to solve. Minimal guidance. Observe clarity under execution.",
+      repInstructionCue: "do",
       activeRules: ["Minimal guidance only", "No step-by-step help", "Observe independent start and execution"],
       repObservationBlocks: [
         [
@@ -514,6 +526,7 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Require structured execution. Student must state all steps first, then solve. Build discipline before independence.",
       repInstruction: "State steps first. Then solve.",
+      repInstructionCue: "say",
       activeRules: ["Steps must be stated before solving", "No skipping steps", "Correct step order required"],
       observationBlock: [
         { key: "startBehavior", label: "Start", options: ["delayed", "hesitant", "immediate"] },
@@ -537,6 +550,7 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Full independent execution without any help. Build consistent, repeatable execution.",
       repInstruction: "Solve independently.",
+      repInstructionCue: "say",
       activeRules: ["No help from Specialist", "Full independence expected", "Observe repeatability and step discipline"],
       observationBlock: [
         { key: "independence", label: "Independence", options: ["needs help", "light support", "independent"] },
@@ -560,6 +574,7 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Test transfer. Student adapts to a slightly different form using the same method. Method must survive variation.",
       repInstruction: "Solve slightly different form.",
+      repInstructionCue: "say",
       activeRules: ["Same method - different form", "Test transfer not memorization", "No hints on what changed"],
       observationBlock: [
         { key: "stepExecution", label: "Transfer", options: ["cannot adapt", "partial", "adapts"] },
@@ -575,6 +590,7 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Build controlled entry under difficulty. Force a pause before the first action.",
       repInstruction: "Pause. Then state the first step.",
+      repInstructionCue: "say",
       activeRules: ["Force a pause before starting", "First step must be stated out loud", "Do not let them jump in"],
       observationBlock: [
         { key: "initialResponse", label: "Start Control", options: ["freeze", "hesitant", "controlled"] },
@@ -588,6 +604,7 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Build independence under difficulty. No rescue under any circumstance.",
       repInstruction: "Continue. No full help.",
+      repInstructionCue: "say",
       activeRules: ["No rescue allowed", "Hold the hold - do not relieve", "Observe rescue-seeking pattern"],
       observationBlock: [
         { key: "rescueDependence", label: "Independence", options: ["dependent", "partial", "independent"] },
@@ -611,6 +628,7 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Repeat exposure to build tolerance. Same difficulty level. The target is stability - not just survival.",
       repInstruction: "Another similar difficulty.",
+      repInstructionCue: "say",
       activeRules: ["Same difficulty level", "Repeat exposure - build tolerance", "Observe consistency of response"],
       observationBlock: [
         { key: "discomfortTolerance", label: "Consistency", options: ["breaks", "inconsistent", "stable"] },
@@ -636,6 +654,7 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Build structured execution under a timer. Method is priority - speed is secondary.",
       repInstruction: "Focus on method, not speed.",
+      repInstructionCue: "say",
       activeRules: ["Timer active", "Method priority - not speed", "Structure must be maintained throughout"],
       observationBlock: [
         { key: "startUnderTime", label: "Start", options: ["panic", "hesitant", "controlled"] },
@@ -649,6 +668,7 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Build consistency under repeated timed execution. Same constraint - look for drift.",
       repInstruction: "Repeat under timer.",
+      repInstructionCue: "say",
       activeRules: ["Same timer constraint", "Build consistency - not just completion", "Observe pace regulation"],
       observationBlock: [
         { key: "completionIntegrity", label: "Consistency", options: ["breaks", "inconsistent", "stable"] },
@@ -662,6 +682,7 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       reps: 3,
       purpose: "Full constraint drill. Tighter time - structure and completion integrity both tested.",
       repInstruction: "Solve under tighter time.",
+      repInstructionCue: "say",
       activeRules: ["Tighter timer", "Full constraint - no relief", "Structure + completion both required"],
       observationBlock: [
         { key: "completionIntegrity", label: "Completion", options: ["fails", "partial", "complete"] },
@@ -695,6 +716,7 @@ function buildDrillStructure(mode: DrillMode, phase: PhaseLabel) {
       reps: HANDOVER_VERIFICATION_MAX_OPPORTUNITIES,
       purpose: `Continuity verification only. Verify whether the inherited ${phase} state remains trustworthy without training or progressing the student.`,
       repInstruction: "Present one clean continuity opportunity under the inherited phase conditions. Observe the response without teaching through it.",
+      repInstructionCue: "do",
     }];
   }
   return DIAGNOSIS_SETS_BY_PHASE[phase];
@@ -2778,7 +2800,7 @@ export default function IntroSessionDrillRunner() {
           </div>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">{set?.purpose}</p>
           <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">Say / do this now</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">{set?.repInstructionCue === "say" ? "SAY" : "DO THIS NOW"}</div>
             <div className="mt-1 text-base font-semibold text-foreground">{set?.repInstruction}</div>
           </div>
           <div className="mt-3 flex flex-wrap gap-1.5">
@@ -2828,7 +2850,7 @@ export default function IntroSessionDrillRunner() {
         </div>
         <div className="text-xs text-muted-foreground mb-2 sm:mb-3">{set?.purpose}</div>
         <div className="p-2 rounded-md border border-primary/20 bg-primary/5 mb-2 sm:mb-3">
-          <div className="text-xs font-semibold text-primary mb-0.5">Rep instruction</div>
+          <div className="text-xs font-semibold text-primary mb-0.5">{set?.repInstructionCue === "say" ? "SAY" : "DO THIS NOW"}</div>
           <div className="text-xs sm:text-sm text-foreground font-medium">{set?.repInstruction}</div>
         </div>
         <div className="flex flex-wrap gap-1">
