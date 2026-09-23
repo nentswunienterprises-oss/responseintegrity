@@ -11,6 +11,8 @@ import {
 import {
   DIAGNOSIS_PROBES,
   getDiagnosisProbeOpportunityPurpose,
+  isDiagnosisBaselineTimingOpportunity,
+  isDiagnosisTimedProbe,
   type DiagnosisDimensionId,
   type DiagnosisProbeResult,
 } from "@shared/evidenceCompleteDiagnosis";
@@ -691,6 +693,13 @@ const responseForReplay = (
   const occurrenceNumber = nextProbeId
     ? replay.state.probeHistory.filter((row) => row.probeId === nextProbeId).length + 1
     : null;
+  const currentProbeTimingMode = nextProbeId
+    ? isDiagnosisTimedProbe(nextProbeId)
+      ? "timed"
+      : isDiagnosisBaselineTimingOpportunity(nextProbeId)
+        ? "passive_baseline"
+        : "none"
+    : "none";
 
   return {
     success: true,
@@ -706,6 +715,17 @@ const responseForReplay = (
       nextProbeId && occurrenceNumber
         ? getDiagnosisProbeOpportunityPurpose(nextProbeId, occurrenceNumber)
         : null,
+    timingAuthority: {
+      mode: currentProbeTimingMode,
+      requiredSampleCount: replay.decision.timingBaseline.requiredSampleCount,
+      sampleCount: replay.decision.timingBaseline.sampleCount,
+      baselineReady: replay.decision.timingBaseline.ready,
+      baselineSeconds: replay.decision.timingBaseline.baselineSeconds,
+      prescribedSeconds:
+        currentProbeTimingMode === "timed"
+          ? replay.decision.timingBaseline.baselineSeconds
+          : null,
+    },
   };
 };
 
