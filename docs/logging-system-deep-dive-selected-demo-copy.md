@@ -1,108 +1,160 @@
-# Response Integrity-OS Deep Dive
+# Logging System Deep Dive — Evidence-Native Operating Copy
 
-**Canonical reference**
-The single source of truth for live Response Integrity-OS algorithm rules is [Response Integrity-OS Live Implementation Source of Truth](response-integrity-os-implementation-source-of-truth.md).
-This file is a logging and runner deep dive, not the canonical implementation spec.
-If any shared engine rule here conflicts with the canonical spec or current code, the canonical spec wins and this file must be brought back into alignment.
+**Canonical reference**  
+The live product and current Response Integrity-OS contracts remain the implementation authority. This file is a Specialist-facing derivative of the live Logging System Deep Dive and must be updated whenever the live runner changes.
 
 ## Logging System
 
-Evidence capture, score resolution, and system-led output
+Logging is the evidence-capture layer between what the student actually did and what the system is allowed to conclude.
 
-## What Logging Is For
+The governing chain is:
 
-Tutors do not log opinions. Tutors log what actually happened. The system uses that evidence to decide whether to hold, place, or move.
+`active condition -> concrete observed behavior -> evidence eligibility -> dimension state -> system decision -> next action`
 
-### Intro diagnosis
+The Specialist owns truthful observation. The system owns evidence interpretation and the resulting operating decision.
 
-Logging supports phase verification and placement.
+## Core Logging Law
 
-### Active training
+Specialists do not log opinions about the student's state.
 
-Logging supports continuity, reinforcement, and next-step selection.
+They record:
 
-### Handover verification
+- the concrete behavior that actually occurred;
+- whether the behavior was meaningfully observed;
+- whether the observation was confounded;
+- any intervention, prompting, rescue, or timing change that occurred;
+- the evidence under the condition the system intended to test.
 
-Logging supports continuity checks after tutor reassignment.
+Do not guess, soften, strengthen, or fill gaps with interpretation.
 
-## What This Page Shows
+## Evidence Status
 
-This page shows how tutors use the drill runner in intro diagnosis, active training, and handover verification. You can switch modes, open the runner, complete reps, and review the result screen.
+### Observed
 
-## Choose a Mode and Phase
+Use when the opportunity meaningfully exposed the behavior and nothing made that observation uninterpretable.
 
-Switch between training, diagnosis, and handover. For diagnosis, the selected phase is the starting point, not the final placement.
+### Not observed
 
-### Training
+Use when the opportunity did not meaningfully expose the behavior.
 
-Use the active training drill flow for the selected phase.
+Not-observed evidence is missing evidence. It is not weakness.
 
-### Diagnosis
+### Confounded
 
-Use the diagnosis flow to start from a phase block and let the system move up, place, or move down.
+Use when assistance, content exposure, task design, interruption, timing changes, or another condition prevents clean interpretation.
 
-### Handover
+Confounded evidence is not automatically weakness or strength.
 
-Use the continuity-check flow to verify where training should resume with a new tutor.
+## Intervention Is a Separate Fact
 
-## Selected Demo
+Student behavior and Specialist intervention are recorded separately.
 
-### Training: Structured Execution
+Examples include:
 
-Test and build ability to execute the known method independently. Student knows - now prove they can do it alone, repeatably.
+- no intervention;
+- neutral clarification;
+- first-step confirmation;
+- method or step prompting;
+- teaching or full rescue;
+- timer changed.
 
-Constraints:
+Training can contain legitimate intervention. The system therefore decides which dimensions remain evidence-eligible after the recorded support instead of treating every supported opportunity as either fully clean or fully useless.
 
-- State steps before solving
-- No guessing tolerated
-- No skipping steps
+## Intro Diagnosis Logging
 
-## In This Demo
+Diagnosis is evidence-complete, not rep-complete.
 
-- Tutor prep before the drill starts
-- A phase-based training drill
-- Clickable observation choices for each rep
-- A result screen that mirrors the live runner more closely
+The Specialist:
 
-## Primary Rules
+1. presents the system-selected opportunity;
+2. records concrete behavior;
+3. records not-observed or confounded evidence honestly;
+4. records intervention separately;
+5. submits the evidence;
+6. follows the next evidence question selected from that evidence.
 
-- Only log what the student actually did.
-- Do not guess or fill gaps with your own interpretation.
-- Use the drill options exactly as they are written.
-- If you did not see it happen, do not log it.
+The Specialist does not choose the phase, starting stability, or next probe.
 
-## How Choices Turn Into a Result
+A completed diagnosis must explain:
 
-- The first option is the weakest response.
-- The middle option is partial.
-- The last option is the strongest response.
-- The selected options roll up into rep scores, set totals, and the final phase summary.
+- why this phase;
+- why this starting stability;
+- what behavior determined the entry state;
+- what Training action follows.
 
-## What Tutors Do in the Runner
+If permitted clean evidence is exhausted and the required layer remains unresolved, placement blocks for evidence review rather than being guessed.
 
-1. Open the verification block and review the tutor prep step first.
-2. Run each rep exactly as written.
-3. Choose the option that best matches what the student actually did.
-4. Finish the block without rewriting what happened.
-5. Submit to see the evidence summary and system output.
+## Training Logging
 
-## What the Result Screen Shows
+Training is exposure-complete and evidence-authorized.
 
-- Rep totals and grouped drill totals
-- Phase total
-- System output
-- Reason
-- Tutor meaning
-- Next action
-- Current phase rule or drill constraint
+Repeated opportunities are legitimate because repetition is part of conditioning. But completing the required exposure and proving capability are separate questions.
 
-## Audit Relevance
+The Specialist records the concrete response in each opportunity, the evidence status, and the intervention that actually occurred.
 
-Because Response Integrity logging is tied directly to evidence and system output, dishonest logging means dishonest evidence capture. That is a compliance issue, not a note-taking issue.
+The evidence model resolves each phase dimension from valid occurrences and determines the current observed stability.
 
-- Selecting stronger observation options than the rep justified
-- Logging a smoother response pattern than the drill score supports
-- Altering or misreporting the automatic system result after scoring
-- Writing around a rescue, pressure break, or structure collapse
+A genuine breakdown is not erased by one isolated later success. Recovery requires sufficient clean comparable evidence.
 
-If the observation record is manipulated, the system output is compromised and the tutor can be flagged for audit failure.
+High, High Maintenance, and phase progression remain temporally separated:
+
+1. qualifying Training evidence may establish High;
+2. a later qualifying session while already High may establish High Maintenance;
+3. a later qualifying session while already High Maintenance may authorize phase progression.
+
+A clean current-phase breakdown in Structured Execution, Controlled Discomfort, or Time Pressure Stability can trigger a stripped-constraint prerequisite check. If an earlier prerequisite is contradicted or cannot be established cleanly, ordinary Training does not guess backward movement; the topic routes to targeted evidence-complete re-diagnosis.
+
+## Handover Verification Logging
+
+Handover verifies inherited truth after Specialist reassignment.
+
+It is not a normal Training drill and it is not a restart of Intro.
+
+The Specialist presents one clean continuity opportunity at a time, records concrete behavior, preserves not-observed/confounded states, and lets the Response Evidence Model determine whether evidence is sufficient to:
+
+- hold the inherited state;
+- make a bounded same-phase stability adjustment;
+- require targeted evidence-complete re-diagnosis.
+
+The reserve problem bank is not a completion quota.
+
+## What the Result Must Mean
+
+A result should be traceable to evidence.
+
+The result surface may show:
+
+- the behavior or evidence pattern that mattered;
+- evidence eligibility or unresolved/confounded status where relevant;
+- resulting phase/stability or continuity outcome;
+- the reason for that decision;
+- the next action;
+- the active condition or constraint.
+
+The Specialist does not rewrite the system conclusion to match a preferred interpretation.
+
+## Source Integrity
+
+Submitted evidence is part of the institutional record.
+
+Do not:
+
+- select a stronger behavior than the student demonstrated;
+- convert missing evidence into weakness;
+- hide support, rescue, prompting, or timer changes;
+- change the condition and log the result as if the original condition held;
+- manually rewrite the resulting state.
+
+A false observation can create a false capability claim, false state movement, false continuity decision, or misleading downstream report.
+
+## Operating Summary
+
+`Observe accurately.`
+
+`Preserve the condition.`
+
+`Record intervention honestly.`
+
+`Keep missing evidence missing.`
+
+`Let evidence determine the decision.`

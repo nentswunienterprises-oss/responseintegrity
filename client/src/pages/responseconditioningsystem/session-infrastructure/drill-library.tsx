@@ -9,7 +9,7 @@ const drillTypes = [
     purpose: "Find where the student should begin in a topic.",
     usedIn: "Intro, and any new topic that appears during active training.",
     howItWorks:
-      "Run one phase block, score it out of 100, then move down, place here, or move up.",
+      "The evidence-complete diagnosis engine selects the smallest next probe needed; concrete behavior decides placement rather than a numeric score.",
   },
   {
     title: "Training",
@@ -23,7 +23,7 @@ const drillTypes = [
     purpose: "Check whether the current placement still holds without restarting the topic.",
     usedIn: "Tutor handover and continuity checks.",
     howItWorks:
-      "Run a short check on the current state, then confirm it, tighten it, or check more deeply.",
+      "Record one continuity opportunity at a time. The evidence model stops when it can hold the inherited state, make a bounded stability adjustment, or require targeted re-diagnosis.",
   },
 ];
 
@@ -71,8 +71,8 @@ const hierarchy = [
   "Drill type: diagnosis, training, or verification.",
   "Phase: clarity, structured execution, controlled discomfort, or time pressure stability.",
   "Drill set: the exact procedure the tutor runs.",
-  "Rep logging: the option chosen for each rep.",
-  "Result: score, placement, hold, adjustment, or move-forward signal.",
+  "Evidence logging: the concrete behavior recorded for each valid opportunity or rep.",
+  "Result: the evidence-native placement, Training transition, Handover hold/adjustment, or re-diagnosis decision.",
 ];
 
 const introRules = [
@@ -88,15 +88,16 @@ const handoverRules = [
   "The student has already been trained in Response Integrity before this session.",
   "The student already has an inherited topic, phase, and stability from the previous tutor.",
   "Handover does not restart the student.",
-  "Handover uses short verification blocks, not a full intro again.",
-  "If the current state does not hold, the system tightens it or checks further before normal training resumes.",
+  "Handover is evidence-complete, not fixed-rep complete. A reserve problem bank is prepared, but only the opportunities required by the evidence model are used.",
+  "The same canonical behavior classes used by Diagnosis govern Handover, including not-observed and confounded evidence.",
+  "If inherited truth cannot be defended, normal Training stays closed and the system routes the topic to targeted evidence-complete re-diagnosis.",
 ];
 
 const loggingSteps = [
-  "Run the rep exactly as written.",
-  "Choose the option that best matches what the student actually did.",
-  "Let the app turn those choices into rep scores, set totals, and a phase summary.",
-  "Use that output to decide placement, hold, or progression.",
+  "Hold the exact condition the current mode requires.",
+  "Choose the concrete behavior that best matches what the student actually did.",
+  "Record not-observed or confounded evidence instead of forcing a strength/weakness judgment when the opportunity was not clean.",
+  "Let the evidence engine own placement, Training transition, continuity hold/adjustment, recovery, and re-diagnosis decisions.",
 ];
 
 const prepBasics = [
@@ -125,12 +126,12 @@ const prepByContext = [
   {
     title: "Handover Prep",
     detail:
-      "Prepare a short verification block for the student's inherited topic, phase, and stability. Handover prep is for checking whether training can continue from the current point.",
+      "Prepare a small reserve bank of phase-appropriate continuity problems for the inherited state. It is not a fixed rep target; the evidence model decides how many clean opportunities are required.",
   },
 ];
 
 const tutorPrepares = [
-  "The exact number of problems or reps the drill requires.",
+  "For fixed Training sets, the authored problem/rep count; for Handover, a reserve problem bank rather than a completion quota.",
   "Problems that match the correct phase purpose.",
   "Any timer or constraint the drill requires.",
   "A clean order of delivery so the tutor can run the drill without making it up mid-session.",
@@ -266,9 +267,10 @@ export default function ResponseConditioningDrillLibrary() {
             ))}
           </ul>
           <p className="text-sm text-muted-foreground">
-            Handover uses the same phase structure, but in a shorter check format.
-            Its job is to confirm where training should continue from, not to place the student from
-            scratch and not to jump straight back into normal training.
+            Handover uses the inherited phase conditions but an evidence-driven continuity format.
+            It records one opportunity at a time and stops when the Response Evidence Model has enough
+            truth to hold, adjust, or require targeted re-diagnosis. It is not a fresh placement event
+            and it must not turn into normal Training.
           </p>
         </Card>
 

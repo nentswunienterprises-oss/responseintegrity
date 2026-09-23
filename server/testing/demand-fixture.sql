@@ -58,6 +58,13 @@ CREATE TABLE closes (id uuid DEFAULT gen_random_uuid(), affiliate_id text, produ
  production_owner_name text, parent_id text, lead_id uuid, child_id text, pod_assignment_id uuid, closed_at timestamptz, created_at timestamptz DEFAULT now());
 CREATE TABLE training_session_runs (id uuid DEFAULT gen_random_uuid(), student_id text, scheduled_session_id text, status text);
 CREATE TABLE intro_session_drills (id uuid DEFAULT gen_random_uuid(), student_id text, scheduled_session_id text, training_session_run_id text, drill text);
+CREATE TABLE response_integrity_diagnosis_runs (
+ id uuid PRIMARY KEY, student_id varchar(64) NOT NULL, tutor_id varchar(64) NOT NULL, topic text NOT NULL,
+ starting_phase varchar(40) NOT NULL, scheduled_session_id varchar(64), session_context varchar(32) NOT NULL,
+ status varchar(24) NOT NULL, probe_history jsonb NOT NULL DEFAULT '[]'::jsonb,
+ decision jsonb NOT NULL DEFAULT '{}'::jsonb, source_drill_id varchar(64),
+ created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(), completed_at timestamptz
+);
 CREATE TABLE scheduled_sessions (id uuid DEFAULT gen_random_uuid(), parent_id text, student_id text, tutor_id text, type text, status text, scheduled_time timestamptz, created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now());
 INSERT INTO users(id,role,name,email) VALUES ('coo','coo','Review owner','coo@example.test'),('recipient','hr','Receiving owner','recipient@example.test'),('specialist','tutor','Certified specialist','specialist@example.test'),('legacy','parent','Legacy family','legacy@example.test');
 INSERT INTO parents(user_id,onboarding_type) VALUES ('legacy','pilot');

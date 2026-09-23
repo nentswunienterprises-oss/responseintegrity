@@ -546,9 +546,9 @@ Per phase × stability, the engine provides:
   - Rules: `Do NOT phase advance yet`; `Prove repeatable stability first`
   - Next actions: `Run High Maintenance check in Clarity`; `Reduce modeling`; `Increase independent attempts`; `Validate consistency across full set volume`
 - High Maintenance:
-  - Primary action: `Run Structured Execution drill`
-  - Rules: `Do NOT stay in teaching mode`; `Move forward`
-  - Next actions: `Transition to Structured Execution`; `Reduce modeling`; `Increase independent attempts`
+  - Primary action: `Run Clarity High Maintenance drill`
+  - Rules: `Do NOT phase advance yet`; `Confirm High Maintenance in a later qualifying drill`
+  - Next actions: `Run High Maintenance confirmation in Clarity`; `Confirm repeatable clarity in a later qualifying drill`; `Advance to Structured Execution only after confirmation`
   - `advanceTo`: `Structured Execution`
 
 ### Structured Execution
@@ -566,9 +566,9 @@ Per phase × stability, the engine provides:
   - Rules: `Do NOT phase advance yet`; `Prove repeatable stability first`
   - Next actions: `Run High Maintenance check in Structured Execution`; `Run Structured Execution drill`; `Confirm repeatable execution stability`
 - High Maintenance:
-  - Primary action: `Run Controlled Discomfort drill`
-  - Rules: `Do NOT keep repeating basic problems`; `Move forward`
-  - Next actions: `Transition to Controlled Discomfort`; `Introduce Boss Battles consistently`; `Focus on response under uncertainty`
+  - Primary action: `Run Structured Execution High Maintenance drill`
+  - Rules: `Do NOT phase advance yet`; `Confirm High Maintenance in a later qualifying drill`
+  - Next actions: `Run High Maintenance confirmation in Structured Execution`; `Confirm repeatable execution stability in a later qualifying drill`; `Advance to Controlled Discomfort only after confirmation`
   - `advanceTo`: `Controlled Discomfort`
 
 ### Controlled Discomfort
@@ -586,9 +586,9 @@ Per phase × stability, the engine provides:
   - Rules: `Do NOT phase advance yet`; `Prove repeatable stability first`
   - Next actions: `Run High Maintenance check in Controlled Discomfort`; `Increase difficulty consistency`; `Confirm composed starts under uncertainty`
 - High Maintenance:
-  - Primary action: `Run Time Pressure Stability drill`
-  - Rules: `Do NOT stay in comfort zone`; `Move forward`
-  - Next actions: `Transition to Time Pressure Stability`; `Introduce timed Boss Battles`; `Maintain structure under constraint`
+  - Primary action: `Run Controlled Discomfort High Maintenance drill`
+  - Rules: `Do NOT phase advance yet`; `Confirm High Maintenance in a later qualifying drill`
+  - Next actions: `Run High Maintenance confirmation in Controlled Discomfort`; `Confirm composed stability under uncertainty in a later qualifying drill`; `Advance to Time Pressure Stability only after confirmation`
   - `advanceTo`: `Time Pressure Stability`
 
 ### Time Pressure Stability

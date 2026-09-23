@@ -326,9 +326,12 @@ export function StudentCard({
       case "communications":
         setCommunicationDialogOpen(true);
         break;
-      case "intro-drill":
-        navigate(`/specialist/intro-session/${student.id}`);
+      case "intro-drill": {
+        const topicParam = encodeURIComponent(suggestedTopic || "");
+        const phaseParam = encodeURIComponent(recommendedStartingPhase || "Clarity");
+        navigate(`/specialist/intro-session/${student.id}?topic=${topicParam}&phase=${phaseParam}`);
         break;
+      }
       case "student-card":
       default:
         break;
@@ -356,13 +359,8 @@ export function StudentCard({
       ...(workflow || {}),
     };
 
-    return {
-      ...baseWorkflow,
-      assignmentAccepted: student.pendingTutorAcceptance
-        ? false
-        : baseWorkflow.assignmentAccepted,
-    };
-  }, [workflow, student.pendingTutorAcceptance]);
+    return baseWorkflow;
+  }, [workflow]);
 
   // Fetch topic activations for this student (must be at the top of the function body)
   const { data: activationsData } = useQuery({
@@ -703,6 +701,7 @@ export function StudentCard({
 
   return (
     <div
+      data-student-id={String(student.id)}
       className="relative rounded-2xl border border-black/25 bg-background p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6 tutor-pod-student-card"
       style={sandboxCardTheme ? { borderColor: sandboxCardTheme.border } : undefined}
     >
@@ -1216,8 +1215,10 @@ function HandoverVerificationSection({
           <p className="text-sm font-medium text-foreground">{latestSummary.verificationOutcomeLabel || "Verification submitted"}</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Score</p>
-              <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.verificationScore ?? "-"}/100</p>
+              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Decision Authority</p>
+              <p className="mt-1 text-sm font-medium text-foreground">
+                {latestSummary.decisionAuthority === "evidence_native" ? "Evidence-native" : "Legacy compatibility"}
+              </p>
             </div>
             <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Resulting Phase</p>
@@ -1228,6 +1229,11 @@ function HandoverVerificationSection({
               <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.resultingStability || "-"}</p>
             </div>
           </div>
+          {latestSummary.evidenceReason ? (
+            <p className="text-xs leading-5 text-muted-foreground">
+              <span className="font-medium text-foreground">Evidence:</span> {latestSummary.evidenceReason}
+            </p>
+          ) : null}
           <p className="text-xs text-muted-foreground">{latestSummary.nextAction || "No next action recorded."}</p>
           {latestSummary.constraint ? (
             <p className="text-xs text-muted-foreground">Constraint: <span className="font-medium text-foreground">{latestSummary.constraint}</span></p>
@@ -1266,7 +1272,7 @@ function HandoverVerificationSection({
                 const sessionParam = session?.id
                   ? `&scheduledSessionId=${encodeURIComponent(session.id)}`
                   : "";
-                navigate(`/specialist/intro-session/${studentId}?mode=handover&rediagnosis=1&topic=${topicParam}${phaseParam}${stabilityParam}${sessionParam}`);
+                navigate(`/specialist/intro-session/${studentId}?mode=diagnosis&context=handover&rediagnosis=1&topic=${topicParam}${phaseParam}${stabilityParam}${sessionParam}`);
               }}
               disabled={!session?.id}
             >

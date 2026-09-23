@@ -1,4 +1,9 @@
 import type { ObservationLevel } from "./observationScoring";
+import {
+  DIAGNOSIS_OBSERVATION_MATRIX,
+  type DiagnosisBehaviorClass,
+  type DiagnosisDimensionId,
+} from "./diagnosisObservationMatrix";
 import { PHASES, type TopicPhase } from "./topicConditioningEngine";
 
 export type EvidenceDrillMode = "diagnosis" | "training" | "verification";
@@ -16,6 +21,7 @@ export type EvidenceFieldDefinition = {
   scoreWeight: number;
   optionLabels?: string[];
   optionLevels: ObservationLevel[];
+  optionEvidenceClasses?: DiagnosisBehaviorClass[];
 };
 
 export type EvidenceSetDefinition = {
@@ -23,6 +29,9 @@ export type EvidenceSetDefinition = {
   setName: string;
   purpose: string;
   reps: number;
+  completionPolicy?: "fixed" | "evidence_sufficient";
+  minimumReps?: number;
+  maximumReps?: number;
   modelingOnly?: boolean;
   repPurposeIds: string[];
   fields: EvidenceFieldDefinition[];
@@ -42,6 +51,9 @@ export type DrillSchemaDefinition = {
 
 const TRIAD: ObservationLevel[] = ["weak", "partial", "clear"];
 const FOUR_WITH_TWO_CLEAR: ObservationLevel[] = ["weak", "partial", "clear", "clear"];
+
+export const HANDOVER_VERIFICATION_MIN_DECISION_OPPORTUNITIES = 2;
+export const HANDOVER_VERIFICATION_MAX_OPPORTUNITIES = 5;
 
 const SCORE_WEIGHT_BY_DIMENSION: Record<string, number> = {
   "clarity.vocabulary": 30,
@@ -548,17 +560,23 @@ const schemaFor = (
   mode: EvidenceDrillMode,
   phase: TopicPhase,
   sets: EvidenceSetDefinition[],
+  schemaVersion = 1,
 ): DrillSchemaDefinition => {
   const registeredSets = sets.map((definition) => ({
     ...definition,
     fields: definition.fields.map((fieldDefinition) => ({
       ...fieldDefinition,
-      optionLabels: [...(RAW_OPTION_LABELS[definition.setId]?.[fieldDefinition.fieldKey] || [])],
+      optionLabels: fieldDefinition.optionLabels?.length
+        ? [...fieldDefinition.optionLabels]
+        : [...(RAW_OPTION_LABELS[definition.setId]?.[fieldDefinition.fieldKey] || [])],
+      optionEvidenceClasses: fieldDefinition.optionEvidenceClasses
+        ? [...fieldDefinition.optionEvidenceClasses]
+        : undefined,
     })),
   }));
   const versionedDefinition = {
     schemaId: schemaIdFor(mode, phase),
-    schemaVersion: 1,
+    schemaVersion,
     mode,
     phase,
     sets: registeredSets,
@@ -584,6 +602,76 @@ const RESPONSE_INTEGRITY_DRILL_REGISTRY_V1: Record<
   ) as Record<TopicPhase, DrillSchemaDefinition>,
 };
 
+const verificationSetForV2 = (phase: TopicPhase): EvidenceSetDefinition => {
+  const inheritedProbe = DIAGNOSIS_SETS[phase][0];
+  return {
+    ...inheritedProbe,
+    reps: HANDOVER_VERIFICATION_MIN_DECISION_OPPORTUNITIES,
+    completionPolicy: "evidence_sufficient",
+    minimumReps: 1,
+    maximumReps: HANDOVER_VERIFICATION_MAX_OPPORTUNITIES,
+  };
+};
+
+const RESPONSE_INTEGRITY_DRILL_REGISTRY_V2: Record<
+  EvidenceDrillMode,
+  Record<TopicPhase, DrillSchemaDefinition>
+> = {
+  diagnosis: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.diagnosis,
+  training: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.training,
+  verification: Object.fromEntries(
+    PHASES.map((phase) => [phase, schemaFor("verification", phase, [verificationSetForV2(phase)], 2)]),
+  ) as Record<TopicPhase, DrillSchemaDefinition>,
+};
+
+const compatibilityLevelForBehaviorClass = (
+  behaviorClass: DiagnosisBehaviorClass,
+): ObservationLevel => {
+  if (behaviorClass === "breakdown") return "weak";
+  if (behaviorClass === "supported") return "clear";
+  return "partial";
+};
+
+const verificationSetForV3 = (phase: TopicPhase): EvidenceSetDefinition => {
+  const inheritedProbe = DIAGNOSIS_SETS[phase][0];
+  const fields = inheritedProbe.fields.map((baseField) => {
+    const canonical = DIAGNOSIS_OBSERVATION_MATRIX[baseField.dimensionId as DiagnosisDimensionId];
+    if (!canonical) {
+      throw new Error(`Missing canonical Response Evidence behavior contract for ${baseField.dimensionId}`);
+    }
+    return {
+      ...baseField,
+      optionLabels: canonical.options.map((option) => option.label),
+      optionLevels: canonical.options.map((option) =>
+        compatibilityLevelForBehaviorClass(option.behaviorClass)
+      ),
+      optionEvidenceClasses: canonical.options.map((option) => option.behaviorClass),
+    };
+  });
+
+  return {
+    ...inheritedProbe,
+    reps: HANDOVER_VERIFICATION_MIN_DECISION_OPPORTUNITIES,
+    completionPolicy: "evidence_sufficient",
+    minimumReps: 1,
+    maximumReps: HANDOVER_VERIFICATION_MAX_OPPORTUNITIES,
+    fields,
+    repFieldOverrides: undefined,
+    repOptionLabelOverrides: undefined,
+  };
+};
+
+const RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT: Record<
+  EvidenceDrillMode,
+  Record<TopicPhase, DrillSchemaDefinition>
+> = {
+  diagnosis: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.diagnosis,
+  training: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.training,
+  verification: Object.fromEntries(
+    PHASES.map((phase) => [phase, schemaFor("verification", phase, [verificationSetForV3(phase)], 3)]),
+  ) as Record<TopicPhase, DrillSchemaDefinition>,
+};
+
 export const RESPONSE_INTEGRITY_DRILL_REGISTRY_HISTORY: Record<
   EvidenceDrillMode,
   Record<TopicPhase, Record<number, DrillSchemaDefinition>>
@@ -591,14 +679,21 @@ export const RESPONSE_INTEGRITY_DRILL_REGISTRY_HISTORY: Record<
   (["diagnosis", "training", "verification"] as const).map((mode) => [
     mode,
     Object.fromEntries(
-      PHASES.map((phase) => [phase, { 1: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1[mode][phase] }]),
+      PHASES.map((phase) => [
+        phase,
+        mode === "verification"
+          ? {
+              1: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.verification[phase],
+              2: RESPONSE_INTEGRITY_DRILL_REGISTRY_V2.verification[phase],
+              3: RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT.verification[phase],
+            }
+          : { 1: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1[mode][phase] },
+      ]),
     ),
   ]),
 ) as unknown as Record<EvidenceDrillMode, Record<TopicPhase, Record<number, DrillSchemaDefinition>>>;
 
-// This alias is the schema emitted by the live runner. Published historical definitions remain
-// addressable through RESPONSE_INTEGRITY_DRILL_REGISTRY_HISTORY when a later version is activated.
-export const RESPONSE_INTEGRITY_DRILL_REGISTRY = RESPONSE_INTEGRITY_DRILL_REGISTRY_V1;
+export const RESPONSE_INTEGRITY_DRILL_REGISTRY = RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT;
 
 export const getDrillSchemaDefinition = (mode: EvidenceDrillMode, phase: TopicPhase) =>
   RESPONSE_INTEGRITY_DRILL_REGISTRY[mode][phase];
@@ -639,6 +734,9 @@ export const getFieldDefinitionForRep = (
     optionLabels: optionLabelOverride
       ? [...optionLabelOverride]
       : [...(base.optionLabels || [])],
+    optionEvidenceClasses: base.optionEvidenceClasses
+      ? [...base.optionEvidenceClasses]
+      : undefined,
   };
 };
 
@@ -679,6 +777,7 @@ export const getEvidenceSelectionIdentity = ({
     dimensionId: fieldDefinition.dimensionId,
     optionId: optionIdFor(definition, repIndex, fieldDefinition, optionIndex),
     level: fieldDefinition.optionLevels[optionIndex],
+    evidenceClass: fieldDefinition.optionEvidenceClasses?.[optionIndex] || null,
     constraints: definition.constraints,
   };
 };
@@ -715,6 +814,7 @@ export const resolveEvidenceSelection = ({
         field: fieldDefinition,
         optionIndex,
         level: fieldDefinition.optionLevels[optionIndex],
+        evidenceClass: fieldDefinition.optionEvidenceClasses?.[optionIndex] || null,
         repId: getRepPurposeId(definition, repIndex),
       };
     }
@@ -794,6 +894,12 @@ export const validateAndNormalizeSemanticEvidenceSet = ({
     if (observations.length > 0) {
       return { ok: false, error: `${location} must not include scored observations` };
     }
+  } else if (definition.completionPolicy === "evidence_sufficient") {
+    const minimumReps = Math.max(1, Number(definition.minimumReps || 1));
+    const maximumReps = Math.max(minimumReps, Number(definition.maximumReps || HANDOVER_VERIFICATION_MAX_OPPORTUNITIES));
+    if (observations.length < minimumReps || observations.length > maximumReps) {
+      return { ok: false, error: `${location} must include between ${minimumReps} and ${maximumReps} evidence opportunities` };
+    }
   } else if (observations.length !== definition.reps) {
     return { ok: false, error: `${location} must include exactly ${definition.reps} reps` };
   }
@@ -825,6 +931,9 @@ export const validateAndNormalizeSemanticEvidenceSet = ({
       const optionId = String(submittedRep[`${fieldDefinition.fieldKey}_option_id`] || "").trim();
       const dimensionId = String(submittedRep[`${fieldDefinition.fieldKey}_dimension_id`] || "").trim();
       const submittedLevel = String(submittedRep[`${fieldDefinition.fieldKey}_level`] || "").trim();
+      const submittedEvidenceClass = String(
+        submittedRep[`${fieldDefinition.fieldKey}_evidence_class`] || "",
+      ).trim();
       const resolved = resolveEvidenceSelection({
         mode,
         phase,
@@ -848,11 +957,20 @@ export const validateAndNormalizeSemanticEvidenceSet = ({
       if (submittedLevel !== resolved.level) {
         return { ok: false, error: `${location}, rep ${repIndex + 1} level does not match its option ID` };
       }
+      if (resolved.evidenceClass && submittedEvidenceClass !== resolved.evidenceClass) {
+        return {
+          ok: false,
+          error: `${location}, rep ${repIndex + 1} evidence class does not match its option ID`,
+        };
+      }
 
       normalizedRep[fieldDefinition.fieldKey] = registeredRawOption;
       normalizedRep[`${fieldDefinition.fieldKey}_option_id`] = optionId;
       normalizedRep[`${fieldDefinition.fieldKey}_dimension_id`] = resolved.field.dimensionId;
       normalizedRep[`${fieldDefinition.fieldKey}_level`] = resolved.level;
+      if (resolved.evidenceClass) {
+        normalizedRep[`${fieldDefinition.fieldKey}_evidence_class`] = resolved.evidenceClass;
+      }
     }
 
     normalizedObservations.push(normalizedRep);

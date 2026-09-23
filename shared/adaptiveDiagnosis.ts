@@ -131,3 +131,7 @@ export function getAdjacentDiagnosisPhase(
   const nextIndex = direction === "previous" ? phaseIndex - 1 : phaseIndex + 1;
   return PHASES[nextIndex] || null;
 }
+
+// Next-generation diagnosis contract. The legacy phase-block exports above stay intact
+// while runtime integrations migrate to evidence-complete, named diagnostic probes.
+export * from "./evidenceCompleteDiagnosis";

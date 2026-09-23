@@ -66,6 +66,10 @@ type TopicRow = {
   phase: PhaseLabel;
   stability: StabilityLabel;
   hasObservedState: boolean;
+  requiresTargetedRediagnosis: boolean;
+  targetedRediagnosisStartPhase: PhaseLabel | null;
+  systemNextAction: string | null;
+  prerequisiteContradictionReason: string | null;
   stateSource: "observed" | "seeded" | "activated";
   lastSession: string;
   trend: TopicTrend;
@@ -354,7 +358,7 @@ interface StudentTopicConditioningDialogProps {
   studentId: string;
   studentName: string;
   studentGrade?: string | null;
-  operationalMode?: "training" | "trial" | "certified_live";
+  operationalMode?: "training" | "sandbox" | "trial" | "certified_live";
   readOnly?: boolean;
   mapOnly?: boolean;
   apiBasePath?: string;
@@ -370,6 +374,10 @@ interface StudentTopicConditioningDialogProps {
       stability?: string | null;
       lastUpdated?: string | null;
       observationNotes?: string | null;
+      nextAction?: string | null;
+      requiresTargetedRediagnosis?: boolean | null;
+      targetedRediagnosisStartPhase?: string | null;
+      prerequisiteContradictionReason?: string | null;
       history?: Array<{
         date?: string | null;
         phase?: string | null;
@@ -440,6 +448,41 @@ function normalizeTopicKey(value?: string | null): string | null {
   return normalized ? normalized.toLowerCase() : null;
 }
 
+function mergeAuthoritativeTopicStates(
+  snapshot: StudentTopicConditioningDialogProps["persistedTopicStates"],
+  response: unknown,
+): StudentTopicConditioningDialogProps["persistedTopicStates"] {
+  const merged: Record<string, any> =
+    snapshot && typeof snapshot === "object" ? { ...snapshot } : {};
+
+  const body = response as any;
+  const rows = Array.isArray(body)
+    ? body
+    : Array.isArray(body?.topics)
+      ? body.topics
+      : [];
+
+  rows.forEach((row: any) => {
+    const topic = sanitizeTopic(row?.topic || "");
+    const topicKey = normalizeTopicKey(topic);
+    if (!topic || !topicKey) return;
+
+    const existingKey =
+      Object.entries(merged).find(([key, entry]: [string, any]) => {
+        const entryTopicKey = normalizeTopicKey(entry?.topic || key);
+        return entryTopicKey === topicKey;
+      })?.[0] || topic;
+
+    merged[existingKey] = {
+      ...(merged[existingKey] || {}),
+      ...row,
+      topic,
+    };
+  });
+
+  return merged;
+}
+
 function clamp(min: number, value: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -467,7 +510,7 @@ function deriveTransitionStatus(
   const advanceTo = getNextActionData(phase, stability).advanceTo;
   if (trend === "Regressing" && !options?.suppressRegressed) return "Regressed" as const;
   if (phase === "Time Pressure Stability" && stability === "High Maintenance") return "Transfer Ready" as const;
-  if (stability === "High Maintenance" && advanceTo) return "Advance Threshold Met" as const;
+  if (stability === "High Maintenance" && advanceTo) return "Maintenance Confirmation" as const;
   if (stability === "High Maintenance") return "Maintain" as const;
   if (stability === "High") return "Maintenance Check" as const;
   if (stability === "Medium") return "Building" as const;
@@ -519,19 +562,19 @@ function interpretTopicState(
       Low: "Student still needs foundational clarity before independent execution.",
       Medium: "Student grasps concepts but needs more practice for consistency.",
       High: "Student has clear understanding and is ready for structured execution practice.",
-      "High Maintenance": "Student sustained high Clarity and is now ready to progress into Structured Execution.",
+      "High Maintenance": "Student has reached the Clarity maintenance checkpoint. Confirm it in a later qualifying Clarity drill before progressing into Structured Execution.",
     },
     "Structured Execution": {
       Low: "Student can follow steps but needs consistency and independence building.",
       Medium: "Student executes steps mostly independently but struggles with consistency.",
       High: "Student executes steps independently and is ready to build resilience under difficulty.",
-      "High Maintenance": "Student sustained high execution consistency and is ready to progress into Controlled Discomfort.",
+      "High Maintenance": "Student has reached the Structured Execution maintenance checkpoint. Confirm it in a later qualifying Structured Execution drill before progressing into Controlled Discomfort.",
     },
     "Controlled Discomfort": {
       Low: "Student struggles under difficulty but is building stability.",
       Medium: "Student handles difficulty with improving stability and consistency.",
       High: "Student handles difficulty with stability and is ready for time-pressure training.",
-      "High Maintenance": "Student sustained high discomfort control and is ready to progress into Time Pressure Stability.",
+      "High Maintenance": "Student has reached the Controlled Discomfort maintenance checkpoint. Confirm it in a later qualifying Controlled Discomfort drill before progressing into Time Pressure Stability.",
     },
     "Time Pressure Stability": {
       Low: "Student needs to maintain structure and speed consistency under time.",
@@ -565,6 +608,7 @@ function interpretTopicState(
 }
 
 function nextPrepPhaseFor(phase: PhaseLabel, stability: StabilityLabel): PhaseLabel {
+  if (stability === "High Maintenance") return phase;
   return getNextActionData(phase, stability).advanceTo || phase;
 }
 
@@ -586,27 +630,30 @@ function tutorPrepPlanFor(
 
   if (!hasObservedState) {
     return {
-      drillType: "Adaptive Diagnosis",
+      drillType: "Evidence-complete Diagnosis",
       setPlans: [
-        { label: "Adaptive Diagnosis Set 1: Recognition Probe", problems: 3, difficulty: baseDifficulty },
-        { label: "Adaptive Diagnosis Set 2: Light Apply Probe", problems: 3, difficulty: baseDifficulty },
+        { label: "Current system-selected opportunity", problems: 1, difficulty: "Match displayed probe" },
       ],
       prepNotes: [
-        "Prepare 6 total problems (2 sets x 3 reps).",
-        "Use simple/normal versions only; no time pressure.",
-        "Goal is adaptive diagnosis and first placement, not phase progression.",
-        "Do not assume Clarity, Structured Execution, or any stability level before the first scored result.",
-        "Difficulty guidance: keep all problems at Simple/Normal level.",
+        "Prepare one curriculum-appropriate problem for the current system-selected opportunity.",
+        "Do not pre-commit to a fixed rep count; another opportunity exists only when the evidence question remains unresolved.",
+        "Follow the displayed probe constraints exactly. Do not teach, cue, rescue, or add time pressure unless that probe requires it.",
+        "The starting signal routes the first question only; observed behavior determines placement.",
+        "If another probe is required, prepare the next comparable problem only after the system selects it.",
       ],
     };
   }
 
   const prepPhase = nextPrepPhaseFor(phase, stability);
   const prepStability = prepPhase === phase ? stability : "Low";
+  const prepDrillType =
+    stability === "High Maintenance" && prepPhase !== "Time Pressure Stability"
+      ? `${prepPhase} High Maintenance Drill`
+      : `${prepPhase} Drill`;
 
   if (prepPhase === "Clarity") {
     return {
-      drillType: `${prepPhase} Drill`,
+      drillType: prepDrillType,
       setPlans: [
         { label: "Set 1: Modeling", problems: 2, difficulty: baseDifficulty },
         { label: "Set 2: Identification", problems: 3, difficulty: baseDifficulty },
@@ -623,7 +670,7 @@ function tutorPrepPlanFor(
 
   if (prepPhase === "Structured Execution") {
     return {
-      drillType: `${prepPhase} Drill`,
+      drillType: prepDrillType,
       setPlans: [
         { label: "Set 1", problems: 3, difficulty: baseDifficulty },
         { label: "Set 2", problems: 3, difficulty: baseDifficulty },
@@ -641,7 +688,7 @@ function tutorPrepPlanFor(
     const highIntensity =
       prepStability === "Medium" || prepStability === "High" || prepStability === "High Maintenance";
     return {
-      drillType: `${prepPhase} Drill`,
+      drillType: prepDrillType,
       setPlans: [
         { label: "Set 1", problems: 3, difficulty: highIntensity ? "Hard" : baseDifficulty },
         { label: "Set 2", problems: 3, difficulty: highIntensity ? "Challenging (but solvable)" : baseDifficulty },
@@ -761,6 +808,10 @@ function buildTopics(
     {
       history: Array<{ date: string; phase: PhaseLabel; stability: StabilityLabel; note: string; kind: ObservationKind }>;
       seeded?: { phase: PhaseLabel; stability: StabilityLabel };
+      requiresTargetedRediagnosis?: boolean;
+      targetedRediagnosisStartPhase?: PhaseLabel | null;
+      systemNextAction?: string | null;
+      prerequisiteContradictionReason?: string | null;
     }
   >();
 
@@ -799,6 +850,13 @@ function buildTopics(
         phase: normalizePhase(entry?.phase || map?.entry_phase),
         stability: normalizeStability(entry?.stability || map?.stability),
       },
+      requiresTargetedRediagnosis: entry?.requiresTargetedRediagnosis === true,
+      targetedRediagnosisStartPhase: entry?.targetedRediagnosisStartPhase
+        ? normalizePhase(entry.targetedRediagnosisStartPhase)
+        : null,
+      systemNextAction: String(entry?.nextAction || "").trim() || null,
+      prerequisiteContradictionReason:
+        String(entry?.prerequisiteContradictionReason || "").trim() || null,
     });
   });
 
@@ -869,6 +927,10 @@ function buildTopics(
       phase,
       stability,
       hasObservedState,
+      requiresTargetedRediagnosis: entry.requiresTargetedRediagnosis === true,
+      targetedRediagnosisStartPhase: entry.targetedRediagnosisStartPhase || null,
+      systemNextAction: entry.systemNextAction || null,
+      prerequisiteContradictionReason: entry.prerequisiteContradictionReason || null,
       stateSource: hasObservedState ? "observed" : "seeded",
       lastSession: formatLastUpdatedLabel(lastSessionDate),
       trend: trendFromHistory(
@@ -938,7 +1000,47 @@ export default function StudentTopicConditioningDialog({
   const navigate = useNavigate();
   const { data: workflow } = useStudentWorkflowState(studentId, apiBasePath, !readOnly);
   const assignmentAccepted = workflow?.assignmentAccepted ?? true;
-  const isTrainingMode = operationalMode === "training";
+  const isSandboxMode = operationalMode === "sandbox";
+  const isTrainingMode = operationalMode === "training" || isSandboxMode;
+  const canonicalTopicStateEnabled =
+    open && !!studentId && !readOnly && apiBasePath === "/api/tutor";
+  const {
+    data: canonicalTopicStateResponse,
+    isFetching: canonicalTopicStateFetching,
+    isError: canonicalTopicStateError,
+  } = useQuery({
+    queryKey: [apiBasePath, "topic-conditioning", studentId, "canonical-live-state"],
+    queryFn: async () => {
+      const res = await apiRequest(
+        "GET",
+        `${apiBasePath}/topic-conditioning/${studentId}`,
+      );
+      return res.json();
+    },
+    enabled: canonicalTopicStateEnabled,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+  });
+  const canonicalTopicStateReady =
+    !canonicalTopicStateEnabled ||
+    (!canonicalTopicStateFetching &&
+      !canonicalTopicStateError &&
+      canonicalTopicStateResponse !== undefined);
+  const effectivePersistedTopicStates = useMemo(
+    () =>
+      canonicalTopicStateEnabled
+        ? mergeAuthoritativeTopicStates(
+            persistedTopicStates,
+            canonicalTopicStateResponse,
+          )
+        : persistedTopicStates,
+    [
+      canonicalTopicStateEnabled,
+      canonicalTopicStateResponse,
+      persistedTopicStates,
+    ],
+  );
   // Fetch topic activations for this student (must be inside component to access studentId)
   const { data: activationsData, refetch: refetchActivations } = useQuery({
     queryKey: [apiBasePath, "students", studentId, "topic-conditioning-activations"],
@@ -1040,6 +1142,14 @@ export default function StudentTopicConditioningDialog({
       .map((topicName) => topics.find((topic) => topic.topic === topicName))
       .filter((topic): topic is TopicRow => !!topic);
     const unobservedTopics = selectedTopicStates.filter((topic) => !topic.hasObservedState);
+    const rediagnosisTopics = selectedTopicStates.filter((topic) => topic.requiresTargetedRediagnosis);
+
+    if (rediagnosisTopics.length > 0 && selectedTopicStates.length > 1) {
+      setTrainingSessionMeetMessage(
+        `${rediagnosisTopics[0].topic} requires targeted evidence-native re-diagnosis before it can return to ordinary Training. Select that topic by itself first.`,
+      );
+      return;
+    }
 
     if (unobservedTopics.length > 1) {
       setTrainingSessionMeetMessage("Newly activated topics must be placed one at a time. Select a single unobserved topic and run diagnosis first.");
@@ -1063,6 +1173,15 @@ export default function StudentTopicConditioningDialog({
         navigate(`/specialist/intro-session/${studentId}?topic=${topicParam}&phase=${phaseParam}&stability=${stabilityParam}&context=training${sessionParam}`);
         return;
       }
+      if (topicState.requiresTargetedRediagnosis) {
+        const rediagnosisPhaseParam = encodeURIComponent(
+          topicState.targetedRediagnosisStartPhase || topicState.phase,
+        );
+        navigate(
+          `/specialist/intro-session/${studentId}?topic=${topicParam}&phase=${rediagnosisPhaseParam}&stability=${stabilityParam}&context=training&rediagnosis=1${sessionParam}`,
+        );
+        return;
+      }
       navigate(`/specialist/intro-session/${studentId}?mode=training&topic=${topicParam}&phase=${phaseParam}&stability=${stabilityParam}${sessionParam}`);
       return;
     }
@@ -1075,6 +1194,14 @@ export default function StudentTopicConditioningDialog({
 
   const handleStartTrainingSession = () => {
     if (!assignmentAccepted) return;
+    if (!canonicalTopicStateReady) {
+      setTrainingSessionMeetMessage(
+        canonicalTopicStateError
+          ? "Live topic state could not be verified. Refresh before starting this lesson."
+          : "Refreshing live topic state before this lesson can start.",
+      );
+      return;
+    }
     if (selectedSessionTopics.size === 0) return;
     const activeSession = activeTrainingSession;
     if (activeSession) {
@@ -1084,7 +1211,7 @@ export default function StudentTopicConditioningDialog({
     const pendingParentSession = trainingSessionsData?.sessions?.find((session: any) => session.status === "pending_parent_confirmation");
     const pendingTutorSession = trainingSessionsData?.sessions?.find((session: any) => session.status === "pending_tutor_confirmation");
     if (pendingTutorSession) {
-      setTrainingSessionMeetMessage("Two weekly lesson times are waiting for tutor confirmation. Confirm them before running drills.");
+      setTrainingSessionMeetMessage("Two weekly lesson times are waiting for Specialist confirmation. Confirm them before running drills.");
       setSessionTopicsModalOpen(false);
       return;
     }
@@ -1133,7 +1260,7 @@ export default function StudentTopicConditioningDialog({
   const topics = useMemo(
     () => {
       // Build the normal topics
-      const baseTopics = buildTopics(parentTopics, topicConditioning, persistedTopicStates, studentSessions);
+      const baseTopics = buildTopics(parentTopics, topicConditioning, effectivePersistedTopicStates, studentSessions);
       // Add any activation topics not already present, case-insensitively.
       const baseTopicNames = new Set(baseTopics.map((t) => normalizeTopicKey(t.topic)).filter(Boolean));
       const merged = [...baseTopics];
@@ -1157,7 +1284,7 @@ export default function StudentTopicConditioningDialog({
       });
       return merged;
     },
-    [parentTopics, topicConditioning, persistedTopicStates, studentSessions, activationTopics],
+    [parentTopics, topicConditioning, effectivePersistedTopicStates, studentSessions, activationTopics],
   );
   const [selectedTopic, setSelectedTopic] = useState<string>(topics[0]?.topic || "");
 
@@ -1337,7 +1464,13 @@ export default function StudentTopicConditioningDialog({
     : null;
 
   const prepPlan = selectedRow
-    ? tutorPrepPlanFor(selectedRow.phase, selectedRow.stability, hasObservedSelection)
+    ? tutorPrepPlanFor(
+        selectedRow.requiresTargetedRediagnosis
+          ? selectedRow.targetedRediagnosisStartPhase || selectedRow.phase
+          : selectedRow.phase,
+        selectedRow.requiresTargetedRediagnosis ? "Low" : selectedRow.stability,
+        selectedRow.requiresTargetedRediagnosis ? false : hasObservedSelection,
+      )
     : null;
   const selectedTimeline = (selectedRow?.timeline || []).map((point, index) => ({
     ...point,
@@ -1439,20 +1572,36 @@ export default function StudentTopicConditioningDialog({
     .map((topicName) => {
       const topicState = topics.find((topic) => topic.topic === topicName);
       if (!topicState) return null;
+      const requiresTargetedRediagnosis = topicState.requiresTargetedRediagnosis === true;
+      const rediagnosisStartPhase =
+        topicState.targetedRediagnosisStartPhase || topicState.phase;
       return {
         topic: topicName,
         phase: topicState.hasObservedState ? topicState.phase : "Unknown",
         stability: topicState.hasObservedState ? topicState.stability : "Unknown",
         hasObservedState: topicState.hasObservedState,
-        prepPlan: tutorPrepPlanFor(topicState.phase, topicState.stability, topicState.hasObservedState),
+        requiresTargetedRediagnosis,
+        targetedRediagnosisStartPhase: requiresTargetedRediagnosis
+          ? rediagnosisStartPhase
+          : null,
+        prepPlan: tutorPrepPlanFor(
+          requiresTargetedRediagnosis ? rediagnosisStartPhase : topicState.phase,
+          requiresTargetedRediagnosis ? "Low" : topicState.stability,
+          requiresTargetedRediagnosis ? false : topicState.hasObservedState,
+        ),
       };
     })
     .filter((entry): entry is NonNullable<typeof entry> => !!entry);
   const selectedSessionUnknownTopics = selectedSessionPrepPlans.filter((entry) => !entry.hasObservedState);
+  const selectedSessionRediagnosisTopics = selectedSessionPrepPlans.filter(
+    (entry) => entry.requiresTargetedRediagnosis,
+  );
   const selectedSessionStartLabel =
-    selectedSessionUnknownTopics.length === 1 && selectedSessionPrepPlans.length === 1
-      ? "Start Diagnosis"
-      : "Start Session";
+    selectedSessionRediagnosisTopics.length === 1 && selectedSessionPrepPlans.length === 1
+      ? "Start Re-Diagnosis"
+      : selectedSessionUnknownTopics.length === 1 && selectedSessionPrepPlans.length === 1
+        ? "Start Diagnosis"
+        : "Start Session";
   const sessionPrepChecklistComplete =
     selectedSessionPrepPlans.length > 0 &&
     selectedSessionPrepPlans.every((entry) => !!sessionPrepChecks[`session-prep-${entry.topic}`]);
@@ -1476,8 +1625,23 @@ export default function StudentTopicConditioningDialog({
   const isConfirmingTrainingSession = (sessionId: string) =>
     confirmTrainingSession.isPending && confirmTrainingSession.variables?.sessionId === sessionId;
   const pendingTrainingConfirmationSession = actionableTrainingSessions.find((session: any) => session.status === "pending_parent_confirmation") || null;
+  const futureCancelledTrainingSessions = (trainingSessionsData?.sessions || []).filter((session: any) => {
+    if (String(session.status || "") !== "cancelled") return false;
+    const scheduledTime = new Date(session.scheduled_time || 0).getTime();
+    return Number.isFinite(scheduledTime) && scheduledTime >= Date.now();
+  });
+  const replacementRequiredCancelledTrainingSessions = futureCancelledTrainingSessions.filter(
+    (session: any) => session.cancellation?.disposition === "replacement_required",
+  );
+  const weeklyScheduleReady =
+    confirmedTrainingSessions.length > 0 &&
+    pendingTutorConfirmationSessions.length === 0 &&
+    !pendingTrainingConfirmationSession &&
+    replacementRequiredCancelledTrainingSessions.length === 0;
   const activeTrainingSession = isTrainingMode
-    ? confirmedTrainingSessions[0] || null
+    ? weeklyScheduleReady
+      ? confirmedTrainingSessions[0] || null
+      : null
     : pendingTrainingConfirmationSession
       ? null
       : actionableTrainingSessions.find((session: any) => session.launch?.canLaunch) || null;
@@ -1517,7 +1681,7 @@ export default function StudentTopicConditioningDialog({
       action: "cancel",
       reasonCodes,
       reasonNote: buildTrainingSessionCancellationNote(
-        "Tutor",
+        "Specialist",
         TUTOR_TRAINING_SESSION_CANCELLATION_REASONS,
         reasonCodes,
         reasonNote,
@@ -1525,7 +1689,7 @@ export default function StudentTopicConditioningDialog({
     });
 
     setTrainingSessionMeetMessage(
-      result?.message || "Training session cancelled. The parent can reschedule a new week."
+      result?.message || "Training session cancelled. The parent can reschedule the cancelled session."
     );
   };
   const toggleTopicExpanded = (topic: string) => {
@@ -1661,7 +1825,13 @@ export default function StudentTopicConditioningDialog({
                         row.timeline,
                       ),
                     });
-                    const rowPrepPlan = tutorPrepPlanFor(row.phase, row.stability, row.hasObservedState);
+                    const rowPrepPlan = tutorPrepPlanFor(
+                      row.requiresTargetedRediagnosis
+                        ? row.targetedRediagnosisStartPhase || row.phase
+                        : row.phase,
+                      row.requiresTargetedRediagnosis ? "Low" : row.stability,
+                      row.requiresTargetedRediagnosis ? false : row.hasObservedState,
+                    );
                     const isExpanded = expandedTopics.has(row.topic);
                     const phaseLabel = row.hasObservedState ? row.phase : "Unknown";
                     const stabilityLabel = row.hasObservedState ? row.stability : "Unknown";
@@ -1755,11 +1925,19 @@ export default function StudentTopicConditioningDialog({
                         </p>
 
                         <p className="text-sm text-foreground font-medium">
-                          Next Move: {row.hasObservedState ? topicIntel.nextAction : "Run adaptive diagnosis to establish first placement."}
+                          Next Move: {row.requiresTargetedRediagnosis
+                            ? row.systemNextAction || "Run targeted evidence-native re-diagnosis before ordinary Training resumes."
+                            : row.hasObservedState
+                              ? topicIntel.nextAction
+                              : "Run evidence-complete diagnosis to establish first placement."}
                         </p>
 
                         <p className="text-sm text-muted-foreground">
-                          Constraint: {row.hasObservedState ? (topicIntel.rules[0] || "Follow phase constraints") : "Do not assume phase or stability before first observed state."}
+                          Constraint: {row.requiresTargetedRediagnosis
+                            ? "Ordinary Training is locked for this topic until re-diagnosis restores a trustworthy entry state."
+                            : row.hasObservedState
+                              ? (topicIntel.rules[0] || "Follow phase constraints")
+                              : "Do not assume phase or stability before first observed state."}
                         </p>
 
                         <div className="rounded-md border border-primary/20 bg-primary/5 p-2.5 space-y-1.5">
@@ -1789,6 +1967,11 @@ export default function StudentTopicConditioningDialog({
                           <Badge variant="outline" className="border-primary/20 bg-muted/20 text-foreground">
                             {row.hasObservedState ? topicIntel.transitionStatus : "Awaiting Observation"}
                           </Badge>
+                          {row.requiresTargetedRediagnosis && (
+                            <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-900">
+                              Re-Diagnosis Required
+                            </Badge>
+                          )}
                           {row.hasObservedState && (
                             <Badge className={stabilityTone(row.stability)}>
                               <span
@@ -1865,7 +2048,7 @@ export default function StudentTopicConditioningDialog({
                     <p><span className="font-medium">Transition Status:</span> {selectedInterpretation?.transitionStatus || "Awaiting Observation"}</p>
                     <p><span className="font-medium">Tutor Meaning:</span> {selectedInterpretation?.tutorMeaning || "Topic is active but not yet observed."}</p>
                     <p><span className="font-medium">Parent Meaning:</span> {selectedInterpretation?.parentMeaning || "Observed state will appear after first scored drill/session."}</p>
-                    <p><span className="font-medium">Direction:</span> {selectedInterpretation?.direction || "Run adaptive diagnosis first."}</p>
+                    <p><span className="font-medium">Direction:</span> {selectedInterpretation?.direction || "Run evidence-complete diagnosis first."}</p>
                     <p><span className="font-medium">Constraint:</span> {selectedInterpretation?.rules[0] || "Do not infer phase movement without observations."}</p>
                     <p><span className="font-medium">Entry Diagnosis:</span> {selectedRow.entryDiagnosis}</p>
                   </div>
@@ -2153,30 +2336,43 @@ export default function StudentTopicConditioningDialog({
                 isTrainingMode ? (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <h4 className="font-medium">Training Operations</h4>
+                    <h4 className="font-medium">{isSandboxMode ? "Sandbox Operations" : "Training Operations"}</h4>
                   </div>
                   <div className="rounded-md border border-primary/20 bg-primary/5 p-3 space-y-2">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-medium">Training Mode</p>
+                        <p className="text-sm font-medium">{isSandboxMode ? "Sandbox Mode" : "Training Mode"}</p>
                         <p className="text-xs text-muted-foreground">
                           Weekly Response Integrity scheduling still applies. Google Meet links and live launch windows do not.
                         </p>
                       </div>
                       <div className="text-right text-xs text-muted-foreground">
-                        Start Session unlocks after the week's lesson is confirmed by both parent and tutor.
+                        Start Session unlocks after the week's lesson is confirmed by both parent and Specialist.
                       </div>
                     </div>
                     <div className="rounded border border-primary/20 bg-background px-3 py-2 text-xs space-y-2">
                       <p className="font-medium text-foreground">
-                        {confirmedTrainingSessions.length > 0 ? "Confirmed weekly lesson ready" : "Awaiting confirmed weekly lesson"}
+                        {weeklyScheduleReady ? "Confirmed weekly schedule ready" : "Awaiting complete weekly schedule"}
                       </p>
                       <p className="text-muted-foreground">
-                        {confirmedTrainingSessions.length > 0
+                        {weeklyScheduleReady
                           ? "Use Start Session to choose topics and enter the runner for a confirmed weekly lesson."
-                          : "Training launch stays locked until a weekly lesson is scheduled and fully confirmed."}
+                          : "Training launch stays locked until both weekly sessions are scheduled and fully confirmed."}
                       </p>
                     </div>
+                    {replacementRequiredCancelledTrainingSessions.length > 0 ? (
+                      <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs space-y-1">
+                        <p className="font-medium text-amber-900">Weekly schedule needs a replacement</p>
+                        <p className="text-amber-800">
+                          A confirmed session was cancelled. Training launch stays locked until the parent proposes a replacement time and the Specialist confirms it.
+                        </p>
+                        {replacementRequiredCancelledTrainingSessions.map((session: any) => (
+                          <p key={session.id} className="text-amber-800">
+                            Cancelled: {formatLessonTime(session.scheduled_time)}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null}
                     {confirmedTrainingSessions.length > 0 ? (
                       <div className="rounded border border-primary/20 bg-background px-3 py-2 text-xs space-y-2">
                         <p className="font-medium text-foreground">Confirmed lessons</p>
@@ -2261,7 +2457,7 @@ export default function StudentTopicConditioningDialog({
                     />
                     {pendingTutorConfirmationSessions.length > 0 ? (
                       <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs space-y-2">
-                        <p className="font-medium text-blue-900">Awaiting tutor confirmation</p>
+                        <p className="font-medium text-blue-900">Awaiting Specialist confirmation</p>
                         <p className="text-blue-800">
                           The parent has proposed this week's lesson times. Confirm both dates before training can launch.
                         </p>
@@ -2271,7 +2467,7 @@ export default function StudentTopicConditioningDialog({
                               <div className="flex items-center justify-between gap-3">
                                 <div>
                                   <p className="font-medium text-foreground">{formatLessonTime(session.scheduled_time)}</p>
-                                  <p className="text-muted-foreground">Status: waiting for tutor confirmation</p>
+                                  <p className="text-muted-foreground">Status: waiting for Specialist confirmation</p>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                   <Button
@@ -2281,10 +2477,12 @@ export default function StudentTopicConditioningDialog({
                                       try {
                                         const result = await confirmTrainingSession.mutateAsync({ sessionId: session.id });
                                         setTrainingSessionMeetMessage(
-                                          result?.googleMeetError ||
-                                          (result?.googleMeetSync === "google_calendar"
-                                            ? "Tutor confirmed. Google Meet attached to the lesson."
-                                            : "Tutor confirmed the lesson.")
+                                          isSandboxMode
+                                            ? "Specialist confirmed the lesson."
+                                            : result?.googleMeetError ||
+                                              (result?.googleMeetSync === "google_calendar"
+                                                ? "Specialist confirmed. Google Meet attached to the lesson."
+                                                : "Specialist confirmed the lesson.")
                                         );
                                       } catch (error) {
                                         setTrainingSessionMeetMessage(
@@ -2329,7 +2527,7 @@ export default function StudentTopicConditioningDialog({
                                             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Johannesburg",
                                           });
                                           setTrainingSessionMeetMessage(
-                                            result?.googleMeetError || "Tutor sent a new time to the parent for confirmation."
+                                            result?.googleMeetError || "Specialist sent a new time to the parent for confirmation."
                                           );
                                           setEditingTrainingSessionId(null);
                                           setAdjustedTrainingSessionTime("");
@@ -2394,8 +2592,16 @@ export default function StudentTopicConditioningDialog({
                         variant="default"
                         size="sm"
                         onClick={() => setSessionTopicsModalOpen(true)}
-                        disabled={!assignmentAccepted}
-                        title={!assignmentAccepted ? "Accept the assignment before running training sessions." : undefined}
+                        disabled={!assignmentAccepted || !canonicalTopicStateReady}
+                        title={
+                          !assignmentAccepted
+                            ? "Accept the assignment before running training sessions."
+                            : !canonicalTopicStateReady
+                              ? canonicalTopicStateError
+                                ? "Live topic state could not be verified. Refresh before starting this lesson."
+                                : "Refreshing live topic state before this lesson can start."
+                              : undefined
+                        }
                       >
                         Start Session
                       </Button>
@@ -2465,9 +2671,11 @@ export default function StudentTopicConditioningDialog({
                     ) : null}
                     {pendingTutorConfirmationSessions.length > 0 ? (
                       <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs space-y-2">
-                        <p className="font-medium text-blue-900">Awaiting tutor confirmation</p>
+                        <p className="font-medium text-blue-900">Awaiting Specialist confirmation</p>
                         <p className="text-blue-800">
-                          The parent has proposed this week's training lessons. Confirm both dates before Meet links are created.
+                          {isSandboxMode
+                            ? "The parent has proposed this week's training lessons. Confirm both dates before the lessons are ready."
+                            : "The parent has proposed this week's training lessons. Confirm both dates before Meet links are created."}
                         </p>
                         <div className="space-y-2">
                           {pendingTutorConfirmationSessions.map((session: any) => (
@@ -2475,7 +2683,7 @@ export default function StudentTopicConditioningDialog({
                               <div className="flex items-center justify-between gap-3">
                                 <div>
                                   <p className="font-medium text-foreground">{formatLessonTime(session.scheduled_time)}</p>
-                                  <p className="text-muted-foreground">Status: waiting for tutor confirmation</p>
+                                  <p className="text-muted-foreground">Status: waiting for Specialist confirmation</p>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                   <Button
@@ -2487,8 +2695,8 @@ export default function StudentTopicConditioningDialog({
                                         setTrainingSessionMeetMessage(
                                           result?.googleMeetError ||
                                           (result?.googleMeetSync === "google_calendar"
-                                            ? "Tutor confirmed. Google Meet attached to the lesson."
-                                            : "Tutor confirmed the lesson.")
+                                            ? "Specialist confirmed. Google Meet attached to the lesson."
+                                            : "Specialist confirmed the lesson.")
                                         );
                                       } catch (error) {
                                         setTrainingSessionMeetMessage(
@@ -2533,7 +2741,7 @@ export default function StudentTopicConditioningDialog({
                                             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Johannesburg",
                                           });
                                           setTrainingSessionMeetMessage(
-                                            result?.googleMeetError || "Tutor sent a new time to the parent for confirmation."
+                                            result?.googleMeetError || "Specialist sent a new time to the parent for confirmation."
                                           );
                                           setEditingTrainingSessionId(null);
                                           setAdjustedTrainingSessionTime("");
@@ -2644,13 +2852,13 @@ export default function StudentTopicConditioningDialog({
                 <DialogHeader>
                   <DialogTitle>Start Session</DialogTitle>
                   <DialogDescription>
-                    Select one or more topics for this lesson. Unobserved topics are diagnosis-first and cannot enter training until first placement exists.
+                    Select one or more topics for this lesson. Unobserved topics are diagnosis-first. Topics with a prerequisite contradiction are re-diagnosis-first and cannot return to ordinary Training until placement is re-established.
                   </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Choose the topics you want to cover in this lesson. A single unobserved topic launches diagnosis. Observed topics launch training. Mixed launches are blocked until placement is complete.
+                    Choose the topics you want to cover in this lesson. A single unobserved topic launches diagnosis. A topic flagged by a prerequisite sentinel launches targeted re-diagnosis. Ordinary observed topics launch Training. Diagnosis and re-diagnosis topics must be handled one at a time.
                   </p>
                   <div className="grid gap-2 max-h-60 overflow-y-auto">
                     {topics.map((topic) => (
@@ -2674,12 +2882,22 @@ export default function StudentTopicConditioningDialog({
                           htmlFor={`session-topic-${topic.topic}`}
                           className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                         >
-                          {topic.topic} ({topic.hasObservedState ? `${topic.phase} - ${topic.stability}` : "Unobserved - Diagnosis First"})
+                          {topic.topic} ({topic.requiresTargetedRediagnosis
+                            ? `Re-Diagnosis Required - ${topic.targetedRediagnosisStartPhase || topic.phase}`
+                            : topic.hasObservedState
+                              ? `${topic.phase} - ${topic.stability}`
+                              : "Unobserved - Diagnosis First"})
                         </label>
                       </div>
                     ))}
                   </div>
                 </div>
+
+                {selectedSessionRediagnosisTopics.length > 0 && selectedSessionPrepPlans.length > 1 ? (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    {selectedSessionRediagnosisTopics[0].topic} is locked for targeted re-diagnosis. Run that topic by itself before combining it with ordinary Training topics.
+                  </div>
+                ) : null}
 
                 {selectedSessionUnknownTopics.length > 1 ? (
                   <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
@@ -2697,17 +2915,38 @@ export default function StudentTopicConditioningDialog({
                   <div className="rounded-md border border-primary/20 bg-primary/5 p-3 space-y-3">
                     <p className="text-sm font-medium">Prep Rules For Selected Topics</p>
                     <p className="text-xs text-muted-foreground">
-                      Review the exact drill load before you enter the lesson. Each selected topic still needs its own problem prep and explicit tutor confirmation before launch.
+                      Review the exact drill load before you enter the lesson. Each selected topic still needs its own problem prep and explicit Specialist confirmation before launch.
                     </p>
                     <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-                      {selectedSessionPrepPlans.map(({ topic, phase, stability, hasObservedState, prepPlan }) => (
+                      {selectedSessionPrepPlans.map(({
+                        topic,
+                        phase,
+                        stability,
+                        hasObservedState,
+                        requiresTargetedRediagnosis,
+                        targetedRediagnosisStartPhase,
+                        prepPlan,
+                      }) => (
                         <div key={`session-prep-${topic}`} className="rounded-md border border-primary/20 bg-background p-3 space-y-2">
                           <div>
                             <p className="font-medium text-sm">{topic}</p>
-                            {!hasObservedState ? (
+                            {requiresTargetedRediagnosis ? (
+                              <>
+                                <p className="text-xs font-medium text-amber-800">
+                                  Targeted re-diagnosis required · starting signal {targetedRediagnosisStartPhase}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Current state is held at {phase} · {stability} until evidence-native re-diagnosis establishes the trustworthy entry state.
+                                </p>
+                              </>
+                            ) : !hasObservedState ? (
                               <p className="text-xs text-muted-foreground">Unobserved topic · diagnosis-first placement</p>
-                            ) : null}
-                            <p className="text-xs text-muted-foreground">{phase} · {stability}</p>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">{phase} · {stability}</p>
+                            )}
+                            <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                              {requiresTargetedRediagnosis ? "Re-Diagnosis Prep" : prepPlan.drillType}
+                            </p>
                           </div>
                           <ul className="text-xs text-muted-foreground space-y-1">
                             {prepPlan.setPlans.map((setPlan) => (
@@ -2740,7 +2979,15 @@ export default function StudentTopicConditioningDialog({
                               className="mt-0.5 rounded border-gray-300"
                             />
                             <span>
-                              I prepared the full drill set for <span className="font-medium">{topic}</span> and I am ready to run this weekly training lesson.
+                              {requiresTargetedRediagnosis ? (
+                                <>
+                                  I prepared only the current system-selected evidence opportunity for <span className="font-medium">{topic}</span>, and I will preserve the displayed diagnosis conditions without teaching, cueing, rescuing, or adding constraints unless the system asks for them.
+                                </>
+                              ) : (
+                                <>
+                                  I prepared the full drill set for <span className="font-medium">{topic}</span> and I am ready to run this weekly training lesson.
+                                </>
+                              )}
                             </span>
                           </label>
                         </div>

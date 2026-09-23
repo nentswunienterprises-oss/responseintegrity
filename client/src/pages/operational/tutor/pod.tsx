@@ -50,7 +50,7 @@ interface PodTeamMember {
   bio: string | null;
   profileImageUrl: string | null;
   certificationStatus: string;
-  operationalMode?: "training" | "trial" | "certified_live";
+  operationalMode?: "training" | "sandbox" | "trial" | "certified_live";
 }
 
 interface PodTeamData {
@@ -92,7 +92,7 @@ interface TutorPodSession {
 
 interface TutorPodWeeklyScheduleResponse {
   sessions: TutorPodSession[];
-  operationalMode?: "training" | "trial" | "certified_live";
+  operationalMode?: "training" | "sandbox" | "trial" | "certified_live";
   sessionSchedulingEnabled?: boolean;
 }
 

@@ -49,7 +49,7 @@ interface EnrollmentStatus {
 
 interface IntroSessionConfirmation {
   status?: string;
-  operationalMode?: "training" | "trial" | "certified_live";
+  operationalMode?: "training" | "sandbox" | "trial" | "certified_live";
   scheduled_time?: string;
   id?: string;
   introCompleted?: boolean;
@@ -104,6 +104,19 @@ function getGroupFallbackOptionIds(groupId: string) {
   return [`${groupId}_none_of_above`, `${groupId}_not_sure`];
 }
 
+function assertPayfastCheckoutFields(fields: Record<string, string>, sandbox: boolean) {
+  const merchantId = String(fields?.merchant_id || "").trim();
+  const merchantKey = String(fields?.merchant_key || "").trim();
+
+  if (!/^\d{8}$/.test(merchantId) || !/^[A-Za-z0-9]{13}$/.test(merchantKey)) {
+    throw new Error(
+      sandbox
+        ? "Sandbox checkout credentials are malformed. The payment was not submitted."
+        : "PayFast checkout credentials are malformed. The payment was not submitted.",
+    );
+  }
+}
+
 function submitExternalPaymentForm(action: string, fields: Record<string, string>) {
   const form = document.createElement("form");
   form.method = "POST";
@@ -123,6 +136,7 @@ function submitExternalPaymentForm(action: string, fields: Record<string, string
 }
 
 const PAYFAST_MERCHANT_REFERENCE_STORAGE_KEY = "parent-gateway:payfast-merchant-reference";
+const PAYFAST_RETURN_PATH_STORAGE_KEY = "parent-payfast:return-path";
 
 export default function ParentGateway() {
   const [justBooked, setJustBooked] = useState(false);
@@ -203,13 +217,19 @@ export default function ParentGateway() {
             if (data?.parentCode) {
               setParentCode(data.parentCode);
             }
+            const returnPath = window.sessionStorage.getItem(PAYFAST_RETURN_PATH_STORAGE_KEY);
             window.sessionStorage.removeItem(PAYFAST_MERCHANT_REFERENCE_STORAGE_KEY);
+            window.sessionStorage.removeItem(PAYFAST_RETURN_PATH_STORAGE_KEY);
             await Promise.all([
               queryClient.invalidateQueries({ queryKey: ["/api/parent/enrollment-status"] }),
               queryClient.invalidateQueries({ queryKey: ["/api/parent/proposal"] }),
               queryClient.invalidateQueries({ queryKey: ["/api/parent/intro-session-confirmation"] }),
               queryClient.invalidateQueries({ queryKey: ["/api/parent/training-sessions"] }),
             ]);
+            if (returnPath?.startsWith("/client/parent/")) {
+              navigate(returnPath, { replace: true });
+              return;
+            }
           } else if (!cancelled) {
             toast({
               title: "Payment Submitted",
@@ -244,7 +264,7 @@ export default function ParentGateway() {
     return () => {
       cancelled = true;
     };
-  }, [authLoading, queryClient, toast, user]);
+  }, [authLoading, navigate, queryClient, toast, user]);
 
   // Fetch enrollment status
   const { data: enrollmentStatus } = useQuery<EnrollmentStatus>({
@@ -283,6 +303,7 @@ export default function ParentGateway() {
     monthlyQuota?: { sessions_remaining?: number; session_quota?: number; session_price?: number } | null;
     paymentRequired?: boolean;
     paymentStatus?: string | null;
+    operationalMode?: "training" | "sandbox" | "trial" | "certified_live";
   }>({
     queryKey: ["/api/parent/training-sessions"],
     queryFn: getQueryFn({ on401: "returnNull" }),
@@ -300,6 +321,28 @@ export default function ParentGateway() {
   const renewalBlocked = paymentRequired || quotaExhausted;
   const renewalPackageSessions = Math.max(1, Number(trainingSessionsData?.monthlyQuota?.session_quota || 8));
   const renewalAmount = renewalPackageSessions * Number(trainingSessionsData?.monthlyQuota?.session_price || 200);
+  const sandboxInitialPaymentRequired =
+    trainingSessionsData?.operationalMode === "sandbox" && paymentRequired;
+
+  useEffect(() => {
+    if (!enrollmentStatus || !trainingSessionsData) return;
+    const activeTraining =
+      enrollmentStatus.status === "confirmed" ||
+      String(enrollmentStatus.step || "").trim().toLowerCase() === "active_training";
+    if (!activeTraining) return;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payfast") || params.get("renew") === "1") return;
+    if (paymentRequired || quotaExhausted) return;
+
+    navigate("/client/parent/dashboard", { replace: true });
+  }, [
+    enrollmentStatus,
+    navigate,
+    paymentRequired,
+    quotaExhausted,
+    trainingSessionsData,
+  ]);
 
   // Fetch intro session confirmation if status is assigned, awaiting assignment, or awaiting tutor acceptance
   const {
@@ -311,6 +354,7 @@ export default function ParentGateway() {
     enabled:
       !!user &&
       !authLoading &&
+      String(enrollmentStatus?.step || "").trim().toLowerCase() !== "active_training" &&
       (
         enrollmentStatus?.status === "proposal_sent" ||
         enrollmentStatus?.status === "session_booked" ||
@@ -397,7 +441,11 @@ export default function ParentGateway() {
   const { data: proposal, isLoading: proposalLoading, error: proposalError } = useQuery<any>({
     queryKey: ["/api/parent/proposal"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    enabled: !!user && !authLoading && !!enrollmentStatus,
+    enabled:
+      !!user &&
+      !authLoading &&
+      !!enrollmentStatus &&
+      String(enrollmentStatus?.step || "").trim().toLowerCase() !== "active_training",
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: !emergencyDbMode,
@@ -469,7 +517,9 @@ export default function ParentGateway() {
   const sessionLabel = isHandoverFlow ? "continuity check" : "intro session";
   const sessionTitle = isHandoverFlow ? "Continuity Check" : "Introductory Session";
   const sessionCompletedLabel = isHandoverFlow ? "continuity check" : "introductory session";
-  const isTrainingMode = effectiveIntroSessionConfirmation?.operationalMode === "training";
+  const isTrainingMode = ["training", "sandbox"].includes(
+    String(effectiveIntroSessionConfirmation?.operationalMode || ""),
+  );
   const showProposalActions = enrollmentStatus?.status === "proposal_sent";
   const showProposalPanel =
     enrollmentStatus?.status === "proposal_sent" ||
@@ -525,6 +575,7 @@ export default function ParentGateway() {
         description: `Complete the R${Number(data?.amount || 0).toLocaleString("en-ZA")} ${data?.sessionsPerMonth || "monthly"}-session package payment to unlock sessions.`,
       });
 
+      assertPayfastCheckoutFields(data.formFields, data?.sandbox === true);
       submitExternalPaymentForm(data.checkoutUrl, data.formFields);
     } catch (error) {
       console.error("Error accepting proposal:", error);
@@ -993,7 +1044,8 @@ export default function ParentGateway() {
         }),
       });
       if (!response.ok) {
-        throw new Error("Failed to propose session");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.message || "Failed to propose session");
       }
 
       const sessionData = await response.json();
@@ -1038,7 +1090,7 @@ export default function ParentGateway() {
       console.error("Error proposing session:", error);
       toast({
         title: "Error",
-        description: "Failed to propose session. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to propose session. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -2107,22 +2159,34 @@ export default function ParentGateway() {
                     <Card className="border border-rose-200 bg-rose-50 mt-4 sm:mt-6">
                       <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
                         <CardTitle className="text-base sm:text-lg text-rose-700">
-                          {paymentRequired ? "Monthly Payment Required" : "Monthly Quota Exhausted"}
+                          {sandboxInitialPaymentRequired
+                            ? "Sandbox Package Payment Required"
+                            : paymentRequired
+                              ? "Monthly Payment Required"
+                              : "Monthly Quota Exhausted"}
                         </CardTitle>
                         <CardDescription className="text-xs sm:text-sm text-rose-600">
-                          {paymentRequired
-                            ? "Training bookings are disabled until the monthly renewal is completed."
-                            : `All ${renewalPackageSessions} package sessions for this month have been used. Renew to unlock the next monthly package.`}
+                          {sandboxInitialPaymentRequired
+                            ? "Complete the PayFast Sandbox package checkout to mirror the live family journey and unlock training bookings. No real money is charged."
+                            : paymentRequired
+                              ? "Training bookings are disabled until the monthly renewal is completed."
+                              : `All ${renewalPackageSessions} package sessions for this month have been used. Renew to unlock the next monthly package.`}
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
                         <Button
-                          onClick={handleRenewSubscription}
-                          disabled={isRenewing}
+                          onClick={sandboxInitialPaymentRequired ? handleAcceptProposal : handleRenewSubscription}
+                          disabled={sandboxInitialPaymentRequired ? isProcessingProposal : isRenewing}
                           className="w-full bg-rose-600 hover:bg-rose-700 text-white"
                           size="lg"
                         >
-                          {isRenewing ? "Preparing payment..." : `Renew This Month - R${renewalAmount.toLocaleString("en-ZA")}`}
+                          {sandboxInitialPaymentRequired
+                            ? isProcessingProposal
+                              ? "Preparing sandbox payment..."
+                              : `Complete Sandbox Payment - R${renewalAmount.toLocaleString("en-ZA")}`
+                            : isRenewing
+                              ? "Preparing payment..."
+                              : `Renew This Month - R${renewalAmount.toLocaleString("en-ZA")}`}
                         </Button>
                       </CardContent>
                     </Card>

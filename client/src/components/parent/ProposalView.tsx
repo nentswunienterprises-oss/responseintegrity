@@ -10,6 +10,7 @@ import {
   type TopicStability,
 } from "@shared/topicConditioningEngine";
 import { getMonthlyServicePackage, type MonthlyPackageKey } from "@shared/servicePackages";
+import { extractDiagnosisProposalSnapshot } from "@shared/diagnosisProposalCopy";
 
 interface ProposalData {
   id: string;
@@ -104,6 +105,8 @@ export default function ProposalView({
     proposal.plannedSessionsPerWeek || servicePackage.plannedSessionsPerWeek,
   );
   const packageAmount = Number(proposal.packageAmount || servicePackage.amountZar);
+  const diagnosisProposalSnapshot = extractDiagnosisProposalSnapshot(proposal.justification);
+  const showApprovedDiagnosisSnapshot = forceDiagnosisView && !!diagnosisProposalSnapshot;
 
   type StudentPronounSet = {
     subject: "he" | "she" | "they";
@@ -268,10 +271,13 @@ export default function ProposalView({
   };
 
   const normalizedDiagnosisPhase =
+    normalizePhaseLabel(diagnosisProposalSnapshot?.entryPhase) ||
     extractDiagnosisPhase() ||
     normalizePhaseLabel(topicConditioning.entryPhase) ||
     "Clarity";
-  const normalizedStability = normalizeStabilityLabel(topicConditioning.stability);
+  const normalizedStability = normalizeStabilityLabel(
+    diagnosisProposalSnapshot?.stability || topicConditioning.stability,
+  );
   const trainingStartPhase = deriveTrainingEntryPhase(normalizedDiagnosisPhase, normalizedStability);
 
   const personalizeCopy = (text: string) =>
@@ -521,7 +527,7 @@ export default function ProposalView({
     .flatMap((item) => splitList(item));
 
   const expectedChanges = splitList(proposal.childWillWin);
-  const diagnosisTopic = topicConditioning.topic || focusTopics[0] || "Current school topic";
+  const diagnosisTopic = diagnosisProposalSnapshot?.topic || topicConditioning.topic || focusTopics[0] || "Current school topic";
 
   const getFirstBreakdown = () => {
     switch (trainingStartPhase) {
@@ -672,7 +678,79 @@ export default function ProposalView({
         </CardContent>
       </Card>
 
-      {(isLiveTrainingView || isLiveTrainingStatePending || normalizedStability === "Low" || normalizedStability === "Medium") && (
+      {showApprovedDiagnosisSnapshot && diagnosisProposalSnapshot && (
+        <>
+          <Card>
+            <CardHeader><CardTitle>Focus Area</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">{diagnosisProposalSnapshot.focusArea}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Why Training Starts Here</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">{diagnosisProposalSnapshot.whyTrainingStartsHere}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Diagnostic Results</CardTitle></CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-md border bg-muted/50 p-3">
+                  <p className="text-xs uppercase text-muted-foreground mb-1">Topic</p>
+                  <p className="text-sm font-medium text-foreground">{diagnosisProposalSnapshot.topic}</p>
+                </div>
+                <div className="rounded-md border bg-muted/50 p-3">
+                  <p className="text-xs uppercase text-muted-foreground mb-1">Starting Signal</p>
+                  <p className="text-sm font-medium text-foreground">{diagnosisProposalSnapshot.startingSignal}</p>
+                </div>
+                <div className="rounded-md border bg-muted/50 p-3">
+                  <p className="text-xs uppercase text-muted-foreground mb-1">Entry Phase</p>
+                  <p className="text-sm font-medium text-foreground">{diagnosisProposalSnapshot.entryPhase}</p>
+                </div>
+                <div className="rounded-md border bg-muted/50 p-3">
+                  <p className="text-xs uppercase text-muted-foreground mb-1">Stability</p>
+                  <p className="text-sm font-medium text-foreground">{diagnosisProposalSnapshot.stability}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>First Priority</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">{diagnosisProposalSnapshot.firstPriority}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>How Sessions Will Be Structured</CardTitle></CardHeader>
+            <CardContent>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>- Cadence: {plannedSessionsPerWeek} sessions per week ({packageSessions} sessions per month)</li>
+                {diagnosisProposalSnapshot.sessionStructure.map((item) => (
+                  <li key={item}>- {item}</li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>How Progress Will Be Observed</CardTitle></CardHeader>
+            <CardContent>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                {diagnosisProposalSnapshot.progressSignals.map((item) => (
+                  <li key={item}>- {item}</li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {!showApprovedDiagnosisSnapshot && (isLiveTrainingView || isLiveTrainingStatePending || normalizedStability === "Low" || normalizedStability === "Medium") && (
         <Card>
           <CardHeader>
             <CardTitle>{isLiveTrainingView || isLiveTrainingStatePending ? "Current Position" : `Where ${studentFirstName} Currently Gets Stuck`}</CardTitle>
@@ -702,7 +780,7 @@ export default function ProposalView({
         </Card>
       )}
 
-      <Card>
+      {!showApprovedDiagnosisSnapshot && <Card>
         <CardHeader>
           <CardTitle>{isLiveTrainingView || isLiveTrainingStatePending ? "What We Are Observing" : "What We Have Observed"}</CardTitle>
         </CardHeader>
@@ -742,9 +820,9 @@ export default function ProposalView({
             </p>
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Card>
+      {!showApprovedDiagnosisSnapshot && <Card>
         <CardHeader>
           <CardTitle>{isLiveTrainingView || isLiveTrainingStatePending ? "Training Direction" : "Training Path"}</CardTitle>
         </CardHeader>
@@ -770,9 +848,9 @@ export default function ProposalView({
               <p className="text-sm text-muted-foreground">{getFirstPriority()}</p>
             )}
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Card>
+      {!showApprovedDiagnosisSnapshot && <Card>
         <CardHeader>
           <CardTitle>{isLiveTrainingView || isLiveTrainingStatePending ? "Structure" : "Conditioning Structure"}</CardTitle>
         </CardHeader>
@@ -795,9 +873,9 @@ export default function ProposalView({
             </ul>
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Card>
+      {!showApprovedDiagnosisSnapshot && <Card>
         <CardHeader>
           <CardTitle>{isLiveTrainingView || isLiveTrainingStatePending ? "How Progress Will Show" : "How Progress Will Be Observed"}</CardTitle>
         </CardHeader>
@@ -816,42 +894,55 @@ export default function ProposalView({
             </ul>
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Card className="bg-gradient-to-r from-primary/10 to-primary/5">
-        <CardContent className="pt-6">
-          <h3 className="font-bold text-lg mb-2">{isLiveTrainingView || isLiveTrainingStatePending ? "Parent Note" : "Parent Alignment"}</h3>
-          {isLiveTrainingView ? (
-            <ul className="text-sm text-muted-foreground space-y-1">
-              {hasMultipleLiveTopics ? (
-                <>
-                  <li>- This plan reflects {studentFirstName}'s current live training position across {currentTopicSummary}.</li>
-                  <li>- Each topic advances according to its own stability.</li>
-                </>
-              ) : (
-                <>
-                  <li>- This plan reflects {studentFirstName}'s current training position, not a fixed program.</li>
-                  <li>- As their execution stabilizes, the training phase will advance.</li>
-                </>
-              )}
-            </ul>
-          ) : isLiveTrainingStatePending ? (
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li>- This view no longer falls back to onboarding-era topic placement once active training has begun.</li>
-              <li>- If live state is still syncing, the current training position will appear here as soon as the latest topic-conditioning state is available.</li>
-            </ul>
-          ) : (
-            <>
-              <p className="text-sm text-muted-foreground">{`This training focuses on how ${studentFirstName} responds when work becomes difficult.
-            The goal is to build structured thinking, independent execution, and stability
-            under pressure.`}</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Progress is measured through behavior and response, not only marks.
-              </p>
-            </>
-          )}
-        </CardContent>
-      </Card>
+      {showApprovedDiagnosisSnapshot && diagnosisProposalSnapshot ? (
+        <Card>
+          <CardContent className="pt-6 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              <strong className="text-foreground">Important Note</strong> - {diagnosisProposalSnapshot.importantNote}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              <strong className="text-foreground">Commitment</strong> - {diagnosisProposalSnapshot.commitment}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="bg-gradient-to-r from-primary/10 to-primary/5">
+          <CardContent className="pt-6">
+            <h3 className="font-bold text-lg mb-2">{isLiveTrainingView || isLiveTrainingStatePending ? "Parent Note" : "Parent Alignment"}</h3>
+            {isLiveTrainingView ? (
+              <ul className="text-sm text-muted-foreground space-y-1">
+                {hasMultipleLiveTopics ? (
+                  <>
+                    <li>- This plan reflects {studentFirstName}'s current live training position across {currentTopicSummary}.</li>
+                    <li>- Each topic advances according to its own stability.</li>
+                  </>
+                ) : (
+                  <>
+                    <li>- This plan reflects {studentFirstName}'s current training position, not a fixed program.</li>
+                    <li>- As their execution stabilizes, the training phase will advance.</li>
+                  </>
+                )}
+              </ul>
+            ) : isLiveTrainingStatePending ? (
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>- This view no longer falls back to onboarding-era topic placement once active training has begun.</li>
+                <li>- If live state is still syncing, the current training position will appear here as soon as the latest topic-conditioning state is available.</li>
+              </ul>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">{`This training focuses on how ${studentFirstName} responds when work becomes difficult.
+              The goal is to build structured thinking, independent execution, and stability
+              under pressure.`}</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Progress is measured through behavior and response, not only marks.
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -872,25 +963,24 @@ export default function ProposalView({
               <p className="mt-1 font-semibold text-foreground">R{packageAmount.toLocaleString("en-ZA")}</p>
             </div>
           </div>
-          <p className="mt-3 text-sm text-muted-foreground">
-            R200 is the per-session pricing basis. The service is delivered and renewed as this monthly package, not as ad-hoc session capacity.
-          </p>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Commitment</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="text-sm text-muted-foreground space-y-1">
-            <li>- Package cadence: {plannedSessionsPerWeek} sessions weekly ({packageSessions} sessions monthly)</li>
-            <li>- Consistent sessions are required</li>
-            <li>- Student is expected to attempt before receiving guidance</li>
-            <li>- Discomfort during learning is part of the process</li>
-          </ul>
-        </CardContent>
-      </Card>
+      {!showApprovedDiagnosisSnapshot && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Commitment</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="text-sm text-muted-foreground space-y-1">
+              <li>- Package cadence: {plannedSessionsPerWeek} sessions weekly ({packageSessions} sessions monthly)</li>
+              <li>- Consistent sessions are required</li>
+              <li>- Student is expected to attempt before receiving guidance</li>
+              <li>- Discomfort during learning is part of the process</li>
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <Separator />
 

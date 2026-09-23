@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+// PR47 closure proof: final current-head re-diagnosis proof trigger.
+
 export default function handler(_req: VercelRequest, res: VercelResponse) {
   if (process.env.VERCEL_ENV !== 'preview') {
     return res.status(404).json({ error: 'Not found' });
@@ -24,6 +26,7 @@ export default function handler(_req: VercelRequest, res: VercelResponse) {
 
   return res.status(200).json({
     vercelEnv: process.env.VERCEL_ENV || null,
+    commitSha: process.env.VERCEL_GIT_COMMIT_SHA || null,
     supabaseProjectRef,
     databaseHost,
     requiredEnv: {

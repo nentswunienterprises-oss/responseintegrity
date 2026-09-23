@@ -242,11 +242,24 @@ function getSessionPreview(session: SessionRecord) {
   return "";
 }
 
-function getResponseSnapshots(session: SessionRecord) {
+function isResponseSnapshotV1(value: unknown): value is ResponseSnapshotV1 {
+  if (!value || typeof value !== "object") return false;
+  const snapshot = value as Partial<ResponseSnapshotV1>;
+  return (
+    snapshot.version === "response-snapshot-v1" &&
+    !!snapshot.source &&
+    typeof snapshot.source === "object" &&
+    !!snapshot.drill &&
+    typeof snapshot.drill === "object" &&
+    Array.isArray(snapshot.sets)
+  );
+}
+
+function getResponseSnapshots(session: SessionRecord): ResponseSnapshotV1[] {
   return [
     ...(Array.isArray(session.responseSnapshots) ? session.responseSnapshots : []),
     ...(session.responseSnapshot ? [session.responseSnapshot] : []),
-  ];
+  ].filter(isResponseSnapshotV1);
 }
 
 function getObservedResponseDisplay(session: SessionRecord, snapshots = getResponseSnapshots(session)) {
@@ -400,7 +413,7 @@ export default function ViewTrackingSystemsDialog({
                                       <p className="text-sm font-medium text-foreground">Response Snapshots</p>
                                       {snapshots.map((snapshot, index) => (
                                         <ResponseSnapshotPanel
-                                          key={snapshot.source.sourceDrillId || `${snapshot.source.topic}-${index}`}
+                                          key={snapshot.source.sourceDrillId || `${snapshot.source.topic || "snapshot"}-${index}`}
                                           snapshot={snapshot}
                                         />
                                       ))}

@@ -19,6 +19,19 @@ import {
   MONTHLY_SERVICE_PACKAGES,
   type MonthlyPackageKey,
 } from "@shared/servicePackages";
+import {
+  buildDiagnosisProposalFocus,
+  buildDiagnosisProposalJustification,
+  buildDiagnosisProposalPriority,
+  buildDiagnosisProposalProgressSignals,
+  buildDiagnosisProposalRecommendedPlan,
+  buildDiagnosisProposalSessionStructure,
+  buildDiagnosisProposalWhyEntry,
+  attachDiagnosisProposalSnapshot,
+  normalizeProposalPhaseSupportEvidence,
+  normalizeProposalPlacementEvidence,
+  normalizeProposalTrainingAction,
+} from "@shared/diagnosisProposalCopy";
 
 interface ParentOnboardingProposalProps {
   open: boolean;
@@ -54,87 +67,41 @@ export default function ParentOnboardingProposal({
   });
 
   const drillData = drillDataRaw as any;
+  const storedDrill =
+    drillData?.drill && typeof drillData.drill === "object"
+      ? drillData.drill
+      : null;
+  const diagnosisRunId = String(drillData?.id || storedDrill?.id || "").trim();
+  const isEvidenceNativeDiagnosis =
+    drillData?.summary?.diagnosisEngine === "evidence_native_v2" ||
+    storedDrill?.summary?.diagnosisEngine === "evidence_native_v2" ||
+    drillData?.diagnosisEngine === "evidence_native_v2" ||
+    storedDrill?.diagnosisEngine === "evidence_native_v2" ||
+    drillData?.diagnosisMode === "evidence_native" ||
+    storedDrill?.diagnosisMode === "evidence_native" ||
+    Array.isArray(drillData?.summary?.placementEvidence) ||
+    Array.isArray(storedDrill?.summary?.placementEvidence) ||
+    Array.isArray(drillData?.summary?.phaseStates) ||
+    Array.isArray(storedDrill?.summary?.phaseStates);
 
-  // Core scoring model: diagnosis classifies entry phase/stability only.
+  const { data: diagnosisRunDataRaw, isLoading: diagnosisRunLoading } = useQuery({
+    queryKey: ["/api/tutor/evidence-complete-diagnosis", diagnosisRunId],
+    queryFn: async () => {
+      const res = await apiRequest(
+        "GET",
+        `/api/tutor/evidence-complete-diagnosis/${diagnosisRunId}`,
+      );
+      return res.json();
+    },
+    enabled: open && !!diagnosisRunId && isEvidenceNativeDiagnosis,
+  });
+
+  const diagnosisRunData = diagnosisRunDataRaw as any;
+
+  // Evidence-native diagnosis classifies entry phase/stability from observed behavior.
+  // Numeric scores have no diagnosis decision authority.
   const deriveTrainingEntryPhase = (diagnosisPhase: string, _stability: string): string => {
     return diagnosisPhase;
-  };
-
-  // Parent-facing breakdown: describes what the student needs to build at training entry phase
-  const getParentFacingBreakdown = (trainingPhase: string, diagnosisPhase: string, stability: string) => {
-    if (stability === "High" && diagnosisPhase === trainingPhase) {
-      return `${studentFirstName} showed strong, consistent performance in ${diagnosisPhase}. Training begins in the same phase to confirm stability and progress decisions through training sessions.`;
-    }
-    switch (trainingPhase) {
-      case "Clarity":
-        return `${studentFirstName} is not yet consistently identifying what the problem is asking or what method to use first.`;
-      case "Structured Execution":
-        return `${studentFirstName} understands the topic but does not yet apply a stable method consistently without support.`;
-      case "Controlled Discomfort":
-        return `${studentFirstName} can execute reliably in familiar conditions but becomes less stable when the work pushes back.`;
-      case "Time Pressure Stability":
-        return `${studentFirstName} can execute the method but loses structure when time pressure is introduced.`;
-      default:
-        return `${studentFirstName} needs a more stable starting structure.`;
-    }
-  };
-
-  const getParentFacingPriority = (trainingPhase: string, diagnosisPhase: string, stability: string) => {
-    if (stability === "High" && diagnosisPhase === trainingPhase) {
-      return `Training will start at ${trainingPhase} and use session scoring to determine whether to remain, regress, or advance.`;
-    }
-    switch (trainingPhase) {
-      case "Clarity":
-        return `We will first help ${studentFirstName} read problems more clearly, recognise what is being asked, and name the structure before solving.`;
-      case "Structured Execution":
-        return `We will train ${studentFirstName} to start independently and follow a repeatable method without being carried through each step.`;
-      case "Controlled Discomfort":
-        return `We will train ${studentFirstName} to stay calm and structured when questions become less familiar or more demanding.`;
-      case "Time Pressure Stability":
-        return `We will train ${studentFirstName} to keep the same structure and decision-making even when time pressure increases.`;
-      default:
-        return `We will first strengthen ${studentFirstName}'s consistency before adding more difficulty.`;
-    }
-  };
-
-  const getProgressSignals = (trainingPhase: string) => {
-    switch (trainingPhase) {
-      case "Clarity":
-        return [
-          "Clearer recognition of what the question is asking",
-          "Earlier correct method selection",
-          "Less confusion when beginning problems",
-          "More accurate first steps",
-        ];
-      case "Structured Execution":
-        return [
-          "Earlier independent starts",
-          "Less hesitation when beginning problems",
-          "More consistent method use",
-          "More stable step order without prompting",
-        ];
-      case "Controlled Discomfort":
-        return [
-          "Calmer starts when questions feel less familiar",
-          "Better structure holding in harder work",
-          "Less visible shutdown under challenge",
-          "More complete attempts on difficult questions",
-        ];
-      case "Time Pressure Stability":
-        return [
-          "Stronger structure while work is timed",
-          "Fewer rushed breakdowns",
-          "More reliable decisions under pace pressure",
-          "Less instability when speed is added",
-        ];
-      default:
-        return [
-          "Earlier independent starts",
-          "Less hesitation when beginning problems",
-          "More consistent method use",
-          "More stable step order without prompting",
-        ];
-    }
   };
 
   const handleSendProposal = async () => {
@@ -154,8 +121,47 @@ export default function ParentOnboardingProposal({
       const topic = drillData?.introTopic || drillData?.topic || drillData?.summary?.topic || "";
       const trainingEntryPhase = deriveTrainingEntryPhase(diagnosisPhase, stability);
 
-      const recommendedPlan = `${trainingEntryPhase} phase conditioning on ${topic || "primary diagnostic topic"} (entry stability: ${stability}). Diagnosed at ${diagnosisPhase} - training starts at ${trainingEntryPhase}. System-generated from intro drill.`;
-      const justification = `Intro drill scored ${drillData?.summary?.diagnosisScore ?? "-"}/100 at ${diagnosisPhase} phase. Stability: ${stability}. Training entry phase resolved to ${trainingEntryPhase}. Next action: ${drillData?.summary?.nextAction || "Continue phase work"}.`;
+      const placementEvidence = normalizeProposalPlacementEvidence(
+        drillData?.summary?.placementEvidence,
+      );
+      const nextAction =
+        normalizeProposalTrainingAction(drillData?.summary?.nextAction) || "Continue phase work";
+      const recommendedPlan = buildDiagnosisProposalRecommendedPlan({
+        topic: topic || "primary diagnostic topic",
+        phase: trainingEntryPhase,
+        stability,
+        nextAction,
+      });
+      const baseJustification = buildDiagnosisProposalJustification({
+        topic: topic || "the diagnostic topic",
+        phase: diagnosisPhase,
+        stability,
+        reason:
+          drillData?.summary?.reason ||
+          "The entry state was resolved from the student's observed response behavior.",
+        nextAction,
+        placementEvidence,
+      });
+      const proposalSnapshot = {
+        version: 1 as const,
+        topic: topic || "Current class topic",
+        startingSignal,
+        entryPhase: trainingEntryPhase,
+        stability,
+        focusArea,
+        whyTrainingStartsHere: whyEntry,
+        firstPriority: priority,
+        sessionStructure,
+        progressSignals,
+        importantNote:
+          "This training focuses on how the student responds while solving, not only on whether the final answer is correct.",
+        commitment:
+          `Consistency and active participation are required across the selected ${selectedPackage.sessionsPerMonth}-session monthly package. Students are expected to attempt before receiving guidance.`,
+      };
+      const justification = attachDiagnosisProposalSnapshot(
+        baseJustification,
+        proposalSnapshot,
+      );
 
       const response = await apiRequest("POST", "/api/tutor/proposal", {
         studentId,
@@ -175,11 +181,19 @@ export default function ParentOnboardingProposal({
         duration: 5000,
       });
 
-      await queryClient.invalidateQueries({ queryKey: ["/api/tutor/pod"] });
-      await queryClient.invalidateQueries({
-        queryKey: ["/api/tutor/students", studentId, "workflow-state"],
-        refetchType: "active",
-      });
+      const workflowQueryKey = ["/api/tutor", "students", studentId, "workflow-state"] as const;
+      queryClient.setQueryData(workflowQueryKey, (current: any) => ({
+        ...(current || {}),
+        proposalSent: true,
+        proposalAccepted: Boolean(current?.proposalAccepted),
+      }));
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/tutor/pod"] }),
+        queryClient.refetchQueries({
+          queryKey: workflowQueryKey,
+          type: "active",
+        }),
+      ]);
 
       onOpenChange(false);
     } catch (error) {
@@ -238,13 +252,83 @@ export default function ParentOnboardingProposal({
     );
   }
 
-  const diagnosisPhase = drillData?.summary?.phase || drillData?.phase || drillData?.phaseObserved || "Clarity";
-  const stability = drillData?.summary?.stability || drillData?.stability || drillData?.stabilityObserved || "Low";
-  const topic = drillData?.introTopic || drillData?.topic || "Current class topic";
-  const trainingEntryPhase = deriveTrainingEntryPhase(diagnosisPhase, stability);
-  const breakdown = getParentFacingBreakdown(trainingEntryPhase, diagnosisPhase, stability);
-  const priority = getParentFacingPriority(trainingEntryPhase, diagnosisPhase, stability);
-  const progressSignals = getProgressSignals(trainingEntryPhase);
+  const entryPhase =
+    drillData?.summary?.phase ||
+    storedDrill?.summary?.phase ||
+    drillData?.phase ||
+    storedDrill?.phase ||
+    drillData?.phaseObserved ||
+    "Clarity";
+  const startingSignal =
+    drillData?.startingPhase ||
+    storedDrill?.startingPhase ||
+    drillData?.responseSnapshot?.startingPhase ||
+    storedDrill?.responseSnapshot?.startingPhase ||
+    drillData?.summary?.startingPhase ||
+    storedDrill?.summary?.startingPhase ||
+    diagnosisRunData?.startingPhase ||
+    (isEvidenceNativeDiagnosis && diagnosisRunLoading ? "Loading…" : "Not recorded");
+  const stability =
+    drillData?.summary?.stability ||
+    storedDrill?.summary?.stability ||
+    drillData?.stability ||
+    storedDrill?.stability ||
+    drillData?.stabilityObserved ||
+    "Low";
+  const topic =
+    drillData?.introTopic ||
+    storedDrill?.introTopic ||
+    drillData?.topic ||
+    storedDrill?.topic ||
+    "Current class topic";
+  const trainingEntryPhase = deriveTrainingEntryPhase(entryPhase, stability);
+  const placementEvidence = normalizeProposalPlacementEvidence(
+    drillData?.summary?.placementEvidence ||
+      storedDrill?.summary?.placementEvidence,
+  );
+  const phaseSupportEvidence = normalizeProposalPhaseSupportEvidence(
+    drillData?.summary?.phaseStates ||
+      storedDrill?.summary?.phaseStates,
+    trainingEntryPhase,
+  );
+  const nextAction =
+    normalizeProposalTrainingAction(
+      drillData?.summary?.nextAction ||
+        storedDrill?.summary?.nextAction,
+    ) || "Continue phase work";
+  const focusArea = buildDiagnosisProposalFocus({
+    studentFirstName,
+    phase: trainingEntryPhase,
+    stability,
+  });
+  const whyEntry = buildDiagnosisProposalWhyEntry({
+    phase: entryPhase,
+    placementEvidence,
+    reason:
+      drillData?.summary?.reason ||
+      storedDrill?.summary?.reason,
+  });
+  const priority = buildDiagnosisProposalPriority({
+    studentFirstName,
+    phase: trainingEntryPhase,
+    stability,
+    nextAction,
+    placementEvidence,
+  });
+  const sessionStructure = buildDiagnosisProposalSessionStructure({
+    phase: trainingEntryPhase,
+    stability,
+    nextAction,
+    placementEvidence,
+    phaseSupportEvidence,
+  });
+  const progressSignals = buildDiagnosisProposalProgressSignals({
+    phase: trainingEntryPhase,
+    stability,
+    nextAction,
+    placementEvidence,
+    phaseSupportEvidence,
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -265,7 +349,7 @@ export default function ParentOnboardingProposal({
           <Card>
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Recommended Monthly Package
+                Monthly Package
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
@@ -296,7 +380,7 @@ export default function ParentOnboardingProposal({
                 })}
               </RadioGroup>
               <p className="mt-3 text-xs text-muted-foreground">
-                Select the frequency appropriate to the diagnosed need. This is a monthly package, not ad-hoc session capacity.
+                Choose the agreed monthly delivery frequency. Diagnosis determines the training entry and first focus; it does not currently choose package frequency.
               </p>
             </CardContent>
           </Card>
@@ -308,33 +392,20 @@ export default function ParentOnboardingProposal({
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              {trainingEntryPhase === "Clarity" && (
-                <p className="text-xs text-muted-foreground">Training will begin at the <span className="text-foreground font-medium">Clarity</span> level - building vocabulary, method recognition, and reason understanding before execution is introduced.</p>
-              )}
-              {trainingEntryPhase === "Structured Execution" && (
-                <p className="text-xs text-muted-foreground">Training will begin at the <span className="text-foreground font-medium">Structured Execution</span> level - building an independent, repeatable method without tutor carry.</p>
-              )}
-              {trainingEntryPhase === "Controlled Discomfort" && (
-                <p className="text-xs text-muted-foreground">Training will begin at the <span className="text-foreground font-medium">Controlled Discomfort</span> level - introducing difficulty and unfamiliar problems while maintaining structure.</p>
-              )}
-              {trainingEntryPhase === "Time Pressure Stability" && (
-                <p className="text-xs text-muted-foreground">Training will begin at the <span className="text-foreground font-medium">Time Pressure Stability</span> level - maintaining full method and structure under timed conditions.</p>
-              )}
+              <p className="text-xs leading-5 text-muted-foreground">{focusArea}</p>
             </CardContent>
           </Card>
 
-          {stability !== "High" && (
-            <Card>
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Where {studentFirstName} Currently Gets Stuck
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <p className="text-xs text-muted-foreground">{breakdown}</p>
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Why Training Starts Here
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <p className="text-xs leading-5 text-muted-foreground">{whyEntry}</p>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader className="pb-2 pt-4 px-4">
@@ -343,7 +414,7 @@ export default function ParentOnboardingProposal({
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <p className="text-xs text-muted-foreground">{priority}</p>
+              <p className="text-xs leading-5 text-muted-foreground">{priority}</p>
             </CardContent>
           </Card>
 
@@ -354,17 +425,17 @@ export default function ParentOnboardingProposal({
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4 space-y-2">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-md border bg-muted/50 p-2">
                   <p className="text-[10px] uppercase text-muted-foreground mb-1">Topic</p>
                   <p className="text-xs font-medium text-foreground">{topic}</p>
                 </div>
                 <div className="rounded-md border bg-muted/50 p-2">
-                  <p className="text-[10px] uppercase text-muted-foreground mb-1">Diagnosis Phase</p>
-                  <p className="text-xs font-medium text-foreground">{diagnosisPhase}</p>
+                  <p className="text-[10px] uppercase text-muted-foreground mb-1">Starting Signal</p>
+                  <p className="text-xs font-medium text-foreground">{startingSignal}</p>
                 </div>
                 <div className="rounded-md border bg-muted/50 p-2">
-                  <p className="text-[10px] uppercase text-muted-foreground mb-1">Training Starts At</p>
+                  <p className="text-[10px] uppercase text-muted-foreground mb-1">Entry Phase</p>
                   <p className="text-xs font-medium text-foreground">{trainingEntryPhase}</p>
                 </div>
                 <div className="rounded-md border bg-muted/50 p-2">
@@ -382,12 +453,11 @@ export default function ParentOnboardingProposal({
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <ul className="text-xs text-muted-foreground space-y-0.5 ml-2">
+              <ul className="text-xs text-muted-foreground space-y-1 ml-2">
                 <li>Cadence: {selectedPackage.plannedSessionsPerWeek} sessions per week ({selectedPackage.sessionsPerMonth} sessions per month)</li>
-                <li>Clear explanation of the problem structure</li>
-                <li>Guided practice with immediate correction</li>
-                <li>Repeated method-building in the same topic</li>
-                <li>Gradual increase in difficulty when readiness improves</li>
+                {sessionStructure.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ul>
             </CardContent>
           </Card>
@@ -399,7 +469,7 @@ export default function ParentOnboardingProposal({
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <ul className="text-xs text-muted-foreground space-y-0.5 ml-2">
+              <ul className="text-xs text-muted-foreground space-y-1 ml-2">
                 {progressSignals.map((signal) => (
                   <li key={signal}>{signal}</li>
                 ))}
@@ -410,7 +480,7 @@ export default function ParentOnboardingProposal({
           <Card>
             <CardContent className="px-4 py-3 space-y-2">
               <p className="text-xs text-muted-foreground">
-                <strong className="text-foreground">Important Note</strong> - This training focuses on how the student responds under difficulty, not only on correct answers.
+                <strong className="text-foreground">Important Note</strong> - This training focuses on how the student responds while solving, not only on whether the final answer is correct.
               </p>
               <p className="text-xs text-muted-foreground">
                 <strong className="text-foreground">Commitment</strong> - Consistency and active participation are required across the selected {selectedPackage.sessionsPerMonth}-session monthly package. Students are expected to attempt before receiving guidance.

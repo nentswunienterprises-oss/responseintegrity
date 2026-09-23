@@ -1,0 +1,668 @@
+name: PR47 Re-Diagnosis Gate Proof
+# 2026-09-22 combined final re-diagnosis proof trigger 1790099509226
+
+on:
+  push:
+    branches:
+      - feat/evidence-complete-diagnosis
+    paths:
+      - '.github/workflows/pr47-rediagnosis-gate-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: read
+
+jobs:
+  live-rediagnosis-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      SMOKE_BASE_URL: https://tt-confidence-hub-git-feat-evi-31b8c6-relief-works-technologies.vercel.app
+      RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+      RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      PROOF_EXPECTED_APP_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Run unresolved sentinel and re-diagnosis gate proof
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { chromium } from "playwright";
+
+          const baseUrl = String(process.env.SMOKE_BASE_URL || "").replace(/\/$/, "");
+          const email = String(process.env.RI_PROOF_EMAIL || "").trim();
+          const password = String(process.env.RI_PROOF_PASSWORD || "");
+          const bypass = String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "").trim();
+          const expectedCommit = String(process.env.PROOF_EXPECTED_APP_SHA || process.env.GITHUB_SHA || "").trim();
+          assert.ok(baseUrl && email && password && expectedCommit, "Proof runtime credentials are required");
+
+          const browser = await chromium.launch({ headless: true });
+          const context = await browser.newContext({
+            viewport: { width: 1440, height: 1100 },
+            ...(bypass ? { extraHTTPHeaders: { "x-vercel-protection-bypass": bypass } } : {}),
+          });
+          const page = await context.newPage();
+
+          async function login() {
+            const proof = await page.request.get(baseUrl + "/api/proof-environment", { timeout: 60000 });
+            const proofText = await proof.text();
+            assert.ok(proof.ok(), "Proof environment failed: " + proof.status() + " " + proofText);
+            const proofBody = JSON.parse(proofText);
+            assert.equal(proofBody.vercelEnv, "preview");
+            assert.equal(proofBody.supabaseProjectRef, "jftlxeacphvbnhbsbpxc");
+            assert.equal(proofBody.commitSha, expectedCommit);
+
+            const mode = await page.request.get(baseUrl + "/api/auth/mode", { timeout: 60000 });
+            const modeText = await mode.text();
+            assert.ok(mode.ok(), "Auth mode probe failed: " + mode.status() + " " + modeText);
+            const modeBody = JSON.parse(modeText);
+            console.log("PR47_AUTH_MODE=" + JSON.stringify({
+              emergencyDbMode: modeBody?.emergencyDbMode,
+              authMode: modeBody?.authMode,
+              databaseProjectRef: modeBody?.databaseTarget?.projectRef || null,
+              supabaseProjectRef: modeBody?.supabaseTarget?.projectRef || null,
+              runtimeTargetsAligned: modeBody?.runtimeTargetsAligned,
+            }));
+
+            await page.goto(baseUrl + "/operational/signup?role=tutor&mode=login&lock=login&returnTo=/specialist/pod", {
+              waitUntil: "domcontentloaded",
+              timeout: 90000,
+            });
+            await page.locator("#login-email").fill(email);
+            await page.locator("#login-password").fill(password);
+            const [signin] = await Promise.all([
+              page.waitForResponse(
+                (response) => response.url().includes("/api/auth/signin") && response.request().method() === "POST",
+                { timeout: 60000 },
+              ),
+              page.getByRole("button", { name: "Login", exact: true }).click(),
+            ]);
+            const signinText = await signin.text();
+            assert.ok(signin.ok(), "Login failed: " + signin.status() + " " + signinText);
+            const signinBody = JSON.parse(signinText);
+            console.log(
+              "PR47_AUTH_USER_ID=" +
+                String(signinBody?.dbUser?.id || signinBody?.user?.id || "").trim(),
+            );
+          }
+
+          async function resetTrainingFixture({
+            studentId,
+            topic,
+            restorePhase,
+            restoreStability,
+            requiresTargetedRediagnosis = false,
+            targetedRediagnosisStartPhase = null,
+          }) {
+            const response = await page.request.post(baseUrl + "/api/proof/training-fixture/reset", {
+              data: {
+                studentId,
+                topic,
+                restorePhase,
+                restoreStability,
+                requiresTargetedRediagnosis,
+                targetedRediagnosisStartPhase,
+              },
+              timeout: 60000,
+            });
+            const responseText = await response.text();
+            assert.ok(
+              response.ok(),
+              "Training fixture reset failed: " + response.status() + " " + responseText,
+            );
+            const body = JSON.parse(responseText);
+            assert.equal(body?.restoredCanonicalState, true);
+            assert.ok(body?.session?.id, "Training fixture reset did not create a primary session");
+            console.log("PR47_TRAINING_FIXTURE_RESET=" + JSON.stringify({
+              studentId,
+              topic: body.topic,
+              phase: body.phase,
+              stability: body.stability,
+              sessionId: body.session.id,
+              companionSessionId: body.companionSession?.id || null,
+              requiresTargetedRediagnosis,
+              targetedRediagnosisStartPhase,
+            }));
+            return body;
+          }
+
+          async function topicState(studentId, topic) {
+            const url =
+              baseUrl + "/api/tutor/topic-conditioning/" + encodeURIComponent(studentId);
+            let lastFailure = null;
+
+            for (let attempt = 1; attempt <= 3; attempt += 1) {
+              const response = await page.request.get(url, { timeout: 60000 });
+              const responseText = await response.text();
+              if (response.ok()) {
+                const body = JSON.parse(responseText);
+                const rows = Array.isArray(body) ? body : Array.isArray(body?.topics) ? body.topics : [];
+                const row = rows.find((candidate) =>
+                  String(candidate?.topic || "").trim().toLowerCase() === String(topic).trim().toLowerCase()
+                );
+                assert.ok(row, "Topic missing: " + topic);
+                if (attempt > 1) {
+                  console.log("PR47_TOPIC_READ_RECOVERED=" + JSON.stringify({
+                    studentId,
+                    topic,
+                    attempt,
+                  }));
+                }
+                return row;
+              }
+
+              lastFailure = "Topic lookup failed: " + response.status() + " " + responseText;
+              if (attempt < 3 && (response.status() === 403 || response.status() >= 500)) {
+                await page.waitForTimeout(1000 * attempt);
+                continue;
+              }
+              break;
+            }
+
+            throw new Error(lastFailure || "Topic lookup failed without a response");
+          }
+
+          async function chooseTrainingField(label, option) {
+            const labelNode = page.locator("label").filter({ hasText: label }).first();
+            await labelNode.waitFor({ state: "visible", timeout: 30000 });
+            const block = labelNode.locator("..");
+            const button = block.getByRole("button", { name: option, exact: true });
+            await button.waitFor({ state: "visible", timeout: 30000 });
+            await button.click();
+          }
+
+          const TIME_PRESSURE = [
+            {
+              name: "Structure Under Timer",
+              fields: [
+                ["Start", "panic", "controlled"],
+                ["Structure", "lost", "maintained"],
+                ["Pace", "rushed", "controlled"],
+                ["Completion", "fails", "complete"],
+              ],
+            },
+            {
+              name: "Repeated Timed Execution",
+              fields: [
+                ["Consistency", "breaks", "stable"],
+                ["Pace", "rushed", "controlled"],
+                ["Structure", "lost", "maintained"],
+                ["Start", "panic", "controlled"],
+              ],
+            },
+            {
+              name: "Full Constraint",
+              fields: [
+                ["Completion", "fails", "complete"],
+                ["Integrity", "collapses", "stable"],
+                ["Pace", "rushed", "controlled"],
+                ["Start", "panic", "controlled"],
+              ],
+            },
+          ];
+
+          async function runUnresolvedScenario({
+            id,
+            studentId,
+            topic,
+            stability,
+            sessionId,
+            sentinelLabel,
+          }) {
+            const before = await topicState(studentId, topic);
+            assert.equal(before.phase, "Time Pressure Stability", id + ": expected TPS phase");
+            assert.equal(before.stability, stability, id + ": unexpected starting stability");
+
+            const persistedUnresolvedGate =
+              Boolean(before.requiresTargetedRediagnosis) &&
+              before.targetedRediagnosisStartPhase === "Structured Execution" &&
+              before.prerequisiteContradictionStatus === "unresolved";
+            if (persistedUnresolvedGate) {
+              console.log("PR47_UNRESOLVED_SENTINEL_PASS=" + id + " " + JSON.stringify({
+                sentinel: sentinelLabel,
+                frozenState: { phase: before.phase, stability: before.stability },
+                target: before.targetedRediagnosisStartPhase,
+                status: before.prerequisiteContradictionStatus,
+                resumedFromPersistedEvidence: true,
+              }));
+              return;
+            }
+
+            const access = await page.request.get(
+              baseUrl + "/api/tutor/students/" + encodeURIComponent(studentId) +
+                "/drill-session-access?kind=training&sessionId=" + encodeURIComponent(sessionId),
+              { timeout: 60000 },
+            );
+            const accessText = await access.text();
+            assert.ok(access.ok(), id + ": session access failed " + access.status() + " " + accessText);
+            assert.equal(JSON.parse(accessText).canLaunch, true, id + ": session not launch-ready");
+
+            const url =
+              baseUrl + "/specialist/intro-session/" + encodeURIComponent(studentId) +
+              "?mode=training&topic=" + encodeURIComponent(topic) +
+              "&phase=" + encodeURIComponent("Time Pressure Stability") +
+              "&stability=" + encodeURIComponent(stability) +
+              "&scheduledSessionId=" + encodeURIComponent(sessionId);
+
+            await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
+            await page.getByRole("heading", { name: "Training Drill - Time Pressure Stability", exact: true })
+              .waitFor({ state: "visible", timeout: 60000 });
+
+            for (let setIndex = 0; setIndex < TIME_PRESSURE.length; setIndex += 1) {
+              const set = TIME_PRESSURE[setIndex];
+              for (let repIndex = 0; repIndex < 3; repIndex += 1) {
+                const repNumber = repIndex + 1;
+                const begin = page.getByRole("button", { name: "Begin Rep " + repNumber, exact: true });
+                await begin.waitFor({ state: "visible", timeout: 30000 });
+                await begin.click();
+
+                for (const field of set.fields) {
+                  const shouldBreak = setIndex === 0 && repIndex === 0;
+                  await chooseTrainingField(field[0], shouldBreak ? field[1] : field[2]);
+                }
+
+                if (setIndex === 0 && repIndex === 0) {
+                  const sentinel = page.getByRole("button").filter({ hasText: sentinelLabel }).first();
+                  await sentinel.waitFor({ state: "visible", timeout: 30000 });
+                  await sentinel.click();
+                }
+
+                const finalRep = setIndex === TIME_PRESSURE.length - 1 && repIndex === 2;
+                if (finalRep) {
+                  const responsePromise = page.waitForResponse(
+                    (candidate) =>
+                      candidate.url().includes("/api/tutor/training-session-drill") &&
+                      candidate.request().method() === "POST",
+                    { timeout: 120000 },
+                  );
+                  await page.getByRole("button", { name: "Submit Drill", exact: true }).click();
+                  const response = await responsePromise;
+                  const responseText = await response.text();
+                  assert.ok(response.ok(), id + ": submit failed " + response.status() + " " + responseText);
+                  const result = JSON.parse(responseText);
+                  const rows = Array.isArray(result?.scoring) ? result.scoring : [];
+                  assert.ok(rows.length > 0, id + ": no scoring rows");
+                  const decision = rows[rows.length - 1];
+
+                  assert.equal(decision.decisionAuthority, "evidence_native");
+                  assert.equal(decision.prerequisiteContradictionStatus, "unresolved");
+                  assert.equal(Boolean(decision.requiresTargetedRediagnosis), true);
+                  assert.equal(decision.targetedRediagnosisStartPhase, "Structured Execution");
+                  assert.equal(decision.transitionReason, "targeted re-diagnosis required");
+                  assert.equal(decision.phase, before.phase, id + ": phase must freeze");
+                  assert.equal(decision.stability, before.stability, id + ": stability must freeze");
+
+                  const after = await topicState(studentId, topic);
+                  assert.equal(after.phase, before.phase);
+                  assert.equal(after.stability, before.stability);
+                  assert.equal(Boolean(after.requiresTargetedRediagnosis), true);
+                  assert.equal(after.targetedRediagnosisStartPhase, "Structured Execution");
+                  assert.equal(after.prerequisiteContradictionStatus, "unresolved");
+
+                  console.log("PR47_UNRESOLVED_SENTINEL_PASS=" + id + " " + JSON.stringify({
+                    sentinel: sentinelLabel,
+                    frozenState: { phase: after.phase, stability: after.stability },
+                    target: after.targetedRediagnosisStartPhase,
+                    status: after.prerequisiteContradictionStatus,
+                  }));
+                  return;
+                }
+
+                await page.getByRole("button", {
+                  name: repIndex === 2 ? "Confirm Set" : "Confirm Rep",
+                  exact: true,
+                }).click();
+              }
+            }
+          }
+
+          async function openStudentTraining(studentName, expectedStudentId = null) {
+            await page.goto(baseUrl + "/specialist/pod", {
+              waitUntil: "domcontentloaded",
+              timeout: 90000,
+            });
+            const nameNode = page.getByText(studentName, { exact: true }).first();
+            await nameNode.waitFor({ state: "visible", timeout: 60000 });
+            const studentContainer = expectedStudentId
+              ? page.locator(`[data-student-id="${expectedStudentId}"]`).first()
+              : nameNode.locator(
+                "xpath=ancestor::*[.//button[contains(normalize-space(.), 'Topic Conditioning')]][1]",
+              );
+            await studentContainer.waitFor({ state: "visible", timeout: 30000 });
+            await studentContainer.getByText(studentName, { exact: true }).first()
+              .waitFor({ state: "visible", timeout: 30000 });
+            await studentContainer.getByRole("button", { name: /Topic Conditioning/ }).first().click();
+
+            const conditioningDialog = page.getByRole("dialog").last();
+            await conditioningDialog.waitFor({ state: "visible", timeout: 30000 });
+            await conditioningDialog.getByRole("tab", { name: /Training/ }).click();
+            await page.waitForTimeout(1500);
+            const trainingDialog = page.getByRole("dialog").last();
+            const startButtons = trainingDialog.getByRole("button", { name: "Start Session", exact: true });
+            const startButtonCount = await startButtons.count();
+            console.log("PR47_STUDENT1_TRAINING_TAB=" + JSON.stringify({ startButtonCount }));
+            assert.ok(startButtonCount > 0, "Student 1 Training tab rendered no Start Session control.");
+            await startButtons.first().click();
+
+            const startDialog = page.getByRole("dialog").filter({ hasText: "Select one or more topics for this lesson" }).last();
+            await startDialog.waitFor({ state: "visible", timeout: 30000 });
+            return startDialog;
+          }
+
+          async function selectOnlyTopic(startDialog, topicLabelPattern) {
+            const topicCheckboxes = startDialog.locator('input[id^="session-topic-"]');
+            const count = await topicCheckboxes.count();
+            for (let i = 0; i < count; i += 1) {
+              const checkbox = topicCheckboxes.nth(i);
+              if (await checkbox.isChecked()) await checkbox.uncheck();
+            }
+            const target = startDialog.getByLabel(topicLabelPattern).first();
+            await target.check();
+          }
+
+          async function runDiagnosisToCompletion() {
+            await page.getByText("Evidence-native response diagnosis", { exact: true })
+              .waitFor({ state: "visible", timeout: 60000 });
+
+            let finalApiResponse = null;
+            for (let opportunity = 0; opportunity < 20; opportunity += 1) {
+              if (await page.getByText("Diagnosis complete", { exact: true }).isVisible().catch(() => false)) {
+                break;
+              }
+              if (await page.getByText("Evidence review required", { exact: true }).isVisible().catch(() => false)) {
+                throw new Error("Evidence-complete re-diagnosis blocked before placement completed.");
+              }
+
+              const begin = page.getByRole("button", { name: /^Begin Opportunity \d+$/ }).first();
+              await begin.waitFor({ state: "visible", timeout: 60000 });
+              await begin.click();
+
+              for (let layer = 0; layer < 4; layer += 1) {
+                const observeSection = page.locator("section").filter({ hasText: "Record behavior, not a judgment" }).first();
+                await observeSection.waitFor({ state: "visible", timeout: 30000 });
+
+                const dimensionCards = observeSection
+                  .locator("div.rounded-xl.border.p-4")
+                  .filter({ has: page.locator("button span.block.text-sm.font-medium") });
+                const cardCount = await dimensionCards.count();
+                assert.ok(cardCount > 0, "No diagnosis dimensions were rendered.");
+
+                for (let i = 0; i < cardCount; i += 1) {
+                  const options = dimensionCards.nth(i).getByRole("button");
+                  const optionCount = await options.count();
+                  assert.ok(optionCount >= 4, "Diagnosis dimension has fewer than four behavior options.");
+                  await options.nth(3).click();
+                }
+
+                const nextLayer = page.getByRole("button", { name: "Next Evidence Layer", exact: true });
+                if (await nextLayer.isVisible().catch(() => false)) {
+                  await nextLayer.click();
+                  continue;
+                }
+
+                const review = page.getByRole("button", { name: "Review Opportunity", exact: true });
+                await review.waitFor({ state: "visible", timeout: 30000 });
+                await review.click();
+                break;
+              }
+
+              const noIntervention = page.getByRole("button").filter({ hasText: "No intervention" }).first();
+              await noIntervention.waitFor({ state: "visible", timeout: 30000 });
+              await noIntervention.click();
+
+              const confirm = page.getByRole("button", { name: /^Confirm Opportunity \d+$/ }).first();
+              const responsePromise = page.waitForResponse(
+                (candidate) =>
+                  candidate.url().includes("/api/tutor/evidence-complete-diagnosis") &&
+                  candidate.request().method() === "POST",
+                { timeout: 120000 },
+              );
+              await confirm.click();
+              const response = await responsePromise;
+              const responseText = await response.text();
+              assert.ok(response.ok(), "Diagnosis opportunity submit failed: " + response.status() + " " + responseText);
+              finalApiResponse = JSON.parse(responseText);
+              await page.waitForTimeout(250);
+            }
+
+            await page.getByText("Diagnosis complete", { exact: true })
+              .waitFor({ state: "visible", timeout: 60000 });
+            assert.ok(finalApiResponse?.finalized, "Final diagnosis response was not finalized.");
+
+            const entryCell = page.getByText("Entry phase", { exact: true }).locator("..");
+            const stabilityCell = page.getByText("Starting stability", { exact: true }).locator("..");
+            const entryPhase = String(await entryCell.locator("p").nth(1).textContent()).trim();
+            const startingStability = String(await stabilityCell.locator("p").nth(1).textContent()).trim();
+
+            return {
+              entryPhase,
+              startingStability,
+              runId: finalApiResponse.runId,
+              decision: finalApiResponse.decision,
+            };
+          }
+
+          async function proveRediagnosisGateLifecycle() {
+            const studentId = "828a5609-462c-4772-841a-0590ceb6a84e";
+            const topic = "Geometry";
+            const before = await topicState(studentId, topic);
+
+            if (!before.requiresTargetedRediagnosis) {
+              assert.equal(before.targetedRediagnosisStartPhase ?? null, null);
+
+              let resumedDialog = await openStudentTraining("Sandbox Student 1", studentId);
+              const geometryLabel = resumedDialog.locator('label[for="session-topic-Geometry"]');
+              await geometryLabel.waitFor({ state: "visible", timeout: 30000 });
+              const geometryLabelText = String(await geometryLabel.textContent()).trim();
+              assert.ok(
+                !geometryLabelText.includes("Re-Diagnosis Required"),
+                "Cleared canonical topic state still renders the re-diagnosis gate.",
+              );
+
+              await selectOnlyTopic(resumedDialog, /^Geometry \(/);
+              const staleRediagnosisCopy = resumedDialog.getByText(/Targeted re-diagnosis required/i);
+              assert.equal(
+                await staleRediagnosisCopy.count(),
+                0,
+                "Cleared canonical topic state still renders targeted re-diagnosis copy.",
+              );
+
+              const ordinaryPrep = resumedDialog.getByLabel(/I prepared the full drill set for Geometry/i);
+              await ordinaryPrep.check();
+
+              const normalStart = resumedDialog.getByRole("button", {
+                name: "Start Session (1 topics)",
+                exact: true,
+              });
+              await normalStart.waitFor({ state: "visible", timeout: 30000 });
+              await normalStart.click();
+
+              await page.waitForURL((url) =>
+                url.pathname.includes("/specialist/intro-session/" + studentId) &&
+                url.searchParams.get("mode") === "training" &&
+                url.searchParams.get("topic") === topic &&
+                url.searchParams.get("rediagnosis") !== "1",
+                { timeout: 60000 },
+              );
+              await page.getByRole("heading", {
+                name: "Training Drill - " + before.phase,
+                exact: true,
+              }).waitFor({ state: "visible", timeout: 60000 });
+
+              console.log("PR47_REDIAGNOSIS_ALREADY_CLEARED_RESUME=" + JSON.stringify({
+                phase: before.phase,
+                stability: before.stability,
+                canonicalGate: false,
+              }));
+              console.log("PR47_ORDINARY_TRAINING_RESTORED_PASS=" + JSON.stringify({
+                phase: before.phase,
+                stability: before.stability,
+                url: page.url(),
+                resumedFromPriorEvidenceCompleteRediagnosis: true,
+              }));
+              return;
+            }
+
+            assert.equal(before.targetedRediagnosisStartPhase, "Clarity");
+
+            const workflowProbe = await page.request.get(
+              baseUrl + "/api/tutor/students/" + studentId + "/workflow-state",
+              { timeout: 60000 },
+            );
+            const workflowProbeText = await workflowProbe.text();
+            console.log("PR47_STUDENT1_WORKFLOW_PROBE=" + JSON.stringify({
+              status: workflowProbe.status(),
+              body: workflowProbeText,
+            }));
+
+            const sessionsProbe = await page.request.get(
+              baseUrl + "/api/tutor/students/" + studentId + "/training-sessions",
+              { timeout: 60000 },
+            );
+            const sessionsProbeText = await sessionsProbe.text();
+            console.log("PR47_STUDENT1_SESSIONS_PROBE=" + JSON.stringify({
+              status: sessionsProbe.status(),
+              body: sessionsProbeText,
+            }));
+
+            let startDialog = await openStudentTraining("Sandbox Student 1", studentId);
+            await selectOnlyTopic(startDialog, /Geometry \(Re-Diagnosis Required - Clarity\)/);
+
+            await startDialog.getByText(/Targeted re-diagnosis required.*starting signal Clarity/i)
+              .waitFor({ state: "visible", timeout: 30000 });
+            await startDialog.getByText("Re-Diagnosis Prep", { exact: true })
+              .waitFor({ state: "visible", timeout: 30000 });
+            await startDialog.getByText(/Current system-selected opportunity.*1 problems/i)
+              .waitFor({ state: "visible", timeout: 30000 });
+
+            const prepCheck = startDialog.getByLabel(
+              /I prepared only the current system-selected evidence opportunity for Geometry/i,
+            );
+            await prepCheck.check();
+
+            const startRediagnosis = startDialog.getByRole("button", { name: "Start Re-Diagnosis (1 topics)", exact: true });
+            await startRediagnosis.waitFor({ state: "visible", timeout: 30000 });
+            await startRediagnosis.click();
+
+            await page.waitForURL((url) =>
+              url.pathname.includes("/specialist/intro-session/" + studentId) &&
+              url.searchParams.get("topic") === topic &&
+              url.searchParams.get("phase") === "Clarity" &&
+              url.searchParams.get("context") === "training" &&
+              url.searchParams.get("rediagnosis") === "1",
+              { timeout: 60000 },
+            );
+
+            await page.getByText(/Starting signal: Clarity\./)
+              .waitFor({ state: "visible", timeout: 60000 });
+            console.log("PR47_REDIAGNOSIS_ROUTE_PASS=" + page.url());
+
+            const diagnosis = await runDiagnosisToCompletion();
+            assert.notEqual(diagnosis.startingStability, "High Maintenance");
+
+            const after = await topicState(studentId, topic);
+            assert.equal(Boolean(after.requiresTargetedRediagnosis), false);
+            assert.equal(after.targetedRediagnosisStartPhase ?? null, null);
+            assert.equal(after.phase, diagnosis.entryPhase);
+            assert.equal(after.stability, diagnosis.startingStability);
+
+            console.log("PR47_REDIAGNOSIS_CLEAR_PASS=" + JSON.stringify({
+              runId: diagnosis.runId,
+              entryPhase: diagnosis.entryPhase,
+              startingStability: diagnosis.startingStability,
+              persistedPhase: after.phase,
+              persistedStability: after.stability,
+              requiresTargetedRediagnosis: after.requiresTargetedRediagnosis,
+            }));
+
+            startDialog = await openStudentTraining("Sandbox Student 1", studentId);
+            const geometryLabel = startDialog.locator('label[for="session-topic-Geometry"]');
+            await geometryLabel.waitFor({ state: "visible", timeout: 30000 });
+            const geometryLabelText = String(await geometryLabel.textContent()).trim();
+            assert.ok(!geometryLabelText.includes("Re-Diagnosis Required"), "Re-diagnosis gate did not clear in launch UI.");
+
+            await selectOnlyTopic(startDialog, /^Geometry \(/);
+            await startDialog.getByText(/Targeted re-diagnosis required/i).waitFor({ state: "detached", timeout: 5000 }).catch(() => undefined);
+            const ordinaryPrep = startDialog.getByLabel(/I prepared the full drill set for Geometry/i);
+            await ordinaryPrep.check();
+
+            const normalStart = startDialog.getByRole("button", { name: "Start Session (1 topics)", exact: true });
+            await normalStart.waitFor({ state: "visible", timeout: 30000 });
+            await normalStart.click();
+
+            await page.waitForURL((url) =>
+              url.pathname.includes("/specialist/intro-session/" + studentId) &&
+              url.searchParams.get("mode") === "training" &&
+              url.searchParams.get("topic") === topic &&
+              url.searchParams.get("rediagnosis") !== "1",
+              { timeout: 60000 },
+            );
+            await page.getByRole("heading", { name: "Training Drill - " + after.phase, exact: true })
+              .waitFor({ state: "visible", timeout: 60000 });
+
+            console.log("PR47_ORDINARY_TRAINING_RESTORED_PASS=" + JSON.stringify({
+              phase: after.phase,
+              stability: after.stability,
+              url: page.url(),
+            }));
+          }
+
+          try {
+            await login();
+
+            const notObservedFixture = await resetTrainingFixture({
+              studentId: "137ab2e5-00af-44c5-a15a-d32dd82beee6",
+              topic: "Linear equations",
+              restorePhase: "Time Pressure Stability",
+              restoreStability: "Low",
+            });
+            await runUnresolvedScenario({
+              id: "tps-prerequisite-not-observed",
+              studentId: "137ab2e5-00af-44c5-a15a-d32dd82beee6",
+              topic: "Linear equations",
+              stability: "Low",
+              sessionId: notObservedFixture.session.id,
+              sentinelLabel: "Could not meaningfully observe the prerequisite",
+            });
+
+            const confoundedFixture = await resetTrainingFixture({
+              studentId: "4d08a1d4-bce6-4792-95a4-72f872da3474",
+              topic: "Algebra",
+              restorePhase: "Time Pressure Stability",
+              restoreStability: "High Maintenance",
+            });
+            await runUnresolvedScenario({
+              id: "tps-prerequisite-confounded",
+              studentId: "4d08a1d4-bce6-4792-95a4-72f872da3474",
+              topic: "Algebra",
+              stability: "High Maintenance",
+              sessionId: confoundedFixture.session.id,
+              sentinelLabel: "Prerequisite check was confounded",
+            });
+
+            await resetTrainingFixture({
+              studentId: "828a5609-462c-4772-841a-0590ceb6a84e",
+              topic: "Geometry",
+              restorePhase: "Time Pressure Stability",
+              restoreStability: "High",
+              requiresTargetedRediagnosis: true,
+              targetedRediagnosisStartPhase: "Clarity",
+            });
+            await proveRediagnosisGateLifecycle();
+            console.log("PR47_REDIAGNOSIS_GATE_PROOF=PASS");
+          } finally {
+            await browser.close();
+          }
+          NODE

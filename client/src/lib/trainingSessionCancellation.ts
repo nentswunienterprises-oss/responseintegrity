@@ -9,13 +9,8 @@ export const TRAINING_SESSION_CANCELLATION_OTHER_CODE = "other";
 export const TUTOR_TRAINING_SESSION_CANCELLATION_REASONS: TrainingSessionCancellationReasonOption[] = [
   {
     code: "tutor_unavailable",
-    label: "Tutor unavailable",
-    description: "Use when the tutor can no longer deliver the confirmed lesson.",
-  },
-  {
-    code: "schedule_conflict",
-    label: "Schedule conflict",
-    description: "Use when the confirmed time is no longer operationally workable.",
+    label: "Specialist unavailable",
+    description: "Use when the Specialist can no longer deliver the confirmed lesson.",
   },
   {
     code: "technical_issue",
@@ -49,11 +44,6 @@ export const PARENT_TRAINING_SESSION_CANCELLATION_REASONS: TrainingSessionCancel
     code: "student_unavailable",
     label: "Student unavailable",
     description: "Use when the student cannot attend the confirmed lesson.",
-  },
-  {
-    code: "schedule_conflict",
-    label: "Schedule conflict",
-    description: "Use when the confirmed time is no longer workable for the family.",
   },
   {
     code: "technical_issue",

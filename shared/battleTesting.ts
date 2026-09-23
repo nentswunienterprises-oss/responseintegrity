@@ -940,28 +940,32 @@ const tutorPhaseDefinitions: BattleTestPhaseDefinition[] = [
   {
     key: "handover_verification",
     title: "Handover Verification",
-    description: "Can the tutor verify that independent mastery has transferred before session end?",
+    description: "Can the Specialist preserve inherited truth and run evidence-driven continuity verification after Specialist replacement?",
     questions: [
       {
         key: "handover_q1",
         section: "Core Understanding",
-        prompt: "What is handover verification in Response Integrity?",
-        expectedAnswer: "The discipline of verifying that the student can execute independently before ending the session.",
-        failIndicators: ["saying goodbye nicely", "telling them to practice at home"],
+        prompt: "What is Handover Verification in Response Integrity?",
+        expectedAnswer:
+          "It is evidence-driven continuity verification after Specialist replacement: inherit the student's existing topic state, preserve history and phase conditions, and verify whether that state is still trustworthy before normal Training resumes.",
+        failIndicators: ["final drill before session end", "start the student over", "a normal training drill"],
       },
       {
         key: "handover_q2",
-        section: "Core Understanding",
-        prompt: "Why must handover happen before session end?",
-        expectedAnswer: "Because once the session ends, you cannot see if they can actually execute alone.",
-        failIndicators: ["so you have proof to show", "so they leave confident"],
+        section: "Evidence Integrity",
+        prompt: "A Handover opportunity did not meaningfully expose one dimension, or your intervention changed what was being observed. What do you record?",
+        expectedAnswer:
+          "Record not observed or confounded truthfully. Neither is weakness or strength, and the system may require another clean comparable opportunity rather than inventing a decision.",
+        failIndicators: ["choose the closest weak option", "use the post-help response", "score it anyway"],
+        autoCriticalOnFail: true,
       },
       {
         key: "handover_q3",
-        section: "Application",
-        prompt: "At session end, a student can solve with your hints. Are they ready to go?",
-        expectedAnswer: "No. They must prove independent execution in the final drills with no support.",
-        failIndicators: ["yes, they're getting it", "they can ask for help at home"],
+        section: "Authority and Stopping",
+        prompt: "When does Handover end, and who decides what happens to the inherited state?",
+        expectedAnswer:
+          "Handover ends when the Response Evidence Model has enough evidence to hold the inherited state, make a bounded same-phase stability adjustment, or require targeted re-diagnosis. It is evidence-complete rather than fixed-rep complete, and the system—not the Specialist—owns the state decision.",
+        failIndicators: ["after three reps", "when the tutor feels sure", "keep drilling until it passes"],
         autoCriticalOnFail: true,
       },
     ],

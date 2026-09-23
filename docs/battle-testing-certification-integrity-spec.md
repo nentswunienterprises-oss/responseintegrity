@@ -159,7 +159,7 @@ The six banks must test the current live operating model:
 - Logging System: raw observation, rep/set lineage, evidence integrity, scoring, system output, and downstream claims.
 - Session Flow Control: the distinction between session context and drill type across Intro, Active Training, and Handover Verification.
 - Drill Library: Diagnosis, Training, and Verification modes; four phase lanes; prep; set purpose; rep purpose; and constraints.
-- Handover Verification: inherited topic, phase, and stability; short continuity verification; hold, tighten, or targeted re-verification; and reopening normal training only after clearance.
+- Handover Verification: inherited topic, phase, and stability; evidence-complete continuity verification with no fixed rep-completion rule; canonical concrete behavior capture including not-observed/confounded evidence; recovery versus confirmed contradiction; hold, bounded same-phase stability adjustment, or targeted evidence-complete re-diagnosis; and reopening normal Training only after clearance.
 - Tools Required: compulsory smartphone, mini ring light, and earphones; clear top-down handwritten delivery; optional gooseneck holder; and pre-session visibility/audio checks.
 
 ## 9. Rotating forms

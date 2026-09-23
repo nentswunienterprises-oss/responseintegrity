@@ -66,7 +66,7 @@ test("emergency auth accepts a valid confirmed password", async () => {
   if ("authUser" in result) assert.equal(result.authUser.id, "auth-user-1");
 });
 
-test("emergency auth rejects wrong and unknown credentials generically", async () => {
+test("emergency auth records distinct internal reasons while preserving the same public invalid class", async () => {
   resetEmergencyLoginAttempts();
   const userResult = await authenticateEmergencyUser(
     createPool([await createAuthUser()]),
@@ -81,8 +81,9 @@ test("emergency auth rejects wrong and unknown credentials generically", async (
     "127.0.0.1",
   );
 
-  assert.deepEqual(userResult, { error: "invalid" });
-  assert.deepEqual(unknownResult, { error: "invalid" });
+  assert.deepEqual(userResult, { error: "invalid", reason: "password_mismatch" });
+  assert.deepEqual(unknownResult, { error: "invalid", reason: "account_not_found" });
+  assert.equal(userResult.error, unknownResult.error);
 });
 
 test("emergency auth rejects deleted, banned, anonymous, and unconfirmed users", async () => {
@@ -100,7 +101,7 @@ test("emergency auth rejects deleted, banned, anonymous, and unconfirmed users",
       password,
       "127.0.0.1",
     );
-    assert.deepEqual(result, { error: "invalid" });
+    assert.deepEqual(result, { error: "invalid", reason: "account_unavailable" });
   }
 });
 
@@ -114,7 +115,7 @@ test("emergency auth throttles repeated failures by email and IP", async () => {
 
   assert.deepEqual(
     await authenticateEmergencyUser(pool, "user@example.com", password, "127.0.0.1"),
-    { error: "throttled" },
+    { error: "throttled", reason: "throttled" },
   );
   assert.equal(
     "authUser" in await authenticateEmergencyUser(
@@ -196,3 +197,155 @@ for (const duplicateSource of ["auth", "public"]) {
     assert.equal(queries.some(({ text }) => text.includes("INSERT INTO public.users")), false);
   });
 }
+test("emergency private-credential fallback distinguishes missing credential from wrong password internally", async () => {
+  resetEmergencyLoginAttempts();
+
+  let missingQuery = 0;
+  const missingCredentialPool = {
+    query: async () => {
+      missingQuery += 1;
+      if (missingQuery === 1) return { rows: [] };
+      if (missingQuery === 2) {
+        return { rows: [{ id: "public-user-1", email: "public@example.com", role: "tutor" }] };
+      }
+      return { rows: [] };
+    },
+  } as any;
+
+  const missingCredentialResult = await authenticateEmergencyUser(
+    missingCredentialPool,
+    "public@example.com",
+    "some-password",
+    "127.0.0.1",
+  );
+  assert.deepEqual(missingCredentialResult, {
+    error: "invalid",
+    reason: "credential_not_provisioned",
+  });
+
+  resetEmergencyLoginAttempts();
+  const hash = await bcrypt.hash("correct-password", 4);
+  let wrongQuery = 0;
+  const wrongPasswordPool = {
+    query: async () => {
+      wrongQuery += 1;
+      if (wrongQuery === 1) return { rows: [] };
+      if (wrongQuery === 2) {
+        return { rows: [{ id: "public-user-2", email: "public2@example.com", role: "tutor" }] };
+      }
+      return { rows: [{ user_id: "public-user-2", password_hash: hash }] };
+    },
+  } as any;
+
+  const wrongPasswordResult = await authenticateEmergencyUser(
+    wrongPasswordPool,
+    "public2@example.com",
+    "wrong-password",
+    "127.0.0.1",
+  );
+  assert.deepEqual(wrongPasswordResult, {
+    error: "invalid",
+    reason: "password_mismatch",
+  });
+});
+
+
+test("preview emergency auth lazily repairs a real sandbox parent missing its private credential", async () => {
+  resetEmergencyLoginAttempts();
+  const previousVercelEnv = process.env.VERCEL_ENV;
+  process.env.VERCEL_ENV = "preview";
+  const storedHash = await bcrypt.hash("SandboxPass123!", 4);
+  const queries: string[] = [];
+  let credentialReadCount = 0;
+
+  const pool = {
+    query: async (text: string) => {
+      queries.push(text);
+      if (text.includes("FROM auth.users")) return { rows: [] };
+      if (text.includes("FROM public.users")) {
+        return {
+          rows: [{
+            id: "sandbox-parent-id",
+            email: "sandbox-parent-proof@gmail.com",
+            role: "parent",
+          }],
+        };
+      }
+      if (text.includes("FROM private.emergency_auth_credentials")) {
+        credentialReadCount += 1;
+        return credentialReadCount === 1
+          ? { rows: [] }
+          : { rows: [{ user_id: "sandbox-parent-id", password_hash: storedHash }] };
+      }
+      if (text.includes("FROM public.parent_enrollments")) {
+        return { rows: [{ id: "sandbox-enrollment-id" }] };
+      }
+      if (text.includes("INSERT INTO private.emergency_auth_credentials")) {
+        return { rows: [] };
+      }
+      return { rows: [] };
+    },
+  } as any;
+
+  try {
+    const result = await authenticateEmergencyUser(
+      pool,
+      "sandbox-parent-proof@gmail.com",
+      "SandboxPass123!",
+      "127.0.0.1",
+    );
+    assert.equal("authUser" in result, true);
+    assert.equal(
+      queries.some((text) => text.includes("INSERT INTO private.emergency_auth_credentials")),
+      true,
+    );
+  } finally {
+    if (previousVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previousVercelEnv;
+  }
+});
+
+test("preview emergency auth does not repair a sandbox parent when the supplied password is wrong", async () => {
+  resetEmergencyLoginAttempts();
+  const previousVercelEnv = process.env.VERCEL_ENV;
+  process.env.VERCEL_ENV = "preview";
+  const queries: string[] = [];
+
+  const pool = {
+    query: async (text: string) => {
+      queries.push(text);
+      if (text.includes("FROM auth.users")) return { rows: [] };
+      if (text.includes("FROM public.users")) {
+        return {
+          rows: [{
+            id: "sandbox-parent-id",
+            email: "sandbox-parent-proof@gmail.com",
+            role: "parent",
+          }],
+        };
+      }
+      if (text.includes("FROM private.emergency_auth_credentials")) return { rows: [] };
+      if (text.includes("FROM public.parent_enrollments")) {
+        return { rows: [{ id: "sandbox-enrollment-id" }] };
+      }
+      return { rows: [] };
+    },
+  } as any;
+
+  try {
+    const result = await authenticateEmergencyUser(
+      pool,
+      "sandbox-parent-proof@gmail.com",
+      "wrong-password",
+      "127.0.0.1",
+    );
+    assert.deepEqual(result, { error: "invalid", reason: "password_mismatch" });
+    assert.equal(
+      queries.some((text) => text.includes("INSERT INTO private.emergency_auth_credentials")),
+      false,
+    );
+  } finally {
+    if (previousVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previousVercelEnv;
+  }
+});

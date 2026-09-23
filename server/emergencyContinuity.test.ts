@@ -24,6 +24,28 @@ import {
 import { buildExecutiveRosterFromRows } from "./routes/executiveCommandRhythm";
 import { toJsonbParam, transformSnakeToCamel } from "./storage";
 import { formatApplicationDate } from "../client/src/lib/application-date";
+import {
+  buildPayfastCheckoutSignature,
+  withPayfastSignature,
+} from "./payfast";
+
+test("emergency topic activation stays on direct PostgreSQL and never falls through to Supabase", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const routeStart = routesSource.indexOf('app.post("/api/tutor/students/:studentId/topic-conditioning"');
+  const routeEnd = routesSource.indexOf("ensureStudentForEnrollment = async", routeStart);
+  const routeSource = routesSource.slice(routeStart, routeEnd);
+  const emergencyStart = routeSource.indexOf("if (isEmergencyDbMode())");
+  const normalStart = routeSource.indexOf('const { data: existingActivations', emergencyStart);
+  const emergencyBranch = routeSource.slice(emergencyStart, normalStart);
+
+  assert.ok(routeStart >= 0);
+  assert.ok(routeEnd > routeStart);
+  assert.match(emergencyBranch, /pool\.query/);
+  assert.match(emergencyBranch, /INSERT INTO public\.topic_conditioning_activations/);
+  assert.doesNotMatch(emergencyBranch, /supabase\./);
+  assert.match(routeSource, /storage\.getStudent\(studentId\)/);
+  assert.match(routeSource, /Unauthorized: Student does not belong to this tutor/);
+});
 
 test("emergency tutor mode prefers the exact assignment certification mode", () => {
   assert.equal(resolveEmergencyTutorMode({ assignmentMode: "training", certificationMode: "sandbox" }), "sandbox");
@@ -717,5 +739,398 @@ test("emergency encryption rejects invalid keys and preserves the failure-closed
   assert.throws(
     () => createEmergencyFileBundle(Buffer.from("abc"), "not-a-32-byte-key"),
     /EMERGENCY_DOCUMENT_ENCRYPTION_KEY must resolve to exactly 32 bytes/i,
+  );
+});
+
+test("signin keeps account-existence details server-side while returning enumeration-safe public copy", () => {
+  const authSource = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
+  assert.match(authSource, /internalReason: result\.reason/);
+  assert.match(authSource, /Email or password is incorrect/);
+  assert.match(authSource, /Too many login attempts\. Please wait a few minutes and try again\./);
+  assert.doesNotMatch(authSource, /res\.status\(401\)\.json\(\{ message: "Account not found"/);
+  assert.doesNotMatch(authSource, /res\.status\(401\)\.json\(\{ message: "Wrong password"/);
+});
+
+
+test("emergency mode drift self-heals assignment only in Vercel Preview", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const modeStart = routesSource.indexOf("async function getTutorCertificationMode");
+  const modeEnd = routesSource.indexOf("async function getTutorSandboxReadiness", modeStart);
+  const modeSource = routesSource.slice(modeStart, modeEnd);
+
+  assert.match(modeSource, /process\.env\.VERCEL_ENV === "preview"/);
+  assert.match(modeSource, /UPDATE public\.tutor_assignments/);
+  assert.match(modeSource, /SET operational_mode = \$1/);
+  assert.match(modeSource, /AND tutor_id = \$3/);
+  assert.match(modeSource, /operational_mode <> \$1/);
+  assert.match(modeSource, /preview assignment repaired/);
+  assert.match(modeSource, /return resolveEmergencyTutorMode\(\{ assignmentMode, certificationMode \}\)/);
+});
+
+
+test("training shadow comparison maps legacy snake-case transition before comparing", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const summaryStart = routesSource.indexOf("const computeTrainingSessionSummary");
+  const summaryEnd = routesSource.indexOf("const mapDrillRowToDeterministicSession", summaryStart);
+  const summarySource = routesSource.slice(summaryStart, summaryEnd);
+
+  assert.match(summarySource, /nextPhase: transition\.next_phase/);
+  assert.match(summarySource, /nextStability: transition\.next_stability/);
+  assert.match(summarySource, /transitionReason: normalizeTransitionReason\(transition\.transition_reason\)/);
+  assert.doesNotMatch(summarySource, /legacyTransition: transition,/);
+});
+
+test("training shadow recovery can call transition reason normalization before its source declaration", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const recoveryStart = routesSource.indexOf("const repairRecentPreviewTrainingShadowComparison");
+  const helperStart = routesSource.indexOf("function normalizeTransitionReason");
+
+  assert.ok(recoveryStart >= 0);
+  assert.ok(helperStart > recoveryStart);
+  assert.match(routesSource, /function normalizeTransitionReason\(value: unknown\): TransitionReason/);
+  assert.doesNotMatch(routesSource, /const normalizeTransitionReason =/);
+});
+
+test("preview startup repairs one recent real training shadow row in normal or emergency auth mode", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const repairStart = routesSource.indexOf("const repairRecentPreviewTrainingShadowComparison");
+  const repairEnd = routesSource.indexOf("type NormalizedEvidenceSet", repairStart);
+  const repairSource = routesSource.slice(repairStart, repairEnd);
+
+  assert.match(repairSource, /process\.env\.VERCEL_ENV !== "preview"/);
+  assert.doesNotMatch(
+    repairSource,
+    /VERCEL_ENV !== "preview"\s*\|\|\s*!isEmergencyDbMode\(\)/,
+  );
+  assert.match(repairSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(repairSource, /d\.submitted_at >= NOW\(\) - INTERVAL '8 hours'/);
+  assert.match(repairSource, /\.from\("intro_session_drills"\)/);
+  assert.match(repairSource, /\.from\("training_evidence_shadow_comparisons"\)/);
+  assert.match(repairSource, /\.gte\("submitted_at", cutoff\)/);
+  assert.match(repairSource, /candidateDrill\?\.drillType !== "training"/);
+  assert.match(repairSource, /evidenceShadow\?\.status !== "evaluated"/);
+  assert.match(repairSource, /compareTrainingEvidenceShadowToLegacy/);
+  assert.match(repairSource, /await persistTrainingShadowComparison/);
+  assert.match(repairSource, /LIMIT 1/);
+  assert.match(repairSource, /previewTrainingShadowRecoveryStatus/);
+  assert.match(repairSource, /\/api\/proof\/training-shadow-recovery-status/);
+  const diagnosticRouteStart = repairSource.indexOf(
+    '"/api/proof/training-shadow-recovery-status"',
+  );
+  const diagnosticRouteSource = repairSource.slice(
+    diagnosticRouteStart,
+    repairSource.indexOf("type NormalizedEvidenceSet", diagnosticRouteStart),
+  );
+  assert.doesNotMatch(diagnosticRouteSource, /isAuthenticated/);
+  assert.match(diagnosticRouteSource, /candidateFound/);
+  assert.match(diagnosticRouteSource, /comparisonCreated/);
+  assert.match(diagnosticRouteSource, /failureKind/);
+  assert.doesNotMatch(diagnosticRouteSource, /\.\.\.previewTrainingShadowRecoveryStatus/);
+  assert.match(repairSource, /VERCEL_GIT_COMMIT_SHA/);
+});
+
+
+test("sandbox family scheduling keeps payment authority separate from sandbox quota state", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+
+  const accessStart = routesSource.indexOf("async function ensurePremiumAccessForParent");
+  const accessEnd = routesSource.indexOf("async function ensurePremiumAccessForStudent", accessStart);
+  const accessSource = routesSource.slice(accessStart, accessEnd);
+
+  assert.ok(accessStart >= 0);
+  assert.ok(accessEnd > accessStart);
+  assert.doesNotMatch(accessSource, /hasActiveSandboxMembership/);
+  assert.doesNotMatch(accessSource, /onboardingType:\s*"sandbox"/);
+
+  const quotaStart = routesSource.indexOf("async function getMonthlySessionQuotaSnapshot");
+  const quotaEnd = routesSource.indexOf("async function resolveEnrollmentIdForSession", quotaStart);
+  const quotaSource = routesSource.slice(quotaStart, quotaEnd);
+
+  assert.match(quotaSource, /WITH completed_keys AS/);
+  assert.match(quotaSource, /public\.training_session_runs/);
+  assert.match(quotaSource, /public\.session_billing_events/);
+  assert.match(quotaSource, /sessions_remaining: sessionsRemaining/);
+
+  const acceptStart = routesSource.indexOf('app.post("/api/parent/proposal/accept"');
+  const acceptEnd = routesSource.indexOf('app.post("/api/parent/proposal/decline"', acceptStart);
+  const acceptSource = routesSource.slice(acceptStart, acceptEnd);
+
+  assert.match(acceptSource, /\.in\("status", \["proposal_sent", "session_booked"\]\)/);
+  assert.match(acceptSource, /payfastSandboxForEnrollment/);
+  assert.match(acceptSource, /PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID/);
+  assert.match(acceptSource, /payfastSandboxForEnrollment\s*\?\s*withPayfastSignature/);
+  assert.doesNotMatch(
+    acceptSource.slice(
+      acceptSource.indexOf("const payfastFields = payfastSandboxForEnrollment"),
+      acceptSource.indexOf("return res.json", acceptSource.indexOf("const payfastFields = payfastSandboxForEnrollment")),
+    ),
+    /custom_str1/,
+  );
+  assert.match(acceptSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(acceptSource, /public\.payment_transactions/);
+  assert.match(acceptSource, /ON CONFLICT \(merchant_reference\)/);
+
+  const sandboxConfirmStart = routesSource.indexOf(
+    'app.post("/api/parent/payments/payfast/sandbox-confirm"',
+  );
+  const sandboxConfirmEnd = routesSource.indexOf(
+    '// Generate student code for accepted proposal',
+    sandboxConfirmStart,
+  );
+  const sandboxConfirmSource = routesSource.slice(
+    sandboxConfirmStart,
+    sandboxConfirmEnd,
+  );
+
+  assert.ok(sandboxConfirmStart >= 0);
+  assert.ok(sandboxConfirmEnd > sandboxConfirmStart);
+  assert.match(sandboxConfirmSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(sandboxConfirmSource, /public\.payment_transactions/);
+  assert.match(sandboxConfirmSource, /finalizeAcceptedProposalFromPayment/);
+
+  const finalizeStart = routesSource.indexOf(
+    "async function finalizeAcceptedProposalFromPayment",
+  );
+  const finalizeEnd = routesSource.indexOf(
+    "async function ",
+    finalizeStart + "async function finalizeAcceptedProposalFromPayment".length,
+  );
+  const finalizeSource = routesSource.slice(finalizeStart, finalizeEnd);
+
+  assert.ok(finalizeStart >= 0);
+  assert.ok(finalizeEnd > finalizeStart);
+  assert.match(finalizeSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(finalizeSource, /FOR UPDATE/);
+  assert.match(finalizeSource, /UPDATE public\.parent_enrollments/);
+  assert.match(finalizeSource, /UPDATE public\.onboarding_proposals/);
+});
+
+test("specialist High Maintenance prep stays in the current phase until confirmation", () => {
+  const source = readFileSync(
+    resolve(process.cwd(), "client/src/components/tutor/StudentTopicConditioningDialog.tsx"),
+    "utf8",
+  );
+
+  const prepStart = source.indexOf("function nextPrepPhaseFor");
+  const prepEnd = source.indexOf("function actionGuidanceFor", prepStart);
+  const prepSource = source.slice(prepStart, prepEnd);
+
+  assert.ok(prepStart >= 0);
+  assert.ok(prepEnd > prepStart);
+  assert.match(prepSource, /if \(stability === "High Maintenance"\) return phase;/);
+  assert.doesNotMatch(source, /Advance Threshold Met/);
+  assert.match(source, /Maintenance Confirmation/);
+  assert.match(
+    source,
+    /Confirm it in a later qualifying Controlled Discomfort drill before progressing into Time Pressure Stability\./,
+  );
+});
+
+test("PayFast sandbox config never falls back to live merchant credentials", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const configStart = routesSource.indexOf("const PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID");
+  const configEnd = routesSource.indexOf("function buildPackagePaymentDescription", configStart);
+  const configSource = routesSource.slice(configStart, configEnd);
+
+  assert.ok(configStart >= 0);
+  assert.ok(configEnd > configStart);
+  assert.match(configSource, /PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID = "10004002"/);
+  assert.match(configSource, /PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY = "q1cd2rdny4a53"/);
+  assert.match(configSource, /PAYFAST_PUBLIC_SANDBOX_PASSPHRASE = "payfast"/);
+  assert.doesNotMatch(configSource, /PAYFAST_SANDBOX_MERCHANT_ID/);
+  assert.doesNotMatch(configSource, /PAYFAST_SANDBOX_MERCHANT_KEY/);
+  assert.match(configSource, /merchantId: PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID/);
+  assert.match(configSource, /merchantKey: PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY/);
+  assert.match(configSource, /passphrase: PAYFAST_PUBLIC_SANDBOX_PASSPHRASE/);
+  assert.match(configSource, /isValidPayfastMerchantId\(config\.merchantId\)/);
+  assert.match(configSource, /isValidPayfastMerchantKey\(config\.merchantKey\)/);
+});
+
+test("PayFast sandbox checkout signature matches the documented shared account and minimal field set", () => {
+  const values = {
+    merchant_id: "10004002",
+    merchant_key: "q1cd2rdny4a53",
+    return_url: "https://app.responseintegrity.co.za/client/parent/gateway?payfast=return&merchantReference=response-integrity-package-test",
+    cancel_url: "https://app.responseintegrity.co.za/client/parent/gateway?payfast=cancelled&merchantReference=response-integrity-package-test",
+    m_payment_id: "response-integrity-package-test",
+    amount: "1600.00",
+    item_name: "8-Session Monthly Package",
+  };
+
+  assert.equal(
+    buildPayfastCheckoutSignature(values, "payfast"),
+    "e20fe96ad84f685cb1c78c0a410eff04",
+  );
+
+  const signed = withPayfastSignature(values, "payfast");
+  assert.deepEqual(Object.keys(signed), [
+    "merchant_id",
+    "merchant_key",
+    "return_url",
+    "cancel_url",
+    "m_payment_id",
+    "amount",
+    "item_name",
+    "signature",
+  ]);
+  assert.equal(signed.signature, "e20fe96ad84f685cb1c78c0a410eff04");
+});
+
+test("Sandbox PayFast return uses a public relay and returns to the initiating app origin", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const relaySource = readFileSync(
+    resolve(process.cwd(), "client/public/payfast-sandbox-return.html"),
+    "utf8",
+  );
+
+  const helperStart = routesSource.indexOf("const PAYFAST_SANDBOX_BRANCH_RELAY_BASE_URL");
+  const helperEnd = routesSource.indexOf("function usePayfastSandbox", helperStart);
+  const helperSource = routesSource.slice(helperStart, helperEnd);
+
+  assert.ok(helperStart >= 0);
+  assert.ok(helperEnd > helperStart);
+  assert.match(
+    helperSource,
+    /tt-confidence-hub-git-feat-evi-31b8c6-relief-works-technologies\.vercel\.app/,
+  );
+  assert.match(helperSource, /req\.get\("origin"\)/);
+  assert.match(helperSource, /targetOrigin/);
+  assert.match(helperSource, /buildPayfastSandboxReturnUrl/);
+  assert.match(helperSource, /hostname === "localhost"/);
+  assert.match(helperSource, /hostname\.endsWith\("\.vercel\.app"\)/);
+
+  const acceptStart = routesSource.indexOf('app.post("/api/parent/proposal/accept"');
+  const acceptEnd = routesSource.indexOf('app.post("/api/parent/proposal/decline"', acceptStart);
+  const acceptSource = routesSource.slice(acceptStart, acceptEnd);
+
+  assert.match(
+    acceptSource,
+    /return_url: buildPayfastSandboxReturnUrl\(req, "return", merchantReference\)/,
+  );
+  assert.match(
+    acceptSource,
+    /cancel_url: buildPayfastSandboxReturnUrl\(req, "cancelled", merchantReference\)/,
+  );
+
+  assert.match(relaySource, /targetOrigin/);
+  assert.match(relaySource, /window\.location\.replace\(destination\.toString\(\)\)/);
+  assert.match(relaySource, /host === "localhost"/);
+  assert.match(relaySource, /host\.endsWith\("\.vercel\.app"\)/);
+  assert.match(relaySource, /"\/client\/parent\/gateway"/);
+});
+
+test("Sandbox payment gate stays actionable from Parent Sessions and returns there after checkout", () => {
+  const sessionsSource = readFileSync(
+    resolve(process.cwd(), "client/src/pages/client/parent/sessions.tsx"),
+    "utf8",
+  );
+  const gatewaySource = readFileSync(
+    resolve(process.cwd(), "client/src/pages/client/parent/gateway.tsx"),
+    "utf8",
+  );
+
+  assert.match(sessionsSource, /\/api\/parent\/proposal\/accept/);
+  assert.match(sessionsSource, /Complete Sandbox Payment/);
+  assert.match(sessionsSource, /submitExternalPaymentForm\(payload\.checkoutUrl, payload\.formFields\)/);
+  assert.match(sessionsSource, /PAYFAST_RETURN_PATH_STORAGE_KEY/);
+  assert.match(sessionsSource, /"\/client\/parent\/sessions"/);
+  assert.match(gatewaySource, /const returnPath = window\.sessionStorage\.getItem\(PAYFAST_RETURN_PATH_STORAGE_KEY\)/);
+  assert.match(gatewaySource, /navigate\(returnPath, \{ replace: true \}\)/);
+  assert.match(gatewaySource, /assertPayfastCheckoutFields\(data\.formFields, data\?\.sandbox === true\)/);
+});
+
+test("assignment acceptance refreshes the canonical workflow query immediately", () => {
+  const hookSource = readFileSync(
+    resolve(process.cwd(), "client/src/hooks/useStudentWorkflowState.ts"),
+    "utf8",
+  );
+  const cardSource = readFileSync(
+    resolve(process.cwd(), "client/src/components/tutor/StudentCard.tsx"),
+    "utf8",
+  );
+
+  assert.match(
+    hookSource,
+    /const studentWorkflowQueryKey = \([\s\S]*?\[apiBasePath, "students", studentId, "workflow-state"\] as const;/,
+  );
+  assert.match(
+    hookSource,
+    /useRespondToAssignment[\s\S]*?refetchQueries\(\{[\s\S]*?queryKey: studentWorkflowQueryKey\(studentId\)/,
+  );
+  assert.doesNotMatch(
+    cardSource,
+    /assignmentAccepted:\s*student\.pendingTutorAcceptance\s*\?/,
+  );
+});
+
+test("emergency assignment acceptance advances the enrollment on the direct DB path", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const routeStart = routesSource.indexOf(
+    'app.post(\n    "/api/tutor/students/:studentId/workflow/assignment-decision"',
+  );
+  const routeEnd = routesSource.indexOf(
+    'app.post(\n    "/api/tutor/students/:studentId/workflow/intro-completed"',
+    routeStart,
+  );
+  const routeSource = routesSource.slice(routeStart, routeEnd);
+
+  assert.ok(routeStart >= 0);
+  assert.ok(routeEnd > routeStart);
+  assert.match(routeSource, /if \(isEmergencyDbMode\(\)\) \{[\s\S]*?UPDATE public\.parent_enrollments/);
+  assert.match(routeSource, /status = \$3,[\s\S]*?current_step = \$4/);
+  assert.match(routeSource, /RETURNING id, user_id, status, current_step, assigned_tutor_id/);
+});
+
+test("parent intro proposal uses direct PostgreSQL in emergency mode", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const routeStart = routesSource.indexOf('app.post("/api/parent/intro-session/propose"');
+  const routeEnd = routesSource.indexOf("// Parent intro session confirmation status", routeStart);
+  const routeSource = routesSource.slice(routeStart, routeEnd);
+
+  assert.ok(routeStart >= 0);
+  assert.ok(routeEnd > routeStart);
+  assert.match(routeSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(routeSource, /SELECT \*[\s\S]*?FROM public\.parent_enrollments/);
+  assert.match(routeSource, /INSERT INTO public\.scheduled_sessions/);
+  assert.match(routeSource, /UPDATE public\.parent_enrollments[\s\S]*?intro_session_booked/);
+  assert.match(routeSource, /return res\.status\(200\)\.json/);
+});
+
+test("proposal surfaces ignore partial evidence-native diagnosis artifacts", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const runnerSource = readFileSync(
+    resolve(process.cwd(), "client/src/components/tutor/EvidenceCompleteDiagnosisRunner.tsx"),
+    "utf8",
+  );
+
+  const latestStart = routesSource.indexOf(
+    'app.get("/api/tutor/students/:studentId/latest-intro-drill"',
+  );
+  const latestEnd = routesSource.indexOf(
+    '// Tutor: Activate a topic for a student',
+    latestStart,
+  );
+  const latestRoute = routesSource.slice(latestStart, latestEnd);
+
+  assert.ok(latestStart >= 0);
+  assert.ok(latestEnd > latestStart);
+  assert.match(latestRoute, /response_integrity_diagnosis_runs/);
+  assert.match(latestRoute, /r\.status = 'completed'/);
+  assert.match(latestRoute, /r\.source_drill_id::text = d\.id::text/);
+
+  const proposalStart = routesSource.indexOf('app.post("/api/tutor/proposal"');
+  const proposalEnd = routesSource.indexOf(
+    "// Parent: Get proposal",
+    proposalStart,
+  );
+  const proposalRoute = routesSource.slice(proposalStart, proposalEnd);
+
+  assert.ok(proposalStart >= 0);
+  assert.match(proposalRoute, /Diagnosis finalization is incomplete/);
+  assert.match(proposalRoute, /status = 'completed'/);
+
+  assert.match(
+    runnerSource,
+    /!state\.finalized && state\.decision\?\.complete[\s\S]*?postHistory\(id, state\.probeHistory\)/,
   );
 });

@@ -27,13 +27,11 @@
 - `PAYFAST_MERCHANT_KEY`
 - `PAYFAST_PASSPHRASE`
 - `PAYFAST_SANDBOX=true` for sandbox
-- `PAYFAST_SANDBOX_MERCHANT_ID` (optional)
-- `PAYFAST_SANDBOX_MERCHANT_KEY` (optional)
-- `PAYFAST_SANDBOX_PASSPHRASE` (optional)
+- Sandbox checkout is pinned to PayFast's documented public test credentials in code for Proof/Sandbox testing
 - `APP_BASE_URL=https://app.responseintegrity.co.za`
 - `API_PUBLIC_URL=https://api.responseintegrity.co.za`
 
-If sandbox uses different PayFast credentials than live, set the sandbox-specific vars. Otherwise the live credentials are reused in sandbox mode.
+Sandbox never reuses live PayFast credentials. Proof/Sandbox checkout uses PayFast's currently documented shared sandbox account: `10004002` / `q1cd2rdny4a53` with passphrase `payfast`. The Sandbox POST is deliberately minimal (merchant credentials, return/cancel URLs, merchant reference, amount and item name only); all enrollment/proposal/student/tutor linkage remains server-side in `payment_transactions`. Checkout signatures use PayFast's payment-field order and PHP-compatible URL encoding. Live credentials are used only against the live PayFast endpoint.
 
 `APP_BASE_URL` and `API_PUBLIC_URL` must be public web URLs. PayFast does not accept local `localhost` callback URLs for live ITN flow.
 
@@ -65,3 +63,12 @@ If sandbox uses different PayFast credentials than live, set the sandbox-specifi
 2. Set the PayFast credentials and public URL env vars.
 3. In PayFast, use the same passphrase configured in `PAYFAST_PASSPHRASE`.
 4. Test sandbox checkout and confirm ITN reaches the notify endpoint.
+
+
+## Sandbox return relay
+
+PayFast rejects localhost return/cancel URLs. Sandbox checkout therefore posts public return/cancel URLs to `/payfast-sandbox-return.html` on the current Preview/public relay host. The relay carries only the payment state, merchant reference, and a validated initiating app origin.
+
+After PayFast completes or cancels the sandbox transaction, the relay returns the browser to the original Response Integrity origin that started checkout (for example local development or the active Vercel Preview). The parent gateway then performs the existing authenticated sandbox confirmation against the pending `payment_transactions` row.
+
+Allowed relay targets are limited to localhost/127.0.0.1, Vercel Preview hosts, and Response Integrity hosts. Live PayFast checkout does not use this relay.

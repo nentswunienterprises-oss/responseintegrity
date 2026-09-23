@@ -14,6 +14,7 @@ import ProposalView from "@/components/parent/ProposalView";
 import { PushOptInCard } from "@/components/push/PushOptInCard";
 import { useNavigate } from "react-router-dom";
 import { getAuthMode } from "@/lib/authMode";
+import { getParentDashboardCopyByState } from "@shared/topicConditioningEngine";
 
 interface StudentStats {
   introDiagnosisCompleted?: number;
@@ -65,188 +66,6 @@ type ParentTopicState = {
   previousStability?: string | null;
   movement?: "none" | "improved" | "regressed" | "changed";
   bucket?: "active" | "recent" | "older";
-};
-
-const PARENT_STATE_ENGINE: Record<PhaseLabel, Record<StabilityLabel, ParentStateCopy>> = {
-  Clarity: {
-    Low: {
-      status: "Your child is still building a clear understanding of this topic.",
-      meaning: "They are not yet fully comfortable with the terms, steps, or logic involved.",
-      focus: "We are rebuilding the foundation so they can clearly recognize and understand the problem.",
-    },
-    Medium: {
-      status: "Your child is beginning to understand this topic more clearly.",
-      meaning: "They can follow explanations, but still need reinforcement to apply it independently.",
-      focus: "We are increasing practice and helping them apply the method more consistently.",
-    },
-    High: {
-      status: "Your child now understands this topic clearly.",
-      meaning: "They can recognize the problem and explain the steps with confidence.",
-      focus: "We are moving into independent problem-solving to build execution.",
-    },
-    "High Maintenance": {
-      status: "Your child has sustained strong clarity in this topic.",
-      meaning: "They have held high performance consistently and are ready for progression decisions.",
-      focus: "We are now transitioning into Structured Execution training.",
-    },
-  },
-  "Structured Execution": {
-    Low: {
-      status: "Your child is learning to apply the steps correctly.",
-      meaning: "They understand the topic but struggle to follow the method consistently on their own.",
-      focus: "We are reinforcing a clear step-by-step approach so they can start and complete problems reliably.",
-    },
-    Medium: {
-      status: "Your child is becoming more consistent in solving problems.",
-      meaning: "They can follow the method in many cases, but still show occasional inconsistency.",
-      focus: "We are increasing independent practice to strengthen consistency.",
-    },
-    High: {
-      status: "Your child can now solve problems consistently in this topic.",
-      meaning: "They are able to follow the correct steps independently with minimal support.",
-      focus: "We are verifying sustained high execution through repeated, constrained practice before introducing more challenging questions to strengthen their response under difficulty.",
-    },
-    "High Maintenance": {
-      status: "Your child has sustained strong execution consistency in this topic.",
-      meaning: "They have held high execution quality across sessions and are ready for progression decisions.",
-      focus: "We are now transitioning into Controlled Discomfort training.",
-    },
-  },
-  "Controlled Discomfort": {
-    Low: {
-      status: "Your child is starting to face more challenging problems in this topic.",
-      meaning: "They can solve basic problems, but struggle when questions become less familiar.",
-      focus: "We are helping them stay calm and start correctly even when the problem feels difficult.",
-    },
-    Medium: {
-      status: "Your child is improving in handling difficult questions.",
-      meaning: "They can work through unfamiliar problems, but still show hesitation at times.",
-      focus: "We are increasing exposure to harder questions to build stability under difficulty.",
-    },
-    High: {
-      status: "Your child is handling difficult problems well.",
-      meaning: "They are able to stay structured and solve unfamiliar questions with stability.",
-      focus: "We are preparing them to perform under time pressure.",
-    },
-    "High Maintenance": {
-      status: "Your child has sustained strong performance under challenge in this topic.",
-      meaning: "They have held high stability in difficult work and are ready for progression decisions.",
-      focus: "We are now transitioning into Time Pressure Stability training.",
-    },
-  },
-  "Time Pressure Stability": {
-    Low: {
-      status: "Your child is learning to stay structured under time pressure.",
-      meaning: "They can solve problems, but may lose structure when working against the clock.",
-      focus: "We are helping them maintain their method while working within time limits.",
-    },
-    Medium: {
-      status: "Your child is becoming more stable under time pressure.",
-      meaning: "They are improving their ability to complete problems within time while staying structured.",
-      focus: "We are increasing timed practice to strengthen consistency.",
-    },
-    High: {
-      status: "Your child is performing consistently under time pressure.",
-      meaning: "They can solve problems accurately and maintain structure even under time constraints.",
-      focus: "We are maintaining performance and preparing them to transfer this skill to new topics.",
-    },
-    "High Maintenance": {
-      status: "Your child has sustained top stability under time pressure.",
-      meaning: "They consistently maintain structure and accuracy under timed conditions.",
-      focus: "We are maintaining performance and expanding transfer across related topics.",
-    },
-  },
-};
-
-const PARENT_DIAGNOSIS_ENGINE: Record<PhaseLabel, Record<StabilityLabel, ParentStateCopy>> = {
-  Clarity: {
-    Low: {
-      status: "The intro diagnosis shows that this topic still needs foundation building.",
-      meaning: "Your child is not yet consistently clear on what the problem is asking or what structure to use first.",
-      focus: "Training will begin by rebuilding recognition, language, and first-step accuracy.",
-    },
-    Medium: {
-      status: "The intro diagnosis shows that clarity is starting to form in this topic.",
-      meaning: "Your child can follow parts of the explanation, but the structure is not yet stable enough to apply independently.",
-      focus: "Training will begin by strengthening problem recognition and clearer first steps.",
-    },
-    High: {
-      status: "The intro diagnosis shows that this topic is already clear enough to move beyond explanation alone.",
-      meaning: "Your child can recognize the problem and explain the structure, but still needs training to hold that understanding independently.",
-      focus: "Training will begin by moving from clarity into more independent execution.",
-    },
-    "High Maintenance": {
-      status: "The intro diagnosis shows strong clarity in this topic.",
-      meaning: "Your child is entering with a clear enough understanding to begin higher-order execution work.",
-      focus: "Training will begin from Structured Execution rather than reteaching the foundation.",
-    },
-  },
-  "Structured Execution": {
-    Low: {
-      status: "The intro diagnosis shows that the method is not yet stable in this topic.",
-      meaning: "Your child can begin the work, but the step order and method use still break down without support.",
-      focus: "Training will begin by building a more repeatable step-by-step method.",
-    },
-    Medium: {
-      status: "The intro diagnosis shows partial execution consistency in this topic.",
-      meaning: "Your child can use the correct method in many cases, but it is not yet stable enough to treat as trained performance.",
-      focus: "Training will begin by strengthening independent starts and more consistent method use.",
-    },
-    High: {
-      status: "The intro diagnosis shows strong execution in this topic.",
-      meaning: "Your child is entering with a method that is mostly intact, but it still needs training under harder conditions before progression.",
-      focus: "Training will begin by confirming this execution level and then increasing challenge carefully.",
-    },
-    "High Maintenance": {
-      status: "The intro diagnosis shows sustained execution strength in this topic.",
-      meaning: "Your child is entering above basic execution and may be ready for challenge-based work sooner.",
-      focus: "Training will begin from a stronger starting point and test stability before advancing further.",
-    },
-  },
-  "Controlled Discomfort": {
-    Low: {
-      status: "The intro diagnosis shows that challenge currently destabilizes this topic.",
-      meaning: "Your child can work in familiar conditions, but structure breaks when the work feels harder or less familiar.",
-      focus: "Training will begin by keeping structure intact when discomfort appears.",
-    },
-    Medium: {
-      status: "The intro diagnosis shows partial stability under challenge in this topic.",
-      meaning: "Your child can handle some unfamiliar difficulty, but hesitation and inconsistency still show up.",
-      focus: "Training will begin by building steadier responses in harder work.",
-    },
-    High: {
-      status: "The intro diagnosis shows strong handling of challenge in this topic.",
-      meaning: "Your child can stay relatively structured when the work pushes back, but that still needs to be confirmed through training.",
-      focus: "Training will begin from this stronger challenge-response position and prepare for time pressure later.",
-    },
-    "High Maintenance": {
-      status: "The intro diagnosis shows unusually strong challenge handling in this topic.",
-      meaning: "Your child is entering with a stable response to unfamiliar work and may be near time-pressure preparation.",
-      focus: "Training will begin by confirming that stability before introducing more pace pressure.",
-    },
-  },
-  "Time Pressure Stability": {
-    Low: {
-      status: "The intro diagnosis shows that time pressure currently disrupts this topic.",
-      meaning: "Your child can solve the work, but loses structure once pace is added.",
-      focus: "Training will begin by protecting method and decision-making under time pressure.",
-    },
-    Medium: {
-      status: "The intro diagnosis shows partial time-pressure stability in this topic.",
-      meaning: "Your child can hold some structure while timed, but not consistently enough yet.",
-      focus: "Training will begin by stabilizing decisions and method under pace.",
-    },
-    High: {
-      status: "The intro diagnosis shows strong timed stability in this topic.",
-      meaning: "Your child is entering with relatively stable structure under pace, but that still needs confirmation across training.",
-      focus: "Training will begin from this stronger timed baseline and test whether it holds reliably.",
-    },
-    "High Maintenance": {
-      status: "The intro diagnosis shows top-end timed stability in this topic.",
-      meaning: "Your child is entering from a highly stable timed starting point rather than building up from earlier phases.",
-      focus: "Training will begin by maintaining that level and checking transfer across related work.",
-    },
-  },
 };
 
 function normalizeTopicText(value?: string | null): string[] {
@@ -319,108 +138,195 @@ function extractTopicConditioning(proposal: any) {
   };
 }
 
+const DASHBOARD_SIGNALS_BY_STATE: Record<PhaseLabel, Record<StabilityLabel, string[]>> = {
+  Clarity: {
+    Low: [
+      "Recognition of what the question is asking is still inconsistent",
+      "Method selection often needs support",
+      "First steps are not yet reliably structured",
+      "The foundation is still being rebuilt",
+    ],
+    Medium: [
+      "The question is usually understood with some support",
+      "Correct method selection is appearing more often",
+      "First steps are becoming more accurate",
+      "Clarity is forming but still varies across problems",
+    ],
+    High: [
+      "The question is being read and interpreted accurately",
+      "The right method is being selected early and with little support",
+      "First steps are accurate and appropriately structured",
+      "Strong clarity is visible; RI is now watching whether it stays reliable across different questions and repeated sessions",
+    ],
+    "High Maintenance": [
+      "Accurate recognition is holding across different questions",
+      "Correct method selection is repeatable without support",
+      "First steps remain accurate across sessions",
+      "Clarity is sustained and ready for a progression decision",
+    ],
+  },
+  "Structured Execution": {
+    Low: [
+      "The correct method is not yet being held consistently from start to finish",
+      "Step order still breaks without support",
+      "Independent starts are unreliable",
+      "Execution needs rebuilding before more pressure is added",
+    ],
+    Medium: [
+      "Independent starts are becoming more consistent",
+      "The correct method is being held through more of the problem",
+      "Step order is improving across attempts",
+      "Execution is strengthening but still varies",
+    ],
+    High: [
+      "The correct method is being applied independently",
+      "Step order is accurate and repeatable",
+      "Problems are being carried through with minimal support",
+      "Strong execution is visible; RI is now watching whether it stays reliable across varied problems and repeated sessions",
+    ],
+    "High Maintenance": [
+      "Independent execution is holding across varied problems",
+      "Step order remains reliable without prompting",
+      "The method is sustained across sessions",
+      "Execution is sustained and ready for a progression decision",
+    ],
+  },
+  "Controlled Discomfort": {
+    Low: [
+      "Structure breaks when the work becomes harder or unfamiliar",
+      "Hesitation rises quickly under challenge",
+      "Support is still needed to restart after difficulty appears",
+      "Response control under challenge is still being built",
+    ],
+    Medium: [
+      "Structure is holding through more difficult work",
+      "Hesitation is reducing under challenge",
+      "Independent recovery is appearing more often",
+      "Control under difficulty is strengthening but still varies",
+    ],
+    High: [
+      "Structure is staying intact when the work becomes difficult",
+      "The student is continuing without early rescue when questions feel unfamiliar",
+      "Starts and decisions remain composed under challenge",
+      "Strong control is visible; RI is now watching whether it stays reliable across repeated difficult work",
+    ],
+    "High Maintenance": [
+      "Structure remains intact across varied difficult work",
+      "Composed starts are repeatable without rescue",
+      "Control under challenge is sustained across sessions",
+      "Challenge response is sustained and ready for a progression decision",
+    ],
+  },
+  "Time Pressure Stability": {
+    Low: [
+      "Structure becomes less reliable once pace pressure is added",
+      "Rushed decisions are still affecting execution",
+      "Completion quality drops under time limits",
+      "Timed stability is still being built",
+    ],
+    Medium: [
+      "Structure is holding for longer under pace pressure",
+      "Rushed breakdowns are becoming less frequent",
+      "Timed decisions are becoming more controlled",
+      "Time-pressure stability is strengthening but still varies",
+    ],
+    High: [
+      "Structure is staying intact under time pressure",
+      "Pace is controlled without sacrificing the method",
+      "Decisions and completion remain reliable while timed",
+      "Strong timed performance is visible; RI is now watching whether it stays reliable across varied timed work",
+    ],
+    "High Maintenance": [
+      "Structure remains reliable across varied timed work",
+      "Pace and decision quality hold across sessions",
+      "Completion remains stable under repeated time pressure",
+      "Timed performance is sustained and ready for transfer decisions",
+    ],
+  },
+};
+
 function getDashboardSignalsForState(
   phase: PhaseLabel | null,
-  diagnosisOnly: boolean,
+  stability: StabilityLabel | null,
 ): string[] {
-  switch (phase) {
-    case "Clarity":
-      return diagnosisOnly
-        ? [
-            "Clearer recognition of what the question is asking",
-            "Earlier correct method selection",
-            "Less confusion when beginning problems",
-            "More accurate first steps",
-          ]
-        : [
-            "Clearer recognition of what the question is asking",
-            "Earlier correct method selection",
-            "Less confusion during setup",
-            "More accurate first steps across sessions",
-          ];
-    case "Structured Execution":
-      return [
-        "Earlier independent starts",
-        "Less hesitation when beginning problems",
-        "More consistent method use",
-        "More stable step order without prompting",
-      ];
-    case "Controlled Discomfort":
-      return [
-        "Calmer starts when questions feel less familiar",
-        "Better structure holding in harder work",
-        "Less visible shutdown under challenge",
-        "More complete attempts on difficult questions",
-      ];
-    case "Time Pressure Stability":
-      return [
-        "Stronger structure while work is timed",
-        "Fewer rushed breakdowns",
-        "More reliable decisions under pace pressure",
-        "Less instability when speed is added",
-      ];
+  if (!phase || !stability) {
+    return [
+      "The current observed state is still being established",
+      "The next scored session will make the active response pattern clearer",
+    ];
+  }
+
+  return DASHBOARD_SIGNALS_BY_STATE[phase][stability];
+}
+
+function getStabilityParentRoleLine(stability: StabilityLabel | null): string | null {
+  switch (stability) {
+    case "Low":
+      return "Expect the current layer to be rebuilt before the system asks for more pressure.";
+    case "Medium":
+      return "Look for steadier repetition before treating the current response as secure.";
+    case "High":
+      return "Treat this as strong performance under confirmation, not as progression into the next training layer.";
+    case "High Maintenance":
+      return "Expect progression only after the system confirms that this sustained level has held reliably.";
     default:
-      return diagnosisOnly
-        ? [
-            "Clearer recognition of what the question is asking",
-            "Earlier correct method selection",
-            "Less confusion when beginning problems",
-            "More accurate first steps",
-          ]
-        : [
-            "Earlier independent starts",
-            "More consistent method use",
-            "Clearer structure across attempts",
-            "Steadier completion of the method",
-          ];
+      return null;
   }
 }
 
 function getParentRoleLinesForState(
   phase: PhaseLabel | null,
+  stability: StabilityLabel | null,
   diagnosisOnly: boolean,
 ): string[] {
   const baseLines = [
     "Keep session attendance steady and protected.",
-    "Use the tutor and training plan as the operating reference.",
+    "Use the Specialist and training plan as the operating reference.",
   ];
+
+  let phaseLines: string[];
 
   switch (phase) {
     case "Clarity":
-      return [
-        ...baseLines,
+      phaseLines = [
         diagnosisOnly
           ? "Let your child explain what the question is asking before stepping in with the answer."
           : "Look for clearer reading and better first-step recognition, not only marks.",
         "Do not rush them into speed before the structure is clear.",
       ];
+      break;
     case "Structured Execution":
-      return [
-        ...baseLines,
+      phaseLines = [
         "Let your child start the problem independently before stepping in.",
         diagnosisOnly
           ? "Look for steadier starts and method order, not speed or perfection yet."
           : "Look for more repeatable method use and steadier starts, not only marks.",
       ];
+      break;
     case "Controlled Discomfort":
-      return [
-        ...baseLines,
+      phaseLines = [
         "Let discomfort happen before stepping in with reassurance.",
         "Look for calmer starts and steadier attempts when the work feels harder.",
       ];
+      break;
     case "Time Pressure Stability":
-      return [
-        ...baseLines,
+      phaseLines = [
         "Protect focused timed work without adding extra panic from outside the session.",
         "Look for structure under pace, not just whether the answer was finished quickly.",
       ];
+      break;
     default:
-      return [
-        ...baseLines,
+      phaseLines = [
         "Look for steadier starts and clearer structure in the work.",
         "Do not rescue too early when the child is still trying to organize the method.",
       ];
+      break;
   }
+
+  const stabilityLine = getStabilityParentRoleLine(stability);
+  return stabilityLine
+    ? [...baseLines, ...phaseLines, stabilityLine]
+    : [...baseLines, ...phaseLines];
 }
 
 function normalizePhaseLabel(phase?: string | null) {
@@ -446,7 +352,7 @@ function stabilityIndicator(stability: StabilityLabel | null): "Developing" | "S
   return "Developing";
 }
 
-function parentCopyForState(phase?: string | null, stability?: string | null, diagnosisOnly = false): ParentStateCopy {
+function parentCopyForState(phase?: string | null, stability?: string | null): ParentStateCopy {
   const normalizedPhase = normalizePhaseLabel(phase);
   const normalizedStability = normalizeStabilityLabel(stability);
 
@@ -458,9 +364,7 @@ function parentCopyForState(phase?: string | null, stability?: string | null, di
     };
   }
 
-  return diagnosisOnly
-    ? PARENT_DIAGNOSIS_ENGINE[normalizedPhase][normalizedStability]
-    : PARENT_STATE_ENGINE[normalizedPhase][normalizedStability];
+  return getParentDashboardCopyByState(normalizedPhase, normalizedStability);
 }
 
 function formatDateLabel(dateText?: string | null): string {
@@ -484,15 +388,15 @@ function getCurrentStepCopy(introSession: IntroSessionInfo | null, hasProposal: 
 
   if (introSession?.status === "pending_tutor_confirmation") {
     return {
-      title: "Waiting For Tutor Confirmation",
-      description: "A time has been proposed for the intro session. The next move is tutor confirmation.",
+      title: "Waiting For Specialist Confirmation",
+      description: "A time has been proposed for the intro session. The next move is Specialist confirmation.",
     };
   }
 
   if (introSession?.status === "pending_parent_confirmation") {
     return {
       title: "Time Needs Your Confirmation",
-      description: "Your tutor proposed a new intro-session time. Confirming that time is the next move.",
+      description: "Your Specialist proposed a new intro-session time. Confirming that time is the next move.",
     };
   }
 
@@ -715,28 +619,33 @@ export default function ParentDashboard() {
       : [];
   const primaryDashboardTopic = topicCards[0] || null;
   const primaryDashboardPhase = normalizePhaseLabel(primaryDashboardTopic?.phase);
+  const primaryDashboardStability = normalizeStabilityLabel(primaryDashboardTopic?.stability);
   const currentBreakpointTopics = (topicCards.filter((item) => item.bucket === "active").length > 0
     ? topicCards.filter((item) => item.bucket === "active")
     : topicCards
   ).map((item) => item.topic);
   const currentBreakpointSummary = formatListWithAnd(currentBreakpointTopics) || focusArea;
-  const dashboardSignals = getDashboardSignalsForState(primaryDashboardPhase, isDiagnosisOnlyView);
-  const parentRoleLines = getParentRoleLinesForState(primaryDashboardPhase, isDiagnosisOnlyView);
+  const dashboardSignals = getDashboardSignalsForState(
+    primaryDashboardPhase,
+    primaryDashboardStability,
+  );
+  const parentRoleLines = getParentRoleLinesForState(
+    primaryDashboardPhase,
+    primaryDashboardStability,
+    isDiagnosisOnlyView,
+  );
   const multiTopicObservationBlocks = topicCards.length > 1
     ? topicCards.map((item) => ({
         topic: item.topic,
-        signals: getDashboardSignalsForState(normalizePhaseLabel(item.phase), isDiagnosisOnlyView).slice(0, 2),
-      }))
-    : [];
-  const multiTopicParentRoleBlocks = topicCards.length > 1
-    ? topicCards.map((item) => ({
-        topic: item.topic,
-        lines: getParentRoleLinesForState(normalizePhaseLabel(item.phase), isDiagnosisOnlyView).slice(-2),
+        signals: getDashboardSignalsForState(
+          normalizePhaseLabel(item.phase),
+          normalizeStabilityLabel(item.stability),
+        ).slice(-3),
       }))
     : [];
   const parentRoleNowLine = topicCards.length > 1
     ? `Read the topic cards individually because ${studentFirstName}'s current position is different across ${currentBreakpointSummary}.`
-    : parentRoleLines[2] || parentRoleLines[0] || "Use the tutor and training plan as the operating reference.";
+    : parentRoleLines[2] || parentRoleLines[0] || "Use the Specialist and training plan as the operating reference.";
   const diagnosisCompletedCount = stats?.introDiagnosisCompleted || 0;
   const activeTopicCount = topicCards.filter((item) => item.bucket === "active").length;
 
@@ -804,7 +713,7 @@ export default function ParentDashboard() {
       <PushOptInCard
         enabled
         title="Enable out-of-app alerts"
-        description="Turn on browser notifications so Response Integrity can alert you when reports are sent or when a tutor action needs your response."
+        description="Turn on browser notifications so Response Integrity can alert you when reports are sent or when a Specialist action needs your response."
       />
 
       {sessionsRemaining !== null && sessionsRemaining <= 2 && (
@@ -844,7 +753,7 @@ export default function ParentDashboard() {
             ) : (
               <div className="grid sm:grid-cols-2 gap-4">
                 {topicCards.map((row) => {
-                  const copy = parentCopyForState(row.phase, row.stability, isDiagnosisOnlyView);
+                  const copy = parentCopyForState(row.phase, row.stability);
                   const hasProgressUpdate = !isDiagnosisOnlyView && row.movement === "improved";
 
                   return (
@@ -906,12 +815,12 @@ export default function ParentDashboard() {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-[-0.01em]">
                 <UserRound className="w-5 h-5" />
-                Tutor Context
+                Specialist Context
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div>
-                <p className="text-muted-foreground">Assigned tutor</p>
+                <p className="text-muted-foreground">Assigned Specialist</p>
                 <p className="font-semibold text-foreground">{assignedTutor?.name || "Assigned through platform"}</p>
               </div>
               {assignedTutor?.bio && (
@@ -978,79 +887,40 @@ export default function ParentDashboard() {
         </CardContent>
       </Card>
 
-      <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
-        <Card className="border-primary/15">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold tracking-[-0.01em]">What is Being Observed</CardTitle>
-            <CardDescription>
-              {topicCards.length > 1
-                ? "These observations vary by topic:"
-                : isDiagnosisOnlyView
-                  ? "The diagnosis is pointing to these observable targets:"
-                  : "The current training is being tracked through these observable signals:"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {topicCards.length > 1 ? (
-              <div className="space-y-3">
-                {multiTopicObservationBlocks.map((block) => (
-                  <div key={block.topic} className="rounded-lg border border-primary/10 bg-muted/20 px-3 py-2">
-                    <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">{block.topic}</p>
-                    <ul className="mt-2 space-y-1 text-sm text-muted-foreground leading-relaxed">
-                      {block.signals.map((signal) => (
-                        <li key={`${block.topic}-${signal}`}>{signal}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <ul className="space-y-2 text-sm text-muted-foreground leading-relaxed">
-                {dashboardSignals.map((signal) => (
-                  <li key={signal}>{signal}</li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-primary/25 bg-background">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-semibold tracking-[-0.01em]">Parent Role</CardTitle>
-            <CardDescription>
-              {isDiagnosisOnlyView
-                ? "What helps the diagnosed starting point become trainable once sessions begin:"
-                : "What helps the system work as intended outside the session:"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {topicCards.length > 1 ? (
-              <div className="space-y-3">
-                <ul className="space-y-2 text-sm text-muted-foreground leading-relaxed">
-                  <li>Keep session attendance steady and protected.</li>
-                  <li>Use the tutor and training plan as the operating reference.</li>
-                </ul>
-                {multiTopicParentRoleBlocks.map((block) => (
-                  <div key={block.topic} className="rounded-lg border border-primary/10 bg-muted/20 px-3 py-2">
-                    <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">{block.topic}</p>
-                    <ul className="mt-2 space-y-1 text-sm text-muted-foreground leading-relaxed">
-                      {block.lines.map((line) => (
-                        <li key={`${block.topic}-${line}`}>{line}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <ul className="space-y-2 text-sm text-muted-foreground leading-relaxed">
-                {parentRoleLines.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="border-primary/15">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-semibold tracking-[-0.01em]">What is Being Observed</CardTitle>
+          <CardDescription>
+            {topicCards.length > 1
+              ? "These observations vary by topic:"
+              : isDiagnosisOnlyView
+                ? "The diagnosis is pointing to these observable signals:"
+                : "The current training is being tracked through these observable signals:"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {topicCards.length > 1 ? (
+            <div className="space-y-3">
+              {multiTopicObservationBlocks.map((block) => (
+                <div key={block.topic} className="rounded-lg border border-primary/10 bg-muted/20 px-3 py-2">
+                  <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">{block.topic}</p>
+                  <ul className="mt-2 space-y-1 text-sm text-muted-foreground leading-relaxed">
+                    {block.signals.map((signal) => (
+                      <li key={`${block.topic}-${signal}`}>{signal}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <ul className="space-y-2 text-sm text-muted-foreground leading-relaxed">
+              {dashboardSignals.map((signal) => (
+                <li key={signal}>{signal}</li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
         <Card className="lg:col-span-2 border-primary/15">
@@ -1099,7 +969,7 @@ export default function ParentDashboard() {
               Review Training Plan
             </Button>
             <Button variant="outline" className="w-full justify-start text-sm" onClick={() => navigate("/client/parent/updates?tab=messages")}>
-              Message Tutor
+              Message Specialist
             </Button>
             <Button variant="outline" className="w-full justify-start text-sm" onClick={() => navigate("/client/parent/progress?tab=analytics")}>
               View Analytics

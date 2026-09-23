@@ -343,24 +343,18 @@
       "has": [
         {
           "type": "host",
-          "value": "tt-confidence-hub-git-feat-dem-d053fe-relief-works-technologies.vercel.app"
+          "value": ".*\\.vercel\\.app"
         }
       ],
-      "missing": [
-        {
-          "type": "query",
-          "key": "__ri_internal"
-        }
-      ],
-      "destination": "/api/index?__ri_internal=1&__ri_path=:path*"
+      "destination": "/api/index?__previewPath=:path*"
     },
     {
       "source": "/api/:path*",
       "destination": "https://api.responseintegrity.co.za/api/:path*",
-      "missing": [
+      "has": [
         {
           "type": "host",
-          "value": "tt-confidence-hub-git-feat-dem-d053fe-relief-works-technologies.vercel.app"
+          "value": "^(?:(?:www|app)\\\\.)?responseintegrity\\\\.co\\\\.za$"
         }
       ]
     },
@@ -421,9 +415,14 @@
       "destination": "/leadershipdevelopmentpilot/index.html"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "generated/preview-api-runtime.mjs,server/**/*.ts,shared/**/*.ts,tsconfig.json"
+    }
+  },
   "ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD -- . ':(exclude).github/**' ':(exclude)scripts/demand-preview-e2e.mjs'"
 }

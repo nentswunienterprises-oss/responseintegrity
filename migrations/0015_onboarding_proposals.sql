@@ -40,7 +40,7 @@ END $$;
 CREATE TABLE IF NOT EXISTS onboarding_proposals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   enrollment_id UUID NOT NULL REFERENCES parent_enrollments(id),
-  tutor_id UUID NOT NULL REFERENCES auth.users(id),
+  tutor_id VARCHAR NOT NULL REFERENCES public.users(id),
   student_id VARCHAR NOT NULL REFERENCES students(id),
   
   -- Identity & Emotional Profile

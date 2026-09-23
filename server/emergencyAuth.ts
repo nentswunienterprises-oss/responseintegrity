@@ -48,10 +48,27 @@ export type EmergencyAuthUser = {
   raw_user_meta_data: Record<string, unknown> | null;
 };
 
+export type EmergencyAuthFailureReason =
+  | "account_not_found"
+  | "credential_not_provisioned"
+  | "password_mismatch"
+  | "account_unavailable"
+  | "throttled";
+
+export type EmergencyAuthFailure = {
+  error: "invalid" | "throttled";
+  reason: EmergencyAuthFailureReason;
+};
+
 const EMERGENCY_BCRYPT_WORK_FACTOR = 10;
+const PREVIEW_SANDBOX_PARENT_PASSWORD = "SandboxPass123!";
 
 export function emergencyExpectedRoleMatches(userRole: string, expectedRole?: string | null) {
   return !expectedRole || userRole === expectedRole;
+}
+
+export function isPreviewProofPersonaEmail(email: string) {
+  return email.trim().toLowerCase().endsWith("@proof.responseintegrity.co.za");
 }
 
 export type EmergencyTutorSignupInput = {
@@ -133,6 +150,35 @@ export async function verifyEmergencyPasswordForUser(passwordHash: string, passw
   return bcrypt.compare(password, passwordHash);
 }
 
+export async function provisionEmergencyCredentialForExistingUser(
+  pool: Pool,
+  userId: string,
+  password: string,
+) {
+  const passwordHash = await bcrypt.hash(password, EMERGENCY_BCRYPT_WORK_FACTOR);
+  await pool.query(
+    `INSERT INTO private.emergency_auth_credentials (user_id, password_hash)
+     VALUES ($1, $2)
+     ON CONFLICT (user_id) DO NOTHING`,
+    [userId, passwordHash],
+  );
+}
+
+export async function setEmergencyCredentialForExistingUser(
+  pool: Pool,
+  userId: string,
+  password: string,
+) {
+  const passwordHash = await bcrypt.hash(password, EMERGENCY_BCRYPT_WORK_FACTOR);
+  await pool.query(
+    `INSERT INTO private.emergency_auth_credentials (user_id, password_hash)
+     VALUES ($1, $2)
+     ON CONFLICT (user_id) DO UPDATE
+       SET password_hash = EXCLUDED.password_hash`,
+    [userId, passwordHash],
+  );
+}
+
 export function parseEmergencyDocumentEncryptionKey(rawKey?: string): Buffer {
   if (!rawKey || !rawKey.trim()) {
     throw new Error("EMERGENCY_DOCUMENT_ENCRYPTION_KEY is required for emergency onboarding file encryption.");
@@ -192,13 +238,13 @@ export async function authenticateEmergencyUser(
   email: string,
   password: string,
   ip: string,
-): Promise<{ authUser: EmergencyAuthUser } | { error: "invalid" | "throttled" }> {
+): Promise<{ authUser: EmergencyAuthUser } | EmergencyAuthFailure> {
   const normalizedEmail = email.trim().toLowerCase();
   const now = Date.now();
   const { key, attempt } = getAttempt(normalizedEmail, ip, now);
 
   if (attempt.blockedUntil > now) {
-    return { error: "throttled" };
+    return { error: "throttled", reason: "throttled" };
   }
 
   const result = await pool.query<EmergencyAuthUser & {
@@ -217,6 +263,14 @@ export async function authenticateEmergencyUser(
 
   const authUser = result.rows[0];
   const isBanned = authUser?.banned_until && new Date(authUser.banned_until).getTime() > now;
+  const authUserUnavailable = Boolean(
+    authUser &&
+      (!authUser.encrypted_password ||
+        authUser.deleted_at ||
+        authUser.is_anonymous ||
+        isBanned ||
+        !authUser.email_confirmed_at),
+  );
   const authUserMatches = Boolean(
     authUser &&
       authUser.encrypted_password &&
@@ -230,7 +284,13 @@ export async function authenticateEmergencyUser(
   if (authUser) {
     if (!authUserMatches) {
       recordFailure(key, attempt, now);
-      return { error: attempt.blockedUntil > now ? "throttled" : "invalid" };
+      if (attempt.blockedUntil > now) {
+        return { error: "throttled", reason: "throttled" };
+      }
+      return {
+        error: "invalid",
+        reason: authUserUnavailable ? "account_unavailable" : "password_mismatch",
+      };
     }
 
     attempts.delete(key);
@@ -256,7 +316,9 @@ export async function authenticateEmergencyUser(
   const publicUser = publicUserResult.rows[0];
   if (!publicUser) {
     recordFailure(key, attempt, now);
-    return { error: attempt.blockedUntil > now ? "throttled" : "invalid" };
+    return attempt.blockedUntil > now
+      ? { error: "throttled", reason: "throttled" }
+      : { error: "invalid", reason: "account_not_found" };
   }
 
   const credentialResult = await pool.query<{ user_id: string; password_hash: string }>(
@@ -267,7 +329,52 @@ export async function authenticateEmergencyUser(
     [publicUser.id],
   );
 
-  const credential = credentialResult.rows[0];
+  let credential = credentialResult.rows[0];
+
+  if (
+    !credential?.password_hash &&
+    process.env.VERCEL_ENV === "preview" &&
+    publicUser.role === "parent"
+  ) {
+    const sandboxEnrollmentResult = await pool.query<{ id: string }>(
+      `SELECT id
+         FROM public.parent_enrollments
+        WHERE user_id = $1
+          AND lower(parent_email) = $2
+          AND (
+            is_sandbox_account = true
+            OR assignment_lane = 'sandbox'
+          )
+        LIMIT 1`,
+      [publicUser.id, normalizedEmail],
+    );
+
+    if (sandboxEnrollmentResult.rows[0]) {
+      if (password !== PREVIEW_SANDBOX_PARENT_PASSWORD) {
+        recordFailure(key, attempt, now);
+        if (attempt.blockedUntil > now) {
+          return { error: "throttled", reason: "throttled" };
+        }
+        return { error: "invalid", reason: "password_mismatch" };
+      }
+
+      await provisionEmergencyCredentialForExistingUser(
+        pool,
+        publicUser.id,
+        PREVIEW_SANDBOX_PARENT_PASSWORD,
+      );
+
+      const repairedCredentialResult = await pool.query<{ user_id: string; password_hash: string }>(
+        `SELECT user_id, password_hash
+           FROM private.emergency_auth_credentials
+          WHERE user_id = $1
+          LIMIT 1`,
+        [publicUser.id],
+      );
+      credential = repairedCredentialResult.rows[0];
+    }
+  }
+
   const fallbackValid = Boolean(
     credential &&
       credential.password_hash &&
@@ -276,7 +383,13 @@ export async function authenticateEmergencyUser(
 
   if (!fallbackValid) {
     recordFailure(key, attempt, now);
-    return { error: attempt.blockedUntil > now ? "throttled" : "invalid" };
+    if (attempt.blockedUntil > now) {
+      return { error: "throttled", reason: "throttled" };
+    }
+    return {
+      error: "invalid",
+      reason: credential?.password_hash ? "password_mismatch" : "credential_not_provisioned",
+    };
   }
 
   attempts.delete(key);

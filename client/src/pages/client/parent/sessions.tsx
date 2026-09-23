@@ -16,6 +16,27 @@ import {
   buildTrainingSessionCancellationNote,
 } from "@/lib/trainingSessionCancellation";
 
+const PAYFAST_MERCHANT_REFERENCE_STORAGE_KEY = "parent-gateway:payfast-merchant-reference";
+const PAYFAST_RETURN_PATH_STORAGE_KEY = "parent-payfast:return-path";
+
+function submitExternalPaymentForm(action: string, fields: Record<string, string>) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = action;
+  form.style.display = "none";
+
+  Object.entries(fields).forEach(([key, value]) => {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = key;
+    input.value = value;
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
+}
+
 type ParentTrainingSession = {
   id: string;
   scheduled_time: string;
@@ -26,11 +47,19 @@ type ParentTrainingSession = {
   google_meet_url?: string | null;
   parent_confirmed?: boolean;
   tutor_confirmed?: boolean;
+  cancellation?: {
+    disposition: "replacement_required" | "closed_consumed" | "manual_review";
+    eventType?: string | null;
+    billingImpact?: string | null;
+    reasonCodes?: string[];
+    reasonNote?: string | null;
+    cancelledAt?: string | null;
+  } | null;
 };
 
 type ParentTrainingSessionsResponse = {
   sessions: ParentTrainingSession[];
-  operationalMode?: "training" | "trial" | "certified_live";
+  operationalMode?: "training" | "sandbox" | "trial" | "certified_live";
   sessionSchedulingEnabled?: boolean;
   paymentRequired?: boolean;
   paymentStatus?: string;
@@ -52,6 +81,7 @@ export default function ParentSessions() {
   const [slotTwoDate, setSlotTwoDate] = useState<Date | undefined>(undefined);
   const [slotTwoTime, setSlotTwoTime] = useState("17:00");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPreparingSandboxPayment, setIsPreparingSandboxPayment] = useState(false);
   const [confirmingSessionId, setConfirmingSessionId] = useState<string | null>(null);
   const [adjustingSessionId, setAdjustingSessionId] = useState<string | null>(null);
   const [cancellingSessionId, setCancellingSessionId] = useState<string | null>(null);
@@ -176,6 +206,67 @@ export default function ParentSessions() {
     refetchInterval: 10000,
   });
 
+  const handleSandboxPackagePayment = async () => {
+    setIsPreparingSandboxPayment(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
+      const response = await fetch(`${API_URL}/api/parent/proposal/accept`, {
+        method: "POST",
+        credentials: "include",
+        headers,
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.message || "Failed to prepare Sandbox package payment.");
+      }
+
+      if (payload?.paymentStatus === "PAID" || payload?.paymentStatus === "FREE_ACCESS") {
+        toast({
+          title: "Package Access Active",
+          description: "This package is already active. Refreshing your scheduling access.",
+        });
+        await queryClient.invalidateQueries({ queryKey: ["/api/parent/training-sessions"] });
+        return;
+      }
+
+      if (!payload?.checkoutUrl || !payload?.formFields) {
+        throw new Error("PayFast Sandbox checkout details were not returned.");
+      }
+
+      if (payload?.merchantReference) {
+        window.sessionStorage.setItem(
+          PAYFAST_MERCHANT_REFERENCE_STORAGE_KEY,
+          String(payload.merchantReference),
+        );
+      }
+      window.sessionStorage.setItem(
+        PAYFAST_RETURN_PATH_STORAGE_KEY,
+        "/client/parent/sessions",
+      );
+
+      toast({
+        title: "Opening PayFast Sandbox",
+        description: `Complete the R${Number(payload?.amount || 0).toLocaleString("en-ZA")} Sandbox package checkout. No real money is charged.`,
+      });
+
+      submitExternalPaymentForm(payload.checkoutUrl, payload.formFields);
+    } catch (error) {
+      toast({
+        title: "Sandbox Payment Error",
+        description: error instanceof Error ? error.message : "Failed to prepare Sandbox payment.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPreparingSandboxPayment(false);
+    }
+  };
+
   const handleScheduleWeek = async () => {
     const slotOne = combineDateAndTime(slotOneDate, slotOneTime);
     const slotTwo = combineDateAndTime(slotTwoDate, slotTwoTime);
@@ -224,11 +315,15 @@ export default function ParentSessions() {
       if (!response.ok) {
         if (response.status === 402) {
           toast({
-            title: "Monthly Payment Required",
-            description: payload?.message || "A new monthly payment is required to schedule more sessions.",
+            title: data?.operationalMode === "sandbox" ? "Sandbox Package Payment Required" : "Monthly Payment Required",
+            description: payload?.message || "A package payment is required before more sessions can be scheduled.",
             variant: "destructive",
           });
-          navigate("/client/parent/gateway");
+          if (data?.operationalMode === "sandbox") {
+            await handleSandboxPackagePayment();
+          } else {
+            navigate("/client/parent/gateway");
+          }
           return;
         }
         throw new Error(payload?.message || "Failed to schedule this week's sessions");
@@ -238,7 +333,9 @@ export default function ParentSessions() {
         title: "Week Scheduled",
         description:
           payload?.createdCount > 0
-            ? "Two weekly session times were proposed. Your tutor must confirm both dates before Meet links are created."
+            ? data?.operationalMode === "sandbox"
+              ? "Two weekly session times were proposed. Your specialist must confirm both dates before the lessons are ready."
+              : "Two weekly session times were proposed. Your Specialist must confirm both dates before Meet links are created."
             : "Those weekly session times already exist.",
       });
 
@@ -375,7 +472,7 @@ export default function ParentSessions() {
 
       toast({
         title: "Session Updated",
-        description: "The new time was sent back to the tutor for confirmation.",
+        description: "The new time was sent back to the Specialist for confirmation.",
       });
 
       setAdjustedDate(undefined);
@@ -424,9 +521,15 @@ export default function ParentSessions() {
         throw new Error(payload?.message || "Failed to cancel session");
       }
 
+      const cancellationDisposition = payload?.cancellation?.disposition;
       toast({
         title: "Session Cancelled",
-        description: "The lesson has been cancelled. You can now schedule a new week.",
+        description:
+          cancellationDisposition === "replacement_required"
+            ? "The session is cancelled and still needs a replacement time."
+            : cancellationDisposition === "closed_consumed"
+              ? "The session is cancelled and closed under the cancellation policy. No replacement is created automatically."
+              : "The session is cancelled. Replacement eligibility needs operational review.",
       });
 
       queryClient.invalidateQueries({ queryKey: ["/api/parent/training-sessions"] });
@@ -445,14 +548,30 @@ export default function ParentSessions() {
   const renewalAmount = Number(data?.monthlyQuota?.package_amount_zar ?? quotaTotal * Number(data?.monthlyQuota?.session_price ?? 200));
   const quotaExhausted = data?.monthlyQuota != null && quotaRemaining <= 0;
   const renewalBlocked = paymentRequired || quotaExhausted;
-  const trainingModeScheduling = data?.operationalMode === "training";
+  const sandboxPaymentRequired = data?.operationalMode === "sandbox" && paymentRequired;
+  const trainingModeScheduling = ["training", "sandbox"].includes(String(data?.operationalMode || ""));
   const scheduleWeekDescription = trainingModeScheduling
-    ? "Choose two Monday-to-Saturday training session times in the same week. Your tutor must confirm both dates before Response Integrity locks the sessions into the training flow."
-    : "Choose two Monday-to-Saturday training session times in the same week. Your tutor must confirm both dates before Response Integrity creates the Meet links.";
+    ? "Choose two Monday-to-Saturday training session times in the same week. Your Specialist must confirm both dates before Response Integrity locks the sessions into the training flow."
+    : "Choose two Monday-to-Saturday training session times in the same week. Your Specialist must confirm both dates before Response Integrity creates the Meet links.";
   const actionableSessions = sessions.filter(
     (session) => !["completed", "cancelled", "flagged"].includes(String(session.status || "")),
   );
-  const canScheduleNewWeek = schedulingEnabled && actionableSessions.length === 0 && !renewalBlocked;
+  const futureCancelledSessions = sessions.filter((session) => {
+    if (String(session.status || "") !== "cancelled") return false;
+    const scheduledTime = new Date(session.scheduled_time).getTime();
+    return Number.isFinite(scheduledTime) && scheduledTime >= Date.now();
+  });
+  const replacementRequiredCancelledSessions = futureCancelledSessions.filter(
+    (session) => session.cancellation?.disposition === "replacement_required",
+  );
+  const visibleSessions = [...actionableSessions, ...futureCancelledSessions].sort(
+    (a, b) => new Date(a.scheduled_time).getTime() - new Date(b.scheduled_time).getTime(),
+  );
+  const canScheduleNewWeek =
+    schedulingEnabled &&
+    actionableSessions.length === 0 &&
+    replacementRequiredCancelledSessions.length === 0 &&
+    !renewalBlocked;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -464,7 +583,7 @@ export default function ParentSessions() {
         <div className="rounded-lg border border-border bg-card p-4 sm:p-6">
           <p className="text-base font-semibold text-foreground">Training mode scheduling is active</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Your assigned tutor is currently in training mode. You should still schedule and confirm sessions here, but the lesson will run inside the training flow instead of depending on Google Meet or the normal live-session window.
+            Your assigned Specialist is currently in training mode. You should still schedule and confirm sessions here, but the lesson will run inside the training flow instead of depending on Google Meet or the normal live-session window.
           </p>
         </div>
       ) : null}
@@ -477,16 +596,23 @@ export default function ParentSessions() {
                 {paymentRequired ? "Monthly Payment Required" : "Monthly Quota Exhausted"}
               </h2>
               <p className="text-sm text-rose-600 mt-1">
-                {paymentRequired
-                  ? "Training session booking is disabled until the monthly renewal is completed."
-                  : `All ${quotaTotal || "package"} sessions for this month have been used. Renew now to unlock the next ${quotaTotal || "monthly"} package.`}
+                {sandboxPaymentRequired
+                  ? "This Sandbox family has not activated its current package yet. Complete the PayFast Sandbox checkout to unlock scheduling. No real money is charged."
+                  : paymentRequired
+                    ? "Training session booking is disabled until the monthly renewal is completed."
+                    : `All ${quotaTotal || "package"} sessions for this month have been used. Renew now to unlock the next ${quotaTotal || "monthly"} package.`}
               </p>
             </div>
             <Button
-              onClick={() => navigate("/client/parent/gateway")}
+              onClick={sandboxPaymentRequired ? handleSandboxPackagePayment : () => navigate("/client/parent/gateway")}
+              disabled={sandboxPaymentRequired && isPreparingSandboxPayment}
               className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white"
             >
-              Go to Renewal{renewalAmount > 0 ? ` - R${renewalAmount.toLocaleString("en-ZA")}` : ""}
+              {sandboxPaymentRequired
+                ? isPreparingSandboxPayment
+                  ? "Preparing Sandbox Payment..."
+                  : `Complete Sandbox Payment${renewalAmount > 0 ? ` - R${renewalAmount.toLocaleString("en-ZA")}` : ""}`
+                : `Go to Renewal${renewalAmount > 0 ? ` - R${renewalAmount.toLocaleString("en-ZA")}` : ""}`}
             </Button>
           </div>
         ) : null}
@@ -560,7 +686,7 @@ export default function ParentSessions() {
             <div>
               <h2 className="text-base sm:text-xl font-semibold">Schedule This Week</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Weekly scheduling is already in progress for this student. Confirm or adjust the current lesson times below before proposing a new week.
+                Weekly scheduling is already in progress for this student. Confirm, adjust, or replace the current session times below before proposing a new week.
               </p>
             </div>
           </div>
@@ -570,11 +696,11 @@ export default function ParentSessions() {
           <h2 className="text-base sm:text-xl font-semibold mb-3 sm:mb-4">Upcoming Sessions</h2>
           {sessionsLoading ? (
             <p className="text-sm sm:text-base text-muted-foreground">Loading sessions...</p>
-          ) : actionableSessions.length === 0 ? (
+          ) : visibleSessions.length === 0 ? (
             <p className="text-sm sm:text-base text-muted-foreground">No sessions scheduled yet.</p>
           ) : (
             <div className="space-y-3">
-              {actionableSessions.map((session) => (
+              {visibleSessions.map((session) => (
                 <div key={session.id} className="rounded-lg border border-border p-4 space-y-2">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -588,10 +714,81 @@ export default function ParentSessions() {
                     </span>
                   </div>
 
+                  {session.status === "cancelled" ? (
+                    <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-sm font-medium text-amber-900">Session cancelled</p>
+                      {session.cancellation?.reasonNote ? (
+                        <p className="text-xs text-amber-800">{session.cancellation.reasonNote}</p>
+                      ) : null}
+                      {session.cancellation?.disposition === "replacement_required" ? (
+                        <>
+                          <p className="text-sm text-amber-800">
+                            This cancellation keeps the delivery obligation open. Choose a replacement time so the weekly plan can be restored.
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openAdjustmentEditor(session)}
+                            disabled={adjustingSessionId === session.id}
+                          >
+                            {editingSessionId === session.id ? "Hide reschedule" : "Reschedule Session"}
+                          </Button>
+                          {editingSessionId === session.id ? (
+                            <div className="rounded-md border border-amber-200 bg-white p-3 space-y-2">
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button type="button" variant="outline" className="w-full justify-start text-left font-normal bg-white">
+                                    <CalendarDays className="mr-2 h-4 w-4" />
+                                    {formatScheduleLabel(adjustedDate)}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent align="start" className="w-auto p-0">
+                                  <Calendar
+                                    mode="single"
+                                    selected={adjustedDate}
+                                    onSelect={setAdjustedDate}
+                                    disabled={(date) => !isSelectableSessionDate(date)}
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <Input
+                                type="time"
+                                value={adjustedTime}
+                                onChange={(e) => setAdjustedTime(e.target.value)}
+                                className="bg-white"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                {adjustedDate ? `${formatScheduleLabel(adjustedDate)} at ${adjustedTime}` : "Pick a Monday-Saturday date and time."}
+                              </p>
+                              <div className="flex justify-end">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleAdjustSession(session.id)}
+                                  disabled={adjustingSessionId === session.id}
+                                >
+                                  {adjustingSessionId === session.id ? "Sending..." : "Send Replacement Time"}
+                                </Button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </>
+                      ) : session.cancellation?.disposition === "closed_consumed" ? (
+                        <p className="text-sm text-amber-800">
+                          This cancellation is closed under the cancellation policy and the package credit was consumed. No replacement is created automatically.
+                        </p>
+                      ) : (
+                        <p className="text-sm text-amber-800">
+                          The cancellation is recorded, but replacement eligibility needs operational review before another time can be created.
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
+
                   {session.status === "pending_tutor_confirmation" ? (
                     <div className="space-y-2">
                       <p className="text-sm text-blue-700">
-                        Waiting for tutor confirmation. If one of the proposed times is wrong, adjust or cancel it now before your tutor confirms.
+                        Waiting for Specialist confirmation. If one of the proposed times is wrong, adjust or cancel it now before your Specialist confirms.
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <Button
@@ -821,13 +1018,13 @@ export default function ParentSessions() {
         title="Cancel Confirmed Session"
         description={
           cancelSessionTarget
-            ? `You are cancelling the confirmed lesson on ${formatSessionDateTime(cancelSessionTarget.scheduled_time)}. Select the reason so the tutor and billing trail stay accurate.`
-            : "Select the cancellation reason so the tutor and billing trail stay accurate."
+            ? `You are cancelling the confirmed lesson on ${formatSessionDateTime(cancelSessionTarget.scheduled_time)}. Select the reason so the Specialist and billing trail stay accurate.`
+            : "Select the cancellation reason so the Specialist and billing trail stay accurate."
         }
         confirmLabel="Cancel Session"
         isSubmitting={!!cancellingSessionId}
         reasonOptions={PARENT_TRAINING_SESSION_CANCELLATION_REASONS}
-        notePlaceholder="Add any extra context your tutor should know about this cancellation."
+        notePlaceholder="Add any extra context your Specialist should know about this cancellation."
         onConfirm={async ({ reasonCodes, reasonNote }) => {
           if (!cancelSessionTarget) {
             throw new Error("No confirmed session selected.");

@@ -1,0 +1,58 @@
+name: PR47 Handover Live Proof
+# 2026-09-22 deterministic targeted re-diagnosis fixture
+
+on:
+  push:
+    branches:
+      - feat/evidence-complete-diagnosis
+    paths:
+      - '.github/workflows/pr47-handover-live-proof.yml'
+      - '.github/scripts/pr47-handover-live-proof.mjs'
+      - 'api/proof-environment.ts'
+      - 'server/routes.ts'
+      - 'server/supabaseAuth.ts'
+      - 'server/emergencyAuth.ts'
+      - 'client/src/components/tutor/IntroSessionDrillRunner.tsx'
+      - 'client/src/components/tutor/StudentCard.tsx'
+      - 'shared/responseIntegrityDrillRegistry.ts'
+      - 'shared/diagnosisObservationMatrix.ts'
+      - 'shared/responseEvidenceModel.ts'
+      - 'shared/handoverEvidenceEvaluator.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: read
+
+jobs:
+  live-handover-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SMOKE_BASE_URL: https://tt-confidence-hub-git-feat-evi-31b8c6-relief-works-technologies.vercel.app
+      RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+      RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+
+      - name: Bind proof to deployed Preview
+        shell: bash
+        run: |
+          echo "PROOF_EXPECTED_APP_SHA=${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo "Expected deployed Preview SHA: ${GITHUB_SHA}"
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Prove Handover evidence matrix through deployed Specialist UI
+        run: node .github/scripts/pr47-handover-live-proof.mjs

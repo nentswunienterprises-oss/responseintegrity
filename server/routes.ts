@@ -15,7 +15,12 @@ import { isAuthenticated } from "./supabaseAuth";
 import { pool } from "./db";
 import { isEmergencyDbMode } from "./emergencyMode";
 import { buildEmergencyEnrollmentStatusFilter } from "./emergencyPodQuery";
-import { createEmergencyFileBundle, decryptEmergencyFileBundle } from "./emergencyAuth";
+import {
+  createEmergencyFileBundle,
+  decryptEmergencyFileBundle,
+  provisionEmergencyCredentialForExistingUser,
+  setEmergencyCredentialForExistingUser,
+} from "./emergencyAuth";
 import { fileURLToPath } from "url";
 import {
   insertPodSchema,
@@ -62,7 +67,24 @@ import {
   validateAndNormalizeSemanticEvidenceSet,
   type EvidenceDrillMode,
 } from "@shared/responseIntegrityDrillRegistry";
+import {
+  compareTrainingEvidenceShadowToLegacy,
+  evaluateTrainingEvidence,
+  resolveTrainingEvidenceAuthorityRoute,
+} from "@shared/trainingEvidenceEvaluator";
+import { evaluateHandoverVerificationEvidence } from "@shared/handoverEvidenceEvaluator";
 import { buildResponseSnapshotV1, summarizeSnapshotObservedResponse } from "@shared/responseSnapshot";
+import {
+  extractAuthoritativeResponseEvidenceSignals,
+  reportClaimLabelsFromEvidence,
+  resolveResponseEvidenceReportAuthority,
+  type ResponseEvidenceReportSignal,
+} from "@shared/responseEvidenceReporting";
+import {
+  cancellationNeedsReplacement,
+  deriveTrainingSessionCancellationDisposition,
+  type TrainingSessionCancellationDisposition,
+} from "@shared/trainingSessionCancellationPolicy";
 import {
   normalizeTopicReferenceContent,
   parseStoredTopicReference,
@@ -138,6 +160,11 @@ import {
   persistResponseIntegrityEvidenceLedgerShadow,
   persistResponseIntegrityEvidenceLedgerShadowDirect,
 } from "./responseIntegrityEvidenceLedger";
+import {
+  persistTrainingEvidenceShadowComparison,
+  persistTrainingEvidenceShadowComparisonDirect,
+  type TrainingEvidenceShadowDatasetInput,
+} from "./trainingEvidenceShadowComparison";
 import {
   createTrialCase,
   createTrialPlacement,
@@ -327,6 +354,67 @@ function getApiPublicUrl() {
   );
 }
 
+const PAYFAST_SANDBOX_BRANCH_RELAY_BASE_URL =
+  "https://tt-confidence-hub-git-feat-evi-31b8c6-relief-works-technologies.vercel.app";
+
+function isAllowedSandboxReturnOrigin(value: string | null | undefined) {
+  try {
+    const parsed = new URL(String(value || "").trim());
+    const hostname = parsed.hostname.toLowerCase();
+    if (!["http:", "https:"].includes(parsed.protocol)) return false;
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
+      hostname.endsWith(".vercel.app") ||
+      hostname === "responseintegrity.co.za" ||
+      hostname.endsWith(".responseintegrity.co.za")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function resolveSandboxPaymentReturnOrigin(req: Request) {
+  const origin = String(req.get("origin") || "").trim();
+  if (isAllowedSandboxReturnOrigin(origin)) {
+    return new URL(origin).origin;
+  }
+
+  const referer = String(req.get("referer") || "").trim();
+  if (isAllowedSandboxReturnOrigin(referer)) {
+    return new URL(referer).origin;
+  }
+
+  return getAppBaseUrl();
+}
+
+function getPayfastSandboxRelayBaseUrl() {
+  const configured = String(process.env.PAYFAST_SANDBOX_RELAY_BASE_URL || "").trim();
+  if (configured) return configured.replace(/\/+$/, "");
+
+  const vercelUrl = String(process.env.VERCEL_URL || "").trim();
+  if (vercelUrl) return `https://${vercelUrl}`;
+
+  if (String(process.env.VERCEL_ENV || "").trim().toLowerCase() === "production") {
+    return getAppBaseUrl();
+  }
+
+  return PAYFAST_SANDBOX_BRANCH_RELAY_BASE_URL;
+}
+
+function buildPayfastSandboxReturnUrl(
+  req: Request,
+  state: "return" | "cancelled",
+  merchantReference: string,
+) {
+  const relay = new URL("/payfast-sandbox-return.html", getPayfastSandboxRelayBaseUrl());
+  relay.searchParams.set("payfast", state);
+  relay.searchParams.set("merchantReference", merchantReference);
+  relay.searchParams.set("targetOrigin", resolveSandboxPaymentReturnOrigin(req));
+  return relay.toString();
+}
+
 function usePayfastSandbox() {
   return String(process.env.PAYFAST_SANDBOX || "").trim().toLowerCase() === "true";
 }
@@ -339,29 +427,44 @@ function isSandboxPaymentEnrollment(enrollment: any) {
   );
 }
 
+const PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID = "10004002";
+const PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY = "q1cd2rdny4a53";
+const PAYFAST_PUBLIC_SANDBOX_PASSPHRASE = "payfast";
+
+function isValidPayfastMerchantId(value: string) {
+  return /^\d{8}$/.test(String(value || "").trim());
+}
+
+function isValidPayfastMerchantKey(value: string) {
+  return /^[A-Za-z0-9]{13}$/.test(String(value || "").trim());
+}
+
 function getPayfastConfig(useSandbox: boolean) {
-  // PayFast can use separate sandbox credentials when needed.
-  const merchantId = String(
-    useSandbox ? process.env.PAYFAST_SANDBOX_MERCHANT_ID || process.env.PAYFAST_MERCHANT_ID : process.env.PAYFAST_MERCHANT_ID || ""
-  ).trim();
-  const merchantKey = String(
-    useSandbox ? process.env.PAYFAST_SANDBOX_MERCHANT_KEY || process.env.PAYFAST_MERCHANT_KEY : process.env.PAYFAST_MERCHANT_KEY || ""
-  ).trim();
-  const passphrase = String(
-    useSandbox ? process.env.PAYFAST_SANDBOX_PASSPHRASE || process.env.PAYFAST_PASSPHRASE : process.env.PAYFAST_PASSPHRASE || ""
-  ).trim();
+  if (useSandbox) {
+    // Use PayFast's currently documented shared sandbox credentials with the
+    // matching passphrase. Live credentials never participate in this path.
+    return {
+      merchantId: PAYFAST_PUBLIC_SANDBOX_MERCHANT_ID,
+      merchantKey: PAYFAST_PUBLIC_SANDBOX_MERCHANT_KEY,
+      passphrase: PAYFAST_PUBLIC_SANDBOX_PASSPHRASE,
+      processUrl: getPayfastProcessUrl(true),
+    };
+  }
 
   return {
-    merchantId,
-    merchantKey,
-    passphrase,
-    processUrl: getPayfastProcessUrl(useSandbox),
+    merchantId: String(process.env.PAYFAST_MERCHANT_ID || "").trim(),
+    merchantKey: String(process.env.PAYFAST_MERCHANT_KEY || "").trim(),
+    passphrase: String(process.env.PAYFAST_PASSPHRASE || "").trim(),
+    processUrl: getPayfastProcessUrl(false),
   };
 }
 
 function isMonthlyPackagePaymentReady(useSandbox = usePayfastSandbox()) {
   const config = getPayfastConfig(useSandbox);
-  return !!(config.merchantId && config.merchantKey);
+  return (
+    isValidPayfastMerchantId(config.merchantId) &&
+    isValidPayfastMerchantKey(config.merchantKey)
+  );
 }
 
 function buildPackagePaymentDescription(
@@ -509,6 +612,10 @@ function isLiveSchedulingMode(mode: TutorTrainingMode) {
   return mode === "trial" || mode === "certified_live";
 }
 
+function isFamilySchedulingMode(mode: TutorTrainingMode) {
+  return mode === "sandbox" || isLiveSchedulingMode(mode);
+}
+
 async function getTutorCertificationMode(tutorId: string): Promise<TutorTrainingMode> {
   const assignment = await storage.getTutorAssignment(tutorId);
   if (isEmergencyDbMode()) {
@@ -529,6 +636,37 @@ async function getTutorCertificationMode(tutorId: string): Promise<TutorTraining
         assignmentMode,
         certificationMode,
       });
+
+      // Preview Proof should not keep carrying a stale assignment mode once the
+      // authoritative battle-test/certification state is known. Repair only in
+      // Vercel Preview so production emergency continuity remains read-only
+      // with respect to mode drift.
+      if (process.env.VERCEL_ENV === "preview") {
+        try {
+          const repairResult = await pool.query(
+            `UPDATE public.tutor_assignments
+                SET operational_mode = $1
+              WHERE id = $2
+                AND tutor_id = $3
+                AND operational_mode <> $1
+              RETURNING id, operational_mode`,
+            [certificationMode, assignment.id, tutorId],
+          );
+          if (repairResult.rows[0]) {
+            console.info("[EMERGENCY MODE DRIFT] preview assignment repaired", {
+              tutorId,
+              assignmentId: assignment.id,
+              operationalMode: repairResult.rows[0].operational_mode,
+            });
+          }
+        } catch (error) {
+          console.warn("[EMERGENCY MODE DRIFT] preview repair failed", {
+            tutorId,
+            assignmentId: assignment.id,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
     }
     return resolveEmergencyTutorMode({ assignmentMode, certificationMode });
   }
@@ -1409,6 +1547,14 @@ async function autoProvisionSandboxAccountsForTutor(
         lastName: "",
         role: "parent",
       });
+    }
+
+    if (isEmergencyDbMode() && !authProvisioned) {
+      await provisionEmergencyCredentialForExistingUser(
+        pool,
+        fakeParentId,
+        "SandboxPass123!",
+      );
     }
 
     const sandboxEnrollmentBase = {
@@ -2499,6 +2645,7 @@ async function recordSessionBillingEvent(options: {
     .from("session_billing_events")
     .select("id")
     .eq("session_id", options.sessionId)
+    .eq("event_type", options.eventType)
     .limit(1);
 
   if (Array.isArray(existingEvents) && existingEvents.length > 0) {
@@ -2583,12 +2730,80 @@ async function getMonthlySessionQuotaSnapshot(options: {
     );
     const row = result.rows[0];
     if (!row) return null;
+
+    const monthStartIso = new Date(`${monthKey}T00:00:00.000Z`).toISOString();
+    const nextMonth = new Date(monthStartIso);
+    nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
+    const nextMonthIso = nextMonth.toISOString();
+
+    const usageResult = await pool.query(
+      `WITH completed_keys AS (
+         SELECT 'training:' || s.id::text AS usage_key
+           FROM public.scheduled_sessions s
+          WHERE s.parent_id = $1
+            AND s.student_id = $2
+            AND s.type = 'training'
+            AND s.status = 'completed'
+            AND s.scheduled_time >= $3::timestamptz
+            AND s.scheduled_time < $4::timestamptz
+         UNION
+         SELECT CASE
+                  WHEN r.scheduled_session_id IS NOT NULL
+                    THEN 'training:' || r.scheduled_session_id::text
+                  ELSE 'training-run:' || r.id::text
+                END AS usage_key
+           FROM public.training_session_runs r
+          WHERE r.student_id = $2
+            AND r.status IN ('submitted', 'completed')
+            AND COALESCE(r.submitted_at, r.started_at, r.created_at) >= $3::timestamptz
+            AND COALESCE(r.submitted_at, r.started_at, r.created_at) < $4::timestamptz
+       )
+       SELECT COUNT(*)::int AS completed_used
+         FROM completed_keys`,
+      [options.parentId, options.studentId, monthStartIso, nextMonthIso],
+    );
+
+    const eventResult = await pool.query(
+      `SELECT COALESCE(SUM(GREATEST(credits_delta, 0)), 0)::int AS event_used
+         FROM public.session_billing_events
+        WHERE parent_id = $1
+          AND student_id = $2
+          AND effective_at >= $3::timestamptz
+          AND effective_at < $4::timestamptz
+          AND billing_impact = 'consume'
+          AND is_sandbox = $5`,
+      [options.parentId, options.studentId, monthStartIso, nextMonthIso, isSandbox],
+    );
+
+    const sessionQuota = Number(row.session_quota ?? DEFAULT_SERVICE_PACKAGE.sessionsPerMonth);
+    const completedUsed = Number(usageResult.rows[0]?.completed_used || 0);
+    const eventUsed = Number(eventResult.rows[0]?.event_used || 0);
+    const sessionsUsed = Math.max(0, Math.min(sessionQuota, completedUsed + eventUsed));
+    const sessionsRemaining = Math.max(0, sessionQuota - sessionsUsed);
+
+    let persistedRow = row;
+    if (
+      Number(row.sessions_used ?? 0) !== sessionsUsed ||
+      Number(row.sessions_remaining ?? sessionQuota) !== sessionsRemaining
+    ) {
+      const persisted = await pool.query(
+        `UPDATE public.membership_months
+            SET sessions_used = $1,
+                sessions_remaining = $2,
+                updated_at = NOW()
+          WHERE id = $3
+          RETURNING *`,
+        [sessionsUsed, sessionsRemaining, row.id],
+      );
+      persistedRow = persisted.rows[0] || row;
+    }
+
     return {
-      ...row,
-      session_quota: Number(row.session_quota ?? DEFAULT_SERVICE_PACKAGE.sessionsPerMonth),
-      sessions_used: Number(row.sessions_used ?? 0),
-      sessions_remaining: Number(row.sessions_remaining ?? 0),
-      status: String(row.status || "active"),
+      ...persistedRow,
+      session_quota: sessionQuota,
+      sessions_used: sessionsUsed,
+      sessions_remaining: sessionsRemaining,
+      status: String(persistedRow.status || "active"),
     };
   }
 
@@ -2734,6 +2949,142 @@ function classifyCancellationBillingImpact(options: {
     impact: "none" as const,
     creditsDelta: 0,
   };
+}
+
+function classifyTrainingSessionCancellation(options: {
+  actorRole: "parent" | "tutor";
+  reasonCodes: string[];
+  scheduledTimeIso?: string | null;
+}) {
+  const parentRequestedThroughSpecialist =
+    options.actorRole === "tutor" &&
+    options.reasonCodes.includes("parent_requested_cancellation");
+  const responsibleActorRole: "parent" | "tutor" =
+    parentRequestedThroughSpecialist ? "parent" : options.actorRole;
+  const billing = classifyCancellationBillingImpact({
+    actorRole: responsibleActorRole,
+    scheduledTimeIso: options.scheduledTimeIso,
+  });
+  const disposition = deriveTrainingSessionCancellationDisposition({
+    actorRole: options.actorRole,
+    reasonCodes: options.reasonCodes,
+    eventType: billing.eventType,
+    billingImpact: billing.impact,
+  });
+
+  return {
+    ...billing,
+    disposition,
+    responsibleActorRole,
+  };
+}
+
+function normalizeStoredCancellationDisposition(
+  value: unknown,
+): TrainingSessionCancellationDisposition | null {
+  const normalized = String(value || "").trim();
+  if (
+    normalized === "replacement_required" ||
+    normalized === "closed_consumed" ||
+    normalized === "manual_review"
+  ) {
+    return normalized;
+  }
+  return null;
+}
+
+function buildTrainingSessionCancellationContext(event: any) {
+  if (!event) {
+    return {
+      disposition: "manual_review" as const,
+      eventType: null,
+      billingImpact: null,
+      reasonCodes: [] as string[],
+      reasonNote: null,
+      cancelledAt: null,
+    };
+  }
+
+  const metadata =
+    event.metadata && typeof event.metadata === "object"
+      ? event.metadata
+      : {};
+  const reasonCodes = Array.isArray(event.reason_codes)
+    ? event.reason_codes.map((value: unknown) => String(value || "").trim()).filter(Boolean)
+    : [];
+  const storedDisposition = normalizeStoredCancellationDisposition(
+    (metadata as Record<string, unknown>).cancellation_disposition,
+  );
+  const disposition =
+    storedDisposition ||
+    deriveTrainingSessionCancellationDisposition({
+      actorRole: String(event.actor_role || "") === "tutor" ? "tutor" : "parent",
+      reasonCodes,
+      eventType: event.event_type,
+      billingImpact: event.billing_impact,
+    });
+
+  return {
+    disposition,
+    eventType: String(event.event_type || "").trim() || null,
+    billingImpact: String(event.billing_impact || "").trim() || null,
+    reasonCodes,
+    reasonNote: String(event.reason_note || "").trim() || null,
+    cancelledAt: event.effective_at || event.created_at || null,
+  };
+}
+
+async function attachTrainingSessionCancellationContext(sessions: any[]) {
+  const cancelledSessionIds = Array.from(
+    new Set(
+      sessions
+        .filter((session: any) => String(session?.status || "") === "cancelled")
+        .map((session: any) => String(session?.id || "").trim())
+        .filter(Boolean),
+    ),
+  );
+
+  if (cancelledSessionIds.length === 0) return sessions;
+
+  try {
+    const cancellationEventsResult = await pool.query(
+      `SELECT DISTINCT ON (session_id::text)
+              session_id, event_type, actor_role, billing_impact,
+              reason_codes, reason_note, metadata, effective_at, created_at
+         FROM public.session_billing_events
+        WHERE session_id::text = ANY($1::text[])
+          AND (
+            event_type LIKE 'cancelled_%'
+            OR event_type LIKE 'no_show_%'
+          )
+        ORDER BY session_id::text, effective_at DESC, created_at DESC`,
+      [cancelledSessionIds],
+    );
+
+    const eventsBySessionId = new Map<string, any>();
+    for (const event of cancellationEventsResult.rows || []) {
+      eventsBySessionId.set(String(event.session_id), event);
+    }
+
+    return sessions.map((session: any) => {
+      if (String(session?.status || "") !== "cancelled") return session;
+      return {
+        ...session,
+        cancellation: buildTrainingSessionCancellationContext(
+          eventsBySessionId.get(String(session.id)),
+        ),
+      };
+    });
+  } catch (error) {
+    console.error("Failed to attach training-session cancellation context:", error);
+    return sessions.map((session: any) => {
+      if (String(session?.status || "") !== "cancelled") return session;
+      return {
+        ...session,
+        cancellation: buildTrainingSessionCancellationContext(null),
+      };
+    });
+  }
 }
 
 async function isSandboxPaymentTransaction(transaction: any) {
@@ -3133,6 +3484,8 @@ async function getCompletedSessionCountForStudent(studentId: string) {
 }
 
 async function ensurePremiumAccessForParent(parentId: string, studentId?: string | null) {
+  // Sandbox mirrors the commercial package journey through PayFast sandbox.
+  // A sandbox membership row is quota state, not payment authority.
   const billingModel = await getParentBillingModel(parentId);
   if (billingModel.error) {
     return {
@@ -3245,9 +3598,243 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
     throw new Error("Payment transaction is missing enrollment or proposal linkage.");
   }
 
+  if (isEmergencyDbMode()) {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      const enrollmentResult = await client.query(
+        `SELECT id, status, current_step, proposal_id
+           FROM public.parent_enrollments
+          WHERE id = $1
+          FOR UPDATE`,
+        [enrollmentId],
+      );
+      const enrollment = enrollmentResult.rows[0] || null;
+      if (!enrollment) {
+        throw new Error("Failed to resolve parent enrollment for paid transaction.");
+      }
+
+      const proposalResult = await client.query(
+        `SELECT id, accepted_at, parent_code, student_id, tutor_id,
+                topic_conditioning_topic, topic_conditioning_entry_phase,
+                topic_conditioning_stability, package_key, package_sessions,
+                planned_sessions_per_week
+           FROM public.onboarding_proposals
+          WHERE id = $1
+          FOR UPDATE`,
+        [proposalId],
+      );
+      const proposal = proposalResult.rows[0] || null;
+      if (!proposal) {
+        throw new Error("Failed to resolve onboarding proposal for paid transaction.");
+      }
+
+      if (proposal.accepted_at && proposal.parent_code && enrollment.status === "session_booked") {
+        if (String(enrollment.current_step || "").trim().toLowerCase() !== "active_training") {
+          await client.query(
+            `UPDATE public.parent_enrollments
+                SET current_step = 'active_training',
+                    updated_at = $1
+              WHERE id = $2`,
+            [new Date().toISOString(), enrollment.id],
+          );
+        }
+        await client.query("COMMIT");
+        return {
+          status: "session_booked",
+          parentCode: proposal.parent_code,
+        };
+      }
+
+      const generateParentCode = () => {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        let code = "";
+        for (let i = 0; i < 8; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+      };
+
+      let parentCode = proposal.parent_code || generateParentCode();
+      let codeIsUnique = !!proposal.parent_code;
+      let attempts = 0;
+
+      while (!codeIsUnique && attempts < 10) {
+        const existingCode = await client.query(
+          `SELECT id
+             FROM public.onboarding_proposals
+            WHERE parent_code = $1
+              AND id <> $2
+            LIMIT 1`,
+          [parentCode, proposal.id],
+        );
+        if (!existingCode.rows[0]) {
+          codeIsUnique = true;
+        } else {
+          parentCode = generateParentCode();
+          attempts++;
+        }
+      }
+
+      const nowIso = new Date().toISOString();
+      const servicePackage = getMonthlyServicePackage(proposal.package_key || transaction?.package_key);
+
+      await client.query(
+        `UPDATE public.parent_enrollments
+            SET status = 'session_booked',
+                current_step = 'active_training',
+                package_key = $1,
+                package_sessions = $2,
+                planned_sessions_per_week = $3,
+                updated_at = $4
+          WHERE id = $5`,
+        [
+          servicePackage.key,
+          servicePackage.sessionsPerMonth,
+          servicePackage.plannedSessionsPerWeek,
+          nowIso,
+          enrollment.id,
+        ],
+      );
+
+      await client.query(
+        `UPDATE public.onboarding_proposals
+            SET enrollment_id = $1,
+                accepted_at = COALESCE(accepted_at, $2),
+                parent_code = $3,
+                updated_at = $2
+          WHERE id = $4`,
+        [enrollment.id, nowIso, parentCode, proposal.id],
+      );
+
+      const acceptedTopic = String(proposal.topic_conditioning_topic || "").trim();
+      const acceptedPhase = tryParsePhase(proposal.topic_conditioning_entry_phase) || "Clarity";
+      const acceptedStability = normalizeStability(proposal.topic_conditioning_stability || "Low");
+
+      if (proposal.student_id && proposal.tutor_id && acceptedTopic) {
+        const activationReason = [
+          "Auto-activated from accepted proposal",
+          `Phase ${acceptedPhase}`,
+          `Stability ${acceptedStability}`,
+        ].join(" | ");
+
+        const existingActivation = await client.query(
+          `SELECT id
+             FROM public.topic_conditioning_activations
+            WHERE student_id = $1
+              AND topic = $2
+            LIMIT 1`,
+          [proposal.student_id, acceptedTopic],
+        );
+
+        if (!existingActivation.rows[0]) {
+          await client.query(
+            `INSERT INTO public.topic_conditioning_activations
+              (student_id, tutor_id, topic, reason)
+             VALUES ($1, $2, $3, $4)`,
+            [proposal.student_id, proposal.tutor_id, acceptedTopic, activationReason],
+          );
+        }
+
+        const studentResult = await client.query(
+          `SELECT id, concept_mastery
+             FROM public.students
+            WHERE id = $1
+            LIMIT 1`,
+          [proposal.student_id],
+        );
+        const studentForConcept = studentResult.rows[0] || null;
+
+        if (studentForConcept) {
+          const currentConceptMastery =
+            studentForConcept.concept_mastery && typeof studentForConcept.concept_mastery === "object"
+              ? studentForConcept.concept_mastery
+              : {};
+          const topicConditioning =
+            currentConceptMastery.topicConditioning && typeof currentConceptMastery.topicConditioning === "object"
+              ? currentConceptMastery.topicConditioning
+              : {};
+          const topics =
+            topicConditioning.topics && typeof topicConditioning.topics === "object"
+              ? { ...topicConditioning.topics }
+              : {};
+          const existingTopicState =
+            topics[acceptedTopic] && typeof topics[acceptedTopic] === "object"
+              ? topics[acceptedTopic]
+              : {};
+          const existingHistory = Array.isArray(existingTopicState.history)
+            ? existingTopicState.history
+            : [];
+
+          topics[acceptedTopic] = {
+            ...existingTopicState,
+            topic: acceptedTopic,
+            phase: acceptedPhase,
+            stability: acceptedStability,
+            lastUpdated: nowIso,
+            observationNotes: "Auto-activated from accepted proposal after confirmed premium payment.",
+            history: [
+              ...existingHistory,
+              {
+                date: nowIso,
+                phase: acceptedPhase,
+                stability: acceptedStability,
+                nextAction: NEXT_ACTION_ENGINE[acceptedPhase][acceptedStability].primaryAction,
+                observationNotes: "Auto-activated from accepted proposal.",
+              },
+            ],
+          };
+
+          const mergedConceptMastery = {
+            ...currentConceptMastery,
+            topicConditioning: {
+              ...topicConditioning,
+              topic: acceptedTopic,
+              entry_phase: acceptedPhase,
+              stability: acceptedStability,
+              lastUpdated: nowIso,
+              topics,
+            },
+          };
+
+          await client.query(
+            `UPDATE public.students
+                SET concept_mastery = $1::jsonb
+              WHERE id = $2`,
+            [JSON.stringify(mergedConceptMastery), proposal.student_id],
+          );
+        }
+      }
+
+      await client.query("COMMIT");
+
+      await safeSendPush(
+        proposal?.tutor_id,
+        {
+          title: "Proposal paid and accepted",
+          body: "A parent completed monthly package payment. Continue with the scheduled session flow.",
+          url: "/operational/tutor/pod",
+          tag: `tutor-proposal-paid-${proposal.id}`,
+        },
+        "tutor premium payment completed",
+      );
+
+      return {
+        status: "session_booked",
+        parentCode,
+      };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   const { data: enrollment, error: enrollmentError } = await supabase
     .from("parent_enrollments")
-    .select("id, status, proposal_id")
+    .select("id, status, current_step, proposal_id")
     .eq("id", enrollmentId)
     .maybeSingle();
 
@@ -3266,6 +3853,20 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
   }
 
   if (proposal.accepted_at && proposal.parent_code && enrollment.status === "session_booked") {
+    if (String(enrollment.current_step || "").trim().toLowerCase() !== "active_training") {
+      const { error: repairStepError } = await supabase
+        .from("parent_enrollments")
+        .update({
+          current_step: "active_training",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", enrollment.id);
+
+      if (repairStepError) {
+        throw new Error("Failed to repair active training step after confirmed payment.");
+      }
+    }
+
     return {
       status: "session_booked",
       parentCode: proposal.parent_code,
@@ -3308,6 +3909,7 @@ async function finalizeAcceptedProposalFromPayment(transaction: any) {
     .from("parent_enrollments")
     .update({
       status: "session_booked",
+      current_step: "active_training",
       package_key: servicePackage.key,
       package_sessions: servicePackage.sessionsPerMonth,
       planned_sessions_per_week: servicePackage.plannedSessionsPerWeek,
@@ -3726,6 +4328,601 @@ async function getPendingTrainingConfirmationSession(tutorId: string, studentId:
 
 export async function registerRoutes(app: Express): Promise<Server> {
   registerDemandProductionRoutes(app, { client: supabase, isAuthenticated, requireRole });
+
+  app.post(
+    "/api/proof/personas/provision",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      if (process.env.VERCEL_ENV !== "preview") {
+        return res.status(404).json({ message: "Not found" });
+      }
+
+      try {
+        const actor = (req as any).dbUser;
+        const actorSandbox = await pool.query(
+          `SELECT 1
+             FROM public.tutor_assignments
+            WHERE tutor_id = $1
+              AND operational_mode = 'sandbox'
+            LIMIT 1`,
+          [actor.id],
+        );
+        if (!actorSandbox.rows[0]) {
+          return res.status(403).json({ message: "Proof persona provisioning requires a Sandbox Specialist" });
+        }
+
+        const email = normalizeEmail(req.body?.email);
+        const role = String(req.body?.role || "").trim().toLowerCase();
+        const firstName = String(req.body?.firstName || "Proof").trim() || "Proof";
+        const lastName = String(req.body?.lastName || role.toUpperCase()).trim() || role.toUpperCase();
+        const password = String(req.body?.password || "");
+
+        if (!email.endsWith("@proof.responseintegrity.co.za")) {
+          return res.status(400).json({ message: "Proof personas must use the dedicated Proof identity domain" });
+        }
+        if (!["coo", "hr", "cto", "cmo", "td", "tutor"].includes(role)) {
+          return res.status(400).json({ message: "Unsupported Proof persona role" });
+        }
+        if (password.length < 8) {
+          return res.status(400).json({ message: "Proof persona password must be at least 8 characters" });
+        }
+
+        const existing = await pool.query<{ id: string }>(
+          `SELECT id
+             FROM public.users
+            WHERE lower(email) = $1
+            LIMIT 1`,
+          [email],
+        );
+        const userId = existing.rows[0]?.id || uuidv4();
+        const fullName = `${firstName} ${lastName}`.trim();
+
+        const userResult = await pool.query(
+          `INSERT INTO public.users (
+             id, email, first_name, last_name, role, name, verified, created_at, updated_at
+           )
+           VALUES ($1, $2, $3, $4, $5::public.role, $6, TRUE, NOW(), NOW())
+           ON CONFLICT (email) DO UPDATE
+             SET first_name = EXCLUDED.first_name,
+                 last_name = EXCLUDED.last_name,
+                 role = EXCLUDED.role,
+                 name = EXCLUDED.name,
+                 verified = TRUE,
+                 updated_at = NOW()
+           RETURNING id, email, first_name, last_name, role, name, verified`,
+          [userId, email, firstName, lastName, role, fullName],
+        );
+        const user = userResult.rows[0];
+
+        await setEmergencyCredentialForExistingUser(pool, user.id, password);
+
+        if (role === "coo") {
+          await pool.query(
+            `INSERT INTO public.executive_role_appointments (
+               role,
+               appointed_user_id,
+               appointed_by_user_id,
+               notes,
+               appointed_at,
+               created_at,
+               updated_at
+             )
+             VALUES (
+               'coo'::public.executive_department,
+               $1,
+               $2,
+               'Proof environment persistent COO control-plane persona',
+               NOW(),
+               NOW(),
+               NOW()
+             )
+             ON CONFLICT (role) DO UPDATE
+               SET appointed_user_id = EXCLUDED.appointed_user_id,
+                   appointed_by_user_id = EXCLUDED.appointed_by_user_id,
+                   notes = EXCLUDED.notes,
+                   appointed_at = EXCLUDED.appointed_at,
+                   updated_at = NOW()`,
+            [user.id, actor.id],
+          );
+        }
+
+        return res.json({
+          user,
+          appointedExecutiveRole: role === "coo" ? "coo" : null,
+          credentialProvisioned: true,
+        });
+      } catch (error) {
+        console.error("[PROOF] Failed to provision Proof persona", error);
+        return res.status(500).json({ message: "Failed to provision Proof persona" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/proof/handover-fixture/reset",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      if (process.env.VERCEL_ENV !== "preview") {
+        return res.status(404).json({ message: "Not found" });
+      }
+
+      try {
+        const dbUser = (req as any).dbUser;
+        const studentId = String(req.body?.studentId || "").trim();
+        const requestedTopic = String(req.body?.topic || "").trim();
+        const restoreCanonicalState = req.body?.restoreCanonicalState === true;
+        const requestedRestorePhase = restoreCanonicalState
+          ? tryParsePhase(req.body?.restorePhase)
+          : null;
+        const requestedRestoreStabilityRaw = restoreCanonicalState
+          ? String(req.body?.restoreStability || "").trim()
+          : "";
+        const requestedRestoreStability =
+          restoreCanonicalState &&
+          ["Low", "Medium", "High", "High Maintenance"].includes(requestedRestoreStabilityRaw)
+            ? (requestedRestoreStabilityRaw as TopicStability)
+            : null;
+
+        if (!studentId) {
+          return res.status(400).json({ message: "studentId is required" });
+        }
+
+        const result = await pool.query(
+          `SELECT s.id,
+                  s.name,
+                  s.tutor_id,
+                  s.parent_id,
+                  s.parent_enrollment_id,
+                  s.personal_profile,
+                  s.concept_mastery,
+                  e.id AS enrollment_id,
+                  e.is_sandbox_account,
+                  e.assignment_lane
+             FROM public.students s
+             LEFT JOIN public.parent_enrollments e
+               ON e.id = s.parent_enrollment_id
+            WHERE s.id = $1
+              AND s.tutor_id = $2
+            LIMIT 1`,
+          [studentId, dbUser.id],
+        );
+
+        const row = result.rows[0] || null;
+        if (!row) {
+          return res.status(404).json({ message: "Proof student not found for this Specialist" });
+        }
+
+        const isSandbox =
+          row.is_sandbox_account === true ||
+          String(row.assignment_lane || "").trim().toLowerCase() === "sandbox";
+        if (!isSandbox) {
+          return res.status(403).json({ message: "Proof Handover fixtures are limited to Sandbox students" });
+        }
+
+        const conceptMastery =
+          row.concept_mastery && typeof row.concept_mastery === "object"
+            ? row.concept_mastery
+            : {};
+        const topicStore =
+          conceptMastery.topicConditioning && typeof conceptMastery.topicConditioning === "object"
+            ? conceptMastery.topicConditioning
+            : {};
+        const topic = requestedTopic || String(topicStore.topic || "").trim();
+        const topicState =
+          topic &&
+          topicStore.topics &&
+          typeof topicStore.topics === "object" &&
+          topicStore.topics[topic] &&
+          typeof topicStore.topics[topic] === "object"
+            ? topicStore.topics[topic]
+            : null;
+        const phase = tryParsePhase(topicState?.phase || topicStore.entry_phase || topicStore.entryPhase);
+        const stability = normalizeStability(topicState?.stability || topicStore.stability || "Low");
+
+        if (!topic || !phase || !topicState) {
+          return res.status(400).json({
+            message: "Sandbox student needs a canonical topic state before Handover proof can reset",
+          });
+        }
+        if (restoreCanonicalState && (!requestedRestorePhase || !requestedRestoreStability)) {
+          return res.status(400).json({
+            message: "restorePhase and restoreStability must be valid when restoreCanonicalState is enabled",
+          });
+        }
+
+        const nowIso = new Date().toISOString();
+        let effectivePhase = phase;
+        let effectiveStability = stability;
+        let updatedConceptMastery = conceptMastery;
+
+        if (restoreCanonicalState && requestedRestorePhase && requestedRestoreStability) {
+          const nextActionConfig =
+            (NEXT_ACTION_ENGINE as any)?.[requestedRestorePhase]?.[requestedRestoreStability] || null;
+          const restoredTopicState = {
+            ...topicState,
+            phase: requestedRestorePhase,
+            stability: requestedRestoreStability,
+            lastUpdated: nowIso,
+            nextAction: nextActionConfig?.primaryAction || topicState.nextAction || null,
+            requiresTargetedRediagnosis: false,
+            targetedRediagnosisStartPhase: null,
+            prerequisiteContradictionReason: null,
+            prerequisiteContradictionStatus: null,
+            history: [
+              ...(Array.isArray(topicState.history) ? topicState.history : []),
+              {
+                date: nowIso,
+                phase: requestedRestorePhase,
+                stability: requestedRestoreStability,
+                nextAction: nextActionConfig?.primaryAction || topicState.nextAction || null,
+                observationNotes: "Proof fixture reset to canonical Handover baseline.",
+                structuredObservation: {
+                  drillType: "proof_fixture_reset",
+                  decisionAuthority: "proof_fixture",
+                  purpose: "repeatable_handover_live_proof",
+                },
+              },
+            ].slice(-60),
+          };
+          const restoredTopics = {
+            ...(topicStore.topics && typeof topicStore.topics === "object"
+              ? topicStore.topics
+              : {}),
+            [topic]: restoredTopicState,
+          };
+          const restoredTopicConditioning = {
+            ...topicStore,
+            topics: restoredTopics,
+            lastUpdatedAt: nowIso,
+          };
+          updatedConceptMastery = {
+            ...conceptMastery,
+            topicConditioning: restoredTopicConditioning,
+          };
+          effectivePhase = requestedRestorePhase;
+          effectiveStability = requestedRestoreStability;
+        }
+        const existingProfile =
+          row.personal_profile && typeof row.personal_profile === "object"
+            ? row.personal_profile
+            : {};
+        const updatedProfile = {
+          ...existingProfile,
+          workflow: {
+            ...(existingProfile.workflow || {}),
+            handoverRequiredAt: nowIso,
+            handoverCompletedAt: null,
+          },
+        };
+
+        await pool.query(
+          `UPDATE public.students
+              SET personal_profile = $2::jsonb,
+                  concept_mastery = $3::jsonb,
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [studentId, JSON.stringify(updatedProfile), JSON.stringify(updatedConceptMastery)],
+        );
+
+        if (row.enrollment_id) {
+          await pool.query(
+            `UPDATE public.parent_enrollments
+                SET current_step = 'handover_session_booked',
+                    updated_at = NOW()
+              WHERE id = $1`,
+            [row.enrollment_id],
+          );
+        }
+
+        const sessionResult = await pool.query(
+          `INSERT INTO public.scheduled_sessions (
+              parent_id,
+              tutor_id,
+              student_id,
+              scheduled_time,
+              scheduled_end,
+              timezone,
+              type,
+              status,
+              parent_confirmed,
+              tutor_confirmed,
+              workflow_stage,
+              created_at,
+              updated_at
+            )
+            VALUES (
+              $1,
+              $2,
+              $3::uuid,
+              NOW(),
+              NOW() + INTERVAL '60 minutes',
+              'Africa/Johannesburg',
+              'handover',
+              'confirmed',
+              TRUE,
+              TRUE,
+              'handover_verification',
+              NOW(),
+              NOW()
+            )
+            RETURNING id, student_id, tutor_id, type, status, scheduled_time`,
+          [String(row.parent_id || ""), String(dbUser.id), studentId],
+        );
+
+        const session = sessionResult.rows[0];
+        return res.json({
+          studentId,
+          studentName: row.name,
+          topic,
+          phase: effectivePhase,
+          stability: effectiveStability,
+          restoredCanonicalState: restoreCanonicalState,
+          handoverRequiredAt: nowIso,
+          session,
+        });
+      } catch (error) {
+        console.error("[PROOF] Failed to reset Handover fixture", error);
+        return res.status(500).json({ message: "Failed to reset Proof Handover fixture" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/proof/training-fixture/reset",
+    isAuthenticated,
+    requireRole(["tutor"]),
+    async (req: Request, res: Response) => {
+      if (process.env.VERCEL_ENV !== "preview") {
+        return res.status(404).json({ message: "Not found" });
+      }
+
+      try {
+        const dbUser = (req as any).dbUser;
+        const studentId = String(req.body?.studentId || "").trim();
+        const requestedTopic = String(req.body?.topic || "").trim();
+        const requestedRestorePhase = tryParsePhase(req.body?.restorePhase);
+        const requestedRestoreStabilityRaw = String(req.body?.restoreStability || "").trim();
+        const requestedRestoreStability =
+          ["Low", "Medium", "High", "High Maintenance"].includes(requestedRestoreStabilityRaw)
+            ? (requestedRestoreStabilityRaw as TopicStability)
+            : null;
+        const requestedRequiresTargetedRediagnosis = req.body?.requiresTargetedRediagnosis === true;
+        const requestedTargetedRediagnosisStartPhase = requestedRequiresTargetedRediagnosis
+          ? tryParsePhase(req.body?.targetedRediagnosisStartPhase) || requestedRestorePhase
+          : null;
+
+        if (!studentId || !requestedTopic || !requestedRestorePhase || !requestedRestoreStability) {
+          return res.status(400).json({
+            message: "studentId, topic, restorePhase and restoreStability are required",
+          });
+        }
+
+        const result = await pool.query(
+          `SELECT s.id,
+                  s.name,
+                  s.tutor_id,
+                  s.parent_id,
+                  s.personal_profile,
+                  s.concept_mastery,
+                  e.id AS enrollment_id,
+                  e.is_sandbox_account,
+                  e.assignment_lane
+             FROM public.students s
+             LEFT JOIN public.parent_enrollments e
+               ON e.id = s.parent_enrollment_id
+            WHERE s.id = $1
+              AND s.tutor_id = $2
+            LIMIT 1`,
+          [studentId, dbUser.id],
+        );
+
+        const row = result.rows[0] || null;
+        if (!row) {
+          return res.status(404).json({ message: "Proof student not found for this Specialist" });
+        }
+
+        const isSandbox =
+          row.is_sandbox_account === true ||
+          String(row.assignment_lane || "").trim().toLowerCase() === "sandbox";
+        if (!isSandbox) {
+          return res.status(403).json({ message: "Proof Training fixtures are limited to Sandbox students" });
+        }
+
+        const conceptMastery =
+          row.concept_mastery && typeof row.concept_mastery === "object"
+            ? row.concept_mastery
+            : {};
+        const topicStore =
+          conceptMastery.topicConditioning && typeof conceptMastery.topicConditioning === "object"
+            ? conceptMastery.topicConditioning
+            : {};
+        const existingTopics =
+          topicStore.topics && typeof topicStore.topics === "object"
+            ? topicStore.topics
+            : {};
+        const topicKey =
+          Object.keys(existingTopics).find(
+            (key) => key.trim().toLowerCase() === requestedTopic.toLowerCase(),
+          ) || requestedTopic;
+        const topicState =
+          existingTopics[topicKey] && typeof existingTopics[topicKey] === "object"
+            ? existingTopics[topicKey]
+            : null;
+
+        if (!topicState) {
+          return res.status(400).json({
+            message: "Sandbox student needs a canonical topic state before Training proof can reset",
+          });
+        }
+
+        const nowIso = new Date().toISOString();
+        const nextActionConfig =
+          (NEXT_ACTION_ENGINE as any)?.[requestedRestorePhase]?.[requestedRestoreStability] || null;
+        const restoredTopicState = {
+          ...topicState,
+          topic: topicKey,
+          phase: requestedRestorePhase,
+          stability: requestedRestoreStability,
+          lastUpdated: nowIso,
+          nextAction: nextActionConfig?.primaryAction || topicState.nextAction || null,
+          requiresTargetedRediagnosis: requestedRequiresTargetedRediagnosis,
+          targetedRediagnosisStartPhase: requestedRequiresTargetedRediagnosis
+            ? requestedTargetedRediagnosisStartPhase
+            : null,
+          prerequisiteContradictionReason: requestedRequiresTargetedRediagnosis
+            ? "Proof fixture seeded targeted re-diagnosis gate."
+            : null,
+          prerequisiteContradictionStatus: requestedRequiresTargetedRediagnosis ? "confirmed" : null,
+          history: [
+            ...(Array.isArray(topicState.history) ? topicState.history : []),
+            {
+              date: nowIso,
+              phase: requestedRestorePhase,
+              stability: requestedRestoreStability,
+              nextAction: nextActionConfig?.primaryAction || topicState.nextAction || null,
+              observationNotes: "Proof fixture reset to canonical Training baseline.",
+              structuredObservation: {
+                drillType: "proof_fixture_reset",
+                decisionAuthority: "proof_fixture",
+                purpose: "repeatable_training_live_proof",
+              },
+            },
+          ].slice(-60),
+        };
+        const restoredTopicConditioning = {
+          ...topicStore,
+          topics: {
+            ...existingTopics,
+            [topicKey]: restoredTopicState,
+          },
+          lastUpdatedAt: nowIso,
+        };
+        const updatedConceptMastery = {
+          ...conceptMastery,
+          topicConditioning: restoredTopicConditioning,
+        };
+        const existingProfile =
+          row.personal_profile && typeof row.personal_profile === "object"
+            ? row.personal_profile
+            : {};
+        const existingWorkflow =
+          existingProfile.workflow && typeof existingProfile.workflow === "object"
+            ? existingProfile.workflow
+            : {};
+        const updatedProfile = {
+          ...existingProfile,
+          workflow: {
+            ...existingWorkflow,
+            handoverCompletedAt: existingWorkflow.handoverRequiredAt
+              ? existingWorkflow.handoverCompletedAt || nowIso
+              : existingWorkflow.handoverCompletedAt || null,
+          },
+        };
+
+        await pool.query(
+          `UPDATE public.students
+              SET concept_mastery = $2::jsonb,
+                  personal_profile = $3::jsonb,
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [studentId, JSON.stringify(updatedConceptMastery), JSON.stringify(updatedProfile)],
+        );
+
+        if (row.enrollment_id) {
+          await pool.query(
+            `UPDATE public.parent_enrollments
+                SET current_step = 'active_training',
+                    updated_at = NOW()
+              WHERE id = $1`,
+            [row.enrollment_id],
+          );
+        }
+
+        const primaryResult = await pool.query(
+          `INSERT INTO public.scheduled_sessions (
+              parent_id,
+              tutor_id,
+              student_id,
+              scheduled_time,
+              scheduled_end,
+              timezone,
+              type,
+              status,
+              parent_confirmed,
+              tutor_confirmed,
+              created_at,
+              updated_at
+            )
+            VALUES (
+              $1,
+              $2,
+              $3::uuid,
+              NOW(),
+              NOW() + INTERVAL '60 minutes',
+              'Africa/Johannesburg',
+              'training',
+              'confirmed',
+              TRUE,
+              TRUE,
+              NOW(),
+              NOW()
+            )
+            RETURNING id, student_id, tutor_id, type, status, scheduled_time`,
+          [String(row.parent_id || ""), String(dbUser.id), studentId],
+        );
+
+        const companionResult = await pool.query(
+          `INSERT INTO public.scheduled_sessions (
+              parent_id,
+              tutor_id,
+              student_id,
+              scheduled_time,
+              scheduled_end,
+              timezone,
+              type,
+              status,
+              parent_confirmed,
+              tutor_confirmed,
+              created_at,
+              updated_at
+            )
+            VALUES (
+              $1,
+              $2,
+              $3::uuid,
+              NOW() + INTERVAL '2 hours',
+              NOW() + INTERVAL '3 hours',
+              'Africa/Johannesburg',
+              'training',
+              'confirmed',
+              TRUE,
+              TRUE,
+              NOW(),
+              NOW()
+            )
+            RETURNING id, student_id, tutor_id, type, status, scheduled_time`,
+          [String(row.parent_id || ""), String(dbUser.id), studentId],
+        );
+
+        return res.json({
+          studentId,
+          studentName: row.name,
+          topic: topicKey,
+          phase: requestedRestorePhase,
+          stability: requestedRestoreStability,
+          restoredCanonicalState: true,
+          session: primaryResult.rows[0],
+          companionSession: companionResult.rows[0],
+        });
+      } catch (error) {
+        console.error("[PROOF] Failed to reset Training fixture", error);
+        return res.status(500).json({ message: "Failed to reset Proof Training fixture" });
+      }
+    },
+  );
+
           const persistEvidenceLedgerShadow = async (input: EvidenceLedgerProjectionInput) => {
             const result = isEmergencyDbMode()
               ? await persistResponseIntegrityEvidenceLedgerShadowDirect(pool, input)
@@ -3745,6 +4942,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             return result;
           };
+
+          const persistTrainingShadowComparison = async (
+            input: TrainingEvidenceShadowDatasetInput,
+          ) => {
+            const result = isEmergencyDbMode()
+              ? await persistTrainingEvidenceShadowComparisonDirect(pool, input)
+              : await persistTrainingEvidenceShadowComparison(supabase as any, input);
+            if (result.status === "persistence_failed") {
+              console.warn("[RI_TRAINING_EVIDENCE_SHADOW] comparison not persisted", {
+                sourceDrillId: input.sourceDrillId,
+                comparisonId: result.comparisonId,
+                errorCode: result.errorCode || null,
+                message: result.message || null,
+              });
+            } else {
+              console.info("[RI_TRAINING_EVIDENCE_SHADOW] comparison persisted", {
+                sourceDrillId: input.sourceDrillId,
+                comparisonId: result.comparisonId,
+              });
+            }
+            return result;
+          };
+
 
           type NormalizedEvidenceSet = {
             setName: string;
@@ -4010,7 +5230,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return `Adaptive diagnosis block ${blockIndex + 1} must be "${expectedSet.setName}"`;
               }
 
-              if (observations.length !== expectedSet.reps) {
+              if (evidenceMode === "verification") {
+                const verificationDefinition = getDrillSchemaDefinition("verification", block.phase).sets[0];
+                const minimumReps = Math.max(1, Number(verificationDefinition.minimumReps || 1));
+                const maximumReps = Math.max(minimumReps, Number(verificationDefinition.maximumReps || verificationDefinition.reps));
+                if (observations.length < minimumReps || observations.length > maximumReps) {
+                  return `Handover verification block ${blockIndex + 1} must include between ${minimumReps} and ${maximumReps} evidence opportunities`;
+                }
+              } else if (observations.length !== expectedSet.reps) {
                 return `Adaptive diagnosis block ${blockIndex + 1} must include exactly ${expectedSet.reps} reps`;
               }
 
@@ -4263,82 +5490,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return null;
           };
 
-          const reduceHandoverStability = (stability: TopicStability): TopicStability => {
-            if (stability === "High Maintenance") return "High";
-            if (stability === "High") return "Medium";
-            if (stability === "Medium") return "Low";
-            return "Low";
-          };
-
           const computeHandoverVerificationSummary = (
             phase: TopicPhase,
             previousStability: TopicStability,
-            observations: Array<Record<string, string>>
+            submittedSet: any,
           ) => {
-            const phaseSummary = computeAdaptiveDiagnosisPhaseSummary(phase, observations);
-            const verificationScore = phaseSummary.phaseScore;
+            // Retain the old score only as a compatibility measurement. It must
+            // never authorize the continuity decision.
+            const compatibilitySummary = computeAdaptiveDiagnosisPhaseSummary(
+              phase,
+              Array.isArray(submittedSet?.observations) ? submittedSet.observations : [],
+            );
+            const evidenceEvaluation = evaluateHandoverVerificationEvidence({
+              phase,
+              previousStability,
+              set: submittedSet,
+            });
 
-            let verificationOutcome:
-              | "hold"
-              | "stability_adjust"
-              | "targeted_re_diagnosis_required" = "hold";
-            let confidence: "low" | "normal" | "strong" = "normal";
-            let resultingPhase: TopicPhase = phase;
-            let resultingStability: TopicStability = previousStability;
-
-            if (verificationScore <= 39) {
-              verificationOutcome = "targeted_re_diagnosis_required";
-              confidence = "low";
-            } else if (verificationScore <= 59) {
-              verificationOutcome = "stability_adjust";
-              resultingStability = reduceHandoverStability(previousStability);
-            } else if (verificationScore <= 84) {
-              verificationOutcome = "hold";
-              confidence = "normal";
-            } else {
-              verificationOutcome = "hold";
-              confidence = "strong";
+            if (evidenceEvaluation.status !== "evaluated") {
+              return {
+                status: "unavailable" as const,
+                phase,
+                previousStability,
+                reason: evidenceEvaluation.reason,
+              };
             }
 
+            const {
+              verificationOutcome,
+              confidence,
+              resultingPhase,
+              resultingStability,
+              reDiagnosisRequired,
+              reason,
+              dimensions,
+            } = evidenceEvaluation;
+
             const nextActionConfig =
-              verificationOutcome === "targeted_re_diagnosis_required"
+              verificationOutcome === "targeted_re_diagnosis_required" || verificationOutcome === "continue_verification"
                 ? null
                 : (NEXT_ACTION_ENGINE as any)?.[resultingPhase]?.[resultingStability] || null;
 
             const verificationOutcomeLabel =
-              verificationOutcome === "targeted_re_diagnosis_required"
-                ? "Targeted re-diagnosis required"
-                : verificationOutcome === "stability_adjust"
-                  ? "Stability adjust"
-                  : confidence === "strong"
-                    ? "Hold with strong confidence"
-                    : "Hold";
+              verificationOutcome === "continue_verification"
+                ? "More continuity evidence required"
+                : verificationOutcome === "targeted_re_diagnosis_required"
+                  ? "Targeted re-diagnosis required"
+                  : verificationOutcome === "stability_adjust"
+                    ? "Stability adjust"
+                    : confidence === "strong"
+                      ? "Inherited state confirmed"
+                      : "Inherited state held";
 
             const nextAction =
-              verificationOutcome === "targeted_re_diagnosis_required"
-                ? "Run targeted re-diagnosis on this topic before standard training resumes."
-                : verificationOutcome === "stability_adjust"
-                  ? `Adjust stability to ${resultingStability} and continue with reinforcement from the current phase.`
-                  : nextActionConfig?.primaryAction || "Continue training from the inherited state.";
+              verificationOutcome === "continue_verification"
+                ? "Record another clean continuity opportunity under the same inherited phase conditions."
+                : verificationOutcome === "targeted_re_diagnosis_required"
+                  ? "Run evidence-complete targeted re-diagnosis on this topic before standard training resumes."
+                  : verificationOutcome === "stability_adjust"
+                    ? `Adjust stability to ${resultingStability} and continue reinforcement from the inherited phase.`
+                    : nextActionConfig?.primaryAction || "Continue training from the inherited state.";
 
             const constraint =
-              verificationOutcome === "targeted_re_diagnosis_required"
-                ? "Do not resume normal training until targeted re-diagnosis is completed."
-                : nextActionConfig?.rules?.[0] || null;
+              verificationOutcome === "continue_verification"
+                ? "Remain in continuity verification. Do not teach forward or progress the student while evidence is still unresolved."
+                : verificationOutcome === "targeted_re_diagnosis_required"
+                  ? "Do not resume normal training until evidence-complete targeted re-diagnosis is completed."
+                  : nextActionConfig?.rules?.[0] || null;
 
             return {
+              status: "evaluated" as const,
               phase,
               previousStability,
-              verificationScore,
+              verificationScore: compatibilitySummary.phaseScore,
+              compatibilityScore: compatibilitySummary.phaseScore,
+              scoreAuthority: false as const,
+              decisionAuthority: "evidence_native" as const,
               verificationOutcome,
               verificationOutcomeLabel,
               confidence,
               resultingPhase,
               resultingStability,
-              reDiagnosisRequired: verificationOutcome === "targeted_re_diagnosis_required",
+              reDiagnosisRequired,
+              evidenceReason: reason,
+              dimensions,
               nextAction,
               constraint,
-              repRows: phaseSummary.repRows,
+              repRows: compatibilitySummary.repRows,
             };
           };
 
@@ -4471,28 +5709,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
               ? Math.round(weighted.sum / weighted.weight)
               : 0;
 
-            // Use the locked transition engine from Response Integrity Drift Correction Spec
-            const transition = computeTransition(observedPhase, previousStability, sessionScore);
+            // Evidence-native training is the live authority. Numeric scoring remains
+            // available for compatibility analytics and score-vs-evidence comparison only.
+            const evidenceEvaluation = evaluateTrainingEvidence({
+              phase: observedPhase,
+              previousStability,
+              sets: sets as any,
+            });
 
-            const nextActionConfig = (NEXT_ACTION_ENGINE as any)?.[transition.next_phase]?.[transition.next_stability] || null;
+            if (evidenceEvaluation.status !== "evaluated") {
+              throw new Error(
+                `Training evidence cannot authorize live state: ${evidenceEvaluation.reason}`,
+              );
+            }
+
+            // Preserve the former score decision only as a proof comparison. It must not
+            // authorize topic state, next action, snapshots, ledger state, or reporting lineage.
+            const legacyTransitionResult = computeTransition(
+              observedPhase,
+              previousStability,
+              sessionScore,
+            );
+            const legacyTransition = {
+              nextPhase: legacyTransitionResult.next_phase,
+              nextStability: legacyTransitionResult.next_stability,
+              transitionReason: normalizeTransitionReason(legacyTransitionResult.transition_reason),
+            };
+            const evidenceShadowComparison = compareTrainingEvidenceShadowToLegacy({
+              sessionScore,
+              legacyTransition,
+              evidenceShadow: evidenceEvaluation,
+            });
+
+            const authorityRoute =
+              resolveTrainingEvidenceAuthorityRoute(evidenceEvaluation);
+            const requiresTargetedRediagnosis =
+              authorityRoute.route === "targeted_rediagnosis";
+            const nextActionConfig = requiresTargetedRediagnosis
+              ? null
+              : (NEXT_ACTION_ENGINE as any)?.[authorityRoute.nextPhase]?.[
+                  authorityRoute.nextStability
+                ] || null;
+            const nextAction = requiresTargetedRediagnosis
+              ? `Run targeted evidence-native re-diagnosis beginning at ${authorityRoute.targetPhase || observedPhase}.`
+              : nextActionConfig?.primaryAction || null;
+            const constraint = requiresTargetedRediagnosis
+              ? "Do not continue ordinary Training for this topic until evidence-native re-diagnosis establishes a trustworthy entry state."
+              : nextActionConfig?.rules?.[0] || null;
 
             return {
               observedPhase,
               previousStability,
-              phase: transition.next_phase,
-              stability: transition.next_stability,
-              transitionReason: normalizeTransitionReason(transition.transition_reason),
-              phaseDecision: transition.transition_reason === "phase progress" ? "advance" :
-                           transition.transition_reason === "stability regress" ? "regress" : "remain",
+              observedStability: evidenceEvaluation.observedStability,
+              phase: authorityRoute.nextPhase,
+              stability: authorityRoute.nextStability,
+              transitionReason: authorityRoute.transitionReason,
+              phaseDecision: requiresTargetedRediagnosis
+                ? "re-diagnose"
+                : authorityRoute.transitionReason === "phase progress"
+                  ? "advance"
+                  : authorityRoute.transitionReason === "stability regress"
+                    ? "regress"
+                    : "remain",
               sessionScore,
-              nextAction: nextActionConfig?.primaryAction || null,
-              constraint: nextActionConfig?.rules?.[0] || null,
+              decisionAuthority: "evidence_native" as const,
+              nextAction,
+              constraint,
+              requiresTargetedRediagnosis,
+              targetedRediagnosisStartPhase: requiresTargetedRediagnosis
+                ? authorityRoute.targetPhase
+                : null,
+              prerequisiteContradiction: evidenceEvaluation.prerequisiteContradiction,
               repRows,
               setScores,
               highGuardPasses,
+              evidence: evidenceEvaluation,
+              // Compatibility alias retained for the immutable historical comparison dataset.
+              evidenceShadow: evidenceEvaluation,
+              evidenceShadowComparison,
               lowStreakAfterSession: 0, // No longer used in new transition engine
             };
           };
+
+          const isResponseSnapshotV1 = (value: any) =>
+            !!value &&
+            typeof value === "object" &&
+            value.version === "response-snapshot-v1" &&
+            !!value.source &&
+            typeof value.source === "object" &&
+            !!value.drill &&
+            typeof value.drill === "object" &&
+            Array.isArray(value.sets);
 
           const mapDrillRowToDeterministicSession = (row: any) => {
             const extractObservationSignalsFromDrill = (drillPayload: any): ObservationSignal[] => {
@@ -4594,6 +5901,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             if (!parsed || typeof parsed !== "object") return null;
 
+            const responseEvidenceSignals = extractAuthoritativeResponseEvidenceSignals(parsed);
+            const hasAuthoritativeResponseEvidence = responseEvidenceSignals.length > 0;
+            const authoritativeBehaviorPatterns = reportClaimLabelsFromEvidence(responseEvidenceSignals);
+            const authoritativeBehaviorSummary = (() => {
+              if (!hasAuthoritativeResponseEvidence) return "";
+              const strong = responseEvidenceSignals.filter((signal) => signal.polarity === "strong");
+              const weak = responseEvidenceSignals.filter((signal) => signal.polarity === "weak");
+              const conditional = responseEvidenceSignals.filter((signal) => signal.polarity === "conditional");
+              const recovered = strong.filter((signal) => signal.recoveredAfterBreakdown);
+
+              const parts = [
+                ...recovered.map((signal) => `recovered to ${signal.label}`),
+                ...strong.filter((signal) => !signal.recoveredAfterBreakdown).map((signal) => signal.label),
+                ...weak.map((signal) => signal.label),
+                ...conditional.map((signal) => signal.label),
+              ];
+              const unique = Array.from(new Set(parts.filter(Boolean)));
+              return unique.length > 0
+                ? `Evidence resolved as ${naturalJoin(unique.slice(0, 4))}.`
+                : "No decision-eligible strength or breakdown claim was established from this evidence.";
+            })();
+
             const normalizedDrillType = String(parsed.drillType || "diagnosis").trim().toLowerCase();
             const drillType =
               normalizedDrillType === "training"
@@ -4634,8 +5963,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 sessionGroupId: String(parsed.sessionId || row.id),
                 topic,
                 drillType: "diagnosis",
-                responseSnapshot: parsed.responseSnapshot || null,
-                behaviorPatterns: rawBehaviorPatterns(observationSignals),
+                responseSnapshot: isResponseSnapshotV1(parsed.responseSnapshot) ? parsed.responseSnapshot : null,
+                responseEvidenceSignals,
+                behaviorPatterns: hasAuthoritativeResponseEvidence
+                  ? authoritativeBehaviorPatterns
+                  : rawBehaviorPatterns(observationSignals),
                 score: diagnosisScore,
                 phaseBefore: diagnosisPhase,
                 phaseAfter: trainingEntryPhase,
@@ -4646,7 +5978,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 deterministicLog: {
                   topicFocus: `This session focused on ${topic}, targeting baseline diagnosis in ${diagnosisPhase}.`,
                   whatWasTrained: `A diagnosis drill was used to identify ${DRILL_PURPOSE_BY_PHASE[diagnosisPhase] || "phase-specific response patterns"}.`,
-                  behaviorSummary: snapshotBehaviorSummary || buildBehaviorSummary(observationSignals, "diagnosis", stability),
+                  behaviorSummary: hasAuthoritativeResponseEvidence
+                    ? authoritativeBehaviorSummary
+                    : snapshotBehaviorSummary || buildBehaviorSummary(observationSignals, "diagnosis", stability),
                   performanceResult: describePerformanceResult({
                     phaseBefore: diagnosisPhase,
                     phaseAfter: trainingEntryPhase,
@@ -4712,8 +6046,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 sessionGroupId: String(parsed.sessionId || row.id),
                 topic,
                 drillType: "training",
-                responseSnapshot: parsed.responseSnapshot || null,
-                behaviorPatterns: rawBehaviorPatterns(observationSignals),
+                responseSnapshot: isResponseSnapshotV1(parsed.responseSnapshot) ? parsed.responseSnapshot : null,
+                responseEvidenceSignals,
+                behaviorPatterns: hasAuthoritativeResponseEvidence
+                  ? authoritativeBehaviorPatterns
+                  : rawBehaviorPatterns(observationSignals),
                 score: sessionScore,
                 phaseBefore: observedPhase,
                 phaseAfter: resultingPhase,
@@ -4724,7 +6061,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 deterministicLog: {
                 topicFocus: `This session focused on ${topic}, targeting ${observedPhase} phase skills.`,
                   whatWasTrained: `A training drill was used to train ${DRILL_PURPOSE_BY_PHASE[observedPhase] || "phase-specific behavior"}.`,
-                  behaviorSummary: snapshotBehaviorSummary || buildBehaviorSummary(observationSignals, "the drill", stability),
+                  behaviorSummary: hasAuthoritativeResponseEvidence
+                    ? authoritativeBehaviorSummary
+                    : snapshotBehaviorSummary || buildBehaviorSummary(observationSignals, "the drill", stability),
                   performanceResult: describePerformanceResult({
                     phaseBefore: observedPhase,
                     phaseAfter: resultingPhase,
@@ -4813,7 +6152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   return `${entry.topic}: ${behaviors}`;
                 });
                 const performanceLines = sortedEntries.map((entry) =>
-                  `${entry.topic}: ${entry.score}/100, ${entry.stabilityBefore} -> ${entry.stabilityAfter}`
+                  `${entry.topic}: ${entry.phaseBefore} / ${entry.stabilityBefore} -> ${entry.phaseAfter} / ${entry.stabilityAfter}`
                 );
                 const stateMovementLines = sortedEntries.map((entry) =>
                   `${entry.topic}: ${entry.deterministicLog?.stateMovement || "State recorded"}`
@@ -4836,6 +6175,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   topic: topics[0] || "Unknown topic",
                   drillType: sessionTypes.length === 1 ? sessionTypes[0] : "mixed",
                   responseSnapshots: sortedEntries.map((entry) => entry.responseSnapshot).filter(Boolean),
+                  responseEvidenceSignals: sortedEntries.flatMap((entry) =>
+                    Array.isArray(entry.responseEvidenceSignals) ? entry.responseEvidenceSignals : []
+                  ),
                   sessionTypes,
                   containsDiagnosis,
                   containsTraining,
@@ -4891,17 +6233,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
               return rows;
             }
 
-            const { data: scheduledSessions, error: scheduledSessionsError } = await supabase
-              .from("scheduled_sessions")
-              .select("id, scheduled_time")
-              .in("id", scheduledSessionIds);
+            let scheduledSessions: any[] = [];
+            if (isEmergencyDbMode()) {
+              const scheduledResult = await pool.query(
+                `SELECT id::text AS id, scheduled_time
+                   FROM public.scheduled_sessions
+                  WHERE id::text = ANY($1::text[])`,
+                [scheduledSessionIds],
+              );
+              scheduledSessions = scheduledResult.rows || [];
+            } else {
+              const { data, error: scheduledSessionsError } = await supabase
+                .from("scheduled_sessions")
+                .select("id, scheduled_time")
+                .in("id", scheduledSessionIds);
 
-            if (scheduledSessionsError || !scheduledSessions?.length) {
+              if (scheduledSessionsError) {
+                return rows;
+              }
+              scheduledSessions = data || [];
+            }
+
+            if (!scheduledSessions.length) {
               return rows;
             }
 
             const scheduledTimeById = new Map<string, string>();
-            for (const session of scheduledSessions || []) {
+            for (const session of scheduledSessions) {
               const sessionId = String(session?.id || "").trim();
               const scheduledTime = String(session?.scheduled_time || "").trim();
               if (sessionId && scheduledTime) {
@@ -5203,22 +6561,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             phaseBefore,
             phaseAfter,
             stabilityAfter,
-            score,
             transitionReason,
           }: {
             phaseBefore: string;
             phaseAfter: string;
             stabilityAfter: string;
-            score: number;
+            score?: number;
             transitionReason: TransitionReason;
           }) => {
             if (didPhaseProgress({ phaseBefore, phaseAfter, transitionReason })) {
-              return `Based on performance, phase is now ${phaseAfter} and stability is ${stabilityAfter} (${score}/100).`;
+              return `Evidence established movement into ${phaseAfter}, with current stability at ${stabilityAfter}.`;
             }
             if (isFinalPhaseMaintenanceState(phaseAfter, stabilityAfter)) {
-              return `Based on performance, phase remains ${phaseAfter} at ${stabilityAfter} (${score}/100).`;
+              return `Evidence confirmed ${phaseAfter} at ${stabilityAfter}.`;
             }
-            return `Based on performance, stability is now ${stabilityAfter} in ${phaseAfter} (${score}/100).`;
+            return `Evidence places the current response at ${phaseAfter} / ${stabilityAfter}.`;
           };
 
           const describeSessionMovement = ({
@@ -5681,6 +7038,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               latestNextAction: string;
               drillBehaviors: string[][];
               allBehaviors: string[];
+              evidenceIds: string[];
+              claimEvidence: ResponseEvidenceReportSignal[];
               hasTrainingEvidence: boolean;
             }>
           ) =>
@@ -5703,6 +7062,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               latestNextAction: string;
               drillBehaviors: string[][];
               allBehaviors: string[];
+              evidenceIds: string[];
+              claimEvidence: ResponseEvidenceReportSignal[];
               hasTrainingEvidence: boolean;
             }> = {};
 
@@ -5721,6 +7082,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const behaviors = Array.isArray(session?.behaviorPatterns)
                 ? session.behaviorPatterns.filter((behavior: unknown) => String(behavior || "").trim())
                 : [];
+              const claimEvidence = (Array.isArray(session?.responseEvidenceSignals)
+                ? session.responseEvidenceSignals
+                : []
+              ).filter((signal: ResponseEvidenceReportSignal) => Boolean(signal?.evidenceId));
+              const evidenceIds = Array.from(
+                new Set(
+                  claimEvidence
+                    .map((signal: ResponseEvidenceReportSignal) => String(signal?.evidenceId || "").trim())
+                    .filter(Boolean),
+                ),
+              );
               const nextAction = String(session?.nextAction || session?.deterministicLog?.nextMove || "").trim();
 
               if (!snapshots[topic]) {
@@ -5732,6 +7104,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     latestNextAction: nextAction,
                     drillBehaviors: [behaviors],
                     allBehaviors: [...behaviors],
+                    evidenceIds: [...evidenceIds],
+                    claimEvidence: [...claimEvidence],
                     hasTrainingEvidence: session?.drillType === "training" || session?.containsTraining === true,
                 };
                 return;
@@ -5748,6 +7122,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               snapshots[topic].transitionReasons.push(transitionReason);
               snapshots[topic].drillBehaviors.push(behaviors);
               snapshots[topic].allBehaviors.push(...behaviors);
+              snapshots[topic].evidenceIds = Array.from(
+                new Set([...snapshots[topic].evidenceIds, ...evidenceIds]),
+              );
+              const knownClaimIds = new Set(
+                snapshots[topic].claimEvidence.map((signal) => signal.evidenceId),
+              );
+              claimEvidence.forEach((signal: ResponseEvidenceReportSignal) => {
+                if (!knownClaimIds.has(signal.evidenceId)) {
+                  snapshots[topic].claimEvidence.push(signal);
+                  knownClaimIds.add(signal.evidenceId);
+                }
+              });
               if (session?.drillType === "training" || session?.containsTraining === true) {
                 snapshots[topic].hasTrainingEvidence = true;
               }
@@ -5910,9 +7296,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const startDate = sorted[0].date;
             const endDate = sorted[sorted.length - 1].date;
+            const reportDecisionAuthority = resolveResponseEvidenceReportAuthority(
+              sorted.map((session) =>
+                Array.isArray(session?.responseEvidenceSignals) ? session.responseEvidenceSignals : []
+              ),
+            );
 
             return {
-              version: "weekly-v2-auto",
+              version: "weekly-v3-evidence",
               weekStartDate: new Date(startDate).toISOString().slice(0, 10),
               weekEndDate: new Date(endDate).toISOString().slice(0, 10),
               sessionsCompletedThisWeek: groupedSessions.length,
@@ -5924,6 +7315,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
               internalWeeklyTutorNote: "",
               drillCount: deterministicSessions.length,
               sourceSessionIds: groupedSessions.map((session) => session.id),
+              reportDecisionAuthority,
+              evidenceLineage: topics.map((topic) => ({
+                topic,
+                evidenceIds: topicSnapshots[topic].evidenceIds,
+                claims: topicSnapshots[topic].claimEvidence.map((signal) => ({
+                  evidenceId: signal.evidenceId,
+                  dimensionId: signal.dimensionId,
+                  rawOption: signal.rawOption,
+                  polarity: signal.polarity,
+                  label: signal.label,
+                  claimEligible: signal.claimEligible,
+                  recoveredAfterBreakdown: signal.recoveredAfterBreakdown,
+                  sourceAuthority: signal.sourceAuthority,
+                })),
+              })),
             };
           };
 
@@ -6042,9 +7448,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const startDate = sorted[0].date;
             const endDate = sorted[sorted.length - 1].date;
+            const reportDecisionAuthority = resolveResponseEvidenceReportAuthority(
+              sorted.map((session) =>
+                Array.isArray(session?.responseEvidenceSignals) ? session.responseEvidenceSignals : []
+              ),
+            );
 
             return {
-              version: "monthly-v2-auto",
+              version: "monthly-v3-evidence",
               monthStartDate: new Date(startDate).toISOString().slice(0, 10),
               monthEndDate: new Date(endDate).toISOString().slice(0, 10),
               totalSessionsCompletedThisMonth: groupedSessions.length,
@@ -6058,6 +7469,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
               drillCount: topics.reduce((sum, topic) => sum + topicSnapshots[topic].drillCount, 0),
               monthRange: `${new Date(startDate).toISOString().slice(0, 10)} to ${new Date(endDate).toISOString().slice(0, 10)}`,
               sourceSessionIds: groupedSessions.map((session) => session.id),
+              reportDecisionAuthority,
+              evidenceLineage: topics.map((topic) => ({
+                topic,
+                evidenceIds: topicSnapshots[topic].evidenceIds,
+                claims: topicSnapshots[topic].claimEvidence.map((signal) => ({
+                  evidenceId: signal.evidenceId,
+                  dimensionId: signal.dimensionId,
+                  rawOption: signal.rawOption,
+                  polarity: signal.polarity,
+                  label: signal.label,
+                  claimEligible: signal.claimEligible,
+                  recoveredAfterBreakdown: signal.recoveredAfterBreakdown,
+                  sourceAuthority: signal.sourceAuthority,
+                })),
+              })),
             };
           };
 
@@ -6091,6 +7517,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const insertPayload = reportWindowKey
               ? { ...payload, report_window_key: reportWindowKey }
               : payload;
+
+            if (isEmergencyDbMode()) {
+              try {
+                const inserted = await pool.query(
+                  `INSERT INTO public.parent_reports
+                    (tutor_id, student_id, parent_id, report_type, week_number, month_name,
+                     summary, topics_learned, strengths, areas_for_growth,
+                     boss_battles_completed, solutions_unlocked, confidence_growth,
+                     next_steps, sent_at, report_window_key)
+                   VALUES
+                    ($1, $2, $3, $4, $5, $6,
+                     $7, $8, $9, $10,
+                     $11, $12, $13,
+                     $14, $15, $16)
+                   RETURNING id`,
+                  [
+                    insertPayload.tutor_id,
+                    insertPayload.student_id,
+                    insertPayload.parent_id,
+                    insertPayload.report_type,
+                    insertPayload.week_number ?? null,
+                    insertPayload.month_name ?? null,
+                    insertPayload.summary,
+                    insertPayload.topics_learned ?? null,
+                    insertPayload.strengths ?? null,
+                    insertPayload.areas_for_growth ?? null,
+                    Number(insertPayload.boss_battles_completed || 0),
+                    Number(insertPayload.solutions_unlocked || 0),
+                    insertPayload.confidence_growth ?? null,
+                    insertPayload.next_steps ?? null,
+                    insertPayload.sent_at,
+                    reportWindowKey,
+                  ],
+                );
+                return { ...inserted.rows[0], created: true };
+              } catch (error: any) {
+                if (error?.code === "23505" && reportWindowKey) {
+                  const existing = await pool.query(
+                    `SELECT id
+                       FROM public.parent_reports
+                      WHERE tutor_id = $1
+                        AND student_id = $2
+                        AND report_type = $3
+                        AND report_window_key = $4
+                      LIMIT 1`,
+                    [payload.tutor_id, payload.student_id, payload.report_type, reportWindowKey],
+                  );
+                  if (existing.rows[0]) {
+                    return { ...existing.rows[0], created: false };
+                  }
+                }
+                throw error;
+              }
+            }
 
             const { data, error } = await supabase
               .from("parent_reports")
@@ -6184,37 +7664,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
 
           const maybeAutoSendDeterministicReports = async (studentId: string, tutorId: string) => {
-            const student = await storage.getStudent(studentId);
-            if (!student || student.tutorId !== tutorId) return;
+            let parentId = "";
+            let drillRows: any[] = [];
+            let existingWeeklyReports: any[] = [];
+            let existingMonthlyReports: any[] = [];
 
-            const parentId = await resolveParentIdForStudent(student, tutorId);
-            if (!parentId) return;
+            if (isEmergencyDbMode()) {
+              const studentResult = await pool.query(
+                `SELECT id, tutor_id, parent_id, parent_enrollment_id
+                   FROM public.students
+                  WHERE id = $1
+                  LIMIT 1`,
+                [studentId],
+              );
+              const student = studentResult.rows[0] || null;
+              if (!student || String(student.tutor_id || "") !== String(tutorId)) return;
 
-            const { data: drillRows, error: drillRowsError } = await supabase
-              .from("intro_session_drills")
-              .select("id, drill, submitted_at, scheduled_session_id")
-              .eq("student_id", studentId)
-              .eq("tutor_id", tutorId)
-              .order("submitted_at", { ascending: true });
+              parentId = String(student.parent_id || "").trim();
+              if (!parentId && student.parent_enrollment_id) {
+                const enrollmentResult = await pool.query(
+                  `SELECT user_id
+                     FROM public.parent_enrollments
+                    WHERE id = $1
+                    LIMIT 1`,
+                  [student.parent_enrollment_id],
+                );
+                parentId = String(enrollmentResult.rows[0]?.user_id || "").trim();
+              }
+              if (!parentId) return;
 
-            if (drillRowsError || !drillRows || drillRows.length === 0) return;
-            const anchoredDrillRows = await attachReportAnchorTimes(drillRows || []);
+              const [drillResult, weeklyResult, monthlyResult] = await Promise.all([
+                pool.query(
+                  `SELECT id, drill, submitted_at, scheduled_session_id
+                     FROM public.intro_session_drills
+                    WHERE student_id = $1 AND tutor_id = $2
+                    ORDER BY submitted_at ASC`,
+                  [studentId, tutorId],
+                ),
+                pool.query(
+                  `SELECT summary, report_window_key
+                     FROM public.parent_reports
+                    WHERE student_id = $1
+                      AND tutor_id = $2
+                      AND report_type = 'weekly'
+                    ORDER BY sent_at DESC
+                    LIMIT 1000`,
+                  [studentId, tutorId],
+                ),
+                pool.query(
+                  `SELECT summary, report_window_key
+                     FROM public.parent_reports
+                    WHERE student_id = $1
+                      AND tutor_id = $2
+                      AND report_type = 'monthly'
+                    ORDER BY sent_at DESC
+                    LIMIT 1000`,
+                  [studentId, tutorId],
+                ),
+              ]);
+              drillRows = drillResult.rows || [];
+              existingWeeklyReports = weeklyResult.rows || [];
+              existingMonthlyReports = monthlyResult.rows || [];
+            } else {
+              const student = await storage.getStudent(studentId);
+              if (!student || student.tutorId !== tutorId) return;
 
-            const { data: existingWeeklyReports } = await supabase
-              .from("parent_reports")
-              .select("summary, report_window_key")
-              .eq("student_id", studentId)
-              .eq("tutor_id", tutorId)
-              .eq("report_type", "weekly")
-              .limit(1000);
+              parentId = String(await resolveParentIdForStudent(student, tutorId) || "").trim();
+              if (!parentId) return;
 
-            const { data: existingMonthlyReports } = await supabase
-              .from("parent_reports")
-              .select("summary, report_window_key")
-              .eq("student_id", studentId)
-              .eq("tutor_id", tutorId)
-              .eq("report_type", "monthly")
-              .limit(1000);
+              const { data, error: drillRowsError } = await supabase
+                .from("intro_session_drills")
+                .select("id, drill, submitted_at, scheduled_session_id")
+                .eq("student_id", studentId)
+                .eq("tutor_id", tutorId)
+                .order("submitted_at", { ascending: true });
+
+              if (drillRowsError) return;
+              drillRows = data || [];
+
+              const [{ data: weeklyData }, { data: monthlyData }] = await Promise.all([
+                supabase
+                  .from("parent_reports")
+                  .select("summary, report_window_key")
+                  .eq("student_id", studentId)
+                  .eq("tutor_id", tutorId)
+                  .eq("report_type", "weekly")
+                  .limit(1000),
+                supabase
+                  .from("parent_reports")
+                  .select("summary, report_window_key")
+                  .eq("student_id", studentId)
+                  .eq("tutor_id", tutorId)
+                  .eq("report_type", "monthly")
+                  .limit(1000),
+              ]);
+              existingWeeklyReports = weeklyData || [];
+              existingMonthlyReports = monthlyData || [];
+            }
+
+            if (drillRows.length === 0) return;
+
+            const anchoredDrillRows = await attachReportAnchorTimes(drillRows);
+            // Two-session and eight-session windows are delivery windows. The
+            // intro diagnosis establishes the starting state but is not one of
+            // the paid/qualifying training sessions in those windows.
+            const reportEligibleDrillRows = anchoredDrillRows.filter((row: any) => {
+              const mapped = mapDrillRowToDeterministicSession(row);
+              return mapped?.drillType === "training";
+            });
 
             const coveredSessionIds = (reports: any[] | null | undefined) => new Set(
               (reports || []).flatMap((report: any) => {
@@ -6234,10 +7791,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const weeklyCoveredSessionIds = coveredSessionIds(existingWeeklyReports);
             const monthlyCoveredSessionIds = coveredSessionIds(existingMonthlyReports);
-            const weeklyPending = anchoredDrillRows.filter(
+            const weeklyPending = reportEligibleDrillRows.filter(
               (row: any) => !weeklyCoveredSessionIds.has(resolveReportSessionGroupId(row))
             );
-            const monthlyPending = anchoredDrillRows.filter(
+            const monthlyPending = reportEligibleDrillRows.filter(
               (row: any) => !monthlyCoveredSessionIds.has(resolveReportSessionGroupId(row))
             );
 
@@ -6719,8 +8276,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   : []
               );
               const adaptiveBlocks = normalizeAdaptiveDiagnosisBlocks(rawAdaptiveBlocks);
-              const isTargetedRediagnosis = !!rediagnosis || adaptiveBlocks.length > 0;
-              const verificationBlocks = isTargetedRediagnosis ? adaptiveBlocks : handoverBlocks;
+              const legacyTargetedRediagnosisRequested = !!rediagnosis || adaptiveBlocks.length > 0;
+              if (legacyTargetedRediagnosisRequested) {
+                return res.status(409).json({
+                  message:
+                    "Legacy Handover re-diagnosis is retired. Launch evidence-complete targeted re-diagnosis from the Handover result.",
+                  decisionAuthority: "evidence_native",
+                  requiredRoute: "evidence_complete_diagnosis",
+                });
+              }
+              const isTargetedRediagnosis = false;
+              const verificationBlocks = handoverBlocks;
               const verificationPhase = parseAuthoritativePhase(rawPhase);
               const startingPhase = parseAuthoritativePhase(rawStartingPhase) || verificationPhase;
               const previousStability = normalizeStability(rawStability || "Low");
@@ -6826,11 +8392,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   verificationBlocks
                 );
               } else {
-                handoverSummary = computeHandoverVerificationSummary(
+                const verificationSummary = computeHandoverVerificationSummary(
                   verificationPhase,
                   previousStability,
-                  verificationBlock.observations
+                  verificationBlock,
                 );
+                if (verificationSummary.status !== "evaluated") {
+                  return res.status(400).json({
+                    message: `Handover evidence is not decision-eligible: ${verificationSummary.reason}`,
+                  });
+                }
+                if (verificationSummary.verificationOutcome === "continue_verification") {
+                  return res.status(409).json({
+                    message: "Handover continuity evidence is not yet sufficient. Record another clean opportunity under the same inherited phase conditions.",
+                    decisionAuthority: "evidence_native",
+                    requiredAction: "record_additional_continuity_evidence",
+                    dimensions: verificationSummary.dimensions,
+                  });
+                }
+                handoverSummary = verificationSummary;
               }
 
               const id = uuidv4();
@@ -6928,9 +8508,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 lastUpdated: nowIso,
                 nextAction: handoverSummary.nextAction,
                 observationNotes: [
-                  `Handover Verification Score: ${handoverSummary.verificationScore}`,
-                  `Outcome: ${handoverSummary.verificationOutcomeLabel}`,
+                  `Handover evidence decision: ${handoverSummary.verificationOutcomeLabel}`,
+                  (handoverSummary as any).evidenceReason
+                    ? `Evidence: ${(handoverSummary as any).evidenceReason}`
+                    : null,
                   handoverSummary.constraint ? `Constraint: ${handoverSummary.constraint}` : null,
+                  typeof handoverSummary.verificationScore === "number"
+                    ? `Compatibility score (non-authoritative): ${handoverSummary.verificationScore}`
+                    : null,
                 ]
                   .filter(Boolean)
                   .join(" | "),
@@ -6941,16 +8526,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     phase: handoverSummary.resultingPhase,
                     stability: handoverSummary.resultingStability,
                     nextAction: handoverSummary.nextAction,
-                    observationNotes: `Handover verification update. Score ${handoverSummary.verificationScore}.`,
+                    observationNotes: `Handover evidence decision: ${handoverSummary.verificationOutcomeLabel}.`,
                     structuredObservation: {
                       drillType: "handover_verification",
                       handoverMode: isTargetedRediagnosis ? "targeted_re_diagnosis" : "verification",
                       observedPhase: handoverSummary.phase,
                       previousStability: handoverSummary.previousStability,
+                      decisionAuthority: (handoverSummary as any).decisionAuthority || "evidence_native",
+                      scoreAuthority: (handoverSummary as any).scoreAuthority ?? false,
+                      compatibilityScore: handoverSummary.verificationScore,
                       verificationScore: handoverSummary.verificationScore,
                       verificationOutcome: handoverSummary.verificationOutcome,
                       verificationOutcomeLabel: handoverSummary.verificationOutcomeLabel,
                       verificationConfidence: handoverSummary.confidence,
+                      evidenceReason: (handoverSummary as any).evidenceReason || null,
+                      dimensionDecisions: (handoverSummary as any).dimensions || [],
                       resultingPhase: handoverSummary.resultingPhase,
                       resultingStability: handoverSummary.resultingStability,
                       reDiagnosisRequired: handoverSummary.reDiagnosisRequired,
@@ -6987,6 +8577,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 setPoints: handoverSummary.verificationScore,
                 setMaxPoints: 100,
                 sessionScore: handoverSummary.verificationScore,
+                decisionAuthority: (handoverSummary as any).decisionAuthority || "evidence_native",
+                scoreAuthority: (handoverSummary as any).scoreAuthority ?? false,
                 phase: handoverSummary.phase,
                 stability: handoverSummary.resultingStability,
                 previousStability: handoverSummary.previousStability,
@@ -7074,6 +8666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               emergencyDbClient = isEmergencyDbMode() ? await pool.connect() : null;
               if (emergencyDbClient) await emergencyDbClient.query("BEGIN");
               const pendingEmergencyLedgerInputs: EvidenceLedgerProjectionInput[] = [];
+              const pendingEmergencyShadowComparisons: TrainingEvidenceShadowDatasetInput[] = [];
 
               const conceptMastery: any =
                 student.conceptMastery && typeof student.conceptMastery === "object"
@@ -7253,6 +8846,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   await persistEvidenceLedgerShadow(ledgerInput);
                 }
 
+                const shadowComparisonInput: TrainingEvidenceShadowDatasetInput = {
+                  sourceDrillId: String(inserted?.id || drillId),
+                  studentId: String(studentId),
+                  tutorId: String(tutorId),
+                  topic: normalizedTopic,
+                  scheduledSessionId: scheduledSessionRecordId,
+                  trainingSessionRunId: String(trainingRun?.id || sessionId),
+                  phase: effectivePhase,
+                  previousStability,
+                  observedAt: String(inserted?.submitted_at || sessionStartTime),
+                  evidenceShadow: trainingSummary.evidenceShadow,
+                  comparison: trainingSummary.evidenceShadowComparison,
+                };
+                if (isEmergencyDbMode()) {
+                  pendingEmergencyShadowComparisons.push(shadowComparisonInput);
+                } else {
+                  await persistTrainingShadowComparison(shadowComparisonInput);
+                }
+
                 // Update topic state
                 const nowIso = new Date().toISOString();
                 const updatedEntry = {
@@ -7262,9 +8874,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   stability: trainingSummary.stability,
                   lastUpdated: nowIso,
                   nextAction: trainingSummary.nextAction,
+                  requiresTargetedRediagnosis: trainingSummary.requiresTargetedRediagnosis,
+                  targetedRediagnosisStartPhase: trainingSummary.targetedRediagnosisStartPhase,
+                  prerequisiteContradictionStatus: trainingSummary.prerequisiteContradiction.status,
+                  prerequisiteContradictionReason: trainingSummary.prerequisiteContradiction.reason,
                   observationNotes: [
-                    `Training Drill Session Score: ${trainingSummary.sessionScore}`,
+                    `Training evidence decision: ${trainingSummary.observedStability} observed stability`,
                     `Decision: ${trainingSummary.transitionReason.toUpperCase()}`,
+                    trainingSummary.requiresTargetedRediagnosis
+                      ? `Targeted re-diagnosis start: ${trainingSummary.targetedRediagnosisStartPhase || trainingSummary.observedPhase}`
+                      : null,
+                    `Compatibility score (non-authoritative): ${trainingSummary.sessionScore}`,
                     trainingSummary.constraint ? `Constraint: ${trainingSummary.constraint}` : null,
                   ]
                     .filter(Boolean)
@@ -7276,16 +8896,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       phase: trainingSummary.phase,
                       stability: trainingSummary.stability,
                       nextAction: trainingSummary.nextAction,
-                      observationNotes: `Training drill update. Session Score ${trainingSummary.sessionScore}.`,
+                      observationNotes: `Training drill update. Evidence decision ${trainingSummary.transitionReason}; compatibility score ${trainingSummary.sessionScore} (non-authoritative).`,
                       structuredObservation: {
                         drillType: "training",
                         observedPhase: trainingSummary.observedPhase,
+                        observedStability: trainingSummary.observedStability,
                         previousStability: trainingSummary.previousStability,
                         transitionReason: trainingSummary.transitionReason,
                         phaseDecision: trainingSummary.phaseDecision,
+                        decisionAuthority: trainingSummary.decisionAuthority,
                         sessionScore: trainingSummary.sessionScore,
                         nextAction: trainingSummary.nextAction,
                         constraint: trainingSummary.constraint,
+                        requiresTargetedRediagnosis: trainingSummary.requiresTargetedRediagnosis,
+                        targetedRediagnosisStartPhase: trainingSummary.targetedRediagnosisStartPhase,
+                        prerequisiteContradiction: trainingSummary.prerequisiteContradiction,
                       },
                       drillId: inserted.id,
                       sessionId: sessionId,
@@ -7314,6 +8939,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       setPoints: setScore,
                       setMaxPoints: 100,
                       sessionScore: trainingSummary.sessionScore,
+                      decisionAuthority: trainingSummary.decisionAuthority,
+                      scoreAuthority: false,
+                      observedStability: trainingSummary.observedStability,
                       phaseBefore: trainingSummary.observedPhase,
                       phase: trainingSummary.phase,
                       stabilityBefore: trainingSummary.previousStability,
@@ -7322,6 +8950,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       phaseDecision: trainingSummary.phaseDecision,
                       nextAction: trainingSummary.nextAction,
                       constraint: trainingSummary.constraint,
+                      requiresTargetedRediagnosis: trainingSummary.requiresTargetedRediagnosis,
+                      targetedRediagnosisStartPhase: trainingSummary.targetedRediagnosisStartPhase,
+                      prerequisiteContradictionStatus: trainingSummary.prerequisiteContradiction.status,
                     };
                   }),
                   summary: trainingSummary,
@@ -7347,14 +8978,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Store session summary
               const sessionDuration = 0; // Could be calculated if start/end times provided
               const topicsTouched = Array.from(new Set(sessionDrills.map(d => d.trainingTopic)));
-
-              if (!isEmergencyDbMode()) {
-                try {
-                  await maybeAutoSendDeterministicReports(studentId, tutorId);
-                } catch (autoReportError) {
-                  console.error("Auto report generation failed after training session:", autoReportError);
-                }
-              }
 
               const scoring = drillResults.flatMap((result) =>
                 Array.isArray(result.scoring)
@@ -7418,19 +9041,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 parentId = String(linkedStudent?.parent_id || "").trim();
               }
 
-              let monthlyQuota = null;
-              if (parentId && !isEmergencyDbMode()) {
-                monthlyQuota = await getMonthlySessionQuotaSnapshot({
-                  parentId,
-                  studentId: String(studentId),
-                  referenceIso: new Date().toISOString(),
-                });
-              }
-
               if (emergencyDbClient) {
                 await emergencyDbClient.query("COMMIT");
                 emergencyDbClient.release();
                 emergencyDbClient = null;
+
                 for (const ledgerInput of pendingEmergencyLedgerInputs) {
                   const projection = await persistEvidenceLedgerShadow(ledgerInput);
                   if (projection.status === "persistence_failed" || projection.status === "projection_invalid") {
@@ -7440,6 +9055,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       status: projection.status,
                     });
                   }
+                }
+
+                for (const comparisonInput of pendingEmergencyShadowComparisons) {
+                  const comparisonResult = await persistTrainingShadowComparison(comparisonInput);
+                  if (comparisonResult.status === "persistence_failed") {
+                    console.warn("[RI_TRAINING_EVIDENCE_SHADOW_DEGRADED]", {
+                      sourceDrillId: comparisonInput.sourceDrillId,
+                      comparisonId: comparisonResult.comparisonId,
+                    });
+                  }
+                }
+              }
+
+              try {
+                await maybeAutoSendDeterministicReports(studentId, tutorId);
+              } catch (autoReportError) {
+                console.error("Auto report generation failed after training session:", autoReportError);
+              }
+
+              let monthlyQuota = null;
+              if (parentId) {
+                try {
+                  monthlyQuota = await getMonthlySessionQuotaSnapshot({
+                    parentId,
+                    studentId: String(studentId),
+                    referenceIso: new Date().toISOString(),
+                    isSandboxContext: operationalMode === "sandbox" ? true : undefined,
+                  });
+                } catch (quotaError) {
+                  console.error("Failed to reconcile monthly quota after training completion:", quotaError);
                 }
               }
 
@@ -7516,19 +9161,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
               }
 
-              const { data, error } = await supabase
-                .from("intro_session_drills")
-                .select("id, drill, submitted_at")
-                .eq("student_id", studentId)
-                .order("submitted_at", { ascending: false })
-                .limit(20);
+              let data: any[] = [];
+              let completedRunIds = new Set<string>();
 
-              if (error || !data || data.length === 0) {
-                return res.status(404).json({ message: "No intro drill found for this student" });
+              if (isEmergencyDbMode()) {
+                const result = await pool.query(
+                  `SELECT d.id, d.drill, d.submitted_at
+                     FROM public.intro_session_drills d
+                     JOIN public.response_integrity_diagnosis_runs r
+                       ON r.id::text = d.id::text
+                    WHERE d.student_id = $1
+                      AND r.student_id = $1
+                      AND r.tutor_id = $2
+                      AND r.status = 'completed'
+                      AND r.source_drill_id::text = d.id::text
+                    ORDER BY d.submitted_at DESC
+                    LIMIT 20`,
+                  [studentId, tutorId],
+                );
+                data = result.rows || [];
+                completedRunIds = new Set(data.map((row: any) => String(row.id)));
+              } else {
+                const { data: drillRows, error } = await supabase
+                  .from("intro_session_drills")
+                  .select("id, drill, submitted_at")
+                  .eq("student_id", studentId)
+                  .order("submitted_at", { ascending: false })
+                  .limit(20);
+
+                if (error) {
+                  return res.status(500).json({ message: "Failed to load completed intro diagnosis" });
+                }
+
+                data = drillRows || [];
+                if (data.length > 0) {
+                  const drillIds = data.map((row: any) => String(row.id));
+                  const { data: completedRuns, error: runError } = await supabase
+                    .from("response_integrity_diagnosis_runs")
+                    .select("id, status, source_drill_id")
+                    .eq("student_id", studentId)
+                    .eq("tutor_id", tutorId)
+                    .eq("status", "completed")
+                    .in("id", drillIds);
+
+                  if (runError) {
+                    return res.status(500).json({ message: "Failed to validate completed intro diagnosis" });
+                  }
+
+                  completedRunIds = new Set(
+                    (completedRuns || [])
+                      .filter((run: any) => String(run.source_drill_id || "") === String(run.id || ""))
+                      .map((run: any) => String(run.id)),
+                  );
+                }
+              }
+
+              if (!data || data.length === 0 || completedRunIds.size === 0) {
+                return res.status(404).json({ message: "No completed intro diagnosis found for this student" });
               }
 
               let latestDiagnosis: any = null;
               for (const row of data) {
+                if (!completedRunIds.has(String(row.id))) continue;
                 let parsed: any = null;
                 try {
                   parsed = row.drill && typeof row.drill === "object"
@@ -7544,7 +9238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
 
               if (!latestDiagnosis) {
-                return res.status(404).json({ message: "No intro diagnosis drill found for this student" });
+                return res.status(404).json({ message: "No completed intro diagnosis found for this student" });
               }
 
               const drillObj = latestDiagnosis.parsed;
@@ -7580,6 +9274,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Topic is required" });
         }
 
+        const student = await storage.getStudent(studentId);
+        if (!student || String(student.tutorId) !== String(tutorId)) {
+          return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+        }
+
+        if (isEmergencyDbMode()) {
+          const existingResult = await pool.query(
+            `SELECT id, student_id, tutor_id, topic, reason, created_at
+               FROM public.topic_conditioning_activations
+              WHERE student_id = $1 AND tutor_id = $2
+              ORDER BY created_at DESC`,
+            [studentId, tutorId],
+          );
+
+          const existingActivation = (existingResult.rows || []).find(
+            (entry: any) => String(entry?.topic || "").trim().toLowerCase() === normalizedTopic
+          );
+
+          if (existingActivation) {
+            return res.json({ activation: existingActivation, duplicate: true });
+          }
+
+          const inserted = await pool.query(
+            `INSERT INTO public.topic_conditioning_activations
+              (student_id, tutor_id, topic, reason)
+             VALUES ($1, $2, $3, $4)
+             RETURNING id, student_id, tutor_id, topic, reason, created_at`,
+            [studentId, tutorId, String(topic).trim(), reason],
+          );
+
+          return res.json({ activation: inserted.rows[0] });
+        }
+
         const { data: existingActivations, error: existingError } = await supabase
           .from("topic_conditioning_activations")
           .select("id, student_id, tutor_id, topic, reason, created_at")
@@ -7610,16 +9337,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
           .select()
           .single();
+
         if (error) {
           console.error("Error inserting topic activation:", error);
           return res.status(500).json({ message: "Failed to activate topic" });
         }
-        res.json({ activation: data });
+
+        return res.json({ activation: data });
       } catch (err) {
         console.error("Exception in topic activation:", err);
-        res.status(500).json({ message: "Internal server error" });
+        return res.status(500).json({ message: "Internal server error" });
       }
     });
+
   ensureStudentForEnrollment = async (enrollment: any, tutorIdOverride?: string) => {
     const tutorId = tutorIdOverride || enrollment?.assigned_tutor_id;
     if (!enrollment || !tutorId || !enrollment.user_id || !enrollment.student_full_name || !enrollment.student_grade) {
@@ -7966,6 +9696,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .eq("student_id", studentId)
             .eq("type", sessionType)
             .order("created_at", { ascending: false })
+            .limit(1)
             .maybeSingle();
           const { data: session, error: sessionError } = sessionLookupResult;
 
@@ -7982,6 +9713,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 .eq("parent_id", parentId)
                 .eq("type", sessionType)
                 .order("created_at", { ascending: false })
+                .limit(1)
                 .maybeSingle();
               const { data: fallbackSession, error: fallbackError } = fallbackSessionResult;
 
@@ -8082,10 +9814,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req as any).dbUser.id;
       const operationalMode = await getParentAssignedTutorOperationalMode(userId);
-      const { proposedDate, proposedTime } = req.body;
+      const { proposedDate, proposedTime, timezone } = req.body;
       if (!proposedDate || !proposedTime) {
         return res.status(400).json({ message: "Missing date or time" });
       }
+      const requestedTimezone = String(timezone || "Africa/Johannesburg").trim() || "Africa/Johannesburg";
 
       // Get parent's enrollment to find assigned tutor
       const activeEnrollmentStatuses = [
@@ -8096,6 +9829,162 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "report_received",
         "confirmed",
       ];
+
+      if (isEmergencyDbMode()) {
+        const enrollmentResult = await pool.query(
+          `SELECT *
+             FROM public.parent_enrollments
+            WHERE user_id = $1
+              AND status::text = ANY($2::text[])
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [userId, activeEnrollmentStatuses],
+        );
+        const enrollmentData = enrollmentResult.rows[0] || null;
+
+        if (!enrollmentData) {
+          return res.status(400).json({ message: "Failed to fetch enrollment" });
+        }
+
+        const sessionType = getEnrollmentSessionType(enrollmentData);
+        const sessionLabel = getSessionDisplayLabel(sessionType);
+        const allowHandoverBooking = sessionType === "handover" && !!enrollmentData.assigned_tutor_id;
+        if (
+          !enrollmentData.assigned_tutor_id ||
+          ((enrollmentData.status !== "assigned" && enrollmentData.status !== "awaiting_tutor_acceptance") &&
+            !allowHandoverBooking)
+        ) {
+          return res.status(400).json({ message: "You must be assigned a tutor before booking a session." });
+        }
+
+        let assignedStudent: any = null;
+        if (enrollmentData.id) {
+          const studentByEnrollment = await pool.query(
+            `SELECT *
+               FROM public.students
+              WHERE parent_enrollment_id::text = $1
+                AND tutor_id = $2
+              ORDER BY updated_at DESC, created_at DESC
+              LIMIT 1`,
+            [String(enrollmentData.id), String(enrollmentData.assigned_tutor_id)],
+          );
+          assignedStudent = studentByEnrollment.rows[0] || null;
+        }
+
+        if (!assignedStudent) {
+          const studentByIdentity = await pool.query(
+            `SELECT *
+               FROM public.students
+              WHERE parent_id::text = $1
+                AND tutor_id = $2
+                AND name = $3
+              ORDER BY updated_at DESC, created_at DESC
+              LIMIT 1`,
+            [
+              String(enrollmentData.user_id),
+              String(enrollmentData.assigned_tutor_id),
+              String(enrollmentData.student_full_name || ""),
+            ],
+          );
+          assignedStudent = studentByIdentity.rows[0] || null;
+        }
+
+        if (!assignedStudent) {
+          const createdStudent = await pool.query(
+            `INSERT INTO public.students
+              (name, grade, tutor_id, session_progress, concept_mastery, parent_contact, parent_id, parent_enrollment_id, personal_profile, updated_at)
+             VALUES ($1, $2, $3, 0, '{}'::jsonb, $4, $5::uuid, $6::uuid, '{}'::jsonb, NOW())
+             RETURNING *`,
+            [
+              enrollmentData.student_full_name,
+              enrollmentData.student_grade,
+              String(enrollmentData.assigned_tutor_id),
+              enrollmentData.parent_email,
+              String(enrollmentData.user_id),
+              String(enrollmentData.id),
+            ],
+          );
+          assignedStudent = createdStudent.rows[0] || null;
+        }
+
+        const existingSessionResult = await pool.query(
+          `SELECT id, scheduled_time, status, parent_confirmed, tutor_confirmed, created_at, updated_at
+             FROM public.scheduled_sessions
+            WHERE parent_id = $1
+              AND tutor_id = $2
+              AND type = $3
+              AND status = ANY($4::text[])
+            ORDER BY created_at DESC
+            LIMIT 1`,
+          [
+            String(userId),
+            String(enrollmentData.assigned_tutor_id),
+            sessionType,
+            ["pending_tutor_confirmation", "pending_parent_confirmation"],
+          ],
+        );
+        const existingSession = existingSessionResult.rows[0] || null;
+        const scheduledTimestamp = `${proposedDate}T${proposedTime}`;
+
+        let persistedSession: any = null;
+        if (existingSession) {
+          const updatedSession = await pool.query(
+            `UPDATE public.scheduled_sessions
+                SET student_id = $2::uuid,
+                    scheduled_time = $3::timestamp,
+                    timezone = $4,
+                    parent_confirmed = TRUE,
+                    tutor_confirmed = FALSE,
+                    status = 'pending_tutor_confirmation',
+                    updated_at = NOW()
+              WHERE id = $1
+              RETURNING id, student_id, scheduled_time, timezone, type, status, parent_confirmed, tutor_confirmed`,
+            [existingSession.id, assignedStudent?.id || null, scheduledTimestamp, requestedTimezone],
+          );
+          persistedSession = updatedSession.rows[0] || null;
+        } else {
+          const insertedSession = await pool.query(
+            `INSERT INTO public.scheduled_sessions
+              (parent_id, tutor_id, student_id, scheduled_time, timezone, type, status, parent_confirmed, tutor_confirmed)
+             VALUES ($1, $2, $3::uuid, $4::timestamp, $5, $6, 'pending_tutor_confirmation', TRUE, FALSE)
+             RETURNING id, student_id, scheduled_time, timezone, type, status, parent_confirmed, tutor_confirmed`,
+            [
+              String(userId),
+              String(enrollmentData.assigned_tutor_id),
+              assignedStudent?.id || null,
+              scheduledTimestamp,
+              requestedTimezone,
+              sessionType,
+            ],
+          );
+          persistedSession = insertedSession.rows[0] || null;
+        }
+
+        await pool.query(
+          `UPDATE public.parent_enrollments
+              SET current_step = $2,
+                  updated_at = NOW()
+            WHERE id = $1`,
+          [
+            enrollmentData.id,
+            sessionType === "handover" ? "handover_session_booked" : "intro_session_booked",
+          ],
+        );
+
+        return res.status(200).json({
+          id: persistedSession?.id || null,
+          student_id: assignedStudent?.id || null,
+          status: "pending_tutor_confirmation",
+          operationalMode,
+          type: sessionType,
+          sessionLabel,
+          scheduled_time: persistedSession?.scheduled_time || scheduledTimestamp,
+          timezone: persistedSession?.timezone || requestedTimezone,
+          parent_confirmed: true,
+          tutor_confirmed: false,
+          success: true,
+        });
+      }
 
       const { data: enrollmentRows, error: enrollmentError } = await supabase
         .from("parent_enrollments")
@@ -8162,6 +10051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .update({
             student_id: assignedStudent?.id || null,
             scheduled_time: `${proposedDate}T${proposedTime}`,
+            timezone: requestedTimezone,
             parent_confirmed: true,
             tutor_confirmed: false,
             status: "pending_tutor_confirmation",
@@ -8192,6 +10082,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           operationalMode,
           type: sessionType,
           scheduled_time: `${proposedDate}T${proposedTime}`,
+            timezone: requestedTimezone,
           parent_confirmed: true,
           tutor_confirmed: false,
         });
@@ -8206,6 +10097,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             tutor_id: enrollmentData.assigned_tutor_id,
             student_id: assignedStudent?.id || null,
             scheduled_time: `${proposedDate}T${proposedTime}`,
+            timezone: requestedTimezone,
             type: sessionType,
             status: "pending_tutor_confirmation",
             parent_confirmed: true,
@@ -8248,6 +10140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         operationalMode,
         type: sessionType,
         scheduled_time: `${proposedDate}T${proposedTime}`,
+            timezone: requestedTimezone,
         parent_confirmed: true,
         tutor_confirmed: false,
         success: true,
@@ -9876,7 +11769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const studentsById = new Map<string, any>();
           if (studentIds.length > 0) {
             const studentResult = await pool.query(
-              "SELECT id, name, grade FROM public.students WHERE id = ANY($1::uuid[])",
+              "SELECT id, name, grade FROM public.students WHERE id = ANY($1::text[])",
               [studentIds],
             );
             studentResult.rows.forEach((student: any) => studentsById.set(String(student.id), student));
@@ -9885,7 +11778,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             weekStart: weekStart.toISOString(),
             weekEnd: weekEnd.toISOString(),
             operationalMode,
-            sessionSchedulingEnabled: isLiveSchedulingMode(operationalMode),
+            sessionSchedulingEnabled: isFamilySchedulingMode(operationalMode),
             sessions: scheduleResult.rows.map((session: any) => ({
               ...session,
               student: studentsById.get(String(session.student_id || "")) || null,
@@ -9931,7 +11824,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           weekStart: weekStart.toISOString(),
           weekEnd: weekEnd.toISOString(),
           operationalMode,
-          sessionSchedulingEnabled: isLiveSchedulingMode(operationalMode),
+          sessionSchedulingEnabled: isFamilySchedulingMode(operationalMode),
           sessions: (sessions || []).map((session: any) => ({
             ...session,
             student: studentsById.get(String(session.student_id || "")) || null,
@@ -10380,8 +12273,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               LIMIT 12`,
             [tutorId, studentId],
           );
+          const sessionsWithCancellation = await attachTrainingSessionCancellationContext(result.rows);
           return res.json({
-            sessions: result.rows.map((session: any) => ({
+            sessions: sessionsWithCancellation.map((session: any) => ({
               ...session,
               launch: getSessionLaunchState(session, "training"),
             })),
@@ -10422,8 +12316,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
         );
 
+        const sessionsWithCancellation = await attachTrainingSessionCancellationContext(sessionsWithArtifacts);
         res.json({
-          sessions: sessionsWithArtifacts.map((session: any) => ({
+          sessions: sessionsWithCancellation.map((session: any) => ({
             ...session,
             launch: getSessionLaunchState(session, "training"),
           })),
@@ -10697,6 +12592,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (normalizedReasonCodes.length === 0) {
             return res.status(400).json({ message: "At least one cancellation reason is required." });
           }
+          if (normalizedReasonCodes.includes("schedule_conflict")) {
+            return res.status(409).json({
+              message: "A schedule conflict should be rescheduled, not cancelled. Use Adjust to propose a new time.",
+            });
+          }
 
           if (["completed", "live", "cancelled", "flagged"].includes(String(session.status || ""))) {
             return res.status(400).json({ message: "This training session can no longer be cancelled" });
@@ -10727,8 +12627,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           const enrollmentId = await resolveEnrollmentIdForSession(session);
-          const cancellationImpact = classifyCancellationBillingImpact({
+          const cancellationImpact = classifyTrainingSessionCancellation({
             actorRole: "tutor",
+            reasonCodes: normalizedReasonCodes,
             scheduledTimeIso: session.scheduled_time,
           });
           const monthlyQuota = await recordSessionBillingEvent({
@@ -10747,23 +12648,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
               action: "cancel",
               policy_cutoff_hours: CANCELLATION_CUTOFF_HOURS,
               scheduled_time: session.scheduled_time,
+              cancellation_disposition: cancellationImpact.disposition,
+              responsible_actor_role: cancellationImpact.responsibleActorRole,
             },
           });
+
+          const cancellationContext = {
+            disposition: cancellationImpact.disposition,
+            eventType: cancellationImpact.eventType,
+            billingImpact: cancellationImpact.impact,
+            reasonCodes: normalizedReasonCodes,
+            reasonNote: String(reasonNote || "").trim() || null,
+            cancelledAt: new Date().toISOString(),
+          };
 
           await safeSendPush(
             session.parent_id,
             {
               title: "Session cancelled",
-              body: "Your tutor cancelled a training session. Open Response Integrity to review the updated week.",
+              body:
+                cancellationImpact.disposition === "replacement_required"
+                  ? "A training session was cancelled and still needs a replacement time. Open Response Integrity to reschedule it."
+                  : cancellationImpact.disposition === "closed_consumed"
+                    ? "A training session was cancelled and closed under the cancellation policy."
+                    : "A training session was cancelled. Open Response Integrity to review its replacement status.",
               url: "/client/parent/sessions",
               tag: `parent-training-session-cancelled-${sessionId}`,
             },
-            "parent training session cancelled by tutor",
+            "parent training session cancelled by Specialist",
           );
 
           return res.json({
             success: true,
-            session: cancelledSession,
+            session: { ...cancelledSession, cancellation: cancellationContext },
+            cancellation: cancellationContext,
             status: "cancelled",
             monthlyQuota,
             googleMeetConfigured: false,
@@ -10997,7 +12915,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!hasConfirmedSchedule) {
             return res.status(400).json({
               canLaunch: false,
-              message: "Training mode still requires a tutor-confirmed weekly Response Integrity lesson before launch.",
+              message: "Training mode still requires a Specialist-confirmed weekly Response Integrity lesson before launch.",
+              session: {
+                ...session,
+                launch: {
+                  canLaunch: false,
+                  isLive: false,
+                  isImminent: false,
+                },
+              },
+            });
+          }
+
+          const scheduleTimezone = String(session.timezone || "Africa/Johannesburg").trim() || "Africa/Johannesburg";
+          const weeklySessionsResult = await pool.query(
+            `SELECT ${SCHEDULED_SESSION_SELECT}
+               FROM public.scheduled_sessions
+              WHERE tutor_id = $1
+                AND student_id = $2
+                AND parent_id = $3
+                AND type = 'training'
+                AND date_trunc('week', scheduled_time AT TIME ZONE $4)
+                    = date_trunc('week', $5::timestamptz AT TIME ZONE $4)
+              ORDER BY scheduled_time ASC`,
+            [tutorId, studentId, session.parent_id, scheduleTimezone, session.scheduled_time],
+          );
+          const weeklySessions = await attachTrainingSessionCancellationContext(
+            weeklySessionsResult.rows || [],
+          );
+          const resolvedWeeklySessionCount = weeklySessions.filter((weeklySession: any) => {
+            const status = String(weeklySession.status || "");
+            if (
+              ["confirmed", "ready", "live", "completed"].includes(status) &&
+              weeklySession.parent_confirmed &&
+              weeklySession.tutor_confirmed
+            ) {
+              return true;
+            }
+            return (
+              status === "cancelled" &&
+              weeklySession.cancellation?.disposition === "closed_consumed"
+            );
+          }).length;
+
+          if (resolvedWeeklySessionCount < 2) {
+            return res.status(400).json({
+              canLaunch: false,
+              message: "This week's two session obligations must be resolved before training can launch. Replace any cancellation that still carries a delivery obligation.",
               session: {
                 ...session,
                 launch: {
@@ -11348,11 +13312,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               isSandboxContext: String(enrollment.parent_email || "").toLowerCase().startsWith("sandbox-parent-"),
             })
           : null;
+        const sessionsWithCancellation = await attachTrainingSessionCancellationContext(sessionsResult.rows);
         return res.json({
           operationalMode,
-          sessionSchedulingEnabled: isLiveSchedulingMode(operationalMode),
+          sessionSchedulingEnabled: isFamilySchedulingMode(operationalMode),
           monthlyQuota,
-          sessions: sessionsResult.rows.map((session: any) => ({ ...session, launch: getSessionLaunchState(session, "training") })),
+          sessions: sessionsWithCancellation.map((session: any) => ({ ...session, launch: getSessionLaunchState(session, "training") })),
         });
       }
       const operationalMode = await getParentAssignedTutorOperationalMode(userId);
@@ -11466,11 +13431,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
+      const sessionsWithCancellation = await attachTrainingSessionCancellationContext(sessionsWithArtifacts);
       res.json({
         operationalMode,
-        sessionSchedulingEnabled: isLiveSchedulingMode(operationalMode),
+        sessionSchedulingEnabled: isFamilySchedulingMode(operationalMode),
         monthlyQuota,
-        sessions: sessionsWithArtifacts.map((session: any) => ({
+        sessions: sessionsWithCancellation.map((session: any) => ({
           ...session,
           launch: getSessionLaunchState(session, "training"),
         })),
@@ -11725,6 +13691,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (normalizedReasonCodes.length === 0) {
           return res.status(400).json({ message: "At least one cancellation reason is required." });
         }
+        if (normalizedReasonCodes.includes("schedule_conflict")) {
+          return res.status(409).json({
+            message: "A schedule conflict should be rescheduled, not cancelled. Use Request New Time instead.",
+          });
+        }
 
         if (["completed", "live", "cancelled", "flagged"].includes(String(session.status || ""))) {
           return res.status(400).json({ message: "This training session can no longer be cancelled" });
@@ -11755,8 +13726,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const enrollmentId = await resolveEnrollmentIdForSession(session);
-        const cancellationImpact = classifyCancellationBillingImpact({
+        const cancellationImpact = classifyTrainingSessionCancellation({
           actorRole: "parent",
+          reasonCodes: normalizedReasonCodes,
           scheduledTimeIso: session.scheduled_time,
         });
         const monthlyQuota = await recordSessionBillingEvent({
@@ -11775,24 +13747,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
             action: "cancel",
             policy_cutoff_hours: CANCELLATION_CUTOFF_HOURS,
             scheduled_time: session.scheduled_time,
+            cancellation_disposition: cancellationImpact.disposition,
+            responsible_actor_role: cancellationImpact.responsibleActorRole,
           },
         });
+
+        const cancellationContext = {
+          disposition: cancellationImpact.disposition,
+          eventType: cancellationImpact.eventType,
+          billingImpact: cancellationImpact.impact,
+          reasonCodes: normalizedReasonCodes,
+          reasonNote: String(reasonNote || "").trim() || null,
+          cancelledAt: new Date().toISOString(),
+        };
 
         await safeSendPush(
           cancelledSession.tutor_id,
           {
             title: "Session cancelled",
-            body: "A parent cancelled a training session. Open Response Integrity to review the updated week.",
+            body:
+              cancellationImpact.disposition === "replacement_required"
+                ? "A parent cancelled a training session and a replacement time is still required."
+                : cancellationImpact.disposition === "closed_consumed"
+                  ? "A parent cancellation closed the session under the cancellation policy."
+                  : "A parent cancelled a training session. Review its replacement status.",
             url: "/operational/tutor/pod",
             tag: `tutor-training-session-cancelled-${sessionId}`,
           },
-          "tutor training session cancelled by parent",
+          "Specialist training session cancelled by parent",
         );
+
+        try {
+          const parentCancellationMessage =
+            cancellationImpact.disposition === "replacement_required"
+              ? "This cancellation keeps the session obligation open. Open Sessions to propose a replacement time."
+              : cancellationImpact.disposition === "closed_consumed"
+                ? "This session is closed under the cancellation policy and its package credit has been consumed. No replacement is created automatically."
+                : "This cancellation was recorded, but replacement eligibility needs operational review.";
+          await storage.createNotification({
+            recipientUserId: userId,
+            actorUserId: userId,
+            channel: "informational",
+            title: "Session cancelled",
+            message: parentCancellationMessage,
+            link: "/client/parent/sessions",
+            entityType: "scheduled_session",
+            entityId: String(sessionId),
+          } as any);
+        } catch (error) {
+          console.error("Failed to create parent training-session cancellation notification:", error);
+        }
 
         return res.json({
           success: true,
           status: "cancelled",
-          session: cancelledSession,
+          session: { ...cancelledSession, cancellation: cancellationContext },
+          cancellation: cancellationContext,
           monthlyQuota,
         });
       }
@@ -11802,8 +13812,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (action === "reschedule") {
-        if (!["pending_parent_confirmation", "pending_tutor_confirmation"].includes(String(session.status || ""))) {
+        const currentSessionStatus = String(session.status || "");
+        if (!["pending_parent_confirmation", "pending_tutor_confirmation", "cancelled"].includes(currentSessionStatus)) {
           return res.status(400).json({ message: "This session cannot be rescheduled at this time" });
+        }
+
+        if (currentSessionStatus === "cancelled") {
+          const [cancelledWithContext] = await attachTrainingSessionCancellationContext([session]);
+          const disposition = cancelledWithContext?.cancellation?.disposition;
+          if (!cancellationNeedsReplacement(disposition)) {
+            return res.status(409).json({
+              message:
+                disposition === "closed_consumed"
+                  ? "This cancelled session is closed because its package credit was consumed. It cannot be rescheduled automatically."
+                  : "This cancelled session needs operational review before a replacement can be created.",
+            });
+          }
         }
 
         const nextStart = String(scheduledStart || "").trim();
@@ -13647,6 +15671,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Unauthorized" });
         }
 
+        try {
+          await maybeAutoSendDeterministicReports(studentId, tutorId);
+        } catch (autoReportError) {
+          console.error("Report catch-up failed while opening reports center:", autoReportError);
+        }
+
         if (isEmergencyDbMode()) {
           const drillResult = await pool.query(
             `SELECT id, student_id, tutor_id, drill, submitted_at
@@ -14344,7 +16374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let enrollment: any = null;
           if (explicitEnrollmentId) {
             const result = await pool.query(
-              `SELECT id, status, user_id, assigned_tutor_id
+              `SELECT id, status, current_step, user_id, assigned_tutor_id
                  FROM public.parent_enrollments
                 WHERE id = $1 AND assigned_tutor_id = $2
                 LIMIT 1`,
@@ -14354,7 +16384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           if (!enrollment && (student as any).parentId) {
             const result = await pool.query(
-              `SELECT id, status, user_id, assigned_tutor_id
+              `SELECT id, status, current_step, user_id, assigned_tutor_id
                  FROM public.parent_enrollments
                 WHERE user_id = $1 AND assigned_tutor_id = $2
                 ORDER BY updated_at DESC
@@ -14362,6 +16392,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
               [(student as any).parentId, dbUser.id],
             );
             enrollment = result.rows[0] || null;
+          }
+
+          if (
+            enrollment?.id &&
+            workflow.assignmentAcceptedAt &&
+            String(enrollment.status || "").trim().toLowerCase() === "awaiting_tutor_acceptance"
+          ) {
+            const resumedStatus = extractReassignmentResumeStatus(enrollment.current_step) || null;
+            const nextEnrollmentStatus = resumedStatus || "assigned";
+            const nextCurrentStep =
+              resumedStatus && resumedStatus !== "assigned"
+                ? "handover_not_scheduled"
+                : nextEnrollmentStatus;
+            const promoted = await pool.query(
+              `UPDATE public.parent_enrollments
+                  SET assigned_tutor_id = $2,
+                      status = $3,
+                      current_step = $4,
+                      updated_at = NOW()
+                WHERE id = $1
+                  AND assigned_tutor_id = $2
+                RETURNING id, status, current_step, user_id, assigned_tutor_id`,
+              [enrollment.id, dbUser.id, nextEnrollmentStatus, nextCurrentStep],
+            );
+            enrollment = promoted.rows[0] || enrollment;
           }
 
           const proposalResult = await pool.query(
@@ -14844,16 +16899,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } as any);
 
           if (sandboxContextLikely && parentEnrollment?.id) {
-            await supabase
-              .from("students")
-              .update({
-                parent_enrollment_id: parentEnrollment.id,
-                parent_id: normalizedParentId || null,
-                parent_contact: normalizedParentEmail || null,
-                tutor_id: dbUser.id,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", studentId);
+            if (isEmergencyDbMode()) {
+              await pool.query(
+                `UPDATE public.students
+                    SET parent_enrollment_id = $2,
+                        parent_id = $3,
+                        parent_contact = $4,
+                        tutor_id = $5,
+                        updated_at = NOW()
+                  WHERE id = $1`,
+                [
+                  studentId,
+                  parentEnrollment.id,
+                  normalizedParentId || null,
+                  normalizedParentEmail || null,
+                  dbUser.id,
+                ],
+              );
+            } else {
+              await supabase
+                .from("students")
+                .update({
+                  parent_enrollment_id: parentEnrollment.id,
+                  parent_id: normalizedParentId || null,
+                  parent_contact: normalizedParentEmail || null,
+                  tutor_id: dbUser.id,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", studentId);
+            }
           }
 
           if (parentEnrollment && parentEnrollment.id) {
@@ -14863,21 +16937,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 ? "handover_not_scheduled"
                 : nextEnrollmentStatus;
 
-            const { error: enrollmentUpdateError } = await supabase
-              .from("parent_enrollments")
-              .update({
-                assigned_tutor_id: dbUser.id,
-                status: nextEnrollmentStatus,
-                current_step: nextCurrentStep,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", parentEnrollment.id);
+            if (isEmergencyDbMode()) {
+              const enrollmentUpdate = await pool.query(
+                `UPDATE public.parent_enrollments
+                    SET assigned_tutor_id = $2,
+                        status = $3,
+                        current_step = $4,
+                        updated_at = NOW()
+                  WHERE id = $1
+                    AND assigned_tutor_id = $2
+                  RETURNING id, user_id, status, current_step, assigned_tutor_id`,
+                [parentEnrollment.id, dbUser.id, nextEnrollmentStatus, nextCurrentStep],
+              );
 
-            if (enrollmentUpdateError) {
-              console.error("Failed to update accepted enrollment:", parentEnrollment.id, enrollmentUpdateError);
-              return res.status(500).json({
-                message: "Assignment acceptance saved on the student, but the enrollment state could not be advanced.",
-              });
+              if (!enrollmentUpdate.rows[0]) {
+                return res.status(409).json({
+                  message: "Assignment acceptance was saved, but the parent enrollment could not be advanced for this specialist.",
+                });
+              }
+
+              parentEnrollment = {
+                ...parentEnrollment,
+                ...enrollmentUpdate.rows[0],
+              };
+            } else {
+              const { error: enrollmentUpdateError } = await supabase
+                .from("parent_enrollments")
+                .update({
+                  assigned_tutor_id: dbUser.id,
+                  status: nextEnrollmentStatus,
+                  current_step: nextCurrentStep,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", parentEnrollment.id);
+
+              if (enrollmentUpdateError) {
+                console.error("Failed to update accepted enrollment:", parentEnrollment.id, enrollmentUpdateError);
+                return res.status(500).json({
+                  message: "Assignment acceptance saved on the student, but the enrollment state could not be advanced.",
+                });
+              }
             }
 
             await safeSendPush(
@@ -15065,6 +17164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .eq("student_id", studentId)
           .eq("type", "handover")
           .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         if (!["confirmed", "ready", "live", "completed"].includes(String(handoverSession?.status || ""))) {
@@ -23684,7 +25784,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         let status = String(enrollment.status || "not_enrolled");
         let step = enrollment.current_step || null;
-        if (enrollment.assigned_tutor_id && ["proposal_sent", "session_booked", "report_received", "confirmed"].includes(status)) {
+
+        const latestPaymentResult = await pool.query(
+          `SELECT id, plan, payment_status, payment_date, paid_at, created_at
+             FROM public.payment_transactions
+            WHERE enrollment_id = $1::text
+              AND provider = $2
+            ORDER BY created_at DESC
+            LIMIT 1`,
+          [String(enrollment.id), PAYMENT_PROVIDER_PAYFAST],
+        );
+        const latestPayment = latestPaymentResult.rows[0] || null;
+        const paidUnlockedEnrollment =
+          status === "session_booked" &&
+          String(latestPayment?.payment_status || "").trim().toLowerCase() === "paid";
+
+        debug.latestPaymentId = latestPayment?.id || null;
+        debug.latestPaymentStatus = latestPayment?.payment_status || null;
+
+        let hasTrainingActivity = false;
+        if (enrollment.assigned_student_id) {
+          const trainingActivityResult = await pool.query(
+            `SELECT EXISTS (
+               SELECT 1
+                 FROM public.training_session_runs
+                WHERE student_id = $1
+                  AND status IN ('submitted', 'completed')
+             ) AS has_training_activity`,
+            [enrollment.assigned_student_id],
+          );
+          hasTrainingActivity = Boolean(trainingActivityResult.rows[0]?.has_training_activity);
+        }
+
+        if (hasTrainingActivity) {
+          status = "confirmed";
+          step = "active_training";
+        } else if (paidUnlockedEnrollment) {
+          // Emergency/direct-DB mode must honor the same post-payment lifecycle
+          // truth as the normal Supabase path. The economic status remains
+          // session_booked, while current_step marks that onboarding is over.
+          step = "active_training";
+          debug.reconciledActiveTrainingFromPaidAccess = true;
+
+          if (String(enrollment.current_step || "").trim().toLowerCase() !== "active_training") {
+            await pool.query(
+              `UPDATE public.parent_enrollments
+                  SET current_step = 'active_training',
+                      updated_at = NOW()
+                WHERE id = $1`,
+              [enrollment.id],
+            );
+            debug.activeStepRepaired = true;
+          }
+        } else if (
+          enrollment.assigned_tutor_id &&
+          ["proposal_sent", "session_booked", "report_received", "confirmed"].includes(status)
+        ) {
           const sessionResult = await pool.query(
             `SELECT status, type
                FROM public.scheduled_sessions
@@ -23702,14 +25857,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         debug.effectiveStatus = status;
+        debug.effectiveStep = step;
         return res.json({
           status,
           step,
           onboardingType: null,
           freeSessionsRemaining: 0,
-          plan: null,
-          paymentStatus: null,
-          paymentDate: null,
+          plan: latestPayment?.plan || null,
+          paymentStatus: latestPayment
+            ? String(latestPayment.payment_status || "").toUpperCase()
+            : null,
+          paymentDate: latestPayment?.payment_date || latestPayment?.paid_at || null,
           debug,
         });
       }
@@ -23893,6 +26051,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let { data: latestPayment } = await getLatestPaymentForEnrollment(String(enrollmentData.id));
       enrollmentDebug.latestPaymentId = latestPayment?.id || null;
       enrollmentDebug.latestPaymentStatus = latestPayment?.payment_status || null;
+
+      const paidUnlockedEnrollment =
+        String(status) === "session_booked" &&
+        String(latestPayment?.payment_status || "").trim().toLowerCase() === "paid";
+
+      if (paidUnlockedEnrollment) {
+        effectiveStep = "active_training";
+        enrollmentDebug.reconciledActiveTrainingFromPaidAccess = true;
+
+        if (String(enrollmentData.current_step || "").trim().toLowerCase() !== "active_training") {
+          const { error: activeStepRepairError } = await supabase
+            .from("parent_enrollments")
+            .update({
+              current_step: "active_training",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", enrollmentData.id);
+
+          if (activeStepRepairError) {
+            console.error("Failed to persist active-training reconciliation:", activeStepRepairError);
+            enrollmentDebug.activeStepRepairError = String(
+              activeStepRepairError.message || activeStepRepairError,
+            );
+          } else {
+            enrollmentDebug.activeStepRepaired = true;
+          }
+        }
+      }
 
       if (String(status) === "proposal_sent") {
         const { data: latestPaidPayment, error: latestPaidPaymentError } = await getLatestPaidPaymentForEnrollment(
@@ -24411,6 +26597,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      let diagnosisFinalized = false;
+      if (isEmergencyDbMode()) {
+        const diagnosisRunResult = await pool.query(
+          `SELECT id
+             FROM public.response_integrity_diagnosis_runs
+            WHERE id::text = $1
+              AND student_id = $2
+              AND tutor_id = $3
+              AND status = 'completed'
+              AND source_drill_id::text = id::text
+            LIMIT 1`,
+          [String(latestIntroDrill.id), studentId, tutorId],
+        );
+        diagnosisFinalized = !!diagnosisRunResult.rows[0];
+      } else {
+        const { data: completedDiagnosisRun, error: completedDiagnosisRunError } = await supabase
+          .from("response_integrity_diagnosis_runs")
+          .select("id, status, source_drill_id")
+          .eq("id", String(latestIntroDrill.id))
+          .eq("student_id", studentId)
+          .eq("tutor_id", tutorId)
+          .eq("status", "completed")
+          .maybeSingle();
+
+        if (completedDiagnosisRunError) {
+          return res.status(500).json({ message: "Failed to validate diagnosis finalization before proposal" });
+        }
+
+        diagnosisFinalized =
+          !!completedDiagnosisRun &&
+          String(completedDiagnosisRun.source_drill_id || "") === String(completedDiagnosisRun.id || "");
+      }
+
+      if (!diagnosisFinalized) {
+        return res.status(409).json({
+          message: "Diagnosis finalization is incomplete. Reopen the intro drill and let the stored evidence finish processing before generating a proposal.",
+        });
+      }
+
       const introTopicFromDrill = String(parsedIntro?.introTopic || "").trim();
       const introSummary = parsedIntro?.summary || null;
       const drillPhase = normalizePhase(introSummary?.phase || parsedIntro?.phase || "Clarity");
@@ -24553,31 +26778,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to create proposal" });
       }
 
-      // Update enrollment status to proposal_sent if enrollment exists
-      if (actualEnrollmentId) {
-        const { data: updatedEnrollment } = await supabase
-          .from("parent_enrollments")
-          .update({
-            status: "proposal_sent",
-            proposal_id: proposalData.id,
-            proposal_sent_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", actualEnrollmentId)
-          .select("id, user_id")
-          .maybeSingle();
+      // Link the proposal to the canonical enrollment through the server-side
+      // Postgres connection. The shared Supabase client can legitimately fall
+      // back to the anon key in local/proof environments, where tutor RLS does
+      // not permit parent_enrollments updates. Treating that zero-row update as
+      // success leaves the workflow stuck on "Create & Send Proposal".
+      const proposalSentAt = new Date().toISOString();
+      const enrollmentUpdate = await pool.query(
+        `UPDATE public.parent_enrollments
+            SET status = 'proposal_sent',
+                proposal_id = $1,
+                proposal_sent_at = $2,
+                updated_at = NOW()
+          WHERE id = $3
+            AND assigned_tutor_id = $4
+          RETURNING id, user_id, status, proposal_id, proposal_sent_at`,
+        [proposalData.id, proposalSentAt, actualEnrollmentId, tutorId],
+      );
+      const updatedEnrollment = enrollmentUpdate.rows[0] || null;
 
-        await safeSendPush(
-          updatedEnrollment?.user_id,
-          {
-            title: "Proposal ready",
-            body: "Your tutor has sent a proposal. Open Response Integrity to review and respond.",
-            url: "/client/parent/gateway",
-            tag: `parent-proposal-sent-${proposalData.id}`,
-          },
-          "parent proposal sent",
+      if (!updatedEnrollment) {
+        // Do not leave an orphan proposal if the enrollment transition did not happen.
+        await pool.query(
+          `DELETE FROM public.onboarding_proposals
+            WHERE id = $1
+              AND enrollment_id = $2`,
+          [proposalData.id, actualEnrollmentId],
         );
+        return res.status(409).json({
+          message: "Proposal could not be linked to the active parent enrollment. Refresh the assignment and try again.",
+        });
       }
+
+      await safeSendPush(
+        updatedEnrollment.user_id,
+        {
+          title: "Proposal ready",
+          body: "Your tutor has sent a proposal. Open Response Integrity to review and respond.",
+          url: "/client/parent/gateway",
+          tag: `parent-proposal-sent-${proposalData.id}`,
+        },
+        "parent proposal sent",
+      );
 
       res.json({
         message: "Proposal sent successfully",
@@ -25003,6 +27245,266 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/parent/proposal/accept", isAuthenticated, requireRole(["parent"]), async (req: Request, res: Response) => {
     try {
       const parentId = (req as any).dbUser.id;
+
+      if (isEmergencyDbMode()) {
+        let paymentEnrollmentResult = await pool.query(
+          `SELECT id, user_id, status, proposal_id, student_full_name, current_step,
+                  assigned_tutor_id, parent_email, is_sandbox_account
+             FROM public.parent_enrollments
+            WHERE user_id = $1
+              AND status IN ('proposal_sent', 'session_booked')
+              AND proposal_id IS NOT NULL
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [parentId],
+        );
+        let paymentEnrollment = paymentEnrollmentResult.rows[0] || null;
+
+        if (!paymentEnrollment) {
+          const userResult = await pool.query(
+            "SELECT email FROM public.users WHERE id = $1 LIMIT 1",
+            [parentId],
+          );
+          const parentEmail = normalizeEmail(userResult.rows[0]?.email);
+          if (parentEmail) {
+            paymentEnrollmentResult = await pool.query(
+              `SELECT id, user_id, status, proposal_id, student_full_name, current_step,
+                      assigned_tutor_id, parent_email, is_sandbox_account
+                 FROM public.parent_enrollments
+                WHERE lower(parent_email) = $1
+                  AND status IN ('proposal_sent', 'session_booked')
+                  AND proposal_id IS NOT NULL
+                ORDER BY updated_at DESC
+                LIMIT 1`,
+              [parentEmail],
+            );
+            paymentEnrollment = paymentEnrollmentResult.rows[0] || null;
+          }
+        }
+
+        if (!paymentEnrollment?.proposal_id) {
+          return res.status(404).json({ message: "No pending proposal found" });
+        }
+
+        const payfastSandboxForEnrollment = isSandboxPaymentEnrollment(paymentEnrollment);
+        if (
+          String(paymentEnrollment.status || "") === "session_booked" &&
+          !payfastSandboxForEnrollment
+        ) {
+          return res.status(404).json({ message: "No pending proposal found" });
+        }
+
+        const billingResult = await pool.query(
+          `SELECT onboarding_type, affiliate_code, affiliate_type
+             FROM public.parents
+            WHERE user_id = $1
+            LIMIT 1`,
+          [String(paymentEnrollment.user_id || parentId)],
+        );
+        const billingRow = billingResult.rows[0] || null;
+        const onboardingType =
+          String(billingRow?.onboarding_type || "").trim().toLowerCase() === "pilot"
+            ? "pilot"
+            : "commercial";
+
+        if (onboardingType === "commercial" && !isMonthlyPackagePaymentReady(payfastSandboxForEnrollment)) {
+          return res.status(500).json({ message: "PayFast is not configured on this deployment." });
+        }
+
+        const existingPaymentResult = await pool.query(
+          `SELECT *
+             FROM public.payment_transactions
+            WHERE enrollment_id = $1
+              AND provider = $2
+            ORDER BY created_at DESC
+            LIMIT 1`,
+          [String(paymentEnrollment.id), PAYMENT_PROVIDER_PAYFAST],
+        );
+        const existingPayment = existingPaymentResult.rows[0] || null;
+
+        if (String(existingPayment?.payment_status || "").toLowerCase() === "paid") {
+          const finalized = await finalizeAcceptedProposalFromPayment(existingPayment);
+          return res.json({
+            message: "Monthly package payment already confirmed.",
+            paymentStatus: "PAID",
+            status: finalized.status,
+            parentCode: finalized.parentCode,
+          });
+        }
+
+        const paymentProposalResult = await pool.query(
+          `SELECT id, student_id, tutor_id, package_key, package_sessions,
+                  planned_sessions_per_week, package_amount
+             FROM public.onboarding_proposals
+            WHERE id = $1
+            LIMIT 1`,
+          [paymentEnrollment.proposal_id],
+        );
+        const paymentProposal = paymentProposalResult.rows[0] || null;
+
+        if (!paymentProposal?.student_id || !paymentProposal?.tutor_id) {
+          return res.status(400).json({ message: "Proposal is missing student or tutor linkage." });
+        }
+
+        const servicePackage = getMonthlyServicePackage(paymentProposal.package_key);
+
+        if (onboardingType === "pilot") {
+          const finalizationSeed = existingPayment || {
+            parent_id: String(paymentEnrollment.user_id || parentId),
+            enrollment_id: paymentEnrollment.id,
+            proposal_id: paymentProposal.id,
+          };
+          const finalized = await finalizeAcceptedProposalFromPayment(finalizationSeed);
+
+          return res.json({
+            message: "Pilot proposal accepted. Free access is active.",
+            onboardingType: "pilot",
+            paymentStatus: "FREE_ACCESS",
+            status: finalized.status,
+            parentCode: finalized.parentCode,
+            freeSessionsRemaining: 9,
+          });
+        }
+
+        const merchantReference = String(
+          existingPayment?.merchant_reference || `response-integrity-package-${uuidv4()}`,
+        );
+        const payfastConfig = getPayfastConfig(payfastSandboxForEnrollment);
+        const nowIso = new Date().toISOString();
+        const paymentRawPayload = {
+          ...(existingPayment?.raw_payload && typeof existingPayment.raw_payload === "object"
+            ? existingPayment.raw_payload
+            : {}),
+          payfast_mode: payfastSandboxForEnrollment ? "sandbox" : "live",
+          sandbox_checkout: payfastSandboxForEnrollment,
+          package_key: servicePackage.key,
+        };
+
+        const savedPaymentResult = await pool.query(
+          `INSERT INTO public.payment_transactions (
+             parent_id, enrollment_id, proposal_id, student_id, tutor_id, provider,
+             payment_status, plan, amount, currency, tutor_share, platform_share,
+             package_key, package_sessions, planned_sessions_per_week, session_price,
+             merchant_reference, item_name, item_description, raw_payload, created_at, updated_at
+           )
+           VALUES (
+             $1,$2,$3,$4,$5,$6,
+             'pending',$7,$8,'ZAR',$9,$10,
+             $11,$12,$13,$14,
+             $15,$16,$17,$18::jsonb,$19,$19
+           )
+           ON CONFLICT (merchant_reference)
+           DO UPDATE SET
+             parent_id = EXCLUDED.parent_id,
+             enrollment_id = EXCLUDED.enrollment_id,
+             proposal_id = EXCLUDED.proposal_id,
+             student_id = EXCLUDED.student_id,
+             tutor_id = EXCLUDED.tutor_id,
+             provider = EXCLUDED.provider,
+             payment_status = 'pending',
+             plan = EXCLUDED.plan,
+             amount = EXCLUDED.amount,
+             currency = EXCLUDED.currency,
+             tutor_share = EXCLUDED.tutor_share,
+             platform_share = EXCLUDED.platform_share,
+             package_key = EXCLUDED.package_key,
+             package_sessions = EXCLUDED.package_sessions,
+             planned_sessions_per_week = EXCLUDED.planned_sessions_per_week,
+             session_price = EXCLUDED.session_price,
+             item_name = EXCLUDED.item_name,
+             item_description = EXCLUDED.item_description,
+             raw_payload = EXCLUDED.raw_payload,
+             updated_at = EXCLUDED.updated_at
+           RETURNING *`,
+          [
+            String(paymentEnrollment.user_id || parentId),
+            String(paymentEnrollment.id),
+            String(paymentProposal.id),
+            String(paymentProposal.student_id),
+            String(paymentProposal.tutor_id),
+            PAYMENT_PROVIDER_PAYFAST,
+            servicePackage.label,
+            servicePackage.amountZar.toFixed(2),
+            servicePackage.specialistAllocationZar.toFixed(2),
+            servicePackage.responseIntegrityAllocationZar.toFixed(2),
+            servicePackage.key,
+            servicePackage.sessionsPerMonth,
+            servicePackage.plannedSessionsPerWeek,
+            SESSION_PRICE_ZAR,
+            merchantReference,
+            servicePackage.label,
+            buildPackagePaymentDescription(paymentEnrollment.student_full_name, servicePackage.key),
+            JSON.stringify(paymentRawPayload),
+            nowIso,
+          ],
+        );
+        const savedPayment = savedPaymentResult.rows[0] || null;
+
+        if (!savedPayment) {
+          return res.status(500).json({ message: "Failed to prepare payment transaction" });
+        }
+
+        const payfastFields = payfastSandboxForEnrollment
+          ? withPayfastSignature(
+              {
+                merchant_id: payfastConfig.merchantId,
+                merchant_key: payfastConfig.merchantKey,
+                return_url: buildPayfastSandboxReturnUrl(req, "return", merchantReference),
+                cancel_url: buildPayfastSandboxReturnUrl(req, "cancelled", merchantReference),
+                m_payment_id: merchantReference,
+                amount: servicePackage.amountZar.toFixed(2),
+                item_name: servicePackage.label,
+              },
+              payfastConfig.passphrase,
+            )
+          : withPayfastSignature(
+              {
+                merchant_id: payfastConfig.merchantId,
+                merchant_key: payfastConfig.merchantKey,
+                return_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}`,
+                cancel_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}`,
+                notify_url: `${getApiPublicUrl()}/api/payments/payfast/notify`,
+                name_first: String((req as any).dbUser?.firstName || "").trim(),
+                name_last: String((req as any).dbUser?.lastName || "").trim(),
+                email_address: resolvePayfastEmailAddress({
+                  dbUserEmail: (req as any).dbUser?.email,
+                  enrollmentEmail: paymentEnrollment.parent_email,
+                  parentId: String(paymentEnrollment.user_id || parentId),
+                  useSandbox: false,
+                }),
+                m_payment_id: merchantReference,
+                amount: servicePackage.amountZar.toFixed(2),
+                item_name: servicePackage.label,
+                item_description: buildPackagePaymentDescription(paymentEnrollment.student_full_name, servicePackage.key),
+                custom_str1: String(paymentEnrollment.id),
+                custom_str2: String(paymentProposal.id),
+                custom_str3: String(paymentProposal.student_id),
+                custom_str4: String(paymentProposal.tutor_id),
+                custom_str5: servicePackage.key,
+              },
+              payfastConfig.passphrase,
+            );
+
+        return res.json({
+          message: "PayFast payment prepared.",
+          onboardingType: "commercial",
+          paymentStatus: "UNPAID",
+          paymentProvider: PAYMENT_PROVIDER_PAYFAST,
+          plan: servicePackage.label,
+          packageKey: servicePackage.key,
+          sessionsPerMonth: servicePackage.sessionsPerMonth,
+          plannedSessionsPerWeek: servicePackage.plannedSessionsPerWeek,
+          amount: servicePackage.amountZar,
+          tutorShare: servicePackage.specialistAllocationZar,
+          platformShare: servicePackage.responseIntegrityAllocationZar,
+          ttShare: servicePackage.responseIntegrityAllocationZar,
+          merchantReference,
+          checkoutUrl: payfastConfig.processUrl,
+          sandbox: payfastSandboxForEnrollment,
+          formFields: payfastFields,
+        });
+      }
+
       const billingModel = await getParentBillingModel(parentId);
       if (billingModel.error) {
         return res.status(500).json({ message: "Failed to resolve onboarding type for billing." });
@@ -25016,7 +27518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from("parent_enrollments")
         .select("id, status, proposal_id, student_full_name, current_step, assigned_tutor_id, parent_email, is_sandbox_account")
         .eq("user_id", parentId)
-        .eq("status", "proposal_sent")
+        .in("status", ["proposal_sent", "session_booked"])
         .not("proposal_id", "is", null)
         .order("updated_at", { ascending: false })
         .limit(1)
@@ -25032,6 +27534,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const payfastSandboxForEnrollment = isSandboxPaymentEnrollment(paymentEnrollment);
+      if (
+        String(paymentEnrollment.status || "") === "session_booked" &&
+        !payfastSandboxForEnrollment
+      ) {
+        return res.status(404).json({ message: "No pending proposal found" });
+      }
       if (billingModel.data.onboardingType === "commercial" && !isMonthlyPackagePaymentReady(payfastSandboxForEnrollment)) {
         return res.status(500).json({ message: "PayFast is not configured on this deployment." });
       }
@@ -25152,33 +27660,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to prepare payment transaction" });
       }
 
-      const payfastFields = withPayfastSignature(
-        {
-          merchant_id: payfastConfig.merchantId,
-          merchant_key: payfastConfig.merchantKey,
-          return_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}`,
-          cancel_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}`,
-          notify_url: `${getApiPublicUrl()}/api/payments/payfast/notify`,
-          name_first: String((req as any).dbUser?.firstName || "").trim(),
-          name_last: String((req as any).dbUser?.lastName || "").trim(),
-          email_address: resolvePayfastEmailAddress({
-            dbUserEmail: (req as any).dbUser?.email,
-            enrollmentEmail: paymentEnrollment.parent_email,
-            parentId,
-            useSandbox: payfastSandboxForEnrollment,
-          }),
-          m_payment_id: merchantReference,
-          amount: servicePackage.amountZar.toFixed(2),
-          item_name: servicePackage.label,
-          item_description: buildPackagePaymentDescription(paymentEnrollment.student_full_name, servicePackage.key),
-          custom_str1: String(paymentEnrollment.id),
-          custom_str2: String(paymentProposal.id),
-          custom_str3: String(paymentProposal.student_id),
-          custom_str4: String(paymentProposal.tutor_id),
-          custom_str5: servicePackage.key,
-        },
-        payfastConfig.passphrase,
-      );
+      const payfastFields = payfastSandboxForEnrollment
+        ? withPayfastSignature(
+            {
+              merchant_id: payfastConfig.merchantId,
+              merchant_key: payfastConfig.merchantKey,
+              return_url: buildPayfastSandboxReturnUrl(req, "return", merchantReference),
+              cancel_url: buildPayfastSandboxReturnUrl(req, "cancelled", merchantReference),
+              m_payment_id: merchantReference,
+              amount: servicePackage.amountZar.toFixed(2),
+              item_name: servicePackage.label,
+            },
+            payfastConfig.passphrase,
+          )
+        : withPayfastSignature(
+            {
+              merchant_id: payfastConfig.merchantId,
+              merchant_key: payfastConfig.merchantKey,
+              return_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}`,
+              cancel_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}`,
+              notify_url: `${getApiPublicUrl()}/api/payments/payfast/notify`,
+              name_first: String((req as any).dbUser?.firstName || "").trim(),
+              name_last: String((req as any).dbUser?.lastName || "").trim(),
+              email_address: resolvePayfastEmailAddress({
+                dbUserEmail: (req as any).dbUser?.email,
+                enrollmentEmail: paymentEnrollment.parent_email,
+                parentId,
+                useSandbox: false,
+              }),
+              m_payment_id: merchantReference,
+              amount: servicePackage.amountZar.toFixed(2),
+              item_name: servicePackage.label,
+              item_description: buildPackagePaymentDescription(paymentEnrollment.student_full_name, servicePackage.key),
+              custom_str1: String(paymentEnrollment.id),
+              custom_str2: String(paymentProposal.id),
+              custom_str3: String(paymentProposal.student_id),
+              custom_str4: String(paymentProposal.tutor_id),
+              custom_str5: servicePackage.key,
+            },
+            payfastConfig.passphrase,
+          );
 
       return res.json({
         message: "PayFast payment prepared.",
@@ -25560,6 +28081,173 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const merchantReference = String(req.body?.merchantReference || "").trim();
+
+      if (isEmergencyDbMode()) {
+        let canonicalParentId = parentId;
+        let transactionResult = merchantReference
+          ? await pool.query(
+              `SELECT *
+                 FROM public.payment_transactions
+                WHERE parent_id = $1
+                  AND provider = $2
+                  AND merchant_reference = $3
+                LIMIT 1`,
+              [canonicalParentId, PAYMENT_PROVIDER_PAYFAST, merchantReference],
+            )
+          : await pool.query(
+              `SELECT *
+                 FROM public.payment_transactions
+                WHERE parent_id = $1
+                  AND provider = $2
+                  AND payment_status = 'pending'
+                ORDER BY created_at DESC
+                LIMIT 1`,
+              [canonicalParentId, PAYMENT_PROVIDER_PAYFAST],
+            );
+
+        let transaction = transactionResult.rows[0] || null;
+
+        if (!transaction) {
+          const userResult = await pool.query(
+            "SELECT email FROM public.users WHERE id = $1 LIMIT 1",
+            [parentId],
+          );
+          const parentEmail = normalizeEmail(userResult.rows[0]?.email);
+          if (parentEmail) {
+            const enrollmentResult = await pool.query(
+              `SELECT user_id
+                 FROM public.parent_enrollments
+                WHERE lower(parent_email) = $1
+                ORDER BY updated_at DESC
+                LIMIT 1`,
+              [parentEmail],
+            );
+            canonicalParentId = String(enrollmentResult.rows[0]?.user_id || parentId);
+            transactionResult = merchantReference
+              ? await pool.query(
+                  `SELECT *
+                     FROM public.payment_transactions
+                    WHERE parent_id = $1
+                      AND provider = $2
+                      AND merchant_reference = $3
+                    LIMIT 1`,
+                  [canonicalParentId, PAYMENT_PROVIDER_PAYFAST, merchantReference],
+                )
+              : await pool.query(
+                  `SELECT *
+                     FROM public.payment_transactions
+                    WHERE parent_id = $1
+                      AND provider = $2
+                      AND payment_status = 'pending'
+                    ORDER BY created_at DESC
+                    LIMIT 1`,
+                  [canonicalParentId, PAYMENT_PROVIDER_PAYFAST],
+                );
+            transaction = transactionResult.rows[0] || null;
+          }
+        }
+
+        if (!transaction) {
+          return res.status(404).json({ message: "No pending sandbox PayFast payment found" });
+        }
+
+        let transactionSandboxMode =
+          String(
+            (transaction.raw_payload && typeof transaction.raw_payload === "object"
+              ? transaction.raw_payload.payfast_mode
+              : "") || ""
+          ).trim().toLowerCase() === "sandbox";
+
+        if (!transactionSandboxMode) {
+          const enrollmentId = String(transaction.enrollment_id || "").trim();
+          if (enrollmentId) {
+            const linkedEnrollmentResult = await pool.query(
+              `SELECT id, current_step, assigned_tutor_id, parent_email,
+                      is_sandbox_account, student_full_name
+                 FROM public.parent_enrollments
+                WHERE id = $1
+                LIMIT 1`,
+              [enrollmentId],
+            );
+            transactionSandboxMode = isSandboxPaymentEnrollment(
+              linkedEnrollmentResult.rows[0] || null,
+            );
+          }
+        }
+
+        if (!transactionSandboxMode) {
+          return res.status(403).json({
+            message: "Sandbox confirmation is only available for sandbox payment transactions.",
+          });
+        }
+
+        if (String(transaction.payment_status || "").toLowerCase() === "paid") {
+          if (isRenewalPaymentTransaction(transaction)) {
+            return res.status(503).json({
+              message: "Sandbox renewal confirmation is not available in Emergency DB mode yet.",
+            });
+          }
+          const finalized = await finalizeAcceptedProposalFromPayment(transaction);
+          return res.json({
+            message: "Sandbox PayFast payment already confirmed.",
+            paymentStatus: "PAID",
+            status: finalized.status,
+            parentCode: finalized.parentCode,
+            sandbox: true,
+          });
+        }
+
+        if (!["pending", "failed", "cancelled"].includes(String(transaction.payment_status || "").toLowerCase())) {
+          return res.status(409).json({
+            message: `Sandbox payment cannot be confirmed from status ${transaction.payment_status}.`,
+          });
+        }
+
+        if (isRenewalPaymentTransaction(transaction)) {
+          return res.status(503).json({
+            message: "Sandbox renewal confirmation is not available in Emergency DB mode yet.",
+          });
+        }
+
+        const nowIso = new Date().toISOString();
+        const rawPayload =
+          transaction.raw_payload && typeof transaction.raw_payload === "object"
+            ? transaction.raw_payload
+            : {};
+        const mergedPayload = {
+          ...rawPayload,
+          payfast_mode: "sandbox",
+          sandbox_checkout: true,
+          sandbox_manual_confirmation: true,
+          sandbox_manual_confirmation_at: nowIso,
+        };
+
+        const updatedResult = await pool.query(
+          `UPDATE public.payment_transactions
+              SET payment_status = 'paid',
+                  payment_date = $1,
+                  paid_at = $1,
+                  itn_received_at = COALESCE(itn_received_at, $1),
+                  raw_payload = $2::jsonb,
+                  updated_at = $1
+            WHERE id = $3
+            RETURNING *`,
+          [nowIso, JSON.stringify(mergedPayload), transaction.id],
+        );
+        const updatedTransaction = updatedResult.rows[0] || null;
+        if (!updatedTransaction) {
+          return res.status(500).json({ message: "Failed to confirm sandbox payment" });
+        }
+
+        const finalized = await finalizeAcceptedProposalFromPayment(updatedTransaction);
+        return res.json({
+          message: "Sandbox PayFast payment confirmed.",
+          paymentStatus: "PAID",
+          status: finalized.status,
+          parentCode: finalized.parentCode,
+          sandbox: true,
+        });
+      }
       let transactionQuery = supabase
         .from("payment_transactions")
         .select("*")
@@ -26043,8 +28731,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           merchant_id: payfastConfig.merchantId,
           merchant_key: payfastConfig.merchantKey,
-          return_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}&renewal=true`,
-          cancel_url: `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}&renewal=true`,
+          return_url: useSandbox ? buildPayfastSandboxReturnUrl(req, "return", merchantReference) : `${getAppBaseUrl()}/client/parent/gateway?payfast=return&merchantReference=${encodeURIComponent(merchantReference)}&renewal=true`,
+          cancel_url: useSandbox ? buildPayfastSandboxReturnUrl(req, "cancelled", merchantReference) : `${getAppBaseUrl()}/client/parent/gateway?payfast=cancelled&merchantReference=${encodeURIComponent(merchantReference)}&renewal=true`,
           notify_url: `${getApiPublicUrl()}/api/payments/payfast/notify`,
           name_first: String((req as any).dbUser?.firstName || "").trim(),
           name_last: String((req as any).dbUser?.lastName || "").trim(),
@@ -28239,12 +30927,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
             date: entry?.lastUpdated || topicConditioningStore.lastUpdatedAt || new Date().toISOString(),
           };
 
+          const requiresTargetedRediagnosis = entry?.requiresTargetedRediagnosis === true;
+          const targetedRediagnosisStartPhase = requiresTargetedRediagnosis
+            ? tryParsePhase(entry?.targetedRediagnosisStartPhase)
+            : null;
+          const prerequisiteContradictionStatus =
+            typeof entry?.prerequisiteContradictionStatus === "string"
+              ? entry.prerequisiteContradictionStatus
+              : null;
+          const prerequisiteContradictionReason =
+            typeof entry?.prerequisiteContradictionReason === "string"
+              ? entry.prerequisiteContradictionReason
+              : null;
+
           return {
             topic,
             phase: latest.phase,
             stability: latest.stability,
             lastUpdated: latest.date,
             topicReference: parseStoredTopicReference(entry?.topicReference),
+            requiresTargetedRediagnosis,
+            targetedRediagnosisStartPhase,
+            prerequisiteContradictionStatus,
+            prerequisiteContradictionReason,
           };
         })
         .filter((row): row is NonNullable<typeof row> => !!row)

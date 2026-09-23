@@ -23,8 +23,15 @@ import {
   authenticateEmergencyUser,
   createEmergencyTutorAccount,
   emergencyExpectedRoleMatches,
+  isPreviewProofPersonaEmail,
 } from "./emergencyAuth";
-import { pool } from "./db";
+import {
+  describeRuntimeDatabaseTarget,
+  describeSupabaseApiTarget,
+  getDatabasePoolStats,
+  pool,
+  sessionPool,
+} from "./db";
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
   throw new Error("Missing Supabase environment variables");
@@ -37,6 +44,7 @@ const supabase = createClient(
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  const isVercelRuntime = process.env.VERCEL === "1";
   
   let sessionStore;
   
@@ -45,13 +53,22 @@ export function getSession() {
     try {
       const PgSession = connectPg(session);
       
-      // Reuse the application's bounded PostgreSQL pool.
-      // A second default pg.Pool here could add another 10 session-mode
-      // connections and exceed Supabase's per-project session-pooler ceiling.
+      // Keep session persistence isolated from application-query capacity.
+      // Both pools use the normalized transaction-pooler target, while the
+      // session pool stays deliberately small.
       sessionStore = new PgSession({
-        pool,
+        pool: sessionPool,
         tableName: "sessions",
         createTableIfMissing: false, // Table already exists from schema
+        // Serverless instances are short-lived; background pruning timers can
+        // outlive the request and surface pool errors after the response path.
+        pruneSessionInterval: isVercelRuntime ? false : 900,
+        errorLog: (error: unknown) => {
+          console.error(
+            "[AUTH] PostgreSQL session-store error",
+            error instanceof Error ? error.message : String(error),
+          );
+        },
       });
       
       console.log("✅ Using PostgreSQL for persistent session storage");
@@ -71,7 +88,7 @@ export function getSession() {
     console.log("⚠️  Using memory store for sessions (will clear on restart)");
   }
 
-  const isProductionRuntime = process.env.NODE_ENV === "production";
+  const isProduction = process.env.NODE_ENV === "production";
   const isVercelPreview = process.env.VERCEL_ENV === "preview";
 
   return session({
@@ -81,11 +98,11 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: isProductionRuntime,
+      secure: isProduction,
       // Preview is same-origin on *.vercel.app, so do not use the production cross-site cookie contract.
-      sameSite: isVercelPreview ? "lax" : isProductionRuntime ? "none" : "lax",
+      sameSite: isVercelPreview ? "lax" : isProduction ? "none" : "lax",
       maxAge: sessionTtl,
-      domain: isProductionRuntime && !isVercelPreview ? ".responseintegrity.co.za" : undefined,
+      domain: isProduction && !isVercelPreview ? ".responseintegrity.co.za" : undefined,
       path: "/",
     },
   });
@@ -93,15 +110,88 @@ export function getSession() {
 
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
+
+  // Keep the mode probe independent from PostgreSQL-backed session loading.
+  // This endpoint is our first preview health boundary and must still report
+  // the selected auth mode when the session store itself is unhealthy.
+  app.get("/api/auth/mode", (_req: Request, res: Response) => {
+    const emergencyDbMode = isEmergencyDbMode();
+    const isPreview = process.env.VERCEL_ENV === "preview";
+    const databaseTarget =
+      isPreview && process.env.DATABASE_URL
+        ? describeRuntimeDatabaseTarget(process.env.DATABASE_URL)
+        : undefined;
+    const supabaseTarget =
+      isPreview && process.env.SUPABASE_URL
+        ? describeSupabaseApiTarget(process.env.SUPABASE_URL)
+        : undefined;
+    const runtimeTargetsAligned =
+      databaseTarget?.projectRef && supabaseTarget?.projectRef
+        ? databaseTarget.projectRef === supabaseTarget.projectRef
+        : undefined;
+
+    res.json({
+      emergencyDbMode,
+      authMode: emergencyDbMode ? "db-session" : "supabase",
+      ...(databaseTarget ? { databaseTarget } : {}),
+      ...(supabaseTarget ? { supabaseTarget } : {}),
+      ...(runtimeTargetsAligned !== undefined ? { runtimeTargetsAligned } : {}),
+    });
+  });
+
   app.use(getSession());
+
+  // connect-pg-simple reports request-time store failures through next(error).
+  // Handle that boundary explicitly so Vercel returns structured JSON instead
+  // of terminating the invocation with FUNCTION_INVOCATION_FAILED.
+  app.use((error: unknown, req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) return next(error);
+
+    const errorRecord =
+      error && typeof error === "object"
+        ? (error as { message?: unknown; code?: unknown; stack?: unknown })
+        : {};
+    const message =
+      typeof errorRecord.message === "string"
+        ? errorRecord.message
+        : String(error);
+    const code =
+      typeof errorRecord.code === "string"
+        ? errorRecord.code
+        : null;
+    const hasBearerToken =
+      typeof req.headers.authorization === "string" &&
+      req.headers.authorization.startsWith("Bearer ");
+
+    console.error("[AUTH] Session middleware unavailable", {
+      method: req.method,
+      path: req.path,
+      message,
+      code,
+      pools: getDatabasePoolStats(),
+    });
+
+    // Non-emergency GETs can still be authenticated independently by the
+    // downstream Supabase bearer-token path. Do not let a legacy Express
+    // session-store outage collapse read-only portal state when a bearer token
+    // is already present. Mutations remain fail-closed.
+    if (!isEmergencyDbMode() && req.method === "GET" && hasBearerToken) {
+      (req as any).session = new (session as any).Session(req, {});
+      console.warn("[AUTH] Continuing bearer-authenticated GET without persisted Express session", {
+        path: req.path,
+      });
+      return next();
+    }
+
+    return res.status(503).json({
+      error: "SESSION_STORE_UNAVAILABLE",
+      message: "Authentication session storage is temporarily unavailable",
+    });
+  });
 
   if (isEmergencyDbMode()) {
     console.warn("[AUTH] EMERGENCY_DB_MODE is active: using PostgreSQL sessions and direct password verification");
   }
-
-  app.get("/api/auth/mode", (_req: Request, res: Response) => {
-    res.json({ emergencyDbMode: isEmergencyDbMode(), authMode: isEmergencyDbMode() ? "db-session" : "supabase" });
-  });
 
   // Sign up endpoint
   app.post("/api/auth/signup", async (req: Request, res: Response) => {
@@ -415,8 +505,16 @@ export async function setupAuth(app: Express) {
       if (isEmergencyDbMode()) {
         const result = await authenticateEmergencyUser(pool, email, password, req.ip || "unknown");
         if ("error" in result) {
-          console.warn("[AUTH] Emergency login rejected", { reason: result.error });
-          return res.status(401).json({ message: "Invalid credentials" });
+          console.warn("[AUTH] Emergency login rejected", {
+            outcome: result.error,
+            internalReason: result.reason,
+          });
+          if (result.error === "throttled") {
+            return res.status(429).json({
+              message: "Too many login attempts. Please wait a few minutes and try again.",
+            });
+          }
+          return res.status(401).json({ message: "Email or password is incorrect" });
         }
 
         const user = await storage.getUser(result.authUser.id);
@@ -470,7 +568,88 @@ export async function setupAuth(app: Express) {
 
       if (authError) {
         console.error("Supabase signin error:", authError);
-        return res.status(401).json({ message: "Invalid credentials" });
+
+        // Preview continuity: Proof can retain an operational sandbox Specialist
+        // even when its Supabase Auth identity is absent. In Preview only, allow
+        // that existing sandbox Specialist to fall back to the already-provisioned
+        // private emergency credential. This never provisions a credential, never
+        // changes the Specialist ID, and is unavailable in production.
+        if (process.env.VERCEL_ENV === "preview") {
+          const fallback = await authenticateEmergencyUser(
+            pool,
+            email,
+            password,
+            req.ip || "unknown",
+          );
+
+          if (!("error" in fallback)) {
+            const fallbackUser = await storage.getUser(fallback.authUser.id);
+            const sandboxAssignment = fallbackUser?.role === "tutor"
+              ? await pool.query(
+                  `SELECT 1
+                     FROM public.tutor_assignments
+                    WHERE tutor_id = $1
+                      AND operational_mode = 'sandbox'
+                    LIMIT 1`,
+                  [fallbackUser.id],
+                )
+              : null;
+            const isProofPersona =
+              !!fallbackUser &&
+              isPreviewProofPersonaEmail(normalizedEmail);
+            const isSandboxSpecialist =
+              fallbackUser?.role === "tutor" &&
+              !!sandboxAssignment?.rows?.[0];
+
+            if (
+              fallbackUser &&
+              (isProofPersona || isSandboxSpecialist) &&
+              emergencyExpectedRoleMatches(fallbackUser.role, expectedRole)
+            ) {
+              (req.session as any).userId = fallbackUser.id;
+              (req.session as any).email = fallbackUser.email;
+              delete (req.session as any).accessToken;
+
+              const redirectUrl = getDefaultDashboardRoute("tutor");
+
+              return req.session.save((err) => {
+                if (err) {
+                  console.error("[AUTH] Preview fallback session save error", err);
+                  return res.status(500).json({ message: "Session error" });
+                }
+
+                console.log("[AUTH] Preview private proof credential fallback accepted", {
+                  userId: fallbackUser.id,
+                  role: fallbackUser.role,
+                  proofPersona: isProofPersona,
+                  sandboxSpecialist: isSandboxSpecialist,
+                });
+
+                return res.json({
+                  user: {
+                    id: fallback.authUser.id,
+                    email: fallback.authUser.email,
+                    email_confirmed_at: fallback.authUser.email_confirmed_at,
+                    app_metadata: fallback.authUser.raw_app_meta_data || {},
+                    user_metadata: fallback.authUser.raw_user_meta_data || {},
+                  },
+                  dbUser: fallbackUser,
+                  redirectUrl,
+                  message: "Login successful",
+                });
+              });
+            }
+          }
+        }
+
+        const isRateLimited =
+          authError.code === "over_request_rate_limit" ||
+          authError.status === 429;
+        return res.status(isRateLimited ? 429 : 401).json({
+          message: isRateLimited
+            ? "Too many login attempts. Please wait a few minutes and try again."
+            : "Email or password is incorrect",
+        });
       }
 
       if (!authData.user) {

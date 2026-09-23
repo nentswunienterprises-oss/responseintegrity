@@ -184,6 +184,11 @@ export const projectResponseIntegrityEvidenceLedger = (
         const baseField = definition.fields[dimensionOrder];
         const field = getFieldDefinitionForRep(definition, repIndex, baseField.fieldKey)!;
         const normalizedLevel = rep[`${field.fieldKey}_level`] as ObservationLevel;
+        const evidenceClass = String(
+          rep[`${field.fieldKey}_evidence_class`] || "",
+        ).trim();
+        const decisionIneligible =
+          evidenceClass === "not_observed" || evidenceClass === "confounded";
         const entryBase = {
           sourceDrillId: String(input.sourceDrillId).trim(),
           blockOrder: blockIndex + 1,
@@ -221,7 +226,9 @@ export const projectResponseIntegrityEvidenceLedger = (
           optionId: rep[`${field.fieldKey}_option_id`],
           rawOption: rep[field.fieldKey],
           normalizedLevel,
-          scoreContribution: scoreContributionFor(field.scoreWeight, normalizedLevel),
+          scoreContribution: decisionIneligible
+            ? 0
+            : scoreContributionFor(field.scoreWeight, normalizedLevel),
           scoreContributionMax: field.scoreWeight,
           constraintProfile: { ...definition.constraints },
           observedAt: input.observedAt,
