@@ -4,6 +4,8 @@ import {
   DIAGNOSIS_PROBES,
   evaluateEvidenceCompleteDiagnosis,
   getDiagnosisProbeOpportunityPurpose,
+  isDiagnosisBaselineTimingOpportunity,
+  isDiagnosisTimedProbe,
   recordEvidenceCompleteDiagnosisProbe,
   type DiagnosisDimensionId,
   type DiagnosisProbeDefinition,
@@ -18,6 +20,10 @@ import {
   getDiagnosisObservationOption,
   type DiagnosisBehaviorClass,
 } from "./diagnosisObservationMatrix";
+import {
+  buildPassiveExecutionTimingEvidence,
+  validateTimedExecutionEvidence,
+} from "./tpsTimingContract";
 
 export const EVIDENCE_COMPLETE_DIAGNOSIS_SCHEMA_ID = "ri.diagnosis.evidence_native";
 export const EVIDENCE_COMPLETE_DIAGNOSIS_SCHEMA_VERSION = 2;
@@ -84,6 +90,30 @@ const cleanProbeResult = (value: unknown): DiagnosisProbeResult | null => {
   });
 
   if (observations.some((row) => !row)) return null;
+
+  const rawPassiveTiming = input.passiveTiming;
+  const passiveTiming =
+    rawPassiveTiming && typeof rawPassiveTiming === "object" && !Array.isArray(rawPassiveTiming)
+      ? buildPassiveExecutionTimingEvidence({
+          startedAt: String((rawPassiveTiming as any).startedAt || ""),
+          endedAt: String((rawPassiveTiming as any).endedAt || ""),
+        })
+      : null;
+  if (
+    rawPassiveTiming !== undefined &&
+    (!passiveTiming ||
+      Number((rawPassiveTiming as any)?.elapsedMs) !== passiveTiming.elapsedMs ||
+      String((rawPassiveTiming as any)?.boundary || "") !== passiveTiming.boundary ||
+      String((rawPassiveTiming as any)?.timingValidity || "") !== passiveTiming.timingValidity)
+  ) {
+    return null;
+  }
+
+  const rawTimedTiming = input.timedTiming;
+  const timedTiming =
+    rawTimedTiming === undefined ? null : validateTimedExecutionEvidence(rawTimedTiming);
+  if (rawTimedTiming !== undefined && !timedTiming) return null;
+
   return {
     probeId,
     supportEvent,
@@ -91,6 +121,8 @@ const cleanProbeResult = (value: unknown): DiagnosisProbeResult | null => {
       dimensionId: DiagnosisDimensionId;
       behaviorId: string;
     }>,
+    ...(passiveTiming ? { passiveTiming } : {}),
+    ...(timedTiming ? { timedTiming } : {}),
   };
 };
 
@@ -178,6 +210,49 @@ export function replayEvidenceCompleteDiagnosis(
     const dimensionError = validateExactProbeDimensions(definition, result);
     if (dimensionError) {
       return { ok: false, failedAtProbeIndex: index, error: dimensionError };
+    }
+
+    const baselineTimingOpportunity = isDiagnosisBaselineTimingOpportunity(result.probeId);
+    if (result.passiveTiming && !baselineTimingOpportunity) {
+      return {
+        ok: false,
+        failedAtProbeIndex: index,
+        error: `${result.probeId} cannot carry passive TPS baseline timing evidence`,
+      };
+    }
+
+    const timedProbe = isDiagnosisTimedProbe(result.probeId);
+    if (timedProbe) {
+      if (!decision.timingBaseline.ready || !decision.timingBaseline.baselineSeconds) {
+        return {
+          ok: false,
+          failedAtProbeIndex: index,
+          error: `${result.probeId} cannot run before individualized diagnosis timing authority is ready`,
+        };
+      }
+      if (!result.timedTiming) {
+        return {
+          ok: false,
+          failedAtProbeIndex: index,
+          error: `${result.probeId} is missing system-owned timed execution evidence`,
+        };
+      }
+      if (
+        result.timedTiming.prescribedSeconds !==
+        decision.timingBaseline.baselineSeconds
+      ) {
+        return {
+          ok: false,
+          failedAtProbeIndex: index,
+          error: `${result.probeId} used ${result.timedTiming.prescribedSeconds}s but the individualized diagnosis timer is ${decision.timingBaseline.baselineSeconds}s`,
+        };
+      }
+    } else if (result.timedTiming) {
+      return {
+        ok: false,
+        failedAtProbeIndex: index,
+        error: `${result.probeId} cannot carry timed TPS evidence`,
+      };
     }
 
     try {
