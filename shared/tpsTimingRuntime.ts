@@ -8,10 +8,7 @@ import {
   type TpsBaselineTimingRecord,
   type TpsTimerContractV1,
 } from "./tpsTimingContract";
-import {
-  TRAINING_INTERVENTION_FIELD,
-  readTrainingInterventionEvent,
-} from "./trainingEvidenceCapture";
+import { readTrainingInterventionEvent } from "./trainingEvidenceCapture";
 
 type StoredDrillRow = {
   id?: unknown;
