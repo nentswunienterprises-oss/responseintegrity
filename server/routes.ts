@@ -8753,9 +8753,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   sets: drillSets,
                 });
                 if (passiveTimingValidationError) {
-                  return res.status(400).json({
-                    message: `Timing evidence invalid for ${normalizedTopic}: ${passiveTimingValidationError}`,
-                  });
+                  throw Object.assign(
+                    new Error(
+                      `Timing evidence invalid for ${normalizedTopic}: ${passiveTimingValidationError}`,
+                    ),
+                    {
+                      statusCode: 400,
+                      code: "TPS_TIMING_EVIDENCE_INVALID",
+                    },
+                  );
                 }
 
                 // Get current topic state
@@ -9302,7 +9308,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
               }
               console.error("Exception in training session drill submission:", err);
-              res.status(500).json({ message: "Internal server error" });
+              const statusCode = Number((err as any)?.statusCode);
+              const safeStatus =
+                Number.isInteger(statusCode) && statusCode >= 400 && statusCode < 600
+                  ? statusCode
+                  : 500;
+              res.status(safeStatus).json({
+                message:
+                  safeStatus === 500
+                    ? "Internal server error"
+                    : err instanceof Error
+                      ? err.message
+                      : "Training submission could not continue.",
+                code: String((err as any)?.code || "").trim() || undefined,
+                targetedRediagnosisStartPhase:
+                  (err as any)?.targetedRediagnosisStartPhase || undefined,
+              });
             }
           });
         // Tutor: Get all topic activations for a student
