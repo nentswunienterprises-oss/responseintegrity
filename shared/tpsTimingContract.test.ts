@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  PASSIVE_EXECUTION_TIMING_WIRE_KEY,
   TPS_FULL_CONSTRAINT_FACTOR,
   TPS_TRAINING_BASELINE_SET_ID,
+  buildPassiveExecutionTimingEvidence,
+  decodePassiveExecutionTimingEvidence,
+  encodePassiveExecutionTimingEvidence,
   deriveTpsBaselineSnapshot,
   deriveTpsTimerContractV1,
   getTpsPrescribedSeconds,
@@ -271,6 +275,43 @@ test("Diagnosis baseline remains unresolved until all three comparable timing sl
       sourceEpochKey: "diagnosis-epoch-1",
       baselineGroupId: "diagnosis-baseline-question-1",
     }),
+    null,
+  );
+});
+
+
+test("passive timing wire evidence is system-derived from Begin -> Student Finished boundaries", () => {
+  const evidence = buildPassiveExecutionTimingEvidence({
+    startedAt: "2026-09-23T16:00:00.000Z",
+    endedAt: "2026-09-23T16:00:44.250Z",
+  });
+  assert.ok(evidence);
+  assert.equal(evidence.elapsedMs, 44_250);
+  assert.equal(evidence.boundary, "begin_to_student_finished");
+  assert.equal(PASSIVE_EXECUTION_TIMING_WIRE_KEY, "_passive_execution_timing_v1");
+
+  const encoded = encodePassiveExecutionTimingEvidence(evidence);
+  assert.deepEqual(decodePassiveExecutionTimingEvidence(encoded), evidence);
+});
+
+test("passive timing wire rejects invalid or tampered duration evidence", () => {
+  assert.equal(
+    buildPassiveExecutionTimingEvidence({
+      startedAt: "2026-09-23T16:00:44.000Z",
+      endedAt: "2026-09-23T16:00:00.000Z",
+    }),
+    null,
+  );
+
+  assert.equal(
+    decodePassiveExecutionTimingEvidence(JSON.stringify({
+      version: 1,
+      boundary: "begin_to_student_finished",
+      startedAt: "2026-09-23T16:00:00.000Z",
+      endedAt: "2026-09-23T16:00:44.000Z",
+      elapsedMs: 1,
+      timingValidity: "valid",
+    })),
     null,
   );
 });
