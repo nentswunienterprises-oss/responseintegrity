@@ -855,7 +855,9 @@ The diagnosis authority chain is:
 
 `concrete observed behavior -> evidence state -> earliest unsupported layer -> evidence-derived stability -> next action`
 
-The starting signal routes the first evidence question only. It does not decide placement.
+The starting signal routes the diagnostic search only. It does not decide placement.
+
+A Time Pressure Stability starting signal does not authorize an arbitrary timer. If individualized timing authority does not already exist, Diagnosis first establishes a neutral same-form independent timing reference while resolving lower-layer evidence. Timed diagnostic evidence becomes authoritative only after three clean comparable no-pressure intervals establish the student/topic baseline.
 
 The live engine:
 
@@ -863,10 +865,13 @@ The live engine:
 - uses one curriculum-appropriate problem per opportunity;
 - records concrete observable behavior rather than Weak / Partial / Clear selections;
 - records not-observed and confounded outcomes explicitly;
-- requests another opportunity only when repeatability, recovery, consistency, contamination, conflict, or another named evidence question remains unresolved;
+- requests another opportunity only when repeatability, recovery, consistency, contamination, conflict, timing-readiness for an otherwise above-Structured-Execution placement, or another named evidence question remains unresolved;
 - strips constraints when a higher-pressure failure does not establish which lower layer failed;
 - excludes teaching, rescue, supplied steps, and other contaminated evidence from baseline placement authority;
-- can stop after a single decisive opportunity when the required evidence is already sufficient;
+- passively measures eligible normal same-form independent Diagnosis opportunities from system-owned Begin Opportunity to Student Finished without displaying a countdown or time target;
+- requires three clean comparable intervals before an otherwise above-Structured-Execution diagnosis can finalize without a prior timing authority;
+- uses the median of those three intervals for the individualized diagnosis timer and prevents the Specialist from choosing or editing the timer;
+- can stop after a single decisive opportunity when the required evidence is already sufficient and the intended placement does not require unresolved timing readiness;
 - never creates fake unused repetitions;
 - derives Low / Medium / High categorically from behavior classes rather than numeric score thresholds;
 - cannot mint High Maintenance during diagnosis.
@@ -886,6 +891,8 @@ The current probe catalog includes:
 - `time.consistency` - Timed Consistency Probe
 
 Each opportunity carries its own evidence question, constraint profile, purpose, observed dimensions, and support/contamination event.
+
+For timing authority, `stack.normal_independent` and `execution.repeatability` are the only Diagnosis probe families that can contribute clean no-pressure baseline intervals. Their timing is operational evidence, not a score. `stack.timed_challenge` and `time.consistency` must use the system-prescribed individualized diagnosis timer; a Specialist-entered or generic timer is not authoritative.
 
 ### Completion and blocking
 
