@@ -704,42 +704,46 @@ const INTRO_PHASE_WEIGHTS: Record<PhaseLabel, Array<{ aliases: string[]; weight:
 };
 
 const flow = [
-  "Open the verification block and review the tutor prep step first.",
-  "Run each rep exactly as written.",
-  "Choose the option that best matches what the student actually did.",
-  "Finish the block without rewriting what happened.",
-  "Submit to see the evidence summary and system output.",
+  "Open the system-provided opportunity or training set and read the purpose and active condition first.",
+  "Run the condition as written without silently changing difficulty, support, timing, or the response target.",
+  "Choose the concrete behavior option that best matches what the student actually did.",
+  "Record whether the behavior was observed, not observed, or confounded when the runner asks for evidence status.",
+  "Record any intervention separately instead of making the student's later response look independent.",
+  "Submit the evidence and read the system result without rewriting it.",
 ];
 
 const rules = [
-  "Only log what the student actually did.",
-  "Do not guess or fill gaps with your own interpretation.",
-  "Use the drill options exactly as they are written.",
-  "If you did not see it happen, do not log it.",
+  "Record observable student behavior, not a personal judgment about the student's state.",
+  "Do not guess, soften, strengthen, or fill gaps with interpretation.",
+  "Use not observed when the opportunity did not meaningfully expose the behavior.",
+  "Use confounded when support, task design, interruption, timing changes, or another condition prevents clean interpretation.",
+  "Record Specialist intervention separately from the student's behavior.",
+  "Preserve the condition that the opportunity is supposed to test.",
 ];
 
 const scoringRules = [
-  "The first option is the weakest response.",
-  "The middle option is partial.",
-  "The last option is the strongest response.",
-  "The selected options roll up into rep scores, set totals, and the final phase summary.",
+  "Concrete behavior is the source evidence.",
+  "Evidence status and intervention determine whether that behavior is decision-eligible for each dimension.",
+  "The evidence model resolves the relevant dimensions from valid occurrences across the required opportunities.",
+  "The system then determines placement, stability movement, continuity outcome, or targeted re-diagnosis from that evidence.",
+  "The Specialist does not manually manufacture the resulting state or parent-facing conclusion.",
 ];
 
 const resultOutputs = [
-  "Rep totals and grouped drill totals",
-  "Phase total",
-  "System output",
-  "Reason",
-  "Tutor meaning",
-  "Next action",
-  "Current phase rule or drill constraint",
+  "The behavior or evidence pattern that mattered",
+  "Which evidence was eligible, unresolved, or confounded where relevant",
+  "The resulting phase / stability or continuity outcome",
+  "The reason for the system decision",
+  "The next action",
+  "The active condition or constraint",
 ];
 
 const auditRisks = [
-  "Selecting stronger observation options than the rep justified",
-  "Logging a smoother response pattern than the drill score supports",
-  "Altering or misreporting the automatic system result after scoring",
-  "Writing around a rescue, pressure break, or structure collapse",
+  "Selecting a stronger behavior than the student actually demonstrated",
+  "Turning not-observed or confounded evidence into student weakness",
+  "Failing to record assistance, rescue, prompting, or timer changes",
+  "Changing the intended condition and then logging the result as if the condition held",
+  "Rewriting the system decision to match the Specialist's preferred interpretation",
 ];
 
 function getObservationBlockForRep(setConfig: DrillSetConfig, repIndex: number): ObservationField[] {
@@ -1460,6 +1464,181 @@ function DemoRunnerOverlay({
 
   if (!open) return null;
 
+  if (mode === "diagnosis") {
+    return (
+      <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm">
+        <div className="flex h-full flex-col">
+          <div className="border-b bg-card/95">
+            <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+                  Intro Diagnosis Logging - {phase}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Evidence-complete diagnosis · behavior first · no fixed phase-block quota
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close demo runner">
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <div className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6">
+              <Card className="space-y-3 border-2 border-primary/20 bg-primary/5 p-5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Diagnosis logging law</p>
+                <p className="text-lg font-semibold">
+                  Record what the student did. Do not choose the phase, stability, or next probe.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Each opportunity exists because an evidence question remains unanswered. Diagnosis stops when the
+                  topic's entry state is sufficiently supported by clean evidence.
+                </p>
+              </Card>
+
+              <Card className="space-y-3 p-5">
+                <h3 className="text-lg font-semibold">1. Record concrete behavior</h3>
+                <p className="text-sm text-muted-foreground">
+                  Use the behavior choices presented for the dimensions that the opportunity actually exposed.
+                  Do not translate the response into weak, partial, clear, Low, Medium, High, or a phase yourself.
+                </p>
+              </Card>
+
+              <Card className="space-y-3 p-5">
+                <h3 className="text-lg font-semibold">2. Protect missing and contaminated evidence</h3>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-lg border border-primary/15 p-3">
+                    <p className="text-sm font-semibold">Not observed</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Use when the opportunity did not meaningfully expose the behavior.
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-primary/15 p-3">
+                    <p className="text-sm font-semibold">Confounded</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Use when support, content exposure, task design, interruption, or another condition prevents clean interpretation.
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-foreground">
+                  Missing evidence must not be converted into student weakness.
+                </p>
+              </Card>
+
+              <Card className="space-y-3 p-5">
+                <h3 className="text-lg font-semibold">3. Record intervention separately</h3>
+                <p className="text-sm text-muted-foreground">
+                  Neutral clarification may leave evidence clean. First-step confirmation, teaching, correction, or rescue can
+                  remove independent authority from the affected behavior. Keep the event in history; do not make post-help success
+                  look like unsupported baseline capability.
+                </p>
+              </Card>
+
+              <Card className="space-y-3 p-5">
+                <h3 className="text-lg font-semibold">4. Let the evidence path continue or stop</h3>
+                <ul className="space-y-1 pl-5 text-sm text-muted-foreground list-disc">
+                  <li>Clean support may clear directly observed earlier layers.</li>
+                  <li>Higher-constraint failure may require constraint stripping before it can be interpreted.</li>
+                  <li>Repetition occurs only when repeatability, recovery, consistency, contamination, or conflicting evidence remains unresolved.</li>
+                  <li>If permitted clean evidence is exhausted and the layer is still unresolved, placement blocks for evidence review rather than being guessed.</li>
+                </ul>
+              </Card>
+
+              <Card className="space-y-3 p-5">
+                <h3 className="text-lg font-semibold">5. Read the completed evidence explanation</h3>
+                <p className="text-sm text-muted-foreground">
+                  A completed topic diagnosis must show why this phase, why this starting stability, what behavior determined the
+                  entry state, and what Training action follows. The evidence is the reason for the result.
+                </p>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "training") {
+    return (
+      <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm">
+        <div className="flex h-full flex-col">
+          <div className="border-b bg-card/95">
+            <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+                  Training Evidence Logging - {phase}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Exposure-complete Training · evidence-authorized state movement
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close demo runner">
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <div className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6">
+              <Card className="space-y-3 border-2 border-primary/20 bg-primary/5 p-5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Training logging law</p>
+                <p className="text-lg font-semibold">
+                  Deliver the required exposure, then let valid behavioral evidence determine what that exposure proved.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Training legitimately repeats conditions because repetition is part of conditioning. Completion of the exposure
+                  and proof of capability are separate questions.
+                </p>
+              </Card>
+
+              <Card className="space-y-3 p-5">
+                <h3 className="text-lg font-semibold">1. Log the actual response in each opportunity</h3>
+                <p className="text-sm text-muted-foreground">
+                  Choose the concrete phase-specific behavior that occurred. The evidence model later resolves those observations
+                  into breakdown, conditional, near-stable, supported, or unresolved dimension states.
+                </p>
+              </Card>
+
+              <Card className="space-y-3 p-5">
+                <h3 className="text-lg font-semibold">2. Separate behavior, evidence status, and intervention</h3>
+                <p className="text-sm text-muted-foreground">
+                  A Training opportunity can contain legitimate support. Record whether each behavior was observed, not observed,
+                  or confounded, and record the intervention that actually occurred. The system restricts only the dimensions whose
+                  independence was changed by that support rather than automatically discarding the whole opportunity.
+                </p>
+              </Card>
+
+              <Card className="space-y-3 p-5">
+                <h3 className="text-lg font-semibold">3. Do not erase breakdown with one good attempt</h3>
+                <p className="text-sm text-muted-foreground">
+                  Recovery is evidence, but a genuine breakdown requires a stronger clean recovery sequence before the dimension can
+                  return to supported. Training history therefore distinguishes isolated strength from repeated recovery.
+                </p>
+              </Card>
+
+              <Card className="space-y-3 p-5">
+                <h3 className="text-lg font-semibold">4. Protect earlier prerequisites</h3>
+                <p className="text-sm text-muted-foreground">
+                  A clean breakdown in Structured Execution, Controlled Discomfort, or Time Pressure Stability can trigger a
+                  stripped-constraint prerequisite check. If the earlier prerequisite is contradicted or cannot be established
+                  cleanly, ordinary Training does not guess backward movement; the topic routes to targeted re-diagnosis.
+                </p>
+              </Card>
+
+              <Card className="space-y-3 p-5">
+                <h3 className="text-lg font-semibold">5. Read state movement as evidence-authorized</h3>
+                <p className="text-sm text-muted-foreground">
+                  The system resolves current-session evidence, persistent stability, High Maintenance qualification, progression,
+                  regression, or targeted re-diagnosis from persisted evidence. The Specialist records the response and follows the
+                  resulting next action.
+                </p>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (mode === "handover") {
     return (
       <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm">
@@ -1534,10 +1713,10 @@ function DemoRunnerOverlay({
               </Card>
 
               <Card className="space-y-3 p-5">
-                <h3 className="text-lg font-semibold">4. Read the evidence result, not a score</h3>
+                <h3 className="text-lg font-semibold">4. Read the evidence result</h3>
                 <p className="text-sm text-muted-foreground">
                   The live result surface shows inherited state, resulting state, evidence reason, dimension decisions,
-                  recovery status, next action, and constraints. Compatibility scoring is technical reference only.
+                  recovery status, next action, and constraints.
                 </p>
                 <p className="font-semibold">
                   The Specialist records behavior. The Response Evidence Model owns recovery, regression, stability adjustment,
@@ -2047,7 +2226,7 @@ export default function ResponseConditioningLoggingSystem() {
               </p>
               <h2 className="text-2xl font-bold sm:text-3xl md:text-4xl">Logging System</h2>
               <p className="mt-1 text-muted-foreground">
-                Evidence capture, score resolution, and system-led output
+                Evidence capture, source integrity, and evidence-led system output
               </p>
             </div>
           </div>
@@ -2058,26 +2237,27 @@ export default function ResponseConditioningLoggingSystem() {
         <Card className="space-y-4 border-2 border-primary/20 bg-primary/5 p-6">
           <h2 className="text-2xl font-bold">What Logging Is For</h2>
           <p className="text-muted-foreground">
-            Tutors do not log opinions. Tutors log what actually happened. The system uses that
-            evidence to decide whether to hold, place, or move.
+            Specialists do not log opinions about the student's state. Specialists record what
+            actually happened under the active condition. The evidence model then determines what
+            that observation can prove and what the system should do next.
           </p>
           <div className="grid gap-3 md:grid-cols-3">
             <div className="rounded-xl border bg-card p-4">
               <p className="font-semibold">Intro diagnosis</p>
               <p className="mt-2 text-sm text-muted-foreground">
-                Logging supports phase verification and placement.
+                Logging captures concrete behavior for evidence-complete topic placement.
               </p>
             </div>
             <div className="rounded-xl border bg-card p-4">
               <p className="font-semibold">Active training</p>
               <p className="mt-2 text-sm text-muted-foreground">
-                Logging supports continuity, reinforcement, and next-step selection.
+                Logging separates delivered Training exposure from the capability that valid evidence actually proves.
               </p>
             </div>
             <div className="rounded-xl border bg-card p-4">
               <p className="font-semibold">Handover verification</p>
               <p className="mt-2 text-sm text-muted-foreground">
-                Logging supports continuity checks after tutor reassignment.
+                Logging preserves continuity evidence after Specialist reassignment without turning verification into re-training.
               </p>
             </div>
           </div>
@@ -2085,14 +2265,15 @@ export default function ResponseConditioningLoggingSystem() {
 
         <Card className="space-y-6 border-2 border-primary/20 p-6 md:p-8">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">Phase Verification Demo</Badge>
+            <Badge variant="outline">Evidence Logging Walkthrough</Badge>
           </div>
 
           <div className="space-y-2">
             <h2 className="text-2xl font-bold">What This Page Shows</h2>
             <p className="max-w-4xl text-muted-foreground">
-              This page shows how tutors use the drill runner in intro diagnosis, active training, and handover verification.
-              You can switch modes, open the runner, complete reps, and review the result screen.
+              This page shows how evidence logging changes by operating context while keeping one integrity law:
+              record the student's response truthfully, preserve the condition under which it occurred, and let the
+              system derive the decision from eligible evidence.
             </p>
           </div>
 
@@ -2100,9 +2281,9 @@ export default function ResponseConditioningLoggingSystem() {
             <div className="space-y-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="max-w-3xl">
-                  <h3 className="text-xl font-bold">Choose a Mode and Phase</h3>
+                  <h3 className="text-xl font-bold">Choose an Evidence Context and Phase</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Switch between training, diagnosis, and handover. For diagnosis, the selected phase is the starting point, not the final placement.
+                    Diagnosis, Training, and Handover use different evidence purposes. The selected phase gives the walkthrough context; it never gives the Specialist permission to invent the student's state.
                   </p>
                 </div>
                 <Button onClick={() => setDemoOpen(true)} className="w-full sm:w-auto">
@@ -2123,7 +2304,7 @@ export default function ResponseConditioningLoggingSystem() {
                 >
                   <p className="text-sm font-semibold">Training</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Use the active training drill flow for the selected phase.
+                    See how repeated Training exposure is logged without confusing intervention, delivery, and capability evidence.
                   </p>
                 </button>
                 <button
@@ -2137,7 +2318,7 @@ export default function ResponseConditioningLoggingSystem() {
                 >
                   <p className="text-sm font-semibold">Diagnosis</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Use the diagnosis flow to start from a phase block and let the system move up, place, or move down.
+                    See evidence-complete diagnosis logging: concrete behavior, contamination boundaries, and system-selected next evidence questions.
                   </p>
                 </button>
                 <button
@@ -2151,7 +2332,7 @@ export default function ResponseConditioningLoggingSystem() {
                 >
                   <p className="text-sm font-semibold">Handover</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Use the continuity-check flow to verify where training should resume with a new tutor.
+                    See continuity logging after Specialist reassignment: inherited-state verification, bounded evidence, and targeted re-diagnosis when needed.
                   </p>
                 </button>
               </div>
@@ -2212,10 +2393,10 @@ export default function ResponseConditioningLoggingSystem() {
                         ? "A phase-based training drill"
                         : demoMode === "handover"
                         ? "An evidence-driven continuity verification walkthrough"
-                        : "An adaptive phase verification block"}
+                        : "An evidence-complete diagnosis walkthrough"}
                     </li>
-                    <li>{demoMode === "handover" ? "Canonical evidence outcomes and stopping rules" : "Clickable observation choices for each rep"}</li>
-                    <li>A result screen that mirrors the live runner more closely</li>
+                    <li>Concrete observation, evidence-status, and intervention boundaries</li>
+                    <li>The system-owned decision path and what the Specialist must not reinterpret</li>
                   </ul>
                 </div>
               </div>
@@ -2233,7 +2414,7 @@ export default function ResponseConditioningLoggingSystem() {
         </Card>
 
         <Card className="space-y-4 p-6">
-          <h2 className="text-2xl font-bold">How Choices Turn Into a Result</h2>
+          <h2 className="text-2xl font-bold">How Evidence Becomes System Output</h2>
           <ul className="space-y-1 pl-4 text-muted-foreground">
             {scoringRules.map((rule) => (
               <li key={rule}>{rule}</li>
@@ -2242,7 +2423,7 @@ export default function ResponseConditioningLoggingSystem() {
         </Card>
 
         <Card className="space-y-4 p-6">
-          <h2 className="text-2xl font-bold">What Tutors Do in the Runner</h2>
+          <h2 className="text-2xl font-bold">What Specialists Do in the Runner</h2>
           <ol className="space-y-1 pl-4 text-muted-foreground">
             {flow.map((step, index) => (
               <li key={step}>
@@ -2264,8 +2445,9 @@ export default function ResponseConditioningLoggingSystem() {
         <Card className="space-y-4 border-2 border-primary/20 p-6">
           <h2 className="text-2xl font-bold">Audit Relevance</h2>
           <p className="text-muted-foreground">
-            Because Response Integrity logging is tied directly to evidence and system output, dishonest logging
-            means dishonest evidence capture. That is a compliance issue, not a note-taking issue.
+            Response Integrity logging is part of the institutional evidence record. A false observation, hidden
+            intervention, or changed condition can produce a false capability claim or state decision. That is an
+            evidence-integrity failure, not a note-taking mistake.
           </p>
           <ul className="space-y-1 pl-4 text-muted-foreground">
             {auditRisks.map((risk) => (
@@ -2273,8 +2455,7 @@ export default function ResponseConditioningLoggingSystem() {
             ))}
           </ul>
           <p className="font-medium">
-            If the observation record is manipulated, the system output is compromised and the tutor
-            can be flagged for audit failure.
+            The Specialist owns the truthfulness of the observation. The system owns the evidence interpretation and resulting operating decision.
           </p>
         </Card>
       </div>
