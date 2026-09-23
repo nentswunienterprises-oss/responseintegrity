@@ -274,6 +274,18 @@ test("Structured Execution placement does not force completion of the three-samp
   assert.equal(decision.timingBaseline.ready, false);
 });
 
+test("TPS starting signal reuses an inherited Timer Contract instead of rebuilding baseline evidence", () => {
+  const state = createEvidenceCompleteDiagnosisState(
+    "Time Pressure Stability",
+    54,
+  );
+  const decision = evaluateEvidenceCompleteDiagnosis(state);
+  assert.equal(decision.nextProbeId, "stack.timed_challenge");
+  assert.equal(decision.timingBaseline.ready, true);
+  assert.equal(decision.timingBaseline.baselineSeconds, 54);
+  assert.equal(decision.timingBaseline.source, "inherited_contract");
+});
+
 test("TPS starting signal establishes lower-layer and timing authority before any timed probe", () => {
   let state = createEvidenceCompleteDiagnosisState("Time Pressure Stability");
 
