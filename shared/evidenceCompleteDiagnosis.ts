@@ -579,9 +579,14 @@ function phaseState(
   };
 }
 
-function initialProbe(phase: TopicPhase | null): DiagnosisProbeId {
+function initialProbe(
+  phase: TopicPhase | null,
+  timingAuthorityReady: boolean,
+): DiagnosisProbeId {
   if (!phase) return "stack.normal_independent";
-  if (phase === "Time Pressure Stability") return "stack.normal_independent";
+  if (phase === "Time Pressure Stability") {
+    return timingAuthorityReady ? "stack.timed_challenge" : "stack.normal_independent";
+  }
   if (phase === "Controlled Discomfort") return "stack.challenge_no_timer";
   if (phase === "Structured Execution") return "stack.normal_independent";
   return "clarity.recognition";
@@ -740,12 +745,19 @@ export function evaluateEvidenceCompleteDiagnosis(
       placementPhase: null,
       stability: null,
       confidence: "insufficient",
-      nextProbeId: initialProbe(state.recommendedStartingPhase),
-      reason: state.recommendedStartingPhase === "Time Pressure Stability"
-        ? "The TPS starting signal routes the search, but no arbitrary timer is allowed. Begin with a neutral independent baseline so the system can establish lower-layer truth and individualized timing authority before any timed probe."
-        : state.recommendedStartingPhase
-          ? `Begin with the system-selected ${state.recommendedStartingPhase} probe. The starting signal routes the first question only; behavioral evidence decides placement.`
-          : "No starting signal is available. Begin with a neutral independent baseline that can observe Clarity and Structured Execution without adding difficulty or time.",
+      nextProbeId: initialProbe(
+        state.recommendedStartingPhase,
+        timingBaseline.ready,
+      ),
+      reason:
+        state.recommendedStartingPhase === "Time Pressure Stability" &&
+        timingBaseline.ready
+          ? `A valid individualized timing authority is already bound at ${timingBaseline.baselineSeconds}s. The TPS starting signal may therefore begin with the system-prescribed timed challenge; behavioral evidence still decides placement.`
+          : state.recommendedStartingPhase === "Time Pressure Stability"
+            ? "The TPS starting signal routes the search, but no arbitrary timer is allowed. Begin with a neutral independent baseline so the system can establish lower-layer truth and individualized timing authority before any timed probe."
+            : state.recommendedStartingPhase
+              ? `Begin with the system-selected ${state.recommendedStartingPhase} probe. The starting signal routes the first question only; behavioral evidence decides placement.`
+              : "No starting signal is available. Begin with a neutral independent baseline that can observe Clarity and Structured Execution without adding difficulty or time.",
       placementEvidence: [],
     };
   }
