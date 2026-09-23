@@ -41,7 +41,11 @@ import {
   type TrainingInterventionEvent,
   type TrainingPrerequisiteSentinelResult,
 } from "@shared/trainingEvidenceCapture";
-import { trainingRawObservationRequiresPrerequisiteSentinel } from "@shared/trainingEvidenceEvaluator";
+import {
+  trainingDimensionForFieldKey,
+  trainingEvidenceClassForRawBehavior,
+  trainingRawObservationRequiresPrerequisiteSentinel,
+} from "@shared/trainingEvidenceEvaluator";
 import { evaluateHandoverVerificationEvidence } from "@shared/handoverEvidenceEvaluator";
 
 type PhaseLabel = "Clarity" | "Structured Execution" | "Controlled Discomfort" | "Time Pressure Stability";
@@ -101,6 +105,28 @@ type AdaptiveTransitionState = {
     observations: Array<Record<string, string>>;
   };
 };
+
+function describeTrainingEvidenceOption(fieldKey: string, option: string) {
+  const dimensionId = trainingDimensionForFieldKey(fieldKey);
+  const evidenceClass = dimensionId
+    ? trainingEvidenceClassForRawBehavior(dimensionId, option)
+    : null;
+
+  if (evidenceClass === "breakdown") {
+    return "Breakdown evidence: the phase-defining behavior broke under this training condition.";
+  }
+  if (evidenceClass === "conditional") {
+    return "Conditional evidence: the capability appeared, but it was incomplete, support-sensitive, or unstable.";
+  }
+  if (evidenceClass === "near_stable") {
+    return "Near-stable evidence: the response mostly held, with a recoverable limitation.";
+  }
+  if (evidenceClass === "supported") {
+    return "Supported evidence: the behavior held under the current training condition.";
+  }
+
+  return null;
+}
 
 function explainAdaptiveTransition(
   currentPhase: PhaseLabel,
@@ -1022,6 +1048,17 @@ export default function IntroSessionDrillRunner() {
               registeredField.dimensionId as DiagnosisDimensionId
             ]
           : null;
+      const trainingOptionDetails =
+        evidenceModeForSubmission === "training"
+          ? Object.fromEntries(
+              registeredField.optionLabels
+                .map((option) => [
+                  option,
+                  describeTrainingEvidenceOption(registeredField.fieldKey, option),
+                ])
+                .filter(([, detail]) => !!detail),
+            )
+          : null;
       return {
         ...configuredField,
         label: canonicalDimension?.label || configuredField.label,
@@ -1033,7 +1070,7 @@ export default function IntroSessionDrillRunner() {
                 option.detail,
               ]),
             )
-          : configuredField.optionDetails,
+          : trainingOptionDetails || configuredField.optionDetails,
         optionLevels: Object.fromEntries(
           registeredField.optionLabels.map((label, optionIndex) => [
             label,
@@ -2859,13 +2896,13 @@ export default function IntroSessionDrillRunner() {
         {getLiveObservationBlockForRep(set, currentRep).map((obs) => (
           <div key={obs.key}>
             <label className="block font-medium mb-2 text-sm sm:text-base">{obs.label}</label>
-            <div className={isHandoverContinuityVerification ? "grid gap-2 sm:grid-cols-2" : "flex flex-wrap gap-1 sm:gap-2"}>
+            <div className={(isHandoverContinuityVerification || isTrainingEvidenceCapture) ? "grid gap-2 sm:grid-cols-2" : "flex flex-wrap gap-1 sm:gap-2"}>
               {obs.options.map((option: string) => (
                 <button
                   type="button"
                   key={option}
                   className={
-                    isHandoverContinuityVerification
+                    isHandoverContinuityVerification || isTrainingEvidenceCapture
                       ? [
                           "rounded-lg border p-3 text-left transition-colors",
                           observations[`set${currentSet}_rep${currentRep}_${obs.key}`] === option
@@ -2876,7 +2913,7 @@ export default function IntroSessionDrillRunner() {
                   }
                   onClick={() => handleObservation(obs.key, option)}
                 >
-                  {isHandoverContinuityVerification ? (
+                  {isHandoverContinuityVerification || isTrainingEvidenceCapture ? (
                     <>
                       <span className="block text-sm font-medium text-foreground">{option}</span>
                       {obs.optionDetails?.[option] && (
