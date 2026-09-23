@@ -421,7 +421,11 @@ const TRAINING_SETS: Record<TopicPhase, EvidenceSetDefinition[]> = {
       reps: 3,
       fields: structuredExecutionFields().map((definition) =>
         definition.fieldKey === "repeatability"
-          ? { ...definition, optionLevels: [...FOUR_WITH_TWO_CLEAR] }
+          ? {
+              ...definition,
+              optionLabels: ["missing", "out of order", "mostly accurate", "accurate"],
+              optionLevels: [...FOUR_WITH_TWO_CLEAR],
+            }
           : definition,
       ),
       constraints: NO_PRESSURE_MINIMAL,
