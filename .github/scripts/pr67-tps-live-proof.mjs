@@ -297,12 +297,45 @@ async function completeStructuredExecutionTraining(fixture) {
 
   const contract = await getTimerContract(GEOMETRY_STUDENT, GEOMETRY_TOPIC, true);
   assert.equal(contract.baselineSource, "training_independent_execution");
-  assert.equal(contract.baselineRecordIds.length, 3);
   assert.ok(contract.baselineSeconds >= 4 && contract.baselineSeconds <= 8);
+
+  const submittedDrill = finalSubmission.requestPayload?.sessionDrills?.find(
+    (entry) => String(entry?.trainingTopic || "").trim() === GEOMETRY_TOPIC,
+  );
+  const independentSet = submittedDrill?.drill?.find(
+    (set) => set?.setId === "structured_execution.independent_execution",
+  );
+  const passiveAttemptRefs = (independentSet?.observations || []).map((rep) => {
+    const raw = rep?._passive_execution_attempt_v1;
+    assert.ok(raw, "Independent Execution rep is missing passive attempt lineage");
+    return JSON.parse(raw);
+  });
+  assert.equal(passiveAttemptRefs.length, 3);
+  assert.equal(passiveAttemptRefs[0].attemptNumber, 2);
+  assert.equal(passiveAttemptRefs[1].attemptNumber, 1);
+  assert.equal(passiveAttemptRefs[2].attemptNumber, 1);
+  assert.equal(new Set(passiveAttemptRefs.map((ref) => ref.attemptId)).size, 3);
+  assert.ok(
+    passiveAttemptRefs.every(
+      (ref) =>
+        ref.timingValidity === "valid" &&
+        ref.endReason === "student_finished",
+    ),
+  );
+
+  const timingAuthority = finalSubmission.responseBody?.drillResults?.find(
+    (result) => String(result?.topic || "").trim() === GEOMETRY_TOPIC,
+  )?.timingAuthority;
+  assert.ok(timingAuthority?.contractId, "Training submission did not return frozen timing authority");
+  assert.equal(timingAuthority.contractId, contract.contractId);
+  assert.equal(timingAuthority.baselineSeconds, contract.baselineSeconds);
+  assert.equal(timingAuthority.source, contract.baselineSource);
+
   checkpoint("se_timer_contract", {
     contractId: contract.contractId,
     baselineSeconds: contract.baselineSeconds,
-    baselineRecordIds: contract.baselineRecordIds,
+    baselineAttemptIds: passiveAttemptRefs.map((ref) => ref.attemptId),
+    replacementAttemptNumber: passiveAttemptRefs[0].attemptNumber,
     fullConstraintSeconds: contract.fullConstraintSeconds,
   });
   return contract;
