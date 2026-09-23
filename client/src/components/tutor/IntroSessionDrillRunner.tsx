@@ -540,9 +540,9 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
     {
       setName: "Required Structure",
       reps: 3,
-      purpose: "Require structured execution. Student must state all steps first, then solve. Build discipline before independence.",
-      repInstruction: "State steps first. Then solve.",
-      activeRules: ["Steps must be stated before solving", "No skipping steps", "Correct step order required"],
+      purpose: "Train ordered execution without turning the rep into a diagnosis probe. Student states the step order first, then solves using that order.",
+      repInstruction: "Before you solve, tell me the steps you will follow. Then solve using those steps.",
+      activeRules: ["Student states step order before solving", "Specialist does not supply the steps", "Student solves using the stated order"],
       observationBlock: [
         { key: "startBehavior", label: "Start", options: ["delayed", "hesitant", "immediate"] },
         { key: "stepExecution", label: "Step Discipline", options: ["skips", "partial", "full"] },
