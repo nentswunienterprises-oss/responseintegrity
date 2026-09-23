@@ -17,6 +17,10 @@ import {
   type TopicPhase,
   type TopicStability,
 } from "./topicConditioningEngine";
+import {
+  buildPassiveExecutionTimingEvidence,
+  buildTimedExecutionEvidence,
+} from "./tpsTimingContract";
 
 const behavior = (
   values: Partial<Record<DiagnosisDimensionId, string>>,
@@ -58,16 +62,44 @@ const timeSupported = {
   "time.completion_integrity": "complete_with_structure",
 } as const;
 
+const passiveTiming = (seconds = 60) => {
+  const startedAt = "2026-09-23T10:00:00.000Z";
+  const endedAt = new Date(Date.parse(startedAt) + seconds * 1000).toISOString();
+  const timing = buildPassiveExecutionTimingEvidence({ startedAt, endedAt });
+  assert.ok(timing);
+  return timing;
+};
+
+const timedTiming = (prescribedSeconds = 60, elapsedSeconds = 50) => {
+  const startedAt = "2026-09-23T10:00:00.000Z";
+  const endedAt = new Date(Date.parse(startedAt) + elapsedSeconds * 1000).toISOString();
+  const timing = buildTimedExecutionEvidence({
+    startedAt,
+    endedAt,
+    prescribedSeconds,
+  });
+  assert.ok(timing);
+  return timing;
+};
+
 function run(
   state: ReturnType<typeof createEvidenceCompleteDiagnosisState>,
   probeId: DiagnosisProbeId,
   values: Partial<Record<DiagnosisDimensionId, string>>,
   supportEvent: "none" | "teaching" = "none",
+  elapsedSeconds = 60,
 ) {
+  const baselineProbe =
+    probeId === "stack.normal_independent" ||
+    probeId === "execution.repeatability";
+  const timedProbe =
+    probeId === "stack.timed_challenge" || probeId === "time.consistency";
   return recordEvidenceCompleteDiagnosisProbe(state, {
     probeId,
     observations: behavior(values),
     supportEvent,
+    ...(baselineProbe ? { passiveTiming: passiveTiming(elapsedSeconds) } : {}),
+    ...(timedProbe ? { timedTiming: timedTiming(60, Math.min(elapsedSeconds, 59)) } : {}),
   });
 }
 
@@ -102,12 +134,11 @@ test("starting signals route the first question but do not decide placement", ()
     ).nextProbeId,
     "clarity.recognition",
   );
-  assert.equal(
-    evaluateEvidenceCompleteDiagnosis(
-      createEvidenceCompleteDiagnosisState("Time Pressure Stability"),
-    ).nextProbeId,
-    "stack.timed_challenge",
+  const tpsStart = evaluateEvidenceCompleteDiagnosis(
+    createEvidenceCompleteDiagnosisState("Time Pressure Stability"),
   );
+  assert.equal(tpsStart.nextProbeId, "stack.normal_independent");
+  assert.match(tpsStart.reason, /no arbitrary timer/i);
 });
 
 test("decisive clarity breakdown places Low from behavior, not a score", () => {
@@ -225,26 +256,66 @@ test("repeatability behavior can place Structured Execution at High", () => {
   assert.equal(decision.stability, "High");
 });
 
-test("timed failure does not automatically condemn lower phases", () => {
-  let state = createEvidenceCompleteDiagnosisState("Time Pressure Stability");
-  state = run(state, "stack.timed_challenge", {
+test("Structured Execution placement does not force completion of the three-sample TPS baseline", () => {
+  let state = createEvidenceCompleteDiagnosisState("Structured Execution");
+  state = run(state, "stack.normal_independent", {
     ...claritySupported,
     ...executionImmediateSupported,
-    ...difficultySupported,
-    "time.start": "timed_freeze",
-    "time.structure": "timed_structure_collapse",
-    "time.pace": "panic_pace",
-    "time.completion_integrity": "timed_non_completion",
-  });
+  }, "none", 61);
+  state = run(state, "execution.repeatability", {
+    ...executionImmediateSupported,
+    "execution.repeatability": "repeat_with_minor_drift",
+  }, "none", 63);
 
   const decision = evaluateEvidenceCompleteDiagnosis(state);
-  assert.equal(decision.complete, false);
-  assert.equal(decision.placementPhase, null);
-  assert.equal(decision.nextProbeId, "execution.repeatability");
+  assert.equal(decision.complete, true);
+  assert.equal(decision.placementPhase, "Structured Execution");
+  assert.equal(decision.timingBaseline.sampleCount, 1);
+  assert.equal(decision.timingBaseline.ready, false);
 });
 
-test("lower-layer confirmation isolates a Time Pressure breakdown", () => {
+test("TPS starting signal establishes lower-layer and timing authority before any timed probe", () => {
   let state = createEvidenceCompleteDiagnosisState("Time Pressure Stability");
+
+  state = run(state, "stack.normal_independent", {
+    ...claritySupported,
+    ...executionImmediateSupported,
+  }, "none", 58);
+  assert.equal(evaluateEvidenceCompleteDiagnosis(state).nextProbeId, "execution.repeatability");
+
+  state = run(state, "execution.repeatability", executionSupported, "none", 60);
+  assert.equal(evaluateEvidenceCompleteDiagnosis(state).nextProbeId, "stack.challenge_no_timer");
+
+  state = run(state, "stack.challenge_no_timer", {
+    ...claritySupported,
+    ...executionImmediateSupported,
+    ...difficultySupported,
+  });
+  const beforeThirdBaseline = evaluateEvidenceCompleteDiagnosis(state);
+  assert.equal(beforeThirdBaseline.nextProbeId, "execution.repeatability");
+  assert.equal(beforeThirdBaseline.timingBaseline.sampleCount, 2);
+  assert.equal(beforeThirdBaseline.timingBaseline.ready, false);
+
+  state = run(state, "execution.repeatability", executionSupported, "none", 62);
+  const ready = evaluateEvidenceCompleteDiagnosis(state);
+  assert.equal(ready.nextProbeId, "stack.timed_challenge");
+  assert.equal(ready.timingBaseline.ready, true);
+  assert.equal(ready.timingBaseline.baselineSeconds, 60);
+});
+
+test("individualized timed failure isolates a Time Pressure breakdown after lower layers clear", () => {
+  let state = createEvidenceCompleteDiagnosisState("Time Pressure Stability");
+  state = run(state, "stack.normal_independent", {
+    ...claritySupported,
+    ...executionImmediateSupported,
+  }, "none", 58);
+  state = run(state, "execution.repeatability", executionSupported, "none", 60);
+  state = run(state, "stack.challenge_no_timer", {
+    ...claritySupported,
+    ...executionImmediateSupported,
+    ...difficultySupported,
+  });
+  state = run(state, "execution.repeatability", executionSupported, "none", 62);
   state = run(state, "stack.timed_challenge", {
     ...claritySupported,
     ...executionImmediateSupported,
@@ -254,13 +325,13 @@ test("lower-layer confirmation isolates a Time Pressure breakdown", () => {
     "time.pace": "panic_pace",
     "time.completion_integrity": "timed_non_completion",
   });
-  state = run(state, "execution.repeatability", executionSupported);
-  state = run(state, "difficulty.recovery", difficultySupported);
 
   const decision = evaluateEvidenceCompleteDiagnosis(state);
   assert.equal(decision.complete, true);
   assert.equal(decision.placementPhase, "Time Pressure Stability");
   assert.equal(decision.stability, "Low");
+  assert.equal(decision.timingBaseline.ready, true);
+  assert.equal(decision.timingBaseline.baselineSeconds, 60);
 });
 
 
@@ -324,7 +395,12 @@ function placementDecisionFor(
       ...difficultySupported,
       "difficulty.initial_response": decisiveBehavior,
     });
-    state = run(state, "execution.repeatability", executionSupported);
+    state = run(state, "execution.repeatability", executionSupported, "none", 58);
+    state = run(state, "stack.normal_independent", {
+      ...claritySupported,
+      ...executionImmediateSupported,
+    }, "none", 60);
+    state = run(state, "execution.repeatability", executionSupported, "none", 62);
     return evaluateEvidenceCompleteDiagnosis(state);
   }
 
@@ -335,6 +411,17 @@ function placementDecisionFor(
   }[stability];
 
   let state = createEvidenceCompleteDiagnosisState("Time Pressure Stability");
+  state = run(state, "stack.normal_independent", {
+    ...claritySupported,
+    ...executionImmediateSupported,
+  }, "none", 58);
+  state = run(state, "execution.repeatability", executionSupported, "none", 60);
+  state = run(state, "stack.challenge_no_timer", {
+    ...claritySupported,
+    ...executionImmediateSupported,
+    ...difficultySupported,
+  });
+  state = run(state, "execution.repeatability", executionSupported, "none", 62);
   state = run(state, "stack.timed_challenge", {
     ...claritySupported,
     ...executionImmediateSupported,
@@ -342,8 +429,6 @@ function placementDecisionFor(
     ...timeSupported,
     "time.start": decisiveBehavior,
   });
-  state = run(state, "execution.repeatability", executionSupported);
-  state = run(state, "difficulty.recovery", difficultySupported);
   return evaluateEvidenceCompleteDiagnosis(state);
 }
 
@@ -407,16 +492,31 @@ test("every phase entry uses the same behavior-native Low Medium High contract a
   }
 });
 
-test("all-clear diagnosis requires repeated temporal evidence and never mints High Maintenance", () => {
+test("all-clear diagnosis requires individualized baseline plus repeated temporal evidence and never mints High Maintenance", () => {
   let state = createEvidenceCompleteDiagnosisState("Time Pressure Stability");
+  state = run(state, "stack.normal_independent", {
+    ...claritySupported,
+    ...executionImmediateSupported,
+  }, "none", 58);
+  state = run(state, "execution.repeatability", executionSupported, "none", 60);
+  state = run(state, "stack.challenge_no_timer", {
+    ...claritySupported,
+    ...executionImmediateSupported,
+    ...difficultySupported,
+  });
+  state = run(state, "execution.repeatability", executionSupported, "none", 62);
+
+  assert.equal(
+    evaluateEvidenceCompleteDiagnosis(state).nextProbeId,
+    "stack.timed_challenge",
+  );
+
   state = run(state, "stack.timed_challenge", {
     ...claritySupported,
     ...executionImmediateSupported,
     ...difficultySupported,
     ...timeSupported,
   });
-  state = run(state, "execution.repeatability", executionSupported);
-  state = run(state, "difficulty.recovery", difficultySupported);
 
   assert.equal(
     evaluateEvidenceCompleteDiagnosis(state).nextProbeId,
@@ -428,6 +528,8 @@ test("all-clear diagnosis requires repeated temporal evidence and never mints Hi
   assert.equal(decision.complete, true);
   assert.equal(decision.placementPhase, "Time Pressure Stability");
   assert.equal(decision.stability, "High");
+  assert.equal(decision.timingBaseline.ready, true);
+  assert.equal(decision.timingBaseline.baselineSeconds, 60);
 
   for (const phaseState of decision.phaseStates) {
     const proof = getDiagnosisPhaseSupportEvidence(phaseState);
