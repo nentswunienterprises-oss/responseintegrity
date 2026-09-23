@@ -131,6 +131,10 @@ function describeTrainingEvidenceOption(fieldKey: string, option: string) {
 }
 
 function describeTrainingObservationQuestion(fieldKey: string, label: string) {
+  if (fieldKey === "repeatability" && label.includes("Step Statement Accuracy")) {
+    return "How accurate was the student's stated step plan before solving?";
+  }
+
   const questions: Record<string, string> = {
     vocabulary: "How did the student recognize the problem type or required vocabulary?",
     method: "How did the student recall and use the required steps?",
@@ -138,7 +142,7 @@ function describeTrainingObservationQuestion(fieldKey: string, label: string) {
     immediateApply: "How did the student respond when asked to use the understanding?",
     startBehavior: "How did the student start this rep?",
     stepExecution: "How did the student execute the steps?",
-    repeatability: "How accurate was the student's stated step plan before solving?",
+    repeatability: "How consistently did the structure hold?",
     independence: "How much support did the student need after the rep began?",
     initialResponse: "How did the student respond to the difficulty at first contact?",
     firstStepControl: "How controlled and accurate was the first step?",
