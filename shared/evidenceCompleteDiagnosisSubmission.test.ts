@@ -155,6 +155,19 @@ test("server replay requires a dedicated repeatability observation", () => {
   assert.equal(replay.decision.nextProbeId, "execution.repeatability");
 });
 
+test("authoritative replay permits TPS-first probing when a valid inherited Timer Contract is bound", () => {
+  const replay = replayEvidenceCompleteDiagnosis(
+    "Time Pressure Stability",
+    [],
+    54,
+  );
+  assert.equal(replay.ok, true);
+  if (!replay.ok) return;
+  assert.equal(replay.decision.nextProbeId, "stack.timed_challenge");
+  assert.equal(replay.decision.timingBaseline.source, "inherited_contract");
+  assert.equal(replay.decision.timingBaseline.baselineSeconds, 54);
+});
+
 test("TPS starting signal cannot jump directly to an arbitrary timed challenge", () => {
   const replay = replayEvidenceCompleteDiagnosis("Time Pressure Stability", [
     full("stack.timed_challenge", {
