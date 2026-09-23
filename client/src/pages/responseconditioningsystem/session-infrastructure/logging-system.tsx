@@ -21,7 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { instructionPromptLabelFor } from "@/lib/instructionPromptLabel";
+import { instructionPromptDisplayText, instructionPromptLabelFor } from "@/lib/instructionPromptLabel";
 
 type ObservationField = {
   key: string;
@@ -1964,7 +1964,9 @@ function DemoRunnerOverlay({
                     <div className="mb-0.5 text-xs font-semibold text-primary">
                       {instructionPromptLabelFor(currentSetConfig.repInstruction)}
                     </div>
-                    <div className="text-sm font-medium text-foreground">{currentSetConfig.repInstruction}</div>
+                    <div className="text-sm font-medium text-foreground">
+                      {instructionPromptDisplayText(currentSetConfig.repInstruction)}
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {currentSetConfig.activeRules.map((rule) => (

@@ -30,7 +30,7 @@ import type { TopicReference, TopicReferenceContent } from "@shared/topicReferen
 import { useStudentWorkflowState } from "@/hooks/useStudentWorkflowState";
 import { supabase } from "@/lib/supabaseClient";
 import { API_URL } from "@/lib/config";
-import { instructionPromptLabelFor } from "@/lib/instructionPromptLabel";
+import { instructionPromptDisplayText, instructionPromptLabelFor } from "@/lib/instructionPromptLabel";
 import {
   TRAINING_INTERVENTION_FIELD,
   TRAINING_INTERVENTION_OPTIONS,
@@ -2814,7 +2814,9 @@ export default function IntroSessionDrillRunner() {
             <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">
               {instructionPromptLabelFor(set?.repInstruction || "")}
             </div>
-            <div className="mt-1 text-base font-semibold text-foreground">{set?.repInstruction}</div>
+            <div className="mt-1 text-base font-semibold text-foreground">
+              {instructionPromptDisplayText(set?.repInstruction || "")}
+            </div>
           </div>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {set?.activeRules?.map((rule, i) => (
@@ -2866,7 +2868,9 @@ export default function IntroSessionDrillRunner() {
           <div className="text-xs font-semibold text-primary mb-0.5">
             {instructionPromptLabelFor(set?.repInstruction || "")}
           </div>
-          <div className="text-xs sm:text-sm text-foreground font-medium">{set?.repInstruction}</div>
+          <div className="text-xs sm:text-sm text-foreground font-medium">
+            {instructionPromptDisplayText(set?.repInstruction || "")}
+          </div>
         </div>
         <div className="flex flex-wrap gap-1">
           {set?.activeRules?.map((rule, i) => (
