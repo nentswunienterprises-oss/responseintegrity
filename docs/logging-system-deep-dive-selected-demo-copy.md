@@ -1,92 +1,160 @@
-# Response Integrity-OS Deep Dive
+# Logging System Deep Dive — Evidence-Native Operating Copy
 
-**Canonical reference**
-The single source of truth for live Response Integrity-OS algorithm rules is [Response Integrity-OS Live Implementation Source of Truth](response-integrity-os-implementation-source-of-truth.md).
-This file is a logging and runner deep dive, not the canonical implementation spec.
-If any shared engine rule here conflicts with the canonical spec or current code, the canonical spec wins and this file must be brought back into alignment.
+**Canonical reference**  
+The live product and current Response Integrity-OS contracts remain the implementation authority. This file is a Specialist-facing derivative of the live Logging System Deep Dive and must be updated whenever the live runner changes.
 
 ## Logging System
 
-Evidence capture, score resolution, and system-led output
+Logging is the evidence-capture layer between what the student actually did and what the system is allowed to conclude.
 
-## What Logging Is For
+The governing chain is:
 
-Tutors do not log opinions. Tutors log what actually happened. The system uses that evidence to decide whether to hold, place, or move.
+`active condition -> concrete observed behavior -> evidence eligibility -> dimension state -> system decision -> next action`
 
-### Intro diagnosis
+The Specialist owns truthful observation. The system owns evidence interpretation and the resulting operating decision.
 
-Logging supports phase verification and placement.
+## Core Logging Law
 
-### Active training
+Specialists do not log opinions about the student's state.
 
-Logging supports continuity, reinforcement, and next-step selection.
+They record:
 
-### Handover verification
+- the concrete behavior that actually occurred;
+- whether the behavior was meaningfully observed;
+- whether the observation was confounded;
+- any intervention, prompting, rescue, or timing change that occurred;
+- the evidence under the condition the system intended to test.
 
-Logging supports continuity checks after Specialist reassignment.
+Do not guess, soften, strengthen, or fill gaps with interpretation.
 
-Handover is evidence-driven continuity verification. It is not a fixed rep sequence and it is not a Training drill.
+## Evidence Status
 
-### Handover operating chain
+### Observed
 
-1. Inherit the active topic, phase, stability, evidence history, next action, and constraints.
-2. Prepare a small reserve bank of phase-appropriate continuity problems.
-3. Present one clean continuity opportunity at a time.
-4. Record the concrete behavior that actually happened.
-5. Record not-observed or confounded evidence when the behavior cannot be interpreted cleanly.
-6. Let the Response Evidence Model decide whether another comparable opportunity is required.
-7. Stop when evidence resolves to hold, bounded same-phase stability adjustment, or targeted evidence-complete re-diagnosis.
+Use when the opportunity meaningfully exposed the behavior and nothing made that observation uninterpretable.
+
+### Not observed
+
+Use when the opportunity did not meaningfully expose the behavior.
+
+Not-observed evidence is missing evidence. It is not weakness.
+
+### Confounded
+
+Use when assistance, content exposure, task design, interruption, timing changes, or another condition prevents clean interpretation.
+
+Confounded evidence is not automatically weakness or strength.
+
+## Intervention Is a Separate Fact
+
+Student behavior and Specialist intervention are recorded separately.
+
+Examples include:
+
+- no intervention;
+- neutral clarification;
+- first-step confirmation;
+- method or step prompting;
+- teaching or full rescue;
+- timer changed.
+
+Training can contain legitimate intervention. The system therefore decides which dimensions remain evidence-eligible after the recorded support instead of treating every supported opportunity as either fully clean or fully useless.
+
+## Intro Diagnosis Logging
+
+Diagnosis is evidence-complete, not rep-complete.
+
+The Specialist:
+
+1. presents the system-selected opportunity;
+2. records concrete behavior;
+3. records not-observed or confounded evidence honestly;
+4. records intervention separately;
+5. submits the evidence;
+6. follows the next evidence question selected from that evidence.
+
+The Specialist does not choose the phase, starting stability, or next probe.
+
+A completed diagnosis must explain:
+
+- why this phase;
+- why this starting stability;
+- what behavior determined the entry state;
+- what Training action follows.
+
+If permitted clean evidence is exhausted and the required layer remains unresolved, placement blocks for evidence review rather than being guessed.
+
+## Training Logging
+
+Training is exposure-complete and evidence-authorized.
+
+Repeated opportunities are legitimate because repetition is part of conditioning. But completing the required exposure and proving capability are separate questions.
+
+The Specialist records the concrete response in each opportunity, the evidence status, and the intervention that actually occurred.
+
+The evidence model resolves each phase dimension from valid occurrences and determines the current observed stability.
+
+A genuine breakdown is not erased by one isolated later success. Recovery requires sufficient clean comparable evidence.
+
+High, High Maintenance, and phase progression remain temporally separated:
+
+1. qualifying Training evidence may establish High;
+2. a later qualifying session while already High may establish High Maintenance;
+3. a later qualifying session while already High Maintenance may authorize phase progression.
+
+A clean current-phase breakdown in Structured Execution, Controlled Discomfort, or Time Pressure Stability can trigger a stripped-constraint prerequisite check. If an earlier prerequisite is contradicted or cannot be established cleanly, ordinary Training does not guess backward movement; the topic routes to targeted evidence-complete re-diagnosis.
+
+## Handover Verification Logging
+
+Handover verifies inherited truth after Specialist reassignment.
+
+It is not a normal Training drill and it is not a restart of Intro.
+
+The Specialist presents one clean continuity opportunity at a time, records concrete behavior, preserves not-observed/confounded states, and lets the Response Evidence Model determine whether evidence is sufficient to:
+
+- hold the inherited state;
+- make a bounded same-phase stability adjustment;
+- require targeted evidence-complete re-diagnosis.
 
 The reserve problem bank is not a completion quota.
 
-### Handover evidence language
+## What the Result Must Mean
 
-The live Handover runner uses the same canonical behavior contract as Diagnosis:
+A result should be traceable to evidence.
 
-- breakdown
-- conditional
-- near-stable
-- supported
-- not observed
-- confounded
+The result surface may show:
 
-The Specialist sees concrete behavior options rather than choosing these state classes directly.
+- the behavior or evidence pattern that mattered;
+- evidence eligibility or unresolved/confounded status where relevant;
+- resulting phase/stability or continuity outcome;
+- the reason for that decision;
+- the next action;
+- the active condition or constraint.
 
-Not-observed and confounded evidence count as neither weakness nor strength.
+The Specialist does not rewrite the system conclusion to match a preferred interpretation.
 
-### Recovery and contradiction
+## Source Integrity
 
-A real breakdown is not erased by one later clean response.
+Submitted evidence is part of the institutional record.
 
-With the current minimum of two valid opportunities, recovery after an earlier breakdown requires three trailing supported comparable opportunities.
+Do not:
 
-Confirmed phase-defining breakdown stops Handover and routes the topic to targeted evidence-complete re-diagnosis.
+- select a stronger behavior than the student demonstrated;
+- convert missing evidence into weakness;
+- hide support, rescue, prompting, or timer changes;
+- change the condition and log the result as if the original condition held;
+- manually rewrite the resulting state.
 
-Persistent conditional evidence can adjust stability only after the bounded verification window closes.
+A false observation can create a false capability claim, false state movement, false continuity decision, or misleading downstream report.
 
-### Handover result screen
+## Operating Summary
 
-The live result is evidence-first and shows:
+`Observe accurately.`
 
-- inherited state
-- resulting state
-- evidence reason
-- dimension-level evidence decisions
-- recovery status
-- next action
-- active constraint
+`Preserve the condition.`
 
-Compatibility scoring is technical reference only and has no authority over phase, stability, recovery, regression, or re-diagnosis.
+`Record intervention honestly.`
 
-### Audit relevance
+`Keep missing evidence missing.`
 
-Evidence integrity is the operating standard:
-
-- do not strengthen an observation beyond what happened;
-- do not convert missing evidence into weakness;
-- do not use post-help behavior as independent evidence;
-- do not add extra Handover opportunities to chase a preferred result;
-- do not manually change state against the system decision.
-
-If the observation record is manipulated, the Handover decision and downstream institutional record are compromised.
-
+`Let evidence determine the decision.`
