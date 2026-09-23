@@ -165,8 +165,9 @@ async function saveDiagnosisRun(input: {
     await pool.query(
       `INSERT INTO public.${RUN_TABLE}
         (id, student_id, tutor_id, topic, starting_phase, scheduled_session_id, session_context,
-         status, probe_history, decision, source_drill_id, updated_at, completed_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$13)
+         status, probe_history, decision, source_drill_id, timing_policy_version,
+         timing_authority_contract_id, timing_authority_baseline_seconds, updated_at, completed_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$13,$14,$15,$16)
        ON CONFLICT (id) DO UPDATE SET
          scheduled_session_id = EXCLUDED.scheduled_session_id,
          session_context = EXCLUDED.session_context,
@@ -174,6 +175,9 @@ async function saveDiagnosisRun(input: {
          probe_history = EXCLUDED.probe_history,
          decision = EXCLUDED.decision,
          source_drill_id = EXCLUDED.source_drill_id,
+         timing_policy_version = COALESCE(public.${RUN_TABLE}.timing_policy_version, EXCLUDED.timing_policy_version),
+         timing_authority_contract_id = COALESCE(public.${RUN_TABLE}.timing_authority_contract_id, EXCLUDED.timing_authority_contract_id),
+         timing_authority_baseline_seconds = COALESCE(public.${RUN_TABLE}.timing_authority_baseline_seconds, EXCLUDED.timing_authority_baseline_seconds),
          updated_at = EXCLUDED.updated_at,
          completed_at = EXCLUDED.completed_at`,
       [
@@ -188,6 +192,9 @@ async function saveDiagnosisRun(input: {
         JSON.stringify(row.probe_history),
         JSON.stringify(row.decision),
         row.source_drill_id,
+        row.timing_policy_version,
+        row.timing_authority_contract_id,
+        row.timing_authority_baseline_seconds,
         row.updated_at,
         row.completed_at,
       ],
