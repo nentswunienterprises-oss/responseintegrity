@@ -15,7 +15,7 @@ import {
   type EvidenceCompleteDiagnosisState,
 } from "./evidenceCompleteDiagnosis";
 
-type StoredDrillRow = {
+export type StoredDrillRow = {
   id?: unknown;
   student_id?: unknown;
   submitted_at?: unknown;
