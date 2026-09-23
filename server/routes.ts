@@ -93,8 +93,14 @@ import {
 import type { EvidenceLedgerProjectionInput } from "@shared/responseIntegrityEvidenceLedger";
 import {
   deriveStructuredExecutionEpochKeyForTraining,
+  deriveTrainingTpsTimerContract,
   validateTrainingPassiveTimingSubmission,
+  type StoredDrillRow,
 } from "@shared/tpsTimingRuntime";
+import {
+  TPS_TIMER_BASELINE_INCOMPLETE,
+  resolveTpsTrainingReadiness,
+} from "@shared/tpsTrainingReadiness";
 import {
   buildStartingPhaseRationale,
   getResponseSymptomLabels,
@@ -169,6 +175,13 @@ import {
   persistTrainingEvidenceShadowComparisonDirect,
   type TrainingEvidenceShadowDatasetInput,
 } from "./trainingEvidenceShadowComparison";
+import {
+  loadLatestTpsTimerContract,
+  loadTpsTimingDrillRows,
+  persistTpsTimerContract,
+  persistTpsTimerContractDirect,
+  type PersistedTpsTimerContract,
+} from "./tpsTimingAuthority";
 import {
   createTrialCase,
   createTrialPlacement,
