@@ -181,7 +181,20 @@ export default function ResponseConditioningStructuredExecution() {
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>No Boss Battles.</li>
             <li>No timed pressure.</li>
-            <li>No rescuing the student into a stronger-looking score.</li>
+            <li>No rescuing the student into stronger-looking evidence.</li>
+          </ul>
+        </Card>
+
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">What This Phase Inherits</h2>
+          <p className="text-muted-foreground">
+            Progression adds a condition; it does not discard Clarity. Structured Execution inherits the student's Vocabulary, Method,
+            ordered steps, and Reason mental map and adds independent, ordered, repeatable execution.
+          </p>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li>If Vocabulary, Method, ordered steps, or Reason visibly breaks, record that break instead of letting a correct answer hide it.</li>
+            <li>An isolated calculation error does not automatically mean the mental map broke; locate where the error actually occurred.</li>
+            <li>The Specialist records the evidence. RI-OS owns topic-state movement and any prerequisite verification route.</li>
           </ul>
         </Card>
 
@@ -195,7 +208,7 @@ export default function ResponseConditioningStructuredExecution() {
               {trainingSchema.sets.map((set) => `${set.setName} (${set.reps})`).join(" -> ")}
             </p>
             <p className="text-sm text-muted-foreground mt-2">
-              {requiredTrainingProblems} required opportunities in the live training drill. Every set produces scored execution evidence.
+              {requiredTrainingProblems} required opportunities in the live training drill. Every set produces decision-eligible execution evidence.
             </p>
           </div>
           <p className="font-medium">
@@ -321,7 +334,7 @@ export default function ResponseConditioningStructuredExecution() {
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What You Observe</h2>
           <p className="text-muted-foreground">
-            Structured Execution is not scored by whether the student sounds confident. It is scored by visible execution behavior.
+            Structured Execution is not decided by whether the student sounds confident. It is decided from visible execution behavior.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {observationSignals.map((signal) => (
@@ -341,7 +354,7 @@ export default function ResponseConditioningStructuredExecution() {
             That is evidence.
           </p>
           <p className="font-semibold">
-            The Specialist must not rescue the execution chain to protect the score. Correct Specialist execution means the condition
+            The Specialist must not rescue the execution chain into stronger-looking evidence. Correct Specialist execution means the condition
             was preserved and the evidence is trustworthy.
           </p>
           <p className="text-muted-foreground">
@@ -354,7 +367,7 @@ export default function ResponseConditioningStructuredExecution() {
           <h2 className="text-2xl font-bold">Progression Logic</h2>
           <p className="text-muted-foreground">
             Structured Execution does not progress because the Specialist feels satisfied. The engine advances only from qualifying
-            scored evidence and stability state.
+            qualifying evidence and stability state.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {progressionBands.map((band) => (

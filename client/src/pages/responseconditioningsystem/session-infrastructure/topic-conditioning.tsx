@@ -274,13 +274,13 @@ export default function ResponseConditioningTopicConditioning() {
           <h2 className="text-2xl font-bold">How the intro session uses Topic Conditioning</h2>
           <p className="text-muted-foreground">The introductory session is not a general assessment.</p>
           <p className="font-semibold">It is a topic-based diagnostic.</p>
-          <p className="text-muted-foreground">The tutor looks at:</p>
+          <p className="text-muted-foreground">The Specialist looks at:</p>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
             <li>parent-reported struggle topics</li>
             <li>parent-reported response symptoms</li>
           </ul>
           <p className="text-muted-foreground">Then selects one focus topic and runs the OS checks inside that topic.</p>
-          <p className="text-muted-foreground">The tutor is asking:</p>
+          <p className="text-muted-foreground">The Specialist is asking:</p>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
             <li>In this topic: Can the student see clearly?</li>
             <li>Can they execute?</li>
@@ -290,7 +290,7 @@ export default function ResponseConditioningTopicConditioning() {
           <p className="text-muted-foreground">The first point of failure becomes the topic's entry phase.</p>
           <p className="font-medium">Example:</p>
           <p className="text-muted-foreground">Parent reports: Algebraic expressions, freezes in tests.</p>
-          <p className="text-muted-foreground">Tutor tests algebraic expressions.</p>
+          <p className="text-muted-foreground">Specialist tests algebraic expressions.</p>
           <p className="text-muted-foreground">
             Findings: student names terms correctly, student knows steps when shown, student delays starting alone,
             student skips steps.
@@ -367,9 +367,9 @@ export default function ResponseConditioningTopicConditioning() {
         </Card>
 
         <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">What 8 sessions per month really means</h2>
-          <p className="text-muted-foreground">In a normal tutoring company, 8 sessions a month means two classes per week and more teaching time.</p>
-          <p className="text-muted-foreground">In Response Integrity, 8 sessions a month means eight conditioning windows.</p>
+          <h2 className="text-2xl font-bold">What package cadence really means</h2>
+          <p className="text-muted-foreground">A session package is not a promise of generic teaching hours.</p>
+          <p className="text-muted-foreground">Response Integrity uses 8, 12, or 16 sessions per month - roughly 2, 3, or 4 conditioning windows per week.</p>
           <p className="text-muted-foreground">That cadence is how the system moves.</p>
           <p className="text-muted-foreground">Not because time itself is the product.</p>
           <p className="text-muted-foreground">But because stable response requires:</p>
@@ -385,16 +385,16 @@ export default function ResponseConditioningTopicConditioning() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What the tutor is doing during Topic Conditioning</h2>
-          <p className="text-muted-foreground">The tutor is not "covering the topic."</p>
-          <p className="text-muted-foreground">The tutor is:</p>
+          <h2 className="text-2xl font-bold">What the Specialist is doing during Topic Conditioning</h2>
+          <p className="text-muted-foreground">The Specialist is not "covering the topic."</p>
+          <p className="text-muted-foreground">The Specialist is:</p>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
             <li>diagnosing the breakdown point in the topic</li>
             <li>running the correct Response Integrity phase in that topic</li>
             <li>logging the response patterns</li>
             <li>progressing the topic only when stability improves</li>
           </ul>
-          <p className="text-muted-foreground">That means the tutor must always know:</p>
+          <p className="text-muted-foreground">That means the Specialist must always know:</p>
           <ol className="space-y-2 pl-5 list-decimal text-muted-foreground">
             <li>
               What topic is active
@@ -410,7 +410,7 @@ export default function ResponseConditioningTopicConditioning() {
             </li>
           </ol>
           <p className="text-muted-foreground">This is why the system has a Topic x Phase dashboard.</p>
-          <p className="text-muted-foreground">Because the tutor should not guess.</p>
+          <p className="text-muted-foreground">Because the Specialist should not guess.</p>
           <p className="font-semibold">
             They should open the student and see: "In this topic, the student is here. This is what I must do next."
           </p>
@@ -436,7 +436,7 @@ export default function ResponseConditioningTopicConditioning() {
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
             <li>the student's actual school topics</li>
             <li>the parent's observed symptoms</li>
-            <li>the tutor's diagnosis</li>
+            <li>the Specialist's diagnosis</li>
             <li>the OS phases</li>
             <li>the student's transformation</li>
           </ul>

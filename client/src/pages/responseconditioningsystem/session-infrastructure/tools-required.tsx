@@ -18,7 +18,7 @@ const kitImages = [
   },
   {
     src: "/images/responseconditioning/tools-required/kit-02.webp",
-    alt: "Tutor setup component close-up",
+    alt: "Specialist setup component close-up",
     className: "",
   },
   {
@@ -28,7 +28,7 @@ const kitImages = [
   },
   {
     src: "/images/responseconditioning/tools-required/kit-04.webp",
-    alt: "Additional tutor equipment view",
+    alt: "Additional Specialist equipment view",
     className: "",
   },
 ];
@@ -37,7 +37,7 @@ const whyTheyMatter = [
   "Lighting quality must stay clear enough for the student to see the page properly.",
   "The ring light reduces pen-in-hand shadows that interfere with visibility.",
   "The smartphone camera is the main delivery tool for the top-down teaching view.",
-  "Earphones help keep tutor audio clear and reduce distraction during live explanation.",
+  "Earphones help keep Specialist audio clear and reduce distraction during live explanation.",
 ];
 
 const gooseneckBenefits = [
@@ -51,13 +51,13 @@ const methodAdvantages = [
   "Easy for students to follow because it mirrors the learner's point of view.",
   "No expensive software or specialist gadgets are required.",
   "Fast and efficient for live problem-solving.",
-  "Builds a stronger student-tutor connection through visible, practical work.",
+  "Builds a stronger student-Specialist connection through visible, practical work.",
 ];
 
 const setupPrinciples = [
   "Response Integrity does not rely on digital whiteboards as the main teaching environment.",
-  "The tutor uses a phone camera to show real written work from above.",
-  "The student watches the solving process as if sitting beside the tutor.",
+  "The Specialist uses a phone camera to show real written work from above.",
+  "The student watches the solving process as if sitting beside the Specialist.",
   "The setup should reduce friction, not add technical overhead.",
 ];
 
@@ -98,15 +98,15 @@ export default function ResponseConditioningToolsRequired() {
         <Card className="p-6 md:p-8 border-2 border-primary/20 space-y-5">
           <div className="flex flex-wrap items-center gap-2">
             <Badge className="bg-primary/10 text-primary hover:bg-primary/10">Session Setup</Badge>
-            <Badge variant="outline">Tutor equipment</Badge>
+            <Badge variant="outline">Specialist equipment</Badge>
             <Badge variant="outline">Execution standard</Badge>
           </div>
 
           <div className="space-y-3">
-            <h2 className="text-2xl font-bold">What the tutor must have</h2>
+            <h2 className="text-2xl font-bold">What the Specialist must have</h2>
             <p className="text-muted-foreground">
               Response Integrity uses a practical top-down teaching setup. The tools are simple, but they are not
-              optional if the tutor wants a clean session environment.
+              optional if the Specialist wants a clean session environment.
             </p>
           </div>
 
@@ -199,11 +199,9 @@ export default function ResponseConditioningToolsRequired() {
             ))}
           </ul>
           <div className="rounded-xl border bg-muted/30 p-4 space-y-2">
-            <p className="text-sm uppercase tracking-wide text-muted-foreground">Typical price range</p>
-            <p className="text-lg font-semibold">R150 - R220 max</p>
+            <p className="text-sm uppercase tracking-wide text-muted-foreground">Procurement boundary</p>
             <p className="text-sm text-muted-foreground">
-              Commonly available online, on Takealot, and in informal gadget or accessory shops in
-              malls.
+              Choose an accessible gooseneck holder that keeps the phone stable, supports the required overhead angle, and does not obstruct the working area. The holder is optional; the compulsory delivery kit remains smartphone, mini ring light, and earphones.
             </p>
           </div>
         </Card>
@@ -211,9 +209,9 @@ export default function ResponseConditioningToolsRequired() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">How the method works in practice</h2>
           <p className="text-muted-foreground">
-            The tutor positions the smartphone on a gooseneck holder and teaches from a top-down
+            The Specialist positions the smartphone on a gooseneck holder and teaches from a top-down
             view. That makes the student see the work from the same perspective they would have if
-            they were physically sitting with the tutor.
+            they were physically sitting with the Specialist.
           </p>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
             {methodAdvantages.map((item) => (
@@ -230,7 +228,7 @@ export default function ResponseConditioningToolsRequired() {
           </p>
           <p className="font-semibold">
             The purpose is not to look technical. The purpose is to make the student's view clear,
-            stable, and easy to follow while the tutor demonstrates real mathematical execution.
+            stable, and easy to follow while the Specialist demonstrates real mathematical execution.
           </p>
         </Card>
       </div>
