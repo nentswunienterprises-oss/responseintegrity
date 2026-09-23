@@ -8983,6 +8983,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   throw new Error(`Failed to store drill for ${normalizedTopic}`);
                 }
 
+                if (
+                  timingReadiness.action === "allow" &&
+                  timingReadiness.shouldFreezeTrainingContract &&
+                  pendingTrainingTimerContract
+                ) {
+                  persistedTimerContract = isEmergencyDbMode()
+                    ? await persistTpsTimerContractDirect({
+                        queryClient: emergencyDbClient!,
+                        contract: pendingTrainingTimerContract,
+                        tutorId,
+                      })
+                    : await persistTpsTimerContract({
+                        contract: pendingTrainingTimerContract,
+                        tutorId,
+                      });
+                }
+
                 const ledgerInput: EvidenceLedgerProjectionInput = {
                   sourceDrillId: String(inserted?.id || drillId),
                   studentId: String(studentId),
@@ -9040,6 +9057,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   targetedRediagnosisStartPhase: trainingSummary.targetedRediagnosisStartPhase,
                   prerequisiteContradictionStatus: trainingSummary.prerequisiteContradiction.status,
                   prerequisiteContradictionReason: trainingSummary.prerequisiteContradiction.reason,
+                  tpsTimerContractId:
+                    persistedTimerContract?.contractId ||
+                    existing?.tpsTimerContractId ||
+                    null,
+                  tpsTimerBaselineSeconds:
+                    persistedTimerContract?.baselineSeconds ||
+                    existing?.tpsTimerBaselineSeconds ||
+                    null,
                   observationNotes: [
                     `Training evidence decision: ${trainingSummary.observedStability} observed stability`,
                     `Decision: ${trainingSummary.transitionReason.toUpperCase()}`,
@@ -9118,6 +9143,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     };
                   }),
                   summary: trainingSummary,
+                  timingAuthority: persistedTimerContract
+                    ? {
+                        contractId: persistedTimerContract.contractId,
+                        baselineSeconds: persistedTimerContract.baselineSeconds,
+                        source: persistedTimerContract.baselineSource,
+                      }
+                    : null,
                 });
               }
 
