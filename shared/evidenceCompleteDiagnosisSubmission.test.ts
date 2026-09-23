@@ -10,6 +10,10 @@ import type {
   DiagnosisProbeId,
   DiagnosisProbeResult,
 } from "./evidenceCompleteDiagnosis";
+import {
+  buildPassiveExecutionTimingEvidence,
+  buildTimedExecutionEvidence,
+} from "./tpsTimingContract";
 
 const observations = (values: Partial<Record<DiagnosisDimensionId, string>>) =>
   Object.entries(values).map(([dimensionId, behaviorId]) => ({
@@ -30,14 +34,68 @@ const executionImmediateSupported = {
   "execution.independence": "independent_throughout",
 } as const;
 
+const executionSupported = {
+  ...executionImmediateSupported,
+  "execution.repeatability": "repeat_clean",
+} as const;
+
+const difficultySupported = {
+  "difficulty.initial_response": "controlled_attempt",
+  "difficulty.first_step_control": "controlled_independent_step",
+  "difficulty.tolerance": "holds_and_recovers",
+  "difficulty.rescue_dependence": "no_rescue",
+} as const;
+
+const timeBreakdown = {
+  "time.start": "timed_freeze",
+  "time.structure": "timed_structure_collapse",
+  "time.pace": "panic_pace",
+  "time.completion_integrity": "timed_non_completion",
+} as const;
+
+const passiveTiming = (seconds = 60) => {
+  const startedAt = "2026-09-23T10:00:00.000Z";
+  const endedAt = new Date(Date.parse(startedAt) + seconds * 1000).toISOString();
+  const timing = buildPassiveExecutionTimingEvidence({ startedAt, endedAt });
+  assert.ok(timing);
+  return timing;
+};
+
+const timedTiming = (prescribedSeconds = 60, elapsedSeconds = 50) => {
+  const startedAt = "2026-09-23T11:00:00.000Z";
+  const endedAt = new Date(Date.parse(startedAt) + elapsedSeconds * 1000).toISOString();
+  const timing = buildTimedExecutionEvidence({
+    startedAt,
+    endedAt,
+    prescribedSeconds,
+  });
+  assert.ok(timing);
+  return timing;
+};
+
 const full = (
   probeId: DiagnosisProbeId,
   values: Partial<Record<DiagnosisDimensionId, string>>,
   supportEvent: DiagnosisProbeResult["supportEvent"] = "none",
+  timing?: {
+    passiveSeconds?: number;
+    timed?: { prescribedSeconds: number; elapsedSeconds: number };
+  },
 ): DiagnosisProbeResult => ({
   probeId,
   supportEvent,
   observations: observations(values),
+  ...(timing?.passiveSeconds
+    ? { passiveTiming: passiveTiming(timing.passiveSeconds) }
+    : {}),
+  ...(timing?.timed
+    ? {
+        timedTiming: timedTiming(
+          timing.timed.prescribedSeconds,
+          timing.timed.elapsedSeconds,
+        ),
+      }
+    : {}),
 });
 
 test("authoritative replay rejects a client-selected probe", () => {
@@ -95,6 +153,116 @@ test("server replay requires a dedicated repeatability observation", () => {
   if (!replay.ok) return;
   assert.equal(replay.decision.complete, false);
   assert.equal(replay.decision.nextProbeId, "execution.repeatability");
+});
+
+test("TPS starting signal cannot jump directly to an arbitrary timed challenge", () => {
+  const replay = replayEvidenceCompleteDiagnosis("Time Pressure Stability", [
+    full("stack.timed_challenge", {
+      ...claritySupported,
+      ...executionImmediateSupported,
+      ...difficultySupported,
+      ...timeBreakdown,
+    }, "none", {
+      timed: { prescribedSeconds: 60, elapsedSeconds: 50 },
+    }),
+  ]);
+
+  assert.equal(replay.ok, false);
+  if (!replay.ok) {
+    assert.match(replay.error, /must be stack\.normal_independent/);
+  }
+});
+
+test("authoritative replay unlocks the timed probe only after three clean comparable passive samples", () => {
+  const history: DiagnosisProbeResult[] = [
+    full("stack.normal_independent", {
+      ...claritySupported,
+      ...executionImmediateSupported,
+    }, "none", { passiveSeconds: 58 }),
+    full("execution.repeatability", executionSupported, "none", {
+      passiveSeconds: 60,
+    }),
+    full("stack.challenge_no_timer", {
+      ...claritySupported,
+      ...executionImmediateSupported,
+      ...difficultySupported,
+    }),
+    full("execution.repeatability", executionSupported, "none", {
+      passiveSeconds: 62,
+    }),
+  ];
+
+  const replay = replayEvidenceCompleteDiagnosis(
+    "Time Pressure Stability",
+    history,
+  );
+
+  assert.equal(replay.ok, true);
+  if (!replay.ok) return;
+  assert.equal(replay.decision.timingBaseline.ready, true);
+  assert.equal(replay.decision.timingBaseline.baselineSeconds, 60);
+  assert.equal(replay.decision.nextProbeId, "stack.timed_challenge");
+});
+
+test("timed diagnosis evidence must use the individualized baseline seconds", () => {
+  const baselineHistory: DiagnosisProbeResult[] = [
+    full("stack.normal_independent", {
+      ...claritySupported,
+      ...executionImmediateSupported,
+    }, "none", { passiveSeconds: 58 }),
+    full("execution.repeatability", executionSupported, "none", {
+      passiveSeconds: 60,
+    }),
+    full("stack.challenge_no_timer", {
+      ...claritySupported,
+      ...executionImmediateSupported,
+      ...difficultySupported,
+    }),
+    full("execution.repeatability", executionSupported, "none", {
+      passiveSeconds: 62,
+    }),
+  ];
+
+  const wrongTimer = replayEvidenceCompleteDiagnosis(
+    "Time Pressure Stability",
+    [
+      ...baselineHistory,
+      full("stack.timed_challenge", {
+        ...claritySupported,
+        ...executionImmediateSupported,
+        ...difficultySupported,
+        ...timeBreakdown,
+      }, "none", {
+        timed: { prescribedSeconds: 45, elapsedSeconds: 40 },
+      }),
+    ],
+  );
+
+  assert.equal(wrongTimer.ok, false);
+  if (!wrongTimer.ok) {
+    assert.match(wrongTimer.error, /individualized diagnosis timer is 60s/);
+  }
+
+  const correctTimer = replayEvidenceCompleteDiagnosis(
+    "Time Pressure Stability",
+    [
+      ...baselineHistory,
+      full("stack.timed_challenge", {
+        ...claritySupported,
+        ...executionImmediateSupported,
+        ...difficultySupported,
+        ...timeBreakdown,
+      }, "none", {
+        timed: { prescribedSeconds: 60, elapsedSeconds: 50 },
+      }),
+    ],
+  );
+
+  assert.equal(correctTimer.ok, true);
+  if (!correctTimer.ok) return;
+  assert.equal(correctTimer.decision.complete, true);
+  assert.equal(correctTimer.decision.placementPhase, "Time Pressure Stability");
+  assert.equal(correctTimer.decision.stability, "Low");
 });
 
 test("ledger stores behavior IDs and zeroes numeric decision fields", () => {
