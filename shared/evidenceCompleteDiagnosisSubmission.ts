@@ -159,6 +159,7 @@ const validateExactProbeDimensions = (
 export function replayEvidenceCompleteDiagnosis(
   startingPhase: TopicPhase | null,
   rawProbeHistory: unknown,
+  inheritedTimingBaselineSeconds: number | null = null,
 ): EvidenceCompleteDiagnosisReplay {
   if (!Array.isArray(rawProbeHistory)) {
     return { ok: false, error: "probeHistory must be an array" };
@@ -170,7 +171,10 @@ export function replayEvidenceCompleteDiagnosis(
     };
   }
 
-  let state = createEvidenceCompleteDiagnosisState(startingPhase);
+  let state = createEvidenceCompleteDiagnosisState(
+    startingPhase,
+    inheritedTimingBaselineSeconds,
+  );
   let decision = evaluateEvidenceCompleteDiagnosis(state);
 
   for (let index = 0; index < rawProbeHistory.length; index += 1) {
