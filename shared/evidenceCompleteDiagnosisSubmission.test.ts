@@ -187,6 +187,7 @@ test("authoritative replay unlocks the timed probe only after three clean compar
       ...executionImmediateSupported,
       ...difficultySupported,
     }),
+    full("difficulty.recovery", difficultySupported),
     full("execution.repeatability", executionSupported, "none", {
       passiveSeconds: 62,
     }),
@@ -218,6 +219,7 @@ test("timed diagnosis evidence must use the individualized baseline seconds", ()
       ...executionImmediateSupported,
       ...difficultySupported,
     }),
+    full("difficulty.recovery", difficultySupported),
     full("execution.repeatability", executionSupported, "none", {
       passiveSeconds: 62,
     }),
