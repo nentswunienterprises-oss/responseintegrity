@@ -392,7 +392,7 @@ export default function ResponseConditioningTopicConditioning() {
             <li>diagnosing the breakdown point in the topic</li>
             <li>running the correct Response Integrity phase in that topic</li>
             <li>logging the response patterns</li>
-            <li>progressing the topic only when stability improves</li>
+            <li>following the system-authorized next action as evidence changes the topic state</li>
           </ul>
           <p className="text-muted-foreground">That means the Specialist must always know:</p>
           <ol className="space-y-2 pl-5 list-decimal text-muted-foreground">

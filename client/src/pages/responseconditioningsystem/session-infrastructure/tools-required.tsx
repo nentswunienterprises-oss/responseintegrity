@@ -174,7 +174,7 @@ export default function ResponseConditioningToolsRequired() {
           <h2 className="text-2xl font-bold">The Gooseneck Phone Holder</h2>
           <p className="font-medium">Optional, but highly recommended.</p>
           <p className="text-muted-foreground">
-            It is not compulsory, but it solves a real operational problem: tutors should not spend
+            It is not compulsory, but it solves a real operational problem: Specialists should not spend
             the whole session holding the camera by hand.
           </p>
           <div className="grid gap-4 lg:grid-cols-2">

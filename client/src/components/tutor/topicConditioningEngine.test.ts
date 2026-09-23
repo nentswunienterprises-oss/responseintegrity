@@ -36,7 +36,7 @@ describe("topicConditioningEngine", () => {
     assert.equal(nextActionFor("Time Pressure Stability", "High"), "Run Time Pressure Stability drill");
     assert.equal(
       nextActionFor("Controlled Discomfort", "High Maintenance"),
-      "Run Controlled Discomfort High Maintenance drill",
+      "Run Controlled Discomfort drill",
     );
     assert.equal(getNextActionData("Structured Execution", "High Maintenance").advanceTo, "Controlled Discomfort");
   });
