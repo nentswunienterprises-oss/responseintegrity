@@ -28,6 +28,13 @@ import {
   canonicalizeEvidenceJson,
   replayEvidenceCompleteDiagnosis,
 } from "@shared/evidenceCompleteDiagnosisSubmission";
+import { deriveDiagnosisTpsTimerContract } from "@shared/tpsTimingRuntime";
+import {
+  loadLatestTpsTimerContract,
+  loadTpsTimerContractById,
+  persistTpsTimerContract,
+  type PersistedTpsTimerContract,
+} from "./tpsTimingAuthority";
 
 type DiagnosisRunRow = {
   id: string;
@@ -44,6 +51,9 @@ type DiagnosisRunRow = {
   created_at?: string;
   updated_at?: string;
   completed_at?: string | null;
+  timing_policy_version?: number | null;
+  timing_authority_contract_id?: string | null;
+  timing_authority_baseline_seconds?: number | null;
 };
 
 type ScheduledSession = {
@@ -123,6 +133,9 @@ async function saveDiagnosisRun(input: {
   decision: Record<string, unknown>;
   sourceDrillId?: string | null;
   completedAt?: string | null;
+  timingPolicyVersion?: 1 | null;
+  timingAuthorityContractId?: string | null;
+  timingAuthorityBaselineSeconds?: number | null;
 }) {
   const nowIso = new Date().toISOString();
   const row = {
@@ -137,6 +150,13 @@ async function saveDiagnosisRun(input: {
     probe_history: input.probeHistory,
     decision: input.decision,
     source_drill_id: input.sourceDrillId || null,
+    timing_policy_version: input.timingPolicyVersion ?? 1,
+    timing_authority_contract_id: input.timingAuthorityContractId || null,
+    timing_authority_baseline_seconds:
+      Number.isFinite(Number(input.timingAuthorityBaselineSeconds)) &&
+      Number(input.timingAuthorityBaselineSeconds) > 0
+        ? Math.max(1, Math.round(Number(input.timingAuthorityBaselineSeconds)))
+        : null,
     updated_at: nowIso,
     completed_at: input.completedAt || null,
   };
