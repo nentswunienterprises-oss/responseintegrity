@@ -30,6 +30,7 @@ import type { TopicReference, TopicReferenceContent } from "@shared/topicReferen
 import { useStudentWorkflowState } from "@/hooks/useStudentWorkflowState";
 import { supabase } from "@/lib/supabaseClient";
 import { API_URL } from "@/lib/config";
+import { instructionPromptLabelFor } from "@/lib/instructionPromptLabel";
 import {
   TRAINING_INTERVENTION_FIELD,
   TRAINING_INTERVENTION_OPTIONS,
@@ -2810,7 +2811,9 @@ export default function IntroSessionDrillRunner() {
           </div>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">{set?.purpose}</p>
           <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">Say / do this now</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+              {instructionPromptLabelFor(set?.repInstruction || "")}
+            </div>
             <div className="mt-1 text-base font-semibold text-foreground">{set?.repInstruction}</div>
           </div>
           <div className="mt-3 flex flex-wrap gap-1.5">
@@ -2860,7 +2863,9 @@ export default function IntroSessionDrillRunner() {
         </div>
         <div className="text-xs text-muted-foreground mb-2 sm:mb-3">{set?.purpose}</div>
         <div className="p-2 rounded-md border border-primary/20 bg-primary/5 mb-2 sm:mb-3">
-          <div className="text-xs font-semibold text-primary mb-0.5">Rep instruction</div>
+          <div className="text-xs font-semibold text-primary mb-0.5">
+            {instructionPromptLabelFor(set?.repInstruction || "")}
+          </div>
           <div className="text-xs sm:text-sm text-foreground font-medium">{set?.repInstruction}</div>
         </div>
         <div className="flex flex-wrap gap-1">
