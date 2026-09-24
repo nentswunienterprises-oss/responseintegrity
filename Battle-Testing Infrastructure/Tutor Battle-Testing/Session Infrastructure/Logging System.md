@@ -63,7 +63,7 @@ Q6
 Why can a correct final answer still produce weak evidence?
 
 Expected Answer
-Because the response may have depended on prompts, rescue, guessing, broken structure, or an invalid condition. RI scores the behaviour around execution, not answer correctness alone.
+Because the response may have depended on prompts, rescue, guessing, broken structure, or an invalid condition. RI interprets the behaviour around execution, not answer correctness alone.
 
 Fail Answer
 A correct answer is always clear evidence
@@ -114,7 +114,7 @@ The system applies the deterministic scoring and movement rules. The Specialist 
 Fail Answer
 The Specialist decides from the total session
 The parent and tutor agree
-The score is only advice
+The system evidence decision is only advice
 
 SECTION 4: PRESSURE SCENARIOS
 
@@ -148,7 +148,7 @@ The Specialist replaced evidence and system authority with a desired claim. Logs
 
 Fail Answer
 Good parent communication
-The narrative can override the score
+The narrative can override the recorded evidence decision
 Progress language is harmless
 
 Scenario 4
