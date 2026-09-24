@@ -375,7 +375,7 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       ],
     },
     "High Maintenance": {
-      primaryAction: "Run Clarity High Maintenance drill",
+      primaryAction: "Run Clarity drill",
       rules: ["Do NOT phase advance yet", "Confirm High Maintenance in a later qualifying drill"],
       nextActions: [
         "Run High Maintenance confirmation in Clarity",
@@ -416,7 +416,7 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       ],
     },
     "High Maintenance": {
-      primaryAction: "Run Structured Execution High Maintenance drill",
+      primaryAction: "Run Structured Execution drill",
       rules: ["Do NOT phase advance yet", "Confirm High Maintenance in a later qualifying drill"],
       nextActions: [
         "Run High Maintenance confirmation in Structured Execution",
@@ -457,7 +457,7 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       ],
     },
     "High Maintenance": {
-      primaryAction: "Run Controlled Discomfort High Maintenance drill",
+      primaryAction: "Run Controlled Discomfort drill",
       rules: ["Do NOT phase advance yet", "Confirm High Maintenance in a later qualifying drill"],
       nextActions: [
         "Run High Maintenance confirmation in Controlled Discomfort",
@@ -497,10 +497,10 @@ export const NEXT_ACTION_ENGINE: Record<TopicPhase, Record<TopicStability, NextA
       ],
     },
     "High Maintenance": {
-      primaryAction: "Run Time Pressure Stability maintenance drill",
+      primaryAction: "Run Time Pressure Stability drill",
       rules: ["Do not over-train same pattern", "Begin cross-topic conditioning"],
       nextActions: [
-        "Run Time Pressure Stability maintenance drill",
+        "Run Time Pressure Stability drill",
         "Introduce new variations of topic",
         "Prepare for transfer to new topics",
       ],

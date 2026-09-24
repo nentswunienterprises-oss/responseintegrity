@@ -39,7 +39,7 @@ const TIME_SET_EXECUTION: Record<
     studentAction:
       "Begin under the timer and keep the known method visible. Speed matters, but structure must not disappear.",
     specialistAction:
-      "Run the timed attempt using the runner/prep-defined timer, withhold help, observe start, structure, pace, and completion, then log the response.",
+      "Run the timed attempt using the runner-owned duration from the active TPS Timer Contract, withhold help, observe start, structure, pace, and completion, then log the response.",
     preserve:
       "Method-first execution under an active timer. The target is not frantic completion; the target is controlled structure while time exists.",
     doNot: [
@@ -65,7 +65,7 @@ const TIME_SET_EXECUTION: Record<
     studentAction:
       "Work under the tightest defined time condition while preserving method structure, controlled pace, and completion integrity.",
     specialistAction:
-      "Run the full constraint exactly as defined by the runner/prep, withhold help, observe the full pressure response, and log the evidence.",
+      "Run Full Constraint at the runner-owned 85% Timer Contract duration, withhold help, observe the full pressure response, and log the evidence.",
     preserve:
       "Full time constraint. The set tests whether the student can keep structure and completion when the pressure is at the intended maximum.",
     doNot: [
@@ -87,7 +87,7 @@ const progressionBands = [
   "Low: run the Time Pressure Stability drill. Start with the defined timer condition and protect method before speed.",
   "Medium: remain in Time Pressure Stability and build consistency across repeated timed attempts.",
   "High: remain in Time Pressure Stability and prove repeatability. High does not finish the phase directly.",
-  "High Maintenance: qualifying evidence marks the topic as transfer-ready or ready for mixed maintenance work. The engine owns that decision.",
+  "High Maintenance: qualifying evidence keeps this topic at final-phase High Maintenance. Maintenance remains topic-specific; other topics keep their own independently derived states.",
 ];
 
 const constraintLabel = (set: EvidenceSetDefinition) => {
@@ -184,6 +184,20 @@ export default function ResponseConditioningTimePressureStability() {
           </ul>
         </Card>
 
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">What This Phase Inherits</h2>
+          <p className="text-muted-foreground">
+            Time Pressure Stability inherits the mental map, independent execution, and response under difficulty already built in the
+            earlier phases. The timer adds urgency; it does not replace those requirements.
+          </p>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li>A fast or correct final answer does not excuse lost method structure, random execution, or renewed rescue dependence.</li>
+            <li>If urgency exposes an earlier-layer break, record the layer that actually broke instead of calling every failure a time problem.</li>
+            <li>An isolated calculation error does not automatically prove the inherited layers failed.</li>
+            <li>The Specialist records the evidence. RI-OS owns topic-state movement and any prerequisite verification route.</li>
+          </ul>
+        </Card>
+
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Time Pressure Training Recipe</h2>
           <p className="text-muted-foreground">
@@ -205,8 +219,8 @@ export default function ResponseConditioningTimePressureStability() {
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
           <p className="text-muted-foreground">
-            Use the active student topic and the Map/pre-session preparation direction. Problems should be normal difficulty unless the
-            system explicitly directs otherwise. The pressure comes from timing and repetition, not from secretly changing the topic demand.
+            Use the active student topic and the Map/pre-session preparation direction. TPS problems remain normal difficulty and same form across
+            the defined training sequence. The pressure variable is timing and repetition; mathematical difficulty and problem form do not change.
           </p>
           <div className="space-y-3">
             {trainingSchema.sets.map((set) => (
@@ -225,8 +239,8 @@ export default function ResponseConditioningTimePressureStability() {
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
             <p className="font-semibold">Timing boundary</p>
             <p className="text-sm text-muted-foreground">
-              This Deep Dive defines the recipe and pressure levels, but not a personal timer formula. Use the runner/pre-session timer
-              instruction. Do not invent a different timer and treat it as canon.
+              The runner uses the immutable TPS Timer Contract for this student and topic. Structure Under Timer and Repeated Timed Execution use 100% of the
+              baseline duration; Full Constraint uses 85%. Do not invent, loosen, or tighten a different timer.
             </p>
           </div>
         </Card>
@@ -319,7 +333,7 @@ export default function ResponseConditioningTimePressureStability() {
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What You Observe</h2>
           <p className="text-muted-foreground">
-            Time Pressure Stability is scored by execution quality under urgency, not by speed alone.
+            Time Pressure Stability is decided from execution quality under urgency, not from speed alone.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {observationSignals.map((signal) => (
@@ -337,7 +351,7 @@ export default function ResponseConditioningTimePressureStability() {
             A student can freeze, rush, lose structure, work unevenly, or fail to complete inside a correctly executed timed drill. That is evidence.
           </p>
           <p className="font-semibold">
-            The Specialist must not loosen the timer or coach through the timed attempt to protect the score. Correct Specialist execution means the timer and no-help boundary were preserved.
+            The Specialist must not loosen the timer or coach through the timed attempt to manufacture stronger-looking evidence. Correct Specialist execution means the timer and no-help boundary were preserved.
           </p>
           <p className="text-muted-foreground">
             Failed Specialist execution is different: changing the timer, helping during the rep, ignoring lost structure because the answer was fast, or logging stable pace when the response was panic-driven.
@@ -347,7 +361,7 @@ export default function ResponseConditioningTimePressureStability() {
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression Logic</h2>
           <p className="text-muted-foreground">
-            Time Pressure Stability does not complete because the student was fast once. The engine relies on qualifying scored evidence and stability state.
+            Time Pressure Stability does not complete because the student was fast once. The engine relies on qualifying evidence and stability state.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {progressionBands.map((band) => (

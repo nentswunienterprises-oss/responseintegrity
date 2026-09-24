@@ -58,7 +58,7 @@ const CONTROLLED_SET_EXECUTION: Record<
     doNot: [
       "Do not explain the full method during a no-rescue rep.",
       "Do not answer repeated reassurance-seeking with hidden coaching.",
-      "Do not convert rescue dependence into a stronger score by carrying the student through the hard part.",
+      "Do not convert rescue dependence into stronger-looking evidence by carrying the student through the hard part.",
     ],
   },
   "controlled_discomfort.repeat_exposure": {
@@ -181,6 +181,20 @@ export default function ResponseConditioningControlledDiscomfort() {
             <li>Difficulty is present.</li>
             <li>Full rescue is not allowed.</li>
             <li>Timers are not the main pressure yet.</li>
+          </ul>
+        </Card>
+
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">What This Phase Inherits</h2>
+          <p className="text-muted-foreground">
+            Controlled Discomfort does not replace Clarity or Structured Execution. It asks whether that existing mental map and
+            independent method execution stay intact after meaningful difficulty is added.
+          </p>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li>Calmness or persistence cannot turn a wrong method, abandoned structure, or random execution into strong evidence.</li>
+            <li>When something goes wrong, locate the earliest visible break: mental map, execution, or response under difficulty.</li>
+            <li>A local calculation error can change the final answer without proving an inherited layer collapsed.</li>
+            <li>Record the actual break without manually changing the student's phase; RI-OS owns movement and any verification route.</li>
           </ul>
         </Card>
 
@@ -319,7 +333,7 @@ export default function ResponseConditioningControlledDiscomfort() {
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What You Observe</h2>
           <p className="text-muted-foreground">
-            Controlled Discomfort is scored by response under difficulty, not by whether the student likes the experience.
+            Controlled Discomfort is decided from observed response under difficulty, not from whether the student likes the experience.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {observationSignals.map((signal) => (
@@ -337,7 +351,7 @@ export default function ResponseConditioningControlledDiscomfort() {
             A student can freeze, hesitate, ask for rescue, rush randomly, or collapse under difficulty inside a correctly executed drill. That is evidence.
           </p>
           <p className="font-semibold">
-            The Specialist must not remove the discomfort to protect the score. Correct Specialist execution means the difficulty and support boundary were preserved.
+            The Specialist must not remove the discomfort to manufacture stronger-looking evidence. Correct Specialist execution means the difficulty and support boundary were preserved.
           </p>
           <p className="text-muted-foreground">
             Failed Specialist execution is different: making the problem easier mid-rep, giving full rescue, hiding coaching inside reassurance, skipping repeated exposure, or logging composure that was manufactured.
@@ -347,7 +361,7 @@ export default function ResponseConditioningControlledDiscomfort() {
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression Logic</h2>
           <p className="text-muted-foreground">
-            Controlled Discomfort does not progress because the Specialist thinks the student is brave. The engine advances only from qualifying scored evidence and stability state.
+            Controlled Discomfort does not progress because the Specialist thinks the student is brave. The engine advances only from qualifying evidence and stability state.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {progressionBands.map((band) => (

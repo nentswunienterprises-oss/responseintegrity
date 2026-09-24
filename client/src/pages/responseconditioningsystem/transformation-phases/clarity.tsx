@@ -35,11 +35,11 @@ const CLARITY_SET_EXECUTION: Record<
 > = {
   "clarity.modeling": {
     studentAction:
-      "Listen to the model, then explain the Vocabulary -> Method -> Reason mental map back. The student does not complete the full solve in this set.",
+      "Listen to the model, then explain the Vocabulary → Recognition / Method → Ordered Steps → Reason mental map back. The student does not complete the full solve in this set.",
     specialistAction:
-      "Model the topic through Vocabulary -> Method -> Reason. Make the language, applicable method, step order, and reason explicit, then require the student to explain it back.",
+      "Model the topic through Vocabulary → Recognition / Method → Ordered Steps → Reason. Make the language, applicable method, step order, and reason explicit, then require the student to explain it back.",
     preserve:
-      "This is teaching and preparation, not scored evidence. Build the map before asking the student to demonstrate it independently.",
+      "This is teaching and preparation, not decision-eligible evidence. Build the map before asking the student to demonstrate it independently.",
     doNot: [
       "Do not turn Modeling into repeated solving practice.",
       "Do not teach Method without Reason.",
@@ -55,7 +55,7 @@ const CLARITY_SET_EXECUTION: Record<
       "Recognition without solving and without Specialist-supplied steps. The rep must reveal what the student can recognize before execution begins.",
     doNot: [
       "Do not let the student solve during Identification.",
-      "Do not supply the method or steps during a scored rep.",
+      "Do not supply the method or steps during an observation rep.",
       "Do not skip a later rep because an earlier response looked strong.",
     ],
   },
@@ -68,7 +68,7 @@ const CLARITY_SET_EXECUTION: Record<
       "Active solving with minimal guidance. Correct completion matters, but it must not be manufactured through step-by-step Specialist direction.",
     doNot: [
       "Do not provide step-by-step help.",
-      "Do not rescue a weak response to protect the score.",
+      "Do not rescue a weak response into stronger-looking evidence.",
       "Do not treat a correct answer produced through heavy guidance as evidence of independent clarity.",
     ],
   },
@@ -184,7 +184,7 @@ export default function ResponseConditioningClarity() {
             </p>
             <p className="text-sm text-muted-foreground mt-2">
               {requiredTrainingProblems} required opportunities in the live training drill. Modeling is preparation; the later reps
-              produce scored evidence.
+              produce decision-eligible behavioral evidence.
             </p>
           </div>
           <p className="font-medium">
@@ -286,7 +286,7 @@ export default function ResponseConditioningClarity() {
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What You Observe</h2>
           <p className="text-muted-foreground">
-            Clarity is not scored by impression. Scored reps use the fixed observation families below.
+            Clarity is not decided by impression. The observation families below capture concrete behavior that the evidence model interprets.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {observationSignals.map((signal) => (
@@ -306,7 +306,7 @@ export default function ResponseConditioningClarity() {
             inside a correctly executed drill. That is evidence.
           </p>
           <p className="font-semibold">
-            The Specialist must not rescue the score. Correct execution means the condition was preserved and the evidence is trustworthy.
+            The Specialist must not rescue a weak response into stronger-looking evidence. Correct execution means the condition was preserved and the evidence is trustworthy.
           </p>
           <p className="text-muted-foreground">
             Failed Specialist execution is different: supplying the answer during an observation rep, letting Identification become
@@ -318,7 +318,7 @@ export default function ResponseConditioningClarity() {
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression: Your Job Ends at Submission</h2>
           <p className="text-muted-foreground">
-            Your responsibility is Execute -&gt; Observe -&gt; Record -&gt; Submit. RI-OS scores the evidence, updates stability, and determines
+            Your responsibility is Execute -&gt; Observe -&gt; Record -&gt; Submit. RI-OS evaluates evidence eligibility and behavior classes, updates stability, and determines
             the next action.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">

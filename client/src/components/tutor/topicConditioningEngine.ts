@@ -77,7 +77,7 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       rules: ["Do NOT phase advance yet", "A later qualifying Clarity drill may earn High Maintenance"],
     },
     "High Maintenance": {
-      primaryAction: "Run Clarity High Maintenance drill",
+      primaryAction: "Run Clarity drill",
       nextActions: [
         "Run High Maintenance confirmation in Clarity",
         "Confirm repeatable clarity in a later qualifying drill",
@@ -118,7 +118,7 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       rules: ["Do NOT phase advance yet", "A later qualifying Structured Execution drill may earn High Maintenance"],
     },
     "High Maintenance": {
-      primaryAction: "Run Structured Execution High Maintenance drill",
+      primaryAction: "Run Structured Execution drill",
       nextActions: [
         "Run High Maintenance confirmation in Structured Execution",
         "Confirm repeatable execution stability in a later qualifying drill",
@@ -159,7 +159,7 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       rules: ["Do NOT phase advance yet", "A later qualifying Controlled Discomfort drill may earn High Maintenance"],
     },
     "High Maintenance": {
-      primaryAction: "Run Controlled Discomfort High Maintenance drill",
+      primaryAction: "Run Controlled Discomfort drill",
       nextActions: [
         "Run High Maintenance confirmation in Controlled Discomfort",
         "Confirm composed stability under uncertainty in a later qualifying drill",
@@ -199,9 +199,9 @@ export const NEXT_ACTION_ENGINE: Record<PhaseLabel, Record<StabilityLabel, NextA
       rules: ["Do NOT declare transfer yet", "A later qualifying Time Pressure Stability drill may earn High Maintenance"],
     },
     "High Maintenance": {
-      primaryAction: "Run Time Pressure Stability maintenance drill",
+      primaryAction: "Run Time Pressure Stability drill",
       nextActions: [
-        "Run Time Pressure Stability maintenance drill",
+        "Run Time Pressure Stability drill",
         "Introduce new variations of topic",
         "Prepare for transfer to new topics",
       ],

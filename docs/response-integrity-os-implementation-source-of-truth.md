@@ -326,7 +326,7 @@ The platform moves students through this operating chain:
 
 At a conceptual level, the topic activation sequence is:
 
-1. Tutor runs diagnosis.
+1. Specialist runs the system-selected diagnosis flow.
 2. System determines topic entry phase and stability.
 3. System generates the training proposal or operating recommendation.
 4. Topic becomes active in the map and drill cycle.
@@ -343,7 +343,7 @@ Activation is the moment the topic becomes live in the OS.
 
 The drill runner does not exist as a free-floating tool.
 
-The access-gate route validates whether the tutor may open it.
+The access-gate route validates whether the Specialist may open it.
 
 Current live gating behavior includes:
 
@@ -390,9 +390,20 @@ The intended forward sequence is:
 
 - `Clarity` -> `Structured Execution` -> `Controlled Discomfort` -> `Time Pressure Stability`
 
-There is no cross-phase regression engine currently implemented inside the core transition function.
+### Layer inheritance and evidence authority
 
-Stability can regress inside the current phase.
+Progression adds a condition; it does not discard the capability built before it.
+
+- `Clarity` establishes the usable mental map: Vocabulary, Recognition / Method, Ordered Steps, and Reason.
+- `Structured Execution` inherits that mental map and adds independent, ordered, repeatable execution.
+- `Controlled Discomfort` inherits Clarity and Structured Execution and adds meaningful difficulty and uncertainty.
+- `Time Pressure Stability` inherits all earlier layers and adds urgency through the Timer Contract.
+
+When a higher-condition opportunity exposes an earlier-layer break, record the earliest layer that actually broke. A wrong final answer alone does not identify the broken layer, and a fast or calm response cannot excuse a visibly broken earlier layer.
+
+The Specialist does not manually move a topic backward. Evidence-native Training authority is resolved through `shared/trainingEvidenceEvaluator.ts` and `shared/responseEvidenceModel.ts`; prerequisite contradictions can route through `resolveTrainingEvidenceAuthorityRoute(...)` to targeted evidence-complete re-diagnosis.
+
+The legacy `computeTransition(...)` helper remains for compatibility and tests. It is not the live evidence authority for Training state movement.
 
 ## Phase Doctrine
 
@@ -456,7 +467,7 @@ Interpretation:
 
 - the target is response under force
 - difficulty is a training input, not the output
-- the tutor must not remove the discomfort the phase is meant to expose
+- the Specialist must not remove the discomfort the phase is meant to expose
 
 ### Time Pressure Stability
 
@@ -481,35 +492,36 @@ Interpretation:
 
 The drill runner is the live execution chamber of Response Integrity-OS.
 
-### What the tutor is allowed to do
+### What the Specialist is allowed to do
 
-The tutor:
+The Specialist:
 
-- prepares matching problems
-- runs the rep exactly as instructed
-- selects observation options
+- prepares matching problems that preserve the active set constraints
+- runs the system-authorized opportunity exactly as instructed
+- records the concrete behavior that actually occurred
+- records evidence status and intervention separately where the runner exposes them
 - submits evidence
 
-The tutor does not:
+The Specialist does not:
 
-- invent the drill structure
-- manually decide the final topic state
-- rewrite what the system concluded
+- invent the drill structure or next probe
+- manually decide phase, stability, progression, regression, or re-diagnosis
+- rewrite what the evidence system concluded
 - smooth over a weak response in the logging layer
 
 ### Logging rules
 
-Tutors do not log opinions.
+Specialists do not log opinions about the student's state.
 
-Tutors log what actually happened.
+Specialists log source facts:
 
-Primary logging rules:
+- the concrete behavior that actually occurred
+- whether the behavior was meaningfully observed
+- whether the observation was confounded
+- any intervention, prompting, rescue, or timing change that occurred
+- the evidence under the condition the system intended to test
 
-- only log what the student actually did
-- do not guess
-- do not fill gaps with interpretation
-- use the drill options exactly as written
-- if you did not see it happen, do not log it
+Not-observed and confounded evidence remain missing/confounded. They are not converted into weakness or strength.
 
 ### Option ordering rule
 
@@ -525,15 +537,15 @@ Some blocks define explicit `optionLevels` so that two different labels may both
 
 The result layer conceptually shows:
 
-- rep totals
-- grouped drill totals
-- Response Snapshot
-- phase total
-- system output
-- reason
-- tutor meaning
+- the behavior or evidence pattern that mattered
+- evidence eligibility, unresolved status, or confounding where relevant
+- resulting phase/stability or continuity outcome
+- system output and reason
+- Specialist meaning / operating implication
 - next action
-- current phase rule or drill constraint
+- active condition, constraint, or timing authority where relevant
+
+Compatibility scores may remain available as technical or historical metadata, but they are not decision authority for Diagnosis, Training evidence movement, Handover, targeted re-diagnosis, or TPS timing.
 
 ### Response Snapshot V1
 
@@ -543,7 +555,7 @@ Implementation:
 - `client/src/components/tutor/IntroSessionDrillRunner.tsx`
 - `client/src/components/tutor/ViewTrackingSystemsDialog.tsx`
 
-Response Snapshot is the deterministic evidence-translation layer between drill scoring and System Direction.
+Response Snapshot is a deterministic evidence-translation and explanation layer over persisted drill evidence.
 
 It explains what the student actually demonstrated during the submitted drill without changing scoring, phase movement, stability movement, handover outcomes, session summaries, or parent report algorithms.
 
@@ -568,7 +580,7 @@ The human-facing Response Snapshot bands are display-only:
 
 These bands mirror the result-screen colors and must not be confused with diagnosis placement logic, handover verification thresholds, or training transition thresholds.
 
-Snapshot prose is generated from the validated evidence payload and registered drill semantics. It must not be tutor-authored, LLM-generated, or used as a new progression gate. A weak or partial observation remains visible even when the overall rep, set, or drill displays as Strong.
+Snapshot prose is generated from the validated evidence payload and registered drill semantics. It must not be Specialist-authored, LLM-generated, or used as a new progression gate. A weak or partial observation remains visible even when the overall rep, set, or drill displays as Strong.
 
 The stored drill JSON now includes `responseSnapshot` for new diagnosis, training, and handover verification submissions. Tracking Systems renders the stored snapshot beside each Session Log, after `What Was Trained` and before `Observed Response`.
 
@@ -593,11 +605,11 @@ Evidence lineage must separate evidence occurrences from selected option definit
 
 On the immediate result screen, Response Snapshot is the main human-facing score explanation. The older raw per-set score cards remain available only as a collapsed technical disclosure labeled `View scoring breakdown`.
 
-## Map And Tutor Control View
+## Map And Specialist Control View
 
 The map is not the logging layer.
 
-The map is the tutor's operating clarity layer.
+The map is the Specialist's operating clarity layer.
 
 For each active topic, the tutor should be able to see:
 
@@ -612,11 +624,11 @@ For each active topic, the tutor should be able to see:
 The conceptual job of the map is:
 
 - show where the topic currently sits in the OS
-- show what the tutor is allowed to run next
-- show what the tutor must protect
-- prevent the tutor from drifting into improvisation
+- show what the Specialist is allowed to run next
+- show what the Specialist must protect
+- prevent the Specialist from drifting into improvisation
 
-### Expected tutor experience
+### Expected Specialist experience
 
 The ideal tutor experience is:
 
@@ -1134,7 +1146,7 @@ Purpose:
 
 Rep instruction:
 
-- state steps first, then solve
+- before solving, the student states the step plan, then solves using that plan
 
 Active rules:
 
@@ -1521,18 +1533,18 @@ Exception:
 
 - if the current phase is already `Time Pressure Stability`, the result remains `Time Pressure Stability / High Maintenance`
 
-### Important live note about guards
+### Important live note about Training authority
 
-The training summary path in `server/routes.ts` still calculates `highGuardPasses`.
+Compatibility score and guard fields can still be calculated for historical display, comparison, or migration paths.
 
-But the current live topic movement uses `computeTransition(...)`.
+They are not the live authority for Training state movement.
 
-That means:
+Current Training authority is evidence-native:
 
-- the current live training transition engine is driven by score + previous phase + previous stability
-- it does not currently gate progression with `highGuardPasses`
-
-If that changes later, this file must be updated in the same change.
+- raw Specialist observations are evaluated through `shared/trainingEvidenceEvaluator.ts`;
+- dimension recovery and minimum-evidence laws come from `shared/responseEvidenceModel.ts`;
+- prerequisite contradictions can route to targeted evidence-complete re-diagnosis;
+- compatibility score output must not override the evidence-native decision.
 
 ## Next Action Engine
 
@@ -1572,7 +1584,7 @@ Each state stores:
 
 `High Maintenance`
 
-- primary action: `Run Clarity High Maintenance drill`
+- primary action: `Run Clarity drill`
 - rules: `Do NOT phase advance yet`, `Confirm High Maintenance in a later qualifying drill`
 - next actions: `Run High Maintenance confirmation in Clarity`; `Confirm repeatable clarity in a later qualifying drill`; `Advance to Structured Execution only after confirmation`
 - advanceTo: `Structured Execution`
@@ -1596,7 +1608,7 @@ Each state stores:
 
 `High Maintenance`
 
-- primary action: `Run Structured Execution High Maintenance drill`
+- primary action: `Run Structured Execution drill`
 - rules: `Do NOT phase advance yet`, `Confirm High Maintenance in a later qualifying drill`
 - next actions: `Run High Maintenance confirmation in Structured Execution`; `Confirm repeatable execution stability in a later qualifying drill`; `Advance to Controlled Discomfort only after confirmation`
 - advanceTo: `Controlled Discomfort`
@@ -1620,7 +1632,7 @@ Each state stores:
 
 `High Maintenance`
 
-- primary action: `Run Controlled Discomfort High Maintenance drill`
+- primary action: `Run Controlled Discomfort drill`
 - rules: `Do NOT phase advance yet`, `Confirm High Maintenance in a later qualifying drill`
 - next actions: `Run High Maintenance confirmation in Controlled Discomfort`; `Confirm composed stability under uncertainty in a later qualifying drill`; `Advance to Time Pressure Stability only after confirmation`
 - advanceTo: `Time Pressure Stability`
@@ -1644,7 +1656,7 @@ Each state stores:
 
 `High Maintenance`
 
-- primary action: `Run Time Pressure Stability maintenance drill`
+- primary action: `Run Time Pressure Stability drill`
 - rules: `Do not over-train same pattern`, `Begin cross-topic conditioning`
 
 ## Handover Verification Engine

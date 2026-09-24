@@ -34,6 +34,16 @@ test("Vercel preview API is routed to the branch Express function before the SPA
   assert.ok(productionIndex < spaIndex, "production API routing must win before SPA fallback");
 });
 
+test("Vercel ignored-build step fails open when the previous successful SHA is unavailable", () => {
+  const config = JSON.parse(readFileSync(resolve(process.cwd(), "vercel.json"), "utf8"));
+  const ignoreCommand = String(config.ignoreCommand || "");
+
+  assert.match(ignoreCommand, /git cat-file -e/);
+  assert.match(ignoreCommand, /VERCEL_GIT_PREVIOUS_SHA/);
+  assert.match(ignoreCommand, /git diff --quiet/);
+  assert.match(ignoreCommand, /\|\| exit 1/);
+});
+
 test("Vercel preview boots from the generated bundled runtime without tsx at request time", () => {
   const bootstrap = readFileSync(resolve(process.cwd(), "api/index.js"), "utf8");
   const runtime = readFileSync(resolve(process.cwd(), "server/vercelPreviewApi.ts"), "utf8");

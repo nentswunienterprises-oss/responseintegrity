@@ -646,10 +646,7 @@ function tutorPrepPlanFor(
 
   const prepPhase = nextPrepPhaseFor(phase, stability);
   const prepStability = prepPhase === phase ? stability : "Low";
-  const prepDrillType =
-    stability === "High Maintenance" && prepPhase !== "Time Pressure Stability"
-      ? `${prepPhase} High Maintenance Drill`
-      : `${prepPhase} Drill`;
+  const prepDrillType = `${prepPhase} Drill`;
 
   if (prepPhase === "Clarity") {
     return {

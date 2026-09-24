@@ -74,9 +74,9 @@ jobs:
               name: "Required Structure",
               fields: [
                 ["Start", "delayed", "immediate"],
+                ["Step Statement Accuracy", "missing", "accurate"],
                 ["Step Discipline", "skips", "full"],
-                ["Structure Response", "resists", "already structured correctly"],
-                ["Independence", "needs help", "independent"],
+                ["Student Independence After Start", "needs help", "independent"],
               ],
             },
             {
