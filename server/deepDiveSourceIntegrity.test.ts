@@ -20,6 +20,14 @@ const deepDivePaths = [
   "client/src/pages/responseconditioningsystem/session-infrastructure/tools-required.tsx",
 ];
 
+test("live Deep Dive modules load through the TSX runtime", async () => {
+  for (const sourcePath of deepDivePaths) {
+    const moduleUrl = new URL(`../${sourcePath}`, import.meta.url);
+    const loaded = await import(moduleUrl.href);
+    assert.equal(typeof loaded.default, "function", sourcePath);
+  }
+});
+
 test("live Deep Dives use Specialist role language", () => {
   for (const sourcePath of deepDivePaths) {
     const source = read(sourcePath);
