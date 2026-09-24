@@ -42,9 +42,12 @@ drop trigger if exists trg_response_integrity_evidence_corrections_immutable
   on public.response_integrity_evidence_corrections;
 
 create trigger trg_response_integrity_evidence_corrections_immutable
-before update or delete on public.response_integrity_evidence_corrections
+before update on public.response_integrity_evidence_corrections
 for each row execute function public.prevent_response_integrity_evidence_correction_mutation();
 
+-- Direct client access is denied by RLS. Corrections are append-only during normal operation.
+-- DELETE remains available only to protected server/data-retention workflows so a lawful deletion
+-- of the source evidence/student can cascade through correction lineage rather than leaving orphaned data.
 alter table public.response_integrity_evidence_corrections enable row level security;
 
 comment on table public.response_integrity_evidence_corrections is
