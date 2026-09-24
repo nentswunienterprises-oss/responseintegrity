@@ -69,6 +69,25 @@ test("active next actions do not invent High Maintenance drill types", () => {
   }
 });
 
+test("canonical TPS contract is implemented and aligned to live timing authority", () => {
+  const contract = read("docs/tps-timing-baseline-diagnosis-contract.md");
+  const source = read("docs/response-integrity-os-implementation-source-of-truth.md");
+
+  assert.match(contract, /Status:\*\* Implemented, live-proven, and merged to `main`/);
+  assert.doesNotMatch(contract, /implementation pending/i);
+  assert.doesNotMatch(contract, /- \[ \]/);
+  assert.match(contract, /live proof workflow run `35931443789`/);
+  assert.match(contract, /shared\/tpsTimingContract\.ts/);
+  assert.match(contract, /server\/tpsTimingAuthority\.ts/);
+
+  assert.match(source, /### TPS timing authority/);
+  assert.match(source, /most recent complete clean three-rep Independent Execution set/);
+  assert.match(source, /There is no hidden pre-TPS calibration side path/);
+  assert.match(source, /Full Constraint uses 85% of baseline/);
+  assert.match(source, /Current live Training state authority is evidence-native/);
+  assert.doesNotMatch(source, /current live transition engine uses:\s*\n\s*- score/i);
+});
+
 test("canonical Deep Dive authority is evidence-native", () => {
   const source = read("docs/response-integrity-os-implementation-source-of-truth.md");
   assert.match(source, /Layer inheritance and evidence authority/);
