@@ -19,6 +19,8 @@ Total: **360 Founder-approved items across 8 complete mastery banks**.
 
 Authoring is intentionally paused before Drill Library approval. Drill Library draft Items 1–5 are not approved content and must not be activated. Handover Verification and Tools Required remain unauthored.
 
+Founder approval closes the manual-authoring pass for those items. It does **not** by itself freeze a bank for release. The private package still requires source-truth reconciliation, metadata/coverage audit, duplicate and option-quality audit, deterministic-form validation, and private package integrity checks before import.
+
 ## Reconciliation boundary
 
 This branch ports only the Training Capability Check machinery from historical PR #45 onto current `main`.
@@ -43,6 +45,60 @@ Excluded:
 - superseded delivery/evidence-correction work;
 - retrieval and transfer assessments until those banks are manually authored and approved.
 
+## Blueprint V2 source reconciliation
+
+The historical PR #45 blueprint was not treated as doctrine authority. It was compared against the current live Deep Dives and evidence contracts before private-bank staging.
+
+Blueprint V2 preserves the still-valid Clarity, Structured Execution, Controlled Discomfort, and Topic Conditioning ownership while reconciling four materially changed areas:
+
+### Time Pressure Stability
+
+Capability now includes:
+- Structured Execution timing baseline authority;
+- the immutable system-owned Timer Contract;
+- structure, pace, and completion under the defined timer;
+- technical-failure lineage;
+- a fresh pre-prepared equivalent reserve only after objective technical timing/runtime/device failure.
+
+Student timeout, panic, wrong method, incomplete work, or weak performance remains real evidence and never authorizes a replacement attempt.
+
+### Intro Session Structure
+
+The retired fixed phase-block / score-band / adjacent-movement model is not Capability authority.
+
+Intro now tests evidence-complete Diagnosis:
+- starting signal as first-probe hypothesis, never placement;
+- named evidence-question routing;
+- constraint stripping;
+- observed / not-observed / confounded evidence;
+- intervention separation;
+- evidence-justified repetition only;
+- topic-scoped durable resume;
+- Low / Medium / High placement;
+- High Maintenance as Training-earned only.
+
+### Logging System
+
+Logging now tests source truth:
+- concrete behavior;
+- evidence eligibility;
+- intervention as a separate fact;
+- condition integrity;
+- source lineage;
+- recovery history;
+- downstream claim integrity;
+- system interpretation without Specialist-authored state strengthening.
+
+### Session Flow Control
+
+Session Flow now distinguishes:
+- Intro Diagnosis;
+- Active Training;
+- Handover Verification;
+- targeted evidence-complete re-diagnosis.
+
+Missing prerequisite or timing authority cannot be repaired through hidden calibration side reps, and one context cannot borrow another context's authority.
+
 ## Content boundary
 
 Raw V2R8 prompts, options, answer keys and explanations remain outside the public repository.
@@ -56,11 +112,13 @@ The staged validator accepts only an explicitly declared subset of Founder-appro
 - 15-question deterministic forms;
 - 96% pass threshold;
 - three-attempt contract;
-- blueprint and critical-boundary coverage;
+- Blueprint V2 and critical-boundary coverage;
 - unique item keys and prompts.
+
+The manual corpus must be re-tagged/audited against Blueprint V2 where source doctrine changed. Metadata may be corrected during this release audit; approved question wording, answer choices, keyed answer, or explanation must not be silently rewritten and treated as previously Founder-approved.
 
 ## Activation boundary
 
 No production database mutation or bank activation is authorized by this reconciliation.
 
-The next content step is to recover/package the eight approved manual banks into a private V2R8 staged bank, validate it, stage it in Proof, and then run authenticated Specialist journey proof before any merge or production activation decision.
+The next content step is to recover/package the eight approved manual banks into a private V2R8 staged bank, run the source-truth and metadata audit against Blueprint V2, validate the package, stage only passing banks in Proof, and then run authenticated Specialist journey proof before any merge or production activation decision.
