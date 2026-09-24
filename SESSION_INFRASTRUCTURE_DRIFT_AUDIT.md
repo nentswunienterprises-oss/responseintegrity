@@ -201,17 +201,17 @@ The logging deep dive still presents a `drill total -> system decision -> next a
 
 That is not the full live intro model anymore.
 
-Live diagnosis now includes:
+Live Diagnosis now includes:
 
-- one verification block per phase
-- phase score out of `/100`
-- band-based movement
-- escalation or de-escalation
-- stop when placement is found
+- one system-selected evidence question at a time;
+- behavior-native observation;
+- evidence eligibility and deconfounding;
+- adjacent verification only when the evidence requires it;
+- evidence-complete stopping once placement is resolved.
 
-So the current logging page is still closer to:
+So the logging page must teach:
 
-- “score the drill and determine stability in this phase”
+- “record the evidence faithfully and let the evidence-complete engine determine placement and next action”
 
 when live intro now also requires:
 
