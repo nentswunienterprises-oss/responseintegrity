@@ -50,5 +50,8 @@ for each row execute function public.prevent_response_integrity_evidence_correct
 -- of the source evidence/student can cascade through correction lineage rather than leaving orphaned data.
 alter table public.response_integrity_evidence_corrections enable row level security;
 
+revoke all on table public.response_integrity_evidence_corrections from anon, authenticated;
+grant select, insert, delete on table public.response_integrity_evidence_corrections to service_role;
+
 comment on table public.response_integrity_evidence_corrections is
   'Append-only correction lineage for immutable Response Integrity evidence. Original evidence is never silently rewritten; dependent state remains review-required.';
