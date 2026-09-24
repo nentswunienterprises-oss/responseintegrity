@@ -19,10 +19,12 @@ import { resolveResponseEvidenceDimension } from "./responseEvidenceModel";
 import {
   getTrainingPrerequisiteSentinelDefinition,
   readTrainingEvidenceStatus,
+  readTrainingInheritedRescueSignal,
   readTrainingInterventionEvent,
   readTrainingPrerequisiteSentinel,
   resolveTrainingEvidenceEligibility,
   type TrainingEvidenceStatus,
+  type TrainingInheritedRescueSignal,
   type TrainingInterventionEvent,
   type TrainingPrerequisiteSentinelResult,
 } from "./trainingEvidenceCapture";
@@ -61,6 +63,15 @@ export type TrainingPrerequisiteSentinelOccurrence = {
   targetPhase: TopicPhase;
   triggerDimensions: TrainingDimensionId[];
   result: TrainingPrerequisiteSentinelResult | "missing";
+  source: "stripped_constraint_sentinel" | "inherited_rescue_signal";
+};
+
+export type TrainingInheritedRescueSignalOccurrence = {
+  setId: string;
+  setName: string;
+  setOrder: number;
+  repNumber: number;
+  signal: TrainingInheritedRescueSignal;
 };
 
 export type TrainingPrerequisiteContradiction = {
@@ -92,6 +103,7 @@ export type TrainingEvidenceEvaluation =
       predictedTransition: ReturnType<typeof transitionTrainingStateFromEvidence>;
       ineligibleEvidenceCount: number;
       interventionEvents: TrainingInterventionEvent[];
+      inheritedRescueSignals: TrainingInheritedRescueSignalOccurrence[];
       prerequisiteContradiction: TrainingPrerequisiteContradiction;
     }
   | {
@@ -379,6 +391,7 @@ export const evaluateTrainingEvidence = ({
 
   const occurrences: TrainingEvidenceOccurrence[] = [];
   const prerequisiteSentinelEvidence: TrainingPrerequisiteSentinelOccurrence[] = [];
+  const inheritedRescueSignals: TrainingInheritedRescueSignalOccurrence[] = [];
   const prerequisiteSentinelDefinition = getTrainingPrerequisiteSentinelDefinition(phase);
 
   normalizedSets.forEach((submittedSet, setIndex) => {
@@ -437,7 +450,33 @@ export const evaluateTrainingEvidence = ({
           targetPhase: prerequisiteSentinelDefinition.targetPhase,
           triggerDimensions,
           result: readTrainingPrerequisiteSentinel(rep) || "missing",
+          source: "stripped_constraint_sentinel",
         });
+      }
+
+      if (phase === "Time Pressure Stability") {
+        const inheritedRescueSignal = readTrainingInheritedRescueSignal(rep);
+        if (inheritedRescueSignal) {
+          inheritedRescueSignals.push({
+            setId: definition.setId,
+            setName: definition.setName,
+            setOrder: setIndex + 1,
+            repNumber: repIndex + 1,
+            signal: inheritedRescueSignal,
+          });
+        }
+        if (inheritedRescueSignal === "repeated") {
+          prerequisiteSentinelEvidence.push({
+            setId: definition.setId,
+            setName: definition.setName,
+            setOrder: setIndex + 1,
+            repNumber: repIndex + 1,
+            targetPhase: "Controlled Discomfort",
+            triggerDimensions: ["difficulty.rescue_dependence"],
+            result: "contradicted",
+            source: "inherited_rescue_signal",
+          });
+        }
       }
     });
   });
@@ -469,6 +508,13 @@ export const evaluateTrainingEvidence = ({
     decisions.every((decision) => decision.state === "SUPPORTED") &&
     allDimensionsHaveSupportInSets(decisions, contract.exitConfirmationSetIds, 2);
 
+  const phaseOrder = (target: TopicPhase) =>
+    ["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"].indexOf(target);
+  const earliestTargetPhase = (items: TrainingPrerequisiteSentinelOccurrence[]) =>
+    items
+      .map((item) => item.targetPhase)
+      .sort((a, b) => phaseOrder(a) - phaseOrder(b))[0] || prerequisiteSentinelDefinition?.targetPhase || null;
+
   let prerequisiteContradiction: TrainingPrerequisiteContradiction;
   if (!prerequisiteSentinelDefinition) {
     prerequisiteContradiction = {
@@ -481,28 +527,37 @@ export const evaluateTrainingEvidence = ({
     prerequisiteContradiction = {
       status: "not_triggered",
       targetPhase: prerequisiteSentinelDefinition.targetPhase,
-      reason: "No clean current-phase breakdown required a stripped-constraint prerequisite sentinel.",
+      reason: "No clean current-phase breakdown or inherited rescue signal required earlier-layer verification.",
       evidence: [],
     };
   } else if (prerequisiteSentinelEvidence.some((item) => item.result === "contradicted")) {
+    const contradicted = prerequisiteSentinelEvidence.filter((item) => item.result === "contradicted");
+    const hasInheritedRescueContradiction = contradicted.some(
+      (item) => item.source === "inherited_rescue_signal",
+    );
     prerequisiteContradiction = {
       status: "confirmed",
-      targetPhase: prerequisiteSentinelDefinition.targetPhase,
-      reason: "A clean current-phase breakdown remained present after the active constraint was stripped. The earlier prerequisite can no longer be trusted from prior state alone.",
+      targetPhase: earliestTargetPhase(contradicted),
+      reason: hasInheritedRescueContradiction
+        ? "Repeated rescue-seeking under a timed no-support condition makes inherited rescue independence untrustworthy. Ordinary Training must stop after the current session and targeted re-diagnosis must re-establish the earlier layer."
+        : "A clean current-phase breakdown remained present after the active constraint was stripped. The earlier prerequisite can no longer be trusted from prior state alone.",
       evidence: prerequisiteSentinelEvidence,
     };
   } else if (prerequisiteSentinelEvidence.some((item) =>
     item.result === "missing" || item.result === "not_observed" || item.result === "confounded")) {
+    const unresolved = prerequisiteSentinelEvidence.filter(
+      (item) => item.result === "missing" || item.result === "not_observed" || item.result === "confounded",
+    );
     prerequisiteContradiction = {
       status: "unresolved",
-      targetPhase: prerequisiteSentinelDefinition.targetPhase,
+      targetPhase: earliestTargetPhase(unresolved),
       reason: "A clean current-phase breakdown required a prerequisite sentinel, but the stripped-constraint check was not cleanly established. Ordinary training cannot continue on an untrusted prerequisite.",
       evidence: prerequisiteSentinelEvidence,
     };
   } else {
     prerequisiteContradiction = {
       status: "cleared",
-      targetPhase: prerequisiteSentinelDefinition.targetPhase,
+      targetPhase: earliestTargetPhase(prerequisiteSentinelEvidence),
       reason: "The stripped-constraint prerequisite sentinel held, so the breakdown remains attributable to the current training phase.",
       evidence: prerequisiteSentinelEvidence,
     };
@@ -534,6 +589,7 @@ export const evaluateTrainingEvidence = ({
           .filter((event) => event !== "none"),
       ),
     ),
+    inheritedRescueSignals,
     prerequisiteContradiction,
   };
 };
