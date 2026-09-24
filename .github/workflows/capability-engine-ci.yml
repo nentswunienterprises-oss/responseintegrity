@@ -1,0 +1,48 @@
+name: Capability Engine CI
+
+on:
+  pull_request:
+    paths:
+      - "shared/capability*.ts"
+      - "server/capability*.ts"
+      - "server/routes/capability*.ts"
+      - "scripts/*capability*.ts"
+      - "scripts/*Capability*.ts"
+      - "client/src/pages/operational/tutor/capability*.tsx"
+      - "migrations/*capability*.sql"
+      - "server/index.ts"
+      - "server/vercelPreviewApi.ts"
+      - "client/src/App.tsx"
+      - "package.json"
+      - ".github/workflows/capability-engine-ci.yml"
+  push:
+    branches:
+      - "proof/capability-engine-v2r8-reconciliation"
+    paths:
+      - "shared/capability*.ts"
+      - "server/capability*.ts"
+      - "server/routes/capability*.ts"
+      - "scripts/*capability*.ts"
+      - "scripts/*Capability*.ts"
+      - "client/src/pages/operational/tutor/capability*.tsx"
+      - "migrations/*capability*.sql"
+      - "server/index.ts"
+      - "server/vercelPreviewApi.ts"
+      - "client/src/App.tsx"
+      - "package.json"
+      - ".github/workflows/capability-engine-ci.yml"
+
+jobs:
+  capability-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Capability Engine focused tests
+        run: npm run test:capability
+      - name: Capability API bundle
+        run: npm run build:vercel-api
