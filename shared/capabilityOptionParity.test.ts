@@ -21,10 +21,10 @@ test("balanced option lengths do not create a release shortcut", () => {
   const items = Array.from({ length: 45 }, (_, index) => {
     const correctKey = ["A", "B", "C", "D"][index % 4];
     return item(index, correctKey, {
-      A: "A plausible operational response of similar length.",
-      B: "A different operational response of similar length.",
-      C: "Another plausible operational response of similar length.",
-      D: "A fourth plausible operational response of similar length.",
+      A: "Plausible response alpha with matched operational length.",
+      B: "Plausible response bravo with matched operational length.",
+      C: "Plausible response charlie with matched operational length.",
+      D: "Plausible response delta with matched operational length.",
     });
   });
 
@@ -63,10 +63,10 @@ test("isolated length variation does not fail a bank", () => {
       });
     }
     return item(index, "B", {
-      A: "A plausible response with comparable wording.",
-      B: "A correct response with comparable wording.",
-      C: "A plausible response with comparable wording.",
-      D: "A plausible response with comparable wording.",
+      A: "Comparable response alpha with matched wording length.",
+      B: "Comparable response bravo with matched wording length.",
+      C: "Comparable response charlie with matched wording length.",
+      D: "Comparable response delta with matched wording length.",
     });
   });
 
