@@ -317,12 +317,6 @@ Therefore:
 - breakdown + three trailing supported opportunities can resolve as recovered;
 - the Specialist must not keep adding opportunities after the system has already resolved an outcome.
 
-## Compatibility Scores
-
-Compatibility scoring may remain in storage or technical diagnostic surfaces for historical continuity. It has no Handover decision authority.
-
-Do not use score bands to decide phase, stability, regression, recovery, or re-diagnosis.
-
 ## Data Integrity Rule
 
 Handover must not overwrite Intro history or Training history.
@@ -344,8 +338,6 @@ Each Handover event preserves:
 - targeted re-diagnosis requirement;
 - next action and constraint;
 - timestamp.
-
-Any compatibility score is technical metadata only.
 
 ## Practical Evidence Examples
 

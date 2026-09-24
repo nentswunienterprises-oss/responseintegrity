@@ -275,7 +275,7 @@ async function evaluateFinal() {
   await page.getByText("Response Evidence Decision", { exact: true })
     .waitFor({ state: "visible", timeout: 60000 });
   await page.getByText(
-    "No compatibility score decided this Handover outcome. The decision above comes from the recorded Response Evidence behavior classes.",
+    "This Handover outcome comes from the recorded Response Evidence behavior classes and the continuity evidence they support.",
     { exact: true },
   ).waitFor({ state: "visible", timeout: 30000 });
   return summary;

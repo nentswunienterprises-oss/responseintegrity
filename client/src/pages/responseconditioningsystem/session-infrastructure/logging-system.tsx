@@ -132,7 +132,7 @@ export default function ResponseConditioningLoggingSystem() {
                 Diagnosis is evidence-complete, not rep-complete. Present the system-selected probe, record concrete behavior and evidence status, record intervention separately, submit, then follow the next evidence question selected from that evidence.
               </p>
               <p className="text-sm font-medium">
-                The Specialist does not choose the phase, starting stability, next probe, or numeric score.
+                The Specialist does not choose the phase, starting stability, next probe, or system decision.
               </p>
             </div>
 
@@ -187,9 +187,6 @@ export default function ResponseConditioningLoggingSystem() {
           <h2 className="text-2xl font-bold">What a Result Must Mean</h2>
           <p className="text-muted-foreground">
             A result must be traceable to evidence: the behavior pattern that mattered, whether the evidence was eligible, the resulting phase/stability or continuity outcome, the reason for that decision, the next action, and the active condition.
-          </p>
-          <p className="font-semibold">
-            Compatibility scores may exist as technical metadata. They do not decide phase, stability, recovery, regression, re-diagnosis, or progression.
           </p>
         </Card>
 

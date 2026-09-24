@@ -157,7 +157,7 @@ That invents a psychological conclusion and overrides repeated evidence. Record 
 
 Fail Answer
 One strong rep proves recovery
-Tutor experience can replace the score
+Specialist experience can override the recorded evidence
 Advance when the student looks confident
 
 FINAL TEST

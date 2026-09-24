@@ -133,7 +133,7 @@ const AUTO_CRITICAL_REASON_BY_PHASE: Record<string, Record<string, string>> = {
   },
   intro_session_structure: {
     "Scenario 2": "Converts Intro into teaching and scores assisted performance as placement evidence.",
-    "Scenario 3": "Bypasses adjacent score-driven placement with Specialist instinct.",
+    "Scenario 3": "Bypasses evidence-selected adjacent placement with Specialist instinct.",
     "Scenario 4": "Allows parent preference to override scored topic placement.",
   },
   logging_system: {

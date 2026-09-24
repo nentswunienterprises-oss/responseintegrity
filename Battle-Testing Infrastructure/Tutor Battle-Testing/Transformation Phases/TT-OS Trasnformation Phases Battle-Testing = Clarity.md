@@ -101,7 +101,7 @@ Stop the solving and restore the recognition condition: ask the student to name 
 Fail Answer
 Let them finish because solving is stronger proof
 Help with the next step
-Score the correct answer as clear recognition
+Treat the correct answer alone as clear recognition
 
 Q10
 Why can repeated prompting make apparent Clarity evidence invalid?
