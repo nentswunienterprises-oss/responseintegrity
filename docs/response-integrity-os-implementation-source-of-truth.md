@@ -42,7 +42,7 @@ Its product logic is:
 - Specialists do not decide the final state manually
 - Specialists capture evidence
 - the system converts evidence into deterministic topic movement
-- reports are derived from topic movement, not tutor-written impressions
+- reports are derived from topic movement, not Specialist-written impressions
 - operational integrity matters as much as instructional quality
 
 Math is the arena.
@@ -56,7 +56,7 @@ The platform is built around these principles:
 - a session is not a blank tutoring event
 - a session is the execution of a specific drill attached to a topic-state
 - a drill is the smallest controlled training unit in the system
-- a topic does not move because a tutor "felt progress"
+- a topic does not move because a Specialist "felt progress"
 - a topic moves because drill evidence was captured and processed through deterministic rules
 - a Specialist is an operator inside the system, not a free-form session designer
 - the platform must tell the Specialist what to run, what to prepare, what to observe, and what happens next
@@ -68,11 +68,11 @@ These are product-protection rules, not stylistic preferences.
 Do not build Response Integrity-OS around:
 
 - open-ended session notes as the main system
-- flexible tutor-designed lesson flows
+- flexible Specialist-designed lesson flows
 - free typing everywhere
 - manual phase selection during active training
 - generic progress trackers without drill logic
-- tutor-authored state movement that bypasses scored drill evidence
+- Specialist-authored state movement that bypasses evidence authority
 
 If the system becomes a loose tutoring tracker, it stops being Response Integrity-OS.
 
@@ -134,7 +134,7 @@ This is the layer that determines:
 - which phase applies
 - which stability applies
 - which drill set structure applies
-- what prep rules the tutor must hold
+- what prep rules the Specialist must hold
 - what observation fields appear on each rep
 
 ### 3. Deterministic engine core
@@ -143,7 +143,7 @@ This is the locked runtime that determines:
 
 - symptom-based starting phase recommendation
 - diagnosis placement
-- training scoring
+- Training evidence evaluation and state authority
 - topic-state transitions
 - handover verification outcomes
 - behavior mapping
@@ -155,7 +155,7 @@ This is the locked runtime that determines:
 
 This is the control layer that determines:
 
-- whether tutors still understand and execute Response Integrity-OS correctly
+- whether Specialists still understand and execute Response Integrity-OS correctly
 - whether TDs are enforcing the system correctly
 - whether operators are locked, watchlist, or fail
 - whether the evidence trail can be trusted
@@ -164,17 +164,21 @@ This is the control layer that determines:
 
 The live implementation is primarily distributed across these files:
 
-- `shared/topicConditioningEngine.ts`
-- `shared/adaptiveDiagnosis.ts`
-- `shared/responseSymptomMapping.ts`
-- `shared/observationScoring.ts`
+- `shared/topicConditioningEngine.ts` — compatibility transition helper and next-action vocabulary
+- `shared/responseEvidenceModel.ts` — evidence-state resolution and recovery law
+- `shared/trainingEvidenceEvaluator.ts` — live Training evidence authority
+- `shared/evidenceCompleteDiagnosis.ts` / `shared/evidenceCompleteDiagnosisSubmission.ts` — evidence-complete Diagnosis
+- `shared/tpsTimingContract.ts` / `shared/tpsTimingRuntime.ts` / `shared/tpsTrainingReadiness.ts` — individualized TPS timing authority
 - `shared/responseIntegrityDrillRegistry.ts`
 - `shared/responseIntegrityEvidenceLedger.ts`
 - `shared/battleTesting.ts`
-- `server/battleTesting.ts`
+- `server/evidenceCompleteDiagnosisRoutes.ts`
+- `server/tpsTimingAuthority.ts` / `server/tpsTimingRoutes.ts`
 - `server/routes.ts`
+- `server/battleTesting.ts`
 - `server/responseIntegrityEvidenceLedger.ts`
 - `client/src/components/tutor/IntroSessionDrillRunner.tsx`
+- `client/src/components/tutor/EvidenceCompleteDiagnosisRunner.tsx`
 
 The main live endpoints involved in the engine are:
 
@@ -243,7 +247,7 @@ The operational shell uses `scheduled_sessions` as the real-world lesson contain
 
 Live repo evidence shows that scheduled sessions already exist and are tied to:
 
-- tutor
+- Specialist identity (stored in the current schema under tutor-keyed fields)
 - student
 - session type
 - workflow stage
@@ -257,7 +261,7 @@ At a conceptual level, a scheduled session contains:
 
 - id
 - student id
-- tutor id
+- Specialist id (current schema field: `tutor_id`)
 - type or kind
 - workflow stage
 - scheduled start
@@ -312,15 +316,15 @@ The system is only coherent when those distinctions stay clear.
 
 The platform moves students through this operating chain:
 
-1. A tutor assignment exists.
+1. A Specialist assignment exists.
 2. The intro lesson is scheduled and confirmed.
-3. The tutor adds or confirms a diagnostic topic.
-4. The tutor launches the intro drill only from a valid intro lesson context.
+3. The Specialist adds or confirms a diagnostic topic.
+4. The Specialist launches the intro drill only from a valid intro lesson context.
 5. The system diagnoses topic entry state.
 6. The topic becomes active for normal conditioning.
 7. Active training lessons continue through scheduled lessons plus topic drills.
 8. Topic state changes are reported deterministically.
-9. If tutor handover occurs, continuity verification or targeted re-diagnosis is run before normal training resumes.
+9. If Specialist handover occurs, continuity verification or targeted re-diagnosis is run before normal training resumes.
 
 ### Topic activation flow
 
@@ -488,6 +492,27 @@ Interpretation:
 - structure under time is the target
 - this is the final core conditioning phase
 
+### TPS timing authority
+
+TPS pressure is individualized. The system must have valid student/topic timing authority before decision-eligible TPS evidence can exist.
+
+The live law is:
+
+- Structured Execution Training is the primary baseline source.
+- Only the canonical `structured_execution.independent_execution` set can authorize the SE Training-origin baseline.
+- Baseline authority comes from the most recent complete clean three-rep Independent Execution set in the current SE conditioning epoch; RI does not cherry-pick individual reps across sets or sessions.
+- Eligible baseline timing is passive and system-owned from Begin Rep / Begin Opportunity to Student Finished. No countdown, target, urgency cue, or Specialist-entered elapsed time is allowed.
+- Required Structure and Variation Control timing cannot authorize the baseline because their conditions are not comparable to the canonical same-form independent execution condition.
+- Technical failure, intervention, task mismatch, or another comparability break preserves the attempt as lineage but makes that attempt ineligible. A replacement attempt is explicitly lineage-linked.
+- Diagnosis is the second legitimate baseline route when an otherwise-above-Structured-Execution placement does not already have valid timing authority. Diagnosis remains evidence-complete; the three-sample requirement belongs only to the timing question.
+- An existing valid Timer Contract is reused rather than rebuilt without cause.
+- TPS timed Diagnosis and TPS Training use the immutable student/topic Timer Contract. The Specialist cannot choose, pause, round, edit, loosen, tighten, restart, or override the timer.
+- Structure Under Timer and Repeated Timed Execution use the baseline duration; Full Constraint uses 85% of baseline.
+- Missing timing authority above Structured Execution is an explicit readiness gap and routes through targeted evidence-complete re-diagnosis. There is no hidden pre-TPS calibration side path.
+- Baseline timing is operational evidence for pressure construction. It does not by itself authorize parent-facing speed claims.
+
+Canonical contract: `docs/tps-timing-baseline-diagnosis-contract.md`.
+
 ## Drill Runner Doctrine
 
 The drill runner is the live execution chamber of Response Integrity-OS.
@@ -603,7 +628,7 @@ Persisted snapshot wording is historical output. Render stored `resultText` for 
 
 Evidence lineage must separate evidence occurrences from selected option definitions. `reportingLineage.evidenceIds` stores deterministic occurrence IDs tied to the source drill, schema, set, rep, and dimension. `reportingLineage.selectedOptionIds` stores reusable semantic option IDs. Later reports may aggregate occurrence IDs and option IDs, but must not treat option IDs alone as proof that a specific student produced specific evidence.
 
-On the immediate result screen, Response Snapshot is the main human-facing score explanation. The older raw per-set score cards remain available only as a collapsed technical disclosure labeled `View scoring breakdown`.
+On the immediate result screen, Response Snapshot is the main human-facing evidence explanation. The older raw per-set score cards remain available only as a collapsed technical disclosure labeled `View scoring breakdown`.
 
 ## Map And Specialist Control View
 
@@ -611,7 +636,7 @@ The map is not the logging layer.
 
 The map is the Specialist's operating clarity layer.
 
-For each active topic, the tutor should be able to see:
+For each active topic, the Specialist should be able to see:
 
 - topic name
 - current phase
@@ -630,11 +655,11 @@ The conceptual job of the map is:
 
 ### Expected Specialist experience
 
-The ideal tutor experience is:
+The ideal Specialist experience is:
 
 "The system tells me what drill to run, what work to prepare, what to observe, and what happens next."
 
-If the tutor still has to invent the session, the product is incomplete.
+If the Specialist still has to invent the session, the product is incomplete.
 
 ## Observation Normalization Engine
 
@@ -645,7 +670,7 @@ Implementation:
 
 ### Versioned evidence-capture contract
 
-The live tutor runner now resolves reportable option semantics through the shared drill registry.
+The live Specialist runner now resolves reportable option semantics through the shared drill registry.
 
 For new diagnosis, training, and verification submissions, the captured set contract includes:
 
@@ -681,7 +706,7 @@ Each projected entry retains:
 
 - deterministic evidence ID and projection version
 - source drill ID
-- student and tutor identity
+- student and Specialist identity (retained in current tutor-keyed schema fields)
 - scheduled-session, training-run, and session-group identity
 - session context and drill type
 - topic and the phase in which the observation occurred
@@ -944,39 +969,47 @@ Implementation:
 
 - `client/src/components/tutor/IntroSessionDrillRunner.tsx`
 - `server/routes.ts`
-- `shared/topicConditioningEngine.ts`
+- `shared/trainingEvidenceEvaluator.ts`
+- `shared/responseEvidenceModel.ts`
+- `shared/tpsTrainingReadiness.ts`
+- `shared/tpsTimingAuthority.ts` is represented server-side by `server/tpsTimingAuthority.ts`; the route surface is `server/tpsTimingRoutes.ts`
+- `shared/topicConditioningEngine.ts` remains for compatibility transition helpers and next-action vocabulary
 
 ### Training product law
 
-Training is drill-driven.
+Training is drill-driven and evidence-native.
 
-The system does not score "the lesson" directly.
+The lesson may contain multiple topics, but each topic drill produces its own persisted evidence and state decision.
 
-The system scores the drill output for the topic.
+The live authority chain is:
 
-The lesson may contain multiple topics, but the state change still happens per topic drill.
+`raw Specialist observation + intervention/condition -> evidence eligibility -> dimension evidence class -> recovery/minimum-evidence law -> topic-state decision / targeted re-diagnosis`
 
-### Live training set-weight rule
+Compatibility scores may still be calculated for historical display, Response Snapshot, or migration support. They do not decide phase, stability, recovery, progression, regression, re-diagnosis, or TPS timing readiness.
+
+### Compatibility training set weights
+
+These weights describe the retained compatibility score surface only; they are not live topic-state authority.
 
 Clarity:
 
-- scored sets are `Identification` and `Light Apply`
+- compatibility-scored sets are `Identification` and `Light Apply`
 - weighting is `2:2`
-- the modeling step is a pre-drill instructional step, not a scored observation set
+- the modeling step is instructional context, not decision-eligible observation evidence
 
 Structured Execution:
 
-- scoring uses all 3 sets
+- compatibility scoring uses all 3 sets
 - weighting is `1:2:2`
 
 Controlled Discomfort:
 
-- scoring uses all 3 sets
+- compatibility scoring uses all 3 sets
 - weighting is `1:2:2`
 
 Time Pressure Stability:
 
-- scoring uses all 3 sets
+- compatibility scoring uses all 3 sets
 - weighting is `1:2:2`
 
 ### Important modeling-step clarification
@@ -986,7 +1019,7 @@ Older derivative docs sometimes described Clarity training as "2 modeled problem
 The current live runner config uses:
 
 - one modeled pre-drill step in the UI
-- followed by the scored drill sets
+- followed by the live observation drill sets
 
 If any older document says otherwise, trust the live runner and this file.
 
@@ -1026,7 +1059,7 @@ Rep instruction:
 
 Active rules:
 
-- tutor models first
+- Specialist models first
 - student does not solve yet
 - use the vocabulary, method, reason sequence
 
@@ -1051,8 +1084,8 @@ Current visibility rule:
 
 Current integrity rule:
 
-- the Topic Reference is instructional context, not scored evidence
-- saving it does not change phase, stability, score, or transition behavior
+- the Topic Reference is instructional context, not decision-eligible evidence
+- saving it does not change phase, stability, evidence authority, or state movement
 - an existing reference is returned unchanged rather than silently overwritten
 
 #### Set 2: Identification
@@ -1184,7 +1217,7 @@ Rep instruction:
 
 Active rules:
 
-- no help from tutor
+- no help from Specialist
 - independence expected
 - observe consistency and error handling
 
@@ -1792,7 +1825,7 @@ This engine converts raw observations into reusable behavior labels.
 It exists so that:
 
 - reports are evidence-led
-- summaries are consistent across tutors
+- summaries are consistent across Specialists
 - the system can speak about patterns rather than isolated taps
 
 ### Weak labels
@@ -1999,7 +2032,7 @@ Time Pressure Stability:
 #### Phase-entry meanings
 
 - `Clarity`: `Entered foundation rebuilding before independent solving begins.`
-- `Structured Execution`: `Entered independent execution, now building consistency without tutor carry.`
+- `Structured Execution`: `Entered independent execution, now building consistency without Specialist carry.`
 - `Controlled Discomfort`: `Entered the challenge phase, now learning to stay stable under difficulty.`
 - `Time Pressure Stability`: `Entered timed stability, now learning to keep structure under urgency.`
 
@@ -2025,7 +2058,7 @@ Supporting data reference:
 
 ### End-to-end report flow
 
-1. A tutor submits diagnosis, training, or handover-related drill data.
+1. A Specialist submits diagnosis, training, or handover-related drill data.
 2. The drill row is stored.
 3. Versioned observations are projected into the shadow evidence ledger; reports do not read it yet.
 4. `maybeAutoSendDeterministicReports(studentId, tutorId)` runs after drill submission.
@@ -2048,7 +2081,7 @@ Automatic report reliability rules:
 - `sent_at` is delivery metadata only; it is not the source-coverage cursor.
 - The parent-facing labels describe the thresholds: two-session conditioning update and eight-session conditioning report.
 - Catch-up generation may create every missed deterministic window, but sends one consolidated notification per report type.
-- Parent and tutor views are intentionally distinct; both must use the same stored deterministic evidence while presenting different context.
+- Parent and Specialist views are intentionally distinct; both must use the same stored deterministic evidence while presenting different context.
 
 ### Trigger windows
 
@@ -2620,7 +2653,7 @@ If scheduling logic is pushed into the drill engine itself:
 
 The outer shell must wrap the engine, not replace it.
 
-## Tutor And TD Alignment Audit Engine
+## Specialist And TD Alignment Audit Engine
 
 Implementation:
 
@@ -2631,7 +2664,7 @@ Implementation:
 
 ### Purpose
 
-This engine exists because Response Integrity is selling a system, not just tutor availability.
+This engine exists because Response Integrity is selling a system, not just Specialist availability.
 
 It measures whether operators still understand and execute the system correctly.
 
@@ -2658,7 +2691,7 @@ That includes areas such as:
 
 ### Specialist battle-test methodology
 
-Tutor Battle Testing is not a recall quiz.
+Specialist Battle Testing is not a recall quiz.
 
 It exists to test whether a Specialist can reason like the system while preserving the operating boundary of the current phase, drill, set, and rep.
 
@@ -2679,7 +2712,7 @@ A certification-grade question must therefore test more than a definition. It sh
 - what evidence should be recorded
 - what conclusion the Specialist is not allowed to manufacture manually
 
-The live tutor bank contains eleven deep-dive banks:
+The live Specialist bank contains eleven deep-dive banks:
 
 - five Transformation Phases banks
 - six Session Infrastructure banks
@@ -2696,14 +2729,14 @@ Each question must include:
 
 ### Battle-test forms
 
-Tutor Battle Tests use deterministic form assignment:
+Specialist Battle Tests use deterministic form assignment:
 
 - first attempt: `form_a`
 - second attempt: `form_b`
 - third attempt: `form_c`
 - later attempts rotate through the same sequence
 
-The form is derived from the tutor's existing `attempts_count` for that deep dive.
+The form is derived from the Specialist's existing `attempts_count` for that deep dive.
 
 Training Mode must submit the assigned form key for every selected deep dive. The server must independently recompute the assigned form and reject stale or mismatched submissions.
 
@@ -2738,7 +2771,7 @@ Examples include:
 - treating Specialist interpretation as recorded fact
 - overriding deterministic topic movement manually
 - accepting an invalid camera/audio setup as usable evidence
-- treating a tutor replacement as a fresh onboarding instead of handover continuity
+- treating a Specialist replacement as a fresh onboarding instead of handover continuity
 
 Critical-fail logic can force a failed state even when the numerical score would otherwise be stronger.
 
@@ -2790,14 +2823,14 @@ Critical-fail logic can still force failure even if the percentage would otherwi
 
 Without this layer:
 
-- tutors can drift while seeming fine on the surface
+- Specialists can drift while seeming fine on the surface
 - parent trust can be harmed before leadership notices
 - the reporting layer can look cleaner than real delivery
 - scale becomes more expensive because drift has to be corrected manually
 
-## Tutor Certification Lifecycle
+## Specialist Certification Lifecycle
 
-The implemented tutor lifecycle is:
+The implemented Specialist lifecycle is:
 
 ```text
 applicant -> training -> sandbox -> trial -> certified_live
@@ -2805,13 +2838,13 @@ applicant -> training -> sandbox -> trial -> certified_live
 
 `watchlist` and `suspended` are operational risk states and enforcement states. They do not replace the evidence-gated graduation path.
 
-Battle Testing and readiness checks may move a tutor into `trial` after training, sandbox, and preparation evidence is complete. They must not issue new `certified_live` status on their own.
+Battle Testing and readiness checks may move a Specialist into `trial` after training, sandbox, and preparation evidence is complete. They must not issue new `certified_live` status on their own.
 
 ### Trial validation gate
 
 Trial is the first live validation state before Certified Live.
 
-A tutor may reach the COO certification decision point only when all of the following are true:
+A Specialist may reach the COO certification decision point only when all of the following are true:
 
 - exactly two distinct Trial families are attached to the open Trial case
 - each family has nine qualifying completed sessions
@@ -2826,7 +2859,7 @@ The gate is deterministic up to reviewability. Certified Live is never automatic
 
 Testimonials are optional and are not part of the certification gate.
 
-Tutors who already held valid Certified Live status before the Trial lifecycle was introduced are treated as grandfathered Certified Live unless a later health/risk state removes that permission.
+Specialists who already held valid Certified Live status before the Trial lifecycle was introduced are treated as grandfathered Certified Live unless a later health/risk state removes that permission.
 
 ## Resolved Drift And Contradiction Rules
 
@@ -2859,17 +2892,18 @@ The live intro diagnosis now uses:
 
 Trust the evidence-complete diagnosis contract and the live evidence-complete runner.
 
-### 3. Training-guard drift
+### 3. Training-authority drift
 
-Some older scoring explainers describe high-threshold guardrails as if they still directly gate live training progression.
+Some older scoring explainers describe score thresholds or `highGuardPasses` as if they directly authorize live Training progression.
 
-The current live transition engine uses:
+Current live Training state authority is evidence-native:
 
-- score
-- previous phase
-- previous stability
+- `shared/trainingEvidenceEvaluator.ts` converts the registered raw behavior + intervention/condition into evidence classes;
+- `shared/responseEvidenceModel.ts` applies minimum-evidence and recovery law;
+- prerequisite contradictions can route through `resolveTrainingEvidenceAuthorityRoute(...)` to targeted evidence-complete re-diagnosis;
+- TPS progression additionally requires valid individualized timing authority.
 
-The current live `computeTransition(...)` function does not directly use `highGuardPasses`.
+The legacy `computeTransition(...)` helper and compatibility scores remain available for historical/test/display paths. They do not override the evidence-native Training decision.
 
 ### 4. Final-phase drift
 

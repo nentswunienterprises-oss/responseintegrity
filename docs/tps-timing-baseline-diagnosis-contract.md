@@ -1,6 +1,6 @@
 # TPS Timing, Baseline, Diagnosis, and Measurement Integrity Contract
 
-**Status:** Approved architecture; implementation pending  
+**Status:** Implemented, live-proven, and merged to `main`  
 **Scope:** Time Pressure Stability timing, baseline authority, diagnosis-origin timing, Structured Execution passive timing, timer-contract readiness, measurement integrity, and legacy recovery  
 **Supersedes:** the proof-only pre-TPS calibration fallback in PR #45  
 **Does not change:** the four-phase order, evidence-complete diagnosis, Training evidence authority, High Maintenance law, or Specialist state authority
@@ -451,9 +451,9 @@ Such claims require separate claim-safe lineage.
 
 The baseline exists to define a valid pressure condition, not to turn RI into speed scoring.
 
-## 15. Narrow port from PR #45
+## 15. Implemented port from PR #45
 
-The implementation should preserve the useful proof work from PR #45:
+The live implementation preserved the useful proof concepts from PR #45:
 
 - passive execution timing infrastructure;
 - baseline sample lineage;
@@ -465,44 +465,53 @@ The implementation should preserve the useful proof work from PR #45:
 - replacement-attempt lineage;
 - contract-version lineage.
 
-The implementation must change the proof design in these ways:
+The live implementation also replaced the proof-only design where required:
 
-1. remove the pre-TPS calibration fallback and its side-rep UI;
-2. remove calibration as a Timer Contract source;
-3. restrict SE baseline authority to the canonical Independent Execution set;
-4. select the most recent qualifying complete three-rep set, not the latest three individual eligible records;
-5. add Diagnosis-origin baseline authority;
-6. require a valid individualized timing reference before authoritative timed Diagnosis;
-7. align passive timing with the explicit Begin Rep -> Execution Ended -> Confirm Rep measurement boundary;
-8. exclude Specialist admin latency from student execution time;
-9. gate TPS entry on Timer Contract readiness;
-10. add explicit legacy recovery through targeted re-diagnosis.
+1. the pre-TPS calibration fallback and side-rep UI are removed;
+2. calibration is not a Timer Contract source;
+3. SE baseline authority is restricted to the canonical Independent Execution set;
+4. the most recent qualifying complete three-rep set is selected without cross-set cherry-picking;
+5. Diagnosis-origin baseline authority exists for legitimate above-SE placement;
+6. authoritative timed Diagnosis requires valid individualized timing authority;
+7. passive timing uses the system-owned execution boundary and excludes Specialist admin latency;
+8. TPS entry is gated on Timer Contract readiness;
+9. technical-invalid attempts remain durable lineage and replacements are explicitly linked;
+10. legacy above-SE timing gaps route through targeted evidence-complete re-diagnosis.
 
-## 16. Acceptance criteria
+PR #45 remains historical proof lineage only. Its old calibration runtime is not live authority.
 
-The architecture is implemented correctly only if all of the following are true:
+## 16. Acceptance criteria — implemented and proved
 
-- [ ] Required Structure timing cannot authorize the TPS baseline.
-- [ ] Variation Control timing cannot authorize the TPS baseline.
-- [ ] A complete clean Independent Execution set can authorize a Training-origin baseline.
-- [ ] Multiple SE rounds select the most recent qualifying complete set without cross-set cherry-picking.
-- [ ] A contaminated/technical-invalid attempt remains in lineage and cannot authorize timing.
-- [ ] Replacement attempts are lineage-linked.
-- [ ] Passive baseline measurement shows no countdown or time target.
-- [ ] Begin Rep automatically starts timing for eligible opportunities.
-- [ ] Student execution time can be frozen before observation/admin completion.
-- [ ] Specialist observation latency is excluded from elapsed student execution time.
-- [ ] Specialists cannot manually author elapsed time.
-- [ ] Diagnosis can establish a three-sample equivalent baseline when legitimately skipping SE Training.
-- [ ] Diagnosis stops baseline collection when an earlier unsupported layer already determines placement.
-- [ ] Existing valid baseline authority is reused rather than unnecessarily rebuilt.
-- [ ] Direct TPS Diagnosis cannot use an arbitrary generic timer.
-- [ ] A Timer Contract must exist before decision-eligible TPS evidence.
-- [ ] No pre-TPS calibration side-rep path remains.
-- [ ] Legacy above-SE topics with missing baseline route to explicit targeted re-diagnosis.
-- [ ] Diagnosis never mints High Maintenance.
-- [ ] Training remains repeated exposure under the diagnosed load.
-- [ ] Reporting does not turn baseline timing into unsupported speed claims.
+The following criteria are implemented and covered by unit/integration/live proof:
+
+- [x] Required Structure timing cannot authorize the TPS baseline.
+- [x] Variation Control timing cannot authorize the TPS baseline.
+- [x] A complete clean Independent Execution set can authorize a Training-origin baseline.
+- [x] Multiple SE rounds select the most recent qualifying complete set without cross-set cherry-picking.
+- [x] A contaminated/technical-invalid attempt remains in lineage and cannot authorize timing.
+- [x] Replacement attempts are lineage-linked.
+- [x] Passive baseline measurement shows no countdown or time target.
+- [x] Begin Rep automatically starts timing for eligible opportunities.
+- [x] Student execution time can be frozen before observation/admin completion.
+- [x] Specialist observation latency is excluded from elapsed student execution time.
+- [x] Specialists cannot manually author elapsed time.
+- [x] Diagnosis can establish a three-sample equivalent baseline when legitimately skipping SE Training.
+- [x] Diagnosis stops baseline collection when an earlier unsupported layer already determines placement.
+- [x] Existing valid baseline authority is reused rather than unnecessarily rebuilt.
+- [x] Direct TPS Diagnosis cannot use an arbitrary generic timer.
+- [x] A Timer Contract must exist before decision-eligible TPS evidence.
+- [x] No pre-TPS calibration side-rep path remains.
+- [x] Legacy above-SE topics with missing baseline route to explicit targeted re-diagnosis.
+- [x] Diagnosis never mints High Maintenance.
+- [x] Training remains repeated exposure under the diagnosed load.
+- [x] Reporting does not turn baseline timing into unsupported speed claims.
+
+Implementation proof:
+
+- architecture PR #66;
+- runtime PR #67;
+- live proof workflow run `35931443789`;
+- merged runtime lineage on `main` via #66/#67 before the Deep Dive reconciliation in #65.
 
 ## 17. Source alignment
 
@@ -510,13 +519,19 @@ This contract must remain aligned with:
 
 - `docs/evidence-complete-diagnosis-contract.md`
 - `docs/training-evidence-stability-contract.md`
+- `docs/response-integrity-os-implementation-source-of-truth.md`
 - `shared/evidenceCompleteDiagnosis.ts`
+- `shared/evidenceCompleteDiagnosisSubmission.ts`
 - `shared/diagnosisObservationMatrix.ts`
 - `shared/responseIntegrityDrillRegistry.ts`
-- PR #45 proof files:
-  - `shared/capabilityTpsTimerContract.ts`
-  - `shared/capabilityTpsTimerRuntime.ts`
-  - `server/routes/capabilityTpsTimerRuntime.ts`
-  - TPS timer migrations and runner finalization work
+- `shared/tpsTimingContract.ts`
+- `shared/tpsTimingRuntime.ts`
+- `shared/tpsTrainingReadiness.ts`
+- `server/evidenceCompleteDiagnosisRoutes.ts`
+- `server/tpsTimingAuthority.ts`
+- `server/tpsTimingRoutes.ts`
+- `client/src/components/tutor/IntroSessionDrillRunner.tsx`
+- `client/src/components/tutor/EvidenceCompleteDiagnosisRunner.tsx`
+- `migrations/2026-09-23_response_integrity_tps_timer_authority.sql`
 
-Where PR #45 conflicts with this document, this contract is authoritative for the eventual port.
+PR #45 proof files are historical donor material only. Where old #45 calibration/runtime behavior conflicts with this contract or the live sources above, the live contract and merged #66/#67 implementation are authoritative.
