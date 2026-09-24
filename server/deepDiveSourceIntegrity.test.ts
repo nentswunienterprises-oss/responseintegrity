@@ -176,7 +176,7 @@ test("Specialist delivery surfaces do not expose retired delivery-rating languag
 test("canonical Deep Dive authority is evidence-native", () => {
   const source = read("docs/response-integrity-os-implementation-source-of-truth.md");
   assert.match(source, /Layer inheritance and evidence authority/);
-  assert.match(source, /Current Training authority is evidence-native/);
+  assert.match(source, /Training state movement is evidence-native/);
   assert.doesNotMatch(source, /current live training transition engine is driven by score/i);
   assert.doesNotMatch(source, /Run (Clarity|Structured Execution|Controlled Discomfort) High Maintenance drill/);
 });
