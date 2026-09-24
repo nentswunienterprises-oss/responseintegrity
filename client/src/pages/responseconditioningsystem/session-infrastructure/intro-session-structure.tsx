@@ -181,6 +181,19 @@ export default function ResponseConditioningIntroSessionStructure() {
         </Card>
 
         <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">Diagnosis Timing Contingency</h2>
+          <p className="text-muted-foreground">
+            When Diagnosis is collecting passive baseline timing for an unresolved above-Structured-Execution placement, the measurement condition must remain clean. A timer/runtime/device failure is recorded as non-decision-eligible technical lineage; it does not become student weakness and it does not create a second chance after student performance.
+          </p>
+          <p className="text-muted-foreground">
+            Before a timing-eligible opportunity begins, keep one fresh equivalent reserve problem available for that same evidence question. Only an objective technical failure may leave the slot unresolved and authorize that reserve opportunity under the same no-pressure condition.
+          </p>
+          <p className="font-semibold">
+            Never reuse the exposed problem or improvise a replacement. If no clean reserve exists, leave the evidence question unresolved and return when the condition can be prepared properly.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">The Response Stack</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {[

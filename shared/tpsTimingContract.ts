@@ -140,6 +140,42 @@ export type TpsPassiveAttemptEndReason =
   | "student_finished"
   | "technical_failure";
 
+export const TPS_REPLACEMENT_CONDITION_FRESH_PREPARED_EQUIVALENT =
+  "fresh_prepared_equivalent" as const;
+
+export type TpsReplacementCondition =
+  typeof TPS_REPLACEMENT_CONDITION_FRESH_PREPARED_EQUIVALENT;
+
+const validateReplacementCondition = ({
+  attemptNumber,
+  replacementForAttemptId,
+  replacementCondition,
+  label,
+}: {
+  attemptNumber: number;
+  replacementForAttemptId?: string | null;
+  replacementCondition?: TpsReplacementCondition | null;
+  label: string;
+}) => {
+  const replacementId = String(replacementForAttemptId || "").trim();
+  if (attemptNumber <= 1) {
+    if (replacementId || replacementCondition) {
+      return `${label} attempt 1 cannot claim replacement lineage.`;
+    }
+    return null;
+  }
+  if (!replacementId) {
+    return `${label} replacement attempts must identify the technical-invalid attempt they replace.`;
+  }
+  if (
+    replacementCondition !==
+    TPS_REPLACEMENT_CONDITION_FRESH_PREPARED_EQUIVALENT
+  ) {
+    return `${label} replacement attempts require a fresh pre-prepared equivalent reserve opportunity.`;
+  }
+  return null;
+};
+
 export type TpsPassiveAttemptSubmissionV1 = {
   attemptId: string;
   source: TpsPassiveAttemptSource;
@@ -153,6 +189,7 @@ export type TpsPassiveAttemptSubmissionV1 = {
   timingValidity: "valid" | "timing_invalid_technical";
   endReason: TpsPassiveAttemptEndReason;
   replacementForAttemptId?: string | null;
+  replacementCondition?: TpsReplacementCondition | null;
 };
 
 export type TpsPassiveAttemptEvidenceRefV1 = {
@@ -197,6 +234,15 @@ export const validateTpsPassiveAttemptSubmission = (
     attempt.replacementForAttemptId === attempt.attemptId
   ) {
     return { ok: false, error: "A passive timing attempt cannot replace itself." };
+  }
+  const passiveReplacementError = validateReplacementCondition({
+    attemptNumber: attempt.attemptNumber,
+    replacementForAttemptId: attempt.replacementForAttemptId,
+    replacementCondition: attempt.replacementCondition,
+    label: "Passive timing",
+  });
+  if (passiveReplacementError) {
+    return { ok: false, error: passiveReplacementError };
   }
 
   const startedMs = Date.parse(attempt.startedAt);
@@ -622,6 +668,7 @@ export type TpsTimedAttemptSubmissionV1 = {
   timingValidity: "valid" | "timing_invalid_technical";
   endReason: TpsTimedAttemptEndReason;
   replacementForAttemptId?: string | null;
+  replacementCondition?: TpsReplacementCondition | null;
 };
 
 export type TpsTimedAttemptEvidenceRefV1 = {
@@ -730,6 +777,15 @@ export const validateTpsTimedAttemptAgainstContract = ({
     attempt.replacementForAttemptId === attempt.attemptId
   ) {
     return { ok: false, error: "A TPS attempt cannot replace itself." };
+  }
+  const timedReplacementError = validateReplacementCondition({
+    attemptNumber: attempt.attemptNumber,
+    replacementForAttemptId: attempt.replacementForAttemptId,
+    replacementCondition: attempt.replacementCondition,
+    label: "TPS",
+  });
+  if (timedReplacementError) {
+    return { ok: false, error: timedReplacementError };
   }
 
   const startedMs = Date.parse(attempt.startedAt);

@@ -503,7 +503,9 @@ The live law is:
 - Baseline authority comes from the most recent complete clean three-rep Independent Execution set in the current SE conditioning epoch; RI does not cherry-pick individual reps across sets or sessions.
 - Eligible baseline timing is passive and system-owned from Begin Rep / Begin Opportunity to Student Finished. No countdown, target, urgency cue, or Specialist-entered elapsed time is allowed.
 - Required Structure and Variation Control timing cannot authorize the baseline because their conditions are not comparable to the canonical same-form independent execution condition.
-- Technical failure, intervention, task mismatch, or another comparability break preserves the attempt as lineage but makes that attempt ineligible. A replacement attempt is explicitly lineage-linked.
+- Any condition break preserves truth and makes affected timing ineligible. An objective timer/runtime/device failure is stored as non-decision-eligible technical lineage and leaves the canonical evidence slot unresolved.
+- Technical replacement is not a second chance after student performance. The unresolved slot may be filled only by a fresh equivalent reserve problem prepared before the session/opportunity and run under the exact same set constraints and timing authority. The exposed problem is never reused and a new problem is not improvised mid-session.
+- Timeout, panic, wrong method, incomplete execution, weak performance, or ordinary timer expiry is student evidence and never unlocks technical replacement. Intervention or task mismatch is recorded as confounding truth; it does not create the technical-replacement privilege.
 - Diagnosis is the second legitimate baseline route when an otherwise-above-Structured-Execution placement does not already have valid timing authority. Diagnosis remains evidence-complete; the three-sample requirement belongs only to the timing question.
 - An existing valid Timer Contract is reused rather than rebuilt without cause.
 - TPS timed Diagnosis and TPS Training use the immutable student/topic Timer Contract. The Specialist cannot choose, pause, round, edit, loosen, tighten, restart, or override the timer.
@@ -522,6 +524,7 @@ The drill runner is the live execution chamber of Response Integrity-OS.
 The Specialist:
 
 - prepares matching problems that preserve the active set constraints
+- prepares fresh equivalent reserve inventory before timing-sensitive work so an objective technical failure can leave the evidence slot unresolved without forcing problem reuse or mid-session improvisation
 - runs the system-authorized opportunity exactly as instructed
 - records the concrete behavior that actually occurred
 - records evidence status and intervention separately where the runner exposes them
@@ -530,6 +533,8 @@ The Specialist:
 The Specialist does not:
 
 - invent the drill structure or next probe
+- use technical replacement to erase or improve student performance; only objective condition failure can authorize the fresh pre-prepared reserve path
+- reuse an exposed problem after a technical failure or improvise a replacement problem mid-session
 - manually decide phase, stability, progression, regression, or re-diagnosis
 - rewrite what the evidence system concluded
 - smooth over a weak response in the logging layer

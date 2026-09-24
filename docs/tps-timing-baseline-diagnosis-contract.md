@@ -42,7 +42,11 @@ For timing specifically:
 17. Specialist observation/admin time must not be included in the student's execution interval.
 18. Specialists cannot manually enter, edit, round, pause, restart, or override baseline elapsed time.
 19. Any interruption, intervention, technical failure, task mismatch, or other condition that destroys comparability makes the affected timing ineligible for baseline authority. The attempt remains in lineage.
-20. A missing timing baseline is an unresolved evidence/readiness condition, not permission to invent a timer.
+20. An objective timer/runtime/device failure leaves the canonical evidence slot unresolved. It does not erase the attempt and does not create a second chance after student performance.
+21. A technical replacement may fill that unresolved slot only with a fresh equivalent reserve problem prepared before the session/opportunity under the same topic, form, difficulty, support, and timing condition. The exposed problem may not be reused and a replacement may not be improvised mid-session.
+22. Timeout, panic, wrong method, incomplete execution, weak performance, or ordinary timer expiry is student evidence and never authorizes technical replacement.
+23. Intervention, rescue, task mismatch, or other non-technical confounding remains truthfully recorded but does not use the technical-replacement privilege.
+24. A missing timing baseline is an unresolved evidence/readiness condition, not permission to invent a timer.
 
 ## 3. Definitions
 
@@ -88,7 +92,7 @@ Correctness alone does not authorize timing eligibility. Eligibility is evidence
 
 A complete clean baseline set contains all three canonical Independent Execution opportunities with timing-eligible measurements under the same set context.
 
-A contaminated or technically invalid attempt remains in lineage. A lineage-linked replacement may repair the affected canonical opportunity only by re-running that opportunity under the same intended baseline conditions.
+A contaminated or technically invalid attempt remains in lineage. Only an objective technical failure can open the explicit replacement path. The canonical slot remains unresolved until a fresh pre-prepared equivalent reserve problem is run under the same intended conditions. The exposed problem is never reused. Non-technical contamination follows ordinary evidence sufficiency/recovery law rather than the technical-replacement privilege.
 
 ### 3.5 Baseline snapshot
 
@@ -154,9 +158,11 @@ The measurement unit is the **complete qualifying Independent Execution set**, n
 
 SE phase exit must not leave the institution without a valid baseline source when the topic will later need individualized TPS timing.
 
-If a canonical Independent Execution opportunity is technically invalid or contaminated, the system preserves that attempt and requires a clean lineage-linked replacement inside the legitimate SE evidence flow.
+If a canonical Independent Execution opportunity suffers an objective technical timing failure, the system preserves that attempt as non-decision-eligible lineage and leaves the canonical slot unresolved. The slot may be completed only by a fresh equivalent reserve problem prepared before the session under the same normal-difficulty, same-form, no-pressure Independent Execution condition.
 
-This is not a side calibration activity. It is completion of the canonical SE opportunity under valid conditions.
+If evidence is contaminated for a non-technical reason, preserve that truth and let the ordinary evidence model determine what clean evidence is still required; do not disguise it as a technical replacement.
+
+This is not a side calibration activity and not a second chance after weak student performance. It is completion of an unanswered canonical evidence opportunity under a valid pre-prepared condition.
 
 ## 5. Diagnosis-origin baseline authority
 
@@ -355,6 +361,33 @@ The system must distinguish:
 
 Invalid timing must not silently become a slow student.
 
+### 9.1 Technical failure versus student evidence
+
+The technical-replacement path exists only because RI failed to preserve the intended measurement condition.
+
+It must never be triggered because the student:
+
+- timed out under a valid timer;
+- panicked or froze;
+- chose the wrong method;
+- produced incomplete work;
+- worked slowly;
+- produced weak or incorrect execution.
+
+Those outcomes are the evidence.
+
+When the timer/runtime/device itself fails:
+
+1. persist the failed attempt as technical-invalid, non-decision-eligible lineage;
+2. keep the canonical evidence slot unresolved;
+3. require a fresh pre-prepared equivalent reserve problem;
+4. preserve the same Timer Contract and set constraints;
+5. lineage-link the reserve opportunity to the technical-invalid attempt.
+
+The replacement does not replace history. It answers an evidence question that the failed condition never answered.
+
+If no clean reserve exists, the Specialist must not reuse the exposed problem or improvise a new one. The slot remains unresolved until a properly prepared future opportunity is available.
+
 ## 10. Baseline freezing, supersession, and re-entry
 
 ### 10.1 During SE
@@ -379,7 +412,7 @@ The old baseline remains historical lineage.
 
 The Timer Contract is versioned and immutable after minting for the applicable topic/conditioning epoch.
 
-The proof-only PR #45 currently implements this V1 schedule:
+The live V1 Timer Contract implements this schedule:
 
 - Structure Under Timer: baseline duration;
 - Repeated Timed Execution: baseline duration;
@@ -476,7 +509,9 @@ The live implementation also replaced the proof-only design where required:
 7. passive timing uses the system-owned execution boundary and excludes Specialist admin latency;
 8. TPS entry is gated on Timer Contract readiness;
 9. technical-invalid attempts remain durable lineage and replacements are explicitly linked;
-10. legacy above-SE timing gaps route through targeted evidence-complete re-diagnosis.
+10. replacement acceptance requires a fresh pre-prepared equivalent reserve opportunity; technical failure leaves the canonical slot unresolved rather than creating a second chance;
+11. ordinary student failure/expiry does not authorize replacement;
+12. legacy above-SE timing gaps route through targeted evidence-complete re-diagnosis.
 
 PR #45 remains historical proof lineage only. Its old calibration runtime is not live authority.
 
@@ -490,6 +525,8 @@ The following criteria are implemented and covered by unit/integration/live proo
 - [x] Multiple SE rounds select the most recent qualifying complete set without cross-set cherry-picking.
 - [x] A contaminated/technical-invalid attempt remains in lineage and cannot authorize timing.
 - [x] Replacement attempts are lineage-linked.
+- [x] Technical replacement requires the fresh pre-prepared equivalent reserve condition.
+- [x] Student timeout/expiry or weak performance does not create replacement authority.
 - [x] Passive baseline measurement shows no countdown or time target.
 - [x] Begin Rep automatically starts timing for eligible opportunities.
 - [x] Student execution time can be frozen before observation/admin completion.

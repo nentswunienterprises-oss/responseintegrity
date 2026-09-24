@@ -88,6 +88,37 @@ test("canonical TPS contract is implemented and aligned to live timing authority
   assert.doesNotMatch(source, /current live transition engine uses:\s*\n\s*- score/i);
 });
 
+test("technical timing replacement is an unresolved-slot reserve path, not a second chance", () => {
+  const contract = read("docs/tps-timing-baseline-diagnosis-contract.md");
+  const source = read("docs/response-integrity-os-implementation-source-of-truth.md");
+  const logging = read("client/src/pages/responseconditioningsystem/session-infrastructure/logging-system.tsx");
+  const drillLibrary = read("client/src/pages/responseconditioningsystem/session-infrastructure/drill-library.tsx");
+  const intro = read("client/src/pages/responseconditioningsystem/session-infrastructure/intro-session-structure.tsx");
+  const structured = read("client/src/pages/responseconditioningsystem/transformation-phases/structured-execution.tsx");
+  const tpsDeepDive = read("client/src/pages/responseconditioningsystem/transformation-phases/time-pressure-stability.tsx");
+  const prep = read("client/src/components/tutor/StudentTopicConditioningDialog.tsx");
+  const runner = read("client/src/components/tutor/IntroSessionDrillRunner.tsx");
+  const diagnosisRunner = read("client/src/components/tutor/EvidenceCompleteDiagnosisRunner.tsx");
+  const timingContract = read("shared/tpsTimingContract.ts");
+
+  for (const text of [contract, source, logging, drillLibrary, intro, structured, tpsDeepDive]) {
+    assert.match(text, /fresh (?:pre-prepared )?equivalent/i);
+    assert.match(text, /unresolved/i);
+  }
+
+  assert.match(prep, /reserve problem/i);
+  assert.match(prep, /normal[- ]difficulty/i);
+  assert.match(prep, /same[- ]form/i);
+  assert.match(runner, /Confirm fresh pre-prepared equivalent reserve/);
+  assert.match(diagnosisRunner, /Confirm fresh pre-prepared equivalent reserve/);
+  assert.match(timingContract, /fresh_prepared_equivalent/);
+
+  assert.doesNotMatch(runner, /Retry this same rep; the replacement will use the same Timer Contract/i);
+  assert.doesNotMatch(runner, /Retry this same Independent Execution rep/i);
+  assert.match(contract, /does not create a second chance after student performance/i);
+  assert.doesNotMatch(contract, /retry (?:this|the) same (?:rep|problem)/i);
+});
+
 test("canonical Deep Dive authority is evidence-native", () => {
   const source = read("docs/response-integrity-os-implementation-source-of-truth.md");
   assert.match(source, /Layer inheritance and evidence authority/);
