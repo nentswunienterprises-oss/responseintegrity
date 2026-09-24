@@ -245,14 +245,14 @@ export default function SpecialistCapabilityAssessment() {
 
               <p className="text-sm text-muted-foreground">
                 {result.passed
-                  ? "This evidence is now part of your capability record. It does not by itself certify you for live responsibility."
+                  ? "This result is now part of your Training capability record. Passing this check demonstrates Deep Dive understanding; later stages still require their own evidence."
                   : attemptsRemaining > 0
                     ? `${attemptsRemaining} attempt${attemptsRemaining === 1 ? "" : "s"} remain under the current assessment configuration.`
                     : "No further attempts are currently available under this assessment configuration."}
               </p>
 
               <div className="flex flex-wrap gap-3">
-                <Button onClick={() => navigate("/specialist/pod")}>Return to Specialist Pod</Button>
+                <Button onClick={() => navigate("/operational/specialist/capability")}>Back to Capability Checks</Button>
                 <Button variant="outline" onClick={() => navigate("/responseconditioningsystem")}>Review RI-OS</Button>
               </div>
             </CardContent>
@@ -275,7 +275,7 @@ export default function SpecialistCapabilityAssessment() {
             <AlertDescription>{friendlyLoadError(formQuery.error)}</AlertDescription>
           </Alert>
           <p className="text-sm text-muted-foreground">
-            Capability Engine evidence is still shadow evidence. Your current Battle Test training state remains unchanged.
+            This Capability Check is part of Training. Passing it demonstrates Deep Dive understanding; it does not by itself grant Sandbox, Trial, or Certified Live status.
           </p>
           <Button variant="outline" onClick={() => navigate("/responseconditioningsystem")}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to RI-OS

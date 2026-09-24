@@ -117,6 +117,8 @@ import StudentUpdates from "@/pages/client/student/updates";
 import OperationalTutorDashboard from "@/pages/operational/tutor/dashboard";
 import TutorBlueprint from "@/pages/operational/tutor/blueprint";
 import ResponseIntegrityOS from "@/pages/operational/tutor/response-integrity-os";
+import SpecialistCapabilityPlan from "@/pages/operational/tutor/capability-plan";
+import SpecialistCapabilityAssessment from "@/pages/operational/tutor/capability-assessment";
 import OperationalTDDashboard from "@/pages/operational/td/dashboard";
 import TdGateway from "@/pages/operational/td/gateway";
 import TdLanding from "@/pages/operational/td/landing";
@@ -464,6 +466,8 @@ function Router() {
       <Route path="/operational/specialist/dashboard" element={<TutorGatewayGuard><Navigate to="/specialist/pod" replace /></TutorGatewayGuard>} />
       <Route path="/operational/specialist/my-pod" element={<TutorGatewayGuard><Navigate to="/specialist/pod" replace /></TutorGatewayGuard>} />
       <Route path="/operational/specialist/response-integrity-os" element={<TutorGatewayGuard><ResponseIntegrityOS /></TutorGatewayGuard>} />
+      <Route path="/operational/specialist/capability" element={<TutorGatewayGuard><SpecialistCapabilityPlan /></TutorGatewayGuard>} />
+      <Route path="/operational/specialist/capability/:assessmentKey" element={<TutorGatewayGuard><SpecialistCapabilityAssessment /></TutorGatewayGuard>} />
       <Route path="/operational/specialist/tt-os" element={<Navigate to="/operational/specialist/response-integrity-os" replace />} />
       <Route path="/operational/specialist/growth" element={<TutorGatewayGuard><Navigate to="/specialist/growth" replace /></TutorGatewayGuard>} />
       <Route path="/operational/specialist/academic-tracker" element={<TutorGatewayGuard><Navigate to="/specialist/academics" replace /></TutorGatewayGuard>} />
@@ -476,6 +480,7 @@ function Router() {
       <Route path="/tutor/blueprint" element={<TutorGatewayGuard><DashboardLayout><TutorBlueprint /></DashboardLayout></TutorGatewayGuard>} />
       <Route path="/specialist/blueprint" element={<TutorGatewayGuard><DashboardLayout><TutorBlueprint /></DashboardLayout></TutorGatewayGuard>} />
       <Route path="/operational/tutor/response-integrity-os" element={<RedirectWithSearch to="/operational/specialist/response-integrity-os" />} />
+      <Route path="/operational/tutor/capability" element={<RedirectWithSearch to="/operational/specialist/capability" />} />
       <Route path="/operational/tutor/tt-os" element={<RedirectWithSearch to="/operational/specialist/response-integrity-os" />} />
       <Route path="/operational/tutor/growth" element={<TutorGatewayGuard><Navigate to="/specialist/growth" replace /></TutorGatewayGuard>} />
       <Route path="/operational/tutor/academic-tracker" element={<TutorGatewayGuard><Navigate to="/specialist/academics" replace /></TutorGatewayGuard>} />
