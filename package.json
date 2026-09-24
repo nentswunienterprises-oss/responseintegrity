@@ -25,7 +25,7 @@
     "db:push": "drizzle-kit push",
     "test:demand-production": "node --import tsx --test server/demandProduction.test.ts server/demandProduction.journeys.test.ts server/productionEconomy.test.ts",
     "build:vercel-api": "mkdir -p generated && esbuild server/vercelPreviewApi.ts --bundle --platform=node --format=esm --packages=external --target=node24 --outfile=generated/preview-api-runtime.mjs",
-    "test:capability": "node --import tsx --test shared/capabilityEngine.test.ts shared/capabilityAssessmentPlan.test.ts shared/capabilityBlueprint.test.ts shared/capabilityBankCoverage.test.ts shared/capabilityCriticalCoverage.test.ts shared/capabilityMasterySequencing.test.ts server/capabilityFormGeneration.test.ts server/capabilityPublicProjection.test.ts scripts/importPrivateCapabilityBankBoundary.test.ts scripts/capabilityPrivateAssessmentLeakBoundary.test.ts"
+    "test:capability": "node --import tsx --test shared/capabilityEngine.test.ts shared/capabilityOptionParity.test.ts shared/capabilityAssessmentPlan.test.ts shared/capabilityBlueprint.test.ts shared/capabilityBankCoverage.test.ts shared/capabilityCriticalCoverage.test.ts shared/capabilityMasterySequencing.test.ts server/capabilityFormGeneration.test.ts server/capabilityPublicProjection.test.ts scripts/importPrivateCapabilityBankBoundary.test.ts scripts/capabilityPrivateAssessmentLeakBoundary.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -138,4 +138,4 @@
     "typescript": "5.6.3",
     "vite": "^7.2.2"
   }
-}
+}\n

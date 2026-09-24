@@ -5,7 +5,7 @@ import { z } from "zod";
 import { generateDeterministicCapabilityForm } from "../server/capabilityFormGeneration";
 import { CAPABILITY_MASTERY_PLAN } from "../shared/capabilityMasterySequencing";
 import { validateCapabilityAssessmentAgainstBlueprint } from "../shared/capabilityBankCoverage";
-import { buildCapabilityCriticalBoundaryRequirements } from "../shared/capabilityCriticalCoverage";
+import { buildCapabilityCriticalBoundaryRequirements } from "../shared/capabilityCriticalCoverage";\nimport { assertCapabilityOptionParity } from "../shared/capabilityOptionParity";
 
 const APPROVED_BANK_VERSION = 8;
 const REQUIRED_ITEM_COUNT = 45;
@@ -181,7 +181,7 @@ function main() {
       }
     }
 
-    const signatures = new Set<string>();
+    const optionParity = assertCapabilityOptionParity(assessment.assessmentKey, assessment.items);\n    optionParityByAssessment.push({ assessmentKey: assessment.assessmentKey, ...optionParity });\n\n    const signatures = new Set<string>();
     for (let attemptNumber = 1; attemptNumber <= 3; attemptNumber += 1) {
       const first = generateDeterministicCapabilityForm(
         config,
@@ -207,7 +207,7 @@ function main() {
     packageKind: payload.packageKind,
     assessmentCount: payload.assessments.length,
     itemCount: globalItemKeys.size,
-    founderApprovedAssessmentKeys: [...declared].sort(),
+    founderApprovedAssessmentKeys: [...declared].sort(),\n    optionParityByAssessment,
     omittedMasteryBanks: CAPABILITY_MASTERY_PLAN
       .map((entry) => entry.assessmentKey)
       .filter((key) => !declared.has(key)),
