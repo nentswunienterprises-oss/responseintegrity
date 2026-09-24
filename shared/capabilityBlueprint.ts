@@ -24,7 +24,7 @@ export interface CapabilityModuleBlueprint {
   deepDiveKeys: TutorBattleTestPhaseKey[];
 }
 
-export const CAPABILITY_BLUEPRINT_VERSION = 1;
+export const CAPABILITY_BLUEPRINT_VERSION = 2;
 
 export const CAPABILITY_CROSS_CUTTING_COMPETENCIES = [
   "evidence.observation_vs_inference",
@@ -192,33 +192,37 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
     title: "Time Pressure Stability Deep Dive",
     moduleKey: "transformation_phases",
     operatingCapability:
-      "Preserve the trained start, method structure, pace control and completion integrity when urgency and limited time are introduced.",
+      "Preserve the trained start, method structure, pace control, and completion integrity under the system-owned Timer Contract while keeping timing lineage trustworthy.",
     competencyKeys: [
       "time_pressure_stability.method_under_time",
-      "time_pressure_stability.observation_fields",
+      "time_pressure_stability.baseline_authority",
       "time_pressure_stability.structure_under_timer",
       "time_pressure_stability.repeated_timed_execution",
       "time_pressure_stability.full_constraint",
-      "time_pressure_stability.method_over_speed",
-      "evidence.contamination",
+      "time_pressure_stability.technical_failure_lineage",
+      "evidence.condition_integrity",
       "system.authority",
     ],
     criticalBoundaries: [
       {
         key: "time_pressure_stability.speed_never_replaces_structure",
-        description: "Speed with broken structure or guessing cannot be treated as stable timed evidence.",
+        description: "Speed with broken structure, panic-driven guessing, or incomplete method use cannot be treated as stable TPS evidence.",
       },
       {
-        key: "time_pressure_stability.no_panic_coaching",
-        description: "Panic coaching cannot be added to a no-support timed condition.",
+        key: "time_pressure_stability.timer_contract_is_system_owned",
+        description: "The Specialist cannot estimate, loosen, tighten, pause, or replace the system-owned Timer Contract with a personal timing rule.",
       },
       {
-        key: "time_pressure_stability.rescued_not_independent",
-        description: "A rescued timed rep cannot be treated as independent stability evidence.",
+        key: "time_pressure_stability.technical_replacement_only_for_objective_failure",
+        description: "A replacement timed attempt is allowed only after an objective technical timing failure, using a fresh pre-prepared equivalent reserve under the same Timer Contract and set condition.",
+      },
+      {
+        key: "time_pressure_stability.student_failure_is_real_evidence",
+        description: "Timeout, panic, wrong method, incomplete work, or weak performance is student evidence and never authorizes a replacement attempt.",
       },
     ],
     requiredEvidenceKinds: [...FULL_CAPABILITY_EVIDENCE],
-    transferPartners: ["controlled_discomfort", "topic_conditioning", "drill_library", "tools_required"],
+    transferPartners: ["controlled_discomfort", "structured_execution", "topic_conditioning", "logging_system", "drill_library", "tools_required"],
   },
   {
     key: "topic_conditioning",
@@ -261,29 +265,33 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
     title: "Intro Session Structure",
     moduleKey: "session_infrastructure",
     operatingCapability:
-      "Verify the correct topic-entry phase through adaptive Diagnosis and stop when the system locks the entry state.",
+      "Establish a trustworthy topic-entry phase and starting stability through evidence-complete, system-routed Diagnosis without turning Diagnosis into Training.",
     competencyKeys: [
       "intro.placement_purpose",
-      "intro.recommended_start_hypothesis",
-      "intro.adjacent_phase_movement",
-      "intro.entry_lock_stop",
-      "intro.diagnosis_vs_training",
-      "evidence.observation_vs_inference",
-      "evidence.contamination",
+      "intro.starting_signal_hypothesis",
+      "intro.evidence_question_routing",
+      "intro.constraint_stripping",
+      "intro.evidence_status_and_intervention",
+      "intro.evidence_complete_stop",
+      "intro.topic_scoped_resume",
       "system.authority",
     ],
     criticalBoundaries: [
       {
-        key: "intro.no_teaching_as_diagnosis",
-        description: "Intro cannot be converted into teaching and assisted performance scored as placement evidence.",
+        key: "intro.no_teaching_as_baseline",
+        description: "Teaching, correction, rescue, or first-step confirmation cannot be treated as clean independent baseline placement evidence.",
       },
       {
-        key: "intro.adjacent_movement_only",
-        description: "Specialist instinct cannot bypass adjacent score-driven phase verification.",
+        key: "intro.starting_signal_never_placement",
+        description: "A starting signal may choose the first evidence question but cannot determine the final phase or stability.",
       },
       {
-        key: "intro.parent_cannot_override_placement",
-        description: "Parent preference cannot override scored topic placement.",
+        key: "intro.no_fixed_rep_quota",
+        description: "Diagnosis stops when the evidence question is resolved; fixed repetition cannot replace evidence-complete routing.",
+      },
+      {
+        key: "intro.high_maintenance_training_only",
+        description: "Diagnosis may place Low, Medium, or High, but High Maintenance is earned only through Training evidence.",
       },
     ],
     requiredEvidenceKinds: [...FULL_CAPABILITY_EVIDENCE],
@@ -294,70 +302,74 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
     title: "Logging System",
     moduleKey: "session_infrastructure",
     operatingCapability:
-      "Preserve a trustworthy rep-by-rep record of observable student behaviour so scoring, movement and downstream claims remain defensible.",
+      "Preserve trustworthy source evidence by recording concrete student behavior, evidence eligibility, intervention, condition, and lineage without manually interpreting the resulting state.",
     competencyKeys: [
       "logging.evidence_purpose",
       "evidence.observation_vs_inference",
+      "logging.evidence_status",
+      "logging.intervention_separation",
+      "evidence.condition_integrity",
       "evidence.rep_lineage",
-      "logging.raw_option_fidelity",
-      "evidence.contamination",
-      "evidence.logging_integrity",
-      "logging.missing_evidence_recovery",
+      "logging.recovery_history",
       "logging.downstream_claim_integrity",
       "system.authority",
     ],
     criticalBoundaries: [
       {
         key: "logging.record_actual_behavior",
-        description: "A preferred observation cannot replace the behaviour that actually occurred.",
+        description: "A preferred interpretation cannot replace the concrete behavior that actually occurred.",
       },
       {
-        key: "logging.assisted_not_independent",
-        description: "Assisted performance cannot be recorded as independent evidence.",
+        key: "logging.missing_is_not_weakness",
+        description: "Not-observed evidence must remain missing rather than being converted into weakness, strength, or a guessed state.",
       },
       {
-        key: "logging.no_invented_behavior",
-        description: "Unobserved behaviour cannot be invented to complete the evidence record.",
+        key: "logging.intervention_not_hidden",
+        description: "Prompting, rescue, teaching, neutral clarification, first-step confirmation, and other interventions must be recorded separately from student behavior.",
       },
       {
-        key: "logging.no_retroactive_fabrication",
-        description: "Missing rep evidence cannot be retrospectively manufactured from memory or impression.",
+        key: "logging.condition_change_not_clean",
+        description: "A materially changed timer, support level, task condition, or interrupted condition cannot be logged as clean proof under the original condition.",
       },
       {
         key: "logging.claims_cannot_override_system",
-        description: "Narrative or parent-facing claims cannot be altered to override a deterministic hold result.",
+        description: "Narrative, reporting, or Specialist preference cannot strengthen evidence or override the evidence-derived operating decision.",
       },
     ],
     requiredEvidenceKinds: [...FULL_CAPABILITY_EVIDENCE],
-    transferPartners: ["topic_conditioning", "intro_session_structure", "session_flow_control", "drill_library", "handover_verification"],
+    transferPartners: ["topic_conditioning", "intro_session_structure", "session_flow_control", "drill_library", "handover_verification", "time_pressure_stability"],
   },
   {
     key: "session_flow_control",
     title: "Session Flow Control",
     moduleKey: "session_infrastructure",
     operatingCapability:
-      "Identify why the session exists, run the drill type that serves that context, preserve phase constraints and follow the system-selected next action.",
+      "Identify the active session context, preserve that context's authority and condition, and follow the system route without blending Diagnosis, Training, Handover, or targeted re-diagnosis.",
     competencyKeys: [
-      "session_flow.context_vs_drill",
-      "session_flow.context_mapping",
-      "session_flow.active_training_new_topic",
-      "session_flow.handover_context",
-      "session_flow.system_selected_drill",
-      "session_flow.preparation_integrity",
+      "session_flow.context_identity",
+      "session_flow.intro_diagnosis",
+      "session_flow.active_training",
+      "session_flow.handover_verification",
+      "session_flow.targeted_rediagnosis",
+      "session_flow.condition_integrity",
       "system.authority",
     ],
     criticalBoundaries: [
       {
-        key: "session_flow.no_manual_drill_override",
-        description: "The system-selected drill cannot be replaced by Specialist preference.",
+        key: "session_flow.no_context_blending",
+        description: "Diagnosis, Training, Handover Verification, and targeted re-diagnosis cannot borrow each other's authority or support rules.",
       },
       {
         key: "session_flow.handover_preserves_inherited_state",
-        description: "A replacement Specialist cannot erase inherited state and bypass the Handover Verification context.",
+        description: "A replacement Specialist verifies inherited truth before ordinary Training and cannot erase inherited state through personal re-placement.",
+      },
+      {
+        key: "session_flow.no_hidden_baseline_calibration",
+        description: "Missing prerequisite or timing authority must route through explicit targeted evidence-complete re-diagnosis rather than hidden calibration side reps.",
       },
     ],
     requiredEvidenceKinds: [...FULL_CAPABILITY_EVIDENCE],
-    transferPartners: ["intro_session_structure", "drill_library", "handover_verification", "logging_system"],
+    transferPartners: ["intro_session_structure", "drill_library", "handover_verification", "logging_system", "time_pressure_stability"],
   },
   {
     key: "drill_library",
