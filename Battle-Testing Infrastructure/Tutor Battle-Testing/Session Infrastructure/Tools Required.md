@@ -128,14 +128,14 @@ Yes, if the final answer is visible
 Continue and fix it next session
 
 Scenario 2
-The Specialist's audio repeatedly cuts out, but they complete and score the student's spoken recognition reps. What is wrong?
+The Specialist's audio repeatedly cuts out, but they complete the student's spoken recognition reps and treat them as valid evidence. What is wrong?
 
 Expected Answer
 The spoken evidence was not reliably observable. Repair the audio condition and rerun affected reps rather than inventing or guessing what was said.
 
 Fail Answer
 Use the tutor's best judgment
-Score from facial expression
+Infer spoken evidence from facial expression
 Audio quality is not part of the drill
 
 Scenario 3
