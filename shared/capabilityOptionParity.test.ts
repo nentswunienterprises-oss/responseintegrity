@@ -21,10 +21,10 @@ test("balanced option lengths do not create a release shortcut", () => {
   const items = Array.from({ length: 45 }, (_, index) => {
     const correctKey = ["A", "B", "C", "D"][index % 4];
     return item(index, correctKey, {
-      A: "Plausible response alpha with matched operational length.",
-      B: "Plausible response bravo with matched operational length.",
-      C: "Plausible response charlie with matched operational length.",
-      D: "Plausible response delta with matched operational length.",
+      A: "Plausible response under matched condition A.",
+      B: "Plausible response under matched condition B.",
+      C: "Plausible response under matched condition C.",
+      D: "Plausible response under matched condition D.",
     });
   });
 
