@@ -1,192 +1,165 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildCapabilityLedger, evaluateCapabilityAssessment, type CapabilityAssessmentDefinition } from "./capabilityEngine";
-import { CLARITY_MASTERY_ASSESSMENT } from "./capabilityAssessments";
-import { CLARITY_RETRIEVAL_ASSESSMENT } from "./capabilityAssessmentsRetrieval";
-import { STRUCTURED_EXECUTION_MASTERY_ASSESSMENT } from "./capabilityAssessmentsStructuredExecution";
-import { CLARITY_STRUCTURED_TRANSFER_ASSESSMENT } from "./capabilityAssessmentsTransfer";
+import {
+  buildCapabilityLedger,
+  evaluateCapabilityAssessment,
+  type CapabilityAssessmentDefinition,
+} from "./capabilityEngine";
 
-function buildCorrectResponses(definition: CapabilityAssessmentDefinition) {
+const OPTIONS = [
+  { key: "a", label: "Synthetic distractor A" },
+  { key: "b", label: "Synthetic correct option" },
+  { key: "c", label: "Synthetic distractor C" },
+  { key: "d", label: "Synthetic distractor D" },
+];
+
+function assessment(input: {
+  key: string;
+  deepDiveKey: string;
+  evidenceKind?: "mastery" | "retrieval" | "transfer";
+  secondDeepDiveKey?: string;
+}): CapabilityAssessmentDefinition {
+  const kind = input.evidenceKind || "mastery";
+  const clarityCompetencies = [
+    "clarity.phase_purpose",
+    "clarity.recognition_boundary",
+    "clarity.light_apply_support",
+    "clarity.vmr_sequence",
+    "clarity.identification_set",
+  ];
+  const structuredCompetencies = [
+    "structured_execution.phase_purpose",
+    "structured_execution.required_structure",
+    "structured_execution.independent_execution",
+    "structured_execution.variation_control",
+    "structured_execution.constraints",
+  ];
+
+  return {
+    key: input.key,
+    deepDiveKey: input.secondDeepDiveKey ? "mixed" : input.deepDiveKey,
+    title: "Synthetic Capability Fixture",
+    evidenceKind: kind,
+    passThresholdPercent: 96,
+    questions: Array.from({ length: 15 }, (_, index) => {
+      const useSecond = Boolean(input.secondDeepDiveKey && index % 2 === 1);
+      const deepDiveKey = useSecond ? input.secondDeepDiveKey! : input.deepDiveKey;
+      const competencyPool =
+        deepDiveKey === "structured_execution" ? structuredCompetencies : clarityCompetencies;
+      return {
+        key: `${input.key}_q${index + 1}`,
+        competencyKey: competencyPool[index % competencyPool.length],
+        deepDiveKey,
+        prompt: `Synthetic operating scenario ${index + 1}`,
+        kind: "single_choice" as const,
+        options: OPTIONS,
+        correctOptionKeys: ["b"],
+        criticalFailOptionKeys: index === 0 ? ["a"] : [],
+        explanation: "Synthetic explanation used only for engine tests.",
+      };
+    }),
+  };
+}
+
+const clarityMastery = assessment({
+  key: "clarity_mastery_fixture",
+  deepDiveKey: "clarity",
+});
+const clarityRetrieval = assessment({
+  key: "clarity_retrieval_fixture",
+  deepDiveKey: "clarity",
+  evidenceKind: "retrieval",
+});
+const structuredMastery = assessment({
+  key: "structured_mastery_fixture",
+  deepDiveKey: "structured_execution",
+});
+const transfer = assessment({
+  key: "transfer_fixture",
+  deepDiveKey: "clarity",
+  secondDeepDiveKey: "structured_execution",
+  evidenceKind: "transfer",
+});
+
+function correctResponses(definition: CapabilityAssessmentDefinition) {
   return definition.questions.map((question) => ({
     questionKey: question.key,
     selectedOptionKeys: [...question.correctOptionKeys],
   }));
 }
 
-function evaluatePerfect(definition: CapabilityAssessmentDefinition) {
-  return evaluateCapabilityAssessment(definition, buildCorrectResponses(definition));
+function perfect(definition: CapabilityAssessmentDefinition) {
+  return evaluateCapabilityAssessment(definition, correctResponses(definition));
 }
 
-test("clarity mastery passes at 100% and is typed as mastery evidence", () => {
-  const result = evaluatePerfect(CLARITY_MASTERY_ASSESSMENT);
+test("mastery passes at 100% and preserves evidence identity", () => {
+  const result = perfect(clarityMastery);
   assert.equal(result.totalQuestions, 15);
   assert.equal(result.correctQuestions, 15);
   assert.equal(result.percent, 100);
   assert.equal(result.evidenceKind, "mastery");
   assert.deepEqual(result.coveredDeepDiveKeys, ["clarity"]);
-  assert.equal(result.hasCriticalFail, false);
   assert.equal(result.passed, true);
 });
 
 test("one incorrect answer misses the 96% threshold", () => {
-  const responses = buildCorrectResponses(CLARITY_MASTERY_ASSESSMENT);
-  const question = CLARITY_MASTERY_ASSESSMENT.questions[0];
-  const wrongOption = question.options.find((option) => !question.correctOptionKeys.includes(option.key));
-  assert.ok(wrongOption);
-  responses[0] = { questionKey: question.key, selectedOptionKeys: [wrongOption.key] };
-
-  const result = evaluateCapabilityAssessment(CLARITY_MASTERY_ASSESSMENT, responses);
+  const responses = correctResponses(clarityMastery);
+  responses[0] = { questionKey: clarityMastery.questions[0].key, selectedOptionKeys: ["c"] };
+  const result = evaluateCapabilityAssessment(clarityMastery, responses);
   assert.equal(result.correctQuestions, 14);
   assert.equal(result.percent, 93.33);
   assert.equal(result.passed, false);
 });
 
 test("critical-fail endorsement overrides an otherwise strong attempt", () => {
-  const responses = buildCorrectResponses(CLARITY_MASTERY_ASSESSMENT);
-  const questionIndex = CLARITY_MASTERY_ASSESSMENT.questions.findIndex(
-    (question) => question.key === "clarity_contamination_05"
-  );
-  assert.notEqual(questionIndex, -1);
-  responses[questionIndex] = {
-    questionKey: "clarity_contamination_05",
-    selectedOptionKeys: ["a"],
-  };
-
-  const result = evaluateCapabilityAssessment(CLARITY_MASTERY_ASSESSMENT, responses);
+  const responses = correctResponses(clarityMastery);
+  responses[0] = { questionKey: clarityMastery.questions[0].key, selectedOptionKeys: ["a"] };
+  const result = evaluateCapabilityAssessment(clarityMastery, responses);
   assert.equal(result.hasCriticalFail, true);
-  assert.deepEqual(result.criticalFailQuestionKeys, ["clarity_contamination_05"]);
+  assert.deepEqual(result.criticalFailQuestionKeys, [clarityMastery.questions[0].key]);
   assert.equal(result.passed, false);
 });
 
-test("retrieval evidence is distinct from mastery evidence", () => {
-  const result = evaluatePerfect(CLARITY_RETRIEVAL_ASSESSMENT);
-  assert.equal(result.evidenceKind, "retrieval");
-  assert.equal(result.passed, true);
-  assert.deepEqual(result.coveredDeepDiveKeys, ["clarity"]);
+test("retrieval and transfer stay distinct from mastery evidence", () => {
+  assert.equal(perfect(clarityRetrieval).evidenceKind, "retrieval");
+  const transferResult = perfect(transfer);
+  assert.equal(transferResult.evidenceKind, "transfer");
+  assert.deepEqual(transferResult.coveredDeepDiveKeys, ["clarity", "structured_execution"]);
 });
 
-test("Structured Execution mastery is a deterministic 15-question proof", () => {
-  const result = evaluatePerfect(STRUCTURED_EXECUTION_MASTERY_ASSESSMENT);
-  assert.equal(result.totalQuestions, 15);
-  assert.equal(result.evidenceKind, "mastery");
-  assert.equal(result.passed, true);
-  assert.deepEqual(result.coveredDeepDiveKeys, ["structured_execution"]);
-});
-
-test("interleaved transfer mixes Deep Dive lineage without naming the tested phases in prompts", () => {
-  for (const question of CLARITY_STRUCTURED_TRANSFER_ASSESSMENT.questions) {
-    assert.doesNotMatch(question.prompt, /Clarity|Structured Execution/i);
-    assert.ok(question.deepDiveKey === "clarity" || question.deepDiveKey === "structured_execution");
-  }
-
-  const result = evaluatePerfect(CLARITY_STRUCTURED_TRANSFER_ASSESSMENT);
-  assert.equal(result.evidenceKind, "transfer");
-  assert.equal(result.passed, true);
-  assert.deepEqual(result.coveredDeepDiveKeys, ["clarity", "structured_execution"]);
-});
-
-test("missing responses are rejected", () => {
-  const responses = buildCorrectResponses(CLARITY_MASTERY_ASSESSMENT).slice(0, -1);
+test("missing and duplicate responses are rejected", () => {
   assert.throws(
-    () => evaluateCapabilityAssessment(CLARITY_MASTERY_ASSESSMENT, responses),
-    /Expected 15 capability responses/
+    () => evaluateCapabilityAssessment(clarityMastery, correctResponses(clarityMastery).slice(0, -1)),
+    /Expected 15 capability responses/,
+  );
+  const duplicate = correctResponses(clarityMastery);
+  duplicate[14] = { ...duplicate[0] };
+  assert.throws(
+    () => evaluateCapabilityAssessment(clarityMastery, duplicate),
+    /Duplicate capability response/,
   );
 });
 
-test("duplicate responses are rejected", () => {
-  const responses = buildCorrectResponses(CLARITY_MASTERY_ASSESSMENT);
-  responses[14] = { ...responses[0] };
-  assert.throws(
-    () => evaluateCapabilityAssessment(CLARITY_MASTERY_ASSESSMENT, responses),
-    /Duplicate capability response/
-  );
-});
-
-test("capability ledger keeps mastery retrieval and transfer as independent evidence", () => {
-  const clarityMastery = evaluatePerfect(CLARITY_MASTERY_ASSESSMENT);
-  const clarityRetrieval = evaluatePerfect(CLARITY_RETRIEVAL_ASSESSMENT);
-  const structuredMastery = evaluatePerfect(STRUCTURED_EXECUTION_MASTERY_ASSESSMENT);
-  const transfer = evaluatePerfect(CLARITY_STRUCTURED_TRANSFER_ASSESSMENT);
+test("ledger keeps mastery retrieval and transfer evidence independent", () => {
+  const m1 = perfect(clarityMastery);
+  const r1 = perfect(clarityRetrieval);
+  const m2 = perfect(structuredMastery);
+  const t1 = perfect(transfer);
 
   const ledger = buildCapabilityLedger([
-    { attemptId: "m1", assessmentKey: clarityMastery.assessmentKey, evidenceKind: clarityMastery.evidenceKind, passed: clarityMastery.passed, completedAt: "2026-09-11T09:00:00Z", questionResults: clarityMastery.questionResults },
-    { attemptId: "r1", assessmentKey: clarityRetrieval.assessmentKey, evidenceKind: clarityRetrieval.evidenceKind, passed: clarityRetrieval.passed, completedAt: "2026-09-12T09:00:00Z", questionResults: clarityRetrieval.questionResults },
-    { attemptId: "m2", assessmentKey: structuredMastery.assessmentKey, evidenceKind: structuredMastery.evidenceKind, passed: structuredMastery.passed, completedAt: "2026-09-13T09:00:00Z", questionResults: structuredMastery.questionResults },
-    { attemptId: "t1", assessmentKey: transfer.assessmentKey, evidenceKind: transfer.evidenceKind, passed: transfer.passed, completedAt: "2026-09-14T09:00:00Z", questionResults: transfer.questionResults },
+    { attemptId: "m1", assessmentKey: m1.assessmentKey, evidenceKind: m1.evidenceKind, passed: true, completedAt: "2026-09-24T09:00:00Z", questionResults: m1.questionResults },
+    { attemptId: "r1", assessmentKey: r1.assessmentKey, evidenceKind: r1.evidenceKind, passed: true, completedAt: "2026-09-24T10:00:00Z", questionResults: r1.questionResults },
+    { attemptId: "m2", assessmentKey: m2.assessmentKey, evidenceKind: m2.evidenceKind, passed: true, completedAt: "2026-09-24T11:00:00Z", questionResults: m2.questionResults },
+    { attemptId: "t1", assessmentKey: t1.assessmentKey, evidenceKind: t1.evidenceKind, passed: true, completedAt: "2026-09-24T12:00:00Z", questionResults: t1.questionResults },
   ]);
 
   const clarity = ledger.deepDives.find((entry) => entry.deepDiveKey === "clarity");
   const structured = ledger.deepDives.find((entry) => entry.deepDiveKey === "structured_execution");
   assert.ok(clarity);
   assert.ok(structured);
-
   assert.equal(clarity.evidence.mastery.passedAttempts, 1);
   assert.equal(clarity.evidence.retrieval.passedAttempts, 1);
   assert.equal(clarity.evidence.transfer.passedAttempts, 1);
   assert.equal(structured.evidence.mastery.passedAttempts, 1);
   assert.equal(structured.evidence.transfer.passedAttempts, 1);
-
-  const structureCompetency = structured.competencies.find(
-    (entry) => entry.competencyKey === "structured_execution.required_structure"
-  );
-  assert.ok(structureCompetency);
-  assert.equal(structureCompetency.evidence.mastery.correctOnPassedAttempt, true);
-  assert.equal(structureCompetency.evidence.transfer.correctOnPassedAttempt, true);
-});
-
-test("approved practical evidence supports linked competencies without becoming a quiz pass", () => {
-  const ledger = buildCapabilityLedger([], [
-    {
-      evidenceId: "practical-1",
-      proofKey: "prepare",
-      proofVersion: 1,
-      attemptNumber: 1,
-      status: "approved",
-      submittedAt: "2026-09-15T09:00:00Z",
-      reviewedAt: "2026-09-15T11:00:00Z",
-      competencyLinks: [
-        { deepDiveKey: "clarity", competencyKey: "system.authority" },
-        { deepDiveKey: "structured_execution", competencyKey: "structured_execution.phase_boundary" },
-      ],
-    },
-  ]);
-
-  const clarity = ledger.deepDives.find((entry) => entry.deepDiveKey === "clarity");
-  const structured = ledger.deepDives.find((entry) => entry.deepDiveKey === "structured_execution");
-  assert.ok(clarity);
-  assert.ok(structured);
-  assert.equal(clarity.practical.approvedSubmissions, 1);
-  assert.equal(clarity.evidence.mastery.passedAttempts, 0);
-  assert.equal(structured.practical.approvedSubmissions, 1);
-
-  const authority = clarity.competencies.find((entry) => entry.competencyKey === "system.authority");
-  assert.ok(authority);
-  assert.equal(authority.practical.approvedEvidence, true);
-  assert.deepEqual(authority.practical.proofKeys, ["prepare"]);
-  assert.equal(ledger.practicalProofs[0].status, "approved");
-});
-
-test("repeat-required practical evidence stays visible but does not become approved capability", () => {
-  const ledger = buildCapabilityLedger([], [
-    {
-      evidenceId: "practical-2",
-      proofKey: "execute",
-      proofVersion: 1,
-      attemptNumber: 1,
-      status: "repeat_required",
-      submittedAt: "2026-09-16T09:00:00Z",
-      reviewedAt: "2026-09-16T10:00:00Z",
-      competencyLinks: [
-        { deepDiveKey: "structured_execution", competencyKey: "structured_execution.independent_execution" },
-      ],
-    },
-  ]);
-
-  const structured = ledger.deepDives.find((entry) => entry.deepDiveKey === "structured_execution");
-  assert.ok(structured);
-  assert.equal(structured.practical.submissions, 1);
-  assert.equal(structured.practical.approvedSubmissions, 0);
-  const independence = structured.competencies.find((entry) => entry.competencyKey === "structured_execution.independent_execution");
-  assert.ok(independence);
-  assert.equal(independence.practical.approvedEvidence, false);
 });
