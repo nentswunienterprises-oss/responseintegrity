@@ -1,174 +1,174 @@
 Response Integrity-OS BATTLE TEST: INTRO SESSION STRUCTURE
 
-SECTION 1: PLACEMENT PURPOSE
+SECTION 1: DIAGNOSIS AUTHORITY
 
 Q1
-What is the purpose of an Intro session in one sentence?
+What is the purpose of Intro Diagnosis?
 
 Expected Answer
-To verify the student's correct topic-entry phase through adaptive Diagnosis and lock where training should begin.
+To establish the correct Training entry state for a newly activated topic by gathering only the evidence needed to locate the earliest unsupported layer.
 
 Fail Answer
-To assess the student generally
-To teach as much as possible
-To find every mathematical weakness
+To teach everything the student gets wrong
+To run a fixed number of reps
+To let the Specialist choose the starting phase
 
 Q2
-What one question must the Intro session answer?
+Who chooses the next Diagnosis probe?
 
 Expected Answer
-Where should this student's Response Integrity training begin in this specific topic?
+The system. The Specialist presents the selected probe, preserves its condition, records concrete behavior and intervention truthfully, then submits the evidence.
 
 Fail Answer
-How good is the student at maths?
-What does the parent want taught?
-How confident is the student?
+The Specialist chooses whichever question seems useful
+The parent chooses
+Always run the next phase in order
 
 Q3
-Why is Intro not a full teaching cycle?
+What does evidence-complete mean?
 
 Expected Answer
-Its purpose is topic-entry placement. Training begins only after Diagnosis has produced a locked entry state.
+Diagnosis stops when the evidence question needed for placement is resolved. It is not complete because a fixed rep quota was reached.
 
 Fail Answer
-There is not enough time
-The Specialist has not prepared a lesson
-Intro is only for building rapport
+Every phase must be tested
+Three reps are always required
+Diagnosis ends when session time runs out
 
 Q4
-What is the system-recommended starting phase?
+What must the Specialist record?
 
 Expected Answer
-A starting hypothesis based on available intake signals that must be verified through the live Diagnosis block, not accepted as final placement.
+Concrete observed behavior, whether the behavior was meaningfully observed, any confounding condition, and any intervention or support that occurred.
 
 Fail Answer
-The final phase
-The parent's chosen phase
-An optional suggestion the Specialist may ignore
-
-SECTION 2: ADAPTIVE DIAGNOSIS
+The Specialist's opinion of confidence
+A general impression
+Only whether the answer was correct
 
 Q5
-What does the Specialist run first after receiving the recommended starting phase?
+What does Not observed mean?
 
 Expected Answer
-The current-phase Diagnosis verification block with the prepared phase-matched problems and observation fields.
+The opportunity did not meaningfully expose that behavior, so the evidence stays missing. It is not treated as weakness.
 
 Fail Answer
-The full training sets
-A general maths assessment
-Clarity Modeling for every student
+The student failed
+Record the weakest option
+Guess from earlier work
+
+SECTION 2: CONDITION INTEGRITY
 
 Q6
-What happens when a Diagnosis phase score is 44 or below?
+What does Confounded mean?
 
 Expected Answer
-The system de-escalates to the adjacent earlier phase for verification, where an earlier phase exists.
+Something changed the condition enough that the behavior cannot be interpreted cleanly, such as assistance, interruption, task mismatch, or a relevant timing failure.
 
 Fail Answer
-Keep training in the current phase
-Jump directly to Clarity from any phase
-The Specialist chooses an easier activity
+The student was weak
+The Specialist is unsure
+The result should still be forced into a state
 
 Q7
-What happens when a Diagnosis phase score is from 45 through 79?
+Can the Specialist teach through a Diagnosis probe?
 
 Expected Answer
-The system places the topic in that phase and locks the entry point; Diagnosis stops.
+No. Teaching or rescue changes the condition and must be recorded separately. Diagnosis is for finding the correct load, not changing the response.
 
 Fail Answer
-Escalate because the student passed
-Repeat until the score reaches 80
-The Specialist decides whether it feels right
+Yes, if the student is stuck
+Yes, if there is enough time
+Only on difficult topics
 
 Q8
-What happens when a Diagnosis phase score is 80 or above?
+If an earlier layer clearly fails, should Diagnosis keep testing higher-pressure layers?
 
 Expected Answer
-The system escalates to the adjacent next phase for another verification, where a later phase exists. A high score is a movement signal, not permission to start normal training immediately.
+No. Once an earlier unsupported layer already determines the evidence question, Diagnosis should resolve placement there rather than collect unnecessary higher-pressure evidence.
 
 Fail Answer
-Start training in the current phase
-Jump to the final phase
-End because the student scored well
+Always test every phase
+Keep going to confirm the failure
+Jump straight to TPS
 
 Q9
-Why does Diagnosis move only through adjacent phases?
+Who determines placement phase and starting stability?
 
 Expected Answer
-Adjacent movement preserves controlled placement and shows where the response first stops holding instead of allowing random jumps or tutor-selected placement.
+The evidence model. The Specialist does not manually choose either one.
 
 Fail Answer
-It saves question preparation
-The Specialist may skip phases for strong students
-Adjacent movement is only a suggestion
+The Specialist
+The parent
+Whichever phase looks closest
 
 Q10
-What happens once the entry phase is locked?
+Can Diagnosis mint High Maintenance?
 
 Expected Answer
-End Diagnosis and preserve the placed topic-state for the next authorised training action. Do not use remaining time to add unassigned training or extra phase testing.
+No. Diagnosis can establish placement and starting stability, but High Maintenance requires Training evidence over time.
 
 Fail Answer
-Run the full training drill immediately
-Keep testing for certainty
-Teach whichever gap was noticed
+Yes, after a very strong Intro
+Yes, if all probes are clean
+Yes, if the Specialist is certain
 
-SECTION 3: PRESSURE SCENARIOS
+SECTION 3: TIMING READINESS
 
-Scenario 1
-The student pauses for five seconds before choosing the correct method. The Specialist records "panicked." What is the evidence-integrity correction?
+Q11
+What happens if Diagnosis reaches an above-Structured-Execution placement but no valid timing baseline exists?
 
 Expected Answer
-Record the observed pause and method response in the matching fields. Panic is an inference not established by the behaviour alone.
+That is an explicit readiness question. Diagnosis gathers the clean passive independent-execution timing evidence needed to establish individualized timing authority before TPS-timed evidence can be authoritative.
 
 Fail Answer
-Keep panic because the pause proves it
-Record low confidence
-Ignore the pause because the method was correct
+Use a generic timer
+Let the Specialist estimate a timer
+Skip the timing requirement
 
-Scenario 2
-The Specialist spends twenty-five minutes explaining methods during Intro, then scores the student's assisted answers as Diagnosis evidence. What failed?
+Q12
+How is passive baseline timing measured?
 
 Expected Answer
-Intro was converted into training and the evidence condition was contaminated. Assisted performance cannot establish the independent entry state the block was meant to verify.
+Silently and system-owned from Begin Opportunity to Student Finished. No countdown, target, urgency cue, manual entry, rounding, or Specialist estimate is allowed.
 
 Fail Answer
-Nothing; more teaching improves placement
-The score remains valid if answers are correct
-Intro should always include a lesson
+The Specialist uses a stopwatch
+Ask the student for an estimate
+Use the average lesson time
 
-Scenario 3
-The recommended phase is Structured Execution. The Specialist believes the student is advanced and jumps directly to Time Pressure Stability. Is that acceptable?
+Q13
+What happens after an objective technical timing failure during a baseline opportunity?
 
 Expected Answer
-No. Run the recommended current-phase block and follow adjacent movement from the score. Skipping phases replaces controlled placement with tutor instinct.
+The failed attempt stays as non-decision-eligible lineage and the evidence question remains unresolved. A fresh equivalent reserve problem prepared before the opportunity may fill that slot under the same no-pressure condition.
 
 Fail Answer
-Yes, strong students save time
-Yes, recommendations are optional
-Only the final score matters
+Reuse the same exposed problem
+Estimate the missing time
+Give another attempt because the student performed poorly
 
-Scenario 4
-A score of 61 places the topic in Controlled Discomfort, but the parent asks for Time Pressure Stability. What governs?
+Q14
+What student outcomes do not unlock a technical replacement?
 
 Expected Answer
-The system placement governs. Preserve Controlled Discomfort as the entry phase; parent preference cannot override scored evidence.
+Timeout, panic, wrong method, incomplete work, slow work, weak execution, or an incorrect answer. Those are real student evidence.
 
 Fail Answer
-Compromise and start timed work
-Follow the parent's request
-The Specialist chooses after discussion
+Any weak result
+Any timeout
+Anything the Specialist wants to retry
 
 FINAL TEST
 
-FINAL QUESTION
-What is the Specialist's job inside Intro?
+Q15
+What is the Specialist's operating job inside Intro?
 
 Expected Answer
-Run the recommended adaptive Diagnosis block, preserve its constraints, record observed behaviour truthfully, follow adjacent score-driven movement, and stop when the system locks the topic-entry phase.
+Present the system-selected evidence question, preserve its condition, record concrete behavior and intervention honestly, keep missing or confounded evidence truthful, and follow the system-selected next question until placement is evidence-complete.
 
 Fail Answer
 Assess and decide where the student belongs
 Teach while testing
-Use experience to improve the recommendation
+Keep probing until the student looks strong

@@ -18,8 +18,8 @@ This is the tutor-side flow for running drills in the app and how those drills a
 3. Select or confirm the topic being trained.
 4. Run the drill the app gives for that topic and current state.
 5. Record observations during the drill.
-6. Submit the drill score out of 100.
-7. The system updates the topic state immediately from that drill result.
+6. Submit the recorded behavior evidence for the drill.
+7. The system updates the topic state from the evidence decision for that drill.
 8. If time allows, run another drill in the same training session for the same or another topic.
 9. End the training session when the tutor is done.
 
@@ -53,6 +53,6 @@ The tutor runs drills. The app later groups those drills into the session view.
 ## Tutor Standard
 
 - Do not freestyle the state logic.
-- Do not treat the whole session as one score.
-- Score each drill properly.
+- Do not collapse the whole session into one generic result.
+- Record each drill's behavior evidence accurately.
 - Keep observations clear because reporting quality depends on them.

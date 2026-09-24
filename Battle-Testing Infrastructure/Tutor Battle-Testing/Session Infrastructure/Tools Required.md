@@ -96,12 +96,12 @@ Q9
 What should happen if the page is partly out of frame during a rep?
 
 Expected Answer
-Stop and restore the valid view before using the rep as evidence. Do not score behaviour that could not be observed reliably.
+Stop and restore the valid view before using the rep as evidence. Do not record behaviour as valid evidence when it could not be observed reliably.
 
 Fail Answer
 Continue and infer the missing steps
 Ask the student whether it looked correct
-Score from the final answer
+Judge only from the final answer
 
 Q10
 Does Response Integrity require expensive specialist software or gadgets?
@@ -128,14 +128,14 @@ Yes, if the final answer is visible
 Continue and fix it next session
 
 Scenario 2
-The Specialist's audio repeatedly cuts out, but they complete and score the student's spoken recognition reps. What is wrong?
+The Specialist's audio repeatedly cuts out, but they complete and record the student's spoken recognition reps as clean evidence. What is wrong?
 
 Expected Answer
 The spoken evidence was not reliably observable. Repair the audio condition and rerun affected reps rather than inventing or guessing what was said.
 
 Fail Answer
 Use the tutor's best judgment
-Score from facial expression
+Judge from facial expression
 Audio quality is not part of the drill
 
 Scenario 3

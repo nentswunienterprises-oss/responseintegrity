@@ -12,7 +12,7 @@ const contexts = [
     system:
       "Select probes from the evidence state, strip constraints when needed, derive Low / Medium / High placement, and stop when the required evidence is complete.",
     notFor:
-      "Do not teach through the diagnosis, pick a preferred phase, complete a fixed rep quota, or use a numeric score to place the topic.",
+      "Do not teach through the diagnosis, pick a preferred phase, complete a fixed rep quota, or manually place the topic.",
   },
   {
     title: "Active Training",
@@ -115,7 +115,6 @@ export default function ResponseConditioningSessionFlowControl() {
             <li>Not-observed and confounded evidence remain missing/confounded.</li>
             <li>Support, pressure, variation, difficulty, and timing conditions are part of the evidence.</li>
             <li>One strong-looking answer cannot silently erase a real breakdown, and one failure under a higher constraint does not automatically condemn every earlier layer.</li>
-            <li>Compatibility scores do not decide routing or state.</li>
           </ul>
         </Card>
 

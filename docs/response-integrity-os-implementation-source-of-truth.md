@@ -164,7 +164,7 @@ This is the control layer that determines:
 
 The live implementation is primarily distributed across these files:
 
-- `shared/topicConditioningEngine.ts` — compatibility transition helper and next-action vocabulary
+- `shared/topicConditioningEngine.ts` — legacy transition helper and next-action vocabulary
 - `shared/responseEvidenceModel.ts` — evidence-state resolution and recovery law
 - `shared/trainingEvidenceEvaluator.ts` — live Training evidence authority
 - `shared/evidenceCompleteDiagnosis.ts` / `shared/evidenceCompleteDiagnosisSubmission.ts` — evidence-complete Diagnosis
@@ -407,7 +407,7 @@ When a higher-condition opportunity exposes an earlier-layer break, record the e
 
 The Specialist does not manually move a topic backward. Evidence-native Training authority is resolved through `shared/trainingEvidenceEvaluator.ts` and `shared/responseEvidenceModel.ts`; prerequisite contradictions can route through `resolveTrainingEvidenceAuthorityRoute(...)` to targeted evidence-complete re-diagnosis.
 
-The legacy `computeTransition(...)` helper remains for compatibility and tests. It is not the live evidence authority for Training state movement.
+The legacy `computeTransition(...)` helper remains for migration and tests. It is not the live evidence authority for Training state movement.
 
 ## Phase Doctrine
 
@@ -575,8 +575,6 @@ The result layer conceptually shows:
 - next action
 - active condition, constraint, or timing authority where relevant
 
-Compatibility scores may remain available as technical or historical metadata, but they are not decision authority for Diagnosis, Training evidence movement, Handover, targeted re-diagnosis, or TPS timing.
-
 ### Response Snapshot V1
 
 Implementation:
@@ -585,55 +583,27 @@ Implementation:
 - `client/src/components/tutor/IntroSessionDrillRunner.tsx`
 - `client/src/components/tutor/ViewTrackingSystemsDialog.tsx`
 
-Response Snapshot is a deterministic evidence-translation and explanation layer over persisted drill evidence.
+Response Snapshot is the Specialist-facing evidence explanation layer over persisted drill evidence.
 
-It explains what the student actually demonstrated during the submitted drill without changing scoring, phase movement, stability movement, handover outcomes, session summaries, or parent report algorithms.
+It shows:
 
-For every submitted topic drill, V1 stores and renders:
+- what the drill and each set were intended to expose;
+- the response label derived from the recorded behavior pattern;
+- the ordered rep pattern;
+- the exact weak / partial / clear evidence translation;
+- evidence lineage needed for later reporting.
 
-- drill purpose, drill score, response label, and short drill response
-- set purpose, set score, response label, ordered rep pattern, and set response
-- rep purpose, rep score, response label, and exact weak/partial/clear evidence translation
-- evidence lineage fields for later reporting work
+The Specialist-facing Snapshot does **not** render numeric delivery totals, per-set totals, rep totals, aggregate averages, or any retired delivery-rating language.
 
-The internal observation vocabulary remains:
+Clarity Modeling remains visible as instructional preparation rather than student evidence:
 
-- `weak`
-- `partial`
-- `clear`
+> Modeling completed as preparation. No student observation evidence was recorded for this set.
 
-The human-facing Response Snapshot bands are display-only:
-
-- `0-44` -> `Weak response`
-- `45-69` -> `Partial response`
-- `70-100` -> `Strong response`
-
-These bands mirror the result-screen colors and must not be confused with diagnosis placement logic, handover verification thresholds, or training transition thresholds.
-
-Snapshot prose is generated from the validated evidence payload and registered drill semantics. It must not be Specialist-authored, LLM-generated, or used as a new progression gate. A weak or partial observation remains visible even when the overall rep, set, or drill displays as Strong.
-
-The stored drill JSON now includes `responseSnapshot` for new diagnosis, training, and handover verification submissions. Tracking Systems renders the stored snapshot beside each Session Log, after `What Was Trained` and before `Observed Response`.
-
-When a stored snapshot exists, `Observed Response` must be projected from the snapshot evidence rather than from the older broad behavior mapper. The field should summarize the strong response evidence and keep any weak or partial dimensions visible, including limiting evidence inside an otherwise strong rep. Later reports may use the structured lineage fields, but they must not mine the generated prose as a source of claims.
-
-The session-level `Observed Response` projection above is intentionally approved as the V1.1 session display contract. It is a projection from the persisted drill snapshot, not a new scoring rule and not a progression input.
-
-Response Snapshot V1 includes the full drill-level pattern layer:
-
-- Clarity training resolves the 9 scored two-set patterns across Identification and Light Apply.
-- Structured Execution, Controlled Discomfort, and Time Pressure Stability training each resolve the 27 ordered three-set patterns for that phase.
-- Drill `patternCode` is calculated from scored sets only. Clarity Modeling is still rendered as a `Not scored` set, but it does not add an artificial `N` to the scored drill matrix.
-- Set `patternCode` remains the ordered three-rep pattern for that set.
-
-Clarity Modeling must remain visible in the persisted snapshot as a non-scored set:
-
-> Modeling completed as a modeling set. No scored student response was recorded for this set.
-
-Persisted snapshot wording is historical output. Render stored `resultText` for persisted drill, set, and rep rows; use live formatters only for generation-time construction, legacy cleanup, or explicit migrations. Future wording improvements must not silently rewrite the meaning of an already submitted drill log.
+Persisted snapshot wording is historical output. Render stored `resultText` for persisted drill, set, and rep rows; use live formatters only for generation-time construction, cleanup, or explicit migrations. Future wording improvements must not silently rewrite the meaning of an already submitted drill log.
 
 Evidence lineage must separate evidence occurrences from selected option definitions. `reportingLineage.evidenceIds` stores deterministic occurrence IDs tied to the source drill, schema, set, rep, and dimension. `reportingLineage.selectedOptionIds` stores reusable semantic option IDs. Later reports may aggregate occurrence IDs and option IDs, but must not treat option IDs alone as proof that a specific student produced specific evidence.
 
-On the immediate result screen, Response Snapshot is the main human-facing evidence explanation. The older raw per-set score cards remain available only as a collapsed technical disclosure labeled `View scoring breakdown`.
+On the immediate result screen and inside Tracking Systems, Response Snapshot is the evidence explanation. Specialist delivery surfaces must not expose retired numeric delivery outputs or their terminology.
 
 ## Map And Specialist Control View
 
@@ -961,7 +931,7 @@ Durable diagnosis state preserves the ordered probe history, starting signal, co
 
 The previous fixed-repetition/adaptive intro diagnosis is not a supported live intro path and cannot be selected with a query flag or Specialist control.
 
-Historical compatibility code and stored records may remain where removal would damage existing evidence. Targeted handover re-diagnosis remains a separate handover workflow and must not be described or exposed as an intro fallback.
+Historical implementation code and stored records may remain where removal would damage existing evidence. Targeted handover re-diagnosis remains a separate handover workflow and must not be described or exposed as an intro fallback.
 
 ## Training System
 
@@ -978,7 +948,7 @@ Implementation:
 - `shared/responseEvidenceModel.ts`
 - `shared/tpsTrainingReadiness.ts`
 - `shared/tpsTimingAuthority.ts` is represented server-side by `server/tpsTimingAuthority.ts`; the route surface is `server/tpsTimingRoutes.ts`
-- `shared/topicConditioningEngine.ts` remains for compatibility transition helpers and next-action vocabulary
+- `shared/topicConditioningEngine.ts` remains for legacy transition helpers and next-action vocabulary
 
 ### Training product law
 
@@ -989,33 +959,6 @@ The lesson may contain multiple topics, but each topic drill produces its own pe
 The live authority chain is:
 
 `raw Specialist observation + intervention/condition -> evidence eligibility -> dimension evidence class -> recovery/minimum-evidence law -> topic-state decision / targeted re-diagnosis`
-
-Compatibility scores may still be calculated for historical display, Response Snapshot, or migration support. They do not decide phase, stability, recovery, progression, regression, re-diagnosis, or TPS timing readiness.
-
-### Compatibility training set weights
-
-These weights describe the retained compatibility score surface only; they are not live topic-state authority.
-
-Clarity:
-
-- compatibility-scored sets are `Identification` and `Light Apply`
-- weighting is `2:2`
-- the modeling step is instructional context, not decision-eligible observation evidence
-
-Structured Execution:
-
-- compatibility scoring uses all 3 sets
-- weighting is `1:2:2`
-
-Controlled Discomfort:
-
-- compatibility scoring uses all 3 sets
-- weighting is `1:2:2`
-
-Time Pressure Stability:
-
-- compatibility scoring uses all 3 sets
-- weighting is `1:2:2`
 
 ### Important modeling-step clarification
 
@@ -1050,9 +993,10 @@ Type:
 
 - pre-drill modeling step
 
-Scoring:
+Evidence role:
 
-- not scored
+- instructional preparation only
+- no decision-eligible student observation evidence
 
 Purpose:
 
@@ -1070,7 +1014,7 @@ Active rules:
 
 #### Persistent Topic Reference
 
-The first time a Specialist opens `Clarity` training `Set 1: Modeling` for a student-topic, the drill runner requires a Topic Reference before the scored sets can begin.
+The first time a Specialist opens `Clarity` training `Set 1: Modeling` for a student-topic, the drill runner requires a Topic Reference before the observation sets can begin.
 
 The Topic Reference captures:
 
@@ -1498,91 +1442,31 @@ Typical options:
 - pace: `rushed / uneven / controlled`
 - start: `panic / hesitant / controlled`
 
-## Training Transition Engine
+## Training State Authority
 
 Implementation:
 
-- `shared/topicConditioningEngine.ts`
+- `shared/trainingEvidenceEvaluator.ts`
+- `shared/responseEvidenceModel.ts`
+- `shared/topicConditioningEngine.ts` for legacy migration helpers and next-action vocabulary
 
-### Inputs
+### Live authority
 
-The core transition engine accepts:
+Training state movement is evidence-native.
 
-- previous phase
-- previous stability
-- normalized drill total out of 100
+The live authority chain is:
 
-### Outputs
+`raw behavior + intervention/condition -> evidence eligibility -> dimension evidence class -> minimum-evidence / recovery law -> state decision`
 
-It returns:
+The system returns:
 
-- next phase
-- next stability
-- transition reason
+- resulting phase;
+- resulting stability;
+- reason;
+- next action;
+- targeted re-diagnosis requirement where a prerequisite contradiction is detected.
 
-### Transition reasons
-
-The live transition reasons are:
-
-- `remain`
-- `stability advance`
-- `stability regress`
-- `phase progress`
-
-### Live transition matrix
-
-From `Low`:
-
-- `0-49` -> remain `Low`
-- `50-79` -> `Medium`
-- `80-100` -> `High`
-
-From `Medium`:
-
-- `0-44` -> `Low`
-- `45-79` -> remain `Medium`
-- `80-100` -> `High`
-
-From `High`:
-
-- `0-49` -> `Medium`
-- `50-84` -> remain `High`
-- `85-100` -> `High Maintenance`
-
-From `High Maintenance`:
-
-- `0-59` -> `High`
-- `60-84` -> remain `High Maintenance`
-- `85-100` -> phase progress
-
-### Phase progress rule
-
-Phase progress only happens when:
-
-- previous stability is `High Maintenance`
-- score is `85+`
-
-If phase progress happens:
-
-- the system enters the next phase
-- the new stability is always `Low`
-
-Exception:
-
-- if the current phase is already `Time Pressure Stability`, the result remains `Time Pressure Stability / High Maintenance`
-
-### Important live note about Training authority
-
-Compatibility score and guard fields can still be calculated for historical display, comparison, or migration paths.
-
-They are not the live authority for Training state movement.
-
-Current Training authority is evidence-native:
-
-- raw Specialist observations are evaluated through `shared/trainingEvidenceEvaluator.ts`;
-- dimension recovery and minimum-evidence laws come from `shared/responseEvidenceModel.ts`;
-- prerequisite contradictions can route to targeted evidence-complete re-diagnosis;
-- compatibility score output must not override the evidence-native decision.
+The Specialist does not see or act on retired numeric delivery outputs. Historical implementation fields may remain in storage or migration code where deleting them would damage old records, but they are not rendered in Specialist delivery surfaces and are not part of current operating doctrine.
 
 ## Next Action Engine
 
@@ -1750,7 +1634,7 @@ Each dimension uses the same Response Evidence classes as Diagnosis:
 
 The Specialist sees and selects concrete behaviors. They do not select these classes directly and do not select the state outcome.
 
-`not_observed` and `confounded` are not decision-eligible. They count as neither weakness nor strength and contribute no technical compatibility points.
+`not_observed` and `confounded` are not decision-eligible. They count as neither weakness nor strength and contribute no decision weight.
 
 ### Shared dimension resolution
 
@@ -1778,8 +1662,6 @@ The whole-topic Handover decision is derived from the dimension states:
 - persistent `CONDITIONAL` at the bounded limit -> `stability_adjust` within the inherited phase;
 - only `SUPPORTED` / `NEAR_STABLE` dimensions with enough evidence -> `hold`;
 - all dimensions `SUPPORTED` -> `hold` with strong confidence.
-
-Compatibility scores may still be stored or displayed behind technical-detail surfaces. They have `scoreAuthority: false` and must never decide phase, stability, regression, recovery, or re-diagnosis.
 
 ### Stability adjustment rule
 
@@ -1815,7 +1697,7 @@ The live Handover result teaches from evidence authority first:
 - recovery status where applicable;
 - next action and constraint.
 
-Response Snapshot and compatibility output are technical secondary detail, not the operating decision.
+Response Snapshot is supporting evidence detail; the evidence decision is the operating truth.
 
 ## Behavior-Language Engine
 
@@ -2877,13 +2759,13 @@ Older docs sometimes described 2 modeled Clarity problems.
 The live runner uses:
 
 - a single pre-drill modeling step in the UI
-- followed by the scored Clarity drill sets
+- followed by the Clarity observation sets
 
 Trust the live runner and this file.
 
 ### 2. Diagnosis-structure drift
 
-Older docs described fixed multi-set or score-band adaptive intro diagnosis.
+Older docs described fixed multi-set or threshold-band adaptive intro diagnosis.
 
 The live intro diagnosis now uses:
 
@@ -2892,14 +2774,14 @@ The live intro diagnosis now uses:
 - evidence-complete stopping rather than a fixed rep count;
 - constraint stripping and deconfounding when needed;
 - behavior-native Low / Medium / High placement;
-- no numeric score authority;
+- behavior evidence owns placement authority;
 - no intro fallback to the previous adaptive runner.
 
 Trust the evidence-complete diagnosis contract and the live evidence-complete runner.
 
 ### 3. Training-authority drift
 
-Some older scoring explainers describe score thresholds or `highGuardPasses` as if they directly authorize live Training progression.
+Some older transition explainers describe numeric thresholds or `highGuardPasses` as if they directly authorize live Training progression.
 
 Current live Training state authority is evidence-native:
 
@@ -2908,7 +2790,7 @@ Current live Training state authority is evidence-native:
 - prerequisite contradictions can route through `resolveTrainingEvidenceAuthorityRoute(...)` to targeted evidence-complete re-diagnosis;
 - TPS progression additionally requires valid individualized timing authority.
 
-The legacy `computeTransition(...)` helper and compatibility scores remain available for historical/test/display paths. They do not override the evidence-native Training decision.
+The legacy `computeTransition(...)` helper remains available for migration and test paths. It does not override the evidence-native Training decision and is not rendered in Specialist delivery surfaces.
 
 ### 4. Final-phase drift
 

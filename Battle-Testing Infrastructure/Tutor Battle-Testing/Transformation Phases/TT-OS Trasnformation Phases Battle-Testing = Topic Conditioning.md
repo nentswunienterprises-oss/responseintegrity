@@ -171,4 +171,4 @@ It is unacceptable. The Specialist has overridden operator authority and the evi
 Fail Answer
 Experienced tutors may override the system
 Move ahead when the student seems ready
-The score is only guidance
+The system state can be ignored if the Specialist disagrees

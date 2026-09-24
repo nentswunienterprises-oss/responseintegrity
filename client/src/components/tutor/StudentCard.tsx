@@ -1213,13 +1213,7 @@ function HandoverVerificationSection({
         <div className={`rounded-xl border px-4 py-3 space-y-2 ${reDiagnosisRequired ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}>
           <p className="text-[11px] font-semibold text-foreground">Latest Handover Result</p>
           <p className="text-sm font-medium text-foreground">{latestSummary.verificationOutcomeLabel || "Verification submitted"}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Decision Authority</p>
-              <p className="mt-1 text-sm font-medium text-foreground">
-                {latestSummary.decisionAuthority === "evidence_native" ? "Evidence-native" : "Legacy compatibility"}
-              </p>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Resulting Phase</p>
               <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.resultingPhase || "-"}</p>

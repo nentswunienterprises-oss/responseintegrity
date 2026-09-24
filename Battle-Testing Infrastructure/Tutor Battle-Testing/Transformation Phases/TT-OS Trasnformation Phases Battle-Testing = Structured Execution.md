@@ -107,7 +107,7 @@ Q10
 Who decides whether the topic moves beyond Structured Execution?
 
 Expected Answer
-The system uses repeated scored evidence. The Specialist runs the assigned sets and logs truthfully; they do not advance the phase because the student seems ready.
+The system uses repeated qualifying evidence. The Specialist runs the assigned sets and logs truthfully; they do not advance the phase because the student seems ready.
 
 Fail Answer
 The Specialist decides after the session

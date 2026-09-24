@@ -132,9 +132,9 @@ const AUTO_CRITICAL_REASON_BY_PHASE: Record<string, Record<string, string>> = {
     Q15: "Manually overrides evidence-based topic movement.",
   },
   intro_session_structure: {
-    "Scenario 2": "Converts Intro into teaching and scores assisted performance as placement evidence.",
-    "Scenario 3": "Bypasses adjacent score-driven placement with Specialist instinct.",
-    "Scenario 4": "Allows parent preference to override scored topic placement.",
+    Q7: "Converts Intro Diagnosis into teaching and treats assisted performance as placement evidence.",
+    Q9: "Assigns phase or starting stability to Specialist judgment instead of the evidence model.",
+    Q13: "Uses technical-failure recovery as a second chance instead of preserving the unresolved evidence question and fresh-reserve boundary.",
   },
   logging_system: {
     Q4: "Selects a preferred observation instead of the behaviour that occurred.",
@@ -193,9 +193,9 @@ const QUESTION_PROMPT_VARIANTS: Record<
     form_b: "A Specialist says, 'The score held the topic, but I advanced it because today's work looked better.' What is the integrity judgment?",
     form_c: "A parent asks for the next phase and the Specialist changes the topic-state without qualifying system evidence. Is that within operator authority?",
   },
-  "intro_session_structure:Scenario 2": {
-    form_b: "During Intro, the Specialist teaches the method before every response and then uses those responses to place the topic. Is the placement evidence valid?",
-    form_c: "An Intro becomes a mini lesson, and the Specialist scores the student's post-explanation answers as independent Diagnosis evidence. What failed?",
+  "intro_session_structure:Q7": {
+    form_b: "During Intro Diagnosis, the student is stuck and the Specialist teaches the method before the response is recorded. Can that assisted response still establish placement evidence?",
+    form_c: "A Diagnosis opportunity turns into a mini lesson before the student responds. What must happen to the evidence from that opportunity?",
   },
   "logging_system:Scenario 2": {
     form_b: "Three rep options were never captured. At session end, the Specialist fills them in from the overall impression so submission can proceed. Is that valid?",

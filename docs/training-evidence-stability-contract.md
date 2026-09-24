@@ -517,7 +517,7 @@ Specifically, a score may not independently:
 
 ## 14. Response Snapshot
 
-Response Snapshot should evolve from score explanation into evidence explanation.
+Response Snapshot is an evidence explanation layer.
 
 The durable source is already the exact evidence occurrence:
 
@@ -555,42 +555,39 @@ A report may say a capability became stronger only when the evidence lineage sup
 
 Diagnosis-only evidence may establish a baseline but must not be described as training improvement.
 
-Future report claim authorization should reason over evidence occurrences and constraint context rather than broad score bands.
+Future report claim authorization should reason over evidence occurrences and constraint context rather than broad aggregate bands.
 
-## 16. Migration sequence
+## 16. Migration status — complete
 
-The safe migration order is:
+The evidence-native Training migration is complete for live state authority:
 
-1. Lock this contract.
-2. Encode the phase evidence contract in shared code.
-3. Build a training evidence evaluator that reads existing versioned drill evidence without changing live state.
-4. Persist its result beside the current score-driven result as shadow output.
-5. Replay sandbox and proof drills and compare score authority against evidence authority.
-6. Add explicit support-aware evidence eligibility where current capture is insufficient.
-7. Define and validate High Maintenance entry and exit evidence in the live UI.
-8. Prerequisite contradiction detection and targeted re-diagnosis routing implemented through cross-layer sentinels.
-9. Cut state authority over from score to evidence only after proof.
-10. Migrate Response Snapshot and reporting claim authority.
-11. Retain numeric scores only where they remain useful as non-authoritative analytics.
+1. phase evidence contracts are encoded in shared code;
+2. the Training evidence evaluator reads versioned drill evidence;
+3. support-aware eligibility is enforced;
+4. High Maintenance entry and exit evidence are explicit;
+5. prerequisite contradiction routing is live;
+6. state authority is evidence-native;
+7. Response Snapshot and report claim authority are downstream of the same evidence lineage;
+8. retired numeric delivery outputs are not part of Specialist operating surfaces.
 
-## 17. Acceptance tests for the future engine
+## 17. Acceptance tests for the live engine
 
-The evidence-native training engine must prove at least these cases:
+The evidence-native Training engine must prove at least these cases:
 
 1. One early breakdown followed by clean recovery does not automatically make the phase Low.
 2. Repeated breakdown in a phase-critical dimension cannot be averaged away by strong unrelated dimensions.
-3. A 98/100 compatibility score cannot mint High Maintenance if a phase-critical behavior remains unresolved.
+3. Strong unrelated evidence cannot mint High Maintenance while a phase-critical behavior remains unresolved.
 4. Not-observed and confounded evidence cannot count as weak evidence.
 5. Supported evidence collected after invalid assistance cannot prove an independent dimension that the assistance supplied.
 6. Low or Medium may move directly to High when the full High evidence contract is genuinely satisfied.
-7. High cannot become High Maintenance from score alone.
+7. High cannot become High Maintenance from one isolated strong occurrence.
 8. High Maintenance cannot progress without a later exit-confirmation session.
 9. Final-phase High Maintenance remains in Time Pressure Stability after successful confirmation.
 10. A current-phase breakdown never directly forces a previous phase.
 11. A prerequisite contradiction routes to targeted re-diagnosis.
 12. Every state movement can return the exact evidence occurrences that authorized it.
 13. Reports cannot claim training improvement from diagnosis-only evidence.
-14. Existing legacy score fields can be present while having zero decision authority.
+14. Historical implementation fields may remain without becoming Specialist-facing authority.
 
 ## 18. System statement
 
@@ -611,40 +608,10 @@ And the stability ladder means:
 > Phase progression = a later High Maintenance confirmation proves the phase remains supported under its exit conditions.
 
 
-## 19. Shadow proof dataset
+## 19. Historical proof lineage
 
-Every new versioned training drill produces an immutable comparison row containing:
+The pre-cutover comparison dataset remains immutable proof of the migration period. It is an internal engineering artifact only.
 
-- the legacy compatibility score and transition;
-- the evidence-native observed stability and predicted transition;
-- whether phase/stability state paths diverged (`diverged` / `stateDiverged`);
-- whether transition-reason labels diverged separately (`reasonDiverged`);
-- High Maintenance entry qualification;
-- exit qualification;
-- intervention events;
-- ineligible evidence count;
-- the evaluator version and contract version;
-- the complete shadow evaluation payload.
+It must not be rendered in Specialist delivery surfaces, used as a Specialist teaching concept, or treated as a current operating authority.
 
-The dataset is proof-only and protected by RLS with no direct client policies. It cannot authorize live topic state.
-
-Comparison contract version 2 defines `diverged` as a phase/stability state disagreement only. A reason-label mismatch without a state disagreement is preserved as `reasonDiverged = true` and does not make `diverged` true.
-
-A new evaluator or contract version must create a new comparison identity rather than rewriting prior proof. Historical comparisons are evidence about a particular engine version and remain immutable.
-
-### Authority-cutover evidence
-
-No single divergence rate is sufficient to authorize cutover.
-
-Before evidence becomes live authority, the proof set must demonstrate:
-
-- representation across all four phases;
-- representation across Low, Medium, High, and High Maintenance histories;
-- recovery, deterioration, support/intervention, not-observed, and confounded cases;
-- stable replay results for the same evaluator/contract version;
-- every divergence classified as either a legacy-score failure, evidence-engine defect, capture insufficiency, or an intentionally conservative difference;
-- no unexplained state movement;
-- exact source evidence for every evidence-native transition;
-- parent/report claims remaining downstream of the same evidence authority.
-
-Until those conditions are met, the comparison dataset is observational only.
+Future evaluator versions must continue to preserve exact source evidence, version identity, recovery logic, intervention/confounding truth, and deterministic replay without reintroducing retired delivery-rating concepts.

@@ -119,10 +119,64 @@ test("technical timing replacement is an unresolved-slot reserve path, not a sec
   assert.doesNotMatch(contract, /retry (?:this|the) same (?:rep|problem)/i);
 });
 
+test("Specialist delivery surfaces do not expose retired delivery-rating language", () => {
+  const specialistSurfacePaths = [
+    "client/src/components/tutor/IntroSessionDrillRunner.tsx",
+    "client/src/components/tutor/StudentReportsDialog.tsx",
+    "client/src/components/tutor/StudentCard.tsx",
+    "client/src/components/tutor/ViewTrackingSystemsDialog.tsx",
+    "client/src/pages/responseconditioningsystem/session-infrastructure/logging-system.tsx",
+    "client/src/pages/responseconditioningsystem/session-infrastructure/session-flow-control.tsx",
+    "client/src/pages/responseconditioningsystem/session-infrastructure/drill-library.tsx",
+    "client/src/pages/responseconditioningsystem/session-infrastructure/handover-verification.tsx",
+    "client/src/pages/responseconditioningsystem/execution-standards/what-not-to-do.tsx",
+    "Battle-Testing Infrastructure/Tutor Battle-Testing/Session Infrastructure/Drill Library.md",
+    "Battle-Testing Infrastructure/Tutor Battle-Testing/Session Infrastructure/Handover verification.md",
+    "Battle-Testing Infrastructure/Tutor Battle-Testing/Session Infrastructure/Intro Session Structure.md",
+    "Battle-Testing Infrastructure/Tutor Battle-Testing/Session Infrastructure/Logging System.md",
+    "Battle-Testing Infrastructure/Tutor Battle-Testing/Session Infrastructure/Tools Required.md",
+    "Battle-Testing Infrastructure/Tutor Battle-Testing/Transformation Phases/TT-OS Trasnformation Phases Battle-Testing = Clarity.md",
+    "Battle-Testing Infrastructure/Tutor Battle-Testing/Transformation Phases/TT-OS Trasnformation Phases Battle-Testing = Controlled Discomfort.md",
+    "Battle-Testing Infrastructure/Tutor Battle-Testing/Transformation Phases/TT-OS Trasnformation Phases Battle-Testing = Structured Execution.md",
+    "Battle-Testing Infrastructure/Tutor Battle-Testing/Transformation Phases/TT-OS Trasnformation Phases Battle-Testing = Topic Conditioning.md",
+  ];
+
+  const prohibited = [
+    /compatibility score/i,
+    /compatibility scoring/i,
+    /compatibility average/i,
+    /legacy compatibility/i,
+    /topic score/i,
+    /phase score/i,
+    /score band/i,
+    /score-driven/i,
+    /scored evidence/i,
+    /scored proof/i,
+    /actual score/i,
+    /view scoring breakdown/i,
+  ];
+
+  for (const sourcePath of specialistSurfacePaths) {
+    const source = read(sourcePath);
+    for (const pattern of prohibited) {
+      assert.doesNotMatch(source, pattern, `${sourcePath}: ${pattern}`);
+    }
+  }
+
+  assert.doesNotMatch(
+    read("client/src/components/tutor/IntroSessionDrillRunner.tsx"),
+    /responseSnapshotScoreLabel/,
+  );
+  assert.doesNotMatch(
+    read("client/src/components/tutor/ViewTrackingSystemsDialog.tsx"),
+    /responseSnapshotScoreLabel/,
+  );
+});
+
 test("canonical Deep Dive authority is evidence-native", () => {
   const source = read("docs/response-integrity-os-implementation-source-of-truth.md");
   assert.match(source, /Layer inheritance and evidence authority/);
-  assert.match(source, /Current Training authority is evidence-native/);
+  assert.match(source, /Training state movement is evidence-native/);
   assert.doesNotMatch(source, /current live training transition engine is driven by score/i);
   assert.doesNotMatch(source, /Run (Clarity|Structured Execution|Controlled Discomfort) High Maintenance drill/);
 });

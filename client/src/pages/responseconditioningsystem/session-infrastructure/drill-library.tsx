@@ -19,7 +19,7 @@ const drillTypes = [
     authority:
       "The evidence-complete diagnosis engine selects the smallest next probe needed to resolve the named evidence question.",
     boundary:
-      "Diagnosis is not a fixed phase block, fixed rep quota, or numeric score ladder. Specialists do not choose the next probe or placement.",
+      "Diagnosis is not a fixed phase block or fixed rep quota. Specialists do not choose the next probe or placement.",
   },
   {
     title: "Training drills",

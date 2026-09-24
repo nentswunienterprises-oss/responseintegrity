@@ -136,7 +136,6 @@ export default function ResponseConditioningHandoverVerification() {
               </div>
             ))}
           </div>
-          <p className="text-sm text-muted-foreground">Compatibility scores may still exist as technical metadata. They do not decide phase, stability, recovery, regression, or re-diagnosis.</p>
         </Card>
 
         <Card className="p-6 space-y-4">
