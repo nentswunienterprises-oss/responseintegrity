@@ -136,7 +136,7 @@ export default function ResponseConditioningHandoverVerification() {
               </div>
             ))}
           </div>
-          <p className="text-sm text-muted-foreground">Compatibility scores may still exist as technical metadata. They do not decide phase, stability, recovery, regression, or re-diagnosis.</p>
+          <p className="text-sm text-muted-foreground">Continuity decisions come from decision-eligible evidence, dimension resolution, recovery law, and the inherited condition.</p>
         </Card>
 
         <Card className="p-6 space-y-4">

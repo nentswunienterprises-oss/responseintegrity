@@ -242,7 +242,7 @@ export default function ResponseConditioningWhatNotToDo() {
           <div>
             <p className="font-semibold mb-2">By Phase</p>
             <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>Clarity: correct naming and explanation are part of the actual score.</li>
+              <li>Clarity: correct naming and explanation are part of decision-eligible Clarity evidence.</li>
               <li>Later phases: pressure does not excuse vague terms or skipped reasoning.</li>
             </ul>
           </div>

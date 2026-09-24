@@ -172,19 +172,19 @@ Example:
 - `Structured Execution (High)` -> `1 * 10 + 2 = 12`
 - `Controlled Discomfort (Low)` -> `2 * 10 + 0 = 20`
 
-## Transition engine
+## Evidence-native state authority
 
-The transition engine receives:
+Reports must not derive claims from a numeric drill total.
 
-- previous phase
-- previous stability
-- drill total out of 100
+Authoritative report inputs are:
 
-It returns:
+- previous verified phase and stability;
+- decision-eligible evidence occurrences in the report window;
+- resolved dimension state and recovery history;
+- authoritative next state / next action from the Response Evidence Model;
+- active support, variation, difficulty, and timing conditions.
 
-- next phase
-- next stability
-- transition reason
+Reports describe state movement only when the persisted evidence-native decision supports that claim.
 
 ### Low stability
 

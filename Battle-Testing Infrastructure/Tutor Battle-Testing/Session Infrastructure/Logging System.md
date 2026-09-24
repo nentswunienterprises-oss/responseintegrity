@@ -6,7 +6,7 @@ Q1
 What is the purpose of logging in Response Integrity?
 
 Expected Answer
-To preserve a trustworthy rep-by-rep record of what the student actually did so the system can score the response, determine the next action, and support defensible downstream reporting.
+To preserve a trustworthy rep-by-rep record of what the student actually did so the system can interpret the evidence, determine the next action, and support defensible downstream reporting.
 
 Fail Answer
 To write a session summary
@@ -31,7 +31,7 @@ Expected Answer
 Because the set defines the condition being tested and each repetition is a separate evidence opportunity. Removing that lineage makes the behaviour impossible to interpret against the intended constraint.
 
 Fail Answer
-Only the final phase total matters
+Only the final state label matters
 The tutor will remember the context
 Set and rep numbers are administration
 
@@ -85,7 +85,7 @@ Q8
 The Specialist supplied repeated prompts, but selects "independent" because the student eventually completed the question. What integrity breach occurred?
 
 Expected Answer
-Assisted performance was recorded as independent evidence. The selected option does not match the condition or behaviour, so the score and any resulting movement are invalid.
+Assisted performance was recorded as independent evidence. The selected option does not match the condition or behaviour, so the evidence claim and any resulting movement are invalid.
 
 Fail Answer
 No breach because the student completed it

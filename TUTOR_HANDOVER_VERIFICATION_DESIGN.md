@@ -317,11 +317,9 @@ Therefore:
 - breakdown + three trailing supported opportunities can resolve as recovered;
 - the Specialist must not keep adding opportunities after the system has already resolved an outcome.
 
-## Compatibility Scores
+## Decision Authority
 
-Compatibility scoring may remain in storage or technical diagnostic surfaces for historical continuity. It has no Handover decision authority.
-
-Do not use score bands to decide phase, stability, regression, recovery, or re-diagnosis.
+Handover decisions are evidence-native. Specialist-facing Handover surfaces show inherited state, observed behavior, evidence eligibility, dimension resolution, resulting state, reason, and next action.
 
 ## Data Integrity Rule
 
@@ -345,7 +343,6 @@ Each Handover event preserves:
 - next action and constraint;
 - timestamp.
 
-Any compatibility score is technical metadata only.
 
 ## Practical Evidence Examples
 

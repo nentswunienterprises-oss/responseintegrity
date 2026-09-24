@@ -96,12 +96,12 @@ Q9
 What should happen if the page is partly out of frame during a rep?
 
 Expected Answer
-Stop and restore the valid view before using the rep as evidence. Do not score behaviour that could not be observed reliably.
+Stop and restore the valid view before using the rep as evidence. Do not treat behaviour that could not be observed reliably as decision-eligible evidence.
 
 Fail Answer
 Continue and infer the missing steps
 Ask the student whether it looked correct
-Score from the final answer
+Infer the missing behaviour from the final answer
 
 Q10
 Does Response Integrity require expensive specialist software or gadgets?

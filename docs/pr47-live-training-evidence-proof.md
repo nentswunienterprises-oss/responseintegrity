@@ -8,7 +8,7 @@ Branch: `feat/evidence-complete-diagnosis`
 
 This record closes the live mixed-scenario acceptance proof for Training evidence authority.
 
-The acceptance standard was not "the evaluator unit tests pass." The requirement was to drive materially different observation patterns through the deployed Specialist Training UI, submit them through the real Training endpoint, inspect the visible result, and confirm that the persisted student topic state follows the evidence-native decision rather than the legacy compatibility score.
+The acceptance standard was not "the evaluator unit tests pass." The requirement was to drive materially different observation patterns through the deployed Specialist Training UI, submit them through the real Training endpoint, inspect the visible result, and confirm that the persisted student topic state follows the evidence-native decision rather than the retired numeric transition output.
 
 ## Proof environment
 
@@ -50,7 +50,7 @@ The selector failure was therefore a proof-harness issue, not a product failure.
 
 ## Scenario matrix
 
-| Scenario | Raw compatibility score | Evidence observation | Authoritative transition | Persisted result | Result |
+| Scenario | Retired numeric output | Evidence observation | Authoritative transition | Persisted result | Result |
 | --- | ---: | --- | --- | --- | --- |
 | Clean strength from High | 100 | High | `high maintenance entry` | Time Pressure Stability / High Maintenance | PASS |
 | Raw strong answers with timer changed on every timed opportunity | 100 | Medium | `stability regress` | Time Pressure Stability / High | PASS |
@@ -64,19 +64,19 @@ Overall product result: **7 / 7 mixed live UI scenarios passed.**
 
 ## Strongest authority proof
 
-The `raw-strong-but-timer-confounded` case intentionally selected the strongest raw behavior option on every timed observation, which produced a compatibility score of **100 / 100**.
+The `raw-strong-but-timer-confounded` case intentionally selected the strongest raw behavior option on every timed observation, which produced a retired numeric output of **100 / 100**.
 
 The Specialist also recorded **Timer changed** for every opportunity. The evidence eligibility layer therefore treated the timed observations as contaminated rather than clean capability evidence.
 
 The live outcome was:
 
-- compatibility score: `100`
+- retired numeric output: `100`
 - evidence-observed stability: `Medium`
 - decision authority: `evidence_native`
 - transition: `stability regress`
 - persisted state: `Time Pressure Stability / High`
 
-This directly proves that the compatibility score does not have authority to override behavioral evidence.
+This directly proves that the retired numeric output does not have authority to override behavioral evidence.
 
 ## Persistence verification
 
@@ -108,7 +108,7 @@ For these decisions, the tested chain is:
 
 `Specialist observation -> evidence eligibility -> dimension state -> observed stability -> evidence-native transition -> UI result -> persisted topic state`
 
-The compatibility score is observational only.
+The retired numeric output is observational only.
 
 ## Prerequisite-loss follow-up
 

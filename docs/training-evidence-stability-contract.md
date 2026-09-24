@@ -517,7 +517,7 @@ Specifically, a score may not independently:
 
 ## 14. Response Snapshot
 
-Response Snapshot should evolve from score explanation into evidence explanation.
+Response Snapshot is an evidence explanation surface.
 
 The durable source is already the exact evidence occurrence:
 
@@ -555,7 +555,7 @@ A report may say a capability became stronger only when the evidence lineage sup
 
 Diagnosis-only evidence may establish a baseline but must not be described as training improvement.
 
-Future report claim authorization should reason over evidence occurrences and constraint context rather than broad score bands.
+Report claim authorization must reason over evidence occurrences and constraint context rather than retired numeric aggregates.
 
 ## 16. Migration sequence
 
@@ -564,14 +564,14 @@ The safe migration order is:
 1. Lock this contract.
 2. Encode the phase evidence contract in shared code.
 3. Build a training evidence evaluator that reads existing versioned drill evidence without changing live state.
-4. Persist its result beside the current score-driven result as shadow output.
-5. Replay sandbox and proof drills and compare score authority against evidence authority.
+4. Persist its result beside the then-current retired numeric result as shadow output.
+5. Replay sandbox and proof drills and compare the retired numeric output against evidence authority.
 6. Add explicit support-aware evidence eligibility where current capture is insufficient.
 7. Define and validate High Maintenance entry and exit evidence in the live UI.
 8. Prerequisite contradiction detection and targeted re-diagnosis routing implemented through cross-layer sentinels.
-9. Cut state authority over from score to evidence only after proof.
+9. Cut state authority over to evidence only after proof.
 10. Migrate Response Snapshot and reporting claim authority.
-11. Retain numeric scores only where they remain useful as non-authoritative analytics.
+11. Remove retired numeric output from Specialist-facing surfaces; retain historical fields only where migration requires them.
 
 ## 17. Acceptance tests for the future engine
 
@@ -579,18 +579,18 @@ The evidence-native training engine must prove at least these cases:
 
 1. One early breakdown followed by clean recovery does not automatically make the phase Low.
 2. Repeated breakdown in a phase-critical dimension cannot be averaged away by strong unrelated dimensions.
-3. A 98/100 compatibility score cannot mint High Maintenance if a phase-critical behavior remains unresolved.
+3. A strong-looking aggregate cannot mint High Maintenance if a phase-critical behavior remains unresolved.
 4. Not-observed and confounded evidence cannot count as weak evidence.
 5. Supported evidence collected after invalid assistance cannot prove an independent dimension that the assistance supplied.
 6. Low or Medium may move directly to High when the full High evidence contract is genuinely satisfied.
-7. High cannot become High Maintenance from score alone.
+7. High cannot become High Maintenance without the required later decision-eligible evidence.
 8. High Maintenance cannot progress without a later exit-confirmation session.
 9. Final-phase High Maintenance remains in Time Pressure Stability after successful confirmation.
 10. A current-phase breakdown never directly forces a previous phase.
 11. A prerequisite contradiction routes to targeted re-diagnosis.
 12. Every state movement can return the exact evidence occurrences that authorized it.
 13. Reports cannot claim training improvement from diagnosis-only evidence.
-14. Existing legacy score fields can be present while having zero decision authority.
+14. Historical numeric fields may remain in storage while having zero decision authority and zero Specialist-facing presentation.
 
 ## 18. System statement
 
@@ -615,7 +615,7 @@ And the stability ladder means:
 
 Every new versioned training drill produces an immutable comparison row containing:
 
-- the legacy compatibility score and transition;
+- the retired numeric output and historical transition;
 - the evidence-native observed stability and predicted transition;
 - whether phase/stability state paths diverged (`diverged` / `stateDiverged`);
 - whether transition-reason labels diverged separately (`reasonDiverged`);

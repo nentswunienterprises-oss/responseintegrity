@@ -189,7 +189,7 @@ export default function ResponseConditioningLoggingSystem() {
             A result must be traceable to evidence: the behavior pattern that mattered, whether the evidence was eligible, the resulting phase/stability or continuity outcome, the reason for that decision, the next action, and the active condition.
           </p>
           <p className="font-semibold">
-            Compatibility scores may exist as technical metadata. They do not decide phase, stability, recovery, regression, re-diagnosis, or progression.
+            System decisions are made from recorded evidence, evidence eligibility, resolved dimension state, and the active condition.
           </p>
         </Card>
 

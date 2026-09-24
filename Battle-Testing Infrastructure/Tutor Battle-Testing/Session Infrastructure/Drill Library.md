@@ -17,7 +17,7 @@ Q2
 What is the purpose of a Diagnosis drill?
 
 Expected Answer
-To verify where a newly entering topic should begin by running the current-phase verification block and moving only to an adjacent phase when the score band requires it.
+To verify where a newly entering topic should begin by running the current-phase verification block and letting the evidence-complete Diagnosis engine select the next evidence question or lock placement.
 
 Fail Answer
 To teach all weak content
@@ -49,10 +49,10 @@ To replace the stored state with tutor judgment
 SECTION 2: LIVE TRAINING LANES
 
 Q5
-How is Clarity Training structured, and which part is not scored evidence?
+How is Clarity Training structured, and which part is instructional rather than decision-eligible evidence?
 
 Expected Answer
-It uses one Modeling preparation followed by Identification and Light Apply. Modeling builds the mental map and is not scored proof of independent Clarity; the later reps generate evidence.
+It uses one Modeling preparation followed by Identification and Light Apply. Modeling builds the mental map and does not provide independent Clarity evidence; the later reps generate evidence.
 
 Fail Answer
 All three parts prove independent Clarity

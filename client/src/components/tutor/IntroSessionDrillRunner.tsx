@@ -966,17 +966,13 @@ function responseSnapshotColor(level: string) {
   return "text-muted-foreground";
 }
 
-function responseSnapshotScoreLabel(score: number | null | undefined) {
-  return typeof score === "number" ? `${score}/100` : "Not scored";
-}
-
 function ResponseSnapshotCard({ snapshot }: { snapshot: ResponseSnapshotV1 }) {
   return (
     <div className="rounded-xl border border-primary/15 bg-background overflow-hidden">
       <div className="bg-primary/5 px-4 py-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <span className="font-semibold text-sm">Response Snapshot{snapshot.source.topic ? ` - ${snapshot.source.topic}` : ""}</span>
         <span className={`text-sm font-semibold ${responseSnapshotColor(snapshot.drill.responseLevel)}`}>
-          {snapshot.drill.responseLabel} - {responseSnapshotScoreLabel(snapshot.drill.score)}
+          {snapshot.drill.responseLabel}
         </span>
       </div>
       <div className="px-4 py-3 space-y-3 text-sm">
@@ -994,7 +990,7 @@ function ResponseSnapshotCard({ snapshot }: { snapshot: ResponseSnapshotV1 }) {
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <p className="font-semibold text-foreground">{set.setName}</p>
                 <p className={`text-xs font-semibold ${responseSnapshotColor(set.responseLevel)}`}>
-                  {set.responseLabel} - {responseSnapshotScoreLabel(set.score)}
+                  {set.responseLabel}
                 </p>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">{formatSnapshotPurposeText(set.purposeText)}</p>
@@ -1005,7 +1001,7 @@ function ResponseSnapshotCard({ snapshot }: { snapshot: ResponseSnapshotV1 }) {
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-xs font-semibold text-foreground">Rep {rep.repNumber}</p>
                       <p className={`text-xs font-semibold ${responseSnapshotColor(rep.responseLevel)}`}>
-                        {rep.responseLabel} - {responseSnapshotScoreLabel(rep.score)}
+                        {rep.responseLabel}
                       </p>
                     </div>
                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{formatSnapshotRepResult(rep)}</p>
@@ -2287,7 +2283,7 @@ export default function IntroSessionDrillRunner() {
     if (!adaptiveTransition) return;
     setAdaptiveDiagnosisBlocks((prev) => [...prev, adaptiveTransition.currentBlock]);
     setAdaptiveDiagnosisMessage(
-      `${adaptiveTransition.currentPhase} scored ${adaptiveTransition.phaseScore}/100. ${
+      `${adaptiveTransition.currentPhase} evidence resolved. ${
         adaptiveTransition.direction === "escalate"
           ? `Moving up to ${adaptiveTransition.nextPhase}.`
           : `Dropping to ${adaptiveTransition.nextPhase}.`
@@ -2552,7 +2548,7 @@ export default function IntroSessionDrillRunner() {
     }
 
     if (shouldShowTopicReferenceCapture) {
-      setTopicReferenceError("Save the Topic Reference before starting the scored drill sets.");
+      setTopicReferenceError("Save the Topic Reference before starting the observation drill sets.");
       return;
     }
 
@@ -2717,8 +2713,8 @@ export default function IntroSessionDrillRunner() {
 
         setAdaptiveDiagnosisMessage(
           isHandoverMode
-            ? `${phaseSummary.phaseScore}/100 in ${activeDiagnosisPhase}. Targeted re-diagnosis resolved to ${res.data?.summary?.resultingPhase || activeDiagnosisPhase}.`
-            : `${phaseSummary.phaseScore}/100 in ${activeDiagnosisPhase}. Diagnosis locked at ${res.data?.summary?.phase || activeDiagnosisPhase}.`
+            ? `Evidence in ${activeDiagnosisPhase} resolved targeted re-diagnosis to ${res.data?.summary?.resultingPhase || activeDiagnosisPhase}.`
+            : `Evidence in ${activeDiagnosisPhase} locked Diagnosis at ${res.data?.summary?.phase || activeDiagnosisPhase}.`
         );
         setSubmitSuccess(true);
         setScoring(res.data?.scoring || null);
@@ -2988,14 +2984,7 @@ export default function IntroSessionDrillRunner() {
         </button>
       </div>
       {submitSuccess && scoring && scoring.length > 0 && (() => {
-        // Group rows by topic and set name so multi-topic sessions render clearly
-        const setGroups: Record<string, typeof scoring> = {};
-        scoring.forEach((row) => {
-          const key = row.topic ? `${row.topic} · ${row.set}` : row.set;
-          if (!setGroups[key]) setGroups[key] = [];
-          setGroups[key].push(row);
-        });
-        const setNames = Object.keys(setGroups);
+        // Group rows by topic so multi-topic sessions render evidence direction clearly
         const topicRows = scoring.reduce((acc: Record<string, typeof scoring>, row) => {
           const topicKey = row.topic || "Session";
           if (!acc[topicKey]) acc[topicKey] = [];
@@ -3006,22 +2995,11 @@ export default function IntroSessionDrillRunner() {
         const topicSummaries = topicNames.map((topicName) => {
           const rows = topicRows[topicName];
           const lastRow = rows[rows.length - 1];
-          const topicScore = lastRow?.sessionScore ?? 0;
           return {
             topicName,
-            rows,
             lastRow,
-            topicScore,
           };
         });
-        const overallSessionScore = Math.round(
-          topicSummaries.reduce((sum, topic) => sum + topic.topicScore, 0) / Math.max(topicSummaries.length, 1)
-        );
-        const compatibilityIsTechnicalOnly = scoring.every((row: any) =>
-          row?.scoreAuthority === false ||
-          row?.decisionAuthority === "evidence_native" ||
-          row?.decisionAuthority === "behavioral_evidence"
-        );
         const stabilityColorFor = (stability?: string | null) =>
           stability === "High Maintenance"
             ? "text-blue-700"
@@ -3208,7 +3186,7 @@ export default function IntroSessionDrillRunner() {
                   )}
 
                   <p className="text-xs leading-5 text-muted-foreground">
-                    No compatibility score decided this Handover outcome. The decision above comes from the recorded Response Evidence behavior classes.
+                    This Handover outcome comes from the recorded Response Evidence behavior classes and the continuity evidence they support.
                   </p>
                 </div>
               </div>
@@ -3237,67 +3215,8 @@ export default function IntroSessionDrillRunner() {
               ))
             )}
 
-            <details className="rounded-xl border border-primary/15 bg-background px-4 py-3">
-              <summary className="cursor-pointer text-sm font-semibold text-foreground">
-                View compatibility scoring breakdown
-              </summary>
-              {compatibilityIsTechnicalOnly && (
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  Technical reference only. These values do not determine phase, stability, regression, recovery, or re-diagnosis.
-                </p>
-              )}
-              <div className="mt-3 space-y-3">
-                {setNames.map((setName) => {
-                  const rows = setGroups[setName];
-                  const setMeta = rows.find((r) => typeof r.setPoints === "number" && typeof r.setMaxPoints === "number");
-                  const setPercent = setMeta?.setScore ?? Math.round(rows.reduce((sum, r) => sum + (r.score ?? 0), 0) / rows.length);
-                  const setPoints = setMeta?.setPoints ?? setPercent;
-                  const setMaxPoints = setMeta?.setMaxPoints ?? 100;
-                  return (
-                    <div key={setName} className="rounded-xl border border-primary/15 bg-background overflow-hidden">
-                      <div className="bg-primary/5 px-4 py-2 flex justify-between items-center">
-                        <span className="font-semibold text-sm">{setName}</span>
-                        <span className="text-sm text-muted-foreground">
-                          Set Total: <strong>{setPoints}/{setMaxPoints || 100}</strong>
-                          <span className="ml-2 text-xs">({setPercent}%)</span>
-                        </span>
-                      </div>
-                      <div className="divide-y">
-                        {rows.map((row, i) => (
-                          <div key={i} className="px-4 py-2 flex justify-between items-center text-sm bg-background">
-                            <span className="text-muted-foreground">Rep {row.rep}</span>
-                            <span className={`font-medium ${
-                              compatibilityIsTechnicalOnly
-                                ? "text-muted-foreground"
-                                : row.score >= 70
-                                  ? "text-green-700"
-                                  : row.score >= 45
-                                    ? "text-yellow-700"
-                                    : "text-red-700"
-                            }`}>{row.score}/100</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </details>
-
-            {/* Compatibility total remains visible only where score is still authoritative legacy metadata. */}
-            {!compatibilityIsTechnicalOnly && (
-              <div className="rounded-xl border border-primary/15 bg-background px-4 py-3 flex justify-between items-center">
-                <span className="font-semibold">
-                  {topicSummaries.length > 1 ? "Overall Compatibility Average" : "Compatibility Score"}
-                </span>
-                <span className={`text-lg font-bold ${
-                  overallSessionScore >= 70 ? "text-green-700" : overallSessionScore >= 45 ? "text-yellow-700" : "text-red-700"
-                }`}>{overallSessionScore}/100</span>
-              </div>
-            )}
-
             {/* Per-topic direction cards */}
-            {!isHandoverContinuityVerification && topicSummaries.map(({ topicName, lastRow, topicScore }) => {
+            {!isHandoverContinuityVerification && topicSummaries.map(({ topicName, lastRow }) => {
               const stabilityColor = stabilityColorFor(lastRow?.stability);
               const actionDetails = getDisplayedActionDetails(lastRow);
               return (
@@ -3312,18 +3231,6 @@ export default function IntroSessionDrillRunner() {
                       <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">This Session Result</p>
                       <p className={`font-semibold ${stabilityColor}`}>{resultLabelFor(lastRow, topicName)}</p>
                     </div>
-                    {!(
-                      lastRow?.scoreAuthority === false ||
-                      lastRow?.decisionAuthority === "evidence_native" ||
-                      lastRow?.decisionAuthority === "behavioral_evidence"
-                    ) && (
-                      <div className="flex justify-between items-center pt-1 border-t">
-                        <span className="text-muted-foreground">Topic Score</span>
-                        <span className={`font-bold ${
-                          topicScore >= 70 ? "text-green-700" : topicScore >= 45 ? "text-yellow-700" : "text-red-700"
-                        }`}>{topicScore}/100</span>
-                      </div>
-                    )}
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Before</span>
                       <span className="font-medium">{formatState(lastRow?.phaseBefore, lastRow?.stabilityBefore)}</span>
@@ -3380,9 +3287,6 @@ export default function IntroSessionDrillRunner() {
           <div className="rounded-lg border border-primary/15 bg-background/80 p-4 space-y-2 text-sm">
             <p>
               <span className="font-medium text-foreground">Current Phase:</span> {adaptiveTransition.currentPhase}
-            </p>
-            <p>
-              <span className="font-medium text-foreground">Phase Score:</span> {adaptiveTransition.phaseScore}/100
             </p>
             <p>
               <span className="font-medium text-foreground">System Decision:</span>{" "}
@@ -3575,7 +3479,7 @@ export default function IntroSessionDrillRunner() {
           <ul className="list-disc pl-5 text-sm text-foreground/90 space-y-1">
             <li>This diagnosis is adaptive. Complete the current phase verification block exactly as shown.</li>
             <li><strong>Before you begin:</strong> Prepare <span className="font-semibold">3 distinct problems</span> for the current phase block.</li>
-            <li>The system will move up, place here, or move down after each phase block based on the score band.</li>
+            <li>The system selects the next evidence question or locks placement from the recorded behavior evidence.</li>
             <li>You cannot skip steps or edit outside the verification structure. Complete each observation in order.</li>
             <li>Diagnosis stops automatically once the correct entry phase is verified.</li>
           </ul>
@@ -3723,7 +3627,7 @@ export default function IntroSessionDrillRunner() {
           <div className="text-muted-foreground text-xs leading-relaxed">
             Specialist teaches first. Student does <strong>NOT</strong> solve yet.<br />
             Run <strong>Vocabulary → Recognition / Method → Ordered Steps → Reason</strong>, then ask the student to explain back.<br />
-            Sets 2 and 3 are the scored drill sets.
+            Sets 2 and 3 are the decision-eligible observation sets.
           </div>
         </div>
       )}

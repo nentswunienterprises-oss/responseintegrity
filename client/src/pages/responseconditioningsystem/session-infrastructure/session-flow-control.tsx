@@ -115,7 +115,7 @@ export default function ResponseConditioningSessionFlowControl() {
             <li>Not-observed and confounded evidence remain missing/confounded.</li>
             <li>Support, pressure, variation, difficulty, and timing conditions are part of the evidence.</li>
             <li>One strong-looking answer cannot silently erase a real breakdown, and one failure under a higher constraint does not automatically condemn every earlier layer.</li>
-            <li>Compatibility scores do not decide routing or state.</li>
+            <li>Routing and state are determined from the evidence model and the active session context.</li>
           </ul>
         </Card>
 

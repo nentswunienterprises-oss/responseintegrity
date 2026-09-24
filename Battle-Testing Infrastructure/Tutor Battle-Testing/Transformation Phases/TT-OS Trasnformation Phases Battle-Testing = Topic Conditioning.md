@@ -74,7 +74,7 @@ Q7
 Who decides the next phase or stability movement?
 
 Expected Answer
-The system applies deterministic rules to scored drill evidence. The Specialist runs the assigned condition, logs truthfully, and follows the next action.
+The system applies the evidence model to repeated drill evidence. The Specialist runs the assigned condition, logs truthfully, and follows the next action.
 
 Fail Answer
 The Specialist
@@ -166,9 +166,9 @@ Q15
 The Specialist says, "I know this student better than the system, so I moved the topic ahead." What is the integrity judgment?
 
 Expected Answer
-It is unacceptable. The Specialist has overridden operator authority and the evidence chain. Topic movement must come from scored repeated evidence and the deterministic system result.
+It is unacceptable. The Specialist has overridden operator authority and the evidence chain. Topic movement must come from decision-eligible repeated evidence and the system result.
 
 Fail Answer
 Experienced tutors may override the system
 Move ahead when the student seems ready
-The score is only guidance
+The system result is only guidance

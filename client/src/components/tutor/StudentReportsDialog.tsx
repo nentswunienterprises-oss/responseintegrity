@@ -54,8 +54,7 @@ function getSessionTimeLabel(value: string): string {
 
 function formatEvidenceAuthority(value: unknown): string {
   if (value === "response_evidence_model_v1") return "Response Evidence Model";
-  if (value === "mixed_response_evidence_legacy") return "Mixed evidence + legacy compatibility";
-  return "Legacy compatibility";
+  return "Historical record";
 }
 
 function formatReportValue(value: any): string {
@@ -195,15 +194,10 @@ function DeterministicSessionLog({ session }: { session: SessionRecord }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Card className="rounded-xl border border-primary/15 bg-muted/20 p-3 shadow-none">
           <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Drill</p>
           <p className="mt-1 font-medium">{log.drillLabel || "Session Drill"}</p>
-        </Card>
-        <Card className="rounded-xl border border-primary/15 bg-muted/20 p-3 shadow-none">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Compatibility Score</p>
-          <p className="mt-1 font-medium">{typeof log.score === "number" ? `${log.score}/100` : "Not recorded"}</p>
-          <p className="mt-1 text-[10px] text-muted-foreground">Technical reference only; state and report claims use evidence authority.</p>
         </Card>
         <Card className="rounded-xl border border-primary/15 bg-muted/20 p-3 shadow-none">
           <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">State</p>

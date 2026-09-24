@@ -1217,7 +1217,7 @@ function HandoverVerificationSection({
             <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Decision Authority</p>
               <p className="mt-1 text-sm font-medium text-foreground">
-                {latestSummary.decisionAuthority === "evidence_native" ? "Evidence-native" : "Legacy compatibility"}
+                {latestSummary.decisionAuthority === "evidence_native" ? "Evidence-native" : "Historical record"}
               </p>
             </div>
             <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">

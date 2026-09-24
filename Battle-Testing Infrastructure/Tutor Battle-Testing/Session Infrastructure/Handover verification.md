@@ -107,12 +107,12 @@ Q10
 What must Handover evidence preserve?
 
 Expected Answer
-Inherited topic, phase and stability; the exact continuity condition; concrete behavior identity for each observed dimension; not-observed or confounded evidence where applicable; recovery history; the evidence-native dimension decisions; resulting state; outcome reason; and next action. Any compatibility score is technical reference only.
+Inherited topic, phase and stability; the exact continuity condition; concrete behavior identity for each observed dimension; not-observed or confounded evidence where applicable; recovery history; the evidence-native dimension decisions; resulting state; outcome reason; and next action.
 
 Fail Answer
 Only that Handover was completed
 A narrative about how the student felt
-Only the final score
+Only that a final result was produced
 The new Specialist's opinion of prior Training
 
 SECTION 3: PRESSURE SCENARIOS
@@ -174,4 +174,4 @@ Fail Answer
 Reassess the student and choose where to begin
 Start teaching while learning the student
 Trust the old state without verification
-Complete a fixed rep count and use the score to decide
+Complete a fixed rep count and use personal judgment to decide

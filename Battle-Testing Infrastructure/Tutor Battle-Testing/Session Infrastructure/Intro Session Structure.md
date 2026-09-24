@@ -60,37 +60,37 @@ A general maths assessment
 Clarity Modeling for every student
 
 Q6
-What happens when a Diagnosis phase score is 44 or below?
+What makes Diagnosis ready to stop at the current phase?
 
 Expected Answer
-The system de-escalates to the adjacent earlier phase for verification, where an earlier phase exists.
+The required evidence questions are resolved cleanly enough for the system to lock the topic-entry state. Diagnosis is evidence-complete, not quota-complete.
 
 Fail Answer
-Keep training in the current phase
-Jump directly to Clarity from any phase
-The Specialist chooses an easier activity
+A fixed number of reps has been completed
+The Specialist feels confident
+The student got several answers right
 
 Q7
-What happens when a Diagnosis phase score is from 45 through 79?
+What happens when the current Diagnosis evidence remains unresolved?
 
 Expected Answer
-The system places the topic in that phase and locks the entry point; Diagnosis stops.
+The system selects the smallest next evidence question needed to resolve the uncertainty while preserving the active Diagnosis condition.
 
 Fail Answer
-Escalate because the student passed
-Repeat until the score reaches 80
-The Specialist decides whether it feels right
+Repeat until a numeric threshold is reached
+Teach the weak area before continuing
+Choose the next phase manually
 
 Q8
-What happens when a Diagnosis phase score is 80 or above?
+What happens when the evidence supports checking an adjacent phase?
 
 Expected Answer
-The system escalates to the adjacent next phase for another verification, where a later phase exists. A high score is a movement signal, not permission to start normal training immediately.
+The system selects the adjacent evidence question. The Specialist preserves the new probe condition and records behavior; they do not treat upward movement as permission to start normal Training.
 
 Fail Answer
-Start training in the current phase
 Jump to the final phase
-End because the student scored well
+End because the student looked strong
+Start Training immediately
 
 Q9
 Why does Diagnosis move only through adjacent phases?
@@ -128,32 +128,32 @@ Record low confidence
 Ignore the pause because the method was correct
 
 Scenario 2
-The Specialist spends twenty-five minutes explaining methods during Intro, then scores the student's assisted answers as Diagnosis evidence. What failed?
+The Specialist spends twenty-five minutes explaining methods during Intro, then treats the student's assisted answers as independent Diagnosis evidence. What failed?
 
 Expected Answer
 Intro was converted into training and the evidence condition was contaminated. Assisted performance cannot establish the independent entry state the block was meant to verify.
 
 Fail Answer
 Nothing; more teaching improves placement
-The score remains valid if answers are correct
+Correct answers make assisted evidence independent
 Intro should always include a lesson
 
 Scenario 3
 The recommended phase is Structured Execution. The Specialist believes the student is advanced and jumps directly to Time Pressure Stability. Is that acceptable?
 
 Expected Answer
-No. Run the recommended current-phase block and follow adjacent movement from the score. Skipping phases replaces controlled placement with tutor instinct.
+No. Run the recommended current-phase block and follow the system-selected next evidence question. Skipping phases replaces controlled placement with tutor instinct.
 
 Fail Answer
 Yes, strong students save time
 Yes, recommendations are optional
-Only the final score matters
+Only the final placement label matters
 
 Scenario 4
-A score of 61 places the topic in Controlled Discomfort, but the parent asks for Time Pressure Stability. What governs?
+The system places the topic in Controlled Discomfort, but the parent asks for Time Pressure Stability. What governs?
 
 Expected Answer
-The system placement governs. Preserve Controlled Discomfort as the entry phase; parent preference cannot override scored evidence.
+The system placement governs. Preserve Controlled Discomfort as the entry phase; parent preference cannot override the evidence-derived placement.
 
 Fail Answer
 Compromise and start timed work
@@ -166,7 +166,7 @@ FINAL QUESTION
 What is the Specialist's job inside Intro?
 
 Expected Answer
-Run the recommended adaptive Diagnosis block, preserve its constraints, record observed behaviour truthfully, follow adjacent score-driven movement, and stop when the system locks the topic-entry phase.
+Run the recommended adaptive Diagnosis block, preserve its constraints, record observed behaviour truthfully, follow the system-selected evidence path, and stop when the system locks the topic-entry phase.
 
 Fail Answer
 Assess and decide where the student belongs

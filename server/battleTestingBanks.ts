@@ -132,9 +132,9 @@ const AUTO_CRITICAL_REASON_BY_PHASE: Record<string, Record<string, string>> = {
     Q15: "Manually overrides evidence-based topic movement.",
   },
   intro_session_structure: {
-    "Scenario 2": "Converts Intro into teaching and scores assisted performance as placement evidence.",
-    "Scenario 3": "Bypasses adjacent score-driven placement with Specialist instinct.",
-    "Scenario 4": "Allows parent preference to override scored topic placement.",
+    "Scenario 2": "Converts Intro into teaching and treats assisted performance as placement evidence.",
+    "Scenario 3": "Bypasses evidence-complete placement with Specialist instinct.",
+    "Scenario 4": "Allows parent preference to override evidence-derived topic placement.",
   },
   logging_system: {
     Q4: "Selects a preferred observation instead of the behaviour that occurred.",
@@ -160,8 +160,8 @@ const AUTO_CRITICAL_REASON_BY_PHASE: Record<string, Record<string, string>> = {
     "Scenario 3": "Continues normal training despite an unresolved continuity mismatch.",
   },
   tools_required: {
-    "Scenario 1": "Runs and scores a live drill when the written method is not observable.",
-    "Scenario 2": "Scores spoken evidence that could not be heard reliably.",
+    "Scenario 1": "Runs a live drill and treats unobservable written-method behaviour as valid evidence.",
+    "Scenario 2": "Treats spoken behaviour that could not be heard reliably as valid evidence.",
   },
   td_system_integrity: Object.fromEntries(
     ["Q4", "Q5", "Q6", "Q8", "Q9", "Q11", "Q12", "Scenario 1", "Scenario 2", "Scenario 3", "FINAL QUESTION"]
@@ -175,7 +175,7 @@ const QUESTION_PROMPT_VARIANTS: Record<
 > = {
   "clarity:Q11": {
     form_b: "In Light Apply, the student answers correctly after the Specialist points to the operation and states the opening step. What does the evidence show?",
-    form_c: "A student completes a Light Apply item only after the Specialist supplies the method name and asks a leading first-step question. May the rep be scored as clear Clarity?",
+    form_c: "A student completes a Light Apply item only after the Specialist supplies the method name and asks a leading first-step question. May the rep count as clear independent Clarity evidence?",
   },
   "structured_execution:Q11": {
     form_b: "In Independent Execution, the Specialist asks, 'What do we always do first?' and the student then completes the problem. Can the rep prove an independent start?",
@@ -190,12 +190,12 @@ const QUESTION_PROMPT_VARIANTS: Record<
     form_c: "The student finishes Full Constraint early by abandoning the trained sequence. Should speed make this a clear rep?",
   },
   "topic_conditioning:Q15": {
-    form_b: "A Specialist says, 'The score held the topic, but I advanced it because today's work looked better.' What is the integrity judgment?",
+    form_b: "A Specialist says, 'The system held the topic, but I advanced it because today's work looked better.' What is the integrity judgment?",
     form_c: "A parent asks for the next phase and the Specialist changes the topic-state without qualifying system evidence. Is that within operator authority?",
   },
   "intro_session_structure:Scenario 2": {
     form_b: "During Intro, the Specialist teaches the method before every response and then uses those responses to place the topic. Is the placement evidence valid?",
-    form_c: "An Intro becomes a mini lesson, and the Specialist scores the student's post-explanation answers as independent Diagnosis evidence. What failed?",
+    form_c: "An Intro becomes a mini lesson, and the Specialist treats the student's post-explanation answers as independent Diagnosis evidence. What failed?",
   },
   "logging_system:Scenario 2": {
     form_b: "Three rep options were never captured. At session end, the Specialist fills them in from the overall impression so submission can proceed. Is that valid?",

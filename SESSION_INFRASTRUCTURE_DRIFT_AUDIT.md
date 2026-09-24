@@ -21,7 +21,7 @@ The live system no longer operates as if every tutor session follows one generic
 
 The actual system now has distinct session types with distinct purposes:
 
-1. `Adaptive Intro Diagnosis`
+1. `Evidence-Complete Intro Diagnosis`
 - used for placement verification
 - starts from a recommended phase
 - verifies performance phase-by-phase
@@ -118,25 +118,11 @@ It also emphasizes identifying the `broken learning layer`.
 
 Live intro is no longer mainly a conversational intake.
 
-Live intro is now:
+Live Intro is now evidence-complete and phase-aware.
 
-- `adaptive`
-- `phase-based`
-- `set-based`
-- `score-banded`
-- `stop-on-placement`
+The system asks the smallest next evidence question required to establish the earliest unsupported layer and a defensible topic-entry state.
 
-The system now verifies:
-
-- whether the student is too weak for a phase
-- correctly placed in a phase
-- or too strong for a phase
-
-using score bands:
-
-- `0-44` -> de-escalate
-- `45-79` -> place here
-- `80-100` -> escalate
+Diagnosis stops when the required evidence is resolved. The Specialist records concrete behavior and preserves the active probe condition; the system owns interpretation, placement, and the next evidence question.
 
 ### Risk
 
@@ -349,12 +335,12 @@ We should rewrite `Session Infrastructure` around `session types and system purp
 
 ### Recommended new structure
 
-1. `Adaptive Intro Diagnosis`
+1. `Evidence-Complete Intro Diagnosis`
 - what it is
 - what it is not
-- score bands
-- escalation / de-escalation
-- stop logic
+- evidence questions and eligibility
+- system-selected adjacent verification
+- evidence-complete stop logic
 
 2. `Active Training Session`
 - where Model / Apply / Guide / Boss Battle belongs
@@ -390,7 +376,7 @@ The system should standardize on simpler, cleaner terminology.
 
 ### With
 
-`Adaptive Intro Diagnosis`
+`Evidence-Complete Intro Diagnosis`
 
 Reason:
 - this is what the session actually is now

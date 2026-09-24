@@ -28,10 +28,10 @@ Q3
 What is the purpose and evidence status of the Modeling step?
 
 Expected Answer
-Modeling builds the mental map before scored drilling. It is one unscored instructional preparation and does not prove that the student independently possesses Clarity.
+Modeling builds the mental map before observation drilling. It is instructional preparation and does not prove that the student independently possesses Clarity.
 
 Fail Answer
-It is the first scored set
+It is the first decision-eligible observation set
 Agreement during modeling proves Clarity
 It should contain repeated testing
 
@@ -58,7 +58,7 @@ No support is ever allowed
 It introduces unfamiliar hard forms
 
 Q6
-Why are there repeated scored reps after Modeling?
+Why are there repeated observation reps after Modeling?
 
 Expected Answer
 Each rep is another evidence opportunity to see whether recognition and light application recur without being produced by memory, cueing, luck, or one unusually easy example.
@@ -85,7 +85,7 @@ Q8
 The student repeats the Specialist's explanation perfectly during Modeling. Does that establish independent Clarity?
 
 Expected Answer
-No. Modeling is instructional preparation. Independent evidence comes from the subsequent scored Identification and Light Apply reps under their defined constraints.
+No. Modeling is instructional preparation. Independent evidence comes from the subsequent Identification and Light Apply reps under their defined constraints.
 
 Fail Answer
 Yes, accurate repetition proves Clarity
@@ -101,7 +101,7 @@ Stop the solving and restore the recognition condition: ask the student to name 
 Fail Answer
 Let them finish because solving is stronger proof
 Help with the next step
-Score the correct answer as clear recognition
+Treat the correct answer as clear recognition even though the recognition condition was broken
 
 Q10
 Why can repeated prompting make apparent Clarity evidence invalid?
@@ -166,7 +166,7 @@ Q15
 What is the Specialist's operating job inside Clarity?
 
 Expected Answer
-Build the mental map once through Modeling, then preserve the scored Identification and Light Apply conditions, observe vocabulary, method, reason and immediate apply without inventing, and let the system decide movement.
+Build the mental map once through Modeling, then preserve the decision-eligible Identification and Light Apply conditions, observe vocabulary, method, reason and immediate apply without inventing, and let the system decide movement.
 
 Fail Answer
 Explain until the student understands
