@@ -58,6 +58,66 @@ test("live Deep Dives do not restore legacy score-authority mechanics", () => {
   }
 });
 
+const specialistEvidenceSurfacePaths = [
+  "client/src/components/tutor/IntroSessionDrillRunner.tsx",
+  "client/src/components/tutor/ViewTrackingSystemsDialog.tsx",
+  "client/src/components/tutor/StudentReportsDialog.tsx",
+  "client/src/components/tutor/StudentCard.tsx",
+  ...deepDivePaths,
+];
+
+const specialistBattleContentPaths = [
+  "Battle-Testing Infrastructure/Tutor Battle-Testing/Session Infrastructure/Intro Session Structure.md",
+  "Battle-Testing Infrastructure/Tutor Battle-Testing/Session Infrastructure/Drill Library.md",
+  "Battle-Testing Infrastructure/Tutor Battle-Testing/Session Infrastructure/Handover verification.md",
+  "Battle-Testing Infrastructure/Tutor Battle-Testing/Session Infrastructure/Logging System.md",
+  "Battle-Testing Infrastructure/Tutor Battle-Testing/Session Infrastructure/Tools Required.md",
+  "Battle-Testing Infrastructure/Tutor Battle-Testing/Transformation Phases/TT-OS Trasnformation Phases Battle-Testing = Clarity.md",
+  "Battle-Testing Infrastructure/Tutor Battle-Testing/Transformation Phases/TT-OS Trasnformation Phases Battle-Testing = Structured Execution.md",
+  "Battle-Testing Infrastructure/Tutor Battle-Testing/Transformation Phases/TT-OS Trasnformation Phases Battle-Testing = Controlled Discomfort.md",
+  "Battle-Testing Infrastructure/Tutor Battle-Testing/Transformation Phases/TT-OS Trasnformation Phases Battle-Testing = Topic Conditioning.md",
+  "Battle-Testing Infrastructure/Tutor Battle-Testing/Transformation Phases/TT-OS Trasnformation Phases Battle-Testing = Time Pressure Stability.md",
+];
+
+test("Specialist student-evidence surfaces do not expose the retired numeric score model", () => {
+  const prohibited = [
+    /compatibility score/i,
+    /compatibility scoring/i,
+    /overall compatibility/i,
+    /legacy compatibility/i,
+    /topic score/i,
+    /phase score/i,
+    /score band/i,
+    /scored drill/i,
+    /scored evidence/i,
+    /view scoring breakdown/i,
+    /\/100/,
+  ];
+
+  for (const sourcePath of specialistEvidenceSurfacePaths) {
+    const source = read(sourcePath);
+    for (const pattern of prohibited) {
+      assert.doesNotMatch(source, pattern, `${sourcePath}: ${pattern}`);
+    }
+  }
+
+  for (const sourcePath of specialistBattleContentPaths) {
+    const source = read(sourcePath);
+    assert.doesNotMatch(source, /\bscore(?:d|s|ing)?\b/i, sourcePath);
+    assert.doesNotMatch(source, /compatibility/i, sourcePath);
+    assert.doesNotMatch(source, /\/100/, sourcePath);
+  }
+});
+
+test("canonical operating truth does not re-authorize retired numeric student scoring", () => {
+  const source = read("docs/response-integrity-os-implementation-source-of-truth.md");
+  assert.doesNotMatch(source, /compatibility score/i);
+  assert.doesNotMatch(source, /compatibility scoring/i);
+  assert.doesNotMatch(source, /normalized drill total out of 100/i);
+  assert.doesNotMatch(source, /view scoring breakdown/i);
+  assert.match(source, /The Specialist never receives or acts on a numeric student-performance total/);
+});
+
 test("active next actions do not invent High Maintenance drill types", () => {
   for (const sourcePath of [
     "shared/topicConditioningEngine.ts",
