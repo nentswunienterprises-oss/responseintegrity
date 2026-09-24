@@ -20,6 +20,7 @@ import { NEXT_ACTION_ENGINE, tryParsePhase, type TopicPhase } from "@shared/topi
 import {
   buildPassiveExecutionTimingEvidence,
   buildTimedExecutionEvidence,
+  TPS_REPLACEMENT_CONDITION_FRESH_PREPARED_EQUIVALENT,
   type PassiveExecutionTimingEvidenceV1,
   type TimedExecutionEvidenceV1,
   type TpsPassiveAttemptEvidenceRefV1,
@@ -61,6 +62,28 @@ type ActiveDiagnosisPassiveAttempt = {
 type DiagnosisPassiveReplacementState = {
   nextAttemptNumber: number;
   replacementForAttemptId: string;
+  freshPreparedEquivalentConfirmed: boolean;
+};
+
+const parseStoredDiagnosisReplacement = (
+  raw: string | null,
+): DiagnosisPassiveReplacementState | null => {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<DiagnosisPassiveReplacementState>;
+    const nextAttemptNumber = Number(parsed.nextAttemptNumber);
+    const replacementForAttemptId = String(parsed.replacementForAttemptId || "").trim();
+    if (!Number.isInteger(nextAttemptNumber) || nextAttemptNumber < 2 || !replacementForAttemptId) {
+      return null;
+    }
+    return {
+      nextAttemptNumber,
+      replacementForAttemptId,
+      freshPreparedEquivalentConfirmed: false,
+    };
+  } catch {
+    return null;
+  }
 };
 
 const createTimingAttemptId = () =>
@@ -306,6 +329,32 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const opportunityNumber =
     apiState?.opportunityNumber || (apiState?.probeHistory.length || 0) + 1;
   const currentTimingMode = apiState?.timingAuthority?.mode || "none";
+  const passiveReplacementStorageKey =
+    runId && currentProbe
+      ? [
+          "ri-diagnosis-timing-unresolved",
+          studentId,
+          topic.trim().toLowerCase(),
+          runId,
+          currentProbe.id,
+          opportunityNumber,
+        ].join(":")
+      : null;
+
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      !passiveReplacementStorageKey ||
+      passiveReplacement
+    ) {
+      return;
+    }
+    const stored = parseStoredDiagnosisReplacement(
+      window.localStorage.getItem(passiveReplacementStorageKey),
+    );
+    if (stored) setPassiveReplacement(stored);
+  }, [passiveReplacementStorageKey, passiveReplacement]);
+
   const prescribedSeconds = Number(apiState?.timingAuthority?.prescribedSeconds || 0);
   const timingBoundaryRequired =
     currentTimingMode === "passive_baseline" || currentTimingMode === "timed";
@@ -360,7 +409,26 @@ export default function EvidenceCompleteDiagnosisRunner() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const confirmFreshPreparedDiagnosisReplacement = () => {
+    setPassiveReplacement((current) =>
+      current
+        ? { ...current, freshPreparedEquivalentConfirmed: true }
+        : current,
+    );
+    setError(null);
+  };
+
   const beginOpportunity = () => {
+    if (
+      currentTimingMode === "passive_baseline" &&
+      passiveReplacement &&
+      !passiveReplacement.freshPreparedEquivalentConfirmed
+    ) {
+      setError(
+        "This baseline evidence slot remains unresolved after an objective technical failure. Use only a fresh equivalent reserve problem prepared before the opportunity. Do not reuse the exposed problem or chase a stronger response.",
+      );
+      return;
+    }
     if (currentTimingMode === "timed" && (!prescribedSeconds || prescribedSeconds <= 0)) {
       setError("This timed diagnosis opportunity is blocked because individualized timing authority is not ready.");
       return;
@@ -447,7 +515,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
           endedMs < startedMs
         ) {
           setError(
-            "The passive diagnosis timing boundary is invalid. Record a technical timing failure and retry.",
+            "The passive diagnosis timing boundary is invalid. Record the objective technical failure; the evidence question must remain unresolved until a fresh pre-prepared equivalent reserve opportunity is available.",
           );
           return;
         }
@@ -468,6 +536,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
           endReason: requestedPassiveEndReason,
           replacementForAttemptId:
             activePassiveAttempt.replacementForAttemptId,
+          replacementCondition: activePassiveAttempt.replacementForAttemptId
+            ? TPS_REPLACEMENT_CONDITION_FRESH_PREPARED_EQUIVALENT
+            : null,
         };
         setActivePassiveAttempt((current) =>
           current?.attemptId === activePassiveAttempt.attemptId
@@ -488,10 +559,18 @@ export default function EvidenceCompleteDiagnosisRunner() {
         }
 
         if (attempt.timingValidity === "timing_invalid_technical") {
-          setPassiveReplacement({
+          const nextReplacement: DiagnosisPassiveReplacementState = {
             nextAttemptNumber: attempt.attemptNumber + 1,
             replacementForAttemptId: persisted.attemptId,
-          });
+            freshPreparedEquivalentConfirmed: false,
+          };
+          setPassiveReplacement(nextReplacement);
+          if (typeof window !== "undefined" && passiveReplacementStorageKey) {
+            window.localStorage.setItem(
+              passiveReplacementStorageKey,
+              JSON.stringify(nextReplacement),
+            );
+          }
           setOpportunityStarted(false);
           setActiveLayerIndex(0);
           setConfirmStep(false);
@@ -502,7 +581,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
           setPassiveTimingAttempt(null);
           setActivePassiveAttempt(null);
           setPassiveTimingNotice(
-            "Technical passive-timing failure preserved in lineage. Retry the same Diagnosis opportunity under the same no-pressure condition.",
+            "Technical passive-timing failure preserved as non-decision-eligible lineage. This evidence question remains unresolved. Fill it only with a fresh equivalent reserve problem prepared before the opportunity under the same no-pressure condition.",
           );
           scrollRunnerTop();
           return;
@@ -530,6 +609,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
           endReason: "student_finished",
         });
         setPassiveReplacement(null);
+        if (typeof window !== "undefined" && passiveReplacementStorageKey) {
+          window.localStorage.removeItem(passiveReplacementStorageKey);
+        }
         setActivePassiveAttempt(null);
         setPassiveTimingNotice(
           "Student execution boundary recorded. Finish the observations without adding Specialist admin time to the interval.",
@@ -1084,6 +1166,29 @@ export default function EvidenceCompleteDiagnosisRunner() {
                       {passiveTimingNotice}
                     </p>
                   )}
+                  {passiveReplacement && (
+                    <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50/60 p-3 text-sm">
+                      <p className="font-semibold text-amber-950">
+                        Technical failure retained · evidence question unresolved
+                      </p>
+                      <p className="mt-2 text-xs leading-5 text-amber-900">
+                        This is not a second chance after student performance. Do not reuse the exposed problem. Continue only with a fresh equivalent reserve problem prepared before the opportunity and preserving the same no-pressure condition.
+                      </p>
+                      <button
+                        type="button"
+                        className="mt-3 rounded-md border border-amber-400 bg-background px-3 py-2 text-xs font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-60"
+                        onClick={confirmFreshPreparedDiagnosisReplacement}
+                        disabled={passiveReplacement.freshPreparedEquivalentConfirmed}
+                      >
+                        {passiveReplacement.freshPreparedEquivalentConfirmed
+                          ? "Fresh pre-prepared reserve confirmed ✓"
+                          : "Confirm fresh pre-prepared equivalent reserve"}
+                      </button>
+                      <p className="mt-2 text-xs leading-5 text-amber-800">
+                        If no clean reserve exists, do not improvise a new problem mid-opportunity. Leave the evidence question unresolved and return when the condition can be prepared properly.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1127,10 +1232,19 @@ export default function EvidenceCompleteDiagnosisRunner() {
               <div className="mt-5 flex justify-end">
                 <button
                   type="button"
-                  className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                   onClick={beginOpportunity}
+                  disabled={
+                    currentTimingMode === "passive_baseline" &&
+                    Boolean(
+                      passiveReplacement &&
+                        !passiveReplacement.freshPreparedEquivalentConfirmed,
+                    )
+                  }
                 >
-                  Begin Opportunity {opportunityNumber}
+                  {currentTimingMode === "passive_baseline" && passiveReplacement
+                    ? `Begin Reserve Opportunity ${opportunityNumber}`
+                    : `Begin Opportunity ${opportunityNumber}`}
                 </button>
               </div>
             </section>
@@ -1284,6 +1398,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
                           <p className="mt-1 text-sm leading-6 text-muted-foreground">
                             Measurement is running silently. Freeze it at actual student completion before finishing observation admin.
                           </p>
+                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                            Record Technical Timing Failure only for an objective timer/runtime/device failure. Weak, slow, incomplete, or incorrect student performance is real evidence and must not unlock another opportunity.
+                          </p>
                           {passiveTimingNotice && (
                             <p className="mt-2 text-xs leading-5 text-muted-foreground">
                               {passiveTimingNotice}
@@ -1331,7 +1448,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
                             }
                             className="rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50 disabled:cursor-default disabled:opacity-60"
                           >
-                            Technical Timing Failure
+                            Record Technical Timing Failure
                           </button>
                         )}
                     </div>

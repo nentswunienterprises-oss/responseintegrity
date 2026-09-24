@@ -640,6 +640,7 @@ function tutorPrepPlanFor(
         "Follow the displayed probe constraints exactly. Do not teach, cue, rescue, or add time pressure unless that probe requires it.",
         "The starting signal routes the first question only; observed behavior determines placement.",
         "If another probe is required, prepare the next comparable problem only after the system selects it.",
+        "If the displayed opportunity requires passive timing, have one fresh equivalent reserve problem ready before Begin Opportunity. It may be used only after an objective technical timing failure, never to chase a stronger response.",
       ],
     };
   }
@@ -657,7 +658,7 @@ function tutorPrepPlanFor(
         { label: "Set 3: Light Apply", problems: 3, difficulty: baseDifficulty },
       ],
       prepNotes: [
-        "Set 1 is teaching only; no scored observations.",
+        "Set 1 is teaching only; it does not create decision-eligible observation evidence.",
         "Prepare 8 total problems (2 model + 6 drill reps).",
         "No boss battles and no timed pressure in Clarity.",
         "Difficulty guidance: keep all problems at Simple/Normal level.",
@@ -674,9 +675,10 @@ function tutorPrepPlanFor(
         { label: "Set 3", problems: 3, difficulty: baseDifficulty },
       ],
       prepNotes: [
-        "Prepare 9 total problems (3 sets x 3 reps).",
+        "Prepare 9 required problems (3 sets x 3 reps).",
         "Focus on independent starts and full step sequence.",
         "Difficulty guidance: keep all problems at Simple/Normal level.",
+        "For Independent Execution, also prepare one fresh equivalent same-form, normal-difficulty reserve problem before the session. It is contingency inventory only for an objective technical timing failure and is not an extra rep or a way to replace student performance.",
       ],
     };
   }
@@ -698,25 +700,18 @@ function tutorPrepPlanFor(
     };
   }
 
-  const timedIntensity = prepStability === "High" || prepStability === "High Maintenance";
   return {
     drillType: `${prepPhase} Drill`,
     setPlans: [
-      { label: "Set 1", problems: 3, difficulty: timedIntensity ? "Hard" : baseDifficulty },
-      {
-        label: "Set 2",
-        problems: 3,
-        difficulty: timedIntensity ? "Challenging (but solvable)" : baseDifficulty,
-      },
-      {
-        label: "Set 3",
-        problems: 3,
-        difficulty: timedIntensity ? "Challenging (but solvable)" : baseDifficulty,
-      },
+      { label: "Set 1", problems: 3, difficulty: "Simple/Normal · same form" },
+      { label: "Set 2", problems: 3, difficulty: "Simple/Normal · same form" },
+      { label: "Set 3", problems: 3, difficulty: "Simple/Normal · same form" },
     ],
     prepNotes: [
-      "Prepare 9 total timed problems.",
-      "Keep pressure controlled; preserve structure over speed.",
+      "Prepare 9 required TPS problems. Mathematical difficulty stays normal and problem form stays comparable; the pressure variable is the individualized timer.",
+      "Prepare one fresh equivalent reserve problem for each timed set before the session (3 reserve problems total). Reserve problems are contingency inventory, not extra reps and not a completion target.",
+      "A reserve problem may fill an unresolved canonical evidence slot only after an objective timer/runtime/device failure. Timeout, panic, wrong method, incomplete work, or weak performance remains real evidence and never unlocks a replacement.",
+      "Keep pressure controlled and preserve structure over speed. The runner owns the Timer Contract.",
     ],
   };
 }

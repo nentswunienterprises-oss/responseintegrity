@@ -259,17 +259,32 @@ async function completeStructuredExecutionTraining(fixture) {
         if (repIndex === 0) {
           await page.waitForTimeout(500);
           await page.getByRole("button", {
-            name: "Technical Timing Failure",
+            name: "Record Technical Timing Failure",
             exact: true,
           }).click();
           await page.getByText(
-            /Technical passive-timing failure preserved in lineage/,
+            /Technical passive-timing failure preserved as non-decision-eligible lineage/,
           ).waitFor({ state: "visible", timeout: 30000 });
-          await screenshot("01-se-passive-technical-failure");
+          const seReserveBegin = page.getByRole("button", {
+            name: "Begin Reserve Opportunity for Rep 1",
+            exact: true,
+          });
+          assert.equal(
+            await seReserveBegin.isDisabled(),
+            true,
+            "SE replacement started without fresh pre-prepared reserve confirmation",
+          );
           await page.getByRole("button", {
-            name: "Begin Rep 1",
+            name: "Confirm fresh pre-prepared equivalent reserve",
             exact: true,
           }).click();
+          assert.equal(
+            await seReserveBegin.isEnabled(),
+            true,
+            "SE replacement did not unlock after reserve confirmation",
+          );
+          await screenshot("01-se-passive-technical-failure");
+          await seReserveBegin.click();
           await page.getByText("Passive baseline measurement", {
             exact: true,
           }).waitFor({ state: "visible", timeout: 30000 });
@@ -401,16 +416,31 @@ async function completeTpsTraining(fixture, contract) {
         await screenshot("03-tps-countdown-running");
 
         await page.getByRole("button", {
-          name: "Technical Timer Failure",
+          name: "Record Technical Timer Failure",
           exact: true,
         }).click();
         await page.getByText(
-          /Technical timer failure preserved in lineage/,
+          /Technical timer failure preserved as non-decision-eligible lineage/,
         ).waitFor({ state: "visible", timeout: 30000 });
+        const tpsReserveBegin = page.getByRole("button", {
+          name: "Begin Reserve Opportunity for Rep 1",
+          exact: true,
+        });
+        assert.equal(
+          await tpsReserveBegin.isDisabled(),
+          true,
+          "TPS replacement started without fresh pre-prepared reserve confirmation",
+        );
         await page.getByRole("button", {
-          name: "Begin Rep 1",
+          name: "Confirm fresh pre-prepared equivalent reserve",
           exact: true,
         }).click();
+        assert.equal(
+          await tpsReserveBegin.isEnabled(),
+          true,
+          "TPS replacement did not unlock after reserve confirmation",
+        );
+        await tpsReserveBegin.click();
         await page.getByText(/System timer · /).waitFor({
           state: "visible",
           timeout: 30000,

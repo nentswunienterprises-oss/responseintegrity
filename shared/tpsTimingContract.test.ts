@@ -5,6 +5,7 @@ import {
   PASSIVE_EXECUTION_TIMING_WIRE_KEY,
   TPS_TIMED_ATTEMPT_WIRE_KEY,
   TPS_FULL_CONSTRAINT_FACTOR,
+  TPS_REPLACEMENT_CONDITION_FRESH_PREPARED_EQUIVALENT,
   TPS_TRAINING_BASELINE_SET_ID,
   buildPassiveExecutionTimingEvidence,
   decodePassiveExecutionTimingEvidence,
@@ -430,16 +431,49 @@ test("TPS timed lineage distinguishes clean expiry from technical failure", () =
   const technical: TpsTimedAttemptSubmissionV1 = {
     ...expired,
     attemptId: "attempt-technical",
-    attemptNumber: 2,
+    attemptNumber: 1,
     endedAt: "2026-09-23T18:00:12.000Z",
     elapsedMs: 12_000,
     timingValidity: "timing_invalid_technical",
     endReason: "technical_failure",
-    replacementForAttemptId: "attempt-expired",
+    replacementForAttemptId: null,
+    replacementCondition: null,
   };
   assert.equal(
     validateTpsTimedAttemptAgainstContract({ contract, attempt: technical }).ok,
     true,
+  );
+
+  const replacement: TpsTimedAttemptSubmissionV1 = {
+    ...expired,
+    attemptId: "attempt-replacement",
+    attemptNumber: 2,
+    endedAt: "2026-09-23T18:00:40.000Z",
+    elapsedMs: 40_000,
+    completedBeforeExpiry: true,
+    timingValidity: "valid",
+    endReason: "student_finished",
+    replacementForAttemptId: technical.attemptId,
+    replacementCondition:
+      TPS_REPLACEMENT_CONDITION_FRESH_PREPARED_EQUIVALENT,
+  };
+  assert.equal(
+    validateTpsTimedAttemptAgainstContract({ contract, attempt: replacement }).ok,
+    true,
+  );
+
+  const unconfirmedReplacement = {
+    ...replacement,
+    replacementCondition: null,
+  } as TpsTimedAttemptSubmissionV1;
+  assert.match(
+    (
+      validateTpsTimedAttemptAgainstContract({
+        contract,
+        attempt: unconfirmedReplacement,
+      }) as { ok: false; error: string }
+    ).error,
+    /fresh pre-prepared equivalent reserve opportunity/i,
   );
 });
 
@@ -505,8 +539,20 @@ test("passive baseline attempt lineage preserves technical failures and valid re
     timingValidity: "valid",
     endReason: "student_finished",
     replacementForAttemptId: "passive-tech-1",
+    replacementCondition:
+      TPS_REPLACEMENT_CONDITION_FRESH_PREPARED_EQUIVALENT,
   };
   assert.equal(validateTpsPassiveAttemptSubmission(replacement).ok, true);
+
+  assert.match(
+    (
+      validateTpsPassiveAttemptSubmission({
+        ...replacement,
+        replacementCondition: null,
+      }) as { ok: false; error: string }
+    ).error,
+    /fresh pre-prepared equivalent reserve opportunity/i,
+  );
 
   const reference = {
     version: 1 as const,

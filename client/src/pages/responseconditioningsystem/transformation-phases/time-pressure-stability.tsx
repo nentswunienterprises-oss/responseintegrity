@@ -243,6 +243,18 @@ export default function ResponseConditioningTimePressureStability() {
               baseline duration; Full Constraint uses 85%. Do not invent, loosen, or tighten a different timer.
             </p>
           </div>
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
+            <p className="font-semibold">Technical-failure reserve</p>
+            <p className="text-sm text-muted-foreground">
+              Before the session, prepare one fresh equivalent reserve problem for each timed set. These reserve problems are contingency inventory only - not extra reps and not a completion target.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              If an objective timer/runtime/device failure destroys the intended condition, preserve that failed attempt as non-decision-eligible lineage and leave the canonical evidence slot unresolved. A fresh pre-prepared equivalent reserve may then fill that slot under the exact same Timer Contract and set constraints.
+            </p>
+            <p className="text-sm font-medium">
+              Never reuse the exposed problem or create a replacement because the student timed out, panicked, used the wrong method, worked incompletely, or performed weakly. Those are real TPS observations.
+            </p>
+          </div>
         </Card>
 
         <Card className="p-6 space-y-5">

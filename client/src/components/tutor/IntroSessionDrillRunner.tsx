@@ -52,6 +52,7 @@ import {
   PASSIVE_EXECUTION_ATTEMPT_WIRE_KEY,
   PASSIVE_EXECUTION_TIMING_WIRE_KEY,
   TPS_TIMED_ATTEMPT_WIRE_KEY,
+  TPS_REPLACEMENT_CONDITION_FRESH_PREPARED_EQUIVALENT,
   TPS_TRAINING_BASELINE_SET_ID,
   buildPassiveExecutionTimingEvidence,
   encodePassiveExecutionTimingEvidence,
@@ -257,6 +258,26 @@ type TpsActiveAttempt = {
 type TpsReplacementState = {
   nextAttemptNumber: number;
   replacementForAttemptId: string;
+  freshPreparedEquivalentConfirmed: boolean;
+};
+
+const parseStoredTpsReplacement = (raw: string | null): TpsReplacementState | null => {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<TpsReplacementState>;
+    const nextAttemptNumber = Number(parsed.nextAttemptNumber);
+    const replacementForAttemptId = String(parsed.replacementForAttemptId || "").trim();
+    if (!Number.isInteger(nextAttemptNumber) || nextAttemptNumber < 2 || !replacementForAttemptId) {
+      return null;
+    }
+    return {
+      nextAttemptNumber,
+      replacementForAttemptId,
+      freshPreparedEquivalentConfirmed: false,
+    };
+  } catch {
+    return null;
+  }
 };
 
 const TPS_TIMER_BASELINE_INCOMPLETE = "TPS_TIMER_BASELINE_INCOMPLETE";
@@ -1320,6 +1341,62 @@ export default function IntroSessionDrillRunner() {
   );
   const activePassiveRepIdentity = `${currentTopicName.trim().toLowerCase()}::${TPS_TRAINING_BASELINE_SET_ID}::rep-${currentRep + 1}`;
   const activeTpsRepIdentity = `${currentTopicName.trim().toLowerCase()}::${activeRegistrySet?.setId || "unknown"}::rep-${currentRep + 1}`;
+  const activePassiveReplacement =
+    passiveReplacementState[activePassiveRepIdentity] || null;
+  const activeTpsReplacement =
+    tpsReplacementState[activeTpsRepIdentity] || null;
+  const activeTechnicalReplacement =
+    activeRepRequiresTpsTiming
+      ? activeTpsReplacement
+      : activeRepRequiresPassiveTiming
+        ? activePassiveReplacement
+        : null;
+  const activeReplacementConfirmed =
+    !activeTechnicalReplacement ||
+    activeTechnicalReplacement.freshPreparedEquivalentConfirmed;
+  const passiveReplacementStorageKey = [
+    "ri-timing-unresolved",
+    studentId,
+    scheduledSessionId || "unscheduled",
+    "passive",
+    activePassiveRepIdentity,
+  ].join(":");
+  const tpsReplacementStorageKey = [
+    "ri-timing-unresolved",
+    studentId,
+    scheduledSessionId || "unscheduled",
+    "tps",
+    activeTpsRepIdentity,
+  ].join(":");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const storedPassive = parseStoredTpsReplacement(
+      window.localStorage.getItem(passiveReplacementStorageKey),
+    );
+    if (storedPassive && !passiveReplacementState[activePassiveRepIdentity]) {
+      setPassiveReplacementState((current) => ({
+        ...current,
+        [activePassiveRepIdentity]: storedPassive,
+      }));
+    }
+
+    const storedTps = parseStoredTpsReplacement(
+      window.localStorage.getItem(tpsReplacementStorageKey),
+    );
+    if (storedTps && !tpsReplacementState[activeTpsRepIdentity]) {
+      setTpsReplacementState((current) => ({
+        ...current,
+        [activeTpsRepIdentity]: storedTps,
+      }));
+    }
+  }, [
+    activePassiveRepIdentity,
+    activeTpsRepIdentity,
+    passiveReplacementStorageKey,
+    tpsReplacementStorageKey,
+  ]);
 
   const {
     data: tpsTimerContractResponse,
@@ -1459,6 +1536,28 @@ export default function IntroSessionDrillRunner() {
     );
   };
 
+  const confirmFreshPreparedReplacement = () => {
+    if (activeRepRequiresTpsTiming && activeTpsReplacement) {
+      setTpsReplacementState((current) => ({
+        ...current,
+        [activeTpsRepIdentity]: {
+          ...current[activeTpsRepIdentity],
+          freshPreparedEquivalentConfirmed: true,
+        },
+      }));
+    }
+    if (activeRepRequiresPassiveTiming && activePassiveReplacement) {
+      setPassiveReplacementState((current) => ({
+        ...current,
+        [activePassiveRepIdentity]: {
+          ...current[activePassiveRepIdentity],
+          freshPreparedEquivalentConfirmed: true,
+        },
+      }));
+    }
+    setSubmitError(null);
+  };
+
   const beginTrainingRep = () => {
     if (
       modeToUse === "training" &&
@@ -1478,6 +1577,12 @@ export default function IntroSessionDrillRunner() {
     if (timingReadinessBlockedTopic) {
       setSubmitError(
         `${timingReadinessBlockedTopic.topic} requires targeted evidence-native re-diagnosis before ordinary Training continues.`,
+      );
+      return;
+    }
+    if (activeTechnicalReplacement && !activeReplacementConfirmed) {
+      setSubmitError(
+        "This evidence slot remains unresolved after an objective technical failure. Use only a fresh equivalent problem prepared before the session. Do not reuse the exposed problem or continue to chase a stronger student response.",
       );
       return;
     }
@@ -1590,7 +1695,7 @@ export default function IntroSessionDrillRunner() {
       const endedMs = Date.parse(endedAt);
       if (!Number.isFinite(startedMs) || !Number.isFinite(endedMs) || endedMs < startedMs) {
         setSubmitError(
-          "The passive execution boundary is invalid. Record a technical timing failure and retry.",
+          "The passive execution boundary is invalid. Record the objective technical failure; the evidence slot must remain unresolved until a fresh pre-prepared equivalent reserve opportunity is available.",
         );
         return;
       }
@@ -1611,6 +1716,9 @@ export default function IntroSessionDrillRunner() {
         endReason: requestedEndReason,
         replacementForAttemptId:
           activePassiveAttempt.replacementForAttemptId,
+        replacementCondition: activePassiveAttempt.replacementForAttemptId
+          ? TPS_REPLACEMENT_CONDITION_FRESH_PREPARED_EQUIVALENT
+          : null,
       };
       setActivePassiveAttempt((current) =>
         current?.attemptId === activePassiveAttempt.attemptId
@@ -1629,18 +1737,26 @@ export default function IntroSessionDrillRunner() {
       }
 
       if (attempt.timingValidity === "timing_invalid_technical") {
+        const nextReplacement: TpsReplacementState = {
+          nextAttemptNumber: attempt.attemptNumber + 1,
+          replacementForAttemptId: persisted.attemptId,
+          freshPreparedEquivalentConfirmed: false,
+        };
         setPassiveReplacementState((current) => ({
           ...current,
-          [activePassiveRepIdentity]: {
-            nextAttemptNumber: attempt.attemptNumber + 1,
-            replacementForAttemptId: persisted.attemptId,
-          },
+          [activePassiveRepIdentity]: nextReplacement,
         }));
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(
+            passiveReplacementStorageKey,
+            JSON.stringify(nextReplacement),
+          );
+        }
         clearRepObservationState(currentSet, currentRep);
         setActivePassiveAttempt(null);
         setRepStarted(false);
         setPassiveTimingNotice(
-          "Technical passive-timing failure preserved in lineage. Retry this same Independent Execution rep under the same no-pressure condition.",
+          "Technical passive-timing failure preserved as non-decision-eligible lineage. This evidence slot remains unresolved. Fill it only with a fresh equivalent reserve problem prepared before the session under the same no-pressure condition.",
         );
         return;
       }
@@ -1677,6 +1793,9 @@ export default function IntroSessionDrillRunner() {
         delete next[activePassiveRepIdentity];
         return next;
       });
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(passiveReplacementStorageKey);
+      }
       setPassiveTimingNotice(
         "Student execution boundary recorded. Finish the observations without adding Specialist admin time to the interval.",
       );
@@ -1739,7 +1858,7 @@ export default function IntroSessionDrillRunner() {
     if (!attempt) {
       const startedMs = Date.parse(activeTpsAttempt.startedAt);
       if (!Number.isFinite(startedMs)) {
-        setSubmitError("The TPS timer start boundary is invalid. Record a technical failure and retry the rep.");
+        setSubmitError("The TPS timer start boundary is invalid. Record the objective technical failure; do not reuse the exposed problem. The evidence slot remains unresolved until a fresh pre-prepared equivalent reserve opportunity is available.");
         return;
       }
 
@@ -1775,6 +1894,9 @@ export default function IntroSessionDrillRunner() {
         endReason,
         replacementForAttemptId:
           activeTpsAttempt.replacementForAttemptId,
+        replacementCondition: activeTpsAttempt.replacementForAttemptId
+          ? TPS_REPLACEMENT_CONDITION_FRESH_PREPARED_EQUIVALENT
+          : null,
       };
       setActiveTpsAttempt((current) =>
         current?.attemptId === activeTpsAttempt.attemptId
@@ -1793,18 +1915,26 @@ export default function IntroSessionDrillRunner() {
       }
 
       if (attempt.timingValidity === "timing_invalid_technical") {
+        const nextReplacement: TpsReplacementState = {
+          nextAttemptNumber: attempt.attemptNumber + 1,
+          replacementForAttemptId: persisted.attemptId,
+          freshPreparedEquivalentConfirmed: false,
+        };
         setTpsReplacementState((current) => ({
           ...current,
-          [activeTpsRepIdentity]: {
-            nextAttemptNumber: attempt.attemptNumber + 1,
-            replacementForAttemptId: persisted.attemptId,
-          },
+          [activeTpsRepIdentity]: nextReplacement,
         }));
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(
+            tpsReplacementStorageKey,
+            JSON.stringify(nextReplacement),
+          );
+        }
         clearRepObservationState(currentSet, currentRep);
         setActiveTpsAttempt(null);
         setRepStarted(false);
         setTpsTimingNotice(
-          "Technical timer failure preserved in lineage. Retry this same rep; the replacement will use the same Timer Contract.",
+          "Technical timer failure preserved as non-decision-eligible lineage. This evidence slot remains unresolved. Fill it only with a fresh equivalent reserve problem prepared before the session under the same Timer Contract.",
         );
         return;
       }
@@ -1827,6 +1957,9 @@ export default function IntroSessionDrillRunner() {
         delete next[activeTpsRepIdentity];
         return next;
       });
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(tpsReplacementStorageKey);
+      }
       setTpsTimingNotice(
         persisted.endReason === "timer_expired"
           ? "Timer expired at the prescribed boundary. Record the student's response exactly as it stood at expiry."
@@ -3667,8 +3800,36 @@ export default function IntroSessionDrillRunner() {
               {tpsTimingNotice}
             </div>
           )}
+          {activeTechnicalReplacement && !repStarted && (
+            <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50/60 p-4 text-sm">
+              <p className="font-semibold text-amber-950">
+                Technical failure retained · evidence slot unresolved
+              </p>
+              <p className="mt-2 leading-6 text-amber-900">
+                This is not a second chance after student performance. Do not reuse the exposed problem. A replacement opportunity is allowed only because the intended measurement condition failed.
+              </p>
+              <p className="mt-2 leading-6 text-amber-900">
+                Use a fresh equivalent reserve problem that was prepared before the session and preserves the same topic, form, difficulty, support boundary, and {activeRepRequiresTpsTiming ? "Timer Contract" : "no-pressure condition"}.
+              </p>
+              <button
+                type="button"
+                className="mt-3 rounded-md border border-amber-400 bg-background px-3 py-2 text-xs font-semibold text-amber-950 hover:bg-amber-100"
+                onClick={confirmFreshPreparedReplacement}
+                disabled={activeReplacementConfirmed}
+              >
+                {activeReplacementConfirmed
+                  ? "Fresh pre-prepared reserve confirmed ✓"
+                  : "Confirm fresh pre-prepared equivalent reserve"}
+              </button>
+              <p className="mt-2 text-xs leading-5 text-amber-800">
+                If no clean reserve exists, do not continue this slot or improvise a new problem mid-session. Leave it unresolved for a properly prepared future opportunity.
+              </p>
+            </div>
+          )}
           <p className="mt-4 text-xs leading-5 text-muted-foreground">
-            Use the problem prepared before the session. Once the rep starts, keep attention on the student's response rather than on form administration.
+            {activeTechnicalReplacement
+              ? "The failed attempt remains in durable lineage. The reserve opportunity fills the unanswered evidence slot; it does not erase or improve the failed attempt."
+              : "Use the problem prepared before the session. Once the rep starts, keep attention on the student's response rather than on form administration."}
           </p>
           <div className="mt-5 flex justify-end">
             <button
@@ -3681,6 +3842,7 @@ export default function IntroSessionDrillRunner() {
                     drillSessionAccessLoading ||
                     !canUseScheduledSession)) ||
                 Boolean(timingReadinessBlockedTopic) ||
+                !activeReplacementConfirmed ||
                 (activeRepRequiresTpsTiming &&
                   (tpsTimerContractLoading ||
                     !tpsTimerContract ||
@@ -3688,7 +3850,9 @@ export default function IntroSessionDrillRunner() {
                     tpsAttemptPersisting))
               }
             >
-              Begin Rep {currentRep + 1}
+              {activeTechnicalReplacement
+                ? `Begin Reserve Opportunity for Rep ${currentRep + 1}`
+                : `Begin Rep ${currentRep + 1}`}
             </button>
           </div>
         </div>
@@ -3750,13 +3914,13 @@ export default function IntroSessionDrillRunner() {
                     Boolean(activePassiveAttempt?.frozenAttempt)
                   }
                 >
-                  Technical Timing Failure
+                  Record Technical Timing Failure
                 </button>
               )}
             </div>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Do not rush the student because timing is being measured, and do not let avoidable dead time enter the execution interval.
+            Do not rush the student because timing is being measured, and do not let avoidable dead time enter the execution interval. Record Technical Timing Failure only for an objective timer/runtime/device failure - never because the student's response is weak, slow, incomplete, or incorrect.
           </p>
         </div>
       )}
@@ -3775,7 +3939,7 @@ export default function IntroSessionDrillRunner() {
               </div>
               <p className="mt-2 text-xs leading-5 text-muted-foreground">
                 Prescribed: {activeTpsAttempt?.prescribedSeconds || activeTpsPrescribedSeconds || 0}s. There is no pause or manual override.
-                Mark Student Finished at actual completion. If the timing system itself fails, record Technical Timer Failure so this attempt stays in lineage and the same rep can be replaced cleanly.
+                Mark Student Finished at actual completion. Record a technical failure only when the timer/runtime/device condition itself fails. Student timeout, panic, wrong method, incomplete work, or weak performance is real evidence and never unlocks a replacement.
               </p>
             </div>
             <div className="flex shrink-0 flex-col gap-2">
@@ -3806,7 +3970,7 @@ export default function IntroSessionDrillRunner() {
                   Boolean(activeTpsAttempt?.frozenAttempt)
                 }
               >
-                Technical Timer Failure
+                Record Technical Timer Failure
               </button>
             </div>
           </div>
