@@ -602,7 +602,7 @@ The internal observation vocabulary remains:
 - `partial`
 - `clear`
 
-Human-facing Response Snapshot labels are explanatory only. Numeric compatibility output is not rendered to Specialists and cannot authorize state movement.
+Human-facing Response Snapshot labels are explanatory only. Retired numeric output is not rendered to Specialists and cannot authorize state movement.
 
 Snapshot prose is generated from the validated evidence payload and registered drill semantics. It must not be Specialist-authored, LLM-generated, or used as a new progression gate. A weak or partial observation remains visible even when the overall rep, set, or drill displays as Strong.
 
@@ -616,18 +616,18 @@ Response Snapshot V1 includes the full drill-level pattern layer:
 
 - Clarity training resolves the 9 two-set observation patterns across Identification and Light Apply.
 - Structured Execution, Controlled Discomfort, and Time Pressure Stability training each resolve the 27 ordered three-set patterns for that phase.
-- Drill `patternCode` is calculated from scored sets only. Clarity Modeling is still rendered as a `Not scored` set, but it does not add an artificial `N` to the scored drill matrix.
+- Drill `patternCode` is calculated from decision-eligible observation sets only. Clarity Modeling remains visible as an instructional-only set and does not add an artificial `N` to the observation matrix.
 - Set `patternCode` remains the ordered three-rep pattern for that set.
 
-Clarity Modeling must remain visible in the persisted snapshot as a non-scored set:
+Clarity Modeling must remain visible in the persisted snapshot as an instructional-only set:
 
-> Modeling completed as a modeling set. No scored student response was recorded for this set.
+> Modeling completed as an instructional set. No decision-eligible student response was recorded for this set.
 
 Persisted snapshot wording is historical output. Render stored `resultText` for persisted drill, set, and rep rows; use live formatters only for generation-time construction, legacy cleanup, or explicit migrations. Future wording improvements must not silently rewrite the meaning of an already submitted drill log.
 
 Evidence lineage must separate evidence occurrences from selected option definitions. `reportingLineage.evidenceIds` stores deterministic occurrence IDs tied to the source drill, schema, set, rep, and dimension. `reportingLineage.selectedOptionIds` stores reusable semantic option IDs. Later reports may aggregate occurrence IDs and option IDs, but must not treat option IDs alone as proof that a specific student produced specific evidence.
 
-On the immediate result screen, Response Snapshot is the main human-facing evidence explanation. The older raw per-set score cards remain available only as a collapsed technical disclosure labeled `View scoring breakdown`.
+On the immediate result screen, Response Snapshot is the main human-facing evidence explanation. Retired per-set numeric cards are not rendered in Specialist-facing results.
 
 ## Map And Specialist Control View
 
@@ -857,10 +857,10 @@ Signals that often weight toward `Time Pressure Stability`:
 The engine:
 
 1. normalizes symptom ids
-2. converts them into weighted phase scores
-3. ranks all four phases by score
+2. converts them into weighted phase signals
+3. ranks all four phases by signal weight
 4. breaks ties by keeping the earlier phase in the phase sequence
-5. defaults to `Clarity` if no meaningful positive score exists
+5. defaults to `Clarity` if no meaningful positive signal exists
 6. returns the recommended phase plus supporting symptoms
 
 ### Output meaning
@@ -1688,7 +1688,7 @@ The whole-topic Handover decision is derived from the dimension states:
 - only `SUPPORTED` / `NEAR_STABLE` dimensions with enough evidence -> `hold`;
 - all dimensions `SUPPORTED` -> `hold` with strong confidence.
 
-Compatibility scores may still be stored or displayed behind technical-detail surfaces. They have `scoreAuthority: false` and must never decide phase, stability, regression, recovery, or re-diagnosis.
+Retired numeric fields may remain in historical storage, but they are not rendered to Specialists and must never decide phase, stability, regression, recovery, or re-diagnosis.
 
 ### Stability adjustment rule
 
@@ -2786,13 +2786,13 @@ Older docs sometimes described 2 modeled Clarity problems.
 The live runner uses:
 
 - a single pre-drill modeling step in the UI
-- followed by the scored Clarity drill sets
+- followed by the decision-eligible Clarity observation sets
 
 Trust the live runner and this file.
 
 ### 2. Diagnosis-structure drift
 
-Older docs described fixed multi-set or score-band adaptive intro diagnosis.
+Older docs described fixed multi-set or numeric-band adaptive intro diagnosis.
 
 The live intro diagnosis now uses:
 
@@ -2801,14 +2801,14 @@ The live intro diagnosis now uses:
 - evidence-complete stopping rather than a fixed rep count;
 - constraint stripping and deconfounding when needed;
 - behavior-native Low / Medium / High placement;
-- no numeric score authority;
+- placement authority is behavior-native and evidence-complete;
 - no intro fallback to the previous adaptive runner.
 
 Trust the evidence-complete diagnosis contract and the live evidence-complete runner.
 
 ### 3. Training-authority drift
 
-Some older scoring explainers describe score thresholds or `highGuardPasses` as if they directly authorize live Training progression.
+Some older numeric-threshold explainers describe legacy thresholds or `highGuardPasses` as if they directly authorize live Training progression.
 
 Current live Training state authority is evidence-native:
 
@@ -2817,7 +2817,7 @@ Current live Training state authority is evidence-native:
 - prerequisite contradictions can route through `resolveTrainingEvidenceAuthorityRoute(...)` to targeted evidence-complete re-diagnosis;
 - TPS progression additionally requires valid individualized timing authority.
 
-The legacy `computeTransition(...)` helper and compatibility scores remain available for historical/test/display paths. They do not override the evidence-native Training decision.
+The legacy `computeTransition(...)` helper may remain for historical/test paths. Its numeric output is not Training state authority and is not rendered in Specialist-facing surfaces.
 
 ### 4. Final-phase drift
 
