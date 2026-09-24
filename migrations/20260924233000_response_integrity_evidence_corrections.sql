@@ -42,7 +42,7 @@ drop trigger if exists trg_response_integrity_evidence_corrections_immutable
   on public.response_integrity_evidence_corrections;
 
 create trigger trg_response_integrity_evidence_corrections_immutable
-before update on public.response_integrity_evidence_corrections
+before update or delete on public.response_integrity_evidence_corrections
 for each row execute function public.prevent_response_integrity_evidence_correction_mutation();
 
 alter table public.response_integrity_evidence_corrections enable row level security;
