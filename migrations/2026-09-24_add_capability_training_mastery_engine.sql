@@ -67,9 +67,45 @@ CREATE TABLE IF NOT EXISTS specialist_capability_assessment_attempts (
   responses jsonb NOT NULL,
   question_results jsonb NOT NULL,
   completed_at timestamptz NOT NULL DEFAULT now(),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (tutor_assignment_id, assessment_key, bank_version, attempt_number)
+  created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Historical Capability Proof schemas used a uniqueness key that omitted
+-- bank_version. That prevents attempt numbering from restarting cleanly when a
+-- new private bank version is activated. Retire only that exact legacy shape,
+-- preserving all historical rows.
+DO $$
+DECLARE
+  legacy_constraint_name text;
+BEGIN
+  SELECT conname
+    INTO legacy_constraint_name
+    FROM pg_constraint
+   WHERE conrelid = 'public.specialist_capability_assessment_attempts'::regclass
+     AND contype = 'u'
+     AND pg_get_constraintdef(oid) = 'UNIQUE (tutor_assignment_id, assessment_key, attempt_number)'
+   LIMIT 1;
+
+  IF legacy_constraint_name IS NOT NULL THEN
+    EXECUTE format(
+      'ALTER TABLE public.specialist_capability_assessment_attempts DROP CONSTRAINT %I',
+      legacy_constraint_name
+    );
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+      FROM pg_constraint
+     WHERE conrelid = 'public.specialist_capability_assessment_attempts'::regclass
+       AND contype = 'u'
+       AND pg_get_constraintdef(oid) = 'UNIQUE (tutor_assignment_id, assessment_key, bank_version, attempt_number)'
+  ) THEN
+    ALTER TABLE public.specialist_capability_assessment_attempts
+      ADD CONSTRAINT specialist_capability_attempt_bank_version_unique
+      UNIQUE (tutor_assignment_id, assessment_key, bank_version, attempt_number);
+  END IF;
+END
+$$;
 
 ALTER TABLE specialist_capability_assessment_attempts ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE specialist_capability_assessment_attempts FROM anon, authenticated;
