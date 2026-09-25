@@ -28,6 +28,19 @@ const repSubmissionSchema = z.object({
       optionId: z.string().trim().min(1),
       evidenceStatus: evidenceStatusSchema.optional(),
     })),
+    prerequisiteSentinel: z.enum([
+      "held",
+      "contradicted",
+      "not_observed",
+      "confounded",
+    ]).optional(),
+    inheritedRescueSignal: z.enum([
+      "none",
+      "isolated",
+      "repeated",
+      "not_observed",
+      "confounded",
+    ]).optional(),
   }),
 });
 
