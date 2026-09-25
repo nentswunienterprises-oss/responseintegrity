@@ -1,0 +1,44 @@
+name: Sandbox Simulation CI
+
+on:
+  pull_request:
+    paths:
+      - "shared/sandbox*.ts"
+      - "server/sandbox*.ts"
+      - "server/routes/sandbox*.ts"
+      - "client/src/pages/operational/tutor/sandbox*.tsx"
+      - "migrations/*sandbox*.sql"
+      - "server/index.ts"
+      - "server/vercelPreviewApi.ts"
+      - "client/src/App.tsx"
+      - "package.json"
+      - ".github/workflows/sandbox-simulation-ci.yml"
+  push:
+    branches:
+      - "proof/sandbox-v1r1-reconciliation"
+    paths:
+      - "shared/sandbox*.ts"
+      - "server/sandbox*.ts"
+      - "server/routes/sandbox*.ts"
+      - "client/src/pages/operational/tutor/sandbox*.tsx"
+      - "migrations/*sandbox*.sql"
+      - "server/index.ts"
+      - "server/vercelPreviewApi.ts"
+      - "client/src/App.tsx"
+      - "package.json"
+      - ".github/workflows/sandbox-simulation-ci.yml"
+
+jobs:
+  sandbox-simulation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Sandbox focused tests
+        run: npm run test:sandbox
+      - name: Preview API bundle
+        run: npm run build:vercel-api
