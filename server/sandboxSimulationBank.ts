@@ -1,6 +1,7 @@
 import { createHmac } from "crypto";
 import { pool } from "./db";
 import {
+  projectSandboxScenarioToCurrentTrainingContract,
   validateSandboxScenarioDefinition,
   type SandboxScenarioDefinition,
 } from "@shared/sandboxSimulation";
@@ -10,6 +11,22 @@ import {
 } from "@shared/sandboxGraduation";
 
 export const DEFAULT_SANDBOX_BANK_KEY = "sandbox_observation_foundation";
+
+const SANDBOX_SCENARIO_BANK_TRAINING_SCHEMA_VERSION: Record<number, number> = {
+  1: 1,
+};
+
+const trainingSchemaVersionForScenarioBank = (bankVersion: number) => {
+  const version = SANDBOX_SCENARIO_BANK_TRAINING_SCHEMA_VERSION[bankVersion];
+  if (!version) {
+    throw httpError(
+      503,
+      `Sandbox scenario bank v${bankVersion} has no declared Training observation schema authority.`,
+    );
+  }
+  return version;
+};
+
 
 export type SandboxBankConfig = {
   bankKey: string;
@@ -27,10 +44,9 @@ function httpError(status: number, message: string) {
 }
 
 function parseScenario(value: unknown): SandboxScenarioDefinition {
-  const scenario =
-    typeof value === "string" ? JSON.parse(value) : value as SandboxScenarioDefinition;
-  validateSandboxScenarioDefinition(scenario);
-  return scenario;
+  return (
+    typeof value === "string" ? JSON.parse(value) : value
+  ) as SandboxScenarioDefinition;
 }
 
 export async function loadActiveSandboxBank(bankKey: string): Promise<SandboxBankConfig | null> {
@@ -55,8 +71,15 @@ export async function loadActiveSandboxBank(bankKey: string): Promise<SandboxBan
     [bankKey, Number(bank.bank_version)],
   );
 
+  const sourceTrainingSchemaVersion =
+    trainingSchemaVersionForScenarioBank(Number(bank.bank_version));
   const scenarios = scenarioResult.rows.map((row) => {
-    const scenario = parseScenario(row.definition);
+    const storedScenario = parseScenario(row.definition);
+    const scenario = projectSandboxScenarioToCurrentTrainingContract(
+      storedScenario,
+      sourceTrainingSchemaVersion,
+    );
+    validateSandboxScenarioDefinition(scenario);
     if (scenario.key !== String(row.scenario_key) || scenario.version !== Number(row.scenario_version)) {
       throw new Error(`Sandbox scenario metadata mismatch for ${String(row.scenario_key)}.`);
     }
