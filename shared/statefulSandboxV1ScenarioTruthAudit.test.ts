@@ -132,6 +132,7 @@ test("all 264 Stateful Sandbox V1 outcomes preserve audited truth while renderin
             projected.studentBehavior,
             renderLegacyStatefulSandboxV1StudentBehavior({
               phase,
+              setId: set.setId,
               outcomeKey: historicalDefinition.key,
               repNumber,
               repCount: set.reps,
@@ -139,10 +140,11 @@ test("all 264 Stateful Sandbox V1 outcomes preserve audited truth while renderin
           );
           assert.doesNotMatch(projected.studentBehavior, /Historical placeholder/);
 
-          for (const dimensionId of LEGACY_STATEFUL_SANDBOX_V1_DIMENSION_ORDER[
-            phase
-          ]) {
-            const auditedObservation = audit!.observations[dimensionId];
+          for (const dimensionId of currentSet!.fields.map(
+            (field) => field.dimensionId,
+          )) {
+            const auditedObservation =
+              audit!.observations[dimensionId as keyof typeof audit.observations];
             assert.ok(auditedObservation);
             assert.equal(
               projected.studentBehavior.includes(auditedObservation!.behavior),
@@ -199,6 +201,36 @@ test("all 264 Stateful Sandbox V1 outcomes preserve audited truth while renderin
   }
 
   assert.equal(projectedCount, 264);
+});
+
+test("Clarity Identification projects recognition-only evidence and never simulates solving", () => {
+  for (let patternNumber = 1; patternNumber <= 8; patternNumber += 1) {
+    const projected = projectSandboxOutcomeToCurrentTrainingContract(
+      historicalOutcome(
+        "Clarity",
+        "clarity.identification",
+        1,
+        patternNumber,
+      ),
+      1,
+    );
+    assert.deepEqual(Object.keys(projected.canonicalObservations).sort(), [
+      "method",
+      "reason",
+      "vocabulary",
+    ]);
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(
+        projected.canonicalObservations,
+        "immediateApply",
+      ),
+      false,
+    );
+    assert.doesNotMatch(
+      projected.studentBehavior,
+      /begin working|continue working|start, stop|arranging the work|active solving/i,
+    );
+  }
 });
 
 test("Clarity pattern 5 records partial reason evidence rather than an invented reason breakdown", () => {
