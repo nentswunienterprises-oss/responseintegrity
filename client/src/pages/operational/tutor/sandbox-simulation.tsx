@@ -15,6 +15,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  instructionPromptDisplayText,
+  instructionPromptLabelFor,
+} from "@/lib/instructionPromptLabel";
+import {
   LiveObservationField,
   LivePhaseContext,
   LiveRepContextCard,
@@ -897,12 +901,14 @@ export default function SpecialistSandboxSimulation({
                 </p>
                 <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">
-                    {liveTrainingInstruction(form.prescribedPhase, rep.setName)
-                      ? "DO THIS NOW"
-                      : "DO THIS NOW"}
+                    {instructionPromptLabelFor(
+                      liveTrainingInstruction(form.prescribedPhase, rep.setName),
+                    )}
                   </div>
                   <div className="mt-1 text-base font-semibold text-foreground">
-                    {liveTrainingInstruction(form.prescribedPhase, rep.setName)}
+                    {instructionPromptDisplayText(
+                      liveTrainingInstruction(form.prescribedPhase, rep.setName),
+                    )}
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-1.5">
