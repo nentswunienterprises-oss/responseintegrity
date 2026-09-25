@@ -1568,7 +1568,12 @@ export default function SpecialistSandboxSimulation({
                             <Button
                               key={option.optionId}
                               type="button"
-                              variant={selection?.optionId === option.optionId ? "default" : "outline"}
+                              variant={
+                                selection?.evidenceStatus === "observed" &&
+                                selection?.optionId === option.optionId
+                                  ? "default"
+                                  : "outline"
+                              }
                               className="h-auto justify-start whitespace-normal py-3 text-left"
                               onClick={() => chooseOption(field.fieldKey, option.optionId)}
                             >
@@ -1577,18 +1582,34 @@ export default function SpecialistSandboxSimulation({
                           ))}
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2">
-                          {(["observed", "not_observed", "confounded"] as EvidenceStatus[]).map((status) => (
-                            <Button
-                              key={status}
-                              size="sm"
-                              type="button"
-                              disabled={!selection?.optionId}
-                              variant={selection?.evidenceStatus === status ? "secondary" : "ghost"}
-                              onClick={() => chooseStatus(field.fieldKey, status)}
-                            >
-                              {humanize(status)}
-                            </Button>
-                          ))}
+                          {(["observed", "not_observed", "confounded"] as EvidenceStatus[]).map((status) => {
+                            const hasObservedBehavior =
+                              selection?.evidenceStatus === "observed" &&
+                              Boolean(selection?.optionId);
+                            return (
+                              <Button
+                                key={status}
+                                size="sm"
+                                type="button"
+                                disabled={status === "observed" && !hasObservedBehavior}
+                                variant={selection?.evidenceStatus === status ? "secondary" : "ghost"}
+                                onClick={() =>
+                                  chooseStatus(
+                                    field.fieldKey,
+                                    status,
+                                    field.options[0]?.optionId,
+                                  )
+                                }
+                              >
+                                {humanize(status)}
+                              </Button>
+                            );
+                          })}
+                          {selection?.evidenceStatus !== "observed" && (
+                            <span className="self-center text-xs text-muted-foreground">
+                              No behavior option is required for ineligible evidence.
+                            </span>
+                          )}
                         </div>
                       </div>
                     );
