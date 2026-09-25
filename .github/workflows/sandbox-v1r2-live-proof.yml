@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 20
     env:
       SMOKE_BASE_URL: https://tt-confidence-a8m72q55g-relief-works-technologies.vercel.app
+      VERCEL_SHARE_URL: "https://tt-confidence-a8m72q55g-relief-works-technologies.vercel.app/?_vercel_share=VTIlkUaBXR9T6YWQGHUdx5upyR0fo0LG"
       PROOF_EXPECTED_APP_SHA: 932ca7f82320c1ba54dae4abe89865e2f72176e8
       RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
       RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
