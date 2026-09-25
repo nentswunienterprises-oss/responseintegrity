@@ -87,13 +87,32 @@ async function attemptCount(input: {
   return Number(result.rows[0]?.attempt_count || 0);
 }
 
+function getSandboxFormSecret() {
+  const configured = String(
+    process.env.SANDBOX_FORM_SECRET ||
+    process.env.CAPABILITY_FORM_SECRET ||
+    "",
+  ).trim();
+  if (configured) return configured;
+
+  if (process.env.VERCEL_ENV === "preview") {
+    const previewSessionSecret = String(process.env.SESSION_SECRET || "").trim();
+    if (previewSessionSecret) {
+      return createHmac("sha256", previewSessionSecret)
+        .update("ri-sandbox-preview-form-secret-v1")
+        .digest("hex");
+    }
+  }
+
+  throw httpError(503, "Sandbox deterministic-form secret is not configured.");
+}
+
 function stableRotationSeed(input: {
   tutorAssignmentId: string;
   bankKey: string;
   bankVersion: number;
 }) {
-  const secret = String(process.env.CAPABILITY_FORM_SECRET || "").trim();
-  if (!secret) throw httpError(503, "Sandbox deterministic-form secret is not configured.");
+  const secret = getSandboxFormSecret();
   return createHmac("sha256", secret)
     .update(
       [
@@ -133,7 +152,7 @@ export async function buildSandboxAttemptPlan(input: {
   const scenarioIndex = (startIndex + attemptNumber - 1) % bank.scenarios.length;
   const scenario = bank.scenarios[scenarioIndex];
 
-  const secret = String(process.env.CAPABILITY_FORM_SECRET || "").trim();
+  const secret = getSandboxFormSecret();
   const scenarioFormId = createHmac("sha256", secret)
     .update(
       [
