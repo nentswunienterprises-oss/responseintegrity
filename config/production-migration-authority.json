@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "authority": "response_integrity_production_database",
+  "productionProjectName": "The Hub",
+  "productionProjectRef": "yzcnavucvwgmulcxgxvw",
+  "confirmationPhrase": "THE_HUB",
+  "baseline": {
+    "commit": "a8c1aab29b230ce523c0353cfcc4eb4b1ae07627",
+    "verifiedAt": "2026-09-25",
+    "note": "The Hub live schema was read-back verified after controlled manual promotion through Sandbox V1R4. PR #81 added no migrations, so this current-main commit is the authority baseline.",
+    "migrations": [
+      {
+        "path": "migrations/20260916191307_demand_production_gateway.sql",
+        "gitBlobSha": "e42c4518c642d595bde44840b8271ba6675b2ab4"
+      },
+      {
+        "path": "migrations/2026-09-18_evidence_complete_diagnosis_runs.sql",
+        "gitBlobSha": "1b351962104b5e691b5ba6c4fc9ac97794439933"
+      },
+      {
+        "path": "migrations/2026-09-18_training_evidence_shadow_comparisons.sql",
+        "gitBlobSha": "4c1f760b0bed52ff50199c6c7a88e63eacb46b47"
+      },
+      {
+        "path": "migrations/2026-09-19_add_students_updated_at.sql",
+        "gitBlobSha": "fd5a6170d7bf71a8de9be439579d35c496938107"
+      },
+      {
+        "path": "migrations/20260920103037_evidence_native_ledger_v2.sql",
+        "gitBlobSha": "4cd023df2efc59eb6882fb98f1781203a8ab88be"
+      },
+      {
+        "path": "migrations/20260920_fix_onboarding_proposal_tutor_fk.sql",
+        "gitBlobSha": "825aedb46da033ef161437546d7fa0f9b52df660"
+      },
+      {
+        "path": "migrations/20260922123000_evidence_diagnosis_handover_context.sql",
+        "gitBlobSha": "896093b4455637ff28dfff55d1837ebbc9f73b3b"
+      },
+      {
+        "path": "migrations/2026-09-23_response_integrity_tps_timer_authority.sql",
+        "gitBlobSha": "3af4a9cbf376d620586586e55b6fcd1abc890757"
+      },
+      {
+        "path": "migrations/2026-09-24_add_capability_training_mastery_engine.sql",
+        "gitBlobSha": "880acbd1f17c2d5339a07b8afa75f0c5b886bcb6"
+      },
+      {
+        "path": "migrations/2026-09-24_retire_empty_capability_configs.sql",
+        "gitBlobSha": "09e227343bcf5a7a35dee3a04f88176451cb1db7"
+      },
+      {
+        "path": "migrations/20260924233000_response_integrity_evidence_corrections.sql",
+        "gitBlobSha": "41c37191494e8f9526a5189c1c359ffc03462079"
+      },
+      {
+        "path": "migrations/20260925071617_sandbox_v1r1_deterministic_drill_simulation.sql",
+        "gitBlobSha": "26a8cda138beb9f8bff490d78a88f7f7eac29b86"
+      },
+      {
+        "path": "migrations/20260925_sandbox_v1r2_graduation_policy.sql",
+        "gitBlobSha": "fbe3464badf9351c82ff0fc01dc4bba1a553f90e"
+      },
+      {
+        "path": "migrations/20260925_sandbox_v1r3_stateful_environment.sql",
+        "gitBlobSha": "47ef56a5b2a1845c291208ec64cb8107ca299834"
+      },
+      {
+        "path": "migrations/20260925_sandbox_v1r4_per_student_trajectories.sql",
+        "gitBlobSha": "070fbf1f14e3932c643fbee1f14a22102bfe7b64"
+      }
+    ]
+  },
+  "managedMigrations": []
+}

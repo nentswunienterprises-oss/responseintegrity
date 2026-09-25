@@ -1,0 +1,58 @@
+name: Production DB Promotion
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Plan or apply approved production migrations"
+        required: true
+        type: choice
+        default: plan
+        options:
+          - plan
+          - apply
+      confirmation:
+        description: "For apply, type THE_HUB exactly"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run test:db-authority
+      - run: npm run db:authority:verify
+
+  promote:
+    needs: contract
+    runs-on: ubuntu-latest
+    environment: production-db
+    env:
+      RI_PRODUCTION_DATABASE_URL: ${{ secrets.RI_PRODUCTION_DATABASE_URL }}
+      RI_PRODUCTION_MIGRATION_ACTOR: github:${{ github.actor }}
+      RI_PRODUCTION_MIGRATION_CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Show production migration plan
+        run: npm run db:authority:plan
+      - name: Apply approved production migrations
+        if: ${{ inputs.mode == 'apply' }}
+        run: npm run db:authority:apply
