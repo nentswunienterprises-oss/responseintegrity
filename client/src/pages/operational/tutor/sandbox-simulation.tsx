@@ -285,7 +285,13 @@ const humanize = (value: string) =>
     .replace(/[._]/g, " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
 
-export default function SpecialistSandboxSimulation() {
+export default function SpecialistSandboxSimulation({
+  studentIdOverride,
+  embedded = false,
+}: {
+  studentIdOverride?: string;
+  embedded?: boolean;
+} = {}) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -318,11 +324,14 @@ export default function SpecialistSandboxSimulation() {
   const sandboxStudents = (podQuery.data?.students || []).filter(
     (student) => Boolean(student?.id),
   );
-  const requestedStudentId = String(searchParams.get("studentId") || "").trim();
-  const selectedSandboxStudent =
-    sandboxStudents.find((student) => String(student.id) === requestedStudentId) ||
-    sandboxStudents[0] ||
-    null;
+  const requestedStudentId = String(
+    studentIdOverride || searchParams.get("studentId") || "",
+  ).trim();
+  const selectedSandboxStudent = studentIdOverride
+    ? sandboxStudents.find((student) => String(student.id) === requestedStudentId) || null
+    : sandboxStudents.find((student) => String(student.id) === requestedStudentId) ||
+      sandboxStudents[0] ||
+      null;
   const studentId = String(selectedSandboxStudent?.id || "");
 
   useEffect(() => {
@@ -630,9 +639,13 @@ export default function SpecialistSandboxSimulation() {
     <div className="min-h-screen bg-background px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Button variant="ghost" onClick={() => navigate("/specialist/pod")}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Pod
-          </Button>
+          {!embedded ? (
+            <Button variant="ghost" onClick={() => navigate("/specialist/pod")}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Pod
+            </Button>
+          ) : (
+            <div />
+          )}
           <div className="text-right text-xs text-muted-foreground">
             <p>Sandbox session {form.sessionNumber}</p>
             {form.sessionProgress && (
@@ -643,6 +656,7 @@ export default function SpecialistSandboxSimulation() {
           </div>
         </div>
 
+        {!embedded && (
         <Card>
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -680,6 +694,7 @@ export default function SpecialistSandboxSimulation() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         <Card>
           <CardHeader>
