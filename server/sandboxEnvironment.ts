@@ -385,7 +385,7 @@ async function exposureSummary(input: {
     pool.query(
       `SELECT
          COUNT(*)::int AS completed_sessions,
-         COALESCE(bool_or(canonical_state_changed), false) AS state_change_observed,
+         COALESCE(bool_or(state_change_observed), false) AS state_change_observed,
          COALESCE(bool_or(student_breakdown_recovery_observed), false) AS breakdown_recovery_observed
        FROM specialist_sandbox_session_evaluations
       WHERE tutor_assignment_id = $1
@@ -1019,7 +1019,7 @@ export async function submitSandboxEnvironmentRep(input: {
       priorTracksDiverged: bundle.truth.prior_tracks_diverged,
     });
 
-    const canonicalStateChanged =
+    const stateChangeObserved =
       evaluation.canonicalNext.phase !== bundle.truth.canonical_phase ||
       evaluation.canonicalNext.stability !== bundle.truth.canonical_stability;
     const breakdownRecoveryObserved = sessionHasBreakdownRecovery(turns);
@@ -1028,7 +1028,7 @@ export async function submitSandboxEnvironmentRep(input: {
       `INSERT INTO specialist_sandbox_session_evaluations (
          trajectory_id, tutor_assignment_id, tutor_id, session_number,
          phase, specialist_authority, authority_aligned, state_track_aligned,
-         canonical_state_changed, student_breakdown_recovery_observed,
+         state_change_observed, student_breakdown_recovery_observed,
          student_state_authoritative, evidence_scope
        ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,false,'sandbox')
        RETURNING id`,
@@ -1041,7 +1041,7 @@ export async function submitSandboxEnvironmentRep(input: {
         JSON.stringify(evaluation.specialistRoute),
         evaluation.systemOutcomeMatched,
         evaluation.systemOutcomeMatched,
-        canonicalStateChanged,
+        stateChangeObserved,
         breakdownRecoveryObserved,
       ],
     );
@@ -1162,7 +1162,7 @@ export async function getSandboxEnvironmentHistory(input: {
     ),
     pool.query(
       `SELECT id, session_number, phase, authority_aligned, state_track_aligned,
-              canonical_state_changed, student_breakdown_recovery_observed, completed_at
+              state_change_observed, student_breakdown_recovery_observed, completed_at
          FROM specialist_sandbox_session_evaluations
         WHERE trajectory_id = $1
         ORDER BY session_number DESC
@@ -1207,7 +1207,7 @@ export async function getSandboxEnvironmentHistory(input: {
       phase: String(row.phase),
       authorityAligned: Boolean(row.authority_aligned),
       stateTrackAligned: Boolean(row.state_track_aligned),
-      canonicalStateChanged: Boolean(row.canonical_state_changed),
+      stateChangeObserved: Boolean(row.state_change_observed),
       breakdownRecoveryObserved: Boolean(row.student_breakdown_recovery_observed),
       completedAt: row.completed_at,
     })),
