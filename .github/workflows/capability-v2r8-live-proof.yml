@@ -1,0 +1,203 @@
+name: Capability V2R8 Live Proof
+
+on:
+  push:
+    branches:
+      - proof/capability-engine-v2r8-reconciliation
+    paths:
+      - '.github/workflows/capability-v2r8-live-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: read
+
+jobs:
+  live-capability-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SMOKE_BASE_URL: https://tt-confidence-roycrwrqv-relief-works-technologies.vercel.app
+      EXPECTED_APP_SHA: 914e960689bb67730f888b223ab4730677c6df22
+      RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+      RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Run authenticated Capability V2R8 journey
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { chromium } from "playwright";
+
+          const baseUrl = String(process.env.SMOKE_BASE_URL || "").replace(/\/$/, "");
+          const email = String(process.env.RI_PROOF_EMAIL || "").trim();
+          const password = String(process.env.RI_PROOF_PASSWORD || "");
+          const bypass = String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "").trim();
+          const expectedSha = String(process.env.EXPECTED_APP_SHA || "").trim();
+          assert.ok(baseUrl && email && password && expectedSha, "Proof runtime inputs are required");
+
+          const browser = await chromium.launch({ headless: true });
+          const context = await browser.newContext({
+            viewport: { width: 1440, height: 1100 },
+            ...(bypass ? { extraHTTPHeaders: { "x-vercel-protection-bypass": bypass } } : {}),
+          });
+          const page = await context.newPage();
+
+          const proof = await page.request.get(baseUrl + "/api/proof-environment", { timeout: 60000 });
+          const proofText = await proof.text();
+          assert.ok(proof.ok(), "Proof environment failed: " + proof.status() + " " + proofText);
+          const proofBody = JSON.parse(proofText);
+          assert.equal(proofBody.vercelEnv, "preview");
+          assert.equal(proofBody.supabaseProjectRef, "jftlxeacphvbnhbsbpxc");
+          assert.equal(proofBody.commitSha, expectedSha);
+
+          await page.goto(baseUrl + "/operational/signup?role=tutor&mode=login&lock=login&returnTo=/specialist/pod", {
+            waitUntil: "domcontentloaded",
+            timeout: 90000,
+          });
+          await page.locator("#login-email").fill(email);
+          await page.locator("#login-password").fill(password);
+          const [signin] = await Promise.all([
+            page.waitForResponse(
+              (response) => response.url().includes("/api/auth/signin") && response.request().method() === "POST",
+              { timeout: 60000 },
+            ),
+            page.getByRole("button", { name: "Login", exact: true }).click(),
+          ]);
+          const signinText = await signin.text();
+          assert.ok(signin.ok(), "Login failed: " + signin.status() + " " + signinText);
+
+          const pod = await page.request.get(baseUrl + "/api/tutor/pod", { timeout: 60000 });
+          const podText = await pod.text();
+          assert.ok(pod.ok(), "Pod lookup failed: " + pod.status() + " " + podText);
+          const podBody = JSON.parse(podText);
+          const tutorAssignmentId = String(podBody?.assignment?.id || "").trim();
+          assert.ok(tutorAssignmentId, "Authenticated proof Specialist has no tutor assignment");
+
+          const plan = await page.request.get(
+            baseUrl + "/api/tutor/capability-plan?tutorAssignmentId=" + encodeURIComponent(tutorAssignmentId),
+            { timeout: 60000 },
+          );
+          const planText = await plan.text();
+          assert.ok(plan.ok(), "Capability plan failed: " + plan.status() + " " + planText);
+          const planBody = JSON.parse(planText);
+          const clarity = (planBody.assessments || []).find((x) => x.assessmentKey === "clarity_mastery_v1");
+          assert.ok(clarity, "Clarity mastery plan row missing");
+          assert.equal(clarity.status, "available");
+          assert.equal(clarity.bankVersion, 8);
+
+          async function loadForm() {
+            const response = await page.request.get(
+              baseUrl + "/api/tutor/capability-assessments/clarity_mastery_v1?tutorAssignmentId=" +
+                encodeURIComponent(tutorAssignmentId),
+              { timeout: 60000 },
+            );
+            const text = await response.text();
+            assert.ok(response.ok(), "Capability form failed: " + response.status() + " " + text);
+            const body = JSON.parse(text);
+            assert.equal(body.bankVersion, 8);
+            assert.equal(body.totalQuestions, 15);
+            assert.equal(body.questions.length, 15);
+            const serialized = JSON.stringify(body);
+            assert.equal(serialized.includes("correctOptionKeys"), false, "Correct answer keys leaked");
+            assert.equal(serialized.includes("criticalFailOptionKeys"), false, "Critical-fail keys leaked");
+            assert.equal(serialized.includes("explanation"), false, "Private explanations leaked");
+            assert.equal(body.questions.some((q) => q.options.some((o) => /\*\*|\x60/.test(o.label))), false, "Raw authoring markup leaked in option labels");
+            return body;
+          }
+
+          const first = await loadForm();
+          assert.equal(first.attemptNumber, 1);
+          const repeat = await loadForm();
+          assert.equal(repeat.formId, first.formId, "Same active attempt did not reproduce deterministic formId");
+          assert.deepEqual(
+            repeat.questions.map((q) => q.key),
+            first.questions.map((q) => q.key),
+            "Same active attempt did not reproduce deterministic question order",
+          );
+
+          const firstResponses = first.questions.map((q) => ({
+            questionKey: q.key,
+            selectedOptionKeys: [q.options[1].key],
+          }));
+          const submit = await page.request.post(
+            baseUrl + "/api/tutor/capability-assessments/clarity_mastery_v1/attempt",
+            {
+              data: {
+                tutorAssignmentId,
+                formId: first.formId,
+                bankVersion: first.bankVersion,
+                responses: firstResponses,
+              },
+              timeout: 60000,
+            },
+          );
+          const submitText = await submit.text();
+          assert.ok(submit.ok(), "Capability submit failed: " + submit.status() + " " + submitText);
+          const result = JSON.parse(submitText);
+          assert.equal(result.bankVersion, 8);
+          assert.equal(result.attemptNumber, 1);
+          assert.equal(result.totalQuestions, 15);
+          assert.ok(result.attemptId, "Attempt did not persist");
+          assert.equal(result.passed, false);
+          assert.equal(result.hasCriticalFail, true, "Critical-fail boundary was not detected");
+          assert.ok(Number.isFinite(result.percent), "Score was not produced");
+
+          const history = await page.request.get(
+            baseUrl + "/api/tutor/capability-assessments/clarity_mastery_v1/history?tutorAssignmentId=" +
+              encodeURIComponent(tutorAssignmentId),
+            { timeout: 60000 },
+          );
+          const historyText = await history.text();
+          assert.ok(history.ok(), "Capability history failed: " + history.status() + " " + historyText);
+          const historyBody = JSON.parse(historyText);
+          const persisted = (historyBody.attempts || []).find((x) => x.id === result.attemptId || x.form_id === first.formId || x.formId === first.formId);
+          assert.ok(persisted || (historyBody.attempts || []).some((x) => Number(x.bank_version ?? x.bankVersion) === 8 && Number(x.attempt_number ?? x.attemptNumber) === 1), "Attempt missing from persisted history");
+
+          const second = await loadForm();
+          assert.equal(second.attemptNumber, 2);
+          assert.notEqual(second.formId, first.formId, "Retry did not rotate formId");
+          assert.notDeepEqual(
+            [...second.questions.map((q) => q.key)].sort(),
+            [...first.questions.map((q) => q.key)].sort(),
+            "Retry collapsed to the same 15-question set",
+          );
+
+          const ledger = await page.request.get(
+            baseUrl + "/api/tutor/capability-ledger?tutorAssignmentId=" + encodeURIComponent(tutorAssignmentId),
+            { timeout: 60000 },
+          );
+          const ledgerText = await ledger.text();
+          assert.ok(ledger.ok(), "Capability ledger failed: " + ledger.status() + " " + ledgerText);
+          const ledgerBody = JSON.parse(ledgerText);
+          const clarityLedger = (ledgerBody?.ledger?.deepDives || []).find((x) => x.deepDiveKey === "clarity");
+          assert.ok(clarityLedger, "Persisted attempt did not reach capability ledger");
+          assert.ok((clarityLedger?.evidence?.mastery?.attempts || 0) >= 1, "Mastery attempt not counted in ledger");
+
+          console.log("CAPABILITY_V2R8_LIVE_PROOF_PASS=" + JSON.stringify({
+            bankVersion: 8,
+            assessmentKey: "clarity_mastery_v1",
+            totalQuestions: first.totalQuestions,
+            deterministicReload: true,
+            privateAnswerLeakage: false,
+            persistedAttemptId: result.attemptId,
+            criticalFailDetected: result.hasCriticalFail,
+            scorePercent: result.percent,
+            retryAttemptNumber: second.attemptNumber,
+            retryRotated: second.formId !== first.formId,
+            ledgerPersisted: true,
+          }));
+
+          await browser.close();
+          NODE
