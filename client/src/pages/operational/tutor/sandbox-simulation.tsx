@@ -287,9 +287,13 @@ const humanize = (value: string) =>
 
 export default function SpecialistSandboxSimulation({
   studentIdOverride,
+  tutorAssignmentIdOverride,
+  operationalModeOverride,
   embedded = false,
 }: {
   studentIdOverride?: string;
+  tutorAssignmentIdOverride?: string;
+  operationalModeOverride?: string;
   embedded?: boolean;
 } = {}) {
   const navigate = useNavigate();
@@ -310,15 +314,27 @@ export default function SpecialistSandboxSimulation({
     "none" | "isolated" | "repeated" | "not_observed" | "confounded" | null
   >(null);
 
+  const requiresPodData = !(
+    embedded &&
+    studentIdOverride &&
+    tutorAssignmentIdOverride &&
+    operationalModeOverride
+  );
   const podQuery = useQuery<PodData>({
     queryKey: ["/api/tutor/pod"],
     retry: false,
+    enabled: requiresPodData,
   });
 
   const assignment = podQuery.data?.assignment;
-  const tutorAssignmentId = String(assignment?.id || "");
+  const tutorAssignmentId = String(
+    tutorAssignmentIdOverride || assignment?.id || "",
+  );
   const operationalMode = String(
-    assignment?.operationalMode || assignment?.operational_mode || "",
+    operationalModeOverride ||
+      assignment?.operationalMode ||
+      assignment?.operational_mode ||
+      "",
   ).toLowerCase();
   const inSandbox = operationalMode === "sandbox";
   const sandboxStudents = (podQuery.data?.students || []).filter(
@@ -332,7 +348,9 @@ export default function SpecialistSandboxSimulation({
     : sandboxStudents.find((student) => String(student.id) === requestedStudentId) ||
       sandboxStudents[0] ||
       null;
-  const studentId = String(selectedSandboxStudent?.id || "");
+  const studentId = String(
+    studentIdOverride || selectedSandboxStudent?.id || "",
+  );
 
   useEffect(() => {
     setSelections({});
@@ -547,7 +565,7 @@ export default function SpecialistSandboxSimulation({
     },
   });
 
-  if (podQuery.isLoading) {
+  if (requiresPodData && podQuery.isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
         Loading Specialist assignment...
