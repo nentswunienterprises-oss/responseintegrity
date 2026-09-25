@@ -441,7 +441,7 @@ export async function prepareSandboxRediagnosis(input: {
       trajectoryId: planned.trajectory.id,
       rediagnosisRunId: planned.run.id,
       targetPhase: planned.run.target_phase,
-      reason: planned.canonicalDecision.reason,
+      reason: "The permitted clean targeted probes did not resolve placement. Sandbox Training remains paused for evidence review.",
       studentStateAuthoritative: false as const,
       evidenceScope: "sandbox" as const,
     };
@@ -460,7 +460,6 @@ export async function prepareSandboxRediagnosis(input: {
       ...projectProbe(planned.canonicalDecision.nextProbeId!),
       studentBehavior: planned.selected.studentBehavior,
     },
-    decisionReason: planned.canonicalDecision.reason,
     studentStateAuthoritative: false as const,
     evidenceScope: "sandbox" as const,
   };
@@ -707,12 +706,6 @@ export async function submitSandboxRediagnosisProbe(input: {
     authorityAligned: decisionComparison.authorityAligned,
     diagnosisComplete: complete,
     blocked,
-    canonicalPlacement: complete
-      ? {
-          phase: decisionComparison.canonicalDecision.placementPhase,
-          stability: decisionComparison.canonicalDecision.stability,
-        }
-      : null,
     specialistPlacement:
       decisionComparison.specialistDecision.complete
         ? {
