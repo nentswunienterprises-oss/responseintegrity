@@ -5,7 +5,8 @@ import { z } from "zod";
 import { generateDeterministicCapabilityForm } from "../server/capabilityFormGeneration";
 import { CAPABILITY_MASTERY_PLAN } from "../shared/capabilityMasterySequencing";
 import { validateCapabilityAssessmentAgainstBlueprint } from "../shared/capabilityBankCoverage";
-import { buildCapabilityCriticalBoundaryRequirements } from "../shared/capabilityCriticalCoverage";\nimport { assertCapabilityOptionParity } from "../shared/capabilityOptionParity";
+import { buildCapabilityCriticalBoundaryRequirements } from "../shared/capabilityCriticalCoverage";
+import { assertCapabilityOptionParity } from "../shared/capabilityOptionParity";
 
 const APPROVED_BANK_VERSION = 8;
 const REQUIRED_ITEM_COUNT = 45;
@@ -102,6 +103,7 @@ function main() {
 
   const globalItemKeys = new Set<string>();
   const globalPrompts = new Set<string>();
+  const optionParityByAssessment: Array<ReturnType<typeof assertCapabilityOptionParity> & { assessmentKey: string }> = [];
 
   for (const assessment of payload.assessments) {
     const plan = planByKey.get(assessment.assessmentKey);
@@ -181,7 +183,10 @@ function main() {
       }
     }
 
-    const optionParity = assertCapabilityOptionParity(assessment.assessmentKey, assessment.items);\n    optionParityByAssessment.push({ assessmentKey: assessment.assessmentKey, ...optionParity });\n\n    const signatures = new Set<string>();
+    const optionParity = assertCapabilityOptionParity(assessment.assessmentKey, assessment.items);
+    optionParityByAssessment.push({ assessmentKey: assessment.assessmentKey, ...optionParity });
+
+    const signatures = new Set<string>();
     for (let attemptNumber = 1; attemptNumber <= 3; attemptNumber += 1) {
       const first = generateDeterministicCapabilityForm(
         config,
@@ -207,7 +212,8 @@ function main() {
     packageKind: payload.packageKind,
     assessmentCount: payload.assessments.length,
     itemCount: globalItemKeys.size,
-    founderApprovedAssessmentKeys: [...declared].sort(),\n    optionParityByAssessment,
+    founderApprovedAssessmentKeys: [...declared].sort(),
+    optionParityByAssessment,
     omittedMasteryBanks: CAPABILITY_MASTERY_PLAN
       .map((entry) => entry.assessmentKey)
       .filter((key) => !declared.has(key)),
