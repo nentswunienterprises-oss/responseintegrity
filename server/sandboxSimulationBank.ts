@@ -14,6 +14,8 @@ export const DEFAULT_SANDBOX_BANK_KEY = "sandbox_observation_foundation";
 
 const SANDBOX_SCENARIO_BANK_TRAINING_SCHEMA_VERSION: Record<number, number> = {
   1: 1,
+  2: 1,
+  3: 1,
 };
 
 const trainingSchemaVersionForScenarioBank = (bankVersion: number) => {
