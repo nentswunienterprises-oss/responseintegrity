@@ -741,26 +741,22 @@ export default function SpecialistSandboxSimulation({
           </div>
         </div>
 
-        <LivePhaseContext
-          phase={
-            form.status === "rediagnosis_probe_ready" && form.targetPhase &&
-            ["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"].includes(form.targetPhase)
-              ? (form.targetPhase as LivePhaseLabel)
-              : prescribedPhase
-          }
-        />
+        {(form.status !== "rep_ready" ||
+          !rep ||
+          (rep.setIndex === 1 && rep.repNumber === 1)) && (
+          <LivePhaseContext
+            phase={
+              form.status === "rediagnosis_probe_ready" &&
+              form.targetPhase &&
+              ["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"].includes(form.targetPhase)
+                ? (form.targetPhase as LivePhaseLabel)
+                : prescribedPhase
+            }
+          />
+        )}
 
         {!(rep && !repStarted) && (
           <LiveRepStage stage={liveStage} sandbox />
-        )}
-
-        {lastResult && !repStarted && (
-          <Alert>
-            <CheckCircle2 className="h-4 w-4" />
-            <AlertDescription>
-              Previous rep recorded. The next opportunity is ready.
-            </AlertDescription>
-          </Alert>
         )}
 
         {form.status === "rediagnosis_probe_ready" && diagnosisProbe ? (
