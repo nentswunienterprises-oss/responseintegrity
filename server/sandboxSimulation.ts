@@ -7,7 +7,12 @@ import {
 import {
   buildSandboxAttemptPlan,
   DEFAULT_SANDBOX_BANK_KEY,
+  loadActiveSandboxBank,
 } from "./sandboxSimulationBank";
+import {
+  evaluateSandboxGraduation,
+  type SandboxGraduationAttempt,
+} from "@shared/sandboxGraduation";
 
 function httpError(status: number, message: string) {
   const error = new Error(message) as Error & { status?: number };
@@ -195,4 +200,59 @@ export async function getSandboxSimulationHistory(input: {
     evidenceScope: "sandbox" as const,
     completedAt: row.completed_at,
   }));
+}
+
+
+export async function getSandboxGraduationStatus(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  bankKey?: string;
+}) {
+  await assertSandboxAccess(input);
+  const bankKey = input.bankKey || DEFAULT_SANDBOX_BANK_KEY;
+  const bank = await loadActiveSandboxBank(bankKey);
+  if (!bank) throw httpError(404, "Sandbox simulation bank is not active.");
+  if (!bank.graduationPolicy) {
+    return {
+      bankKey: bank.bankKey,
+      bankVersion: bank.bankVersion,
+      policyAvailable: false,
+      evidenceReady: false,
+      practicalsReady: false,
+      automaticTransition: false,
+      nextStage: "practicals",
+      phases: [],
+      qualifyingDistinctScenarios: 0,
+      requiredDistinctScenarios: 0,
+      reason: "The active Sandbox bank does not yet have a graduation policy.",
+    };
+  }
+
+  const attemptResult = await pool.query(
+    `SELECT scenario_key, phase, observation_fidelity_percent,
+            system_outcome_matched, passed, completed_at
+       FROM specialist_sandbox_simulation_attempts
+      WHERE tutor_assignment_id = $1
+        AND tutor_id = $2
+        AND bank_key = $3
+        AND bank_version = $4
+      ORDER BY completed_at ASC`,
+    [input.tutorAssignmentId, input.tutorId, bank.bankKey, bank.bankVersion],
+  );
+
+  const attempts: SandboxGraduationAttempt[] = attemptResult.rows.map((row) => ({
+    scenarioKey: String(row.scenario_key),
+    phase: String(row.phase) as SandboxGraduationAttempt["phase"],
+    observationFidelityPercent: Number(row.observation_fidelity_percent),
+    systemOutcomeMatched: Boolean(row.system_outcome_matched),
+    passed: Boolean(row.passed),
+    completedAt: String(row.completed_at),
+  }));
+
+  return {
+    bankKey: bank.bankKey,
+    bankVersion: bank.bankVersion,
+    policyAvailable: true,
+    ...evaluateSandboxGraduation(bank.graduationPolicy, attempts),
+  };
 }

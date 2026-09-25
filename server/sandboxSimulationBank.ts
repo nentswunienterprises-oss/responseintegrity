@@ -4,6 +4,10 @@ import {
   validateSandboxScenarioDefinition,
   type SandboxScenarioDefinition,
 } from "@shared/sandboxSimulation";
+import {
+  parseSandboxGraduationPolicy,
+  type SandboxGraduationPolicy,
+} from "@shared/sandboxGraduation";
 
 export const DEFAULT_SANDBOX_BANK_KEY = "sandbox_observation_foundation";
 
@@ -12,6 +16,7 @@ export type SandboxBankConfig = {
   bankVersion: number;
   title: string;
   maxAttempts: number;
+  graduationPolicy: SandboxGraduationPolicy | null;
   scenarios: SandboxScenarioDefinition[];
 };
 
@@ -28,9 +33,9 @@ function parseScenario(value: unknown): SandboxScenarioDefinition {
   return scenario;
 }
 
-async function loadActiveBank(bankKey: string): Promise<SandboxBankConfig | null> {
+export async function loadActiveSandboxBank(bankKey: string): Promise<SandboxBankConfig | null> {
   const bankResult = await pool.query(
-    `SELECT bank_key, bank_version, title, max_attempts
+    `SELECT bank_key, bank_version, title, max_attempts, graduation_policy
        FROM private.specialist_sandbox_scenario_banks
       WHERE bank_key = $1
         AND active = true
@@ -67,6 +72,9 @@ async function loadActiveBank(bankKey: string): Promise<SandboxBankConfig | null
     bankVersion: Number(bank.bank_version),
     title: String(bank.title),
     maxAttempts: Number(bank.max_attempts),
+    graduationPolicy: bank.graduation_policy
+      ? parseSandboxGraduationPolicy(bank.graduation_policy)
+      : null,
     scenarios,
   };
 }
@@ -130,7 +138,7 @@ export async function buildSandboxAttemptPlan(input: {
   bankKey?: string;
 }) {
   const bankKey = input.bankKey || DEFAULT_SANDBOX_BANK_KEY;
-  const bank = await loadActiveBank(bankKey);
+  const bank = await loadActiveSandboxBank(bankKey);
   if (!bank) throw httpError(404, "Sandbox simulation bank is not active.");
 
   const completedAttempts = await attemptCount({
