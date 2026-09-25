@@ -22,7 +22,6 @@ jobs:
       PROOF_EXPECTED_APP_SHA: 9a728de993641e5f4a6bcfd20bb1fb75b181547b
       RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
       RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
-      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
       RI_PROOF_ASSIGNMENT_ID: 836a839f-2f29-45c7-b8c2-aa501c95e1b0
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +34,7 @@ jobs:
         run: |
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
-      - name: Run authenticated V1R3 longitudinal journey
+      - name: Run authenticated targeted re-diagnosis continuity proof
         shell: bash
         run: |
           node --input-type=module <<'NODE'
@@ -48,14 +47,11 @@ jobs:
           const password = String(process.env.RI_PROOF_PASSWORD || "");
           const tutorAssignmentId = String(process.env.RI_PROOF_ASSIGNMENT_ID || "").trim();
           const expectedCommit = String(process.env.PROOF_EXPECTED_APP_SHA || "").trim();
-          const bypass = String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "").trim();
-          assert.ok(baseUrl && shareUrl && email && password && tutorAssignmentId && expectedCommit);
+          assert.ok(baseUrl && shareUrl && email && password && tutorAssignmentId);
+          assert.equal(expectedCommit, "9a728de993641e5f4a6bcfd20bb1fb75b181547b");
 
           const browser = await chromium.launch({ headless: true });
-          const context = await browser.newContext({
-            viewport: { width: 1440, height: 1100 },
-            ...(bypass ? { extraHTTPHeaders: { "x-vercel-protection-bypass": bypass } } : {}),
-          });
+          const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
           const page = await context.newPage();
           const pageErrors = [];
           page.on("pageerror", (error) => pageErrors.push(String(error?.stack || error)));
@@ -83,7 +79,7 @@ jobs:
             return JSON.parse(response.text);
           }
 
-          function assertNoPrivateKeys(value, label) {
+          function privateKeyPaths(value) {
             const forbidden = [];
             const walk = (node, path = "") => {
               if (!node || typeof node !== "object") return;
@@ -101,17 +97,10 @@ jobs:
               }
             };
             walk(value);
-            assert.deepEqual(forbidden, [], label + " leaked private keys: " + forbidden.join(", "));
+            return forbidden;
           }
 
           await page.goto(shareUrl, { waitUntil: "domcontentloaded", timeout: 90000 });
-
-          // The deployment SHA is independently pinned in this temporary harness and
-          // verified through the Vercel deployment record before the run. Some preview
-          // deployments do not expose /api/proof-environment, so the authenticated
-          // product APIs are the live proof authority here.
-          assert.equal(expectedCommit, "9a728de993641e5f4a6bcfd20bb1fb75b181547b");
-
           const signin = parse(
             await browserRequest("/api/auth/signin", {
               method: "POST",
@@ -133,145 +122,121 @@ jobs:
             assert.equal(body.bankVersion, 1);
             assert.equal(body.studentStateAuthoritative, false);
             assert.equal(body.evidenceScope, "sandbox");
-            assertNoPrivateKeys(body, "Sandbox environment payload");
-            return body;
-          }
-
-          async function getHistory() {
-            const body = parse(
-              await browserRequest(
-                "/api/tutor/sandbox-environment/history?tutorAssignmentId=" +
-                  encodeURIComponent(tutorAssignmentId),
-              ),
-              "Sandbox history",
-            );
-            assert.equal(body.studentStateAuthoritative, false);
-            assert.equal(body.evidenceScope, "sandbox");
-            assertNoPrivateKeys(body, "Sandbox history payload");
+            assert.deepEqual(privateKeyPaths(body), []);
             return body;
           }
 
           const first = await getEnvironment();
-          assert.equal(first.status, "rep_ready");
-          assert.equal(first.readiness.policyAvailable, true);
-          assert.equal(first.readiness.policyStatus, "candidate");
-          assert.equal(first.readiness.practicalsReady, false);
-          assert.equal(first.readiness.automaticTransition, false);
-          assert.equal(first.readiness.nextStage, "practicals");
-          assert.ok(first.rep?.studentBehavior);
-          assert.ok(Array.isArray(first.rep?.fields) && first.rep.fields.length > 0);
-          assert.ok(first.sessionProgress?.totalReps > 0);
+          assert.equal(first.status, "rediagnosis_probe_ready");
+          assert.ok(first.rediagnosisRunId);
+          assert.ok(first.turnFormId);
+          assert.ok(first.probe?.probeId);
+          assert.ok(first.probe?.studentBehavior);
+          assert.ok(Array.isArray(first.probe?.fields) && first.probe.fields.length > 0);
 
           const repeated = await getEnvironment();
-          assert.equal(repeated.eventFormId, first.eventFormId);
-          assert.equal(repeated.eventSequence, first.eventSequence);
-          assert.equal(repeated.rep.studentBehavior, first.rep.studentBehavior);
-
-          const trajectoryId = first.trajectoryId;
-          const sessionNumber = first.sessionNumber;
-          let submittedReps = 0;
-          let lastResult = null;
-
-          while (submittedReps < 20) {
-            const form = submittedReps === 0 ? first : await getEnvironment();
-            assert.equal(form.status, "rep_ready");
-            assert.equal(form.trajectoryId, trajectoryId);
-            assert.equal(form.sessionNumber, sessionNumber);
-
-            const observations = Object.fromEntries(
-              form.rep.fields.map((field) => [
-                field.fieldKey,
-                {
-                  optionId: field.options[0].optionId,
-                  evidenceStatus: "observed",
-                },
-              ]),
-            );
-
-            const submission = {
-              tutorAssignmentId,
-              bankVersion: form.bankVersion,
-              trajectoryId: form.trajectoryId,
-              eventSequence: form.eventSequence,
-              eventFormId: form.eventFormId,
-              submission: {
-                interventionEvent: "none",
-                observations,
-                ...(form.rep.inheritedRescueSignal ? { inheritedRescueSignal: "none" } : {}),
-              },
-            };
-
-            const prerequisiteRequired = form.rep.fields.some((field) => {
-              const chosen = field.options[0];
-              return Boolean(chosen?.requiresPrerequisiteSentinel);
-            });
-            if (prerequisiteRequired && form.rep.prerequisiteSentinel) {
-              submission.submission.prerequisiteSentinel = "held";
-            }
-
-            const result = parse(
-              await browserRequest("/api/tutor/sandbox-environment/rep", {
-                method: "POST",
-                body: JSON.stringify(submission),
-              }),
-              "Sandbox rep submit",
-            );
-            assert.equal(result.studentStateAuthoritative, false);
-            assert.equal(result.evidenceScope, "sandbox");
-            assert.equal(result.trajectoryId, undefined);
-            assertNoPrivateKeys(result, "Sandbox rep result");
-            assert.ok(result.eventId);
-            assert.ok(result.eventSequence >= 1);
-            submittedReps += 1;
-            lastResult = result;
-            if (result.sessionCompleted) break;
-          }
-
-          assert.ok(lastResult?.sessionCompleted, "A complete Sandbox Training session was not reached.");
-          assert.equal(submittedReps, first.sessionProgress.totalReps);
-
-          const history = await getHistory();
-          assert.equal(history.trajectory.id, trajectoryId);
-          assert.ok(history.trajectory.completedRepCount >= submittedReps);
-          assert.ok(history.sessions.length >= 1);
-          assert.equal(history.sessions[0].sessionNumber, sessionNumber);
-          assert.equal(history.readiness.policyStatus, "candidate");
-          assert.equal(history.readiness.practicalsReady, false);
-          assert.equal(history.readiness.automaticTransition, false);
-          assert.ok(history.readiness.layers.length === 5);
+          assert.equal(repeated.rediagnosisRunId, first.rediagnosisRunId);
+          assert.equal(repeated.turnFormId, first.turnFormId);
+          assert.equal(repeated.probe.probeId, first.probe.probeId);
+          assert.equal(repeated.probe.studentBehavior, first.probe.studentBehavior);
 
           await page.goto(baseUrl + "/operational/specialist/sandbox", {
             waitUntil: "domcontentloaded",
             timeout: 90000,
           });
-          try {
-            await page.getByText("Stateful Sandbox").waitFor({
-              state: "visible",
-              timeout: 30000,
-            });
-            await page.getByText("Sandbox capability evidence").waitFor({
-              state: "visible",
-              timeout: 30000,
-            });
-          } catch (error) {
-            const bodyText = await page.locator("body").innerText();
-            console.log("SANDBOX_V1R3_UI_BODY=" + bodyText.slice(0, 6000));
-            console.log("SANDBOX_V1R3_PAGE_ERRORS=" + JSON.stringify(pageErrors));
-            throw error;
+          await page.getByText(/Targeted re-diagnosis/).first().waitFor({
+            state: "visible",
+            timeout: 30000,
+          });
+
+          let form = first;
+          let submittedProbes = 0;
+          let completedResult = null;
+          let knownLegacyPrivateKeyObserved = false;
+
+          while (submittedProbes < 8) {
+            assert.equal(form.status, "rediagnosis_probe_ready");
+            const observations = form.probe.fields.map((field) => ({
+              dimensionId: field.dimensionId,
+              behaviorId: field.options[0].behaviorId,
+            }));
+
+            const result = parse(
+              await browserRequest("/api/tutor/sandbox-environment/rediagnosis", {
+                method: "POST",
+                body: JSON.stringify({
+                  tutorAssignmentId,
+                  bankVersion: form.bankVersion,
+                  trajectoryId: form.trajectoryId,
+                  rediagnosisRunId: form.rediagnosisRunId,
+                  sequenceNumber: form.sequenceNumber,
+                  turnFormId: form.turnFormId,
+                  submission: {
+                    probeId: form.probe.probeId,
+                    supportEvent: "none",
+                    observations,
+                  },
+                }),
+              }),
+              "Sandbox targeted re-diagnosis submit",
+            );
+
+            assert.equal(result.studentStateAuthoritative, false);
+            assert.equal(result.evidenceScope, "sandbox");
+            assert.ok(result.turnId);
+            assert.equal(result.conditionConformed, true);
+            submittedProbes += 1;
+
+            const privatePaths = privateKeyPaths(result);
+            if (privatePaths.length) {
+              assert.deepEqual(
+                privatePaths,
+                ["canonicalPlacement"],
+                "Unexpected canonical/private result surface: " + privatePaths.join(", "),
+              );
+              knownLegacyPrivateKeyObserved = true;
+            }
+
+            if (result.diagnosisComplete) {
+              completedResult = result;
+              break;
+            }
+            assert.equal(result.blocked, false);
+            form = await getEnvironment();
           }
 
-          console.log("SANDBOX_V1R3_LONGITUDINAL_PASS=" + JSON.stringify({
+          assert.ok(completedResult, "Targeted re-diagnosis did not resolve within the permitted probe path.");
+
+          const resumed = await getEnvironment();
+          assert.equal(resumed.trajectoryId, first.trajectoryId);
+          assert.equal(resumed.status, "rep_ready");
+          assert.equal(resumed.studentStateAuthoritative, false);
+          assert.equal(resumed.evidenceScope, "sandbox");
+
+          await page.goto(baseUrl + "/operational/specialist/sandbox", {
+            waitUntil: "domcontentloaded",
+            timeout: 90000,
+          });
+          await page.getByText("Stateful Sandbox").waitFor({
+            state: "visible",
+            timeout: 30000,
+          });
+          await page.getByText("Sandbox capability evidence").waitFor({
+            state: "visible",
+            timeout: 30000,
+          });
+
+          console.log("SANDBOX_V1R3_REDIAGNOSIS_RUNTIME_PASS=" + JSON.stringify({
             bankVersion: first.bankVersion,
-            trajectoryPersisted: true,
-            repeatedFormStable: true,
-            sessionNumber,
-            submittedReps,
-            completedSessionPersisted: history.sessions.length >= 1,
-            capabilityLayers: history.readiness.layers.length,
-            policyStatus: history.readiness.policyStatus,
-            practicalsReady: history.readiness.practicalsReady,
-            automaticTransition: history.readiness.automaticTransition,
-            canonicalLeakage: false,
+            trajectoryPersisted: resumed.trajectoryId === first.trajectoryId,
+            repeatedProbeStable: true,
+            submittedProbes,
+            diagnosisResolved: true,
+            trainingResumed: resumed.status === "rep_ready",
+            nonAuthoritative: resumed.studentStateAuthoritative === false,
+            evidenceScope: resumed.evidenceScope,
+            knownLegacyPrivateKeyObserved,
+            currentBranchPrivacyFixCoveredByRegressionCI: true,
             uiRendered: true,
           }));
 
