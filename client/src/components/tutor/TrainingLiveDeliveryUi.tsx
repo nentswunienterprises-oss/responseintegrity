@@ -310,6 +310,7 @@ export function LiveSupportPanel({
   onSelect,
   showEvidenceExceptions,
   onToggleEvidenceExceptions,
+  evidenceExceptionsEnabled = true,
 }: {
   options: LiveSupportOption[];
   selectedId: string;
@@ -318,6 +319,7 @@ export function LiveSupportPanel({
   onSelect: (id: string) => void;
   showEvidenceExceptions: boolean;
   onToggleEvidenceExceptions: () => void;
+  evidenceExceptionsEnabled?: boolean;
 }) {
   const selected =
     options.find((option) => option.id === selectedId) || options[0] || null;
@@ -363,17 +365,19 @@ export function LiveSupportPanel({
           ))}
         </div>
       )}
-      <div className="mt-3 border-t border-primary/10 pt-2">
-        <button
-          type="button"
-          className="text-[11px] font-semibold text-primary hover:underline"
-          onClick={onToggleEvidenceExceptions}
-        >
-          {showEvidenceExceptions
-            ? "Hide evidence exceptions"
-            : "Mark an evidence exception"}
-        </button>
-      </div>
+      {evidenceExceptionsEnabled && (
+        <div className="mt-3 border-t border-primary/10 pt-2">
+          <button
+            type="button"
+            className="text-[11px] font-semibold text-primary hover:underline"
+            onClick={onToggleEvidenceExceptions}
+          >
+            {showEvidenceExceptions
+              ? "Hide evidence exceptions"
+              : "Mark an evidence exception"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
