@@ -349,3 +349,93 @@ test("preview emergency auth does not repair a sandbox parent when the supplied 
     else process.env.VERCEL_ENV = previousVercelEnv;
   }
 });
+
+
+test("preview emergency auth repairs a recognized synthetic Specialist with the shared sandbox password", async () => {
+  resetEmergencyLoginAttempts();
+  const previousVercelEnv = process.env.VERCEL_ENV;
+  process.env.VERCEL_ENV = "preview";
+  const storedHash = await bcrypt.hash("SandboxPass123!", 4);
+  const queries: string[] = [];
+  let credentialReadCount = 0;
+
+  const pool = {
+    query: async (text: string) => {
+      queries.push(text);
+      if (text.includes("FROM auth.users")) return { rows: [] };
+      if (text.includes("FROM public.users")) {
+        return {
+          rows: [{
+            id: "proof-specialist-id",
+            email: "proof-shadow-a@responseintegrity.test",
+            role: "tutor",
+          }],
+        };
+      }
+      if (text.includes("FROM private.emergency_auth_credentials")) {
+        credentialReadCount += 1;
+        return credentialReadCount === 1
+          ? { rows: [] }
+          : { rows: [{ user_id: "proof-specialist-id", password_hash: storedHash }] };
+      }
+      if (text.includes("INSERT INTO private.emergency_auth_credentials")) return { rows: [] };
+      return { rows: [] };
+    },
+  } as any;
+
+  try {
+    const result = await authenticateEmergencyUser(
+      pool,
+      "proof-shadow-a@responseintegrity.test",
+      "SandboxPass123!",
+      "127.0.0.1",
+    );
+    assert.equal("authUser" in result, true);
+    assert.equal(
+      queries.some((text) => text.includes("INSERT INTO private.emergency_auth_credentials")),
+      true,
+    );
+  } finally {
+    if (previousVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previousVercelEnv;
+  }
+});
+
+test("preview emergency auth accepts the shared sandbox password for a synthetic persona with stale Supabase Auth", async () => {
+  resetEmergencyLoginAttempts();
+  const previousVercelEnv = process.env.VERCEL_ENV;
+  process.env.VERCEL_ENV = "preview";
+  const authUser = await createAuthUser({
+    id: "proof-specialist-auth-id",
+    email: "ri.proof.specialist@example.com",
+    encrypted_password: await bcrypt.hash("old-proof-password", 4),
+  });
+  const queries: string[] = [];
+
+  const pool = {
+    query: async (text: string) => {
+      queries.push(text);
+      if (text.includes("FROM auth.users")) return { rows: [authUser] };
+      if (text.includes("FROM public.users")) return { rows: [{ id: "proof-specialist-auth-id" }] };
+      if (text.includes("INSERT INTO private.emergency_auth_credentials")) return { rows: [] };
+      return { rows: [] };
+    },
+  } as any;
+
+  try {
+    const result = await authenticateEmergencyUser(
+      pool,
+      "ri.proof.specialist@example.com",
+      "SandboxPass123!",
+      "127.0.0.1",
+    );
+    assert.equal("authUser" in result, true);
+    assert.equal(
+      queries.some((text) => text.includes("INSERT INTO private.emergency_auth_credentials")),
+      true,
+    );
+  } finally {
+    if (previousVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previousVercelEnv;
+  }
+});
