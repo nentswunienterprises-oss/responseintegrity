@@ -545,10 +545,21 @@ export function compareSandboxTurn(turn: SandboxCompletedTurn): SandboxTurnCompa
   for (const fieldKey of fieldKeys) {
     const expected = canonical[fieldKey];
     const recorded = turn.specialistObservations[fieldKey];
-    if (recorded?.optionId === expected.optionId) matchingOptions += 1;
-    if (normalizeStatus(recorded?.evidenceStatus) === normalizeStatus(expected.evidenceStatus)) {
-      matchingEvidenceStatuses += 1;
-    }
+    const expectedStatus = normalizeStatus(expected.evidenceStatus);
+    const recordedStatus = normalizeStatus(recorded?.evidenceStatus);
+    const statusMatches = recordedStatus === expectedStatus;
+
+    // When the simulated evidence is explicitly not observed or confounded,
+    // the underlying behavior option is unknowable by design. Grade the
+    // Specialist on recognizing the evidence-validity boundary, not on a
+    // hidden placeholder option stored for wire compatibility.
+    const optionMatches =
+      expectedStatus === "observed"
+        ? recorded?.optionId === expected.optionId
+        : statusMatches;
+
+    if (optionMatches) matchingOptions += 1;
+    if (statusMatches) matchingEvidenceStatuses += 1;
   }
 
   const observationExact = matchingOptions === fieldKeys.length;
