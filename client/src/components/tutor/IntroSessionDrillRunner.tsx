@@ -4279,35 +4279,70 @@ function IntroSessionDrillRunnerCore() {
 function IntroSessionDrillRunnerRoute() {
   const { studentId } = useParams();
   const {
-    data: sandboxPod,
-    isLoading: sandboxPodLoading,
-  } = useQuery<any>({
-    queryKey: ["/api/tutor/pod"],
+    data: runtimeMode,
+    isLoading: runtimeModeLoading,
+    isFetching: runtimeModeFetching,
+    error: runtimeModeError,
+  } = useQuery<{ assignmentId: string | null; operationalMode: string }>({
+    queryKey: ["/api/tutor/runtime-mode", "live-runner", studentId],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { "Cache-Control": "no-cache" };
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+      const response = await fetch(`${API_URL}/api/tutor/runtime-mode`, {
+        headers,
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body?.message || `Failed to verify Specialist runtime mode (${response.status})`);
+      }
+      return response.json();
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
     retry: false,
   });
 
-  const operationalMode = String(
-    sandboxPod?.assignment?.operationalMode ||
-      sandboxPod?.assignment?.operational_mode ||
-      "",
-  )
-    .trim()
-    .toLowerCase();
-
-  if (sandboxPodLoading) {
+  if (runtimeModeLoading || runtimeModeFetching) {
     return (
       <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
-        Loading live runner...
+        Verifying live runner...
       </div>
     );
   }
 
-  if (operationalMode === "sandbox" && studentId) {
+  if (runtimeModeError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6 text-center text-sm text-destructive">
+        The live runner could not verify the Specialist lifecycle state. Return to the Pod and retry.
+      </div>
+    );
+  }
+
+  const operationalMode = String(runtimeMode?.operationalMode || "training")
+    .trim()
+    .toLowerCase();
+
+  if (operationalMode === "sandbox" && studentId && runtimeMode?.assignmentId) {
     return (
       <SpecialistSandboxSimulation
         studentIdOverride={String(studentId)}
+        tutorAssignmentIdOverride={runtimeMode.assignmentId}
+        operationalModeOverride={operationalMode}
         embedded
       />
+    );
+  }
+
+  if (operationalMode === "sandbox") {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6 text-center text-sm text-destructive">
+        Sandbox is active, but the live runner is missing its assignment or student identity.
+      </div>
     );
   }
 

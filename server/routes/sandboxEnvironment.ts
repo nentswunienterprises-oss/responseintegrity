@@ -10,6 +10,7 @@ import {
   prepareSandboxRediagnosis,
   submitSandboxRediagnosisProbe,
 } from "../sandboxRediagnosis";
+import { loadTutorOperationalModeAuthorityForTutor } from "../tutorOperationalModeAuthority";
 
 const evidenceStatusSchema = z.enum(["observed", "not_observed", "confounded"]);
 
@@ -104,6 +105,21 @@ function sendError(res: Response, error: unknown, fallback: string) {
 }
 
 export function registerSandboxEnvironmentRoutes(app: Express) {
+  app.get("/api/tutor/runtime-mode", isAuthenticated, async (req, res) => {
+    try {
+      const user = requireSpecialist(req, res);
+      if (!user) return;
+      res.setHeader("Cache-Control", "no-store, max-age=0");
+      const authority = await loadTutorOperationalModeAuthorityForTutor(String(user.id));
+      return res.json({
+        assignmentId: authority?.assignmentId || null,
+        operationalMode: authority?.mode || "training",
+      });
+    } catch (error) {
+      return sendError(res, error, "Failed to resolve Specialist runtime mode.");
+    }
+  });
+
   app.get("/api/tutor/sandbox-environment", isAuthenticated, async (req, res) => {
     try {
       const user = requireSpecialist(req, res);

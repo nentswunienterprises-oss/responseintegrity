@@ -18,17 +18,26 @@ const sandboxGuideSource = readFileSync(
   new URL("../client/src/components/tutor/sandboxGuide.ts", import.meta.url),
   "utf8",
 );
+const sandboxRouteSource = readFileSync(
+  new URL("../server/routes/sandboxEnvironment.ts", import.meta.url),
+  "utf8",
+);
 
 test("Sandbox mode uses the existing live-runner route rather than a separate runner flow", () => {
   assert.match(
     liveRunnerSource,
     /import SpecialistSandboxSimulation from "@\/pages\/operational\/tutor\/sandbox-simulation"/,
   );
-  assert.match(liveRunnerSource, /operationalMode === "sandbox" && studentId/);
+  assert.match(liveRunnerSource, /\/api\/tutor\/runtime-mode/);
+  assert.match(liveRunnerSource, /refetchOnMount: "always"/);
+  assert.match(liveRunnerSource, /runtimeModeLoading \|\| runtimeModeFetching/);
+  assert.match(liveRunnerSource, /operationalMode === "sandbox" && studentId && runtimeMode\?\.assignmentId/);
   assert.match(
     liveRunnerSource,
-    /<SpecialistSandboxSimulation[\s\S]*studentIdOverride=\{String\(studentId\)\}[\s\S]*embedded/,
+    /<SpecialistSandboxSimulation[\s\S]*studentIdOverride=\{String\(studentId\)\}[\s\S]*tutorAssignmentIdOverride=\{runtimeMode\.assignmentId\}[\s\S]*operationalModeOverride=\{operationalMode\}[\s\S]*embedded/,
   );
+  assert.match(sandboxRouteSource, /app\.get\("\/api\/tutor\/runtime-mode"/);
+  assert.match(sandboxRouteSource, /Cache-Control", "no-store, max-age=0"/);
   assert.match(
     studentCardSource,
     /\/specialist\/intro-session\/\$\{student\.id\}\?mode=training/,
@@ -44,10 +53,13 @@ test("embedded Sandbox live runner is locked to the route student and still rend
     sandboxRunnerSource,
     /studentIdOverride \|\| searchParams\.get\("studentId"\)/,
   );
+  assert.match(sandboxRunnerSource, /tutorAssignmentIdOverride/);
+  assert.match(sandboxRunnerSource, /operationalModeOverride/);
   assert.match(
     sandboxRunnerSource,
-    /studentIdOverride[\s\S]*sandboxStudents\.find\(\(student\) => String\(student\.id\) === requestedStudentId\)/,
+    /const studentId = String\([\s\S]*studentIdOverride \|\| selectedSandboxStudent\?\.id/,
   );
+  assert.match(sandboxRunnerSource, /enabled: requiresPodData/);
   assert.match(sandboxRunnerSource, /Simulated student behaviour/);
   assert.match(sandboxRunnerSource, /studentBehavior/);
 });

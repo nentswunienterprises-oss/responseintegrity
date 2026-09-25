@@ -41,3 +41,18 @@ export async function loadTutorOperationalModeAuthority(input: {
     ...resolved,
   };
 }
+
+
+export async function loadTutorOperationalModeAuthorityForTutor(tutorId: string) {
+  const assignmentResult = await pool.query(
+    `SELECT id
+       FROM public.tutor_assignments
+      WHERE tutor_id = $1
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [tutorId],
+  );
+  const tutorAssignmentId = String(assignmentResult.rows[0]?.id || "").trim();
+  if (!tutorAssignmentId) return null;
+  return loadTutorOperationalModeAuthority({ tutorAssignmentId, tutorId });
+}
