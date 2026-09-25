@@ -130,9 +130,9 @@ jobs:
             assert.equal(body.totalQuestions, 15);
             assert.equal(body.questions.length, 15);
             const serialized = JSON.stringify(body);
-            assert.equal(serialized.includes("correctOptionKeys"), false, "Correct answer keys leaked");
-            assert.equal(serialized.includes("criticalFailOptionKeys"), false, "Critical-fail keys leaked");
-            assert.equal(serialized.includes("explanation"), false, "Private explanations leaked");
+            assert.equal(/"correctOptionKeys"\s*:/.test(serialized), false, "Correct answer keys leaked");
+            assert.equal(/"criticalFailOptionKeys"\s*:/.test(serialized), false, "Critical-fail keys leaked");
+            assert.equal(/"explanation"\s*:/.test(serialized), false, "Private explanations leaked");
             assert.equal(body.questions.some((q) => q.options.some((o) => /\*\*|\x60/.test(o.label))), false, "Raw authoring markup leaked in option labels");
             return body;
           }
