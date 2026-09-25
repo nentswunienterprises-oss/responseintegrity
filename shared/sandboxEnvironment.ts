@@ -29,6 +29,7 @@ import {
   type ResponseEvidenceClass,
   type ResponseEvidenceDimensionState,
 } from "./responseEvidenceModel";
+import type { TrainingDimensionId } from "./trainingEvidenceContract";
 
 export const SANDBOX_CAPABILITY_LAYERS = [
   "condition_integrity",
@@ -262,7 +263,7 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
         const evidenceClass =
           sourceResolved.evidenceClass ||
           trainingEvidenceClassForRawBehavior(
-            sourceResolved.field.dimensionId as any,
+            sourceResolved.field.dimensionId as TrainingDimensionId,
             rawLabel,
           );
         if (
