@@ -1,6 +1,7 @@
 import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
 import {
   getDrillSchemaDefinition,
+  getDrillSchemaDefinitionByVersion,
   getEvidenceSelectionIdentity,
   getFieldDefinitionForRep,
   getRepPurposeId,
@@ -15,6 +16,7 @@ import {
 import {
   evaluateTrainingEvidence,
   resolveTrainingEvidenceAuthorityRoute,
+  trainingEvidenceClassForRawBehavior,
 } from "./trainingEvidenceEvaluator";
 
 export type SandboxObservationStatus = TrainingEvidenceStatus;
@@ -127,6 +129,131 @@ const normalizeStatus = (value?: SandboxObservationStatus): SandboxObservationSt
 
 const observationKey = (setId: string, repNumber: number, fieldKey: string) =>
   setId + "::" + repNumber + "::" + fieldKey;
+
+export function projectSandboxScenarioToCurrentTrainingContract(
+  definition: SandboxScenarioDefinition,
+  sourceTrainingSchemaVersion: number,
+): SandboxScenarioDefinition {
+  const currentSchema = getDrillSchemaDefinition("training", definition.phase);
+  if (sourceTrainingSchemaVersion === currentSchema.schemaVersion) {
+    return definition;
+  }
+
+  const sourceSchema = getDrillSchemaDefinitionByVersion(
+    "training",
+    definition.phase,
+    sourceTrainingSchemaVersion,
+  );
+  if (!sourceSchema) {
+    throw new Error(
+      `Sandbox scenario ${definition.key} references unsupported Training schema v${sourceTrainingSchemaVersion}.`,
+    );
+  }
+
+  return {
+    ...definition,
+    sets: definition.sets.map((scenarioSet) => {
+      const sourceSet = sourceSchema.sets.find(
+        (candidate) => candidate.setId === scenarioSet.setId,
+      );
+      const currentSet = currentSchema.sets.find(
+        (candidate) => candidate.setId === scenarioSet.setId,
+      );
+      if (!sourceSet || !currentSet) {
+        throw new Error(
+          `Sandbox scenario ${definition.key} cannot reconcile Training set ${scenarioSet.setId}.`,
+        );
+      }
+
+      return {
+        ...scenarioSet,
+        reps: scenarioSet.reps.map((rep, repIndex) => ({
+          ...rep,
+          observations: Object.fromEntries(
+            Object.entries(rep.observations).map(([fieldKey, observation]) => {
+              const sourceResolved = resolveEvidenceSelection({
+                mode: "training",
+                phase: definition.phase,
+                setId: scenarioSet.setId,
+                repIndex,
+                fieldKey,
+                optionId: observation.optionId,
+                schemaVersion: sourceTrainingSchemaVersion,
+              });
+              if (!sourceResolved) {
+                throw new Error(
+                  `Sandbox scenario ${definition.key} has an invalid historical option for ${fieldKey}.`,
+                );
+              }
+
+              const rawLabel =
+                sourceResolved.field.optionLabels?.[
+                  sourceResolved.optionIndex
+                ] || "";
+              const evidenceClass =
+                sourceResolved.evidenceClass ||
+                trainingEvidenceClassForRawBehavior(
+                  sourceResolved.field.dimensionId as any,
+                  rawLabel,
+                );
+              if (
+                !evidenceClass ||
+                evidenceClass === "not_observed" ||
+                evidenceClass === "confounded"
+              ) {
+                throw new Error(
+                  `Sandbox scenario ${definition.key} cannot reconcile ${fieldKey} into a decision evidence class.`,
+                );
+              }
+
+              const currentField = getFieldDefinitionForRep(
+                currentSet,
+                repIndex,
+                fieldKey,
+              );
+              if (!currentField) {
+                throw new Error(
+                  `Sandbox scenario ${definition.key} is missing current field ${fieldKey}.`,
+                );
+              }
+              const optionIndex =
+                currentField.optionEvidenceClasses?.findIndex(
+                  (candidate) => candidate === evidenceClass,
+                ) ?? -1;
+              if (optionIndex < 0) {
+                throw new Error(
+                  `Sandbox scenario ${definition.key} cannot map ${fieldKey} ${evidenceClass} into Training V${currentSchema.schemaVersion}.`,
+                );
+              }
+
+              const identity = getEvidenceSelectionIdentity({
+                mode: "training",
+                phase: definition.phase,
+                setName: currentSet.setName,
+                repIndex,
+                fieldKey,
+                optionIndex,
+              });
+              if (!identity) {
+                throw new Error(
+                  `Sandbox scenario ${definition.key} could not resolve current option identity for ${fieldKey}.`,
+                );
+              }
+
+              return [
+                fieldKey,
+                {
+                  optionId: identity.optionId,
+                  evidenceStatus: observation.evidenceStatus,
+                },
+              ];
+            }),
+          ),
+        })),
+      };
+    }),
+  };
+}
 
 export function validateSandboxScenarioDefinition(definition: SandboxScenarioDefinition) {
   if (!definition.key.trim()) throw new Error("Sandbox scenario key is required.");
