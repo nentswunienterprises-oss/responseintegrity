@@ -57,42 +57,51 @@ jobs:
             ...(bypass ? { extraHTTPHeaders: { "x-vercel-protection-bypass": bypass } } : {}),
           });
           const page = await context.newPage();
-          const share = new URL(shareUrl);
-          const shareToken = share.searchParams.get("_vercel_share");
-          const sharedUrl = (path) => {
-            const url = new URL(baseUrl + path);
-            if (shareToken) url.searchParams.set("_vercel_share", shareToken);
-            return url.toString();
-          };
           const pageErrors = [];
+          async function browserRequest(path, options = {}) {
+            return await page.evaluate(async ({ path, options }) => {
+              const response = await fetch(path, {
+                credentials: "include",
+                ...options,
+                headers: {
+                  "content-type": "application/json",
+                  ...(options.headers || {}),
+                },
+              });
+              return {
+                ok: response.ok,
+                status: response.status,
+                text: await response.text(),
+              };
+            }, { path, options });
+          }
           page.on("pageerror", (error) => pageErrors.push(String(error?.stack || error)));
 
           await page.goto(shareUrl, { waitUntil: "domcontentloaded", timeout: 90000 });
-          const proof = await page.request.get(sharedUrl("/api/proof-environment"), { timeout: 60000 });
-          const proofText = await proof.text();
-          assert.ok(proof.ok(), "Proof environment failed: " + proof.status() + " " + proofText);
+          const proof = await browserRequest("/api/proof-environment");
+          const proofText = proof.text;
+          assert.ok(proof.ok, "Proof environment failed: " + proof.status + " " + proofText);
           const proofBody = JSON.parse(proofText);
           assert.equal(proofBody.vercelEnv, "preview");
           assert.equal(proofBody.supabaseProjectRef, "jftlxeacphvbnhbsbpxc");
           assert.equal(proofBody.commitSha, expectedCommit);
 
-          const signin = await page.request.post(sharedUrl("/api/auth/signin"), {
-            data: { email, password, expectedRole: "tutor" },
-            timeout: 60000,
+          const signin = await browserRequest("/api/auth/signin", {
+            method: "POST",
+            body: JSON.stringify({ email, password, expectedRole: "tutor" }),
           });
-          const signinText = await signin.text();
-          assert.ok(signin.ok(), "Login failed: " + signin.status() + " " + signinText);
+          const signinText = signin.text;
+          assert.ok(signin.ok, "Login failed: " + signin.status + " " + signinText);
           const signinBody = JSON.parse(signinText);
           assert.equal(String(signinBody?.dbUser?.role || "").toLowerCase(), "tutor");
 
           async function getGraduation() {
-            const response = await page.request.get(
-              sharedUrl("/api/tutor/sandbox-simulation/graduation?tutorAssignmentId=" +
-                encodeURIComponent(tutorAssignmentId)),
-              { timeout: 60000 },
+            const response = await browserRequest(
+              "/api/tutor/sandbox-simulation/graduation?tutorAssignmentId=" +
+                encodeURIComponent(tutorAssignmentId),
             );
-            const text = await response.text();
-            assert.ok(response.ok(), "Graduation status failed: " + response.status() + " " + text);
+            const text = response.text;
+            assert.ok(response.ok, "Graduation status failed: " + response.status + " " + text);
             return JSON.parse(text);
           }
 
@@ -111,13 +120,12 @@ jobs:
           assert.equal(before.nextStage, "practicals");
 
           async function loadForm() {
-            const response = await page.request.get(
-              sharedUrl("/api/tutor/sandbox-simulation?tutorAssignmentId=" +
-                encodeURIComponent(tutorAssignmentId)),
-              { timeout: 60000 },
+            const response = await browserRequest(
+              "/api/tutor/sandbox-simulation?tutorAssignmentId=" +
+                encodeURIComponent(tutorAssignmentId),
             );
-            const text = await response.text();
-            assert.ok(response.ok(), "Sandbox form failed: " + response.status() + " " + text);
+            const text = response.text;
+            assert.ok(response.ok, "Sandbox form failed: " + response.status + " " + text);
             const body = JSON.parse(text);
             assert.equal(body.bankKey, "sandbox_observation_foundation");
             assert.equal(body.bankVersion, 3);
@@ -156,20 +164,20 @@ jobs:
             })),
           };
 
-          const submit = await page.request.post(
-            sharedUrl("/api/tutor/sandbox-simulation/attempt"),
+          const submit = await browserRequest(
+            "/api/tutor/sandbox-simulation/attempt",
             {
-              data: {
+              method: "POST",
+              body: JSON.stringify({
                 tutorAssignmentId,
                 bankVersion: first.bankVersion,
                 scenarioFormId: first.scenarioFormId,
                 submission,
-              },
-              timeout: 60000,
+              }),
             },
           );
-          const submitText = await submit.text();
-          assert.ok(submit.ok(), "Sandbox submit failed: " + submit.status() + " " + submitText);
+          const submitText = submit.text;
+          assert.ok(submit.ok, "Sandbox submit failed: " + submit.status + " " + submitText);
           const result = JSON.parse(submitText);
           assert.ok(result.attemptId);
           assert.equal(result.bankVersion, 3);
@@ -190,7 +198,7 @@ jobs:
           assert.notEqual(second.scenarioFormId, first.scenarioFormId);
           assert.notEqual(second.scenario.key, first.scenario.key);
 
-          const uiUrl = new URL(sharedUrl("/operational/specialist/sandbox"));
+          const uiUrl = new URL(baseUrl + "/operational/specialist/sandbox");
           await page.goto(uiUrl.toString(), {
             waitUntil: "domcontentloaded",
             timeout: 90000,
