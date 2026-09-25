@@ -89,7 +89,9 @@ function renderDocument(document: LegalDocumentDefinition) {
     <meta name="twitter:image" content="${escapeHtml(SOCIAL_IMAGE_URL)}" />
     <meta name="twitter:image:alt" content="${escapeHtml(SOCIAL_IMAGE_ALT)}" />
     <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="icon" type="image/svg+xml" href="/ri-symbol-logo.svg?v=20260926-1" />
+    <link rel="alternate icon" type="image/png" href="/favicon.png?v=20260926-1" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=20260926-1" />
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />

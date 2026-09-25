@@ -15,7 +15,7 @@ export function RISymbolLogo({
     xxl: 80,
   };
 
-  const logoSrc = "/ri-symbol-logo.svg?v=20260806-6";
+  const logoSrc = "/ri-symbol-logo.svg?v=20260926-1";
 
   return (
     <img

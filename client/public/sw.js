@@ -7,7 +7,7 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "Response Integrity";
   const options = {
     body: payload.body || "",
-    icon: payload.icon || "/tt-logo.png",
+    icon: payload.icon || "/apple-touch-icon.png?v=20260926-1",
     image: payload.image,
     data: {
       url: payload.url || "/operational/specialist/gateway",
