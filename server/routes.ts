@@ -14,6 +14,7 @@ import { TD_ONBOARDING_DOCUMENTS, getTdOnboardingDocumentDefinition, loadTdOnboa
 import { isAuthenticated } from "./supabaseAuth";
 import { pool } from "./db";
 import { isEmergencyDbMode } from "./emergencyMode";
+import { ensurePreviewSandboxFixtureCommercialState } from "./proofSandboxCommercialState";
 import { buildEmergencyEnrollmentStatusFilter } from "./emergencyPodQuery";
 import {
   createEmergencyFileBundle,
@@ -11946,6 +11947,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
               if (!isEmergencyDbMode() && parentEnrollment?.user_id && student?.id) {
                 try {
+                  const fixtureIntegrity = await ensurePreviewSandboxFixtureCommercialState({
+                    enrollment: parentEnrollment,
+                    studentId: String(student.id),
+                  });
+                  if (fixtureIntegrity.repaired) {
+                    console.log("[PROOF SANDBOX] Reconciled synthetic family commercial state", {
+                      enrollmentId: parentEnrollment.id,
+                      studentId: student.id,
+                      reason: fixtureIntegrity.reason,
+                    });
+                  }
                   monthlyQuota = await getMonthlySessionQuotaSnapshot({
                     parentId: String(parentEnrollment.user_id),
                     studentId: String(student.id),
@@ -13837,6 +13849,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const studentId = studentRecord?.id || enrollment.assigned_student_id || null;
       const isSandboxContext = isSandboxPaymentEnrollment(enrollment);
+      if (isSandboxContext && studentId) {
+        try {
+          const fixtureIntegrity = await ensurePreviewSandboxFixtureCommercialState({
+            enrollment,
+            studentId: String(studentId),
+          });
+          if (fixtureIntegrity.repaired) {
+            console.log("[PROOF SANDBOX] Reconciled parent commercial state before access check", {
+              enrollmentId: enrollment.id,
+              studentId,
+              reason: fixtureIntegrity.reason,
+            });
+          }
+        } catch (fixtureError) {
+          console.error("[PROOF SANDBOX] Commercial-state reconciliation failed closed", fixtureError);
+        }
+      }
       const premiumAccess = await ensurePremiumAccessForParent(userId, studentId ? String(studentId) : null);
       if (!premiumAccess.allowed) {
         return res.json({
