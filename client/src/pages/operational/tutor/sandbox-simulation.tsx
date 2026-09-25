@@ -24,6 +24,12 @@ type InterventionEvent =
   | "full_rescue_or_teaching"
   | "timer_changed";
 
+type DiagnosisSupportEvent =
+  | "none"
+  | "neutral_clarification"
+  | "first_step_confirmation"
+  | "teaching";
+
 type PodData = {
   assignment?: {
     id?: string | null;
@@ -91,10 +97,39 @@ type EnvironmentForm = {
   bankTitle: string;
   trajectoryId: string;
   sessionNumber: number;
-  status: "rep_ready" | "targeted_rediagnosis_required";
+  status:
+    | "rep_ready"
+    | "targeted_rediagnosis_required"
+    | "rediagnosis_probe_ready"
+    | "rediagnosis_blocked";
   prescribedPhase: string;
   prescribedStability: string;
   targetPhase?: string | null;
+  rediagnosisRunId?: string;
+  sequenceNumber?: number;
+  turnFormId?: string;
+  decisionReason?: string;
+  reason?: string;
+  probe?: {
+    probeId: string;
+    label: string;
+    primaryPhase: string;
+    evidenceQuestion: string;
+    specialistInstruction: string;
+    constraints: Record<string, unknown>;
+    studentBehavior: string;
+    fields: Array<{
+      dimensionId: string;
+      label: string;
+      observationQuestion: string;
+      options: Array<{ behaviorId: string; label: string; detail: string }>;
+    }>;
+    supportOptions: Array<{
+      id: DiagnosisSupportEvent;
+      label: string;
+      detail: string;
+    }>;
+  };
   sessionProgress?: {
     completedReps: number;
     totalReps: number;
@@ -141,6 +176,23 @@ type RepResult = {
     authorityAligned: boolean;
     stateTrackAligned: boolean;
   };
+  readiness: Readiness;
+};
+
+type DiagnosisResult = {
+  turnId: string;
+  completedAt: string;
+  sequenceNumber: number;
+  probeId: string;
+  matchingObservations: number;
+  totalObservations: number;
+  observationExact: boolean;
+  conditionConformed: boolean;
+  authorityAligned: boolean;
+  diagnosisComplete: boolean;
+  blocked: boolean;
+  canonicalPlacement: null | { phase: string; stability: string };
+  specialistPlacement: null | { phase: string | null; stability: string | null };
   readiness: Readiness;
 };
 
@@ -204,6 +256,11 @@ export default function SpecialistSandboxSimulation() {
   const [selections, setSelections] = useState<Record<string, Selection>>({});
   const [interventionEvent, setInterventionEvent] = useState<InterventionEvent>("none");
   const [lastResult, setLastResult] = useState<RepResult | null>(null);
+  const [diagnosisSelections, setDiagnosisSelections] = useState<Record<string, string>>({});
+  const [diagnosisSupportEvent, setDiagnosisSupportEvent] =
+    useState<DiagnosisSupportEvent>("none");
+  const [lastDiagnosisResult, setLastDiagnosisResult] =
+    useState<DiagnosisResult | null>(null);
 
   const podQuery = useQuery<PodData>({
     queryKey: ["/api/tutor/pod"],
@@ -246,6 +303,8 @@ export default function SpecialistSandboxSimulation() {
 
   const form = environmentQuery.data;
   const rep = form?.status === "rep_ready" ? form.rep : undefined;
+  const diagnosisProbe =
+    form?.status === "rediagnosis_probe_ready" ? form.probe : undefined;
 
   const completedObservationCount = useMemo(() => {
     if (!rep) return 0;
@@ -256,6 +315,18 @@ export default function SpecialistSandboxSimulation() {
     Boolean(rep) &&
     completedObservationCount === (rep?.fields.length || 0) &&
     (rep?.fields.length || 0) > 0;
+
+  const diagnosisObservationCount = useMemo(() => {
+    if (!diagnosisProbe) return 0;
+    return diagnosisProbe.fields.filter(
+      (field) => diagnosisSelections[field.dimensionId],
+    ).length;
+  }, [diagnosisProbe, diagnosisSelections]);
+
+  const diagnosisAllComplete =
+    Boolean(diagnosisProbe) &&
+    diagnosisObservationCount === (diagnosisProbe?.fields.length || 0) &&
+    (diagnosisProbe?.fields.length || 0) > 0;
 
   const chooseOption = (fieldKey: string, optionId: string) => {
     setSelections((current) => ({
@@ -274,6 +345,57 @@ export default function SpecialistSandboxSimulation() {
       return { ...current, [fieldKey]: { ...existing, evidenceStatus } };
     });
   };
+
+  const submitDiagnosisProbe = useMutation({
+    mutationFn: async () => {
+      if (
+        !form ||
+        form.status !== "rediagnosis_probe_ready" ||
+        !diagnosisProbe ||
+        !form.rediagnosisRunId ||
+        !form.sequenceNumber ||
+        !form.turnFormId ||
+        !diagnosisAllComplete
+      ) {
+        throw new Error("Record every prescribed diagnosis observation before continuing.");
+      }
+
+      const response = await apiRequest(
+        "POST",
+        "/api/tutor/sandbox-environment/rediagnosis",
+        {
+          tutorAssignmentId,
+          bankVersion: form.bankVersion,
+          trajectoryId: form.trajectoryId,
+          rediagnosisRunId: form.rediagnosisRunId,
+          sequenceNumber: form.sequenceNumber,
+          turnFormId: form.turnFormId,
+          submission: {
+            probeId: diagnosisProbe.probeId,
+            supportEvent: diagnosisSupportEvent,
+            observations: diagnosisProbe.fields.map((field) => ({
+              dimensionId: field.dimensionId,
+              behaviorId: diagnosisSelections[field.dimensionId],
+            })),
+          },
+        },
+      );
+      return response.json() as Promise<DiagnosisResult>;
+    },
+    onSuccess: async (result) => {
+      setLastDiagnosisResult(result);
+      setDiagnosisSelections({});
+      setDiagnosisSupportEvent("none");
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["sandbox-environment", tutorAssignmentId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["sandbox-environment-history", tutorAssignmentId],
+        }),
+      ]);
+    },
+  });
 
   const submitRep = useMutation({
     mutationFn: async () => {
@@ -521,7 +643,164 @@ export default function SpecialistSandboxSimulation() {
           </Alert>
         )}
 
-        {form.status === "targeted_rediagnosis_required" ? (
+        {lastDiagnosisResult && (
+          <Alert>
+            <CheckCircle2 className="h-4 w-4" />
+            <AlertDescription>
+              Targeted diagnosis evidence recorded: {lastDiagnosisResult.matchingObservations}/
+              {lastDiagnosisResult.totalObservations} observations aligned
+              {lastDiagnosisResult.conditionConformed
+                ? " · probe condition preserved"
+                : " · probe condition contaminated"}
+              {lastDiagnosisResult.diagnosisComplete
+                ? lastDiagnosisResult.authorityAligned
+                  ? " · RI placement truth restored"
+                  : " · RI placement diverged"
+                : ""}.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {form.status === "rediagnosis_probe_ready" && diagnosisProbe ? (
+          <>
+            <Card>
+              <CardHeader>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <CardTitle>Targeted re-diagnosis · {diagnosisProbe.label}</CardTitle>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {diagnosisProbe.evidenceQuestion}
+                    </p>
+                  </div>
+                  <Badge variant="outline">{form.targetPhase}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <Alert>
+                  <ShieldCheck className="h-4 w-4" />
+                  <AlertDescription>
+                    Ordinary Training is paused because earlier prerequisite truth became
+                    untrustworthy. Run only the prescribed probe. Evidence decides where the
+                    simulated student belongs; do not move them backward manually.
+                  </AlertDescription>
+                </Alert>
+
+                <div className="rounded-lg border p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    DO THIS NOW
+                  </p>
+                  <p className="mt-2 text-sm">{diagnosisProbe.specialistInstruction}</p>
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    {Object.entries(diagnosisProbe.constraints)
+                      .map(([key, value]) => `${humanize(key)}: ${humanize(String(value))}`)
+                      .join(" · ")}
+                  </p>
+                </div>
+
+                <div className="rounded-lg bg-muted/40 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Simulated student behaviour
+                  </p>
+                  <p className="mt-2 leading-relaxed">
+                    {diagnosisProbe.studentBehavior}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="font-medium">What support actually occurred?</p>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {diagnosisProbe.supportOptions.map((option) => (
+                      <Button
+                        key={option.id}
+                        type="button"
+                        variant={diagnosisSupportEvent === option.id ? "default" : "outline"}
+                        className="h-auto justify-start whitespace-normal py-3 text-left"
+                        onClick={() => setDiagnosisSupportEvent(option.id)}
+                      >
+                        <span>
+                          <span className="block font-medium">{option.label}</span>
+                          <span className="mt-1 block text-xs opacity-80">{option.detail}</span>
+                        </span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-5">
+                  {diagnosisProbe.fields.map((field) => (
+                    <div key={field.dimensionId} className="rounded-xl border p-4">
+                      <p className="font-medium">{field.label}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {field.observationQuestion}
+                      </p>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        {field.options.map((option) => (
+                          <Button
+                            key={option.behaviorId}
+                            type="button"
+                            variant={
+                              diagnosisSelections[field.dimensionId] === option.behaviorId
+                                ? "default"
+                                : "outline"
+                            }
+                            className="h-auto justify-start whitespace-normal py-3 text-left"
+                            onClick={() =>
+                              setDiagnosisSelections((current) => ({
+                                ...current,
+                                [field.dimensionId]: option.behaviorId,
+                              }))
+                            }
+                          >
+                            <span>
+                              <span className="block">{option.label}</span>
+                              <span className="mt-1 block text-xs opacity-80">{option.detail}</span>
+                            </span>
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Button
+              className="w-full"
+              disabled={!diagnosisAllComplete || submitDiagnosisProbe.isPending}
+              onClick={() => submitDiagnosisProbe.mutate()}
+            >
+              {submitDiagnosisProbe.isPending
+                ? "Recording targeted diagnosis evidence..."
+                : "Record probe and continue"}
+            </Button>
+
+            {submitDiagnosisProbe.error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {submitDiagnosisProbe.error instanceof Error
+                    ? submitDiagnosisProbe.error.message
+                    : "Targeted re-diagnosis submission failed."}
+                </AlertDescription>
+              </Alert>
+            )}
+          </>
+        ) : form.status === "rediagnosis_blocked" ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Targeted re-diagnosis requires evidence review</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {form.reason ||
+                    "The permitted clean diagnosis probes did not resolve the simulated prerequisite. Training remains paused rather than guessing a placement."}
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        ) : form.status === "targeted_rediagnosis_required" ? (
           <Card>
             <CardHeader>
               <CardTitle>Targeted re-diagnosis required</CardTitle>
