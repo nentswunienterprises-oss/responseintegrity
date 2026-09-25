@@ -321,27 +321,32 @@ export function selectSandboxOutcome(input: {
 
   const recent = new Set(input.context.recentOutcomeKeys || []);
   const nonRepeated = compatible.filter((definition) => !recent.has(definition.key));
-  const candidates = nonRepeated.length >= 2 ? nonRepeated : compatible;
+  const repetitionEligible = nonRepeated.length ? nonRepeated : compatible;
   const target = input.context.earliestUnsupportedCapability || null;
+  const targeted = target
+    ? repetitionEligible.filter((definition) =>
+        definition.challengeCapabilities?.includes(target)
+      )
+    : [];
+  // Capability targeting is an eligibility preference, not a weak score bonus.
+  // If a plausible non-repeated outcome can expose the earliest unsupported
+  // Specialist layer, choose within that pool. Only fall back to the wider
+  // plausible pool when this rep genuinely cannot expose the target.
+  const candidates = targeted.length ? targeted : repetitionEligible;
 
   return [...candidates].sort((a, b) => {
-    const scoreFor = (definition: SandboxOutcomeDefinition) => {
-      const deterministic =
-        hashUnit(
-          [
-            input.seed,
-            input.context.sequenceNumber,
-            input.context.prescribedPhase,
-            input.context.setId,
-            input.context.repNumber,
-            definition.key,
-            definition.version,
-          ].join(":"),
-        ) / Math.max(0.05, definition.weight);
-      const capabilityBonus =
-        target && definition.challengeCapabilities?.includes(target) ? 0.2 : 0;
-      return deterministic - capabilityBonus;
-    };
+    const scoreFor = (definition: SandboxOutcomeDefinition) =>
+      hashUnit(
+        [
+          input.seed,
+          input.context.sequenceNumber,
+          input.context.prescribedPhase,
+          input.context.setId,
+          input.context.repNumber,
+          definition.key,
+          definition.version,
+        ].join(":"),
+      ) / Math.max(0.05, definition.weight);
     return scoreFor(a) - scoreFor(b) || a.key.localeCompare(b.key);
   })[0];
 }
