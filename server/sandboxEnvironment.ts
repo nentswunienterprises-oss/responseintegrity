@@ -1094,6 +1094,7 @@ export async function submitSandboxEnvironmentRep(input: {
     await insertCapabilityOccurrences({
       tutorAssignmentId: input.tutorAssignmentId,
       tutorId: input.tutorId,
+      studentId: bundle.trajectory.student_id,
       trajectoryId: bundle.trajectory.id,
       sourceType: "session",
       sourceId: sessionId,
