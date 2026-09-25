@@ -61,6 +61,9 @@ function buildSubmittedSet({
         rep[`${field.fieldKey}_level`] = identity.level;
         rep[`${field.fieldKey}_option_id`] = identity.optionId;
         rep[`${field.fieldKey}_dimension_id`] = identity.dimensionId;
+        if (identity.evidenceClass) {
+          rep[`${field.fieldKey}_evidence_class`] = identity.evidenceClass;
+        }
       });
       return rep;
     }),
