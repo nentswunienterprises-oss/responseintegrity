@@ -33,6 +33,13 @@ import { API_URL } from "@/lib/config";
 import SpecialistSandboxSimulation from "@/pages/operational/tutor/sandbox-simulation";
 import { instructionPromptDisplayText, instructionPromptLabelFor } from "@/lib/instructionPromptLabel";
 import {
+  LiveObservationField,
+  LivePhaseContext,
+  LiveRepContextCard,
+  LiveRepStage,
+  LiveSupportPanel,
+} from "./TrainingLiveDeliveryUi";
+import {
   TRAINING_INHERITED_RESCUE_SIGNAL_FIELD,
   TRAINING_INHERITED_RESCUE_SIGNAL_OPTIONS,
   TRAINING_INTERVENTION_FIELD,
@@ -3568,16 +3575,10 @@ function IntroSessionDrillRunnerCore() {
         </div>
       )}
 
-      {/* Phase-level context bar -shown only on set 1 */}
-      {isFirstSet && isFirstRep && <div className="mb-4 p-3 rounded-xl border border-primary/20 bg-primary/5 text-sm">
-        <div className="font-semibold text-foreground mb-1">Phase: {displayPhase}</div>
-        <div className="text-muted-foreground text-xs mb-2">{PHASE_CONTEXT[displayPhase].purpose}</div>
-        <div className="flex flex-wrap gap-1">
-          {PHASE_CONTEXT[displayPhase].constraints.map((c, i) => (
-            <span key={i} className="px-2 py-0.5 bg-background border border-primary/20 text-foreground rounded text-xs font-medium">✕ {c}</span>
-          ))}
-        </div>
-      </div>}
+      {/* Shared live-delivery phase context */}
+      {isFirstSet && isFirstRep && (
+        <LivePhaseContext phase={displayPhase} />
+      )}
 
       {modeToUse === "training" && topicDataLoading && (
         <div className="mb-4 rounded-xl border border-primary/15 bg-background p-3 text-sm text-muted-foreground">
@@ -3807,12 +3808,7 @@ function IntroSessionDrillRunnerCore() {
       )}
 
       {isTrainingEvidenceCapture && !set?.isModelingSet && repStarted && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          <span className="rounded-full border border-primary/15 px-2 py-1">Ready ✓</span>
-          <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">Observe</span>
-          <span className="text-primary/30">→</span>
-          <span>Confirm</span>
-        </div>
+        <LiveRepStage stage="observe" />
       )}
 
       {activeRepRequiresPassiveTiming && repStarted && (
@@ -3925,83 +3921,32 @@ function IntroSessionDrillRunnerCore() {
         </div>
       )}
 
-      {/* Set context block -purpose, rep instruction, active rules */}
-      <div className={`mb-4 p-2 sm:p-3 rounded-xl border border-primary/15 bg-background shadow-sm ${isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted ? "hidden" : ""}`}>
-        <div className="mb-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Set {currentSet + 1} of {drillStructure.length} · {set?.setName}
-          </div>
-          <div className="mt-1 text-2xl font-black tracking-tight text-foreground sm:text-3xl">
-            {isModelingSet
-              ? "PRE-DRILL STEP"
-              : isHandoverContinuityVerification
-                ? `EVIDENCE OPPORTUNITY ${currentRep + 1}`
-                : `REP ${currentRep + 1} OF ${set?.reps ?? 0}`}
-          </div>
-        </div>
-        <div className="text-xs text-muted-foreground mb-2 sm:mb-3">{set?.purpose}</div>
-        <div className="p-2 rounded-md border border-primary/20 bg-primary/5 mb-2 sm:mb-3">
-          <div className="text-xs font-semibold text-primary mb-0.5">
-            {instructionPromptLabelFor(set?.repInstruction || "")}
-          </div>
-          <div className="text-xs sm:text-sm text-foreground font-medium">
-            {instructionPromptDisplayText(set?.repInstruction || "")}
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-1">
-          {set?.activeRules?.map((rule, i) => (
-            <span key={i} className="px-1 sm:px-2 py-0.5 bg-background border border-primary/15 text-muted-foreground rounded text-[10px] sm:text-xs">{rule}</span>
-          ))}
-        </div>
-      </div>
+      {/* Shared live-delivery rep context */}
+      {set && (
+        <LiveRepContextCard
+          setIndex={currentSet + 1}
+          setCount={drillStructure.length}
+          setName={set.setName}
+          repNumber={currentRep + 1}
+          repCount={set.reps}
+          purpose={set.purpose}
+          instruction={set.repInstruction || ""}
+          activeRules={set.activeRules || []}
+        />
+      )}
 
       {isTrainingEvidenceCapture && !set?.isModelingSet && repStarted && (
-        <div className="mb-4 rounded-xl border border-primary/15 bg-background p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Support this rep</div>
-              <div className="mt-1 text-sm font-semibold text-foreground">
-                {TRAINING_INTERVENTION_OPTIONS.find((option) => option.id === currentTrainingIntervention())?.label || "No intervention"}
-              </div>
-            </div>
-            <button
-              type="button"
-              className="rounded-md border border-primary/20 px-3 py-1.5 text-xs font-semibold hover:bg-primary/5"
-              onClick={() => setSupportPickerOpen((open) => !open)}
-            >
-              {supportPickerOpen ? "Close" : "Change support"}
-            </button>
-          </div>
-          {supportPickerOpen && (
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {TRAINING_INTERVENTION_OPTIONS.map((option) => (
-                <button
-                  type="button"
-                  key={option.id}
-                  onClick={() => handleTrainingIntervention(option.id)}
-                  className={[
-                    "rounded-lg border p-3 text-left",
-                    currentTrainingIntervention() === option.id
-                      ? "border-primary bg-primary/5 ring-1 ring-primary"
-                      : "border-primary/15 hover:bg-primary/5",
-                  ].join(" ")}
-                >
-                  <span className="block text-sm font-medium">{option.label}</span>
-                  <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.detail}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="mt-3 border-t border-primary/10 pt-2">
-            <button
-              type="button"
-              className="text-[11px] font-semibold text-primary hover:underline"
-              onClick={() => setShowEvidenceExceptions((open) => !open)}
-            >
-              {showEvidenceExceptions ? "Hide evidence exceptions" : "Mark an evidence exception"}
-            </button>
-          </div>
-        </div>
+        <LiveSupportPanel
+          options={TRAINING_INTERVENTION_OPTIONS}
+          selectedId={currentTrainingIntervention()}
+          open={supportPickerOpen}
+          onToggle={() => setSupportPickerOpen((open) => !open)}
+          onSelect={(id) => handleTrainingIntervention(id as TrainingInterventionEvent)}
+          showEvidenceExceptions={showEvidenceExceptions}
+          onToggleEvidenceExceptions={() =>
+            setShowEvidenceExceptions((open) => !open)
+          }
+        />
       )}
 
       {isTrainingEvidenceCapture &&
