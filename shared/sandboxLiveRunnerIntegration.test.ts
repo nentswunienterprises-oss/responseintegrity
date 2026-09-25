@@ -34,6 +34,11 @@ test("Sandbox mode uses the existing live-runner route rather than a separate ru
   );
   assert.match(liveRunnerSource, /\/api\/tutor\/runtime-mode/);
   assert.match(liveRunnerSource, /refetchOnMount: "always"/);
+  assert.match(liveRunnerSource, /cache: "no-store"/);
+  assert.doesNotMatch(
+    liveRunnerSource,
+    /headers:\s*HeadersInit\s*=\s*\{\s*"Cache-Control"/,
+  );
   assert.match(liveRunnerSource, /runtimeModeLoading \|\| runtimeModeFetching/);
   assert.match(liveRunnerSource, /operationalMode === "sandbox" && studentId && runtimeMode\?\.assignmentId/);
   assert.match(

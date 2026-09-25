@@ -4214,7 +4214,7 @@ function IntroSessionDrillRunnerRoute() {
     queryKey: ["/api/tutor/runtime-mode", "live-runner", studentId],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      const headers: HeadersInit = { "Cache-Control": "no-cache" };
+      const headers: HeadersInit = {};
       if (session?.access_token) {
         headers.Authorization = `Bearer ${session.access_token}`;
       }
