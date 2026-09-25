@@ -746,7 +746,9 @@ export default function SpecialistSandboxSimulation({
           }
         />
 
-        <LiveRepStage stage={liveStage} sandbox />
+        {!(rep && !repStarted) && (
+          <LiveRepStage stage={liveStage} sandbox />
+        )}
 
         {lastResult && !repStarted && (
           <Alert>
@@ -874,7 +876,58 @@ export default function SpecialistSandboxSimulation({
           </Alert>
         ) : rep ? (
           <>
-            <LiveRepContextCard
+
+
+            {!repStarted ? (
+              <div className="mb-5 rounded-2xl border border-primary/20 bg-background p-5 shadow-sm">
+                <LiveRepStage stage="ready" sandbox />
+                <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Set {rep.setIndex} of {rep.setCount} · {rep.setName}
+                </div>
+                <div className="mt-1 flex items-end gap-3">
+                  <div className="text-4xl font-black tracking-tight text-foreground sm:text-5xl">
+                    REP {rep.repNumber}
+                  </div>
+                  <div className="pb-1 text-sm font-semibold text-muted-foreground">
+                    of {rep.repCount}
+                  </div>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                  {rep.setPurpose}
+                </p>
+                <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                    {liveTrainingInstruction(form.prescribedPhase, rep.setName)
+                      ? "DO THIS NOW"
+                      : "DO THIS NOW"}
+                  </div>
+                  <div className="mt-1 text-base font-semibold text-foreground">
+                    {liveTrainingInstruction(form.prescribedPhase, rep.setName)}
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {activeRules.map((rule) => (
+                    <span
+                      key={rule}
+                      className="rounded-full border border-primary/15 px-2.5 py-1 text-xs text-muted-foreground"
+                    >
+                      {rule}
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-4 text-xs leading-5 text-muted-foreground">
+                  Use the problem prepared for this opportunity. Once the rep starts, keep
+                  attention on the student's response rather than on form administration.
+                </p>
+                <div className="mt-5 flex justify-end">
+                  <Button onClick={() => setRepStarted(true)}>
+                    Begin Rep {rep.repNumber}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <LiveRepContextCard
               setIndex={rep.setIndex}
               setCount={rep.setCount}
               setName={rep.setName}
@@ -887,24 +940,6 @@ export default function SpecialistSandboxSimulation({
               )}
               activeRules={activeRules}
             />
-
-            {!repStarted ? (
-              <div className="rounded-xl border border-primary/15 bg-background p-4">
-                <p className="text-sm font-semibold text-foreground">
-                  Ready for Rep {rep.repNumber}
-                </p>
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  Use the problem prepared for this opportunity. Once the rep starts, keep
-                  attention on the student's response rather than on form administration.
-                </p>
-                <div className="mt-5 flex justify-end">
-                  <Button onClick={() => setRepStarted(true)}>
-                    Begin Rep {rep.repNumber}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <>
                 <LiveSandboxStudentResponse>
                   {rep.studentBehavior}
                 </LiveSandboxStudentResponse>
