@@ -1,6 +1,7 @@
 import type { ResponseEvidenceClass, ResponseEvidenceDimensionState } from "./responseEvidenceModel";
 import { resolveResponseEvidenceDimension } from "./responseEvidenceModel";
 import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
+import type { EvidenceConstraintProfile } from "./responseIntegrityDrillRegistry";
 import type {
   TrainingEvidenceStatus,
   TrainingInterventionEvent,
@@ -31,6 +32,62 @@ export type SandboxCapabilityPolicy = {
   requireLongitudinalTrajectory: boolean;
   nextStage: "practicals";
 };
+
+export function parseSandboxCapabilityPolicy(value: unknown): SandboxCapabilityPolicy {
+  const policy = (typeof value === "string" ? JSON.parse(value) : value) as Partial<SandboxCapabilityPolicy>;
+  if (!policy || typeof policy !== "object") {
+    throw new Error("Sandbox capability policy must be an object.");
+  }
+  if (!Number.isInteger(policy.policyVersion) || Number(policy.policyVersion) < 1) {
+    throw new Error("Sandbox capability policy version must be a positive integer.");
+  }
+  if (policy.status !== "candidate" && policy.status !== "approved") {
+    throw new Error("Sandbox capability policy status is invalid.");
+  }
+  if (policy.nextStage !== "practicals") {
+    throw new Error("Sandbox capability policy may only open Practicals.");
+  }
+  if (typeof policy.requireAllPhasesRepresented !== "boolean" || typeof policy.requireLongitudinalTrajectory !== "boolean") {
+    throw new Error("Sandbox capability breadth and longitudinal requirements must be explicit.");
+  }
+  const minimum = policy.minimumValidOpportunities as Partial<Record<SandboxSpecialistCapabilityId, number>> | undefined;
+  if (!minimum) throw new Error("Sandbox capability opportunity minimums are required.");
+  const normalized = Object.fromEntries(
+    SANDBOX_SPECIALIST_CAPABILITY_ORDER.map((capabilityId) => {
+      const count = Number(minimum[capabilityId]);
+      if (!Number.isInteger(count) || count < 1) {
+        throw new Error(`Sandbox capability policy requires a positive minimum for ${capabilityId}.`);
+      }
+      return [capabilityId, count];
+    }),
+  ) as Record<SandboxSpecialistCapabilityId, number>;
+
+  return {
+    policyVersion: Number(policy.policyVersion),
+    status: policy.status,
+    minimumValidOpportunities: normalized,
+    requireAllPhasesRepresented: policy.requireAllPhasesRepresented,
+    requireLongitudinalTrajectory: policy.requireLongitudinalTrajectory,
+    nextStage: "practicals",
+  };
+}
+
+export function sandboxInterventionPreservesCondition(
+  constraints: EvidenceConstraintProfile,
+  interventionEvent: TrainingInterventionEvent,
+): boolean {
+  if (interventionEvent === "none" || interventionEvent === "neutral_clarification") return true;
+  if (interventionEvent === "full_rescue_or_teaching") return false;
+  if (interventionEvent === "timer_changed") return false;
+  if (constraints.supportLevel === "none") return false;
+  if (constraints.supportLevel === "first_step_only") {
+    return interventionEvent === "first_step_confirmation";
+  }
+  if (constraints.supportLevel === "minimal") {
+    return interventionEvent === "first_step_confirmation" || interventionEvent === "method_or_step_prompt";
+  }
+  return false;
+}
 
 export type SandboxCapabilityOccurrence = {
   capabilityId: SandboxSpecialistCapabilityId;
