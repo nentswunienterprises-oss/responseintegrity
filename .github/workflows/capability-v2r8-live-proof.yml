@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      SMOKE_BASE_URL: https://tt-confidence-hub-git-proof-ca-b9c1e8-relief-works-technologies.vercel.app
-      VERCEL_SHARE_URL: https://tt-confidence-hub-git-proof-ca-b9c1e8-relief-works-technologies.vercel.app/?_vercel_share=n3eg9V8oUOmDoc8svaaE9Nv35Vs0tRme
-      PROOF_EXPECTED_APP_SHA: ${{ github.sha }}
+      SMOKE_BASE_URL: https://tt-confidence-22xoy1qu1-relief-works-technologies.vercel.app
+      VERCEL_SHARE_URL: https://tt-confidence-22xoy1qu1-relief-works-technologies.vercel.app/?_vercel_share=j7dMdlblmqqBx2GJ6zsUxkA5e7IBr9rF
+      PROOF_EXPECTED_APP_SHA: bfe1957c8cb798e60fd498599eedfd84991a3b61
       RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
       RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
       RI_PROOF_ASSIGNMENT_ID: 836a839f-2f29-45c7-b8c2-aa501c95e1b0
