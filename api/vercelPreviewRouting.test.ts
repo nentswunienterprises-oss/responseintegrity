@@ -66,7 +66,8 @@ test("Vercel preview boots from the generated bundled runtime without tsx at req
   assert.match(runtime, /from "\.\/evidenceCompleteDiagnosisRoutes"/);
   assert.match(runtime, /from "\.\/tpsTimingRoutes"/);
   assert.match(runtime, /await setupAuth\(app\)/);
-  assert.match(runtime, /registerTpsTimingRoutes\(app\)/);\n  assert.match(runtime, /registerSandboxSimulationRoutes\(app\)/);
+  assert.match(runtime, /registerTpsTimingRoutes\(app\)/);
+  assert.match(runtime, /registerSandboxSimulationRoutes\(app\)/);
   assert.match(runtime, /req\.query\?\.__previewPath/);
   assert.match(runtime, /req\.url = queryString \?/);
 
