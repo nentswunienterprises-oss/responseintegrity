@@ -70,7 +70,7 @@ test("all Sandbox-mode Specialists can select an assigned student and see rep be
   assert.match(runnerSource, /sandboxStudents\.map/);
   assert.match(runnerSource, /studentId=\$\{encodeURIComponent\(String\(student\.id\)\)\}/);
   assert.match(runnerSource, /studentBehavior/);
-  assert.match(runnerSource, /Simulated student behaviour/);
+  assert.match(runnerSource, /Simulated student response/);
   assert.match(studentCardSource, /case "stateful-sandbox"/);
   assert.match(
     studentCardSource,
