@@ -4,6 +4,7 @@ import { registerRoutes } from "./routes.ts";
 import { registerEvidenceCompleteDiagnosisRoutes } from "./evidenceCompleteDiagnosisRoutes";
 import { registerTpsTimingRoutes } from "./tpsTimingRoutes";
 import { registerCapabilityEngineRoutes } from "./routes/capabilityEngine";
+import { registerSandboxSimulationRoutes } from "./routes/sandboxSimulation";
 import { setupAuth } from "./supabaseAuth";
 import cors from 'cors';
 
@@ -102,6 +103,7 @@ app.use((req, res, next) => {
   registerEvidenceCompleteDiagnosisRoutes(app);
   registerTpsTimingRoutes(app);
   registerCapabilityEngineRoutes(app);
+  registerSandboxSimulationRoutes(app);
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

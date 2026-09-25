@@ -5,6 +5,7 @@ import { registerRoutes } from "./routes.ts";
 import { registerEvidenceCompleteDiagnosisRoutes } from "./evidenceCompleteDiagnosisRoutes.ts";
 import { registerTpsTimingRoutes } from "./tpsTimingRoutes.ts";
 import { registerCapabilityEngineRoutes } from "./routes/capabilityEngine.ts";
+import { registerSandboxSimulationRoutes } from "./routes/sandboxSimulation.ts";
 import { setupAuth } from "./supabaseAuth.ts";
 
 let appPromise: Promise<Express> | null = null;
@@ -75,6 +76,7 @@ async function initializeApp(): Promise<Express> {
   registerEvidenceCompleteDiagnosisRoutes(app);
   registerTpsTimingRoutes(app);
   registerCapabilityEngineRoutes(app);
+  registerSandboxSimulationRoutes(app);
   await registerRoutes(app);
 
   app.use((req, res) => {
