@@ -30,6 +30,7 @@ import {
   type ResponseEvidenceDimensionState,
 } from "./responseEvidenceModel";
 import type { TrainingDimensionId } from "./trainingEvidenceContract";
+import type { TrainingDecisionEvidenceClass } from "./trainingObservationContractV2";
 
 export const SANDBOX_CAPABILITY_LAYERS = [
   "condition_integrity",
@@ -207,6 +208,228 @@ const hashUnit = (value: string) => {
   return (hash >>> 0) / 0xffffffff;
 };
 
+const LEGACY_STATEFUL_SANDBOX_V1_PATTERN_CLASSES: Record<
+  TopicPhase,
+  Record<number, Record<TrainingDimensionId, TrainingDecisionEvidenceClass>>
+> = {
+  Clarity: {
+    1: {
+      "clarity.vocabulary": "supported",
+      "clarity.method": "supported",
+      "clarity.reason": "supported",
+      "clarity.immediate_apply": "supported",
+    },
+    2: {
+      "clarity.vocabulary": "supported",
+      "clarity.method": "supported",
+      "clarity.reason": "near_stable",
+      "clarity.immediate_apply": "supported",
+    },
+    3: {
+      "clarity.vocabulary": "conditional",
+      "clarity.method": "conditional",
+      "clarity.reason": "conditional",
+      "clarity.immediate_apply": "conditional",
+    },
+    4: {
+      "clarity.vocabulary": "conditional",
+      "clarity.method": "supported",
+      "clarity.reason": "conditional",
+      "clarity.immediate_apply": "supported",
+    },
+    5: {
+      "clarity.vocabulary": "conditional",
+      "clarity.method": "conditional",
+      "clarity.reason": "breakdown",
+      "clarity.immediate_apply": "conditional",
+    },
+    6: {
+      "clarity.vocabulary": "breakdown",
+      "clarity.method": "breakdown",
+      "clarity.reason": "breakdown",
+      "clarity.immediate_apply": "breakdown",
+    },
+    7: {
+      "clarity.vocabulary": "supported",
+      "clarity.method": "supported",
+      "clarity.reason": "supported",
+      "clarity.immediate_apply": "supported",
+    },
+    8: {
+      "clarity.vocabulary": "supported",
+      "clarity.method": "supported",
+      "clarity.reason": "supported",
+      "clarity.immediate_apply": "supported",
+    },
+  },
+  "Structured Execution": {
+    1: {
+      "execution.start": "supported",
+      "execution.step_discipline": "supported",
+      "execution.repeatability": "supported",
+      "execution.independence": "supported",
+    },
+    2: {
+      "execution.start": "near_stable",
+      "execution.step_discipline": "near_stable",
+      "execution.repeatability": "near_stable",
+      "execution.independence": "supported",
+    },
+    3: {
+      "execution.start": "supported",
+      "execution.step_discipline": "conditional",
+      "execution.repeatability": "conditional",
+      "execution.independence": "near_stable",
+    },
+    4: {
+      "execution.start": "conditional",
+      "execution.step_discipline": "conditional",
+      "execution.repeatability": "conditional",
+      "execution.independence": "conditional",
+    },
+    5: {
+      "execution.start": "conditional",
+      "execution.step_discipline": "conditional",
+      "execution.repeatability": "breakdown",
+      "execution.independence": "conditional",
+    },
+    6: {
+      "execution.start": "conditional",
+      "execution.step_discipline": "breakdown",
+      "execution.repeatability": "breakdown",
+      "execution.independence": "breakdown",
+    },
+    7: {
+      "execution.start": "supported",
+      "execution.step_discipline": "supported",
+      "execution.repeatability": "supported",
+      "execution.independence": "supported",
+    },
+    8: {
+      "execution.start": "supported",
+      "execution.step_discipline": "supported",
+      "execution.repeatability": "supported",
+      "execution.independence": "supported",
+    },
+  },
+  "Controlled Discomfort": {
+    1: {
+      "difficulty.initial_response": "supported",
+      "difficulty.first_step_control": "supported",
+      "difficulty.tolerance": "supported",
+      "difficulty.rescue_dependence": "supported",
+    },
+    2: {
+      "difficulty.initial_response": "near_stable",
+      "difficulty.first_step_control": "supported",
+      "difficulty.tolerance": "near_stable",
+      "difficulty.rescue_dependence": "supported",
+    },
+    3: {
+      "difficulty.initial_response": "near_stable",
+      "difficulty.first_step_control": "conditional",
+      "difficulty.tolerance": "near_stable",
+      "difficulty.rescue_dependence": "near_stable",
+    },
+    4: {
+      "difficulty.initial_response": "breakdown",
+      "difficulty.first_step_control": "supported",
+      "difficulty.tolerance": "conditional",
+      "difficulty.rescue_dependence": "supported",
+    },
+    5: {
+      "difficulty.initial_response": "breakdown",
+      "difficulty.first_step_control": "conditional",
+      "difficulty.tolerance": "breakdown",
+      "difficulty.rescue_dependence": "conditional",
+    },
+    6: {
+      "difficulty.initial_response": "breakdown",
+      "difficulty.first_step_control": "breakdown",
+      "difficulty.tolerance": "breakdown",
+      "difficulty.rescue_dependence": "breakdown",
+    },
+    7: {
+      "difficulty.initial_response": "supported",
+      "difficulty.first_step_control": "supported",
+      "difficulty.tolerance": "supported",
+      "difficulty.rescue_dependence": "supported",
+    },
+    8: {
+      "difficulty.initial_response": "supported",
+      "difficulty.first_step_control": "supported",
+      "difficulty.tolerance": "supported",
+      "difficulty.rescue_dependence": "supported",
+    },
+  },
+  "Time Pressure Stability": {
+    1: {
+      "time.start": "supported",
+      "time.structure": "supported",
+      "time.pace": "supported",
+      "time.completion_integrity": "supported",
+    },
+    2: {
+      "time.start": "near_stable",
+      "time.structure": "supported",
+      "time.pace": "near_stable",
+      "time.completion_integrity": "supported",
+    },
+    3: {
+      "time.start": "near_stable",
+      "time.structure": "conditional",
+      "time.pace": "near_stable",
+      "time.completion_integrity": "conditional",
+    },
+    4: {
+      "time.start": "conditional",
+      "time.structure": "conditional",
+      "time.pace": "near_stable",
+      "time.completion_integrity": "conditional",
+    },
+    5: {
+      "time.start": "conditional",
+      "time.structure": "conditional",
+      "time.pace": "breakdown",
+      "time.completion_integrity": "conditional",
+    },
+    6: {
+      "time.start": "breakdown",
+      "time.structure": "breakdown",
+      "time.pace": "breakdown",
+      "time.completion_integrity": "breakdown",
+    },
+    7: {
+      "time.start": "supported",
+      "time.structure": "supported",
+      "time.pace": "supported",
+      "time.completion_integrity": "supported",
+    },
+    8: {
+      "time.start": "supported",
+      "time.structure": "supported",
+      "time.pace": "supported",
+      "time.completion_integrity": "supported",
+    },
+  },
+};
+
+const auditedLegacyStatefulSandboxClass = (
+  definition: SandboxOutcomeDefinition,
+  sourceTrainingSchemaVersion: number,
+  dimensionId: TrainingDimensionId,
+): TrainingDecisionEvidenceClass | null => {
+  if (sourceTrainingSchemaVersion !== 1) return null;
+  const match = definition.key.match(/\.pattern_(\d+)$/);
+  const patternNumber = Number(match?.[1] || 0);
+  if (!patternNumber) return null;
+  return (
+    LEGACY_STATEFUL_SANDBOX_V1_PATTERN_CLASSES[definition.phase]?.[
+      patternNumber
+    ]?.[dimensionId] || null
+  );
+};
+
 export function projectSandboxOutcomeToCurrentTrainingContract(
   definition: SandboxOutcomeDefinition,
   sourceTrainingSchemaVersion: number,
@@ -260,12 +483,16 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
 
         const rawLabel =
           sourceResolved.field.optionLabels?.[sourceResolved.optionIndex] || "";
+        const dimensionId =
+          sourceResolved.field.dimensionId as TrainingDimensionId;
         const evidenceClass =
+          auditedLegacyStatefulSandboxClass(
+            definition,
+            sourceTrainingSchemaVersion,
+            dimensionId,
+          ) ||
           sourceResolved.evidenceClass ||
-          trainingEvidenceClassForRawBehavior(
-            sourceResolved.field.dimensionId as TrainingDimensionId,
-            rawLabel,
-          );
+          trainingEvidenceClassForRawBehavior(dimensionId, rawLabel);
         if (
           !evidenceClass ||
           evidenceClass === "not_observed" ||
