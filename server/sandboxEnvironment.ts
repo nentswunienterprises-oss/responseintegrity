@@ -8,7 +8,10 @@ import {
   type EvidenceSetDefinition,
 } from "@shared/responseIntegrityDrillRegistry";
 import {
+  TRAINING_INHERITED_RESCUE_SIGNAL_OPTIONS,
   TRAINING_INTERVENTION_OPTIONS,
+  getTrainingPrerequisiteSentinelDefinition,
+  trainingRawObservationRequiresPrerequisiteSentinel,
   type TrainingEvidenceStatus,
   type TrainingInheritedRescueSignal,
   type TrainingInterventionEvent,
@@ -498,7 +501,16 @@ function projectRepFields(phase: TopicPhase, set: EvidenceSetDefinition, repNumb
           optionIndex,
         });
         if (!identity) throw new Error("Unable to project Sandbox evidence option.");
-        return { optionId: identity.optionId, label };
+        return {
+          optionId: identity.optionId,
+          label,
+          requiresPrerequisiteSentinel:
+            trainingRawObservationRequiresPrerequisiteSentinel({
+              phase,
+              fieldKey: field.fieldKey,
+              rawOption: label,
+            }),
+        };
       }),
     };
   });
@@ -670,6 +682,30 @@ export async function prepareSandboxEnvironment(input: {
         planned.position.repNumber,
       ),
       interventionOptions: TRAINING_INTERVENTION_OPTIONS,
+      prerequisiteSentinel: (() => {
+        const definition = getTrainingPrerequisiteSentinelDefinition(planned.phase);
+        return definition
+          ? {
+              targetPhase: definition.targetPhase,
+              evidenceQuestion: definition.evidenceQuestion,
+              specialistInstruction: definition.specialistInstruction,
+              options: [
+                { id: "held", label: definition.heldLabel },
+                { id: "contradicted", label: definition.contradictedLabel },
+                { id: "not_observed", label: "Prerequisite could not be observed cleanly" },
+                { id: "confounded", label: "Prerequisite check was confounded" },
+              ],
+            }
+          : null;
+      })(),
+      inheritedRescueSignal:
+        planned.phase === "Time Pressure Stability"
+          ? {
+              evidenceQuestion:
+                "Did the student seek rescue or correctness confirmation during this timed no-support opportunity?",
+              options: TRAINING_INHERITED_RESCUE_SIGNAL_OPTIONS,
+            }
+          : null,
     },
     studentStateAuthoritative: false as const,
     evidenceScope: "sandbox" as const,
