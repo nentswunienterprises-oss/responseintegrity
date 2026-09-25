@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - "shared/sandbox*.ts"
+      - "shared/trainingObservationContractV2.ts"
+      - "shared/responseIntegrityDrillRegistry.ts"
+      - "shared/trainingEvidenceEvaluator.ts"
       - "server/sandbox*.ts"
       - "server/routes/sandbox*.ts"
       - "client/src/pages/operational/tutor/sandbox*.tsx"
@@ -20,6 +23,9 @@ on:
       - "proof/sandbox-v1r1-reconciliation"
     paths:
       - "shared/sandbox*.ts"
+      - "shared/trainingObservationContractV2.ts"
+      - "shared/responseIntegrityDrillRegistry.ts"
+      - "shared/trainingEvidenceEvaluator.ts"
       - "server/sandbox*.ts"
       - "server/routes/sandbox*.ts"
       - "client/src/pages/operational/tutor/sandbox*.tsx"
