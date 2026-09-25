@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
   ArrowLeft,
@@ -36,6 +36,11 @@ type PodData = {
     operationalMode?: string | null;
     operational_mode?: string | null;
   } | null;
+  students?: Array<{
+    id: string;
+    name?: string | null;
+    grade?: string | null;
+  }>;
 };
 
 type CapabilityId =
@@ -99,6 +104,11 @@ type EnvironmentForm = {
   bankKey: string;
   bankVersion: number;
   bankTitle: string;
+  sandboxStudent: {
+    id: string;
+    name: string;
+    grade: string | null;
+  };
   trajectoryId: string;
   sessionNumber: number;
   status:
@@ -172,6 +182,7 @@ type EnvironmentForm = {
 };
 
 type RepResult = {
+  studentId: string;
   eventId: string;
   completedAt: string;
   eventSequence: number;
@@ -216,6 +227,11 @@ type DiagnosisResult = {
 };
 
 type HistoryData = {
+  sandboxStudent: {
+    id: string;
+    name: string;
+    grade: string | null;
+  };
   trajectory: {
     id: string;
     sessionNumber: number;
@@ -271,6 +287,7 @@ const humanize = (value: string) =>
 
 export default function SpecialistSandboxSimulation() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [selections, setSelections] = useState<Record<string, Selection>>({});
   const [interventionEvent, setInterventionEvent] = useState<InterventionEvent>("none");
@@ -298,29 +315,38 @@ export default function SpecialistSandboxSimulation() {
     assignment?.operationalMode || assignment?.operational_mode || "",
   ).toLowerCase();
   const inSandbox = operationalMode === "sandbox";
+  const sandboxStudents = (podQuery.data?.students || []).filter(
+    (student) => Boolean(student?.id),
+  );
+  const requestedStudentId = String(searchParams.get("studentId") || "").trim();
+  const selectedSandboxStudent =
+    sandboxStudents.find((student) => String(student.id) === requestedStudentId) ||
+    sandboxStudents[0] ||
+    null;
+  const studentId = String(selectedSandboxStudent?.id || "");
 
   const environmentQuery = useQuery<EnvironmentForm>({
-    queryKey: ["sandbox-environment", tutorAssignmentId],
-    enabled: Boolean(tutorAssignmentId && inSandbox),
+    queryKey: ["sandbox-environment", tutorAssignmentId, studentId],
+    enabled: Boolean(tutorAssignmentId && studentId && inSandbox),
     retry: false,
     staleTime: 0,
     queryFn: async () => {
       const response = await apiRequest(
         "GET",
-        `/api/tutor/sandbox-environment?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}`,
+        `/api/tutor/sandbox-environment?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}&studentId=${encodeURIComponent(studentId)}`,
       );
       return response.json();
     },
   });
 
   const historyQuery = useQuery<HistoryData>({
-    queryKey: ["sandbox-environment-history", tutorAssignmentId],
-    enabled: Boolean(tutorAssignmentId && inSandbox),
+    queryKey: ["sandbox-environment-history", tutorAssignmentId, studentId],
+    enabled: Boolean(tutorAssignmentId && studentId && inSandbox),
     retry: false,
     queryFn: async () => {
       const response = await apiRequest(
         "GET",
-        `/api/tutor/sandbox-environment/history?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}`,
+        `/api/tutor/sandbox-environment/history?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}&studentId=${encodeURIComponent(studentId)}`,
       );
       return response.json();
     },
@@ -406,6 +432,7 @@ export default function SpecialistSandboxSimulation() {
         "/api/tutor/sandbox-environment/rediagnosis",
         {
           tutorAssignmentId,
+          studentId,
           bankVersion: form.bankVersion,
           trajectoryId: form.trajectoryId,
           rediagnosisRunId: form.rediagnosisRunId,
@@ -429,10 +456,10 @@ export default function SpecialistSandboxSimulation() {
       setDiagnosisSupportEvent("none");
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["sandbox-environment", tutorAssignmentId],
+          queryKey: ["sandbox-environment", tutorAssignmentId, studentId],
         }),
         queryClient.invalidateQueries({
-          queryKey: ["sandbox-environment-history", tutorAssignmentId],
+          queryKey: ["sandbox-environment-history", tutorAssignmentId, studentId],
         }),
       ]);
     },
@@ -490,10 +517,10 @@ export default function SpecialistSandboxSimulation() {
       setInheritedRescueSignal(null);
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["sandbox-environment", tutorAssignmentId],
+          queryKey: ["sandbox-environment", tutorAssignmentId, studentId],
         }),
         queryClient.invalidateQueries({
-          queryKey: ["sandbox-environment-history", tutorAssignmentId],
+          queryKey: ["sandbox-environment-history", tutorAssignmentId, studentId],
         }),
       ]);
     },
@@ -515,6 +542,24 @@ export default function SpecialistSandboxSimulation() {
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               A Specialist assignment is required before Sandbox can begin.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
+  }
+
+  if (inSandbox && !studentId) {
+    return (
+      <div className="min-h-screen bg-background px-4 py-12">
+        <div className="mx-auto max-w-3xl space-y-5">
+          <Button variant="ghost" onClick={() => navigate("/specialist/pod")}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Pod
+          </Button>
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              No synthetic Sandbox student is assigned to this Specialist yet.
             </AlertDescription>
           </Alert>
         </div>
@@ -585,6 +630,44 @@ export default function SpecialistSandboxSimulation() {
             )}
           </div>
         </div>
+
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle>Sandbox student</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Each synthetic student keeps an independent RI trajectory, session history, breakdown/recovery history, and hidden simulated state.
+                </p>
+              </div>
+              <Badge variant="secondary">
+                {form.sandboxStudent.name}{form.sandboxStudent.grade ? ` · Grade ${form.sandboxStudent.grade}` : ""}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {sandboxStudents.map((student) => {
+                const active = String(student.id) === studentId;
+                return (
+                  <Button
+                    key={student.id}
+                    type="button"
+                    size="sm"
+                    variant={active ? "default" : "outline"}
+                    onClick={() =>
+                      navigate(
+                        `/operational/specialist/sandbox?studentId=${encodeURIComponent(String(student.id))}`,
+                      )
+                    }
+                  >
+                    {student.name || "Sandbox Student"}
+                  </Button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
