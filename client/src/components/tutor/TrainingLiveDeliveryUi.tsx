@@ -83,6 +83,99 @@ export function liveTrainingInstruction(
   );
 }
 
+
+const LIVE_TRAINING_RULES: Record<string, string[]> = {
+  "Clarity::Identification": [
+    "No solving allowed",
+    "Push for vocabulary precision",
+    "All 4 layers: terms, type, steps, reason",
+  ],
+  "Clarity::Light Apply": [
+    "Minimal guidance only",
+    "No step-by-step help",
+    "Observe independent start and execution",
+  ],
+  "Structured Execution::Required Structure": [
+    "Student states step order before solving",
+    "Specialist does not supply the steps",
+    "Student solves using the stated order",
+  ],
+  "Structured Execution::Independent Execution": [
+    "No help from Specialist",
+    "Full independence expected",
+    "Observe repeatability and step discipline",
+  ],
+  "Structured Execution::Variation Control": [
+    "Same method - different form",
+    "Test transfer not memorization",
+    "No hints on what changed",
+  ],
+  "Controlled Discomfort::Controlled Entry": [
+    "Force a pause before starting",
+    "First step must be stated out loud",
+    "Do not let them jump in",
+  ],
+  "Controlled Discomfort::No Rescue": [
+    "No rescue allowed",
+    "Hold the hold - do not relieve",
+    "Observe rescue-seeking pattern",
+  ],
+  "Controlled Discomfort::Repeat Exposure": [
+    "Same difficulty level",
+    "Repeat exposure - build tolerance",
+    "Observe consistency of response",
+  ],
+  "Time Pressure Stability::Structure Under Timer": [
+    "Timer active",
+    "Method priority - not speed",
+    "Structure must be maintained throughout",
+  ],
+  "Time Pressure Stability::Repeated Timed Execution": [
+    "Same timer constraint",
+    "Build consistency - not just completion",
+    "Observe pace regulation",
+  ],
+  "Time Pressure Stability::Full Constraint": [
+    "Tighter timer",
+    "Full constraint - no relief",
+    "Structure + completion both required",
+  ],
+};
+
+export function liveTrainingActiveRules(
+  phase: string,
+  setName: string,
+  fallback: string[] = [],
+): string[] {
+  return LIVE_TRAINING_RULES[`${phase}::${setName}`] || fallback;
+}
+
+const LIVE_OBSERVATION_QUESTIONS: Record<string, string> = {
+  "clarity.vocabulary": "How did the student recognize the problem type or required vocabulary?",
+  "clarity.method": "How did the student recall and use the required steps?",
+  "clarity.reason": "How did the student explain why the method works?",
+  "clarity.immediate_apply": "How did the student respond when asked to use the understanding?",
+  "execution.start": "How did the student start this rep?",
+  "execution.step_discipline": "How did the student execute the steps?",
+  "execution.repeatability": "How consistently did the structure hold?",
+  "execution.independence": "How much support did the student need after the rep began?",
+  "difficulty.initial_response": "How did the student respond to the difficulty at first contact?",
+  "difficulty.first_step_control": "How controlled and accurate was the first step?",
+  "difficulty.tolerance": "How stable was the student under discomfort?",
+  "difficulty.rescue_dependence": "How much did the student seek rescue?",
+  "time.start": "How did the student start under time pressure?",
+  "time.structure": "How well did structure hold under time pressure?",
+  "time.pace": "How controlled was the student's pace?",
+  "time.completion_integrity": "How intact was completion under the constraint?",
+};
+
+export function liveObservationQuestion(
+  dimensionId: string,
+  fallback: string,
+): string {
+  return LIVE_OBSERVATION_QUESTIONS[dimensionId] || fallback;
+}
+
 export function LivePhaseContext({
   phase,
 }: {
