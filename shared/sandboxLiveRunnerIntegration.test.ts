@@ -22,6 +22,10 @@ const sandboxRouteSource = readFileSync(
   new URL("../server/routes/sandboxEnvironment.ts", import.meta.url),
   "utf8",
 );
+const trainingLiveUiSource = readFileSync(
+  new URL("../client/src/components/tutor/TrainingLiveDeliveryUi.tsx", import.meta.url),
+  "utf8",
+);
 
 test("Sandbox mode uses the existing live-runner route rather than a separate runner flow", () => {
   assert.match(
@@ -60,8 +64,21 @@ test("embedded Sandbox live runner is locked to the route student and still rend
     /const studentId = String\([\s\S]*studentIdOverride \|\| selectedSandboxStudent\?\.id/,
   );
   assert.match(sandboxRunnerSource, /enabled: requiresPodData/);
-  assert.match(sandboxRunnerSource, /Simulated student behaviour/);
+  assert.match(sandboxRunnerSource, /Simulated student response/);
   assert.match(sandboxRunnerSource, /studentBehavior/);
+});
+
+test("ordinary Training and embedded Sandbox share the same live-delivery UI primitives", () => {
+  assert.match(liveRunnerSource, /LiveRepContextCard/);
+  assert.match(liveRunnerSource, /LiveSupportPanel/);
+  assert.match(liveRunnerSource, /LiveObservationField/);
+  assert.match(sandboxRunnerSource, /LiveRepContextCard/);
+  assert.match(sandboxRunnerSource, /LiveSupportPanel/);
+  assert.match(sandboxRunnerSource, /LiveObservationField/);
+  assert.match(sandboxRunnerSource, /LiveRepStage/);
+  assert.match(sandboxRunnerSource, /Begin Rep/);
+  assert.match(trainingLiveUiSource, /Simulated student response/);
+  assert.match(trainingLiveUiSource, /Support this rep/);
 });
 
 test("Sandbox guide names the stateful experience as the normal live runner", () => {
