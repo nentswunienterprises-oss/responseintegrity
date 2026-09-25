@@ -1,4 +1,5 @@
 name: Sandbox V1R3 Stateful Live Proof
+# Runtime re-proof after Proof DB status compatibility reset.
 
 on:
   push:
