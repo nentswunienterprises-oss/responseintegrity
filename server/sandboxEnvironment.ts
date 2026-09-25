@@ -11,7 +11,6 @@ import {
   TRAINING_INHERITED_RESCUE_SIGNAL_OPTIONS,
   TRAINING_INTERVENTION_OPTIONS,
   getTrainingPrerequisiteSentinelDefinition,
-  trainingRawObservationRequiresPrerequisiteSentinel,
   type TrainingEvidenceStatus,
   type TrainingInheritedRescueSignal,
   type TrainingInterventionEvent,
@@ -33,6 +32,7 @@ import {
   type SandboxOutcomeDefinition,
   type SandboxTrajectoryClass,
 } from "@shared/sandboxEnvironment";
+import { trainingRawObservationRequiresPrerequisiteSentinel } from "@shared/trainingEvidenceEvaluator";
 import type { TopicPhase, TopicStability } from "@shared/topicConditioningEngine";
 
 export const DEFAULT_SANDBOX_ENVIRONMENT_BANK_KEY = "sandbox_stateful_environment";
