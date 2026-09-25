@@ -577,6 +577,7 @@ async function planNextRep(input: {
   }
 
   const phase = input.bundle.truth.canonical_phase;
+  const trainingSets = scoredTrainingSets(phase);
   const plan = flattenedRepPlan(phase);
   const completedInSession = await currentSessionEventCount(input.bundle);
   const position = plan[completedInSession];
@@ -632,6 +633,9 @@ async function planNextRep(input: {
     blockedByRoute: false as const,
     phase,
     position,
+    setIndex:
+      trainingSets.findIndex((set) => set.setId === position.set.setId) + 1,
+    setCount: trainingSets.length,
     selected,
     selectedRecord,
     completedInSession,
@@ -708,6 +712,9 @@ export async function prepareSandboxEnvironment(input: {
       setId: planned.position.set.setId,
       setName: planned.position.set.setName,
       setPurpose: planned.position.set.purpose,
+      setIndex: planned.setIndex,
+      setCount: planned.setCount,
+      repCount: planned.position.set.reps,
       constraints: { ...planned.position.set.constraints },
       repNumber: planned.position.repNumber,
       studentBehavior: planned.selected.studentBehavior,
