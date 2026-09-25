@@ -74,6 +74,25 @@ test("embedded Sandbox live runner is locked to the route student and still rend
   assert.match(sandboxRunnerSource, /studentBehavior/);
 });
 
+test("Sandbox evidence exceptions never force a hidden behavior guess", () => {
+  assert.match(
+    sandboxRunnerSource,
+    /allowEvidenceExceptionWithoutOption/,
+  );
+  assert.match(
+    sandboxRunnerSource,
+    /selection\?\.evidenceStatus === "observed"[\s\S]{0,160}selection\.optionId/,
+  );
+  assert.match(
+    trainingLiveUiSource,
+    /No behavior option is required when the evidence itself was not interpretable/,
+  );
+  assert.match(
+    trainingLiveUiSource,
+    /status === "observed" \|\| !allowEvidenceExceptionWithoutOption/,
+  );
+});
+
 test("ordinary Training and embedded Sandbox share the same live-delivery UI primitives", () => {
   assert.match(liveRunnerSource, /LiveRepContextCard/);
   assert.match(liveRunnerSource, /LiveSupportPanel/);
