@@ -376,7 +376,7 @@ async function loadCapabilityOccurrences(input: {
        FROM specialist_sandbox_capability_evidence
       WHERE tutor_assignment_id = $1
         AND tutor_id = $2
-      ORDER BY sequence_number ASC, created_at ASC`,
+      ORDER BY created_at ASC, id ASC`,
     [input.tutorAssignmentId, input.tutorId],
   );
 
