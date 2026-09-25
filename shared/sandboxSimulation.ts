@@ -18,6 +18,7 @@ import {
   resolveTrainingEvidenceAuthorityRoute,
   trainingEvidenceClassForRawBehavior,
 } from "./trainingEvidenceEvaluator";
+import type { TrainingDimensionId } from "./trainingEvidenceContract";
 
 export type SandboxObservationStatus = TrainingEvidenceStatus;
 
@@ -193,7 +194,7 @@ export function projectSandboxScenarioToCurrentTrainingContract(
               const evidenceClass =
                 sourceResolved.evidenceClass ||
                 trainingEvidenceClassForRawBehavior(
-                  sourceResolved.field.dimensionId as any,
+                  sourceResolved.field.dimensionId as TrainingDimensionId,
                   rawLabel,
                 );
               if (
