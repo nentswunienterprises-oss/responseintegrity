@@ -1,12 +1,12 @@
 import "dotenv/config";
 import express, { type Express } from "express";
 import cors from "cors";
-import { registerRoutes } from "./routes.ts";
-import { registerEvidenceCompleteDiagnosisRoutes } from "./evidenceCompleteDiagnosisRoutes.ts";
-import { registerTpsTimingRoutes } from "./tpsTimingRoutes.ts";
-import { registerCapabilityEngineRoutes } from "./routes/capabilityEngine.ts";
-import { registerSandboxSimulationRoutes } from "./routes/sandboxSimulation.ts";
-import { setupAuth } from "./supabaseAuth.ts";
+import { registerRoutes } from "./routes";
+import { registerEvidenceCompleteDiagnosisRoutes } from "./evidenceCompleteDiagnosisRoutes";
+import { registerTpsTimingRoutes } from "./tpsTimingRoutes";
+import { registerCapabilityEngineRoutes } from "./routes/capabilityEngine";
+import { registerSandboxSimulationRoutes } from "./routes/sandboxSimulation";
+import { setupAuth } from "./supabaseAuth";
 
 let appPromise: Promise<Express> | null = null;
 
