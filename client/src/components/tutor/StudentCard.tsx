@@ -332,11 +332,14 @@ export function StudentCard({
         navigate(`/specialist/intro-session/${student.id}?topic=${topicParam}&phase=${phaseParam}`);
         break;
       }
-      case "stateful-sandbox":
+      case "stateful-sandbox": {
+        const topicParam = encodeURIComponent(suggestedTopic || "");
+        const phaseParam = encodeURIComponent(recommendedStartingPhase || "Clarity");
         navigate(
-          `/operational/specialist/sandbox?studentId=${encodeURIComponent(String(student.id))}`,
+          `/specialist/intro-session/${student.id}?mode=training&topic=${topicParam}&phase=${phaseParam}`,
         );
         break;
+      }
       case "student-card":
       default:
         break;
