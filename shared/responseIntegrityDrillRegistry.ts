@@ -5,6 +5,10 @@ import {
   type DiagnosisDimensionId,
 } from "./diagnosisObservationMatrix";
 import { PHASES, type TopicPhase } from "./topicConditioningEngine";
+import {
+  TRAINING_OBSERVATION_MATRIX_V2,
+} from "./trainingObservationContractV2";
+import type { TrainingDimensionId } from "./trainingEvidenceContract";
 
 export type EvidenceDrillMode = "diagnosis" | "training" | "verification";
 
@@ -636,6 +640,54 @@ const compatibilityLevelForBehaviorClass = (
   return "partial";
 };
 
+
+const trainingSetForV2 = (
+  definition: EvidenceSetDefinition,
+): EvidenceSetDefinition => ({
+  ...definition,
+  fields: definition.fields.map((baseField) => {
+    const dimensionId = baseField.dimensionId as TrainingDimensionId;
+    const canonical = TRAINING_OBSERVATION_MATRIX_V2[dimensionId];
+    if (!canonical) {
+      throw new Error(
+        `Missing Training Observation Contract V2 definition for ${baseField.dimensionId}`,
+      );
+    }
+    return {
+      ...baseField,
+      optionLabels: canonical.options.map((option) => option.label),
+      optionLevels: canonical.options.map((option) =>
+        compatibilityLevelForBehaviorClass(option.behaviorClass),
+      ),
+      optionEvidenceClasses: canonical.options.map(
+        (option) => option.behaviorClass,
+      ),
+    };
+  }),
+  repFieldOverrides: undefined,
+  repOptionLabelOverrides: undefined,
+});
+
+const TRAINING_SETS_V2: Record<TopicPhase, EvidenceSetDefinition[]> =
+  Object.fromEntries(
+    PHASES.map((phase) => [
+      phase,
+      TRAINING_SETS[phase].map((definition) =>
+        definition.modelingOnly ? definition : trainingSetForV2(definition),
+      ),
+    ]),
+  ) as Record<TopicPhase, EvidenceSetDefinition[]>;
+
+const RESPONSE_INTEGRITY_DRILL_REGISTRY_TRAINING_V2: Record<
+  TopicPhase,
+  DrillSchemaDefinition
+> = Object.fromEntries(
+  PHASES.map((phase) => [
+    phase,
+    schemaFor("training", phase, TRAINING_SETS_V2[phase], 2),
+  ]),
+) as Record<TopicPhase, DrillSchemaDefinition>;
+
 const verificationSetForV3 = (phase: TopicPhase): EvidenceSetDefinition => {
   const inheritedProbe = DIAGNOSIS_SETS[phase][0];
   const fields = inheritedProbe.fields.map((baseField) => {
@@ -670,7 +722,7 @@ const RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT: Record<
   Record<TopicPhase, DrillSchemaDefinition>
 > = {
   diagnosis: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.diagnosis,
-  training: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.training,
+  training: RESPONSE_INTEGRITY_DRILL_REGISTRY_TRAINING_V2,
   verification: Object.fromEntries(
     PHASES.map((phase) => [phase, schemaFor("verification", phase, [verificationSetForV3(phase)], 3)]),
   ) as Record<TopicPhase, DrillSchemaDefinition>,
@@ -691,7 +743,12 @@ export const RESPONSE_INTEGRITY_DRILL_REGISTRY_HISTORY: Record<
               2: RESPONSE_INTEGRITY_DRILL_REGISTRY_V2.verification[phase],
               3: RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT.verification[phase],
             }
-          : { 1: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1[mode][phase] },
+          : mode === "training"
+            ? {
+                1: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.training[phase],
+                2: RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT.training[phase],
+              }
+            : { 1: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.diagnosis[phase] },
       ]),
     ),
   ]),
