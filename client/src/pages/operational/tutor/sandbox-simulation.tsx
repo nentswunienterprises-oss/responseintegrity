@@ -436,8 +436,9 @@ export default function SpecialistSandboxSimulation({
   const requiresPrerequisiteSentinel = Boolean(
     rep?.prerequisiteSentinel &&
       rep.fields.some((field) => {
-        const selected = selections[field.fieldKey]?.optionId;
-        if (!selected) return false;
+        const selection = selections[field.fieldKey];
+        const selected = selection?.optionId;
+        if (!selected || selection?.evidenceStatus !== "observed") return false;
         return field.options.some(
           (option) =>
             option.optionId === selected && option.requiresPrerequisiteSentinel,
@@ -471,16 +472,31 @@ export default function SpecialistSandboxSimulation({
       ...current,
       [fieldKey]: {
         optionId,
-        evidenceStatus: current[fieldKey]?.evidenceStatus || "observed",
+        evidenceStatus: "observed",
       },
     }));
   };
 
-  const chooseStatus = (fieldKey: string, evidenceStatus: EvidenceStatus) => {
+  const chooseStatus = (
+    fieldKey: string,
+    evidenceStatus: EvidenceStatus,
+    fallbackOptionId?: string,
+  ) => {
     setSelections((current) => {
       const existing = current[fieldKey];
-      if (!existing?.optionId) return current;
-      return { ...current, [fieldKey]: { ...existing, evidenceStatus } };
+      if (evidenceStatus === "observed") {
+        if (!existing?.optionId) return current;
+        return { ...current, [fieldKey]: { ...existing, evidenceStatus } };
+      }
+      const optionId = existing?.optionId || String(fallbackOptionId || "").trim();
+      if (!optionId) return current;
+      return {
+        ...current,
+        [fieldKey]: {
+          optionId,
+          evidenceStatus,
+        },
+      };
     });
   };
 
@@ -984,15 +1000,24 @@ export default function SpecialistSandboxSimulation({
                         optionDetails={liveObservationOptionDetails(
                           field.dimensionId,
                         )}
-                        selected={selection?.optionId || null}
+                        selected={
+                          selection?.evidenceStatus === "observed"
+                            ? selection.optionId
+                            : null
+                        }
                         onSelect={(optionId) =>
                           chooseOption(field.fieldKey, optionId)
                         }
                         showEvidenceExceptions={showEvidenceExceptions}
                         evidenceStatus={selection?.evidenceStatus || "observed"}
                         onEvidenceStatus={(status) =>
-                          chooseStatus(field.fieldKey, status)
+                          chooseStatus(
+                            field.fieldKey,
+                            status,
+                            field.options[0]?.optionId,
+                          )
                         }
+                        allowEvidenceExceptionWithoutOption
                       />
                     );
                   })}
