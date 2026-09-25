@@ -162,6 +162,104 @@ test("Sandbox bank V1 observations reconcile by evidence meaning into Training V
   assert.match(projectedStart.optionId, /\.option_2$/);
 });
 
+test("Stateful Sandbox V1 Clarity patterns are re-audited instead of blindly preserving drifted option classes", () => {
+  const historical = getDrillSchemaDefinitionByVersion("training", "Clarity", 1);
+  assert.ok(historical);
+  const set = historical!.sets.find(
+    (candidate) => candidate.setId === "clarity.identification",
+  );
+  assert.ok(set);
+
+  const historicalObservation = (
+    fieldKey: string,
+    optionIndex: number,
+  ) => {
+    const field = getFieldDefinitionForRep(set!, 0, fieldKey);
+    assert.ok(field);
+    return {
+      optionId: `${getRepPurposeId(set!, 0)}.${field!.dimensionId}.option_${optionIndex + 1}`,
+      evidenceStatus: "observed" as const,
+    };
+  };
+
+  const briefHesitation: SandboxOutcomeDefinition = {
+    key: "clarity.identification.rep_1.pattern_2",
+    version: 1,
+    phase: "Clarity",
+    setId: set!.setId,
+    repNumber: 1,
+    studentBehavior:
+      "The student recognises the problem and chooses the right method, but pauses and hedges briefly while explaining it before settling and engaging independently.",
+    canonicalObservations: {
+      vocabulary: historicalObservation("vocabulary", 1),
+      method: historicalObservation("method", 2),
+      reason: historicalObservation("reason", 1),
+      immediateApply: historicalObservation("immediateApply", 2),
+    },
+    trajectoryClass: "near_stable",
+    weight: 1,
+  };
+
+  const projectedHesitation = projectSandboxOutcomeToCurrentTrainingContract(
+    briefHesitation,
+    1,
+  );
+  const current = getDrillSchemaDefinition("training", "Clarity");
+  const resolveProjected = (
+    definition: SandboxOutcomeDefinition,
+    fieldKey: string,
+  ) =>
+    resolveEvidenceSelection({
+      mode: "training",
+      phase: "Clarity",
+      setId: definition.setId,
+      repIndex: 0,
+      fieldKey,
+      optionId: definition.canonicalObservations[fieldKey].optionId,
+      schemaVersion: current.schemaVersion,
+    });
+
+  assert.equal(
+    resolveProjected(projectedHesitation, "vocabulary")?.evidenceClass,
+    "supported",
+  );
+  assert.equal(
+    resolveProjected(projectedHesitation, "reason")?.evidenceClass,
+    "near_stable",
+  );
+
+  const partialUnderstanding: SandboxOutcomeDefinition = {
+    ...briefHesitation,
+    key: "clarity.identification.rep_1.pattern_3",
+    studentBehavior:
+      "The student identifies some of what matters, but the method choice and explanation remain uncertain. They can begin only after working through visible doubt.",
+    canonicalObservations: {
+      vocabulary: historicalObservation("vocabulary", 1),
+      method: historicalObservation("method", 1),
+      reason: historicalObservation("reason", 2),
+      immediateApply: historicalObservation("immediateApply", 1),
+    },
+    trajectoryClass: "conditional",
+  };
+
+  const projectedPartial = projectSandboxOutcomeToCurrentTrainingContract(
+    partialUnderstanding,
+    1,
+  );
+  for (const fieldKey of [
+    "vocabulary",
+    "method",
+    "reason",
+    "immediateApply",
+  ]) {
+    assert.equal(
+      resolveProjected(projectedPartial, fieldKey)?.evidenceClass,
+      "conditional",
+      `${fieldKey} must preserve the observable partial/uncertain behavior`,
+    );
+  }
+});
+
 test("constrained shuffle is deterministic and can target the earliest unsupported capability", () => {
   const a = outcomeFor({
     setId: "clarity.identification",
