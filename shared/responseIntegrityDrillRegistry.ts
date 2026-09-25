@@ -688,6 +688,133 @@ const RESPONSE_INTEGRITY_DRILL_REGISTRY_TRAINING_V2: Record<
   ]),
 ) as Record<TopicPhase, DrillSchemaDefinition>;
 
+
+export const TRAINING_SET_OBSERVATION_ELIGIBILITY_V3: Record<
+  string,
+  readonly TrainingDimensionId[]
+> = {
+  "clarity.identification": [
+    "clarity.vocabulary",
+    "clarity.method",
+    "clarity.reason",
+  ],
+  "clarity.light_apply": [
+    "clarity.vocabulary",
+    "clarity.method",
+    "clarity.reason",
+    "clarity.immediate_apply",
+  ],
+  "structured_execution.required_structure": [
+    "execution.start",
+    "execution.step_discipline",
+    "execution.repeatability",
+    "execution.independence",
+  ],
+  "structured_execution.independent_execution": [
+    "execution.start",
+    "execution.step_discipline",
+    "execution.repeatability",
+    "execution.independence",
+  ],
+  "structured_execution.variation_control": [
+    "execution.start",
+    "execution.step_discipline",
+    "execution.repeatability",
+    "execution.independence",
+  ],
+  "controlled_discomfort.controlled_entry": [
+    "difficulty.initial_response",
+    "difficulty.first_step_control",
+    "difficulty.tolerance",
+    "difficulty.rescue_dependence",
+  ],
+  "controlled_discomfort.no_rescue": [
+    "difficulty.initial_response",
+    "difficulty.first_step_control",
+    "difficulty.tolerance",
+    "difficulty.rescue_dependence",
+  ],
+  "controlled_discomfort.repeat_exposure": [
+    "difficulty.initial_response",
+    "difficulty.first_step_control",
+    "difficulty.tolerance",
+    "difficulty.rescue_dependence",
+  ],
+  "time_pressure.structure_under_timer": [
+    "time.start",
+    "time.structure",
+    "time.pace",
+    "time.completion_integrity",
+  ],
+  "time_pressure.repeated_timed_execution": [
+    "time.start",
+    "time.structure",
+    "time.pace",
+    "time.completion_integrity",
+  ],
+  "time_pressure.full_constraint": [
+    "time.start",
+    "time.structure",
+    "time.pace",
+    "time.completion_integrity",
+  ],
+};
+
+const normalizeFieldWeights = (
+  fields: EvidenceFieldDefinition[],
+): EvidenceFieldDefinition[] => {
+  const total = fields.reduce((sum, fieldDefinition) => sum + fieldDefinition.scoreWeight, 0);
+  if (!fields.length || total <= 0 || total === 100) {
+    return fields.map((fieldDefinition) => ({ ...fieldDefinition }));
+  }
+  return fields.map((fieldDefinition) => ({
+    ...fieldDefinition,
+    scoreWeight: (fieldDefinition.scoreWeight / total) * 100,
+  }));
+};
+
+const trainingSetForV3 = (
+  definition: EvidenceSetDefinition,
+): EvidenceSetDefinition => {
+  if (definition.modelingOnly) return definition;
+  const eligibleDimensions = TRAINING_SET_OBSERVATION_ELIGIBILITY_V3[definition.setId];
+  if (!eligibleDimensions) {
+    throw new Error(
+      `Missing Training V3 set observation eligibility for ${definition.setId}`,
+    );
+  }
+  const fields = definition.fields.filter((fieldDefinition) =>
+    eligibleDimensions.includes(fieldDefinition.dimensionId as TrainingDimensionId),
+  );
+  if (fields.length !== eligibleDimensions.length) {
+    throw new Error(
+      `Training V3 set ${definition.setId} does not expose every eligible dimension`,
+    );
+  }
+  return {
+    ...definition,
+    fields: normalizeFieldWeights(fields),
+  };
+};
+
+const TRAINING_SETS_V3: Record<TopicPhase, EvidenceSetDefinition[]> =
+  Object.fromEntries(
+    PHASES.map((phase) => [
+      phase,
+      TRAINING_SETS_V2[phase].map(trainingSetForV3),
+    ]),
+  ) as Record<TopicPhase, EvidenceSetDefinition[]>;
+
+const RESPONSE_INTEGRITY_DRILL_REGISTRY_TRAINING_V3: Record<
+  TopicPhase,
+  DrillSchemaDefinition
+> = Object.fromEntries(
+  PHASES.map((phase) => [
+    phase,
+    schemaFor("training", phase, TRAINING_SETS_V3[phase], 3),
+  ]),
+) as Record<TopicPhase, DrillSchemaDefinition>;
+
 const verificationSetForV3 = (phase: TopicPhase): EvidenceSetDefinition => {
   const inheritedProbe = DIAGNOSIS_SETS[phase][0];
   const fields = inheritedProbe.fields.map((baseField) => {
@@ -722,7 +849,7 @@ const RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT: Record<
   Record<TopicPhase, DrillSchemaDefinition>
 > = {
   diagnosis: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.diagnosis,
-  training: RESPONSE_INTEGRITY_DRILL_REGISTRY_TRAINING_V2,
+  training: RESPONSE_INTEGRITY_DRILL_REGISTRY_TRAINING_V3,
   verification: Object.fromEntries(
     PHASES.map((phase) => [phase, schemaFor("verification", phase, [verificationSetForV3(phase)], 3)]),
   ) as Record<TopicPhase, DrillSchemaDefinition>,
@@ -746,7 +873,8 @@ export const RESPONSE_INTEGRITY_DRILL_REGISTRY_HISTORY: Record<
           : mode === "training"
             ? {
                 1: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.training[phase],
-                2: RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT.training[phase],
+                2: RESPONSE_INTEGRITY_DRILL_REGISTRY_TRAINING_V2[phase],
+                3: RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT.training[phase],
               }
             : { 1: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.diagnosis[phase] },
       ]),
