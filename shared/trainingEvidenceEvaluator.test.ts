@@ -251,7 +251,7 @@ test("near-stable evidence can support High but cannot mint High Maintenance", (
     phase: "Time Pressure Stability",
     optionIndexFor: ({ setId, repIndex, fieldKey, optionLabels }) => {
       if (fieldKey === "paceControl") {
-        return 1;
+        return 2;
       }
       return optionLabels.length - 1;
     },
@@ -435,14 +435,14 @@ test("High Maintenance exit can use a clean recovery run inside the designated e
     phase: "Clarity",
     optionIndexFor: ({ setId, repIndex, fieldKey, optionLabels }) => {
       if (setId === "clarity.identification") {
-        if (fieldKey === "vocabulary") return 1; // hesitant / near-stable
-        if (fieldKey === "reason") return 1; // weak / conditional
-        if (fieldKey === "immediateApply") return 1; // unsure but tries / near-stable
+        if (fieldKey === "vocabulary") return 2; // mostly accurate / near-stable
+        if (fieldKey === "reason") return 1; // partial reason / conditional
+        if (fieldKey === "immediateApply") return 2; // brief hesitation / near-stable
       }
       if (setId === "clarity.light_apply" && repIndex === 0) {
-        if (fieldKey === "vocabulary") return 1; // partial / conditional
-        if (fieldKey === "reason") return 1; // weak / conditional
-        if (fieldKey === "immediateApply") return 1; // hesitant / near-stable
+        if (fieldKey === "vocabulary") return 1; // fragmented / conditional
+        if (fieldKey === "reason") return 1; // partial reason / conditional
+        if (fieldKey === "immediateApply") return 2; // brief hesitation / near-stable
       }
       return optionLabels.length - 1;
     },
