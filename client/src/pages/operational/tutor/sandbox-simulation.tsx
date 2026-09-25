@@ -79,6 +79,27 @@ type SandboxResult = {
   evidenceScope: "sandbox";
 };
 
+type SandboxGraduationStatus = {
+  bankKey: string;
+  bankVersion: number;
+  policyAvailable: boolean;
+  policyStatus?: "candidate" | "approved";
+  evidenceReady: boolean;
+  practicalsReady: boolean;
+  automaticTransition: false;
+  nextStage: "practicals";
+  minimumObservationFidelityPercent?: number;
+  qualifyingDistinctScenarios: number;
+  requiredDistinctScenarios: number;
+  phases: Array<{
+    phase: string;
+    qualifyingDistinctScenarios: number;
+    requiredDistinctScenarios: number;
+    complete: boolean;
+  }>;
+  reason: string;
+};
+
 type Selection = {
   optionId: string;
   evidenceStatus: EvidenceStatus;
@@ -132,6 +153,19 @@ export default function SpecialistSandboxSimulation() {
       const response = await apiRequest(
         "GET",
         `/api/tutor/sandbox-simulation/history?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}`,
+      );
+      return response.json();
+    },
+  });
+
+  const graduationQuery = useQuery<SandboxGraduationStatus>({
+    queryKey: ["sandbox-simulation-graduation", tutorAssignmentId],
+    enabled: Boolean(tutorAssignmentId && inSandbox),
+    retry: false,
+    queryFn: async () => {
+      const response = await apiRequest(
+        "GET",
+        `/api/tutor/sandbox-simulation/graduation?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}`,
       );
       return response.json();
     },
@@ -239,9 +273,14 @@ export default function SpecialistSandboxSimulation() {
     },
     onSuccess: async (attemptResult) => {
       setResult(attemptResult);
-      await queryClient.invalidateQueries({
-        queryKey: ["sandbox-simulation-history", tutorAssignmentId],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["sandbox-simulation-history", tutorAssignmentId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["sandbox-simulation-graduation", tutorAssignmentId],
+        }),
+      ]);
     },
   });
 
@@ -421,6 +460,51 @@ export default function SpecialistSandboxSimulation() {
             </Alert>
           </CardContent>
         </Card>
+
+        {graduationQuery.data?.policyAvailable && (
+          <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle>Sandbox readiness</CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Distinct clean scenario passes across all RI phases. Sandbox evidence does not automatically change your lifecycle stage.
+                  </p>
+                </div>
+                <Badge variant={graduationQuery.data.practicalsReady ? "default" : "outline"}>
+                  {graduationQuery.data.practicalsReady
+                    ? "Practicals ready"
+                    : graduationQuery.data.evidenceReady
+                      ? "Evidence ready"
+                      : "In progress"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {graduationQuery.data.phases.map((phase) => (
+                  <div key={phase.phase} className="rounded-lg border p-3">
+                    <p className="text-sm font-medium">{phase.phase}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {phase.qualifyingDistinctScenarios}/{phase.requiredDistinctScenarios} distinct passes
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">
+                  {graduationQuery.data.qualifyingDistinctScenarios}/{graduationQuery.data.requiredDistinctScenarios} required scenarios complete
+                  {graduationQuery.data.minimumObservationFidelityPercent
+                    ? ` · minimum ${graduationQuery.data.minimumObservationFidelityPercent}% observation fidelity`
+                    : ""}
+                </span>
+                {graduationQuery.data.policyStatus === "candidate" && (
+                  <Badge variant="secondary">Graduation policy under validation</Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {form.scenario.sets.map((set) => (
           <Card key={set.setId}>

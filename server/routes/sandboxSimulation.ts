@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { isAuthenticated } from "../supabaseAuth";
 import {
+  getSandboxGraduationStatus,
   getSandboxSimulationHistory,
   persistSandboxSimulationAttempt,
   prepareSandboxSimulation,
@@ -84,6 +85,23 @@ export function registerSandboxSimulationRoutes(app: Express) {
       return res.status(201).json(result);
     } catch (error) {
       return sendError(res, error, "Failed to save Sandbox simulation attempt.");
+    }
+  });
+
+  app.get("/api/tutor/sandbox-simulation/graduation", isAuthenticated, async (req, res) => {
+    try {
+      const user = requireSpecialist(req, res);
+      if (!user) return;
+      const tutorAssignmentId = String(req.query.tutorAssignmentId || "").trim();
+      if (!tutorAssignmentId) {
+        return res.status(400).json({ message: "tutorAssignmentId is required." });
+      }
+      return res.json(await getSandboxGraduationStatus({
+        tutorAssignmentId,
+        tutorId: String(user.id),
+      }));
+    } catch (error) {
+      return sendError(res, error, "Failed to load Sandbox graduation status.");
     }
   });
 
