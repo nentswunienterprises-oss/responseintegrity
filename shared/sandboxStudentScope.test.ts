@@ -72,7 +72,14 @@ test("all Sandbox-mode Specialists can select an assigned student and see rep be
   assert.match(runnerSource, /studentBehavior/);
   assert.match(runnerSource, /Simulated student behaviour/);
   assert.match(studentCardSource, /case "stateful-sandbox"/);
-  assert.match(studentCardSource, /operational\/specialist\/sandbox\?studentId=/);
+  assert.match(
+    studentCardSource,
+    /\/specialist\/intro-session\/\$\{student\.id\}\?mode=training/,
+  );
+  assert.doesNotMatch(
+    studentCardSource,
+    /operational\/specialist\/sandbox\?studentId=/,
+  );
 });
 
 test("legacy assignment-level active trajectories are retired rather than silently attached to a student", () => {
