@@ -52,6 +52,7 @@ import {
   TUTOR_TRAINING_SESSION_CANCELLATION_REASONS,
   buildTrainingSessionCancellationNote,
 } from "@/lib/trainingSessionCancellation";
+import { evaluateTrainingPackageQuota } from "@shared/trainingPackageQuota";
 
 type TopicConditioningMap = {
   topic?: string | null;
@@ -1087,6 +1088,11 @@ export default function StudentTopicConditioningDialog({
   const [editingTrainingSessionId, setEditingTrainingSessionId] = useState<string | null>(null);
   const [adjustedTrainingSessionTime, setAdjustedTrainingSessionTime] = useState("");
   const { data: trainingSessionsData } = useTrainingSessions(studentId, !!workflow?.proposalAccepted);
+  const trainingPackageQuotaDecision = evaluateTrainingPackageQuota(
+    operationalMode,
+    trainingSessionsData?.monthlyQuota || null,
+  );
+  const packageQuotaBlocked = trainingPackageQuotaDecision.blocked;
   const confirmTrainingSession = useConfirmTrainingSession(studentId);
   const respondTrainingSession = useRespondTrainingSession(studentId);
   const retryMeetSync = useRetryScheduledSessionMeetSync(studentId);
@@ -1626,6 +1632,7 @@ export default function StudentTopicConditioningDialog({
     (session: any) => session.cancellation?.disposition === "replacement_required",
   );
   const weeklyScheduleReady =
+    !packageQuotaBlocked &&
     confirmedTrainingSessions.length > 0 &&
     pendingTutorConfirmationSessions.length === 0 &&
     !pendingTrainingConfirmationSession &&
@@ -2339,17 +2346,31 @@ export default function StudentTopicConditioningDialog({
                         </p>
                       </div>
                       <div className="text-right text-xs text-muted-foreground">
-                        Start Session unlocks after the week's lesson is confirmed by both parent and Specialist.
+                        {packageQuotaBlocked
+                          ? trainingPackageQuotaDecision.code === "PACKAGE_QUOTA_EXHAUSTED"
+                            ? "Start Session is locked because this family's package has no sessions remaining."
+                            : "Start Session is locked until the family's package quota can be verified."
+                          : "Start Session unlocks after the week's lesson is confirmed by both parent and Specialist."}
                       </div>
                     </div>
                     <div className="rounded border border-primary/20 bg-background px-3 py-2 text-xs space-y-2">
                       <p className="font-medium text-foreground">
-                        {weeklyScheduleReady ? "Confirmed weekly schedule ready" : "Awaiting complete weekly schedule"}
+                        {packageQuotaBlocked
+                          ? trainingPackageQuotaDecision.code === "PACKAGE_QUOTA_EXHAUSTED"
+                            ? "Package exhausted — awaiting renewal"
+                            : "Package quota unavailable"
+                          : weeklyScheduleReady
+                            ? "Confirmed weekly schedule ready"
+                            : "Awaiting complete weekly schedule"}
                       </p>
                       <p className="text-muted-foreground">
-                        {weeklyScheduleReady
-                          ? "Use Start Session to choose topics and enter the runner for a confirmed weekly lesson."
-                          : "Training launch stays locked until both weekly sessions are scheduled and fully confirmed."}
+                        {packageQuotaBlocked
+                          ? trainingPackageQuotaDecision.code === "PACKAGE_QUOTA_EXHAUSTED"
+                            ? "No additional training session can launch until the family package renews."
+                            : "Training launch stays locked until Response Integrity can verify the family's package capacity."
+                          : weeklyScheduleReady
+                            ? "Use Start Session to choose topics and enter the runner for a confirmed weekly lesson."
+                            : "Training launch stays locked until both weekly sessions are scheduled and fully confirmed."}
                       </p>
                     </div>
                     {replacementRequiredCancelledTrainingSessions.length > 0 ? (
@@ -2390,8 +2411,16 @@ export default function StudentTopicConditioningDialog({
                                       setSessionPrepChecks({});
                                       setSessionTopicsModalOpen(true);
                                     }}
-                                    disabled={!assignmentAccepted}
-                                    title={!assignmentAccepted ? "Accept the assignment before running training sessions." : undefined}
+                                    disabled={!assignmentAccepted || packageQuotaBlocked}
+                                    title={
+                                      !assignmentAccepted
+                                        ? "Accept the assignment before running training sessions."
+                                        : packageQuotaBlocked
+                                          ? trainingPackageQuotaDecision.code === "PACKAGE_QUOTA_EXHAUSTED"
+                                            ? "Package exhausted — awaiting renewal."
+                                            : "Package quota is unavailable."
+                                          : undefined
+                                    }
                                   >
                                     Start Session
                                   </Button>
