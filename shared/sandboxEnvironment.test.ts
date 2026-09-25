@@ -1,221 +1,375 @@
-import assert from "node:assert/strict";
 import test from "node:test";
+import assert from "node:assert/strict";
 import {
-  SANDBOX_SPECIALIST_CAPABILITY_ORDER,
-  advanceSandboxRep,
-  applySandboxSessionAuthority,
-  createSandboxEnvironmentState,
-  deriveSandboxCapabilityOccurrences,
+  SANDBOX_CAPABILITY_LAYERS,
+  compareSandboxTurn,
   evaluateSandboxCapabilityReadiness,
-  sandboxCapabilityNeeds,
+  evaluateSandboxCompletedSession,
+  nextSandboxContinuityState,
   selectSandboxOutcome,
+  validateSandboxOutcomeDefinition,
   type SandboxCapabilityOccurrence,
-  type SandboxCapabilityPolicy,
+  type SandboxCapabilityReadinessPolicy,
+  type SandboxCompletedTurn,
   type SandboxOutcomeDefinition,
 } from "./sandboxEnvironment";
+import {
+  getDrillSchemaDefinition,
+  getEvidenceSelectionIdentity,
+  getFieldDefinitionForRep,
+} from "./responseIntegrityDrillRegistry";
+import type { TopicPhase } from "./topicConditioningEngine";
 
-const policy = (status: "candidate" | "approved" = "candidate"): SandboxCapabilityPolicy => ({
-  policyVersion: 1,
-  status,
-  minimumValidOpportunities: {
-    condition_integrity: 2,
-    observation_integrity: 2,
-    evidence_integrity: 2,
-    authority_integrity: 2,
-    continuity_integrity: 2,
-  },
-  requireAllPhasesRepresented: true,
-  requireLongitudinalTrajectory: true,
-  nextStage: "practicals",
-});
+const phase: TopicPhase = "Clarity";
 
-const outcome = (
-  key: string,
-  stability: "Low" | "Medium" | "High" | "High Maintenance",
-  baseWeight = 1,
-): SandboxOutcomeDefinition => ({
-  outcomeKey: key,
-  outcomeVersion: 1,
-  phase: "Clarity",
-  setId: "clarity.identification",
-  repNumber: 1,
-  studentBehavior: "The simulated student gives a coherent observable response.",
-  canonicalObservations: {
-    vocabulary: {
-      optionId: "clarity.identification.cold_name.clarity.vocabulary.option_5",
-      evidenceStatus: "observed",
-    },
-  },
-  canonicalInterventionEvent: "none",
-  plausiblePreviousStabilities: [stability],
-  capabilityExposure: ["observation_integrity"],
-  baseWeight,
-});
+function outcomeFor(input: {
+  setId: string;
+  repNumber: number;
+  key: string;
+  optionIndex?: number;
+  challenge?: "condition_integrity" | "observation_integrity" | "evidence_integrity" | "authority_integrity" | "continuity_integrity";
+  trajectoryClass?: SandboxOutcomeDefinition["trajectoryClass"];
+}): SandboxOutcomeDefinition {
+  const schema = getDrillSchemaDefinition("training", phase);
+  const set = schema.sets.find((candidate) => candidate.setId === input.setId);
+  if (!set) throw new Error("Missing test set");
+  const repIndex = input.repNumber - 1;
+  const canonicalObservations = Object.fromEntries(
+    set.fields.map((baseField) => {
+      const field = getFieldDefinitionForRep(set, repIndex, baseField.fieldKey) || baseField;
+      const requested = input.optionIndex ?? field.optionLevels.length - 1;
+      const optionIndex = Math.max(0, Math.min(requested, field.optionLevels.length - 1));
+      const identity = getEvidenceSelectionIdentity({
+        mode: "training",
+        phase,
+        setName: set.setName,
+        repIndex,
+        fieldKey: field.fieldKey,
+        optionIndex,
+      });
+      if (!identity) throw new Error("Missing option identity");
+      return [field.fieldKey, { optionId: identity.optionId, evidenceStatus: "observed" as const }];
+    }),
+  );
 
-test("stateful outcome selection is deterministic, plausible and avoids immediate repetition", () => {
-  const outcomes = [outcome("a", "Low"), outcome("b", "Low"), outcome("c", "High")];
-  const context = {
-    trajectoryId: "trajectory-1",
-    seed: "proof-seed",
-    canonicalPhase: "Clarity" as const,
-    canonicalStability: "Low" as const,
-    prescribedPhase: "Clarity" as const,
+  return {
+    key: input.key,
+    version: 1,
+    phase,
+    setId: set.setId,
+    repNumber: input.repNumber,
+    studentBehavior: "The simulated student gives a coherent observable response for this rep.",
+    canonicalObservations,
+    trajectoryClass: input.trajectoryClass || "supported",
+    weight: 1,
+    challengeCapabilities: input.challenge ? [input.challenge] : [],
+    emitsContinuityTags: [input.trajectoryClass || "supported"],
+  };
+}
+
+function specialistCopy(outcome: SandboxOutcomeDefinition) {
+  return Object.fromEntries(
+    Object.entries(outcome.canonicalObservations).map(([key, value]) => [
+      key,
+      { optionId: value.optionId, evidenceStatus: value.evidenceStatus },
+    ]),
+  );
+}
+
+test("Outcome Matrix definition is bound to the live phase/set/rep schema", () => {
+  const outcome = outcomeFor({
     setId: "clarity.identification",
     repNumber: 1,
-    recentOutcomeKeys: ["a"],
-    capabilityNeeds: ["observation_integrity" as const],
+    key: "clarity_identification_rep1_clean",
+  });
+  assert.doesNotThrow(() => validateSandboxOutcomeDefinition(outcome));
+
+  const broken = { ...outcome, repNumber: 99 };
+  assert.throws(() => validateSandboxOutcomeDefinition(broken));
+});
+
+test("constrained shuffle is deterministic and can target the earliest unsupported capability", () => {
+  const a = outcomeFor({
+    setId: "clarity.identification",
+    repNumber: 1,
+    key: "a",
+  });
+  const b = outcomeFor({
+    setId: "clarity.identification",
+    repNumber: 1,
+    key: "b",
+    challenge: "observation_integrity",
+  });
+  const context = {
+    canonicalPhase: phase,
+    canonicalStability: "Low" as const,
+    prescribedPhase: phase,
+    setId: "clarity.identification",
+    repNumber: 1,
+    sequenceNumber: 7,
+    earliestUnsupportedCapability: "observation_integrity" as const,
   };
 
-  const first = selectSandboxOutcome(outcomes, context);
-  const second = selectSandboxOutcome(outcomes, context);
-  assert.equal(first.outcomeKey, second.outcomeKey);
-  assert.equal(first.outcomeKey, "b");
-  assert.ok(first.plausiblePreviousStabilities.includes("Low"));
+  const first = selectSandboxOutcome({ seed: "fixed-seed", outcomes: [a, b], context });
+  const second = selectSandboxOutcome({ seed: "fixed-seed", outcomes: [a, b], context });
+  assert.equal(first.key, second.key);
+  assert.equal(first.key, "b");
+
+  const withoutRepeat = selectSandboxOutcome({
+    seed: "fixed-seed",
+    outcomes: [a, b, outcomeFor({
+      setId: "clarity.identification",
+      repNumber: 1,
+      key: "c",
+    })],
+    context: { ...context, recentOutcomeKeys: ["b"] },
+  });
+  assert.notEqual(withoutRepeat.key, "b");
 });
 
-test("rep integrity signals become evidence about distinct Specialist capabilities", () => {
-  const events = deriveSandboxCapabilityOccurrences({
-    trajectoryId: "trajectory-1",
-    phase: "Structured Execution",
-    setId: "structured_execution.required_structure",
+test("continuity tags persist across turns while outcomes can clear stale conditions", () => {
+  const first = outcomeFor({
+    setId: "clarity.identification",
     repNumber: 1,
-    sessionNumber: 2,
-    eventId: "event-1",
-    conditionKept: true,
-    exactObservationCount: 3,
-    comparableObservationCount: 4,
-    evidenceStatusExact: false,
-    interventionEventExact: true,
-    systemOutcomeMatched: false,
-    stateTrackAligned: false,
+    key: "break",
+    trajectoryClass: "breakdown",
+  });
+  first.emitsContinuityTags = ["recent_breakdown"];
+
+  const state1 = nextSandboxContinuityState({ currentTags: [], outcome: first });
+  assert.deepEqual(state1.continuityTags, ["recent_breakdown"]);
+
+  const recovery = outcomeFor({
+    setId: "clarity.identification",
+    repNumber: 2,
+    key: "recovery",
+    trajectoryClass: "supported",
+  });
+  recovery.clearsContinuityTags = ["recent_breakdown"];
+  recovery.emitsContinuityTags = ["recovery_in_progress"];
+
+  const state2 = nextSandboxContinuityState({
+    currentTags: state1.continuityTags,
+    outcome: recovery,
+  });
+  assert.deepEqual(state2.continuityTags, ["recovery_in_progress"]);
+});
+
+test("turn comparison separates condition, observation and evidence integrity", () => {
+  const outcome = outcomeFor({
+    setId: "clarity.identification",
+    repNumber: 1,
+    key: "turn",
+  });
+  const specialist = specialistCopy(outcome);
+  const firstField = Object.keys(specialist)[0];
+  specialist[firstField] = { ...specialist[firstField], evidenceStatus: "confounded" };
+
+  const result = compareSandboxTurn({
+    sequenceNumber: 1,
+    sessionNumber: 1,
+    phase,
+    setId: outcome.setId,
+    repNumber: outcome.repNumber,
+    outcome,
+    actualInterventionEvent: "none",
+    recordedInterventionEvent: "none",
+    conditionConformed: true,
+    specialistObservations: specialist,
   });
 
-  assert.equal(events.length, SANDBOX_SPECIALIST_CAPABILITY_ORDER.length);
-  assert.equal(events.find((item) => item.capabilityId === "condition_integrity")?.evidenceClass, "supported");
-  assert.equal(events.find((item) => item.capabilityId === "observation_integrity")?.evidenceClass, "conditional");
-  assert.equal(events.find((item) => item.capabilityId === "evidence_integrity")?.evidenceClass, "breakdown");
-  assert.equal(events.find((item) => item.capabilityId === "authority_integrity")?.evidenceClass, "breakdown");
-  assert.equal(events.find((item) => item.capabilityId === "continuity_integrity")?.evidenceClass, "breakdown");
+  assert.equal(result.observationExact, true);
+  assert.equal(result.evidenceExact, false);
+  assert.equal(
+    result.capabilityEvidence.find((item) => item.layer === "condition_integrity")?.evidenceClass,
+    "supported",
+  );
+  assert.equal(
+    result.capabilityEvidence.find((item) => item.layer === "observation_integrity")?.evidenceClass,
+    "supported",
+  );
+  assert.equal(
+    result.capabilityEvidence.find((item) => item.layer === "evidence_integrity")?.evidenceClass,
+    "breakdown",
+  );
 });
 
-const supportedOccurrence = (
-  capabilityId: SandboxCapabilityOccurrence["capabilityId"],
-  phase: SandboxCapabilityOccurrence["phase"],
-  sessionNumber: number,
-  suffix: string,
-): SandboxCapabilityOccurrence => ({
-  capabilityId,
-  evidenceClass: "supported",
-  phase,
-  setId: phase + "-set",
-  repNumber: sessionNumber,
-  trajectoryId: "trajectory-long",
-  sessionNumber,
-  eventId: capabilityId + "-" + suffix,
-  reason: "clean",
+function fullClaritySession(specialistWrong = false): SandboxCompletedTurn[] {
+  const schema = getDrillSchemaDefinition("training", phase);
+  const turns: SandboxCompletedTurn[] = [];
+  let sequence = 0;
+
+  for (const set of schema.sets.filter((candidate) => !candidate.modelingOnly)) {
+    for (let repNumber = 1; repNumber <= set.reps; repNumber += 1) {
+      sequence += 1;
+      const canonical = outcomeFor({
+        setId: set.setId,
+        repNumber,
+        key: `${set.setId}.rep${repNumber}.canonical`,
+      });
+      let specialist = specialistCopy(canonical);
+      if (specialistWrong) {
+        specialist = Object.fromEntries(
+          set.fields.map((baseField) => {
+            const field = getFieldDefinitionForRep(set, repNumber - 1, baseField.fieldKey) || baseField;
+            const identity = getEvidenceSelectionIdentity({
+              mode: "training",
+              phase,
+              setName: set.setName,
+              repIndex: repNumber - 1,
+              fieldKey: field.fieldKey,
+              optionIndex: 0,
+            });
+            if (!identity) throw new Error("Missing weak option");
+            return [field.fieldKey, { optionId: identity.optionId, evidenceStatus: "observed" as const }];
+          }),
+        );
+      }
+
+      turns.push({
+        sequenceNumber: sequence,
+        sessionNumber: 1,
+        phase,
+        setId: set.setId,
+        repNumber,
+        outcome: canonical,
+        actualInterventionEvent: "none",
+        recordedInterventionEvent: "none",
+        conditionConformed: true,
+        specialistObservations: specialist,
+      });
+    }
+  }
+  return turns;
+}
+
+test("full Sandbox session runs canonical and Specialist records through the real Training authority", () => {
+  const aligned = evaluateSandboxCompletedSession({
+    phase,
+    canonicalPreviousStability: "Low",
+    specialistPreviousStability: "Low",
+    turns: fullClaritySession(false),
+    priorCompletedSessions: 0,
+    priorTracksDiverged: false,
+  });
+  assert.equal(aligned.systemOutcomeMatched, true);
+  assert.equal(
+    aligned.capabilityEvidence.find((item) => item.layer === "authority_integrity")?.evidenceClass,
+    "supported",
+  );
+
+  const diverged = evaluateSandboxCompletedSession({
+    phase,
+    canonicalPreviousStability: "Low",
+    specialistPreviousStability: "Low",
+    turns: fullClaritySession(true),
+    priorCompletedSessions: 1,
+    priorTracksDiverged: false,
+  });
+  assert.equal(diverged.systemOutcomeMatched, false);
+  assert.equal(
+    diverged.capabilityEvidence.find((item) => item.layer === "continuity_integrity")?.evidenceClass,
+    "breakdown",
+  );
 });
 
-test("candidate readiness can become evidence-ready without authorizing Practicals", () => {
-  const phases = [
-    "Clarity",
-    "Structured Execution",
-    "Controlled Discomfort",
-    "Time Pressure Stability",
-  ] as const;
-  const occurrences: SandboxCapabilityOccurrence[] = [];
+const policy: SandboxCapabilityReadinessPolicy = {
+  policyVersion: 1,
+  status: "candidate",
+  minimumValidOpportunitiesByCapability: Object.fromEntries(
+    SANDBOX_CAPABILITY_LAYERS.map((layer) => [layer, 2]),
+  ) as SandboxCapabilityReadinessPolicy["minimumValidOpportunitiesByCapability"],
+  breadth: {
+    minimumDistinctPhases: 4,
+    minimumDistinctSets: 8,
+    minimumDistinctRepPositions: 16,
+    minimumCompletedSessions: 3,
+    requireStateChange: true,
+    requireBreakdownRecovery: true,
+  },
+  nextStage: "practicals",
+};
 
-  for (const [capabilityIndex, capabilityId] of SANDBOX_SPECIALIST_CAPABILITY_ORDER.entries()) {
-    occurrences.push(
-      supportedOccurrence(capabilityId, phases[capabilityIndex % phases.length], 1, "a"),
-      supportedOccurrence(capabilityId, phases[(capabilityIndex + 1) % phases.length], 2, "b"),
-    );
+function occurrence(
+  layer: SandboxCapabilityOccurrence["layer"],
+  evidenceClass: SandboxCapabilityOccurrence["evidenceClass"],
+  sequenceNumber: number,
+): SandboxCapabilityOccurrence {
+  return {
+    layer,
+    evidenceClass,
+    sequenceNumber,
+    sessionNumber: Math.ceil(sequenceNumber / 3),
+    phase,
+    setId: "clarity.identification",
+    repNumber: ((sequenceNumber - 1) % 3) + 1,
+    reason: "test",
+  };
+}
+
+test("readiness stops at the earliest unsupported Specialist capability", () => {
+  const evidence: SandboxCapabilityOccurrence[] = [];
+  for (const layer of SANDBOX_CAPABILITY_LAYERS) {
+    evidence.push(occurrence(layer, "supported", 1), occurrence(layer, "supported", 2));
+  }
+  evidence.splice(
+    evidence.findIndex((item) => item.layer === "observation_integrity"),
+    2,
+    occurrence("observation_integrity", "breakdown", 1),
+    occurrence("observation_integrity", "supported", 2),
+  );
+
+  const result = evaluateSandboxCapabilityReadiness({
+    policy,
+    evidence,
+    exposure: {
+      distinctPhases: 4,
+      distinctSets: 8,
+      distinctRepPositions: 16,
+      completedSessions: 3,
+      stateChangeObserved: true,
+      breakdownRecoveryObserved: true,
+    },
+  });
+
+  assert.equal(result.earliestUnsupportedCapability, "observation_integrity");
+  assert.equal(result.evidenceReady, false);
+  assert.equal(
+    result.layers.find((item) => item.layer === "evidence_integrity")?.authoritative,
+    false,
+  );
+});
+
+test("a real Specialist capability breakdown requires a stronger clean recovery suffix", () => {
+  const evidence: SandboxCapabilityOccurrence[] = [];
+  for (const layer of SANDBOX_CAPABILITY_LAYERS) {
+    if (layer === "observation_integrity") {
+      evidence.push(
+        occurrence(layer, "breakdown", 1),
+        occurrence(layer, "supported", 2),
+        occurrence(layer, "supported", 3),
+        occurrence(layer, "supported", 4),
+      );
+    } else {
+      evidence.push(occurrence(layer, "supported", 1), occurrence(layer, "supported", 2));
+    }
   }
 
-  const result = evaluateSandboxCapabilityReadiness(policy("candidate"), occurrences);
+  const result = evaluateSandboxCapabilityReadiness({
+    policy,
+    evidence,
+    exposure: {
+      distinctPhases: 4,
+      distinctSets: 8,
+      distinctRepPositions: 16,
+      completedSessions: 3,
+      stateChangeObserved: true,
+      breakdownRecoveryObserved: true,
+    },
+  });
+
   assert.equal(result.earliestUnsupportedCapability, null);
   assert.equal(result.evidenceReady, true);
   assert.equal(result.practicalsReady, false);
-  assert.equal(result.automaticTransition, false);
-  assert.equal(result.longitudinalTrajectoryEstablished, true);
-  assert.equal(result.phasesRepresented.length, 4);
-
-  const approved = evaluateSandboxCapabilityReadiness(policy("approved"), occurrences);
-  assert.equal(approved.practicalsReady, true);
-});
-
-test("an earlier unsupported capability blocks later layers even when later raw evidence is clean", () => {
-  const occurrences: SandboxCapabilityOccurrence[] = [
-    {
-      ...supportedOccurrence("condition_integrity", "Clarity", 1, "a"),
-      evidenceClass: "breakdown",
-    },
-    supportedOccurrence("condition_integrity", "Clarity", 2, "b"),
-    supportedOccurrence("observation_integrity", "Structured Execution", 1, "a"),
-    supportedOccurrence("observation_integrity", "Structured Execution", 2, "b"),
-    supportedOccurrence("evidence_integrity", "Controlled Discomfort", 1, "a"),
-    supportedOccurrence("evidence_integrity", "Controlled Discomfort", 2, "b"),
-    supportedOccurrence("authority_integrity", "Time Pressure Stability", 1, "a"),
-    supportedOccurrence("authority_integrity", "Time Pressure Stability", 2, "b"),
-    supportedOccurrence("continuity_integrity", "Time Pressure Stability", 1, "a"),
-    supportedOccurrence("continuity_integrity", "Time Pressure Stability", 2, "b"),
-  ];
-
-  const result = evaluateSandboxCapabilityReadiness(policy(), occurrences);
-  assert.equal(result.earliestUnsupportedCapability, "condition_integrity");
-  assert.equal(result.layers[0].effectiveState, "CONDITIONAL");
-  assert.equal(result.layers[1].rawState, "SUPPORTED");
-  assert.equal(result.layers[1].effectiveState, "BLOCKED_BY_PREREQUISITE");
-  assert.deepEqual(sandboxCapabilityNeeds(result), ["condition_integrity"]);
-});
-
-test("a genuine capability breakdown needs an extra clean recovery suffix", () => {
-  const occurrences: SandboxCapabilityOccurrence[] = [
-    {
-      ...supportedOccurrence("condition_integrity", "Clarity", 1, "break"),
-      evidenceClass: "breakdown",
-    },
-    supportedOccurrence("condition_integrity", "Clarity", 1, "recover-1"),
-    supportedOccurrence("condition_integrity", "Clarity", 2, "recover-2"),
-  ];
-
-  let result = evaluateSandboxCapabilityReadiness(policy(), occurrences);
-  assert.notEqual(result.layers[0].rawState, "SUPPORTED");
-
-  occurrences.push(
-    supportedOccurrence("condition_integrity", "Structured Execution", 2, "recover-3"),
-  );
-  result = evaluateSandboxCapabilityReadiness(policy(), occurrences);
-  assert.equal(result.layers[0].rawState, "SUPPORTED");
-  assert.equal(result.layers[0].recoveredAfterBreakdown, true);
-});
-
-test("canonical student truth and Specialist-recorded RI state persist separately", () => {
-  const initial = createSandboxEnvironmentState({
-    trajectoryId: "trajectory-1",
-    phase: "Clarity",
-    stability: "Medium",
-  });
-  const next = applySandboxSessionAuthority({
-    state: advanceSandboxRep(initial, 6),
-    canonicalAuthority: {
-      route: "normal_training",
-      nextPhase: "Clarity",
-      nextStability: "High",
-      targetPhase: null,
-      reason: "canonical evidence",
-    },
-    specialistAuthority: {
-      route: "normal_training",
-      nextPhase: "Clarity",
-      nextStability: "Medium",
-      targetPhase: null,
-      reason: "misrecorded evidence",
-    },
-  });
-
-  assert.equal(next.canonicalStudent.stability, "High");
-  assert.equal(next.specialistRecorded.stability, "Medium");
-  assert.equal(next.divergenceActive, true);
-  assert.equal(next.sessionNumber, 2);
-  assert.equal(next.completedRepCount, 6);
+  assert.match(result.reason, /candidate capability standard/i);
 });
