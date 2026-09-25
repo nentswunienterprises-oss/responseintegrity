@@ -4049,7 +4049,6 @@ function IntroSessionDrillRunnerCore() {
             </div>
           ),
         )}
-        ))}
         {isTrainingEvidenceCapture &&
           !set?.isModelingSet &&
           repStarted &&
