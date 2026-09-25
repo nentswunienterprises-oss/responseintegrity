@@ -203,11 +203,17 @@ jobs:
             waitUntil: "domcontentloaded",
             timeout: 90000,
           });
-          await page.waitForTimeout(5000);
-          const bodyText = await page.locator("body").innerText();
-          console.log("SANDBOX_V1R2_UI_BODY=" + bodyText.slice(0, 6000));
-          console.log("SANDBOX_V1R2_PAGE_ERRORS=" + JSON.stringify(pageErrors));
-          assert.match(bodyText, /Sandbox readiness/i, "Sandbox readiness UI did not render");
+          try {
+            await page.getByText("Sandbox readiness").waitFor({
+              state: "visible",
+              timeout: 30000,
+            });
+          } catch (error) {
+            const bodyText = await page.locator("body").innerText();
+            console.log("SANDBOX_V1R2_UI_BODY=" + bodyText.slice(0, 6000));
+            console.log("SANDBOX_V1R2_PAGE_ERRORS=" + JSON.stringify(pageErrors));
+            throw error;
+          }
 
           console.log("SANDBOX_V1R2_CONTENT_GRADUATION_PASS=" + JSON.stringify({
             bankVersion: first.bankVersion,
