@@ -332,6 +332,11 @@ export function StudentCard({
         navigate(`/specialist/intro-session/${student.id}?topic=${topicParam}&phase=${phaseParam}`);
         break;
       }
+      case "stateful-sandbox":
+        navigate(
+          `/operational/specialist/sandbox?studentId=${encodeURIComponent(String(student.id))}`,
+        );
+        break;
       case "student-card":
       default:
         break;
