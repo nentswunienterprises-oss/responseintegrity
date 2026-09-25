@@ -325,6 +325,15 @@ test("clarity identification rep text changes by rep purpose", () => {
     setScores: [84],
   });
 
+  assert.equal(
+    snapshot.sets[0].reps.every((rep) =>
+      rep.evidence.every(
+        (item) => item.dimensionId !== "clarity.immediate_apply",
+      ),
+    ),
+    true,
+    "Identification must not report application evidence from a no-solving set",
+  );
   const repTexts = snapshot.sets[0].reps.map((rep) => formatSnapshotRepResult(rep));
   assert.match(repTexts[0], /identified the important terms and selected the method before solving/);
   assert.match(repTexts[0], /explanation contained some correct structure/i);
