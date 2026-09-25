@@ -165,6 +165,9 @@ type EnvironmentForm = {
     setId: string;
     setName: string;
     setPurpose: string;
+    setIndex: number;
+    setCount: number;
+    repCount: number;
     constraints: Record<string, unknown>;
     repNumber: number;
     studentBehavior: string;
