@@ -33,6 +33,7 @@ import { API_URL } from "@/lib/config";
 import SpecialistSandboxSimulation from "@/pages/operational/tutor/sandbox-simulation";
 import { instructionPromptDisplayText, instructionPromptLabelFor } from "@/lib/instructionPromptLabel";
 import {
+  LIVE_PHASE_CONTEXT,
   LiveObservationField,
   LivePhaseContext,
   LiveRepContextCard,
@@ -322,24 +323,8 @@ const EMPTY_TOPIC_REFERENCE: TopicReferenceContent = {
   reason: "",
 };
 
-const PHASE_CONTEXT: Record<PhaseLabel, { purpose: string; constraints: string[] }> = {
-  Clarity: {
-    purpose: "Can the student see the problem clearly before solving? Clarity is naming what's there, recognizing the method, understanding why. If this fails - everything else collapses.",
-    constraints: ["No Boss Battles", "No time pressure", "No skipping layers"],
-  },
-  "Structured Execution": {
-    purpose: "Test and build ability to execute the known method independently. Student knows - now prove they can do it alone, repeatably.",
-    constraints: ["State steps before solving", "No guessing tolerated", "No skipping steps"],
-  },
-  "Controlled Discomfort": {
-    purpose: "Test and stabilize behavior under uncertainty and difficulty. Does the student persist - or shut down?",
-    constraints: ["No full rescue", "Hold discomfort window", "One-step confirmation max"],
-  },
-  "Time Pressure Stability": {
-    purpose: "Maintain method structure under urgency. Structure is the target - speed is secondary.",
-    constraints: ["Method over speed", "Timer is active", "Structured response required - panic responding is logged as instability."],
-  },
-};
+const PHASE_CONTEXT = LIVE_PHASE_CONTEXT;
+
 
 // ---------------------------------------------------------------------------
 // DRILL SET CONFIGURATIONS
