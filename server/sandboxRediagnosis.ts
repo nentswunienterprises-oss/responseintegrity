@@ -1,5 +1,6 @@
 import { createHmac } from "crypto";
 import { pool } from "./db";
+import { loadTutorOperationalModeAuthority } from "./tutorOperationalModeAuthority";
 import {
   DIAGNOSIS_PROBES,
   evaluateEvidenceCompleteDiagnosis,
@@ -111,24 +112,31 @@ async function assertSandboxAccess(input: {
   tutorId: string;
   studentId: string;
 }) {
-  const result = await pool.query(
-    `SELECT ta.id,
-            ta.operational_mode,
-            COALESCE(pe.is_sandbox_account, false) AS is_sandbox_account
-       FROM tutor_assignments ta
-       JOIN students s
-         ON s.id = $3
-        AND s.tutor_id = ta.tutor_id
-       LEFT JOIN parent_enrollments pe
-         ON pe.id = s.parent_enrollment_id
-      WHERE ta.id = $1
-        AND ta.tutor_id = $2
-      LIMIT 1`,
-    [input.tutorAssignmentId, input.tutorId, input.studentId],
-  );
+  const [result, modeAuthority] = await Promise.all([
+    pool.query(
+      `SELECT ta.id,
+              COALESCE(pe.is_sandbox_account, false) AS is_sandbox_account
+         FROM tutor_assignments ta
+         JOIN students s
+           ON s.id = $3
+          AND s.tutor_id = ta.tutor_id
+         LEFT JOIN parent_enrollments pe
+           ON pe.id = s.parent_enrollment_id
+        WHERE ta.id = $1
+          AND ta.tutor_id = $2
+        LIMIT 1`,
+      [input.tutorAssignmentId, input.tutorId, input.studentId],
+    ),
+    loadTutorOperationalModeAuthority({
+      tutorAssignmentId: input.tutorAssignmentId,
+      tutorId: input.tutorId,
+    }),
+  ]);
   const row = result.rows[0];
-  if (!row) throw httpError(403, "Sandbox student is not assigned to this authenticated Specialist.");
-  if (String(row.operational_mode || "").toLowerCase() !== "sandbox") {
+  if (!row || !modeAuthority) {
+    throw httpError(403, "Sandbox student is not assigned to this authenticated Specialist.");
+  }
+  if (modeAuthority.mode !== "sandbox") {
     throw httpError(409, "Targeted re-diagnosis is available only in Sandbox.");
   }
   if (!row.is_sandbox_account) {
