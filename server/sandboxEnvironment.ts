@@ -51,6 +51,7 @@ type SandboxTrajectoryRow = {
   id: string;
   tutor_assignment_id: string;
   tutor_id: string;
+  student_id: string;
   bank_key: string;
   bank_version: number;
   specialist_phase: TopicPhase;
@@ -131,22 +132,41 @@ function digest(value: string) {
 async function assertSandboxAccess(input: {
   tutorAssignmentId: string;
   tutorId: string;
+  studentId: string;
 }) {
   const result = await pool.query(
-    `SELECT id, operational_mode
-       FROM tutor_assignments
-      WHERE id = $1
-        AND tutor_id = $2
+    `SELECT ta.id,
+            ta.operational_mode,
+            s.id AS student_id,
+            s.name AS student_name,
+            s.grade AS student_grade,
+            COALESCE(pe.is_sandbox_account, false) AS is_sandbox_account
+       FROM tutor_assignments ta
+       JOIN students s
+         ON s.id = $3
+        AND s.tutor_id = ta.tutor_id
+       LEFT JOIN parent_enrollments pe
+         ON pe.id = s.parent_enrollment_id
+      WHERE ta.id = $1
+        AND ta.tutor_id = $2
       LIMIT 1`,
-    [input.tutorAssignmentId, input.tutorId],
+    [input.tutorAssignmentId, input.tutorId, input.studentId],
   );
   const row = result.rows[0];
   if (!row) {
-    throw httpError(403, "Specialist assignment not found or does not belong to the authenticated user.");
+    throw httpError(403, "Sandbox student is not assigned to this authenticated Specialist.");
   }
   if (String(row.operational_mode || "").toLowerCase() !== "sandbox") {
     throw httpError(409, "The stateful Sandbox environment is available only while the Specialist is in Sandbox.");
   }
+  if (!row.is_sandbox_account) {
+    throw httpError(409, "Stateful Sandbox may only run against synthetic Sandbox student accounts.");
+  }
+  return {
+    id: String(row.student_id),
+    name: String(row.student_name || "Sandbox Student"),
+    grade: row.student_grade ? String(row.student_grade) : null,
+  };
 }
 
 async function loadActiveEnvironmentBank(
@@ -195,6 +215,7 @@ const jsonStringArray = (value: unknown) =>
 async function ensureTrajectory(input: {
   tutorAssignmentId: string;
   tutorId: string;
+  studentId: string;
   bank: SandboxEnvironmentBank;
 }): Promise<SandboxTrajectoryBundle> {
   const existing = await pool.query(
@@ -213,13 +234,15 @@ async function ensureTrajectory(input: {
          ON truth.trajectory_id = t.id
       WHERE t.tutor_assignment_id = $1
         AND t.tutor_id = $2
-        AND t.bank_key = $3
-        AND t.bank_version = $4
+        AND t.student_id = $3
+        AND t.bank_key = $4
+        AND t.bank_version = $5
         AND t.status = 'active'
       LIMIT 1`,
     [
       input.tutorAssignmentId,
       input.tutorId,
+      input.studentId,
       input.bank.bankKey,
       input.bank.bankVersion,
     ],
@@ -256,6 +279,7 @@ async function ensureTrajectory(input: {
       `INSERT INTO specialist_sandbox_trajectories (
          tutor_assignment_id,
          tutor_id,
+         student_id,
          bank_key,
          bank_version,
          specialist_phase,
@@ -267,18 +291,19 @@ async function ensureTrajectory(input: {
          status,
          student_state_authoritative,
          evidence_scope
-       ) VALUES ($1,$2,$3,$4,'Clarity','Low','normal_training',1,0,false,'active',false,'sandbox')
+       ) VALUES ($1,$2,$3,$4,$5,'Clarity','Low','normal_training',1,0,false,'active',false,'sandbox')
        RETURNING *`,
       [
         input.tutorAssignmentId,
         input.tutorId,
+        input.studentId,
         input.bank.bankKey,
         input.bank.bankVersion,
       ],
     );
     const trajectory = created.rows[0] as SandboxTrajectoryRow;
     const trajectorySeed = digest(
-      ["sandbox-trajectory-v2", trajectory.id, input.bank.bankKey, input.bank.bankVersion].join(":"),
+      ["sandbox-trajectory-v3", trajectory.id, input.studentId, input.bank.bankKey, input.bank.bankVersion].join(":"),
     );
     await client.query(
       `INSERT INTO private.specialist_sandbox_trajectory_truth (
@@ -614,14 +639,16 @@ async function planNextRep(input: {
 export async function prepareSandboxEnvironment(input: {
   tutorAssignmentId: string;
   tutorId: string;
+  studentId: string;
   bankKey?: string;
 }) {
-  await assertSandboxAccess(input);
+  const sandboxStudent = await assertSandboxAccess(input);
   const bank = await loadActiveEnvironmentBank(input.bankKey);
   if (!bank) throw httpError(404, "No active stateful Sandbox environment bank is available.");
   const bundle = await ensureTrajectory({
     tutorAssignmentId: input.tutorAssignmentId,
     tutorId: input.tutorId,
+    studentId: input.studentId,
     bank,
   });
   const planned = await planNextRep({
@@ -642,6 +669,7 @@ export async function prepareSandboxEnvironment(input: {
       bankKey: bank.bankKey,
       bankVersion: bank.bankVersion,
       bankTitle: bank.title,
+      sandboxStudent,
       trajectoryId: bundle.trajectory.id,
       sessionNumber: bundle.trajectory.session_number,
       status: "targeted_rediagnosis_required" as const,
@@ -816,6 +844,7 @@ function sessionHasBreakdownRecovery(turns: SandboxCompletedTurn[]) {
 export async function submitSandboxEnvironmentRep(input: {
   tutorAssignmentId: string;
   tutorId: string;
+  studentId: string;
   bankVersion: number;
   trajectoryId: string;
   eventSequence: number;
@@ -830,6 +859,7 @@ export async function submitSandboxEnvironmentRep(input: {
   const bundle = await ensureTrajectory({
     tutorAssignmentId: input.tutorAssignmentId,
     tutorId: input.tutorId,
+    studentId: input.studentId,
     bank,
   });
   if (bundle.trajectory.id !== input.trajectoryId) {
@@ -888,18 +918,19 @@ export async function submitSandboxEnvironmentRep(input: {
 
   const inserted = await pool.query(
     `INSERT INTO specialist_sandbox_rep_events (
-       trajectory_id, tutor_assignment_id, tutor_id, event_sequence,
+       trajectory_id, tutor_assignment_id, tutor_id, student_id, event_sequence,
        session_number, phase, set_id, rep_number, outcome_ref, student_behavior,
        selection_seed_digest, specialist_submission, condition_kept,
        total_observations, matching_observations, matching_evidence_statuses,
        observation_exact, evidence_exact,
        student_state_authoritative, evidence_scope
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15,$16,$17,$18,false,'sandbox')
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19,false,'sandbox')
      RETURNING id, completed_at`,
     [
       bundle.trajectory.id,
       input.tutorAssignmentId,
       input.tutorId,
+      bundle.trajectory.student_id,
       planned.eventSequence,
       bundle.trajectory.session_number,
       planned.phase,
@@ -1026,16 +1057,17 @@ export async function submitSandboxEnvironmentRep(input: {
 
     const sessionInsert = await pool.query(
       `INSERT INTO specialist_sandbox_session_evaluations (
-         trajectory_id, tutor_assignment_id, tutor_id, session_number,
+         trajectory_id, tutor_assignment_id, tutor_id, student_id, session_number,
          phase, specialist_authority, authority_aligned, state_track_aligned,
          state_change_observed, student_breakdown_recovery_observed,
          student_state_authoritative, evidence_scope
-       ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,false,'sandbox')
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,false,'sandbox')
        RETURNING id`,
       [
         bundle.trajectory.id,
         input.tutorAssignmentId,
         input.tutorId,
+        bundle.trajectory.student_id,
         bundle.trajectory.session_number,
         planned.phase,
         JSON.stringify(evaluation.specialistRoute),
@@ -1140,13 +1172,15 @@ export async function submitSandboxEnvironmentRep(input: {
 export async function getSandboxEnvironmentHistory(input: {
   tutorAssignmentId: string;
   tutorId: string;
+  studentId: string;
 }) {
-  await assertSandboxAccess(input);
+  const sandboxStudent = await assertSandboxAccess(input);
   const bank = await loadActiveEnvironmentBank();
   if (!bank) throw httpError(404, "No active stateful Sandbox environment bank is available.");
   const bundle = await ensureTrajectory({
     tutorAssignmentId: input.tutorAssignmentId,
     tutorId: input.tutorId,
+    studentId: input.studentId,
     bank,
   });
   const [events, sessions, readiness] = await Promise.all([
@@ -1177,6 +1211,7 @@ export async function getSandboxEnvironmentHistory(input: {
   ]);
 
   return {
+    sandboxStudent,
     trajectory: {
       id: bundle.trajectory.id,
       sessionNumber: bundle.trajectory.session_number,
