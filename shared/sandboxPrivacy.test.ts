@@ -49,3 +49,11 @@ test("canonical re-diagnosis authority remains private server-side", () => {
     /return\s*\{[\s\S]{0,1200}canonicalDecision\s*:/,
   );
 });
+
+test("Sandbox re-diagnosis status write keeps one explicit SQL type for the reused parameter", () => {
+  assert.match(rediagnosisSource, /status = \$4::varchar/);
+  assert.match(
+    rediagnosisSource,
+    /CASE WHEN \$4::varchar <> 'active' THEN now\(\) ELSE NULL END/,
+  );
+});
