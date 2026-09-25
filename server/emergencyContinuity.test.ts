@@ -1134,3 +1134,51 @@ test("proposal surfaces ignore partial evidence-native diagnosis artifacts", () 
     /!state\.finalized && state\.decision\?\.complete[\s\S]*?postHistory\(id, state\.probeHistory\)/,
   );
 });
+
+
+test("package quota is authoritative for Specialist training launch and submission", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const dialogSource = readFileSync(
+    resolve(process.cwd(), "client/src/components/tutor/StudentTopicConditioningDialog.tsx"),
+    "utf8",
+  );
+
+  const accessStart = routesSource.indexOf(
+    '"/api/tutor/students/:studentId/drill-session-access"',
+  );
+  const accessEnd = routesSource.indexOf(
+    "app.get(",
+    accessStart + 10,
+  );
+  const accessSource = routesSource.slice(
+    accessStart,
+    accessEnd > accessStart ? accessEnd : accessStart + 30000,
+  );
+  assert.ok(accessStart >= 0);
+  assert.match(accessSource, /getTrainingPackageQuotaAuthority/);
+  assert.match(accessSource, /PACKAGE_QUOTA_EXHAUSTED/);
+  assert.match(accessSource, /reconcileTrainingSessionCompletionFromRun/);
+
+  const submitStart = routesSource.indexOf(
+    'app.post("/api/tutor/training-session-drill"',
+  );
+  const submitEnd = routesSource.indexOf(
+    "app.get(",
+    submitStart,
+  );
+  const submitSource = routesSource.slice(
+    submitStart,
+    submitEnd > submitStart ? submitEnd : submitStart + 50000,
+  );
+  assert.ok(submitStart >= 0);
+  assert.match(submitSource, /getTrainingPackageQuotaAuthority/);
+  assert.match(submitSource, /reconcileTrainingSessionCompletionFromRun/);
+  assert.match(submitSource, /status\(409\)/);
+
+  assert.match(dialogSource, /packageQuotaBlocked/);
+  assert.match(dialogSource, /Package exhausted — awaiting renewal/);
+  assert.match(
+    dialogSource,
+    /disabled=\{!assignmentAccepted \|\| packageQuotaBlocked\}/,
+  );
+});

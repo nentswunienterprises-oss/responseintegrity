@@ -87,6 +87,10 @@ import {
   type TrainingSessionCancellationDisposition,
 } from "@shared/trainingSessionCancellationPolicy";
 import {
+  evaluateTrainingPackageQuota,
+  type TrainingPackageQuotaDecision,
+} from "@shared/trainingPackageQuota";
+import {
   normalizeTopicReferenceContent,
   parseStoredTopicReference,
   TOPIC_REFERENCE_SCHEMA_VERSION,
@@ -2895,6 +2899,153 @@ async function getMonthlySessionQuotaSnapshot(options: {
     sessions_remaining: Number(row.sessions_remaining ?? 0),
     status: String(row.status || "active"),
   };
+}
+
+
+type TrainingPackageQuotaAuthority = {
+  monthlyQuota: any | null;
+  decision: TrainingPackageQuotaDecision;
+};
+
+async function getTrainingPackageQuotaAuthority(options: {
+  operationalMode: unknown;
+  studentId: string;
+  student?: any;
+  session?: any;
+}): Promise<TrainingPackageQuotaAuthority> {
+  const unavailableDecision = evaluateTrainingPackageQuota(options.operationalMode, null);
+  if (!unavailableDecision.required) {
+    return { monthlyQuota: null, decision: unavailableDecision };
+  }
+
+  const parentId = String(
+    options.session?.parent_id ||
+      options.student?.parentId ||
+      options.student?.parent_id ||
+      "",
+  ).trim();
+
+  if (!parentId) {
+    return { monthlyQuota: null, decision: unavailableDecision };
+  }
+
+  try {
+    const monthlyQuota = await getMonthlySessionQuotaSnapshot({
+      parentId,
+      studentId: String(options.studentId),
+      referenceIso: new Date().toISOString(),
+      isSandboxContext:
+        String(options.operationalMode || "").trim().toLowerCase() === "sandbox"
+          ? true
+          : undefined,
+    });
+    return {
+      monthlyQuota,
+      decision: evaluateTrainingPackageQuota(options.operationalMode, monthlyQuota),
+    };
+  } catch (error) {
+    console.error("Failed to resolve training package quota authority:", error);
+    return { monthlyQuota: null, decision: unavailableDecision };
+  }
+}
+
+function trainingPackageQuotaMessage(decision: TrainingPackageQuotaDecision) {
+  return decision.code === "PACKAGE_QUOTA_EXHAUSTED"
+    ? "This family's package has no sessions remaining. Training is locked until the package renews."
+    : "Training is locked because the family's package quota could not be verified.";
+}
+
+function applyTrainingPackageQuotaToLaunch(
+  launch: ReturnType<typeof getSessionLaunchState>,
+  decision: TrainingPackageQuotaDecision,
+) {
+  if (!decision.blocked) return launch;
+  return {
+    ...launch,
+    canLaunch: false,
+    code: decision.code,
+  };
+}
+
+async function reconcileTrainingSessionCompletionFromRun(options: {
+  session: any;
+  tutorId: string;
+  studentId: string;
+}) {
+  const session = options.session;
+  const sessionId = String(session?.id || "").trim();
+  const status = String(session?.status || "").trim();
+  if (
+    !sessionId ||
+    !["confirmed", "scheduled", "ready", "live"].includes(status)
+  ) {
+    return session;
+  }
+
+  if (isEmergencyDbMode()) {
+    const runResult = await pool.query(
+      `SELECT id
+         FROM public.training_session_runs
+        WHERE scheduled_session_id::text = $1
+          AND student_id = $2
+          AND tutor_id = $3
+          AND status IN ('submitted', 'completed')
+        ORDER BY COALESCE(submitted_at, started_at, created_at) DESC
+        LIMIT 1`,
+      [sessionId, options.studentId, options.tutorId],
+    );
+    if (!runResult.rows[0]) return session;
+
+    const updateResult = await pool.query(
+      `UPDATE public.scheduled_sessions
+          SET status = 'completed',
+              updated_at = NOW()
+        WHERE id::text = $1
+          AND tutor_id = $2
+          AND student_id = $3
+          AND status IN ('confirmed', 'scheduled', 'ready', 'live')
+      RETURNING ${SCHEDULED_SESSION_SELECT}`,
+      [sessionId, options.tutorId, options.studentId],
+    );
+    return updateResult.rows[0] || { ...session, status: "completed" };
+  }
+
+  const { data: linkedRun, error: runError } = await supabase
+    .from("training_session_runs")
+    .select("id")
+    .eq("scheduled_session_id", sessionId)
+    .eq("student_id", options.studentId)
+    .eq("tutor_id", options.tutorId)
+    .in("status", ["submitted", "completed"])
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (runError) {
+    console.error("Failed to reconcile scheduled lesson against training run:", runError);
+    return session;
+  }
+  if (!linkedRun) return session;
+
+  const { data: updatedSession, error: updateError } = await supabase
+    .from("scheduled_sessions")
+    .update({
+      status: "completed",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", sessionId)
+    .eq("tutor_id", options.tutorId)
+    .eq("student_id", options.studentId)
+    .in("status", ["confirmed", "scheduled", "ready", "live"])
+    .select(SCHEDULED_SESSION_SELECT)
+    .maybeSingle();
+
+  if (updateError) {
+    console.error("Failed to retire consumed scheduled lesson:", updateError);
+    return session;
+  }
+
+  return updatedSession || { ...session, status: "completed" };
 }
 
 async function resolveEnrollmentIdForSession(session: any) {
@@ -8667,8 +8818,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   return res.status(400).json({ message: "A Response Integrity training lesson must be attached before drill submission." });
                 }
 
+                const authoritativeScheduledSession = await reconcileTrainingSessionCompletionFromRun({
+                  session: resolvedScheduledSession,
+                  tutorId,
+                  studentId,
+                });
+
                 if (operationalMode === "training" || operationalMode === "sandbox") {
-                  const status = String(resolvedScheduledSession.status || "").trim();
+                  const status = String(authoritativeScheduledSession.status || "").trim();
                   const hasConfirmedSchedule =
                     ["confirmed", "ready", "live"].includes(status) &&
                     !!resolvedScheduledSession.parent_confirmed &&
@@ -8680,13 +8837,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     });
                   }
                 } else {
-                  const trainingLaunch = getSessionLaunchState(resolvedScheduledSession, "training");
+                  const trainingLaunch = getSessionLaunchState(authoritativeScheduledSession, "training");
                   if (!trainingLaunch.canLaunch) {
                     return res.status(400).json({ message: "Training drills must submit from an active or imminently scheduled Response Integrity lesson." });
                   }
                 }
 
-                scheduledSession = resolvedScheduledSession;
+                const quotaAuthority = await getTrainingPackageQuotaAuthority({
+                  operationalMode,
+                  studentId,
+                  student,
+                  session: authoritativeScheduledSession,
+                });
+                if (quotaAuthority.decision.blocked) {
+                  return res.status(409).json({
+                    message: trainingPackageQuotaMessage(quotaAuthority.decision),
+                    code: quotaAuthority.decision.code,
+                    monthlyQuota: quotaAuthority.monthlyQuota,
+                  });
+                }
+
+                scheduledSession = authoritativeScheduledSession;
               }
 
               emergencyDbClient = isEmergencyDbMode() ? await pool.connect() : null;
@@ -12769,6 +12940,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
         }
 
+        const operationalMode = await getTutorOperationalMode(tutorId);
+
         if (isEmergencyDbMode()) {
           const result = await pool.query(
             `SELECT ${SCHEDULED_SESSION_SELECT}
@@ -12778,12 +12951,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
               LIMIT 12`,
             [tutorId, studentId],
           );
-          const sessionsWithCancellation = await attachTrainingSessionCancellationContext(result.rows);
+          const reconciledSessions = await Promise.all(
+            (result.rows || []).map((session: any) =>
+              reconcileTrainingSessionCompletionFromRun({
+                session,
+                tutorId,
+                studentId,
+              }),
+            ),
+          );
+          const quotaAuthority = await getTrainingPackageQuotaAuthority({
+            operationalMode,
+            studentId,
+            student: normalizedStudent,
+            session: reconciledSessions.find((session: any) => session?.parent_id) || null,
+          });
+          const sessionsWithCancellation = await attachTrainingSessionCancellationContext(reconciledSessions);
           return res.json({
             sessions: sessionsWithCancellation.map((session: any) => ({
               ...session,
-              launch: getSessionLaunchState(session, "training"),
+              launch: applyTrainingPackageQuotaToLaunch(
+                getSessionLaunchState(session, "training"),
+                quotaAuthority.decision,
+              ),
             })),
+            monthlyQuota: quotaAuthority.monthlyQuota,
+            quotaDecision: quotaAuthority.decision,
             googleMeetConfigured: false,
           });
         }
@@ -12821,12 +13014,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
         );
 
-        const sessionsWithCancellation = await attachTrainingSessionCancellationContext(sessionsWithArtifacts);
+        const reconciledSessions = await Promise.all(
+          sessionsWithArtifacts.map((session: any) =>
+            reconcileTrainingSessionCompletionFromRun({
+              session,
+              tutorId,
+              studentId,
+            }),
+          ),
+        );
+        const quotaAuthority = await getTrainingPackageQuotaAuthority({
+          operationalMode,
+          studentId,
+          student: normalizedStudent,
+          session: reconciledSessions.find((session: any) => session?.parent_id) || null,
+        });
+        const sessionsWithCancellation = await attachTrainingSessionCancellationContext(reconciledSessions);
         res.json({
           sessions: sessionsWithCancellation.map((session: any) => ({
             ...session,
-            launch: getSessionLaunchState(session, "training"),
+            launch: applyTrainingPackageQuotaToLaunch(
+              getSessionLaunchState(session, "training"),
+              quotaAuthority.decision,
+            ),
           })),
+          monthlyQuota: quotaAuthority.monthlyQuota,
+          quotaDecision: quotaAuthority.decision,
           googleMeetConfigured: isGoogleMeetIntegrationAvailable(),
         });
       } catch (error) {
@@ -13400,10 +13613,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         if (!isLiveSchedulingMode(operationalMode) && kind === "training") {
-          const { session, error } = await resolveTutorScheduledSession(tutorId, studentId, kind, sessionId);
+          const { session: resolvedSession, error } = await resolveTutorScheduledSession(tutorId, studentId, kind, sessionId);
           if (error) {
             return res.status(500).json({ message: "Failed to resolve scheduled session" });
           }
+          const session = resolvedSession
+            ? await reconcileTrainingSessionCompletionFromRun({
+                session: resolvedSession,
+                tutorId,
+                studentId,
+              })
+            : null;
 
           if (!session) {
             return res.status(404).json({
@@ -13427,6 +13647,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   canLaunch: false,
                   isLive: false,
                   isImminent: false,
+                },
+              },
+            });
+          }
+
+          const quotaAuthority = await getTrainingPackageQuotaAuthority({
+            operationalMode,
+            studentId,
+            student,
+            session,
+          });
+          if (quotaAuthority.decision.blocked) {
+            return res.status(409).json({
+              canLaunch: false,
+              code: quotaAuthority.decision.code,
+              message: trainingPackageQuotaMessage(quotaAuthority.decision),
+              monthlyQuota: quotaAuthority.monthlyQuota,
+              session: {
+                ...session,
+                launch: {
+                  canLaunch: false,
+                  isLive: false,
+                  isImminent: false,
+                  code: quotaAuthority.decision.code,
                 },
               },
             });
@@ -13489,6 +13733,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 isImminent: false,
               },
             },
+            monthlyQuota: quotaAuthority.monthlyQuota,
+            quotaDecision: quotaAuthority.decision,
             googleMeetConfigured: false,
           });
         }
@@ -13526,10 +13772,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const studentOperationalMode = await getStudentOperationalMode(studentId);
-        const { session, error } = await resolveTutorScheduledSession(tutorId, studentId, kind, sessionId);
+        const { session: resolvedSession, error } = await resolveTutorScheduledSession(tutorId, studentId, kind, sessionId);
         if (error) {
           return res.status(500).json({ message: "Failed to resolve scheduled session" });
         }
+        const session =
+          kind === "training" && resolvedSession
+            ? await reconcileTrainingSessionCompletionFromRun({
+                session: resolvedSession,
+                tutorId,
+                studentId,
+              })
+            : resolvedSession;
         if (!isLiveSchedulingMode(studentOperationalMode) && (kind === "intro" || kind === "handover")) {
           return res.json({
             canLaunch: true,
@@ -13559,6 +13813,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
+        let trainingMonthlyQuota: any = null;
+        let trainingQuotaDecision: TrainingPackageQuotaDecision | null = null;
+        if (kind === "training") {
+          const quotaAuthority = await getTrainingPackageQuotaAuthority({
+            operationalMode: studentOperationalMode,
+            studentId,
+            student,
+            session,
+          });
+          trainingMonthlyQuota = quotaAuthority.monthlyQuota;
+          trainingQuotaDecision = quotaAuthority.decision;
+          if (quotaAuthority.decision.blocked) {
+            return res.status(409).json({
+              canLaunch: false,
+              code: quotaAuthority.decision.code,
+              message: trainingPackageQuotaMessage(quotaAuthority.decision),
+              monthlyQuota: quotaAuthority.monthlyQuota,
+              session: {
+                ...session,
+                launch: applyTrainingPackageQuotaToLaunch(
+                  getSessionLaunchState(session, kind),
+                  quotaAuthority.decision,
+                ),
+              },
+            });
+          }
+        }
+
         const launch = getSessionLaunchState(session, kind);
         if (!launch.canLaunch) {
           return res.status(400).json({
@@ -13583,6 +13865,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             launch,
           },
           operationalMode: studentOperationalMode,
+          monthlyQuota: trainingMonthlyQuota,
+          quotaDecision: trainingQuotaDecision,
           googleMeetConfigured: isGoogleMeetIntegrationAvailable(),
         });
       } catch (error) {
