@@ -187,6 +187,41 @@ test("Training V3 scores only dimensions the active set can genuinely expose", (
   );
 });
 
+test("Training V3 rejects evidence for a dimension the active set cannot observe", () => {
+  const schema = getDrillSchemaDefinition("training", "Clarity");
+  const identificationIndex = schema.sets.findIndex(
+    (set) => set.setId === "clarity.identification",
+  );
+  assert.notEqual(identificationIndex, -1);
+  const submitted = buildValidSet(
+    "training",
+    "Clarity",
+    identificationIndex,
+    3,
+  );
+  submitted.observations[0].immediateApply =
+    "Engaged independently and appropriately";
+  submitted.observations[0].immediateApply_option_id =
+    "clarity.identification.opportunity_1.clarity.immediate_apply.option_4";
+  submitted.observations[0].immediateApply_dimension_id =
+    "clarity.immediate_apply";
+  submitted.observations[0].immediateApply_level = "clear";
+  submitted.observations[0].immediateApply_evidence_class = "supported";
+
+  const result = validateAndNormalizeSemanticEvidenceSet({
+    mode: "training",
+    phase: "Clarity",
+    setIndex: identificationIndex,
+    submittedSet: submitted,
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    error:
+      `Set ${identificationIndex + 1}, rep 1 contains evidence for a dimension that is not eligible in this set`,
+  });
+});
+
 test("the same Training dimension cannot silently change meaning between sets", () => {
   const seen = new Map<
     string,
