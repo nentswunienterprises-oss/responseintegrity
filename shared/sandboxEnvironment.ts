@@ -383,10 +383,18 @@ export function compareSandboxTurn(turn: SandboxCompletedTurn): SandboxTurnCompa
   const observationExact = matchingOptions === fieldKeys.length;
   const interventionRecordExact =
     turn.recordedInterventionEvent === turn.actualInterventionEvent;
+  const prerequisiteSentinelExact =
+    (turn.specialistPrerequisiteSentinel || null) ===
+    (turn.outcome.canonicalPrerequisiteSentinel || null);
+  const inheritedRescueSignalExact =
+    (turn.specialistInheritedRescueSignal || null) ===
+    (turn.outcome.canonicalInheritedRescueSignal || null);
   const evidenceExact =
     observationExact &&
     matchingEvidenceStatuses === fieldKeys.length &&
-    interventionRecordExact;
+    interventionRecordExact &&
+    prerequisiteSentinelExact &&
+    inheritedRescueSignalExact;
 
   const event = (
     layer: SandboxCapabilityLayer,
@@ -438,8 +446,8 @@ export function compareSandboxTurn(turn: SandboxCompletedTurn): SandboxTurnCompa
         "evidence_integrity",
         evidenceExact ? "supported" : "breakdown",
         evidenceExact
-          ? "Observation status and intervention truth preserved decision eligibility."
-          : "The evidence record changed, omitted, or overclaimed decision-relevant truth.",
+          ? "Observation status, intervention truth, prerequisite verification, and rescue-signal truth preserved decision eligibility."
+          : "The evidence record changed, omitted, or overclaimed decision-relevant truth, including any required prerequisite or rescue evidence.",
       ),
     ],
   };
