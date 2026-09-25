@@ -61,7 +61,7 @@ export type EmergencyAuthFailure = {
 };
 
 const EMERGENCY_BCRYPT_WORK_FACTOR = 10;
-const PREVIEW_SANDBOX_PARENT_PASSWORD = "SandboxPass123!";
+const PREVIEW_SANDBOX_SHARED_PASSWORD = "SandboxPass123!";
 
 export function emergencyExpectedRoleMatches(userRole: string, expectedRole?: string | null) {
   return !expectedRole || userRole === expectedRole;
@@ -69,6 +69,17 @@ export function emergencyExpectedRoleMatches(userRole: string, expectedRole?: st
 
 export function isPreviewProofPersonaEmail(email: string) {
   return email.trim().toLowerCase().endsWith("@proof.responseintegrity.co.za");
+}
+
+export function isPreviewSyntheticSandboxPersonaEmail(email: string) {
+  const normalized = email.trim().toLowerCase();
+  return (
+    isPreviewProofPersonaEmail(normalized) ||
+    normalized.startsWith("ri.proof.") ||
+    normalized.startsWith("proof-shadow-") ||
+    normalized.startsWith("smoke-") ||
+    normalized.startsWith("sandbox-")
+  );
 }
 
 export type EmergencyTutorSignupInput = {
@@ -283,6 +294,43 @@ export async function authenticateEmergencyUser(
 
   if (authUser) {
     if (!authUserMatches) {
+      const previewSyntheticSharedPasswordAccepted =
+        process.env.VERCEL_ENV === "preview" &&
+        isPreviewSyntheticSandboxPersonaEmail(normalizedEmail) &&
+        password === PREVIEW_SANDBOX_SHARED_PASSWORD &&
+        !authUser.deleted_at &&
+        !authUser.is_anonymous &&
+        !isBanned;
+
+      if (previewSyntheticSharedPasswordAccepted) {
+        const publicUserResult = await pool.query<{ id: string }>(
+          `SELECT id
+             FROM public.users
+            WHERE lower(email) = $1
+            LIMIT 1`,
+          [normalizedEmail],
+        );
+        const publicUser = publicUserResult.rows[0];
+        if (publicUser) {
+          await setEmergencyCredentialForExistingUser(
+            pool,
+            publicUser.id,
+            PREVIEW_SANDBOX_SHARED_PASSWORD,
+          );
+        }
+
+        attempts.delete(key);
+        return {
+          authUser: {
+            id: authUser.id,
+            email: authUser.email,
+            email_confirmed_at: authUser.email_confirmed_at,
+            raw_app_meta_data: authUser.raw_app_meta_data,
+            raw_user_meta_data: authUser.raw_user_meta_data,
+          },
+        };
+      }
+
       recordFailure(key, attempt, now);
       if (attempt.blockedUntil > now) {
         return { error: "throttled", reason: "throttled" };
@@ -333,24 +381,29 @@ export async function authenticateEmergencyUser(
 
   if (
     !credential?.password_hash &&
-    process.env.VERCEL_ENV === "preview" &&
-    publicUser.role === "parent"
+    process.env.VERCEL_ENV === "preview"
   ) {
-    const sandboxEnrollmentResult = await pool.query<{ id: string }>(
-      `SELECT id
-         FROM public.parent_enrollments
-        WHERE user_id = $1
-          AND lower(parent_email) = $2
-          AND (
-            is_sandbox_account = true
-            OR assignment_lane = 'sandbox'
-          )
-        LIMIT 1`,
-      [publicUser.id, normalizedEmail],
-    );
+    const sandboxEnrollmentResult = publicUser.role === "parent"
+      ? await pool.query<{ id: string }>(
+          `SELECT id
+             FROM public.parent_enrollments
+            WHERE user_id = $1
+              AND lower(parent_email) = $2
+              AND (
+                is_sandbox_account = true
+                OR assignment_lane = 'sandbox'
+              )
+            LIMIT 1`,
+          [publicUser.id, normalizedEmail],
+        )
+      : { rows: [] as Array<{ id: string }> };
 
-    if (sandboxEnrollmentResult.rows[0]) {
-      if (password !== PREVIEW_SANDBOX_PARENT_PASSWORD) {
+    const recognizedSyntheticPersona =
+      isPreviewSyntheticSandboxPersonaEmail(normalizedEmail) ||
+      Boolean(sandboxEnrollmentResult.rows[0]);
+
+    if (recognizedSyntheticPersona) {
+      if (password !== PREVIEW_SANDBOX_SHARED_PASSWORD) {
         recordFailure(key, attempt, now);
         if (attempt.blockedUntil > now) {
           return { error: "throttled", reason: "throttled" };
@@ -361,7 +414,7 @@ export async function authenticateEmergencyUser(
       await provisionEmergencyCredentialForExistingUser(
         pool,
         publicUser.id,
-        PREVIEW_SANDBOX_PARENT_PASSWORD,
+        PREVIEW_SANDBOX_SHARED_PASSWORD,
       );
 
       const repairedCredentialResult = await pool.query<{ user_id: string; password_hash: string }>(
