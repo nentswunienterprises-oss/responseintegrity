@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS public.specialist_sandbox_session_evaluations (
   specialist_authority jsonb NOT NULL,
   authority_aligned boolean NOT NULL,
   state_track_aligned boolean NOT NULL,
-  canonical_state_changed boolean NOT NULL DEFAULT false,
+  state_change_observed boolean NOT NULL DEFAULT false,
   student_breakdown_recovery_observed boolean NOT NULL DEFAULT false,
   student_state_authoritative boolean NOT NULL DEFAULT false CHECK (student_state_authoritative = false),
   evidence_scope varchar(16) NOT NULL DEFAULT 'sandbox' CHECK (evidence_scope = 'sandbox'),
