@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -325,6 +325,17 @@ export default function SpecialistSandboxSimulation() {
     null;
   const studentId = String(selectedSandboxStudent?.id || "");
 
+  useEffect(() => {
+    setSelections({});
+    setInterventionEvent("none");
+    setPrerequisiteSentinel(null);
+    setInheritedRescueSignal(null);
+    setDiagnosisSelections({});
+    setDiagnosisSupportEvent("none");
+    setLastResult(null);
+    setLastDiagnosisResult(null);
+  }, [studentId]);
+
   const environmentQuery = useQuery<EnvironmentForm>({
     queryKey: ["sandbox-environment", tutorAssignmentId, studentId],
     enabled: Boolean(tutorAssignmentId && studentId && inSandbox),
@@ -483,6 +494,7 @@ export default function SpecialistSandboxSimulation() {
         "/api/tutor/sandbox-environment/rep",
         {
           tutorAssignmentId,
+          studentId,
           bankVersion: form.bankVersion,
           trajectoryId: form.trajectoryId,
           eventSequence: form.eventSequence,
