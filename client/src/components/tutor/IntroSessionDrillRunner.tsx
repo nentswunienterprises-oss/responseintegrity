@@ -30,6 +30,7 @@ import type { TopicReference, TopicReferenceContent } from "@shared/topicReferen
 import { useStudentWorkflowState } from "@/hooks/useStudentWorkflowState";
 import { supabase } from "@/lib/supabaseClient";
 import { API_URL } from "@/lib/config";
+import SpecialistSandboxSimulation from "@/pages/operational/tutor/sandbox-simulation";
 import { instructionPromptDisplayText, instructionPromptLabelFor } from "@/lib/instructionPromptLabel";
 import {
   TRAINING_INHERITED_RESCUE_SIGNAL_FIELD,
@@ -1019,7 +1020,7 @@ function ResponseSnapshotCard({ snapshot }: { snapshot: ResponseSnapshotV1 }) {
   );
 }
 
-export default function IntroSessionDrillRunner() {
+function IntroSessionDrillRunnerCore() {
   const { studentId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -4273,3 +4274,44 @@ export default function IntroSessionDrillRunner() {
     </div>
   );
 }
+
+
+function IntroSessionDrillRunnerRoute() {
+  const { studentId } = useParams();
+  const {
+    data: sandboxPod,
+    isLoading: sandboxPodLoading,
+  } = useQuery<any>({
+    queryKey: ["/api/tutor/pod"],
+    retry: false,
+  });
+
+  const operationalMode = String(
+    sandboxPod?.assignment?.operationalMode ||
+      sandboxPod?.assignment?.operational_mode ||
+      "",
+  )
+    .trim()
+    .toLowerCase();
+
+  if (sandboxPodLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
+        Loading live runner...
+      </div>
+    );
+  }
+
+  if (operationalMode === "sandbox" && studentId) {
+    return (
+      <SpecialistSandboxSimulation
+        studentIdOverride={String(studentId)}
+        embedded
+      />
+    );
+  }
+
+  return <IntroSessionDrillRunnerCore />;
+}
+
+export default IntroSessionDrillRunnerRoute;

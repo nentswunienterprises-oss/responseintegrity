@@ -84,9 +84,9 @@ export function getSandboxGuideSteps(studentName = "this sandbox student"): Sand
     },
     {
       id: "tutor-run-training-drill",
-      title: "13. Run the stateful Sandbox training runner",
-      detail: "Return to the Specialist role and run this student through the live Sandbox runner. The simulated student behaviour is revealed rep by rep, your evidence capture is scored against hidden truth, and this student's trajectory continues from what the RI system earns.",
-      actionLabel: "Open stateful runner",
+      title: "13. Run the live training session",
+      detail: "Return to the Specialist role and open the normal live runner for this student. Because you are in Sandbox mode, that runner becomes stateful: simulated student behaviour is revealed rep by rep, your evidence capture is checked against hidden truth, and this student's trajectory continues from what the RI system earns.",
+      actionLabel: "Open live runner",
       action: "stateful-sandbox",
     },
   ];
