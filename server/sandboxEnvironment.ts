@@ -686,6 +686,7 @@ export async function prepareSandboxEnvironment(input: {
     bankKey: bank.bankKey,
     bankVersion: bank.bankVersion,
     bankTitle: bank.title,
+    sandboxStudent,
     trajectoryId: bundle.trajectory.id,
     sessionNumber: bundle.trajectory.session_number,
     status: "rep_ready" as const,
@@ -744,6 +745,7 @@ export async function prepareSandboxEnvironment(input: {
 async function insertCapabilityOccurrences(input: {
   tutorAssignmentId: string;
   tutorId: string;
+  studentId: string;
   trajectoryId: string;
   sourceType: "turn" | "session";
   sourceId: string;
@@ -752,16 +754,17 @@ async function insertCapabilityOccurrences(input: {
   for (const occurrence of input.occurrences) {
     await pool.query(
       `INSERT INTO specialist_sandbox_capability_evidence (
-         trajectory_id, tutor_assignment_id, tutor_id, capability_id,
+         trajectory_id, tutor_assignment_id, tutor_id, student_id, capability_id,
          evidence_class, source_type, source_id, phase, set_id, rep_number,
          sequence_number, session_number, reason,
          student_state_authoritative, evidence_scope
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,false,'sandbox')
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,false,'sandbox')
        ON CONFLICT DO NOTHING`,
       [
         input.trajectoryId,
         input.tutorAssignmentId,
         input.tutorId,
+        input.studentId,
         occurrence.layer,
         occurrence.evidenceClass,
         input.sourceType,
@@ -981,6 +984,7 @@ export async function submitSandboxEnvironmentRep(input: {
   await insertCapabilityOccurrences({
     tutorAssignmentId: input.tutorAssignmentId,
     tutorId: input.tutorId,
+    studentId: bundle.trajectory.student_id,
     trajectoryId: bundle.trajectory.id,
     sourceType: "turn",
     sourceId: eventId,
@@ -1031,6 +1035,7 @@ export async function submitSandboxEnvironmentRep(input: {
     const refreshedBundle = await ensureTrajectory({
       tutorAssignmentId: input.tutorAssignmentId,
       tutorId: input.tutorId,
+      studentId: input.studentId,
       bank,
     });
     const turns = await loadCurrentSessionTurns(refreshedBundle);
@@ -1149,6 +1154,7 @@ export async function submitSandboxEnvironmentRep(input: {
   });
 
   return {
+    studentId: bundle.trajectory.student_id,
     eventId,
     completedAt: inserted.rows[0]?.completed_at,
     eventSequence: planned.eventSequence,
