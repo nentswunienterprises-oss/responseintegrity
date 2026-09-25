@@ -14,6 +14,18 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  LiveObservationField,
+  LivePhaseContext,
+  LiveRepContextCard,
+  LiveRepStage,
+  LiveSandboxStudentResponse,
+  LiveSupportPanel,
+  liveObservationQuestion,
+  liveTrainingActiveRules,
+  liveTrainingInstruction,
+  type LivePhaseLabel,
+} from "@/components/tutor/TrainingLiveDeliveryUi";
 
 type EvidenceStatus = "observed" | "not_observed" | "confounded";
 type InterventionEvent =
@@ -313,6 +325,9 @@ export default function SpecialistSandboxSimulation({
   const [inheritedRescueSignal, setInheritedRescueSignal] = useState<
     "none" | "isolated" | "repeated" | "not_observed" | "confounded" | null
   >(null);
+  const [repStarted, setRepStarted] = useState(false);
+  const [supportPickerOpen, setSupportPickerOpen] = useState(false);
+  const [showEvidenceExceptions, setShowEvidenceExceptions] = useState(false);
 
   const requiresPodData = !(
     embedded &&
@@ -361,6 +376,9 @@ export default function SpecialistSandboxSimulation({
     setDiagnosisSupportEvent("none");
     setLastResult(null);
     setLastDiagnosisResult(null);
+    setRepStarted(false);
+    setSupportPickerOpen(false);
+    setShowEvidenceExceptions(false);
   }, [studentId]);
 
   const environmentQuery = useQuery<EnvironmentForm>({
@@ -392,6 +410,12 @@ export default function SpecialistSandboxSimulation({
 
   const form = environmentQuery.data;
   const rep = form?.status === "rep_ready" ? form.rep : undefined;
+
+  useEffect(() => {
+    setRepStarted(false);
+    setSupportPickerOpen(false);
+    setShowEvidenceExceptions(false);
+  }, [form?.eventFormId, form?.turnFormId]);
   const diagnosisProbe =
     form?.status === "rediagnosis_probe_ready" ? form.probe : undefined;
 
@@ -554,6 +578,9 @@ export default function SpecialistSandboxSimulation({
       setInterventionEvent("none");
       setPrerequisiteSentinel(null);
       setInheritedRescueSignal(null);
+      setRepStarted(false);
+      setSupportPickerOpen(false);
+      setShowEvidenceExceptions(false);
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["sandbox-environment", tutorAssignmentId, studentId],
