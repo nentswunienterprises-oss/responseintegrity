@@ -825,17 +825,42 @@ export function getLegacyStatefulSandboxV1ScenarioTruthAudit(input: {
   );
 }
 
+export const LEGACY_STATEFUL_SANDBOX_V1_SET_SPECIFIC_VIGNETTES: Record<
+  string,
+  Record<number, string>
+> = {
+  "clarity.identification": {
+    1: "The student names the important quantities and symbols, chooses an appropriate procedure, and explains the feature in the problem that makes that procedure fit.",
+    2: "The student identifies the important pieces and chooses an appropriate procedure quickly. Their explanation is almost complete but skips one small connection.",
+    3: "The student names a couple of useful pieces but leaves out another that changes how the problem should be read. They suggest one procedure, hesitate, switch to another, and give a related explanation that never quite connects the choice to the whole problem.",
+    4: "The student overlooks one important term while describing the problem, yet settles on the appropriate procedure immediately. When asked why, they mention a related rule but do not connect it fully to this case.",
+    5: "The student points out a few correct features but leaves an important one unnamed. They suggest one procedure, cross it out, mention another, and justify the choice with only one piece of the relationship.",
+    6: "The student names features that do not determine the setup, cannot suggest a workable procedure, and has no answer when asked what makes any approach fit.",
+    7: "The student identifies the important parts and chooses an appropriate procedure. Just as the Specialist asks why that procedure fits, the call drops and the explanation is never heard.",
+    8: "The student identifies the important parts of the problem. Before they answer which procedure they would use, an on-screen hint briefly flashes the procedure name; afterward they explain the connection in their own words.",
+  },
+};
+
+const setIdFromOutcomeKey = (outcomeKey: string) =>
+  String(outcomeKey || "").replace(/\.rep_\d+\.pattern_\d+$/, "");
+
 export function renderLegacyStatefulSandboxV1StudentBehavior(input: {
   phase: TopicPhase;
+  setId?: string;
   outcomeKey: string;
   repNumber: number;
   repCount: number;
 }): string | null {
   const patternNumber = legacyStatefulSandboxV1PatternNumber(input.outcomeKey);
+  const setId = input.setId || setIdFromOutcomeKey(input.outcomeKey);
   const vignette =
+    LEGACY_STATEFUL_SANDBOX_V1_SET_SPECIFIC_VIGNETTES[setId]?.[
+      patternNumber
+    ] ||
     LEGACY_STATEFUL_SANDBOX_V1_NATURAL_VIGNETTES[input.phase]?.[
       patternNumber
-    ] || null;
+    ] ||
+    null;
   if (!vignette) return null;
   return [
     vignette,
@@ -887,68 +912,95 @@ const ANSWER_KEY_JARGON = [
   "method recognition",
 ];
 
+const validateNaturalVignette = ({
+  vignette,
+  phase,
+  dimensions,
+  label,
+}: {
+  vignette: string;
+  phase: TopicPhase;
+  dimensions: readonly TrainingDimensionId[];
+  label: string;
+}) => {
+  if (!vignette.trim()) {
+    throw new Error(`Sandbox V1 natural vignette is missing ${label}.`);
+  }
+  if (sentenceCount(vignette) > 3) {
+    throw new Error(
+      `Sandbox V1 natural vignette over-explains ${label}; use at most three mixed-behavior sentences.`,
+    );
+  }
+
+  const normalizedVignette = normalizeLeakageText(vignette);
+  for (const phrase of ANSWER_KEY_JARGON) {
+    if (normalizedVignette.includes(normalizeLeakageText(phrase))) {
+      throw new Error(
+        `Sandbox V1 natural vignette leaks evaluator language "${phrase}" in ${label}.`,
+      );
+    }
+  }
+
+  for (const dimensionId of dimensions) {
+    const definition = TRAINING_OBSERVATION_MATRIX_V2[dimensionId];
+    for (const option of definition.options) {
+      const normalizedLabel = normalizeLeakageText(option.label);
+      const normalizedDetail = normalizeLeakageText(option.detail);
+      if (normalizedLabel && normalizedVignette.includes(normalizedLabel)) {
+        throw new Error(
+          `Sandbox V1 natural vignette copies option label "${option.label}" in ${label}.`,
+        );
+      }
+      if (normalizedDetail && normalizedVignette.includes(normalizedDetail)) {
+        throw new Error(
+          `Sandbox V1 natural vignette copies evaluator detail for ${dimensionId} in ${label}.`,
+        );
+      }
+      if (
+        hasSharedRun(vignette, option.label) ||
+        hasSharedRun(vignette, option.detail)
+      ) {
+        throw new Error(
+          `Sandbox V1 natural vignette too closely paraphrases ${dimensionId} evaluator text in ${label}.`,
+        );
+      }
+    }
+  }
+};
+
 export function validateLegacyStatefulSandboxV1VignetteLeakage() {
   for (const phase of Object.keys(
     LEGACY_STATEFUL_SANDBOX_V1_NATURAL_VIGNETTES,
   ) as TopicPhase[]) {
     const vignettes = LEGACY_STATEFUL_SANDBOX_V1_NATURAL_VIGNETTES[phase];
     for (let patternNumber = 1; patternNumber <= 8; patternNumber += 1) {
-      const vignette = String(vignettes[patternNumber] || "").trim();
-      if (!vignette) {
-        throw new Error(
-          `Sandbox V1 natural vignette is missing ${phase} pattern ${patternNumber}.`,
-        );
-      }
-      if (sentenceCount(vignette) > 3) {
-        throw new Error(
-          `Sandbox V1 natural vignette over-explains ${phase} pattern ${patternNumber}; use at most three mixed-behavior sentences.`,
-        );
-      }
-
-      const normalizedVignette = normalizeLeakageText(vignette);
-      for (const phrase of ANSWER_KEY_JARGON) {
-        if (normalizedVignette.includes(normalizeLeakageText(phrase))) {
-          throw new Error(
-            `Sandbox V1 natural vignette leaks evaluator language "${phrase}" in ${phase} pattern ${patternNumber}.`,
-          );
-        }
-      }
-
-      for (const dimensionId of LEGACY_STATEFUL_SANDBOX_V1_DIMENSION_ORDER[
-        phase
-      ]) {
-        const definition = TRAINING_OBSERVATION_MATRIX_V2[dimensionId];
-        for (const option of definition.options) {
-          const normalizedLabel = normalizeLeakageText(option.label);
-          const normalizedDetail = normalizeLeakageText(option.detail);
-          if (
-            normalizedLabel &&
-            normalizedVignette.includes(normalizedLabel)
-          ) {
-            throw new Error(
-              `Sandbox V1 natural vignette copies option label "${option.label}" in ${phase} pattern ${patternNumber}.`,
-            );
-          }
-          if (
-            normalizedDetail &&
-            normalizedVignette.includes(normalizedDetail)
-          ) {
-            throw new Error(
-              `Sandbox V1 natural vignette copies evaluator detail for ${dimensionId} in ${phase} pattern ${patternNumber}.`,
-            );
-          }
-          if (
-            hasSharedRun(vignette, option.label) ||
-            hasSharedRun(vignette, option.detail)
-          ) {
-            throw new Error(
-              `Sandbox V1 natural vignette too closely paraphrases ${dimensionId} evaluator text in ${phase} pattern ${patternNumber}.`,
-            );
-          }
-        }
-      }
+      validateNaturalVignette({
+        vignette: String(vignettes[patternNumber] || ""),
+        phase,
+        dimensions: LEGACY_STATEFUL_SANDBOX_V1_DIMENSION_ORDER[phase],
+        label: `${phase} pattern ${patternNumber}`,
+      });
     }
   }
+
+  const clarityIdentificationDimensions = [
+    "clarity.vocabulary",
+    "clarity.method",
+    "clarity.reason",
+  ] as const;
+  const identificationVignettes =
+    LEGACY_STATEFUL_SANDBOX_V1_SET_SPECIFIC_VIGNETTES[
+      "clarity.identification"
+    ];
+  for (let patternNumber = 1; patternNumber <= 8; patternNumber += 1) {
+    validateNaturalVignette({
+      vignette: String(identificationVignettes[patternNumber] || ""),
+      phase: "Clarity",
+      dimensions: clarityIdentificationDimensions,
+      label: `clarity.identification pattern ${patternNumber}`,
+    });
+  }
+
   return true;
 }
 
