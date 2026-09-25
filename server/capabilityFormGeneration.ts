@@ -38,6 +38,45 @@ export interface GeneratedCapabilityForm {
   itemKeys: string[];
 }
 
+const PROOF_CAPABILITY_PROJECT_REF = "jftlxeacphvbnhbsbpxc";
+const PROOF_CAPABILITY_SECRET_CONTEXT = "response-integrity:capability-form:proof:v1";
+
+export type CapabilityFormSecretSource = "explicit" | "proof_session_derived" | "missing";
+
+export function resolveCapabilityFormSecret(
+  env: Record<string, string | undefined> = process.env,
+): { secret: string; source: CapabilityFormSecretSource } {
+  const explicit = String(env.CAPABILITY_FORM_SECRET || "").trim();
+  if (explicit) {
+    return { secret: explicit, source: "explicit" };
+  }
+
+  let supabaseHost = "";
+  try {
+    supabaseHost = new URL(String(env.SUPABASE_URL || "")).hostname.toLowerCase();
+  } catch {
+    supabaseHost = "";
+  }
+
+  const isProofPreview =
+    env.VERCEL_ENV === "preview" &&
+    supabaseHost === `${PROOF_CAPABILITY_PROJECT_REF}.supabase.co`;
+
+  if (isProofPreview) {
+    const sessionSecret = String(env.SESSION_SECRET || "").trim();
+    if (sessionSecret) {
+      return {
+        secret: createHmac("sha256", sessionSecret)
+          .update(PROOF_CAPABILITY_SECRET_CONTEXT)
+          .digest("hex"),
+        source: "proof_session_derived",
+      };
+    }
+  }
+
+  return { secret: "", source: "missing" };
+}
+
 function stableRank(seed: string, value: string) {
   return createHash("sha256").update(`${seed}:${value}`).digest("hex");
 }

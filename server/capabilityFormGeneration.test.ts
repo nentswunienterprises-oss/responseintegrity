@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   createCapabilityFormSeed,
   generateDeterministicCapabilityForm,
+  resolveCapabilityFormSecret,
   type CapabilityBoundaryTaggedQuestion,
 } from "./capabilityFormGeneration";
 
@@ -230,6 +231,56 @@ test("correct options can never simultaneously be critical-fail options", () => 
     () => generateDeterministicCapabilityForm(config, [corrupt, ...pool], "seed"),
     /marks correct option\(s\) as critical fail/,
   );
+});
+
+test("explicit Capability form secret wins in every environment", () => {
+  const resolved = resolveCapabilityFormSecret({
+    CAPABILITY_FORM_SECRET: " explicit-capability-secret ",
+    VERCEL_ENV: "production",
+  });
+  assert.deepEqual(resolved, {
+    secret: "explicit-capability-secret",
+    source: "explicit",
+  });
+});
+
+test("Proof preview derives a stable domain-separated form secret from the session secret", () => {
+  const env = {
+    VERCEL_ENV: "preview",
+    SUPABASE_URL: "https://jftlxeacphvbnhbsbpxc.supabase.co",
+    SESSION_SECRET: "proof-session-secret",
+  };
+  const first = resolveCapabilityFormSecret(env);
+  const second = resolveCapabilityFormSecret(env);
+
+  assert.equal(first.source, "proof_session_derived");
+  assert.equal(first.secret, second.secret);
+  assert.notEqual(first.secret, env.SESSION_SECRET);
+  assert.ok(first.secret.length >= 64);
+});
+
+test("Capability form secret remains fail-closed outside the isolated Proof preview", () => {
+  for (const env of [
+    {
+      VERCEL_ENV: "production",
+      SUPABASE_URL: "https://jftlxeacphvbnhbsbpxc.supabase.co",
+      SESSION_SECRET: "session-secret",
+    },
+    {
+      VERCEL_ENV: "preview",
+      SUPABASE_URL: "https://different-project.supabase.co",
+      SESSION_SECRET: "session-secret",
+    },
+    {
+      VERCEL_ENV: "preview",
+      SUPABASE_URL: "https://jftlxeacphvbnhbsbpxc.supabase.co",
+    },
+  ]) {
+    assert.deepEqual(resolveCapabilityFormSecret(env), {
+      secret: "",
+      source: "missing",
+    });
+  }
 });
 
 test("seed creation requires a server secret", () => {

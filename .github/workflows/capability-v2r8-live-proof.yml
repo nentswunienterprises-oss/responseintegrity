@@ -17,8 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      SMOKE_BASE_URL: https://tt-confidence-roycrwrqv-relief-works-technologies.vercel.app
-      VERCEL_SHARE_URL: https://tt-confidence-roycrwrqv-relief-works-technologies.vercel.app/?_vercel_share=8fapmmytJolm0oAbDNnWCMwr7K5VpzwE
+      SMOKE_BASE_URL: https://tt-confidence-hub-git-proof-ca-b9c1e8-relief-works-technologies.vercel.app
+      VERCEL_SHARE_URL: https://tt-confidence-hub-git-proof-ca-b9c1e8-relief-works-technologies.vercel.app/?_vercel_share=n3eg9V8oUOmDoc8svaaE9Nv35Vs0tRme
+      PROOF_EXPECTED_APP_SHA: ${{ github.sha }}
       RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
       RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
       RI_PROOF_ASSIGNMENT_ID: 836a839f-2f29-45c7-b8c2-aa501c95e1b0
@@ -46,7 +47,8 @@ jobs:
           const password = String(process.env.RI_PROOF_PASSWORD || "");
           const bypass = String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "").trim();
           const shareUrl = String(process.env.VERCEL_SHARE_URL || "").trim();
-          assert.ok(baseUrl && email && password, "Proof runtime inputs are required");
+          const expectedCommit = String(process.env.PROOF_EXPECTED_APP_SHA || "").trim();
+          assert.ok(baseUrl && email && password && expectedCommit, "Proof runtime inputs are required");
 
           const browser = await chromium.launch({ headless: true });
           const context = await browser.newContext({
@@ -59,12 +61,37 @@ jobs:
             await page.goto(shareUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
           }
 
-          const proof = await page.request.get(baseUrl + "/api/proof-environment", { timeout: 60000 });
-          const proofText = await proof.text();
-          assert.ok(proof.ok(), "Proof environment failed: " + proof.status() + " " + proofText);
-          const proofBody = JSON.parse(proofText);
-          assert.equal(proofBody.vercelEnv, "preview");
-          assert.equal(proofBody.supabaseProjectRef, "jftlxeacphvbnhbsbpxc");
+          let proofBody = null;
+          let proofFailure = "";
+          for (let attempt = 1; attempt <= 32; attempt += 1) {
+            try {
+              const proof = await page.request.get(baseUrl + "/api/proof-environment", { timeout: 30000 });
+              const proofText = await proof.text();
+              if (proof.ok()) {
+                const candidate = JSON.parse(proofText);
+                if (
+                  candidate.vercelEnv === "preview" &&
+                  candidate.supabaseProjectRef === "jftlxeacphvbnhbsbpxc" &&
+                  candidate.commitSha === expectedCommit
+                ) {
+                  proofBody = candidate;
+                  break;
+                }
+                proofFailure = "waiting for expected commit; got " + String(candidate.commitSha || "unknown");
+              } else {
+                proofFailure = "status " + proof.status() + " " + proofText.slice(0, 300);
+              }
+            } catch (error) {
+              proofFailure = error instanceof Error ? error.message : String(error);
+            }
+            if (attempt < 32) {
+              await page.waitForTimeout(15000);
+              if (shareUrl && attempt % 4 === 0) {
+                await page.goto(shareUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
+              }
+            }
+          }
+          assert.ok(proofBody, "Proof deployment did not reach expected commit " + expectedCommit + ": " + proofFailure);
 
           const signin = await page.request.post(baseUrl + "/api/auth/signin", {
             data: { email, password, expectedRole: "tutor" },

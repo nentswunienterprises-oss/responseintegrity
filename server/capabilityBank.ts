@@ -4,6 +4,7 @@ import { buildCapabilityCriticalBoundaryRequirements } from "@shared/capabilityC
 import {
   createCapabilityFormSeed,
   generateDeterministicCapabilityForm,
+  resolveCapabilityFormSecret,
   type CapabilityBoundaryTaggedQuestion,
   type GeneratedCapabilityForm,
   type PrivateCapabilityAssessmentConfig,
@@ -155,14 +156,19 @@ export async function buildCapabilityAttemptPlan(input: {
 
   const attemptNumber = state.attemptCount + 1;
   const itemPool = await loadCapabilityItems(config);
-  const secret = String(process.env.CAPABILITY_FORM_SECRET || "").trim();
-  if (!secret) {
+  const resolvedSecret = resolveCapabilityFormSecret();
+  if (!resolvedSecret.secret) {
     const error = new Error("Capability form secret is not configured.") as Error & { status?: number };
     error.status = 503;
     throw error;
   }
+  if (resolvedSecret.source === "proof_session_derived") {
+    console.warn(
+      "[CAPABILITY] Proof preview is using the isolated session-derived Capability form secret; production still requires CAPABILITY_FORM_SECRET.",
+    );
+  }
   const seed = createCapabilityFormSeed({
-    secret,
+    secret: resolvedSecret.secret,
     tutorAssignmentId: input.tutorAssignmentId,
     assessmentKey: config.assessmentKey,
     bankVersion: config.bankVersion,
