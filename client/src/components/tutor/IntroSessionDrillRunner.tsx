@@ -3922,18 +3922,19 @@ function IntroSessionDrillRunnerCore() {
       )}
 
       {/* Shared live-delivery rep context */}
-      {set && (
-        <LiveRepContextCard
-          setIndex={currentSet + 1}
-          setCount={drillStructure.length}
-          setName={set.setName}
-          repNumber={currentRep + 1}
-          repCount={set.reps}
-          purpose={set.purpose}
-          instruction={set.repInstruction || ""}
-          activeRules={set.activeRules || []}
-        />
-      )}
+      {set &&
+        !(isTrainingEvidenceCapture && !set.isModelingSet && !repStarted) && (
+          <LiveRepContextCard
+            setIndex={currentSet + 1}
+            setCount={drillStructure.length}
+            setName={set.setName}
+            repNumber={currentRep + 1}
+            repCount={set.reps}
+            purpose={set.purpose}
+            instruction={set.repInstruction || ""}
+            activeRules={set.activeRules || []}
+          />
+        )}
 
       {isTrainingEvidenceCapture && !set?.isModelingSet && repStarted && (
         <LiveSupportPanel
