@@ -1110,6 +1110,32 @@ export const validateAndNormalizeSemanticEvidenceSet = ({
       _rep_number: String(repIndex + 1),
     };
 
+    const eligibleFieldKeys = new Set(
+      definition.fields.map((fieldDefinition) => fieldDefinition.fieldKey),
+    );
+    const phaseFieldKeys = new Set(
+      schema.sets.flatMap((setDefinition) =>
+        setDefinition.fields.map((fieldDefinition) => fieldDefinition.fieldKey),
+      ),
+    );
+    for (const fieldKey of phaseFieldKeys) {
+      if (eligibleFieldKeys.has(fieldKey)) continue;
+      const forbiddenKeys = [
+        fieldKey,
+        `${fieldKey}_option_id`,
+        `${fieldKey}_dimension_id`,
+        `${fieldKey}_level`,
+        `${fieldKey}_evidence_class`,
+        `${fieldKey}_evidence_status`,
+      ];
+      if (forbiddenKeys.some((key) => key in submittedRep)) {
+        return {
+          ok: false,
+          error: `${location}, rep ${repIndex + 1} contains evidence for a dimension that is not eligible in this set`,
+        };
+      }
+    }
+
     for (const baseField of definition.fields) {
       const fieldDefinition = getFieldDefinitionForRep(definition, repIndex, baseField.fieldKey);
       if (!fieldDefinition) {
