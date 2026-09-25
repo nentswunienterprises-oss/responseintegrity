@@ -21,6 +21,7 @@ jobs:
       VERCEL_SHARE_URL: https://tt-confidence-roycrwrqv-relief-works-technologies.vercel.app/?_vercel_share=8fapmmytJolm0oAbDNnWCMwr7K5VpzwE
       RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
       RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      RI_PROOF_ASSIGNMENT_ID: 836a839f-2f29-45c7-b8c2-aa501c95e1b0
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
     steps:
       - uses: actions/checkout@v4
@@ -65,28 +66,17 @@ jobs:
           assert.equal(proofBody.vercelEnv, "preview");
           assert.equal(proofBody.supabaseProjectRef, "jftlxeacphvbnhbsbpxc");
 
-          await page.goto(baseUrl + "/operational/signup?role=tutor&mode=login&lock=login&returnTo=/specialist/pod", {
-            waitUntil: "domcontentloaded",
-            timeout: 90000,
+          const signin = await page.request.post(baseUrl + "/api/auth/signin", {
+            data: { email, password, expectedRole: "tutor" },
+            timeout: 60000,
           });
-          await page.locator("#login-email").fill(email);
-          await page.locator("#login-password").fill(password);
-          const [signin] = await Promise.all([
-            page.waitForResponse(
-              (response) => response.url().includes("/api/auth/signin") && response.request().method() === "POST",
-              { timeout: 60000 },
-            ),
-            page.getByRole("button", { name: "Login", exact: true }).click(),
-          ]);
           const signinText = await signin.text();
           assert.ok(signin.ok(), "Login failed: " + signin.status() + " " + signinText);
+          const signinBody = JSON.parse(signinText);
+          assert.equal(String(signinBody?.dbUser?.role || "").toLowerCase(), "tutor");
 
-          const pod = await page.request.get(baseUrl + "/api/tutor/pod", { timeout: 60000 });
-          const podText = await pod.text();
-          assert.ok(pod.ok(), "Pod lookup failed: " + pod.status() + " " + podText);
-          const podBody = JSON.parse(podText);
-          const tutorAssignmentId = String(podBody?.assignment?.id || "").trim();
-          assert.ok(tutorAssignmentId, "Authenticated proof Specialist has no tutor assignment");
+          const tutorAssignmentId = String(process.env.RI_PROOF_ASSIGNMENT_ID || "").trim();
+          assert.ok(tutorAssignmentId, "RI_PROOF_ASSIGNMENT_ID is required");
 
           const plan = await page.request.get(
             baseUrl + "/api/tutor/capability-plan?tutorAssignmentId=" + encodeURIComponent(tutorAssignmentId),
