@@ -95,7 +95,7 @@ test("Outcome Matrix definition is bound to the live phase/set/rep schema", () =
   assert.throws(() => validateSandboxOutcomeDefinition(broken));
 });
 
-test("Sandbox bank V1 observations reconcile by evidence meaning into Training V2", () => {
+test("Sandbox bank V1 observations reconcile by evidence meaning into current Training", () => {
   const historicalSchema = getDrillSchemaDefinitionByVersion(
     "training",
     "Structured Execution",
@@ -146,7 +146,7 @@ test("Sandbox bank V1 observations reconcile by evidence meaning into Training V
   assert.doesNotThrow(() => validateSandboxOutcomeDefinition(projected));
 
   const current = getDrillSchemaDefinition("training", "Structured Execution");
-  assert.equal(current.schemaVersion, 2);
+  assert.equal(current.schemaVersion, 3);
   const projectedStart = projected.canonicalObservations.startBehavior;
   const resolved = resolveEvidenceSelection({
     mode: "training",
@@ -155,7 +155,7 @@ test("Sandbox bank V1 observations reconcile by evidence meaning into Training V
     repIndex: 0,
     fieldKey: "startBehavior",
     optionId: projectedStart.optionId,
-    schemaVersion: 2,
+    schemaVersion: current.schemaVersion,
   });
   assert.equal(resolved?.evidenceClass, "conditional");
   assert.match(
@@ -249,18 +249,21 @@ test("Stateful Sandbox V1 Clarity patterns are re-audited instead of blindly pre
     partialUnderstanding,
     1,
   );
-  for (const fieldKey of [
-    "vocabulary",
-    "method",
-    "reason",
-    "immediateApply",
-  ]) {
+  for (const fieldKey of ["vocabulary", "method", "reason"]) {
     assert.equal(
       resolveProjected(projectedPartial, fieldKey)?.evidenceClass,
       "conditional",
       `${fieldKey} must preserve the observable partial/uncertain behavior`,
     );
   }
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(
+      projectedPartial.canonicalObservations,
+      "immediateApply",
+    ),
+    false,
+    "Identification must not project Immediate Apply into a no-solving set",
+  );
 });
 
 test("constrained shuffle is deterministic and can target the earliest unsupported capability", () => {
