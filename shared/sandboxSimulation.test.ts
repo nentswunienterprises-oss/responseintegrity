@@ -53,7 +53,7 @@ function clarityScenario(): SandboxScenarioDefinition {
   };
 }
 
-test("legacy Sandbox scenario truth projects into Training V2 by evidence meaning", () => {
+test("legacy Sandbox scenario truth projects into current Training by evidence meaning", () => {
   const historical = getDrillSchemaDefinitionByVersion(
     "training",
     "Time Pressure Stability",
@@ -111,7 +111,7 @@ test("legacy Sandbox scenario truth projects into Training V2 by evidence meanin
     "training",
     "Time Pressure Stability",
   );
-  assert.equal(current.schemaVersion, 2);
+  assert.equal(current.schemaVersion, 3);
 
   const projectedSet = projected.sets.find(
     (set) => set.setId === "time_pressure.structure_under_timer",
@@ -124,7 +124,7 @@ test("legacy Sandbox scenario truth projects into Training V2 by evidence meanin
     repIndex: 0,
     fieldKey: "paceControl",
     optionId: pace.optionId,
-    schemaVersion: 2,
+    schemaVersion: current.schemaVersion,
   });
   assert.equal(resolved?.evidenceClass, "conditional");
   assert.match(
