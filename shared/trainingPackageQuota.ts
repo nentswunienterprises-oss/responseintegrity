@@ -86,3 +86,83 @@ export function evaluateTrainingPackageQuota(
     sessionsUsed,
   };
 }
+
+
+export type TrainingTabAvailabilityCode =
+  | "PAYMENT_REQUIRED"
+  | "RENEWAL_REQUIRED"
+  | "NO_SESSIONS_BOOKED"
+  | "SESSIONS_BOOKED"
+  | "QUOTA_UNAVAILABLE"
+  | "NOT_PACKAGE_BACKED";
+
+export type TrainingTabAvailability = {
+  code: TrainingTabAvailabilityCode;
+  blocked: boolean;
+  title: string;
+  message: string;
+};
+
+export function resolveTrainingTabAvailability(options: {
+  operationalMode: unknown;
+  paymentRequired?: boolean;
+  monthlyQuota?: TrainingPackageQuotaSnapshot | null;
+  actionableSessionCount?: number;
+}): TrainingTabAvailability {
+  const packageBacked = isPackageBackedTrainingMode(options.operationalMode);
+  const actionableSessionCount = Math.max(0, Number(options.actionableSessionCount || 0));
+
+  if (packageBacked && options.paymentRequired) {
+    return {
+      code: "PAYMENT_REQUIRED",
+      blocked: true,
+      title: "Payment required before booking",
+      message: "The parent has not completed the package payment required to book training sessions.",
+    };
+  }
+
+  const quotaDecision = evaluateTrainingPackageQuota(
+    options.operationalMode,
+    options.monthlyQuota,
+  );
+
+  if (quotaDecision.required && quotaDecision.code === "PACKAGE_QUOTA_EXHAUSTED") {
+    return {
+      code: "RENEWAL_REQUIRED",
+      blocked: true,
+      title: "Awaiting parent renewal/payment",
+      message: "The current package is exhausted. The parent must renew/pay before more sessions can be booked.",
+    };
+  }
+
+  if (quotaDecision.required && quotaDecision.code === "PACKAGE_QUOTA_UNAVAILABLE") {
+    return {
+      code: "QUOTA_UNAVAILABLE",
+      blocked: true,
+      title: "Package status unavailable",
+      message: "Response Integrity cannot verify this family's package capacity yet.",
+    };
+  }
+
+  if (actionableSessionCount === 0) {
+    const remaining = quotaDecision.sessionsRemaining;
+    return {
+      code: "NO_SESSIONS_BOOKED",
+      blocked: false,
+      title: "No sessions booked",
+      message:
+        packageBacked && remaining !== null
+          ? `The family has ${remaining} package session${remaining === 1 ? "" : "s"} remaining, but no current training sessions are booked.`
+          : "There are no current training sessions booked for this student.",
+    };
+  }
+
+  return {
+    code: packageBacked ? "SESSIONS_BOOKED" : "NOT_PACKAGE_BACKED",
+    blocked: false,
+    title: packageBacked ? "Sessions booked" : "Training schedule active",
+    message: packageBacked
+      ? "The family has active training sessions within the current package."
+      : "Training scheduling is active for this student.",
+  };
+}

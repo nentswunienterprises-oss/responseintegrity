@@ -88,6 +88,7 @@ import {
 } from "@shared/trainingSessionCancellationPolicy";
 import {
   evaluateTrainingPackageQuota,
+  resolveTrainingTabAvailability,
   type TrainingPackageQuotaDecision,
 } from "@shared/trainingPackageQuota";
 import {
@@ -12967,22 +12968,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
             session: reconciledSessions.find((session: any) => session?.parent_id) || null,
           });
           const sessionsWithCancellation = await attachTrainingSessionCancellationContext(reconciledSessions);
+          const projectedSessions = sessionsWithCancellation.map((session: any) => ({
+            ...session,
+            launch: applyTrainingPackageQuotaToLaunch(
+              getSessionLaunchState(session, "training"),
+              quotaAuthority.decision,
+            ),
+          }));
+          const actionableSessionCount = projectedSessions.filter(
+            (session: any) =>
+              !["completed", "cancelled", "flagged"].includes(String(session.status || "")),
+          ).length;
           return res.json({
-            sessions: sessionsWithCancellation.map((session: any) => ({
-              ...session,
-              launch: applyTrainingPackageQuotaToLaunch(
-                getSessionLaunchState(session, "training"),
-                quotaAuthority.decision,
-              ),
-            })),
+            sessions: projectedSessions,
             monthlyQuota: quotaAuthority.monthlyQuota,
             quotaDecision: quotaAuthority.decision,
+            paymentRequired: false,
+            commercialState: resolveTrainingTabAvailability({
+              operationalMode,
+              paymentRequired: false,
+              monthlyQuota: quotaAuthority.monthlyQuota,
+              actionableSessionCount,
+            }),
             googleMeetConfigured: false,
           });
         }
 
         const premiumAccess = await ensurePremiumAccessForStudent(student);
         if (!premiumAccess.allowed) {
+          if (premiumAccess.status === 402) {
+            return res.json({
+              operationalMode,
+              sessionSchedulingEnabled: false,
+              paymentRequired: true,
+              commercialState: resolveTrainingTabAvailability({
+                operationalMode,
+                paymentRequired: true,
+                monthlyQuota: null,
+                actionableSessionCount: 0,
+              }),
+              monthlyQuota: null,
+              sessions: [],
+              googleMeetConfigured: isGoogleMeetIntegrationAvailable(),
+            });
+          }
           return res.status(premiumAccess.status).json({ message: premiumAccess.message, sessions: [] });
         }
 
@@ -13030,16 +13059,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           session: reconciledSessions.find((session: any) => session?.parent_id) || null,
         });
         const sessionsWithCancellation = await attachTrainingSessionCancellationContext(reconciledSessions);
+        const projectedSessions = sessionsWithCancellation.map((session: any) => ({
+          ...session,
+          launch: applyTrainingPackageQuotaToLaunch(
+            getSessionLaunchState(session, "training"),
+            quotaAuthority.decision,
+          ),
+        }));
+        const actionableSessionCount = projectedSessions.filter(
+          (session: any) =>
+            !["completed", "cancelled", "flagged"].includes(String(session.status || "")),
+        ).length;
         res.json({
-          sessions: sessionsWithCancellation.map((session: any) => ({
-            ...session,
-            launch: applyTrainingPackageQuotaToLaunch(
-              getSessionLaunchState(session, "training"),
-              quotaAuthority.decision,
-            ),
-          })),
+          sessions: projectedSessions,
           monthlyQuota: quotaAuthority.monthlyQuota,
           quotaDecision: quotaAuthority.decision,
+          paymentRequired: false,
+          commercialState: resolveTrainingTabAvailability({
+            operationalMode,
+            paymentRequired: false,
+            monthlyQuota: quotaAuthority.monthlyQuota,
+            actionableSessionCount,
+          }),
           googleMeetConfigured: isGoogleMeetIntegrationAvailable(),
         });
       } catch (error) {
