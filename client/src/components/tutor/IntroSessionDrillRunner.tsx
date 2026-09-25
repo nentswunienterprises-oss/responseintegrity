@@ -3995,77 +3995,74 @@ function IntroSessionDrillRunnerCore() {
             No observations are captured for this step. Continue when pre-drill teaching is complete.
           </div>
         )}
-        {getLiveObservationBlockForRep(set, currentRep).map((obs) => (
-          <div key={obs.key}>
-            <div className="mb-2">
-              <label className="block font-medium text-sm sm:text-base">
-                {obs.observationQuestion || obs.label}
-              </label>
-              {obs.observationQuestion && (
-                <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  {obs.label}
-                </p>
-              )}
-            </div>
-            <div className={(isHandoverContinuityVerification || isTrainingEvidenceCapture) ? "grid gap-2 sm:grid-cols-2" : "flex flex-wrap gap-1 sm:gap-2"}>
-              {obs.options.map((option: string) => (
-                <button
-                  type="button"
-                  key={option}
-                  className={
-                    isHandoverContinuityVerification || isTrainingEvidenceCapture
-                      ? [
-                          "rounded-lg border p-3 text-left transition-colors",
-                          observations[`set${currentSet}_rep${currentRep}_${obs.key}`] === option
-                            ? "border-primary bg-primary/5 ring-1 ring-primary"
-                            : "border-primary/15 bg-background hover:bg-primary/5",
-                        ].join(" ")
-                      : `px-2 sm:px-3 py-1 rounded-md border text-xs sm:text-sm transition-colors whitespace-nowrap ${observations[`set${currentSet}_rep${currentRep}_${obs.key}`] === option ? "bg-primary text-primary-foreground border-primary" : "bg-background border-primary/20 hover:bg-primary/5"}`
-                  }
-                  onClick={() => handleObservation(obs.key, option)}
-                >
-                  {isHandoverContinuityVerification || isTrainingEvidenceCapture ? (
-                    <>
-                      <span className="block text-sm font-medium text-foreground">{option}</span>
-                      {obs.optionDetails?.[option] && (
-                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                          {obs.optionDetails[option]}
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    option
-                  )}
-                </button>
-              ))}
-            </div>
-            {isTrainingEvidenceCapture && showEvidenceExceptions && (
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <span className="mr-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Evidence validity
-                </span>
-                {([
-                  ["observed", "Observed cleanly"],
-                  ["not_observed", "Not meaningfully observed"],
-                  ["confounded", "Confounded"],
-                ] as Array<[TrainingEvidenceStatus, string]>).map(([status, label]) => (
+        {getLiveObservationBlockForRep(set, currentRep).map((obs) =>
+          isTrainingEvidenceCapture ? (
+            <LiveObservationField
+              key={obs.key}
+              question={obs.observationQuestion || obs.label}
+              label={obs.observationQuestion ? obs.label : undefined}
+              options={obs.options.map((option: string) => ({
+                id: option,
+                label: option,
+              }))}
+              selected={
+                observations[`set${currentSet}_rep${currentRep}_${obs.key}`] || null
+              }
+              optionDetails={obs.optionDetails}
+              onSelect={(option) => handleObservation(obs.key, option)}
+              showEvidenceExceptions={showEvidenceExceptions}
+              evidenceStatus={currentTrainingEvidenceStatus(obs.key)}
+              onEvidenceStatus={(status) =>
+                handleTrainingEvidenceStatus(obs.key, status)
+              }
+            />
+          ) : (
+            <div key={obs.key}>
+              <div className="mb-2">
+                <label className="block font-medium text-sm sm:text-base">
+                  {obs.observationQuestion || obs.label}
+                </label>
+                {obs.observationQuestion && (
+                  <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {obs.label}
+                  </p>
+                )}
+              </div>
+              <div className={isHandoverContinuityVerification ? "grid gap-2 sm:grid-cols-2" : "flex flex-wrap gap-1 sm:gap-2"}>
+                {obs.options.map((option: string) => (
                   <button
                     type="button"
-                    key={status}
-                    onClick={() => handleTrainingEvidenceStatus(obs.key, status)}
-                    className={[
-                      "rounded-md border px-2 py-1 text-[11px]",
-                      currentTrainingEvidenceStatus(obs.key) === status
-                        ? "border-primary bg-primary/5 font-medium"
-                        : "border-primary/15 text-muted-foreground hover:bg-primary/5",
-                    ].join(" ")}
+                    key={option}
+                    className={
+                      isHandoverContinuityVerification
+                        ? [
+                            "rounded-lg border p-3 text-left transition-colors",
+                            observations[`set${currentSet}_rep${currentRep}_${obs.key}`] === option
+                              ? "border-primary bg-primary/5 ring-1 ring-primary"
+                              : "border-primary/15 bg-background hover:bg-primary/5",
+                          ].join(" ")
+                        : `px-2 sm:px-3 py-1 rounded-md border text-xs sm:text-sm transition-colors whitespace-nowrap ${observations[`set${currentSet}_rep${currentRep}_${obs.key}`] === option ? "bg-primary text-primary-foreground border-primary" : "bg-background border-primary/20 hover:bg-primary/5"}`
+                    }
+                    onClick={() => handleObservation(obs.key, option)}
                   >
-                    {label}
+                    {isHandoverContinuityVerification ? (
+                      <>
+                        <span className="block text-sm font-medium text-foreground">{option}</span>
+                        {obs.optionDetails?.[option] && (
+                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                            {obs.optionDetails[option]}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      option
+                    )}
                   </button>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          ),
+        )}
         ))}
         {isTrainingEvidenceCapture &&
           !set?.isModelingSet &&
