@@ -619,8 +619,8 @@ export async function submitSandboxRediagnosisProbe(input: {
       `UPDATE specialist_sandbox_rediagnosis_runs
           SET specialist_probe_history = $2::jsonb,
               specialist_decision = $3::jsonb,
-              status = $4,
-              completed_at = CASE WHEN $4 <> 'active' THEN now() ELSE NULL END
+              status = $4::varchar,
+              completed_at = CASE WHEN $4::varchar <> 'active' THEN now() ELSE NULL END
         WHERE id = $1`,
       [
         planned.run.id,
