@@ -1,6 +1,8 @@
 import { PHASES, type TopicPhase, type TopicStability } from "./topicConditioningEngine";
 import {
   getDrillSchemaDefinition,
+  getDrillSchemaDefinitionByVersion,
+  getEvidenceSelectionIdentity,
   getFieldDefinitionForRep,
   getRepPurposeId,
   resolveEvidenceSelection,
@@ -19,6 +21,7 @@ import {
 import {
   evaluateTrainingEvidence,
   resolveTrainingEvidenceAuthorityRoute,
+  trainingEvidenceClassForRawBehavior,
   type TrainingEvidenceAuthorityRoute,
 } from "./trainingEvidenceEvaluator";
 import {
@@ -202,6 +205,126 @@ const hashUnit = (value: string) => {
   }
   return (hash >>> 0) / 0xffffffff;
 };
+
+export function projectSandboxOutcomeToCurrentTrainingContract(
+  definition: SandboxOutcomeDefinition,
+  sourceTrainingSchemaVersion: number,
+): SandboxOutcomeDefinition {
+  const currentSchema = getDrillSchemaDefinition("training", definition.phase);
+  if (sourceTrainingSchemaVersion === currentSchema.schemaVersion) {
+    return definition;
+  }
+
+  const sourceSchema = getDrillSchemaDefinitionByVersion(
+    "training",
+    definition.phase,
+    sourceTrainingSchemaVersion,
+  );
+  if (!sourceSchema) {
+    throw new Error(
+      `Sandbox outcome ${definition.key} references unsupported Training schema v${sourceTrainingSchemaVersion}.`,
+    );
+  }
+
+  const sourceSet = sourceSchema.sets.find(
+    (candidate) => candidate.setId === definition.setId,
+  );
+  const currentSet = currentSchema.sets.find(
+    (candidate) => candidate.setId === definition.setId,
+  );
+  if (!sourceSet || !currentSet) {
+    throw new Error(
+      `Sandbox outcome ${definition.key} cannot reconcile Training set ${definition.setId}.`,
+    );
+  }
+
+  const repIndex = definition.repNumber - 1;
+  const canonicalObservations = Object.fromEntries(
+    Object.entries(definition.canonicalObservations).map(
+      ([fieldKey, canonical]) => {
+        const sourceResolved = resolveEvidenceSelection({
+          mode: "training",
+          phase: definition.phase,
+          setId: definition.setId,
+          repIndex,
+          fieldKey,
+          optionId: canonical.optionId,
+          schemaVersion: sourceTrainingSchemaVersion,
+        });
+        if (!sourceResolved) {
+          throw new Error(
+            `Sandbox outcome ${definition.key} has an invalid historical option for ${fieldKey}.`,
+          );
+        }
+
+        const rawLabel =
+          sourceResolved.field.optionLabels?.[sourceResolved.optionIndex] || "";
+        const evidenceClass =
+          sourceResolved.evidenceClass ||
+          trainingEvidenceClassForRawBehavior(
+            sourceResolved.field.dimensionId as any,
+            rawLabel,
+          );
+        if (
+          !evidenceClass ||
+          evidenceClass === "not_observed" ||
+          evidenceClass === "confounded"
+        ) {
+          throw new Error(
+            `Sandbox outcome ${definition.key} cannot reconcile ${fieldKey} into a decision evidence class.`,
+          );
+        }
+
+        const currentField = getFieldDefinitionForRep(
+          currentSet,
+          repIndex,
+          fieldKey,
+        );
+        if (!currentField) {
+          throw new Error(
+            `Sandbox outcome ${definition.key} is missing current field ${fieldKey}.`,
+          );
+        }
+        const optionIndex =
+          currentField.optionEvidenceClasses?.findIndex(
+            (candidate) => candidate === evidenceClass,
+          ) ?? -1;
+        if (optionIndex < 0) {
+          throw new Error(
+            `Sandbox outcome ${definition.key} cannot map ${fieldKey} ${evidenceClass} into Training V${currentSchema.schemaVersion}.`,
+          );
+        }
+
+        const identity = getEvidenceSelectionIdentity({
+          mode: "training",
+          phase: definition.phase,
+          setName: currentSet.setName,
+          repIndex,
+          fieldKey,
+          optionIndex,
+        });
+        if (!identity) {
+          throw new Error(
+            `Sandbox outcome ${definition.key} could not resolve current option identity for ${fieldKey}.`,
+          );
+        }
+
+        return [
+          fieldKey,
+          {
+            optionId: identity.optionId,
+            evidenceStatus: canonical.evidenceStatus,
+          },
+        ];
+      },
+    ),
+  );
+
+  return {
+    ...definition,
+    canonicalObservations,
+  };
+}
 
 export function validateSandboxOutcomeDefinition(definition: SandboxOutcomeDefinition) {
   if (!definition.key.trim()) throw new Error("Sandbox outcome key is required.");
