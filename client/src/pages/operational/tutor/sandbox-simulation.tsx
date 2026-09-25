@@ -50,14 +50,26 @@ type Readiness = {
   phasesRepresented: string[];
   longitudinalTrajectoryEstablished: boolean;
   layers: Array<{
-    capabilityId: CapabilityId;
-    rawState: string;
-    effectiveState: string;
-    prerequisiteCapabilityId: CapabilityId | null;
+    layer: CapabilityId;
+    state: string;
     validOpportunityCount: number;
+    supportedCount: number;
+    breakdownCount: number;
     recoveredAfterBreakdown: boolean;
-    reason: string;
+    minimumValidOpportunities: number;
+    prerequisiteSupported: boolean;
+    authoritative: boolean;
   }>;
+  breadthReady?: boolean;
+  longitudinalReady?: boolean;
+  exposure?: {
+    distinctPhases: number;
+    distinctSets: number;
+    distinctRepPositions: number;
+    completedSessions: number;
+    stateChangeObserved: boolean;
+    breakdownRecoveryObserved: boolean;
+  };
   reason: string;
 };
 
@@ -112,10 +124,11 @@ type RepResult = {
   phase: string;
   setId: string;
   repNumber: number;
-  exactObservationCount: number;
-  comparableObservationCount: number;
-  conditionKept: boolean;
-  evidenceStatusExact: boolean;
+  matchingObservations: number;
+  totalObservations: number;
+  observationExact: boolean;
+  evidenceExact: boolean;
+  conditionKept: boolean | null;
   sessionCompleted: boolean;
   sessionAuthority: null | {
     specialist: {
@@ -150,9 +163,10 @@ type HistoryData = {
     setId: string;
     repNumber: number;
     conditionKept: boolean | null;
-    exactObservationCount: number;
-    comparableObservationCount: number;
-    evidenceStatusExact: boolean | null;
+    matchingObservations: number;
+    totalObservations: number;
+    observationExact: boolean | null;
+    evidenceExact: boolean | null;
     completedAt: string;
   }>;
   sessions: Array<{
@@ -457,15 +471,15 @@ export default function SpecialistSandboxSimulation() {
               <>
                 <div className="grid gap-3 md:grid-cols-5">
                   {readiness.layers.map((layer) => (
-                    <div key={layer.capabilityId} className="rounded-lg border p-3">
+                    <div key={layer.layer} className="rounded-lg border p-3">
                       <p className="text-sm font-medium">
-                        {CAPABILITY_LABELS[layer.capabilityId]}
+                        {CAPABILITY_LABELS[layer.layer]}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {humanize(layer.effectiveState)}
+                        {humanize(layer.state)}
                       </p>
                       <p className="mt-2 text-[11px] text-muted-foreground">
-                        {layer.validOpportunityCount} valid opportunities
+                        {layer.validOpportunityCount}/{layer.minimumValidOpportunities} valid opportunities
                       </p>
                     </div>
                   ))}
@@ -491,9 +505,13 @@ export default function SpecialistSandboxSimulation() {
           <Alert>
             <CheckCircle2 className="h-4 w-4" />
             <AlertDescription>
-              Rep {lastResult.repNumber} recorded: {lastResult.exactObservationCount}/
-              {lastResult.comparableObservationCount} observations aligned
-              {lastResult.conditionKept ? " · condition preserved" : " · condition changed"}
+              Rep {lastResult.repNumber} recorded: {lastResult.matchingObservations}/
+              {lastResult.totalObservations} observations aligned
+              {lastResult.conditionKept === null
+                ? ""
+                : lastResult.conditionKept
+                  ? " · condition preserved"
+                  : " · condition changed"}
               {lastResult.sessionCompleted
                 ? lastResult.sessionAuthority?.stateTrackAligned
                   ? " · session state remained aligned"
