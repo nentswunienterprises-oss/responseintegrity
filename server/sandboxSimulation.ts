@@ -1,4 +1,5 @@
 import { pool } from "./db";
+import { loadTutorOperationalModeAuthority } from "./tutorOperationalModeAuthority";
 import {
   evaluateSandboxSimulation,
   projectSandboxScenarioForSpecialist,
@@ -24,19 +25,11 @@ async function assertSandboxAccess(input: {
   tutorAssignmentId: string;
   tutorId: string;
 }) {
-  const result = await pool.query(
-    `SELECT id, operational_mode
-       FROM tutor_assignments
-      WHERE id = $1
-        AND tutor_id = $2
-      LIMIT 1`,
-    [input.tutorAssignmentId, input.tutorId],
-  );
-  const row = result.rows[0];
-  if (!row) {
+  const modeAuthority = await loadTutorOperationalModeAuthority(input);
+  if (!modeAuthority) {
     throw httpError(403, "Specialist assignment not found or does not belong to the authenticated user.");
   }
-  if (String(row.operational_mode || "").toLowerCase() !== "sandbox") {
+  if (modeAuthority.mode !== "sandbox") {
     throw httpError(409, "Sandbox simulation is available only while the Specialist is in Sandbox.");
   }
 }
