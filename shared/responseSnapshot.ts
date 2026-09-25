@@ -7,6 +7,8 @@ import {
   type SubmittedEvidenceSet,
 } from "./responseIntegrityDrillRegistry";
 import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
+import { TRAINING_OBSERVATION_MATRIX_V2 } from "./trainingObservationContractV2";
+import type { TrainingDimensionId } from "./trainingEvidenceContract";
 
 export type ResponseSnapshotDisplayLevel = "weak" | "partial" | "strong" | "not_scored";
 
@@ -337,13 +339,13 @@ const clearNarrativeForRep = (repPurposeId: string, evidence: ResponseSnapshotEv
     evidence.some((item) => item.dimensionLabel === dimensionLabel && item.normalizedLevel === "clear");
 
   if (repPurposeId === "clarity.identification.opportunity_1" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["recognized the problem type and recalled the method before solving"];
+    return ["identified the important terms and selected the method before solving"];
   }
   if (repPurposeId === "clarity.identification.opportunity_2" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["recognition and method recall held on the second example"];
+    return ["term recognition and method selection held on the second example"];
   }
   if (repPurposeId === "clarity.identification.opportunity_3" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["recognition and method recall repeated again before active solving"];
+    return ["term recognition and method selection repeated again before active solving"];
   }
   if (repPurposeId === "clarity.light_apply.opportunity_1" && hasClear("Vocabulary") && hasClear("Method")) {
     return ["the first light solving attempt kept the vocabulary and method intact"];
@@ -402,11 +404,11 @@ const summarizeClearEvidence = (snapshot: Pick<ResponseSnapshotV1, "sets" | "sou
     const hasReason = clearDimensions.has("Reason");
     const clauses: string[] = [];
     if (hasVocabulary && hasMethod) {
-      clauses.push("clear recognition and method recall");
+      clauses.push("clear vocabulary recognition and method selection");
     } else if (hasVocabulary) {
-      clauses.push("clear recognition");
+      clauses.push("clear vocabulary recognition");
     } else if (hasMethod) {
-      clauses.push("clear method recall");
+      clauses.push("clear method selection");
     }
     if (hasReason) clauses.push("clear reason awareness");
     return naturalJoin(clauses);
@@ -664,9 +666,49 @@ const CONTEXTUAL_OPTION_CLAUSES: Record<string, Record<string, string>> = {
   },
 };
 
-const resolveHumanClause = (dimensionLabel: string, selectedRawOption: string) => {
+const lowerFirst = (value: string) => {
+  const text = String(value || "").trim();
+  return text ? text.charAt(0).toLowerCase() + text.slice(1) : "";
+};
+
+const canonicalResponseEvidenceClause = (
+  dimensionId: string,
+  selectedRawOption: string,
+) => {
+  const definition =
+    TRAINING_OBSERVATION_MATRIX_V2[dimensionId as TrainingDimensionId];
+  const option = definition?.options.find(
+    (candidate) => candidate.label === selectedRawOption,
+  );
+  if (!option) return null;
+
+  const detail = String(option.detail || "")
+    .trim()
+    .replace(/[.]+$/, "");
+  const studentLed = detail.replace(/^The student\s+/i, "");
+  if (studentLed !== detail) return lowerFirst(studentLed);
+
+  const responseLed = detail.replace(/^The response\s+/i, "");
+  if (responseLed !== detail) return lowerFirst(responseLed);
+
+  return detail ? `showed evidence that ${lowerFirst(detail)}` : lowerFirst(option.label);
+};
+
+const resolveHumanClause = (
+  dimensionLabel: string,
+  selectedRawOption: string,
+  dimensionId?: string,
+) => {
+  const canonical = dimensionId
+    ? canonicalResponseEvidenceClause(dimensionId, selectedRawOption)
+    : null;
+  if (canonical) return canonical;
   const lower = selectedRawOption.toLowerCase();
-  return CONTEXTUAL_OPTION_CLAUSES[dimensionLabel]?.[lower] || OPTION_CLAUSES[lower] || `recorded ${selectedRawOption}`;
+  return (
+    CONTEXTUAL_OPTION_CLAUSES[dimensionLabel]?.[lower] ||
+    OPTION_CLAUSES[lower] ||
+    `recorded ${selectedRawOption}`
+  );
 };
 
 const buildRepResultText = (
@@ -874,7 +916,11 @@ export const buildResponseSnapshotV1 = ({
           selectedOptionId: String(repObs?.[`${field.fieldKey}_option_id`] || ""),
           selectedRawOption,
           normalizedLevel,
-          humanClause: resolveHumanClause(fieldLabel(field.fieldKey), selectedRawOption),
+          humanClause: resolveHumanClause(
+            fieldLabel(field.fieldKey),
+            selectedRawOption,
+            dimensionId,
+          ),
           weight: field.scoreWeight,
           contribution,
         };
