@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      SMOKE_BASE_URL: https://tt-confidence-878c1pyrs-relief-works-technologies.vercel.app
-      VERCEL_SHARE_URL: https://tt-confidence-878c1pyrs-relief-works-technologies.vercel.app/?_vercel_share=EvlzE717ZYJgSlZZ9rJ53quVmLhUh92M
-      PROOF_EXPECTED_APP_SHA: 5a48dd9054ba7d129e4caa5c76d02349e6443ee0
+      SMOKE_BASE_URL: https://tt-confidence-9jejmegce-relief-works-technologies.vercel.app
+      VERCEL_SHARE_URL: https://tt-confidence-9jejmegce-relief-works-technologies.vercel.app/?_vercel_share=61YkQwf50eh9m1YaxiirELnZKr0LkjoF
+      PROOF_EXPECTED_APP_SHA: 5ad247e41ae5ac61406ef17f56d56554b26354cf
       RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
       RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
       RI_PROOF_ASSIGNMENT_ID: 836a839f-2f29-45c7-b8c2-aa501c95e1b0
@@ -82,7 +82,7 @@ jobs:
             assert.ok(response.ok(), "Sandbox form failed: " + response.status() + " " + text);
             const body = JSON.parse(text);
             assert.equal(body.bankKey, "sandbox_observation_foundation");
-            assert.equal(body.bankVersion, 1);
+            assert.equal(body.bankVersion, 2);
             assert.equal(body.scenario.phase, "Clarity");
             assert.equal(body.scenario.sets.length, 2);
             assert.equal(body.scenario.sets.reduce(
@@ -136,7 +136,7 @@ jobs:
           assert.ok(submit.ok(), "Sandbox submit failed: " + submit.status() + " " + submitText);
           const result = JSON.parse(submitText);
           assert.ok(result.attemptId, "Sandbox attempt did not persist");
-          assert.equal(result.bankVersion, 1);
+          assert.equal(result.bankVersion, 2);
           assert.equal(result.attemptNumber, 1);
           assert.equal(result.totalObservations, 24);
           assert.ok(Number.isFinite(result.observationFidelityPercent));
