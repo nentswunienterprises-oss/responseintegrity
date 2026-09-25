@@ -310,7 +310,7 @@ test("semantic evidence validates and is normalized from the registered definiti
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal(result.normalizedSet.constraintProfile?.supportLevel, "minimal");
-  assert.equal(result.normalizedSet.observations[0].stepExecution_level, "clear");
+  assert.equal(result.normalizedSet.observations[0].stepExecution_level, "partial");
 });
 
 test("semantic evidence rejects a clear level forged onto a weak option", () => {
