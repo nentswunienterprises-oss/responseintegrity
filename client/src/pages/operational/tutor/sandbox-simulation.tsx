@@ -14,6 +14,22 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  instructionPromptDisplayText,
+  instructionPromptLabelFor,
+} from "@/lib/instructionPromptLabel";
+import {
+  LiveObservationField,
+  LivePhaseContext,
+  LiveRepContextCard,
+  LiveRepStage,
+  LiveSandboxStudentResponse,
+  LiveSupportPanel,
+  liveObservationQuestion,
+  liveTrainingActiveRules,
+  liveTrainingInstruction,
+  type LivePhaseLabel,
+} from "@/components/tutor/TrainingLiveDeliveryUi";
 
 type EvidenceStatus = "observed" | "not_observed" | "confounded";
 type InterventionEvent =
@@ -153,6 +169,9 @@ type EnvironmentForm = {
     setId: string;
     setName: string;
     setPurpose: string;
+    setIndex: number;
+    setCount: number;
+    repCount: number;
     constraints: Record<string, unknown>;
     repNumber: number;
     studentBehavior: string;
@@ -313,6 +332,9 @@ export default function SpecialistSandboxSimulation({
   const [inheritedRescueSignal, setInheritedRescueSignal] = useState<
     "none" | "isolated" | "repeated" | "not_observed" | "confounded" | null
   >(null);
+  const [repStarted, setRepStarted] = useState(false);
+  const [supportPickerOpen, setSupportPickerOpen] = useState(false);
+  const [showEvidenceExceptions, setShowEvidenceExceptions] = useState(false);
 
   const requiresPodData = !(
     embedded &&
@@ -361,6 +383,9 @@ export default function SpecialistSandboxSimulation({
     setDiagnosisSupportEvent("none");
     setLastResult(null);
     setLastDiagnosisResult(null);
+    setRepStarted(false);
+    setSupportPickerOpen(false);
+    setShowEvidenceExceptions(false);
   }, [studentId]);
 
   const environmentQuery = useQuery<EnvironmentForm>({
@@ -392,6 +417,12 @@ export default function SpecialistSandboxSimulation({
 
   const form = environmentQuery.data;
   const rep = form?.status === "rep_ready" ? form.rep : undefined;
+
+  useEffect(() => {
+    setRepStarted(false);
+    setSupportPickerOpen(false);
+    setShowEvidenceExceptions(false);
+  }, [form?.eventFormId, form?.turnFormId]);
   const diagnosisProbe =
     form?.status === "rediagnosis_probe_ready" ? form.probe : undefined;
 
@@ -554,6 +585,9 @@ export default function SpecialistSandboxSimulation({
       setInterventionEvent("none");
       setPrerequisiteSentinel(null);
       setInheritedRescueSignal(null);
+      setRepStarted(false);
+      setSupportPickerOpen(false);
+      setShowEvidenceExceptions(false);
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["sandbox-environment", tutorAssignmentId, studentId],
@@ -652,6 +686,446 @@ export default function SpecialistSandboxSimulation({
   }
 
   const readiness = form.readiness;
+  const routeTopic = String(searchParams.get("topic") || "").trim() || "Sandbox practice";
+  const prescribedPhase = (
+    ["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"].includes(
+      form.prescribedPhase,
+    )
+      ? form.prescribedPhase
+      : "Clarity"
+  ) as LivePhaseLabel;
+
+  if (embedded) {
+    const fallbackRules = rep
+      ? Object.entries(rep.constraints).map(
+          ([key, value]) => `${humanize(key)}: ${humanize(String(value))}`,
+        )
+      : [];
+    const activeRules = rep
+      ? liveTrainingActiveRules(
+          form.prescribedPhase,
+          rep.setName,
+          fallbackRules,
+        )
+      : [];
+    const liveStage =
+      rep && !repStarted
+        ? "ready"
+        : form.status === "rep_ready" && allComplete
+          ? "confirm"
+          : form.status === "rediagnosis_probe_ready" && diagnosisAllComplete
+            ? "confirm"
+            : "observe";
+
+    return (
+      <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold sm:text-2xl">
+              {form.status === "rediagnosis_probe_ready"
+                ? `Targeted Re-Diagnosis - ${form.targetPhase || form.prescribedPhase}`
+                : `Training Drill - ${form.prescribedPhase}`}
+            </h2>
+            <p className="mt-3 text-sm">
+              <span className="font-semibold">Diagnostic Topic:</span> {routeTopic}
+            </p>
+            <p className="mt-4 text-muted-foreground">{form.sandboxStudent.name}</p>
+          </div>
+          <div className="text-right text-xs text-muted-foreground">
+            <p>Sandbox session {form.sessionNumber}</p>
+            {form.sessionProgress && (
+              <p>
+                {form.sessionProgress.completedReps}/{form.sessionProgress.totalReps} reps complete
+              </p>
+            )}
+          </div>
+        </div>
+
+        {(form.status !== "rep_ready" ||
+          !rep ||
+          (rep.setIndex === 1 && rep.repNumber === 1)) && (
+          <LivePhaseContext
+            phase={
+              form.status === "rediagnosis_probe_ready" &&
+              form.targetPhase &&
+              ["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"].includes(form.targetPhase)
+                ? (form.targetPhase as LivePhaseLabel)
+                : prescribedPhase
+            }
+          />
+        )}
+
+        {!(rep && !repStarted) && (
+          <LiveRepStage stage={liveStage} sandbox />
+        )}
+
+        {form.status === "rediagnosis_probe_ready" && diagnosisProbe ? (
+          <>
+            <div className="mb-4 rounded-xl border border-primary/15 bg-background p-3 shadow-sm">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Targeted re-diagnosis · {diagnosisProbe.label}
+              </div>
+              <div className="mt-1 text-2xl font-black tracking-tight text-foreground sm:text-3xl">
+                EVIDENCE PROBE
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {diagnosisProbe.evidenceQuestion}
+              </p>
+              <div className="mt-3 rounded-md border border-primary/20 bg-primary/5 p-2">
+                <div className="mb-0.5 text-xs font-semibold text-primary">DO THIS NOW</div>
+                <div className="text-xs font-medium text-foreground sm:text-sm">
+                  {diagnosisProbe.specialistInstruction}
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1">
+                {Object.entries(diagnosisProbe.constraints).map(([key, value]) => (
+                  <span
+                    key={key}
+                    className="rounded border border-primary/15 bg-background px-2 py-0.5 text-xs text-muted-foreground"
+                  >
+                    {humanize(key)}: {humanize(String(value))}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <LiveSandboxStudentResponse>
+              {diagnosisProbe.studentBehavior}
+            </LiveSandboxStudentResponse>
+
+            <LiveSupportPanel
+              options={diagnosisProbe.supportOptions}
+              selectedId={diagnosisSupportEvent}
+              open={supportPickerOpen}
+              onToggle={() => setSupportPickerOpen((open) => !open)}
+              onSelect={(id) =>
+                setDiagnosisSupportEvent(id as DiagnosisSupportEvent)
+              }
+              showEvidenceExceptions={false}
+              onToggleEvidenceExceptions={() => {}}
+              evidenceExceptionsEnabled={false}
+            />
+
+            <div className="space-y-4">
+              {diagnosisProbe.fields.map((field) => (
+                <LiveObservationField
+                  key={field.dimensionId}
+                  question={field.observationQuestion}
+                  label={field.label}
+                  options={field.options.map((option) => ({
+                    id: option.behaviorId,
+                    label: option.label,
+                  }))}
+                  selected={diagnosisSelections[field.dimensionId] || null}
+                  optionDetails={Object.fromEntries(
+                    field.options.map((option) => [
+                      option.behaviorId,
+                      option.detail,
+                    ]),
+                  )}
+                  onSelect={(behaviorId) =>
+                    setDiagnosisSelections((current) => ({
+                      ...current,
+                      [field.dimensionId]: behaviorId,
+                    }))
+                  }
+                  showEvidenceExceptions={false}
+                  evidenceStatus="observed"
+                  onEvidenceStatus={() => {}}
+                />
+              ))}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <Button
+                disabled={!diagnosisAllComplete || submitDiagnosisProbe.isPending}
+                onClick={() => submitDiagnosisProbe.mutate()}
+              >
+                {submitDiagnosisProbe.isPending
+                  ? "Recording evidence..."
+                  : "Verify Phase"}
+              </Button>
+            </div>
+
+            {submitDiagnosisProbe.error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {submitDiagnosisProbe.error instanceof Error
+                    ? submitDiagnosisProbe.error.message
+                    : "Targeted re-diagnosis submission failed."}
+                </AlertDescription>
+              </Alert>
+            )}
+          </>
+        ) : form.status === "rediagnosis_blocked" ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {form.reason ||
+                "The permitted clean diagnosis probes did not resolve the simulated prerequisite. Training remains paused rather than guessing a placement."}
+            </AlertDescription>
+          </Alert>
+        ) : form.status === "targeted_rediagnosis_required" ? (
+          <Alert>
+            <ShieldCheck className="h-4 w-4" />
+            <AlertDescription>
+              Earlier prerequisite truth became untrustworthy. The trajectory is preserved and
+              ordinary Training is paused while the next targeted re-diagnosis probe is prepared.
+            </AlertDescription>
+          </Alert>
+        ) : rep ? (
+          <>
+
+
+            {!repStarted ? (
+              <div className="mb-5 rounded-2xl border border-primary/20 bg-background p-5 shadow-sm">
+                <LiveRepStage stage="ready" sandbox />
+                <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Set {rep.setIndex} of {rep.setCount} · {rep.setName}
+                </div>
+                <div className="mt-1 flex items-end gap-3">
+                  <div className="text-4xl font-black tracking-tight text-foreground sm:text-5xl">
+                    REP {rep.repNumber}
+                  </div>
+                  <div className="pb-1 text-sm font-semibold text-muted-foreground">
+                    of {rep.repCount}
+                  </div>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                  {rep.setPurpose}
+                </p>
+                <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                    {instructionPromptLabelFor(
+                      liveTrainingInstruction(form.prescribedPhase, rep.setName),
+                    )}
+                  </div>
+                  <div className="mt-1 text-base font-semibold text-foreground">
+                    {instructionPromptDisplayText(
+                      liveTrainingInstruction(form.prescribedPhase, rep.setName),
+                    )}
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {activeRules.map((rule) => (
+                    <span
+                      key={rule}
+                      className="rounded-full border border-primary/15 px-2.5 py-1 text-xs text-muted-foreground"
+                    >
+                      {rule}
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-4 text-xs leading-5 text-muted-foreground">
+                  Use the problem prepared for this opportunity. Once the rep starts, keep
+                  attention on the student's response rather than on form administration.
+                </p>
+                <div className="mt-5 flex justify-end">
+                  <Button onClick={() => setRepStarted(true)}>
+                    Begin Rep {rep.repNumber}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <LiveRepContextCard
+              setIndex={rep.setIndex}
+              setCount={rep.setCount}
+              setName={rep.setName}
+              repNumber={rep.repNumber}
+              repCount={rep.repCount}
+              purpose={rep.setPurpose}
+              instruction={liveTrainingInstruction(
+                form.prescribedPhase,
+                rep.setName,
+              )}
+              activeRules={activeRules}
+            />
+                <LiveSandboxStudentResponse>
+                  {rep.studentBehavior}
+                </LiveSandboxStudentResponse>
+
+                <LiveSupportPanel
+                  options={rep.interventionOptions}
+                  selectedId={interventionEvent}
+                  open={supportPickerOpen}
+                  onToggle={() => setSupportPickerOpen((open) => !open)}
+                  onSelect={(id) => {
+                    setInterventionEvent(id as InterventionEvent);
+                    setSupportPickerOpen(false);
+                  }}
+                  showEvidenceExceptions={showEvidenceExceptions}
+                  onToggleEvidenceExceptions={() =>
+                    setShowEvidenceExceptions((open) => !open)
+                  }
+                />
+
+                <div className="space-y-4">
+                  {rep.fields.map((field) => {
+                    const selection = selections[field.fieldKey];
+                    return (
+                      <LiveObservationField
+                        key={field.fieldKey}
+                        question={liveObservationQuestion(
+                          field.dimensionId,
+                          humanize(field.dimensionId),
+                        )}
+                        label={humanize(field.dimensionId)}
+                        options={field.options.map((option) => ({
+                          id: option.optionId,
+                          label: option.label,
+                        }))}
+                        selected={selection?.optionId || null}
+                        onSelect={(optionId) =>
+                          chooseOption(field.fieldKey, optionId)
+                        }
+                        showEvidenceExceptions={showEvidenceExceptions}
+                        evidenceStatus={selection?.evidenceStatus || "observed"}
+                        onEvidenceStatus={(status) =>
+                          chooseStatus(field.fieldKey, status)
+                        }
+                      />
+                    );
+                  })}
+                </div>
+
+                {requiresPrerequisiteSentinel && rep.prerequisiteSentinel && (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+                      Prerequisite sentinel required
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-amber-950">
+                      {rep.prerequisiteSentinel.evidenceQuestion}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-amber-900">
+                      {rep.prerequisiteSentinel.specialistInstruction}
+                    </p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      {rep.prerequisiteSentinel.options.map((option) => (
+                        <Button
+                          key={option.id}
+                          type="button"
+                          variant={
+                            prerequisiteSentinel === option.id
+                              ? "default"
+                              : "outline"
+                          }
+                          className="h-auto justify-start whitespace-normal py-3 text-left"
+                          onClick={() => setPrerequisiteSentinel(option.id)}
+                        >
+                          {option.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {rep.inheritedRescueSignal && (
+                  <div className="rounded-xl border border-primary/15 bg-background p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Inherited rescue signal
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-foreground">
+                      {rep.inheritedRescueSignal.evidenceQuestion}
+                    </p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      {rep.inheritedRescueSignal.options.map((option) => (
+                        <Button
+                          key={option.id}
+                          type="button"
+                          variant={
+                            inheritedRescueSignal === option.id
+                              ? "default"
+                              : "outline"
+                          }
+                          className="h-auto justify-start whitespace-normal py-3 text-left"
+                          onClick={() => setInheritedRescueSignal(option.id)}
+                        >
+                          <span>
+                            <span className="block font-medium">{option.label}</span>
+                            <span className="mt-1 block text-xs opacity-80">
+                              {option.detail}
+                            </span>
+                          </span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                  <Button
+                    disabled={!allComplete || submitRep.isPending}
+                    onClick={() => submitRep.mutate()}
+                  >
+                    {submitRep.isPending
+                      ? "Recording rep evidence..."
+                      : rep.repNumber === rep.repCount
+                        ? "Confirm Set"
+                        : "Confirm Rep"}
+                  </Button>
+                </div>
+
+                {submitRep.error && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      {submitRep.error instanceof Error
+                        ? submitRep.error.message
+                        : "Sandbox rep submission failed."}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </>
+            )}
+          </>
+        ) : null}
+
+        <details className="rounded-xl border border-primary/15 bg-background">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
+            Sandbox evidence & trajectory
+          </summary>
+          <div className="space-y-4 border-t border-primary/10 p-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Capability evidence
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {readiness.earliestUnsupportedCapability
+                  ? `Current evidence focus: ${CAPABILITY_LABELS[readiness.earliestUnsupportedCapability]}`
+                  : "All currently evaluated capability layers are supported."}
+              </p>
+              {readiness.policyAvailable && (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {readiness.layers.map((layer) => (
+                    <div key={layer.layer} className="rounded-lg border p-3">
+                      <p className="text-sm font-medium">
+                        {CAPABILITY_LABELS[layer.layer]}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {humanize(layer.state)} · {layer.validOpportunityCount}/
+                        {layer.minimumValidOpportunities} valid opportunities
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Trajectory record
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {historyQuery.data?.trajectory.completedRepCount || 0} Sandbox reps recorded on
+                this persistent trajectory.
+              </p>
+            </div>
+          </div>
+        </details>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background px-4 py-8 sm:px-6">

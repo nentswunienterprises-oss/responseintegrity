@@ -18,6 +18,10 @@ const runnerSource = readFileSync(
   new URL("../client/src/pages/operational/tutor/sandbox-simulation.tsx", import.meta.url),
   "utf8",
 );
+const trainingLiveUiSource = readFileSync(
+  new URL("../client/src/components/tutor/TrainingLiveDeliveryUi.tsx", import.meta.url),
+  "utf8",
+);
 const studentCardSource = readFileSync(
   new URL("../client/src/components/tutor/StudentCard.tsx", import.meta.url),
   "utf8",
@@ -70,7 +74,8 @@ test("all Sandbox-mode Specialists can select an assigned student and see rep be
   assert.match(runnerSource, /sandboxStudents\.map/);
   assert.match(runnerSource, /studentId=\$\{encodeURIComponent\(String\(student\.id\)\)\}/);
   assert.match(runnerSource, /studentBehavior/);
-  assert.match(runnerSource, /Simulated student behaviour/);
+  assert.match(runnerSource, /LiveSandboxStudentResponse/);
+  assert.match(trainingLiveUiSource, /Simulated student response/);
   assert.match(studentCardSource, /case "stateful-sandbox"/);
   assert.match(
     studentCardSource,

@@ -7,6 +7,8 @@ on:
       - "server/sandbox*.ts"
       - "server/routes/sandbox*.ts"
       - "client/src/pages/operational/tutor/sandbox*.tsx"
+      - "client/src/components/tutor/TrainingLiveDeliveryUi.tsx"
+      - "client/src/components/tutor/IntroSessionDrillRunner.tsx"
       - "migrations/*sandbox*.sql"
       - "server/index.ts"
       - "server/vercelPreviewApi.ts"
@@ -21,6 +23,8 @@ on:
       - "server/sandbox*.ts"
       - "server/routes/sandbox*.ts"
       - "client/src/pages/operational/tutor/sandbox*.tsx"
+      - "client/src/components/tutor/TrainingLiveDeliveryUi.tsx"
+      - "client/src/components/tutor/IntroSessionDrillRunner.tsx"
       - "migrations/*sandbox*.sql"
       - "server/index.ts"
       - "server/vercelPreviewApi.ts"
@@ -40,5 +44,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Sandbox focused tests
         run: npm run test:sandbox
+      - name: Frontend live-runner bundle
+        run: npx vite build
       - name: Preview API bundle
         run: npm run build:vercel-api
