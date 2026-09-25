@@ -211,6 +211,104 @@ ON public.specialist_sandbox_capability_evidence (
   sequence_number
 );
 
+
+CREATE TABLE IF NOT EXISTS private.specialist_sandbox_diagnosis_outcomes (
+  id varchar PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  public_ref varchar NOT NULL UNIQUE DEFAULT gen_random_uuid()::text,
+  bank_key varchar NOT NULL,
+  bank_version integer NOT NULL CHECK (bank_version > 0),
+  probe_id varchar NOT NULL,
+  outcome_key varchar NOT NULL,
+  outcome_version integer NOT NULL CHECK (outcome_version > 0),
+  definition jsonb NOT NULL,
+  active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (bank_key, bank_version, probe_id, outcome_key),
+  FOREIGN KEY (bank_key, bank_version)
+    REFERENCES private.specialist_sandbox_environment_banks (bank_key, bank_version)
+    ON DELETE RESTRICT
+);
+ALTER TABLE private.specialist_sandbox_diagnosis_outcomes ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE private.specialist_sandbox_diagnosis_outcomes FROM PUBLIC, anon, authenticated;
+CREATE INDEX IF NOT EXISTS idx_sandbox_diagnosis_outcomes_lookup
+ON private.specialist_sandbox_diagnosis_outcomes (bank_key, bank_version, probe_id)
+WHERE active = true;
+
+CREATE TABLE IF NOT EXISTS public.specialist_sandbox_rediagnosis_runs (
+  id varchar PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  trajectory_id varchar NOT NULL REFERENCES public.specialist_sandbox_trajectories(id) ON DELETE CASCADE,
+  tutor_assignment_id varchar NOT NULL REFERENCES public.tutor_assignments(id) ON DELETE CASCADE,
+  tutor_id varchar NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  started_session_number integer NOT NULL CHECK (started_session_number > 0),
+  target_phase varchar NOT NULL,
+  specialist_probe_history jsonb NOT NULL DEFAULT '[]'::jsonb,
+  specialist_decision jsonb,
+  status varchar NOT NULL DEFAULT 'active' CHECK (status IN ('active','completed','blocked')),
+  completed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.specialist_sandbox_rediagnosis_runs ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.specialist_sandbox_rediagnosis_runs FROM PUBLIC, anon, authenticated;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sandbox_one_active_rediagnosis
+ON public.specialist_sandbox_rediagnosis_runs (trajectory_id)
+WHERE status = 'active';
+
+CREATE TABLE IF NOT EXISTS private.specialist_sandbox_rediagnosis_truth (
+  rediagnosis_run_id varchar PRIMARY KEY
+    REFERENCES public.specialist_sandbox_rediagnosis_runs(id) ON DELETE CASCADE,
+  canonical_probe_history jsonb NOT NULL DEFAULT '[]'::jsonb,
+  canonical_decision jsonb,
+  recent_outcome_keys jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE private.specialist_sandbox_rediagnosis_truth ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE private.specialist_sandbox_rediagnosis_truth FROM PUBLIC, anon, authenticated;
+
+CREATE TABLE IF NOT EXISTS public.specialist_sandbox_rediagnosis_turns (
+  id varchar PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  rediagnosis_run_id varchar NOT NULL
+    REFERENCES public.specialist_sandbox_rediagnosis_runs(id) ON DELETE CASCADE,
+  trajectory_id varchar NOT NULL REFERENCES public.specialist_sandbox_trajectories(id) ON DELETE CASCADE,
+  tutor_assignment_id varchar NOT NULL REFERENCES public.tutor_assignments(id) ON DELETE CASCADE,
+  tutor_id varchar NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  sequence_number integer NOT NULL CHECK (sequence_number > 0),
+  probe_id varchar NOT NULL,
+  turn_form_id varchar NOT NULL UNIQUE,
+  student_behavior text NOT NULL,
+  specialist_submission jsonb NOT NULL,
+  condition_conformed boolean NOT NULL,
+  total_observations integer NOT NULL CHECK (total_observations > 0),
+  matching_observations integer NOT NULL CHECK (matching_observations >= 0),
+  observation_exact boolean NOT NULL,
+  authority_aligned boolean NOT NULL,
+  completed_at timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (rediagnosis_run_id, sequence_number)
+);
+ALTER TABLE public.specialist_sandbox_rediagnosis_turns ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.specialist_sandbox_rediagnosis_turns FROM PUBLIC, anon, authenticated;
+
+CREATE TABLE IF NOT EXISTS private.specialist_sandbox_rediagnosis_turn_truth (
+  rediagnosis_turn_id varchar PRIMARY KEY
+    REFERENCES public.specialist_sandbox_rediagnosis_turns(id) ON DELETE CASCADE,
+  outcome_ref varchar NOT NULL,
+  outcome_key varchar NOT NULL,
+  outcome_version integer NOT NULL,
+  canonical_observations jsonb NOT NULL,
+  trajectory_class varchar NOT NULL,
+  simulated_elapsed_seconds numeric NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE private.specialist_sandbox_rediagnosis_turn_truth ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE private.specialist_sandbox_rediagnosis_turn_truth FROM PUBLIC, anon, authenticated;
+
+COMMENT ON TABLE private.specialist_sandbox_diagnosis_outcomes IS
+'Private targeted re-diagnosis outcome matrix. Canonical diagnosis behavior truth must never be projected with its answer record.';
+
+COMMENT ON TABLE private.specialist_sandbox_rediagnosis_truth IS
+'Private canonical evidence-complete diagnosis history for a Sandbox targeted re-diagnosis run.';
+
 COMMENT ON TABLE private.specialist_sandbox_rep_outcomes IS
 'Private phase/set/rep Outcome Matrix. Canonical student behaviour truth must never be projected with its answer record.';
 
