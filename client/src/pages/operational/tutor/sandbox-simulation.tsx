@@ -112,7 +112,6 @@ type EnvironmentForm = {
   rediagnosisRunId?: string;
   sequenceNumber?: number;
   turnFormId?: string;
-  decisionReason?: string;
   reason?: string;
   probe?: {
     probeId: string;
@@ -212,7 +211,6 @@ type DiagnosisResult = {
   authorityAligned: boolean;
   diagnosisComplete: boolean;
   blocked: boolean;
-  canonicalPlacement: null | { phase: string; stability: string };
   specialistPlacement: null | { phase: string | null; stability: string | null };
   readiness: Readiness;
 };
