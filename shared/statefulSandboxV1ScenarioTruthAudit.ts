@@ -3,6 +3,7 @@ import type { TrainingDimensionId } from "./trainingEvidenceContract";
 import type { TrainingEvidenceStatus } from "./trainingEvidenceCapture";
 import type { TrainingDecisionEvidenceClass } from "./trainingObservationContractV2";
 import type { ResponseEvidenceClass } from "./responseEvidenceModel";
+import { TRAINING_OBSERVATION_MATRIX_V2 } from "./trainingObservationContractV2";
 
 export type LegacyStatefulSandboxObservationAudit = {
   evidenceClass: TrainingDecisionEvidenceClass;
@@ -72,6 +73,52 @@ export const LEGACY_STATEFUL_SANDBOX_V1_DIMENSION_ORDER: Record<
     "time.pace",
     "time.completion_integrity",
   ],
+};
+
+export const LEGACY_STATEFUL_SANDBOX_V1_NATURAL_VIGNETTES: Record<
+  TopicPhase,
+  Record<number, string>
+> = {
+  Clarity: {
+    1: "The student circles the quantities and symbols they will use, names them correctly, and says which procedure they would use. They link that choice to a feature in the problem, then begin arranging the work straight away without looking to the Specialist.",
+    2: "The student quickly points out the important pieces and chooses an appropriate procedure. Their explanation is almost complete but skips one small connection; they continue into the work without needing help.",
+    3: "The student names a couple of useful pieces but leaves out another that changes how the problem should be read. They suggest one procedure, hesitate, switch to another, and give a related explanation that never quite connects the choice to the whole problem. After rereading twice, they finally put something down.",
+    4: "The student overlooks one important term while describing the problem, yet settles on the appropriate procedure immediately. When asked why, they mention a related rule but do not connect it fully to this case, then continue working without waiting for help.",
+    5: "The student points out a few correct features but leaves an important one unnamed. They suggest one procedure, cross it out, mention another, and justify the choice with only one piece of the relationship. After a long pause and another read, they start, stop, and restart.",
+    6: "The student names features that do not determine the setup and cannot suggest a workable procedure. When asked what makes any approach fit, they have no answer and remain stuck until someone would have to tell them what to do.",
+    7: "The student identifies the important parts, chooses an appropriate procedure, and begins using it without help. Just as the Specialist asks why that procedure fits, the call drops; the explanation is never heard before the opportunity ends.",
+    8: "The student identifies the important parts of the problem. Before they answer the question about which procedure to use, an on-screen hint briefly flashes the procedure name; after that, they explain the connection in their own words and begin working without help.",
+  },
+  "Structured Execution": {
+    1: "The student writes the first operation without prompting and works through the planned sequence in order. On the comparable example they use the same sequence again, and they never turn to the Specialist for confirmation.",
+    2: "The student pauses before the first line, then chooses a sound opening move. Midway they place one step out of order, notice it, and fix it; the same small wobble appears on the comparable example, but they keep working without asking for help.",
+    3: "The student starts with the expected first move, but later skips a needed step and has to backtrack. A similar loss of order appears again on the comparable example; after doing most of the work alone, they ask once, 'Is this still right?' before continuing.",
+    4: "The student opens with an operation that does not belong there, notices the problem, and tries to recover the sequence. Several steps still arrive out of order on this attempt and the comparable one, and they ask for help more than once before enough work is done.",
+    5: "The student begins with a guess, then recovers pieces of the expected sequence after some trial and error. When the comparable example arrives, the earlier pattern is not reproduced at all and they fall back to repeated requests for help.",
+    6: "The student waits without making a first move, then writes operations that are disconnected from the known sequence. On the comparable example the same method never gets going, and they refuse to continue unless the Specialist starts carrying the steps.",
+    7: "This is the first comparable use of this method available in the current trajectory. The student starts on their own, follows the sequence through, and does not ask for help, but there is nothing earlier to compare this execution against.",
+    8: "The student begins with the expected first move. Halfway through, the problem display refreshes and changes the order of two required steps; they continue on their own after the glitch, and their work outside that changed segment matches the pattern they had used before.",
+  },
+  "Controlled Discomfort": {
+    1: "As soon as the problem becomes unfamiliar, the student stays with it and writes a sensible first move. When they hit a sticking point, they keep trying, adjust their work, and continue without asking the Specialist to take over.",
+    2: "The harder part makes the student pause and look back at the problem, but they then put down a sensible first move. They wobble again when stuck, yet recover on their own and never ask to be rescued.",
+    3: "The student pauses when the difficulty rises, then puts down a first move that is more of a guess than a plan. They stay with the problem and eventually recover some direction, then ask once whether they are on the right track before continuing.",
+    4: "At the first difficult turn the student stops completely and does nothing for several seconds. They restart on their own with a sensible first move and stay with the problem for a short stretch before losing engagement again, without asking the Specialist to solve it.",
+    5: "The student freezes as soon as the unfamiliar part appears. When they eventually try something, the first move is shaky and they soon disengage again; they ask for help repeatedly before any sustained independent work develops.",
+    6: "The student stops at the first sign of difficulty, says they cannot do it, and produces no usable first move. They do not re-enter the work and immediately ask the Specialist to take over.",
+    7: "The student meets the difficult part with a sensible first move and keeps responsibility for the work. The session is interrupted shortly afterward, before there is enough time to see what they would do if the difficulty persisted.",
+    8: "The student remains engaged as the work becomes harder. Before they make their first mathematical move, an external hint appears on screen; after that interruption they keep working, recover from a later stuck point, and do not ask the Specialist to take over.",
+  },
+  "Time Pressure Stability": {
+    1: "When the timer starts, the student begins straight away with a sound first move and keeps the work in the expected order. Their pace stays even through the attempt, and they finish within the limit without dropping the method.",
+    2: "The timer makes the student pause briefly before a sound first move. They keep the sequence intact, speed up a little near the middle without losing control, and still finish with the method intact.",
+    3: "The student hesitates briefly at the start, then gets moving with a usable first line. As the clock runs down, a couple of important steps are skipped or compressed; the pace becomes a little rushed, and the final answer is reached with some of the method missing.",
+    4: "The student loses several seconds watching the timer and begins with a messy first line before settling. Important parts of the sequence continue to slip, although the pace becomes steadier later; they reach the end only with noticeable pieces of the method missing.",
+    5: "The student starts late and the first line is disordered. As the timer drops, they rush through the work, skip steps, make avoidable errors, and reach only part of the solution before time expires.",
+    6: "The timer starts and the student freezes, then begins scribbling disconnected work in a rush. The sequence disappears, the pace becomes frantic, and the attempt ends without a usable completion.",
+    7: "The student starts promptly, keeps the expected sequence, and reaches the end with the method intact. A video freeze hides most of the middle of the timed attempt, so the rate at which they worked through that section cannot be seen.",
+    8: "The student starts promptly and works at a steady rate. Midway through the timed attempt, the problem display refreshes and changes the required step order; after the glitch they continue calmly and finish the remaining work in the new displayed order.",
+  },
 };
 
 export const LEGACY_STATEFUL_SANDBOX_V1_SCENARIO_TRUTH_AUDIT: Record<
@@ -784,22 +831,125 @@ export function renderLegacyStatefulSandboxV1StudentBehavior(input: {
   repNumber: number;
   repCount: number;
 }): string | null {
-  const audit = getLegacyStatefulSandboxV1ScenarioTruthAudit(input);
-  if (!audit) return null;
-  const dimensions = LEGACY_STATEFUL_SANDBOX_V1_DIMENSION_ORDER[input.phase];
-  const sentences = dimensions.map((dimensionId) => {
-    const observation = audit.observations[dimensionId];
-    if (!observation) {
-      throw new Error(
-        `Sandbox V1 scenario-truth audit is missing ${input.phase} / ${input.outcomeKey} / ${dimensionId}.`,
-      );
-    }
-    return observation.behavior;
-  });
+  const patternNumber = legacyStatefulSandboxV1PatternNumber(input.outcomeKey);
+  const vignette =
+    LEGACY_STATEFUL_SANDBOX_V1_NATURAL_VIGNETTES[input.phase]?.[
+      patternNumber
+    ] || null;
+  if (!vignette) return null;
   return [
-    ...sentences,
+    vignette,
     `This is opportunity ${input.repNumber} of ${input.repCount} in the current set.`,
   ].join(" ");
+}
+
+const normalizeLeakageText = (value: string) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const sentenceCount = (value: string) =>
+  String(value || "")
+    .split(/[.!?]+/)
+    .map((part) => part.trim())
+    .filter(Boolean).length;
+
+const hasSharedRun = (left: string, right: string, runLength = 5) => {
+  const a = normalizeLeakageText(left).split(" ").filter(Boolean);
+  const b = normalizeLeakageText(right).split(" ").filter(Boolean);
+  if (a.length < runLength || b.length < runLength) return false;
+  const windows = new Set<string>();
+  for (let index = 0; index <= a.length - runLength; index += 1) {
+    windows.add(a.slice(index, index + runLength).join(" "));
+  }
+  for (let index = 0; index <= b.length - runLength; index += 1) {
+    if (windows.has(b.slice(index, index + runLength).join(" "))) return true;
+  }
+  return false;
+};
+
+const ANSWER_KEY_JARGON = [
+  "breakdown",
+  "conditional",
+  "near stable",
+  "near-stable",
+  "supported",
+  "decision relevant",
+  "decision-relevant",
+  "evidence class",
+  "not observed",
+  "not_observed",
+  "confounded",
+  "unreliable method",
+  "partial understanding",
+  "clear vocabulary",
+  "method recognition",
+];
+
+export function validateLegacyStatefulSandboxV1VignetteLeakage() {
+  for (const phase of Object.keys(
+    LEGACY_STATEFUL_SANDBOX_V1_NATURAL_VIGNETTES,
+  ) as TopicPhase[]) {
+    const vignettes = LEGACY_STATEFUL_SANDBOX_V1_NATURAL_VIGNETTES[phase];
+    for (let patternNumber = 1; patternNumber <= 8; patternNumber += 1) {
+      const vignette = String(vignettes[patternNumber] || "").trim();
+      if (!vignette) {
+        throw new Error(
+          `Sandbox V1 natural vignette is missing ${phase} pattern ${patternNumber}.`,
+        );
+      }
+      if (sentenceCount(vignette) > 3) {
+        throw new Error(
+          `Sandbox V1 natural vignette over-explains ${phase} pattern ${patternNumber}; use at most three mixed-behavior sentences.`,
+        );
+      }
+
+      const normalizedVignette = normalizeLeakageText(vignette);
+      for (const phrase of ANSWER_KEY_JARGON) {
+        if (normalizedVignette.includes(normalizeLeakageText(phrase))) {
+          throw new Error(
+            `Sandbox V1 natural vignette leaks evaluator language "${phrase}" in ${phase} pattern ${patternNumber}.`,
+          );
+        }
+      }
+
+      for (const dimensionId of LEGACY_STATEFUL_SANDBOX_V1_DIMENSION_ORDER[
+        phase
+      ]) {
+        const definition = TRAINING_OBSERVATION_MATRIX_V2[dimensionId];
+        for (const option of definition.options) {
+          const normalizedLabel = normalizeLeakageText(option.label);
+          const normalizedDetail = normalizeLeakageText(option.detail);
+          if (
+            normalizedLabel &&
+            normalizedVignette.includes(normalizedLabel)
+          ) {
+            throw new Error(
+              `Sandbox V1 natural vignette copies option label "${option.label}" in ${phase} pattern ${patternNumber}.`,
+            );
+          }
+          if (
+            normalizedDetail &&
+            normalizedVignette.includes(normalizedDetail)
+          ) {
+            throw new Error(
+              `Sandbox V1 natural vignette copies evaluator detail for ${dimensionId} in ${phase} pattern ${patternNumber}.`,
+            );
+          }
+          if (
+            hasSharedRun(vignette, option.label) ||
+            hasSharedRun(vignette, option.detail)
+          ) {
+            throw new Error(
+              `Sandbox V1 natural vignette too closely paraphrases ${dimensionId} evaluator text in ${phase} pattern ${patternNumber}.`,
+            );
+          }
+        }
+      }
+    }
+  }
+  return true;
 }
 
 export function validateLegacyStatefulSandboxV1ScenarioTruthAudit() {
@@ -868,3 +1018,4 @@ export function validateLegacyStatefulSandboxV1ScenarioTruthAudit() {
 }
 
 validateLegacyStatefulSandboxV1ScenarioTruthAudit();
+validateLegacyStatefulSandboxV1VignetteLeakage();
