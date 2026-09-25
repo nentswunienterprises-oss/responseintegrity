@@ -15,6 +15,7 @@ const evidenceStatusSchema = z.enum(["observed", "not_observed", "confounded"]);
 
 const repSubmissionSchema = z.object({
   tutorAssignmentId: z.string().trim().min(1),
+  studentId: z.string().trim().min(1),
   bankVersion: z.number().int().positive(),
   trajectoryId: z.string().trim().min(1),
   eventSequence: z.number().int().positive(),
@@ -51,6 +52,7 @@ const repSubmissionSchema = z.object({
 
 const rediagnosisSubmissionSchema = z.object({
   tutorAssignmentId: z.string().trim().min(1),
+  studentId: z.string().trim().min(1),
   bankVersion: z.number().int().positive(),
   trajectoryId: z.string().trim().min(1),
   rediagnosisRunId: z.string().trim().min(1),
@@ -107,17 +109,20 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
       const user = requireSpecialist(req, res);
       if (!user) return;
       const tutorAssignmentId = String(req.query.tutorAssignmentId || "").trim();
-      if (!tutorAssignmentId) {
-        return res.status(400).json({ message: "tutorAssignmentId is required." });
+      const studentId = String(req.query.studentId || "").trim();
+      if (!tutorAssignmentId || !studentId) {
+        return res.status(400).json({ message: "tutorAssignmentId and studentId are required." });
       }
       const environment = await prepareSandboxEnvironment({
         tutorAssignmentId,
         tutorId: String(user.id),
+        studentId,
       });
       if (environment.status === "targeted_rediagnosis_required") {
         const rediagnosis = await prepareSandboxRediagnosis({
           tutorAssignmentId,
           tutorId: String(user.id),
+          studentId,
         });
         return res.json({
           ...environment,
@@ -142,6 +147,7 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
       const result = await submitSandboxEnvironmentRep({
         tutorAssignmentId: payload.tutorAssignmentId,
         tutorId: String(user.id),
+        studentId: payload.studentId,
         bankVersion: payload.bankVersion,
         trajectoryId: payload.trajectoryId,
         eventSequence: payload.eventSequence,
@@ -163,6 +169,7 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
       const result = await submitSandboxRediagnosisProbe({
         tutorAssignmentId: payload.tutorAssignmentId,
         tutorId: String(user.id),
+        studentId: payload.studentId,
         bankVersion: payload.bankVersion,
         trajectoryId: payload.trajectoryId,
         rediagnosisRunId: payload.rediagnosisRunId,
@@ -185,12 +192,14 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
       const user = requireSpecialist(req, res);
       if (!user) return;
       const tutorAssignmentId = String(req.query.tutorAssignmentId || "").trim();
-      if (!tutorAssignmentId) {
-        return res.status(400).json({ message: "tutorAssignmentId is required." });
+      const studentId = String(req.query.studentId || "").trim();
+      if (!tutorAssignmentId || !studentId) {
+        return res.status(400).json({ message: "tutorAssignmentId and studentId are required." });
       }
       return res.json(await getSandboxEnvironmentHistory({
         tutorAssignmentId,
         tutorId: String(user.id),
+        studentId,
       }));
     } catch (error) {
       return sendError(res, error, "Failed to load Sandbox environment history.");

@@ -33,6 +33,7 @@ type TrajectoryRow = {
   id: string;
   tutor_assignment_id: string;
   tutor_id: string;
+  student_id: string;
   bank_key: string;
   bank_version: number;
   specialist_phase: TopicPhase;
@@ -57,6 +58,7 @@ type RediagnosisRunRow = {
   trajectory_id: string;
   tutor_assignment_id: string;
   tutor_id: string;
+  student_id: string;
   started_session_number: number;
   target_phase: TopicPhase;
   specialist_probe_history: DiagnosisProbeResult[];
@@ -107,19 +109,30 @@ const digest = (value: string) =>
 async function assertSandboxAccess(input: {
   tutorAssignmentId: string;
   tutorId: string;
+  studentId: string;
 }) {
   const result = await pool.query(
-    `SELECT id, operational_mode
-       FROM tutor_assignments
-      WHERE id = $1
-        AND tutor_id = $2
+    `SELECT ta.id,
+            ta.operational_mode,
+            COALESCE(pe.is_sandbox_account, false) AS is_sandbox_account
+       FROM tutor_assignments ta
+       JOIN students s
+         ON s.id = $3
+        AND s.tutor_id = ta.tutor_id
+       LEFT JOIN parent_enrollments pe
+         ON pe.id = s.parent_enrollment_id
+      WHERE ta.id = $1
+        AND ta.tutor_id = $2
       LIMIT 1`,
-    [input.tutorAssignmentId, input.tutorId],
+    [input.tutorAssignmentId, input.tutorId, input.studentId],
   );
   const row = result.rows[0];
-  if (!row) throw httpError(403, "Specialist assignment not found.");
+  if (!row) throw httpError(403, "Sandbox student is not assigned to this authenticated Specialist.");
   if (String(row.operational_mode || "").toLowerCase() !== "sandbox") {
     throw httpError(409, "Targeted re-diagnosis is available only in Sandbox.");
+  }
+  if (!row.is_sandbox_account) {
+    throw httpError(409, "Targeted re-diagnosis may only run against synthetic Sandbox student accounts.");
   }
 }
 
@@ -139,6 +152,7 @@ const asArray = <T>(value: unknown): T[] => {
 async function loadTrajectory(input: {
   tutorAssignmentId: string;
   tutorId: string;
+  studentId: string;
 }) {
   const result = await pool.query(
     `SELECT t.*, truth.canonical_phase, truth.canonical_stability,
@@ -149,11 +163,12 @@ async function loadTrajectory(input: {
          ON truth.trajectory_id = t.id
       WHERE t.tutor_assignment_id = $1
         AND t.tutor_id = $2
-        AND t.bank_key = $3
+        AND t.student_id = $3
+        AND t.bank_key = $4
         AND t.status = 'active'
       ORDER BY t.created_at DESC
       LIMIT 1`,
-    [input.tutorAssignmentId, input.tutorId, BANK_KEY],
+    [input.tutorAssignmentId, input.tutorId, input.studentId, BANK_KEY],
   );
   const row = result.rows[0];
   if (!row) throw httpError(409, "No active Sandbox trajectory is available.");
@@ -214,14 +229,15 @@ async function ensureRediagnosisRun(input: {
     await client.query("BEGIN");
     const created = await client.query(
       `INSERT INTO specialist_sandbox_rediagnosis_runs (
-         trajectory_id, tutor_assignment_id, tutor_id, started_session_number,
+         trajectory_id, tutor_assignment_id, tutor_id, student_id, started_session_number,
          target_phase, specialist_probe_history, status
-       ) VALUES ($1,$2,$3,$4,$5,'[]'::jsonb,'active')
+       ) VALUES ($1,$2,$3,$4,$5,$6,'[]'::jsonb,'active')
        RETURNING *`,
       [
         input.trajectory.id,
         input.trajectory.tutor_assignment_id,
         input.trajectory.tutor_id,
+        input.trajectory.student_id,
         input.trajectory.session_number,
         input.truth.canonical_targeted_rediagnosis_phase,
       ],
@@ -295,16 +311,17 @@ async function insertCapabilityEvidence(input: {
   for (const occurrence of input.occurrences) {
     await pool.query(
       `INSERT INTO specialist_sandbox_capability_evidence (
-         trajectory_id, tutor_assignment_id, tutor_id, capability_id,
+         trajectory_id, tutor_assignment_id, tutor_id, student_id, capability_id,
          evidence_class, source_type, source_id, phase, set_id, rep_number,
          sequence_number, session_number, reason,
          student_state_authoritative, evidence_scope
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,false,'sandbox')
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,false,'sandbox')
        ON CONFLICT DO NOTHING`,
       [
         input.trajectory.id,
         input.trajectory.tutor_assignment_id,
         input.trajectory.tutor_id,
+        input.trajectory.student_id,
         occurrence.layer,
         occurrence.evidenceClass,
         input.sourceType,
@@ -323,6 +340,7 @@ async function insertCapabilityEvidence(input: {
 async function plan(input: {
   tutorAssignmentId: string;
   tutorId: string;
+  studentId: string;
 }) {
   const { trajectory, truth } = await loadTrajectory(input);
   const { run, truth: diagnosisTruth } = await ensureRediagnosisRun({ trajectory, truth });
@@ -432,6 +450,7 @@ function projectProbe(probeId: DiagnosisProbeId) {
 export async function prepareSandboxRediagnosis(input: {
   tutorAssignmentId: string;
   tutorId: string;
+  studentId: string;
 }) {
   await assertSandboxAccess(input);
   const planned = await plan(input);
@@ -468,6 +487,7 @@ export async function prepareSandboxRediagnosis(input: {
 export async function submitSandboxRediagnosisProbe(input: {
   tutorAssignmentId: string;
   tutorId: string;
+  studentId: string;
   trajectoryId: string;
   rediagnosisRunId: string;
   bankVersion: number;
@@ -554,17 +574,18 @@ export async function submitSandboxRediagnosisProbe(input: {
 
   const turn = await pool.query(
     `INSERT INTO specialist_sandbox_rediagnosis_turns (
-       rediagnosis_run_id, trajectory_id, tutor_assignment_id, tutor_id,
+       rediagnosis_run_id, trajectory_id, tutor_assignment_id, tutor_id, student_id,
        sequence_number, probe_id, turn_form_id, student_behavior,
        specialist_submission, condition_conformed, total_observations,
        matching_observations, observation_exact, authority_aligned
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12,$13,$14)
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13,$14,$15)
      RETURNING id, completed_at`,
     [
       planned.run.id,
       planned.trajectory.id,
       input.tutorAssignmentId,
       input.tutorId,
+      planned.trajectory.student_id,
       planned.sequenceNumber,
       input.submission.probeId,
       input.turnFormId,
@@ -695,6 +716,7 @@ export async function submitSandboxRediagnosisProbe(input: {
 
   const history = await getSandboxEnvironmentHistory(input);
   return {
+    studentId: planned.trajectory.student_id,
     turnId,
     completedAt: turn.rows[0]?.completed_at,
     sequenceNumber: planned.sequenceNumber,
