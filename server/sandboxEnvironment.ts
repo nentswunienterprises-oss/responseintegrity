@@ -23,6 +23,7 @@ import {
   evaluateSandboxCompletedSession,
   nextSandboxContinuityState,
   parseSandboxCapabilityReadinessPolicy,
+  projectSandboxOutcomeToCurrentTrainingContract,
   selectSandboxOutcome,
   validateSandboxOutcomeDefinition,
   type SandboxCapabilityLayer,
@@ -37,6 +38,22 @@ import { trainingRawObservationRequiresPrerequisiteSentinel } from "@shared/trai
 import type { TopicPhase, TopicStability } from "@shared/topicConditioningEngine";
 
 export const DEFAULT_SANDBOX_ENVIRONMENT_BANK_KEY = "sandbox_stateful_environment";
+
+const SANDBOX_BANK_TRAINING_SCHEMA_VERSION: Record<number, number> = {
+  1: 1,
+};
+
+const trainingSchemaVersionForSandboxBank = (bankVersion: number) => {
+  const schemaVersion = SANDBOX_BANK_TRAINING_SCHEMA_VERSION[bankVersion];
+  if (!schemaVersion) {
+    throw httpError(
+      503,
+      `Sandbox bank v${bankVersion} has no declared Training observation schema authority.`,
+    );
+  }
+  return schemaVersion;
+};
+
 
 type SandboxEnvironmentBank = {
   bankKey: string;
@@ -504,10 +521,17 @@ async function loadRepOutcomes(input: {
     );
   }
 
+  const sourceTrainingSchemaVersion =
+    trainingSchemaVersionForSandboxBank(input.bank.bankVersion);
+
   return result.rows.map((row) => {
-    const definition = (
+    const storedDefinition = (
       typeof row.definition === "string" ? JSON.parse(row.definition) : row.definition
     ) as SandboxOutcomeDefinition;
+    const definition = projectSandboxOutcomeToCurrentTrainingContract(
+      storedDefinition,
+      sourceTrainingSchemaVersion,
+    );
     validateSandboxOutcomeDefinition(definition);
     return {
       publicRef: String(row.public_ref),

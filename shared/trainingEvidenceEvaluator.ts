@@ -15,6 +15,10 @@ import {
   type TrainingObservedStability,
 } from "./trainingEvidenceContract";
 import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
+import {
+  getTrainingObservationDefinitionV2,
+  TRAINING_DECISION_EVIDENCE_CLASSES,
+} from "./trainingObservationContractV2";
 import { resolveResponseEvidenceDimension } from "./responseEvidenceModel";
 import {
   getTrainingPrerequisiteSentinelDefinition,
@@ -249,7 +253,12 @@ export const trainingEvidenceClassForRawBehavior = (
   dimensionId: TrainingDimensionId,
   rawOption: string,
 ): TrainingEvidenceClass | null => {
-  return RAW_BEHAVIOR_CLASS[dimensionId]?.[normalizeRaw(rawOption)] || null;
+  const normalized = normalizeRaw(rawOption);
+  const canonical = getTrainingObservationDefinitionV2(dimensionId)?.options.find(
+    (option) => normalizeRaw(option.label) === normalized,
+  );
+  if (canonical) return canonical.behaviorClass;
+  return RAW_BEHAVIOR_CLASS[dimensionId]?.[normalized] || null;
 };
 
 const TRAINING_DIMENSION_BY_FIELD_KEY: Record<string, TrainingDimensionId> = {
@@ -412,7 +421,18 @@ export const evaluateTrainingEvidence = ({
           explicitStatus: explicitEvidenceStatus,
           interventionEvent,
         });
-        const rawEvidenceClass = trainingEvidenceClassForRawBehavior(dimensionId, rawOption);
+        const submittedEvidenceClass = String(
+          rep[`${field.fieldKey}_evidence_class`] || "",
+        ).trim() as TrainingEvidenceClass;
+        const explicitDecisionClass =
+          (TRAINING_DECISION_EVIDENCE_CLASSES as readonly string[]).includes(
+            submittedEvidenceClass,
+          )
+            ? submittedEvidenceClass
+            : null;
+        const rawEvidenceClass =
+          explicitDecisionClass ||
+          trainingEvidenceClassForRawBehavior(dimensionId, rawOption);
         const evidenceClass: TrainingEvidenceClass =
           eligibility.status === "not_observed"
             ? "not_observed"

@@ -1208,7 +1208,11 @@ function IntroSessionDrillRunnerCore() {
     : ((isSessionMode ? currentTopicPhase : phase) as PhaseLabel);
   const getLiveObservationBlockForRep = (setConfig: DrillSetConfig, repIndex: number): ObservationField[] => {
     const configuredFields = getObservationBlockForRep(setConfig, repIndex);
-    const registeredSet = getDrillSchemaDefinition(evidenceModeForSubmission, displayPhase).sets.find(
+    const registeredSchema = getDrillSchemaDefinition(
+      evidenceModeForSubmission,
+      displayPhase,
+    );
+    const registeredSet = registeredSchema.sets.find(
       (candidate) => candidate.setName === setConfig.setName,
     );
     if (!registeredSet) return configuredFields;
@@ -1216,14 +1220,17 @@ function IntroSessionDrillRunnerCore() {
     return configuredFields.map((configuredField) => {
       const registeredField = getFieldDefinitionForRep(registeredSet, repIndex, configuredField.key);
       if (!registeredField?.optionLabels?.length) return configuredField;
-      const canonicalDimension =
-        evidenceModeForSubmission === "verification"
-          ? DIAGNOSIS_OBSERVATION_MATRIX[
-              registeredField.dimensionId as DiagnosisDimensionId
-            ]
-          : null;
+      const usesCanonicalResponseEvidence =
+        evidenceModeForSubmission === "verification" ||
+        (evidenceModeForSubmission === "training" &&
+          registeredSchema.schemaVersion >= 2);
+      const canonicalDimension = usesCanonicalResponseEvidence
+        ? DIAGNOSIS_OBSERVATION_MATRIX[
+            registeredField.dimensionId as DiagnosisDimensionId
+          ]
+        : null;
       const trainingOptionDetails =
-        evidenceModeForSubmission === "training"
+        evidenceModeForSubmission === "training" && !canonicalDimension
           ? Object.fromEntries(
               registeredField.optionLabels
                 .map((option) => [

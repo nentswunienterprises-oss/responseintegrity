@@ -3,12 +3,16 @@ import assert from "node:assert/strict";
 import {
   evaluateSandboxSimulation,
   projectSandboxScenarioForSpecialist,
+  projectSandboxScenarioToCurrentTrainingContract,
   type SandboxScenarioDefinition,
 } from "./sandboxSimulation";
 import {
   getDrillSchemaDefinition,
+  getDrillSchemaDefinitionByVersion,
   getEvidenceSelectionIdentity,
   getFieldDefinitionForRep,
+  getRepPurposeId,
+  resolveEvidenceSelection,
 } from "./responseIntegrityDrillRegistry";
 
 function clarityScenario(): SandboxScenarioDefinition {
@@ -48,6 +52,87 @@ function clarityScenario(): SandboxScenarioDefinition {
     })),
   };
 }
+
+test("legacy Sandbox scenario truth projects into Training V2 by evidence meaning", () => {
+  const historical = getDrillSchemaDefinitionByVersion(
+    "training",
+    "Time Pressure Stability",
+    1,
+  );
+  assert.ok(historical);
+  const sourceSet = historical!.sets.find(
+    (set) => set.setId === "time_pressure.structure_under_timer",
+  );
+  assert.ok(sourceSet);
+
+  const legacyScenario: SandboxScenarioDefinition = {
+    key: "legacy-timed-pace",
+    version: 1,
+    title: "Legacy timed pace",
+    description: "Proves V1 canonical option positions do not drift under V2.",
+    phase: "Time Pressure Stability",
+    previousStability: "Low",
+    passThresholdPercent: 100,
+    sets: historical!.sets
+      .filter((set) => !set.modelingOnly)
+      .map((set) => ({
+        setId: set.setId,
+        reps: Array.from({ length: set.reps }, (_, repIndex) => ({
+          repNumber: repIndex + 1,
+          studentBehavior: `Legacy response for ${set.setName} rep ${repIndex + 1}.`,
+          observations: Object.fromEntries(
+            set.fields.map((baseField) => {
+              const field =
+                getFieldDefinitionForRep(set, repIndex, baseField.fieldKey) ||
+                baseField;
+              const optionIndex =
+                set.setId === "time_pressure.structure_under_timer" &&
+                field.fieldKey === "paceControl"
+                  ? 0
+                  : Math.max(0, field.optionLevels.length - 1);
+              return [
+                field.fieldKey,
+                {
+                  optionId: `${getRepPurposeId(set, repIndex)}.${field.dimensionId}.option_${optionIndex + 1}`,
+                  evidenceStatus: "observed" as const,
+                },
+              ];
+            }),
+          ),
+        })),
+      })),
+  };
+
+  const projected = projectSandboxScenarioToCurrentTrainingContract(
+    legacyScenario,
+    1,
+  );
+  const current = getDrillSchemaDefinition(
+    "training",
+    "Time Pressure Stability",
+  );
+  assert.equal(current.schemaVersion, 2);
+
+  const projectedSet = projected.sets.find(
+    (set) => set.setId === "time_pressure.structure_under_timer",
+  )!;
+  const pace = projectedSet.reps[0].observations.paceControl;
+  const resolved = resolveEvidenceSelection({
+    mode: "training",
+    phase: "Time Pressure Stability",
+    setId: projectedSet.setId,
+    repIndex: 0,
+    fieldKey: "paceControl",
+    optionId: pace.optionId,
+    schemaVersion: 2,
+  });
+  assert.equal(resolved?.evidenceClass, "conditional");
+  assert.match(
+    resolved?.field.optionLabels?.[resolved.optionIndex] || "",
+    /uneven enough|cause skipping|errors|loss of control/i,
+  );
+  assert.match(pace.optionId, /\.option_2$/);
+});
 
 test("Sandbox projects student behaviour and live RI observation options without evaluator truth", () => {
   const scenario = clarityScenario();

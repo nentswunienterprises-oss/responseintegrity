@@ -61,6 +61,9 @@ function buildSubmittedSet({
         rep[`${field.fieldKey}_level`] = identity.level;
         rep[`${field.fieldKey}_option_id`] = identity.optionId;
         rep[`${field.fieldKey}_dimension_id`] = identity.dimensionId;
+        if (identity.evidenceClass) {
+          rep[`${field.fieldKey}_evidence_class`] = identity.evidenceClass;
+        }
       });
       return rep;
     }),
@@ -134,6 +137,44 @@ function buildSubmittedSetByPattern({
   });
 }
 
+function rawOptionsForEvidenceClasses({
+  phase,
+  setName,
+  repIndex,
+  classes,
+}: {
+  phase: TopicPhase;
+  setName: string;
+  repIndex: number;
+  classes: Record<string, "breakdown" | "conditional" | "near_stable" | "supported">;
+}) {
+  const schema = getDrillSchemaDefinition("training", phase);
+  const set = schema.sets.find((candidate) => candidate.setName === setName);
+  assert.ok(set, `Expected registered set ${setName}`);
+  const raw: Record<string, string> = {};
+
+  set.fields.forEach((baseField) => {
+    const field =
+      getFieldDefinitionForRep(set, repIndex, baseField.fieldKey) || baseField;
+    const evidenceClass = classes[field.fieldKey];
+    assert.ok(evidenceClass, `Missing evidence class for ${setName}.${field.fieldKey}`);
+    const optionIndex =
+      field.optionEvidenceClasses?.findIndex(
+        (candidate) => candidate === evidenceClass,
+      ) ?? -1;
+    assert.notEqual(
+      optionIndex,
+      -1,
+      `Expected ${setName}.${field.fieldKey} to expose ${evidenceClass}`,
+    );
+    const selected = field.optionLabels?.[optionIndex];
+    assert.ok(selected);
+    raw[field.fieldKey] = selected;
+  });
+
+  return raw;
+}
+
 function allPatterns(length: number) {
   const chars = ["W", "P", "S"];
   let patterns = [""];
@@ -144,29 +185,35 @@ function allPatterns(length: number) {
 }
 
 test("response snapshot keeps weak evidence visible inside a strong rep", () => {
+  const supported = {
+    startBehavior: "supported",
+    stepExecution: "supported",
+    repeatability: "supported",
+    independence: "supported",
+  } as const;
   const submittedSet = buildSubmittedSet({
     mode: "training",
     phase: "Structured Execution",
     setName: "Required Structure",
     rawByRep: [
-      {
-        startBehavior: "delayed",
-        stepExecution: "full",
-        repeatability: "mostly accurate",
-        independence: "independent",
-      },
-      {
-        startBehavior: "immediate",
-        stepExecution: "full",
-        repeatability: "accurate",
-        independence: "independent",
-      },
-      {
-        startBehavior: "immediate",
-        stepExecution: "full",
-        repeatability: "accurate",
-        independence: "independent",
-      },
+      rawOptionsForEvidenceClasses({
+        phase: "Structured Execution",
+        setName: "Required Structure",
+        repIndex: 0,
+        classes: { ...supported, startBehavior: "breakdown" },
+      }),
+      rawOptionsForEvidenceClasses({
+        phase: "Structured Execution",
+        setName: "Required Structure",
+        repIndex: 1,
+        classes: supported,
+      }),
+      rawOptionsForEvidenceClasses({
+        phase: "Structured Execution",
+        setName: "Required Structure",
+        repIndex: 2,
+        classes: supported,
+      }),
     ],
   });
 
@@ -183,35 +230,30 @@ test("response snapshot keeps weak evidence visible inside a strong rep", () => 
   const firstRep = snapshot.sets[0].reps[0];
   assert.equal(firstRep.responseLabel, "Strong response");
   assert.match(firstRep.resultText, /This rep checked whether/);
-  assert.match(firstRep.resultText, /The limiting evidence was that the student started only after delay/);
+  assert.match(firstRep.resultText, /independent execution did not begin/i);
   assert.doesNotMatch(snapshot.sets[0].resultText, /Require stated step order before solving\. Require stated step order before solving\./);
 });
 
-test("response snapshot resolves context-sensitive none from registered evidence", () => {
+
+test("response snapshot resolves canonical rescue behavior from registered evidence", () => {
+  const classes = {
+    initialResponse: "supported",
+    firstStepControl: "supported",
+    discomfortTolerance: "supported",
+    rescueDependence: "supported",
+  } as const;
   const submittedSet = buildSubmittedSet({
     mode: "training",
     phase: "Controlled Discomfort",
     setName: "Controlled Entry",
-    rawByRep: [
-      {
-        initialResponse: "controlled",
-        firstStepControl: "correct",
-        discomfortTolerance: "stable",
-        rescueDependence: "none",
-      },
-      {
-        initialResponse: "controlled",
-        firstStepControl: "correct",
-        discomfortTolerance: "stable",
-        rescueDependence: "none",
-      },
-      {
-        initialResponse: "controlled",
-        firstStepControl: "correct",
-        discomfortTolerance: "stable",
-        rescueDependence: "none",
-      },
-    ],
+    rawByRep: [0, 1, 2].map((repIndex) =>
+      rawOptionsForEvidenceClasses({
+        phase: "Controlled Discomfort",
+        setName: "Controlled Entry",
+        repIndex,
+        classes,
+      }),
+    ),
   });
 
   const snapshot = buildResponseSnapshotV1({
@@ -228,8 +270,9 @@ test("response snapshot resolves context-sensitive none from registered evidence
     (item) => item.dimensionLabel === "Rescue behavior",
   );
   assert.equal(rescueEvidence?.normalizedLevel, "clear");
-  assert.equal(rescueEvidence?.humanClause, "did not seek rescue");
+  assert.match(rescueEvidence?.humanClause || "", /retained responsibility for the attempt/i);
 });
+
 
 test("response snapshot formatter makes old stored text read naturally", () => {
   assert.equal(
@@ -252,30 +295,24 @@ test("response snapshot formatter makes old stored text read naturally", () => {
 });
 
 test("clarity identification rep text changes by rep purpose", () => {
+  const classes = {
+    vocabulary: "supported",
+    method: "supported",
+    reason: "conditional",
+    immediateApply: "supported",
+  } as const;
   const submittedSet = buildSubmittedSet({
     mode: "training",
     phase: "Clarity",
     setName: "Identification",
-    rawByRep: [
-      {
-        vocabulary: "correct",
-        method: "clear",
-        reason: "weak",
-        immediateApply: "confident",
-      },
-      {
-        vocabulary: "correct",
-        method: "clear",
-        reason: "weak",
-        immediateApply: "confident",
-      },
-      {
-        vocabulary: "correct",
-        method: "clear",
-        reason: "weak",
-        immediateApply: "confident",
-      },
-    ],
+    rawByRep: [0, 1, 2].map((repIndex) =>
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Identification",
+        repIndex,
+        classes,
+      }),
+    ),
   });
 
   const snapshot = buildResponseSnapshotV1({
@@ -289,38 +326,33 @@ test("clarity identification rep text changes by rep purpose", () => {
   });
 
   const repTexts = snapshot.sets[0].reps.map((rep) => formatSnapshotRepResult(rep));
-  assert.match(repTexts[0], /recognized the problem type and recalled the method before solving/);
-  assert.match(repTexts[0], /The remaining logged observation was that the student showed weak reason awareness/);
-  assert.match(repTexts[1], /recognition and method recall held on the second example/);
-  assert.match(repTexts[2], /recognition and method recall repeated again before active solving/);
+  assert.match(repTexts[0], /identified the important terms and selected the method before solving/);
+  assert.match(repTexts[0], /explanation contained some correct structure/i);
+  assert.match(repTexts[1], /term recognition and method selection held on the second example/);
+  assert.match(repTexts[2], /term recognition and method selection repeated again before active solving/);
   assert.equal(new Set(repTexts).size, 3);
 });
 
+
 test("observed response summary preserves limiting evidence from strong clarity reps", () => {
+  const classes = {
+    vocabulary: "supported",
+    method: "supported",
+    reason: "conditional",
+    immediateApply: "supported",
+  } as const;
   const submittedSet = buildSubmittedSet({
     mode: "training",
     phase: "Clarity",
     setName: "Light Apply",
-    rawByRep: [
-      {
-        vocabulary: "correct",
-        method: "structured",
-        reason: "weak",
-        immediateApply: "immediate",
-      },
-      {
-        vocabulary: "correct",
-        method: "structured",
-        reason: "weak",
-        immediateApply: "immediate",
-      },
-      {
-        vocabulary: "correct",
-        method: "structured",
-        reason: "weak",
-        immediateApply: "immediate",
-      },
-    ],
+    rawByRep: [0, 1, 2].map((repIndex) =>
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Light Apply",
+        repIndex,
+        classes,
+      }),
+    ),
   });
 
   const snapshot = buildResponseSnapshotV1({
@@ -333,11 +365,11 @@ test("observed response summary preserves limiting evidence from strong clarity 
     setScores: [92],
   });
 
-  assert.equal(
-    summarizeSnapshotObservedResponse(snapshot),
-    "The student showed clear recognition and method recall during the drill, while weak reason awareness was still logged across the reps.",
-  );
+  const summary = summarizeSnapshotObservedResponse(snapshot);
+  assert.match(summary || "", /clear vocabulary recognition and method selection/i);
+  assert.match(summary || "", /explanation contained some correct structure/i);
 });
+
 
 test("rep formatter strips labels from stored evidence clauses", () => {
   const text = formatSnapshotRepResult({

@@ -10,6 +10,7 @@ import {
 } from "./responseIntegrityEvidenceCorrections";
 import {
   getDrillSchemaDefinition,
+  getDrillSchemaDefinitionByVersion,
   getEvidenceSelectionIdentity,
   getFieldDefinitionForRep,
 } from "../shared/responseIntegrityDrillRegistry";
@@ -55,7 +56,22 @@ test("correction choices stay inside the retained source schema", () => {
   assert.equal(options.length, 4);
   assert.equal(options[0].optionId, row.option_id);
   assert.equal(options[0].rawOption, row.raw_option);
-  assert.equal(options[3].rawOption, "no correction needed");
+  const retainedSchema = getDrillSchemaDefinitionByVersion(
+    "training",
+    "Structured Execution",
+    row.drill_schema_version,
+  );
+  assert.ok(retainedSchema);
+  const retainedSet = retainedSchema!.sets.find(
+    (candidate) => candidate.setId === row.set_id,
+  );
+  assert.ok(retainedSet);
+  const retainedField = getFieldDefinitionForRep(
+    retainedSet!,
+    row.rep_number - 1,
+    row.field_key,
+  );
+  assert.equal(options[3].rawOption, retainedField?.optionLabels?.[3]);
 });
 
 test("first correction preserves the original and appends a traceable replacement", () => {

@@ -25,6 +25,8 @@ import {
   LiveRepStage,
   LiveSandboxStudentResponse,
   LiveSupportPanel,
+  liveObservationLabel,
+  liveObservationOptionDetails,
   liveObservationQuestion,
   liveTrainingActiveRules,
   liveTrainingInstruction,
@@ -971,11 +973,17 @@ export default function SpecialistSandboxSimulation({
                           field.dimensionId,
                           humanize(field.dimensionId),
                         )}
-                        label={humanize(field.dimensionId)}
+                        label={liveObservationLabel(
+                          field.dimensionId,
+                          humanize(field.dimensionId),
+                        )}
                         options={field.options.map((option) => ({
                           id: option.optionId,
                           label: option.label,
                         }))}
+                        optionDetails={liveObservationOptionDetails(
+                          field.dimensionId,
+                        )}
                         selected={selection?.optionId || null}
                         onSelect={(optionId) =>
                           chooseOption(field.fieldKey, optionId)

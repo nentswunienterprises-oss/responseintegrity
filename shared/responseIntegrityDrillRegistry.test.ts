@@ -14,6 +14,11 @@ import {
   type SubmittedEvidenceSet,
 } from "./responseIntegrityDrillRegistry";
 import { PHASES, type TopicPhase } from "./topicConditioningEngine";
+import {
+  TRAINING_DECISION_EVIDENCE_CLASSES,
+  TRAINING_OBSERVATION_MATRIX_V2,
+} from "./trainingObservationContractV2";
+import type { TrainingDimensionId } from "./trainingEvidenceContract";
 
 const buildValidSet = (
   mode: EvidenceDrillMode,
@@ -69,7 +74,10 @@ test("the versioned registry covers every mode and phase with complete option se
       const schema = RESPONSE_INTEGRITY_DRILL_REGISTRY[mode][phase];
       assert.equal(schema.mode, mode);
       assert.equal(schema.phase, phase);
-      assert.equal(schema.schemaVersion, mode === "verification" ? 3 : 1);
+      assert.equal(
+        schema.schemaVersion,
+        mode === "verification" ? 3 : mode === "training" ? 2 : 1,
+      );
       assert.ok(schema.definitionHash);
       assert.ok(schema.sets.length > 0);
 
@@ -95,6 +103,117 @@ test("the versioned registry covers every mode and phase with complete option se
           }
         });
       });
+    }
+  }
+});
+
+test("Training V2 exposes one honest option for every decision-relevant evidence class", () => {
+  for (const phase of PHASES) {
+    const schema = getDrillSchemaDefinition("training", phase);
+    assert.equal(schema.schemaVersion, 2);
+    for (const definition of schema.sets) {
+      if (definition.modelingOnly) continue;
+      for (const field of definition.fields) {
+        assert.deepEqual(
+          field.optionEvidenceClasses,
+          [...TRAINING_DECISION_EVIDENCE_CLASSES],
+          `${definition.setId}.${field.fieldKey} evidence-class coverage`,
+        );
+        assert.equal(field.optionLabels?.length, 4);
+        const canonical =
+          TRAINING_OBSERVATION_MATRIX_V2[
+            field.dimensionId as TrainingDimensionId
+          ];
+        assert.deepEqual(
+          field.optionLabels,
+          canonical.options.map((option) => option.label),
+          `${definition.setId}.${field.fieldKey} canonical behavior semantics`,
+        );
+      }
+    }
+  }
+});
+
+test("the same Training dimension cannot silently change meaning between sets", () => {
+  const seen = new Map<
+    string,
+    { labels: string[]; classes: string[] }
+  >();
+
+  for (const phase of PHASES) {
+    const schema = getDrillSchemaDefinition("training", phase);
+    for (const definition of schema.sets) {
+      if (definition.modelingOnly) continue;
+      for (const field of definition.fields) {
+        const current = {
+          labels: [...(field.optionLabels || [])],
+          classes: [...(field.optionEvidenceClasses || [])],
+        };
+        const previous = seen.get(field.dimensionId);
+        if (previous) {
+          assert.deepEqual(
+            current,
+            previous,
+            `${field.dimensionId} drifted inside ${definition.setId}`,
+          );
+        } else {
+          seen.set(field.dimensionId, current);
+        }
+      }
+    }
+  }
+});
+
+test("Training V1 remains historical while V2 restores partial recognition separately from hesitation", () => {
+  const historical = getDrillSchemaDefinitionByVersion(
+    "training",
+    "Clarity",
+    1,
+  );
+  const current = getDrillSchemaDefinition("training", "Clarity");
+  const historicalIdentification = historical?.sets.find(
+    (set) => set.setId === "clarity.identification",
+  );
+  const currentIdentification = current.sets.find(
+    (set) => set.setId === "clarity.identification",
+  );
+  const historicalVocabulary = historicalIdentification?.fields.find(
+    (field) => field.fieldKey === "vocabulary",
+  );
+  const currentVocabulary = currentIdentification?.fields.find(
+    (field) => field.fieldKey === "vocabulary",
+  );
+
+  assert.deepEqual(historicalVocabulary?.optionLabels, [
+    "wrong",
+    "hesitant",
+    "correct",
+  ]);
+  assert.deepEqual(currentVocabulary?.optionEvidenceClasses, [
+    "breakdown",
+    "conditional",
+    "near_stable",
+    "supported",
+  ]);
+  assert.match(currentVocabulary?.optionLabels?.[1] || "", /fragments/i);
+  assert.match(currentVocabulary?.optionLabels?.[2] || "", /imprecision/i);
+});
+
+test("Training V2 student-behavior options do not encode Specialist intervention events", () => {
+  const forbidden = /\b(prompted|specialist supplied|teaching\/full rescue|timer changed)\b/i;
+  for (const phase of PHASES) {
+    const schema = getDrillSchemaDefinition("training", phase);
+    for (const definition of schema.sets) {
+      if (definition.modelingOnly) continue;
+      for (const field of definition.fields) {
+        for (const label of field.optionLabels || []) {
+          assert.doesNotMatch(
+            label,
+            forbidden,
+            `${definition.setId}.${field.fieldKey}: ${label}`,
+          );
+        }
+      }
     }
   }
 });
@@ -128,8 +247,19 @@ test("stable option identity retains four-option semantics", () => {
 
 test("published schema versions remain explicitly addressable", () => {
   const current = getDrillSchemaDefinition("training", "Controlled Discomfort");
-  assert.equal(getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 1), current);
-  assert.equal(getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 2), null);
+  assert.equal(current.schemaVersion, 2);
+  assert.equal(
+    getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 1)?.schemaVersion,
+    1,
+  );
+  assert.equal(
+    getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 2),
+    current,
+  );
+  assert.equal(
+    getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 3),
+    null,
+  );
   assert.equal(getDrillSchemaDefinitionByVersion("verification", "Structured Execution", 1)?.schemaVersion, 1);
   assert.equal(getDrillSchemaDefinitionByVersion("verification", "Structured Execution", 2)?.schemaVersion, 2);
   assert.equal(getDrillSchemaDefinition("verification", "Structured Execution").schemaVersion, 3);
@@ -180,7 +310,7 @@ test("semantic evidence validates and is normalized from the registered definiti
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal(result.normalizedSet.constraintProfile?.supportLevel, "minimal");
-  assert.equal(result.normalizedSet.observations[0].stepExecution_level, "clear");
+  assert.equal(result.normalizedSet.observations[0].stepExecution_level, "partial");
 });
 
 test("semantic evidence rejects a clear level forged onto a weak option", () => {

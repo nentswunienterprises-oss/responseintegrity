@@ -6,6 +6,7 @@ import {
   evaluateSandboxCapabilityReadiness,
   evaluateSandboxCompletedSession,
   nextSandboxContinuityState,
+  projectSandboxOutcomeToCurrentTrainingContract,
   selectSandboxOutcome,
   validateSandboxOutcomeDefinition,
   type SandboxCapabilityOccurrence,
@@ -15,8 +16,11 @@ import {
 } from "./sandboxEnvironment";
 import {
   getDrillSchemaDefinition,
+  getDrillSchemaDefinitionByVersion,
   getEvidenceSelectionIdentity,
   getFieldDefinitionForRep,
+  getRepPurposeId,
+  resolveEvidenceSelection,
 } from "./responseIntegrityDrillRegistry";
 import type { TopicPhase } from "./topicConditioningEngine";
 
@@ -86,6 +90,174 @@ test("Outcome Matrix definition is bound to the live phase/set/rep schema", () =
 
   const broken = { ...outcome, repNumber: 99 };
   assert.throws(() => validateSandboxOutcomeDefinition(broken));
+});
+
+test("Sandbox bank V1 observations reconcile by evidence meaning into Training V2", () => {
+  const historicalSchema = getDrillSchemaDefinitionByVersion(
+    "training",
+    "Structured Execution",
+    1,
+  );
+  assert.ok(historicalSchema);
+  const historicalSet = historicalSchema!.sets.find(
+    (candidate) => candidate.setId === "structured_execution.required_structure",
+  );
+  assert.ok(historicalSet);
+
+  const historicalObservations = Object.fromEntries(
+    historicalSet!.fields.map((baseField) => {
+      const field =
+        getFieldDefinitionForRep(historicalSet!, 0, baseField.fieldKey) ||
+        baseField;
+      const optionIndex =
+        field.fieldKey === "startBehavior"
+          ? 0
+          : Math.max(0, field.optionLevels.length - 1);
+      return [
+        field.fieldKey,
+        {
+          optionId: `${getRepPurposeId(historicalSet!, 0)}.${field.dimensionId}.option_${optionIndex + 1}`,
+          evidenceStatus: "observed" as const,
+        },
+      ];
+    }),
+  );
+
+  const historicalOutcome: SandboxOutcomeDefinition = {
+    key: "structured_required_rep1_v1_projection",
+    version: 1,
+    phase: "Structured Execution",
+    setId: historicalSet!.setId,
+    repNumber: 1,
+    studentBehavior:
+      "The student delays before producing a valid first execution move.",
+    canonicalObservations: historicalObservations,
+    trajectoryClass: "conditional",
+    weight: 1,
+  };
+
+  const projected = projectSandboxOutcomeToCurrentTrainingContract(
+    historicalOutcome,
+    1,
+  );
+  assert.doesNotThrow(() => validateSandboxOutcomeDefinition(projected));
+
+  const current = getDrillSchemaDefinition("training", "Structured Execution");
+  assert.equal(current.schemaVersion, 2);
+  const projectedStart = projected.canonicalObservations.startBehavior;
+  const resolved = resolveEvidenceSelection({
+    mode: "training",
+    phase: "Structured Execution",
+    setId: historicalSet!.setId,
+    repIndex: 0,
+    fieldKey: "startBehavior",
+    optionId: projectedStart.optionId,
+    schemaVersion: 2,
+  });
+  assert.equal(resolved?.evidenceClass, "conditional");
+  assert.match(
+    resolved?.field.optionLabels?.[resolved.optionIndex] || "",
+    /guessing|disordered/i,
+  );
+  assert.match(projectedStart.optionId, /\.option_2$/);
+});
+
+test("Stateful Sandbox V1 Clarity patterns are re-audited instead of blindly preserving drifted option classes", () => {
+  const historical = getDrillSchemaDefinitionByVersion("training", "Clarity", 1);
+  assert.ok(historical);
+  const set = historical!.sets.find(
+    (candidate) => candidate.setId === "clarity.identification",
+  );
+  assert.ok(set);
+
+  const historicalObservation = (
+    fieldKey: string,
+    optionIndex: number,
+  ) => {
+    const field = getFieldDefinitionForRep(set!, 0, fieldKey);
+    assert.ok(field);
+    return {
+      optionId: `${getRepPurposeId(set!, 0)}.${field!.dimensionId}.option_${optionIndex + 1}`,
+      evidenceStatus: "observed" as const,
+    };
+  };
+
+  const briefHesitation: SandboxOutcomeDefinition = {
+    key: "clarity.identification.rep_1.pattern_2",
+    version: 1,
+    phase: "Clarity",
+    setId: set!.setId,
+    repNumber: 1,
+    studentBehavior:
+      "The student recognises the problem and chooses the right method, but pauses and hedges briefly while explaining it before settling and engaging independently.",
+    canonicalObservations: {
+      vocabulary: historicalObservation("vocabulary", 1),
+      method: historicalObservation("method", 2),
+      reason: historicalObservation("reason", 1),
+      immediateApply: historicalObservation("immediateApply", 2),
+    },
+    trajectoryClass: "near_stable",
+    weight: 1,
+  };
+
+  const projectedHesitation = projectSandboxOutcomeToCurrentTrainingContract(
+    briefHesitation,
+    1,
+  );
+  const current = getDrillSchemaDefinition("training", "Clarity");
+  const resolveProjected = (
+    definition: SandboxOutcomeDefinition,
+    fieldKey: string,
+  ) =>
+    resolveEvidenceSelection({
+      mode: "training",
+      phase: "Clarity",
+      setId: definition.setId,
+      repIndex: 0,
+      fieldKey,
+      optionId: definition.canonicalObservations[fieldKey].optionId,
+      schemaVersion: current.schemaVersion,
+    });
+
+  assert.equal(
+    resolveProjected(projectedHesitation, "vocabulary")?.evidenceClass,
+    "supported",
+  );
+  assert.equal(
+    resolveProjected(projectedHesitation, "reason")?.evidenceClass,
+    "near_stable",
+  );
+
+  const partialUnderstanding: SandboxOutcomeDefinition = {
+    ...briefHesitation,
+    key: "clarity.identification.rep_1.pattern_3",
+    studentBehavior:
+      "The student identifies some of what matters, but the method choice and explanation remain uncertain. They can begin only after working through visible doubt.",
+    canonicalObservations: {
+      vocabulary: historicalObservation("vocabulary", 1),
+      method: historicalObservation("method", 1),
+      reason: historicalObservation("reason", 2),
+      immediateApply: historicalObservation("immediateApply", 1),
+    },
+    trajectoryClass: "conditional",
+  };
+
+  const projectedPartial = projectSandboxOutcomeToCurrentTrainingContract(
+    partialUnderstanding,
+    1,
+  );
+  for (const fieldKey of [
+    "vocabulary",
+    "method",
+    "reason",
+    "immediateApply",
+  ]) {
+    assert.equal(
+      resolveProjected(projectedPartial, fieldKey)?.evidenceClass,
+      "conditional",
+      `${fieldKey} must preserve the observable partial/uncertain behavior`,
+    );
+  }
 });
 
 test("constrained shuffle is deterministic and can target the earliest unsupported capability", () => {
