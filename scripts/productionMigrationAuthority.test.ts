@@ -22,7 +22,7 @@ test("production target guard accepts only a URL carrying The Hub project ref", 
 
   assert.doesNotThrow(() =>
     assertProductionDatabaseTarget(
-      "postgresql://postgres.yzcnavucvwgmulcxgxvw:secret@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=require",
+      "postgresql://postgres.yzcnavucvwgmulcxgxvw:secret@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
       authority,
     ),
   );
@@ -30,7 +30,7 @@ test("production target guard accepts only a URL carrying The Hub project ref", 
   assert.throws(
     () =>
       assertProductionDatabaseTarget(
-        "postgresql://postgres.jftlxeacphvbnhbsbpxc:secret@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=require",
+        "postgresql://postgres.jftlxeacphvbnhbsbpxc:secret@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=verify-full",
         authority,
       ),
     /Refusing to connect to a different database/,
@@ -48,5 +48,20 @@ test("production promotion workflow is manual-only", () => {
   assert.doesNotMatch(workflow, /^\s+pull_request:/m);
   assert.match(workflow, /environment: production-db/);
   assert.match(workflow, /RI_PRODUCTION_DATABASE_URL/);
+  assert.match(workflow, /RI_PRODUCTION_DB_CA_CERT/);
+  assert.match(workflow, /NODE_EXTRA_CA_CERTS/);
+  assert.doesNotMatch(workflow, /NODE_TLS_REJECT_UNAUTHORIZED/);
   assert.match(workflow, /RI_PRODUCTION_MIGRATION_CONFIRMATION/);
+});
+
+test("production target guard rejects weaker TLS modes", () => {
+  const authority = loadProductionMigrationAuthority();
+  assert.throws(
+    () =>
+      assertProductionDatabaseTarget(
+        "postgresql://postgres.yzcnavucvwgmulcxgxvw:secret@aws-1-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require",
+        authority,
+      ),
+    /sslmode=verify-full/,
+  );
 });

@@ -51,6 +51,19 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: Configure Supabase database CA trust
+        shell: bash
+        env:
+          RI_PRODUCTION_DB_CA_CERT: ${{ secrets.RI_PRODUCTION_DB_CA_CERT }}
+        run: |
+          if [ -z "$RI_PRODUCTION_DB_CA_CERT" ]; then
+            echo "::error::RI_PRODUCTION_DB_CA_CERT is missing from the production-db environment."
+            exit 1
+          fi
+          CA_PATH="$RUNNER_TEMP/supabase-db-ca.crt"
+          printf '%s\n' "$RI_PRODUCTION_DB_CA_CERT" > "$CA_PATH"
+          chmod 600 "$CA_PATH"
+          echo "NODE_EXTRA_CA_CERTS=$CA_PATH" >> "$GITHUB_ENV"
       - name: Show production migration plan
         run: npm run db:authority:plan
       - name: Apply approved production migrations

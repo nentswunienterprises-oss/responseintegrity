@@ -42,8 +42,11 @@ On the first approved `apply`, the runner creates the private RI ledger and reco
 
 Create a GitHub environment named `production-db` and configure:
 
-- environment secret `RI_PRODUCTION_DATABASE_URL` containing The Hub Postgres URL, including `sslmode=require`;
+- environment secret `RI_PRODUCTION_DATABASE_URL` containing The Hub Postgres URL with `sslmode=verify-full`;
+- environment secret `RI_PRODUCTION_DB_CA_CERT` containing the full PEM text of The Hub database CA certificate downloaded from Supabase **Database Settings → SSL Configuration**;
 - required reviewer protection for production promotion.
+
+The workflow writes the CA certificate to the ephemeral GitHub runner and exposes it only through `NODE_EXTRA_CA_CERTS`. It never disables TLS certificate verification.
 
 The workflow intentionally fails if the secret is absent.
 

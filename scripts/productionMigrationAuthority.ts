@@ -199,6 +199,24 @@ export function assertProductionDatabaseTarget(
         ". Refusing to connect to a different database.",
     );
   }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    fail("RI_PRODUCTION_DATABASE_URL is not a valid Postgres URL.");
+  }
+
+  if (!["postgres:", "postgresql:"].includes(parsed.protocol)) {
+    fail("RI_PRODUCTION_DATABASE_URL must use postgres:// or postgresql://.");
+  }
+
+  if (parsed.searchParams.get("sslmode") !== "verify-full") {
+    fail(
+      "RI_PRODUCTION_DATABASE_URL must use sslmode=verify-full. " +
+        "The GitHub runner must also trust the Supabase database CA.",
+    );
+  }
 }
 
 function migrationRecord(
