@@ -82,7 +82,11 @@ type Readiness = {
 type SandboxField = {
   fieldKey: string;
   dimensionId: string;
-  options: Array<{ optionId: string; label: string }>;
+  options: Array<{
+    optionId: string;
+    label: string;
+    requiresPrerequisiteSentinel?: boolean;
+  }>;
 };
 
 type InterventionOption = {
@@ -145,6 +149,23 @@ type EnvironmentForm = {
     studentBehavior: string;
     fields: SandboxField[];
     interventionOptions: InterventionOption[];
+    prerequisiteSentinel: null | {
+      targetPhase: string;
+      evidenceQuestion: string;
+      specialistInstruction: string;
+      options: Array<{
+        id: "held" | "contradicted" | "not_observed" | "confounded";
+        label: string;
+      }>;
+    };
+    inheritedRescueSignal: null | {
+      evidenceQuestion: string;
+      options: Array<{
+        id: "none" | "isolated" | "repeated" | "not_observed" | "confounded";
+        label: string;
+        detail: string;
+      }>;
+    };
   };
   readiness: Readiness;
   studentStateAuthoritative: false;
@@ -261,6 +282,12 @@ export default function SpecialistSandboxSimulation() {
     useState<DiagnosisSupportEvent>("none");
   const [lastDiagnosisResult, setLastDiagnosisResult] =
     useState<DiagnosisResult | null>(null);
+  const [prerequisiteSentinel, setPrerequisiteSentinel] = useState<
+    "held" | "contradicted" | "not_observed" | "confounded" | null
+  >(null);
+  const [inheritedRescueSignal, setInheritedRescueSignal] = useState<
+    "none" | "isolated" | "repeated" | "not_observed" | "confounded" | null
+  >(null);
 
   const podQuery = useQuery<PodData>({
     queryKey: ["/api/tutor/pod"],
@@ -311,10 +338,26 @@ export default function SpecialistSandboxSimulation() {
     return rep.fields.filter((field) => selections[field.fieldKey]?.optionId).length;
   }, [rep, selections]);
 
+  const requiresPrerequisiteSentinel = Boolean(
+    rep?.prerequisiteSentinel &&
+      rep.fields.some((field) => {
+        const selected = selections[field.fieldKey]?.optionId;
+        if (!selected) return false;
+        return field.options.some(
+          (option) =>
+            option.optionId === selected && option.requiresPrerequisiteSentinel,
+        );
+      }),
+  );
+
+  const requiresInheritedRescueSignal = Boolean(rep?.inheritedRescueSignal);
+
   const allComplete =
     Boolean(rep) &&
     completedObservationCount === (rep?.fields.length || 0) &&
-    (rep?.fields.length || 0) > 0;
+    (rep?.fields.length || 0) > 0 &&
+    (!requiresPrerequisiteSentinel || Boolean(prerequisiteSentinel)) &&
+    (!requiresInheritedRescueSignal || Boolean(inheritedRescueSignal));
 
   const diagnosisObservationCount = useMemo(() => {
     if (!diagnosisProbe) return 0;
@@ -421,6 +464,12 @@ export default function SpecialistSandboxSimulation() {
           eventFormId: form.eventFormId,
           submission: {
             interventionEvent,
+            ...(requiresPrerequisiteSentinel && prerequisiteSentinel
+              ? { prerequisiteSentinel }
+              : {}),
+            ...(requiresInheritedRescueSignal && inheritedRescueSignal
+              ? { inheritedRescueSignal }
+              : {}),
             observations: Object.fromEntries(
               rep.fields.map((field) => [
                 field.fieldKey,
@@ -439,6 +488,8 @@ export default function SpecialistSandboxSimulation() {
       setLastResult(result);
       setSelections({});
       setInterventionEvent("none");
+      setPrerequisiteSentinel(null);
+      setInheritedRescueSignal(null);
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["sandbox-environment", tutorAssignmentId],
@@ -912,6 +963,67 @@ export default function SpecialistSandboxSimulation() {
                 </div>
               </CardContent>
             </Card>
+
+            {requiresPrerequisiteSentinel && rep.prerequisiteSentinel && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Earlier-layer verification</CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {rep.prerequisiteSentinel.evidenceQuestion}
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="rounded-lg border p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      DO THIS NOW
+                    </p>
+                    <p className="mt-2 text-sm">
+                      {rep.prerequisiteSentinel.specialistInstruction}
+                    </p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {rep.prerequisiteSentinel.options.map((option) => (
+                      <Button
+                        key={option.id}
+                        type="button"
+                        variant={prerequisiteSentinel === option.id ? "default" : "outline"}
+                        className="h-auto justify-start whitespace-normal py-3 text-left"
+                        onClick={() => setPrerequisiteSentinel(option.id)}
+                      >
+                        {option.label}
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {rep.inheritedRescueSignal && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Rescue-seeking evidence</CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {rep.inheritedRescueSignal.evidenceQuestion}
+                  </p>
+                </CardHeader>
+                <CardContent className="grid gap-2 sm:grid-cols-2">
+                  {rep.inheritedRescueSignal.options.map((option) => (
+                    <Button
+                      key={option.id}
+                      type="button"
+                      variant={inheritedRescueSignal === option.id ? "default" : "outline"}
+                      className="h-auto justify-start whitespace-normal py-3 text-left"
+                      onClick={() => setInheritedRescueSignal(option.id)}
+                    >
+                      <span>
+                        <span className="block font-medium">{option.label}</span>
+                        <span className="mt-1 block text-xs opacity-80">{option.detail}</span>
+                      </span>
+                    </Button>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
 
             <Button
               className="w-full"
