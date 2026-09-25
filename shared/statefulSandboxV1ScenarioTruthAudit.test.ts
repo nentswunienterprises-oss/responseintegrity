@@ -17,9 +17,11 @@ import {
 } from "./responseIntegrityDrillRegistry";
 import {
   LEGACY_STATEFUL_SANDBOX_V1_DIMENSION_ORDER,
+  LEGACY_STATEFUL_SANDBOX_V1_NATURAL_VIGNETTES,
   getLegacyStatefulSandboxV1ScenarioTruthAudit,
   renderLegacyStatefulSandboxV1StudentBehavior,
   validateLegacyStatefulSandboxV1ScenarioTruthAudit,
+  validateLegacyStatefulSandboxV1VignetteLeakage,
 } from "./statefulSandboxV1ScenarioTruthAudit";
 import type { TopicPhase } from "./topicConditioningEngine";
 
@@ -79,11 +81,18 @@ function historicalOutcome(
   };
 }
 
-test("the audited V1 scenario truth matrix is complete", () => {
+test("the audited V1 scenario truth matrix and natural-vignette layer are complete", () => {
   assert.equal(validateLegacyStatefulSandboxV1ScenarioTruthAudit(), true);
+  assert.equal(validateLegacyStatefulSandboxV1VignetteLeakage(), true);
+  for (const phase of phases) {
+    assert.equal(
+      Object.keys(LEGACY_STATEFUL_SANDBOX_V1_NATURAL_VIGNETTES[phase]).length,
+      8,
+    );
+  }
 });
 
-test("all 264 Stateful Sandbox V1 outcomes expose every canonical observation in the visible scenario", () => {
+test("all 264 Stateful Sandbox V1 outcomes preserve audited truth while rendering natural non-answer-key vignettes", () => {
   let projectedCount = 0;
 
   for (const phase of phases) {
@@ -135,10 +144,11 @@ test("all 264 Stateful Sandbox V1 outcomes expose every canonical observation in
           ]) {
             const auditedObservation = audit!.observations[dimensionId];
             assert.ok(auditedObservation);
-            assert.ok(
+            assert.equal(
               projected.studentBehavior.includes(auditedObservation!.behavior),
+              false,
               historicalDefinition.key +
-                " must visibly expose truth for " +
+                " must not copy hidden evaluator prose for " +
                 dimensionId,
             );
 
@@ -212,11 +222,11 @@ test("Clarity pattern 5 records partial reason evidence rather than an invented 
   assert.equal(projected.emitsContinuityTags?.includes("recent_breakdown"), false);
   assert.match(
     projected.studentBehavior,
-    /some relevant reasoning, but the logic remains incomplete and unreliable/i,
+    /justify the choice with only one piece of the relationship/i,
   );
   assert.doesNotMatch(
     projected.studentBehavior,
-    /cannot give a relevant reason/i,
+    /conditional|breakdown|incomplete and unreliable|decision-relevant/i,
   );
 });
 
