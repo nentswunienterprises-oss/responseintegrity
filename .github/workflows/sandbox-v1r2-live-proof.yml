@@ -57,11 +57,18 @@ jobs:
             ...(bypass ? { extraHTTPHeaders: { "x-vercel-protection-bypass": bypass } } : {}),
           });
           const page = await context.newPage();
+          const share = new URL(shareUrl);
+          const shareToken = share.searchParams.get("_vercel_share");
+          const sharedUrl = (path) => {
+            const url = new URL(baseUrl + path);
+            if (shareToken) url.searchParams.set("_vercel_share", shareToken);
+            return url.toString();
+          };
           const pageErrors = [];
           page.on("pageerror", (error) => pageErrors.push(String(error?.stack || error)));
 
           await page.goto(shareUrl, { waitUntil: "domcontentloaded", timeout: 90000 });
-          const proof = await page.request.get(baseUrl + "/api/proof-environment", { timeout: 60000 });
+          const proof = await page.request.get(sharedUrl("/api/proof-environment"), { timeout: 60000 });
           const proofText = await proof.text();
           assert.ok(proof.ok(), "Proof environment failed: " + proof.status() + " " + proofText);
           const proofBody = JSON.parse(proofText);
@@ -69,7 +76,7 @@ jobs:
           assert.equal(proofBody.supabaseProjectRef, "jftlxeacphvbnhbsbpxc");
           assert.equal(proofBody.commitSha, expectedCommit);
 
-          const signin = await page.request.post(baseUrl + "/api/auth/signin", {
+          const signin = await page.request.post(sharedUrl("/api/auth/signin"), {
             data: { email, password, expectedRole: "tutor" },
             timeout: 60000,
           });
@@ -80,8 +87,8 @@ jobs:
 
           async function getGraduation() {
             const response = await page.request.get(
-              baseUrl + "/api/tutor/sandbox-simulation/graduation?tutorAssignmentId=" +
-                encodeURIComponent(tutorAssignmentId),
+              sharedUrl("/api/tutor/sandbox-simulation/graduation?tutorAssignmentId=" +
+                encodeURIComponent(tutorAssignmentId)),
               { timeout: 60000 },
             );
             const text = await response.text();
@@ -105,8 +112,8 @@ jobs:
 
           async function loadForm() {
             const response = await page.request.get(
-              baseUrl + "/api/tutor/sandbox-simulation?tutorAssignmentId=" +
-                encodeURIComponent(tutorAssignmentId),
+              sharedUrl("/api/tutor/sandbox-simulation?tutorAssignmentId=" +
+                encodeURIComponent(tutorAssignmentId)),
               { timeout: 60000 },
             );
             const text = await response.text();
@@ -150,7 +157,7 @@ jobs:
           };
 
           const submit = await page.request.post(
-            baseUrl + "/api/tutor/sandbox-simulation/attempt",
+            sharedUrl("/api/tutor/sandbox-simulation/attempt"),
             {
               data: {
                 tutorAssignmentId,
@@ -183,10 +190,7 @@ jobs:
           assert.notEqual(second.scenarioFormId, first.scenarioFormId);
           assert.notEqual(second.scenario.key, first.scenario.key);
 
-          const share = new URL(shareUrl);
-          const uiUrl = new URL(baseUrl + "/operational/specialist/sandbox");
-          const shareToken = share.searchParams.get("_vercel_share");
-          if (shareToken) uiUrl.searchParams.set("_vercel_share", shareToken);
+          const uiUrl = new URL(sharedUrl("/operational/specialist/sandbox"));
           await page.goto(uiUrl.toString(), {
             waitUntil: "domcontentloaded",
             timeout: 90000,
