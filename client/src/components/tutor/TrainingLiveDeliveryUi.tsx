@@ -403,6 +403,7 @@ export function LiveObservationField({
   showEvidenceExceptions,
   evidenceStatus,
   onEvidenceStatus,
+  allowEvidenceExceptionWithoutOption = false,
 }: {
   question: string;
   label?: string;
@@ -415,6 +416,7 @@ export function LiveObservationField({
   onEvidenceStatus: (
     status: "observed" | "not_observed" | "confounded",
   ) => void;
+  allowEvidenceExceptionWithoutOption?: boolean;
 }) {
   const statuses: Array<[
     "observed" | "not_observed" | "confounded",
@@ -464,22 +466,32 @@ export function LiveObservationField({
           <span className="mr-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Evidence validity
           </span>
-          {statuses.map(([status, statusLabel]) => (
-            <button
-              type="button"
-              key={status}
-              disabled={!selected}
-              onClick={() => onEvidenceStatus(status)}
-              className={[
-                "rounded-md border px-2 py-1 text-[11px] disabled:opacity-50",
-                evidenceStatus === status
-                  ? "border-primary bg-primary/5 font-medium"
-                  : "border-primary/15 text-muted-foreground hover:bg-primary/5",
-              ].join(" ")}
-            >
-              {statusLabel}
-            </button>
-          ))}
+          {statuses.map(([status, statusLabel]) => {
+            const needsBehaviorSelection =
+              status === "observed" || !allowEvidenceExceptionWithoutOption;
+            return (
+              <button
+                type="button"
+                key={status}
+                disabled={needsBehaviorSelection && !selected}
+                onClick={() => onEvidenceStatus(status)}
+                className={[
+                  "rounded-md border px-2 py-1 text-[11px] disabled:opacity-50",
+                  evidenceStatus === status
+                    ? "border-primary bg-primary/5 font-medium"
+                    : "border-primary/15 text-muted-foreground hover:bg-primary/5",
+                ].join(" ")}
+              >
+                {statusLabel}
+              </button>
+            );
+          })}
+          {allowEvidenceExceptionWithoutOption &&
+            evidenceStatus !== "observed" && (
+              <span className="text-[11px] text-muted-foreground">
+                No behavior option is required when the evidence itself was not interpretable.
+              </span>
+            )}
         </div>
       )}
     </div>

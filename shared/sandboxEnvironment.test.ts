@@ -23,6 +23,9 @@ import {
   resolveEvidenceSelection,
 } from "./responseIntegrityDrillRegistry";
 import type { TopicPhase } from "./topicConditioningEngine";
+import {
+  getLegacyStatefulSandboxV1ScenarioTruthAudit,
+} from "./statefulSandboxV1ScenarioTruthAudit";
 
 const phase: TopicPhase = "Clarity";
 
@@ -124,7 +127,7 @@ test("Sandbox bank V1 observations reconcile by evidence meaning into Training V
   );
 
   const historicalOutcome: SandboxOutcomeDefinition = {
-    key: "structured_required_rep1_v1_projection",
+    key: "structured_execution.required_structure.rep_1.pattern_4",
     version: 1,
     phase: "Structured Execution",
     setId: historicalSet!.setId,
