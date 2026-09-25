@@ -58,7 +58,7 @@ test("correction choices stay inside the retained source schema", () => {
   assert.equal(options[0].rawOption, row.raw_option);
   const retainedSchema = getDrillSchemaDefinitionByVersion(
     "training",
-    row.phase,
+    "Structured Execution",
     row.drill_schema_version,
   );
   assert.ok(retainedSchema);
