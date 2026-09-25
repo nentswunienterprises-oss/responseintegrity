@@ -393,6 +393,29 @@ test("reason-only differences do not count as a state divergence", () => {
   assert.equal(comparison.evidence?.transitionReason, "high maintenance entry");
 });
 
+test("Clarity can enter High Maintenance without inventing Immediate Apply evidence in Identification", () => {
+  const sets = buildTrainingSets({ phase: "Clarity" });
+  const identification = sets.find(
+    (set) => set.setId === "clarity.identification",
+  );
+  assert.ok(identification);
+  assert.equal(
+    identification!.observations.some((rep) => "immediateApply" in rep),
+    false,
+  );
+
+  const result = evaluate("Clarity", "High", sets);
+  const immediateApply = result.dimensions.find(
+    (item) => item.dimensionId === "clarity.immediate_apply",
+  );
+
+  assert.equal(immediateApply?.validOpportunityCount, 3);
+  assert.equal(immediateApply?.supportedCount, 3);
+  assert.equal(result.observedStability, "High");
+  assert.equal(result.highMaintenanceEntryQualified, true);
+  assert.equal(result.predictedTransition.nextStability, "High Maintenance");
+});
+
 test("later clean Clarity evidence can resolve earlier conditional evidence", () => {
   const sets = buildTrainingSets({
     phase: "Clarity",
@@ -437,7 +460,6 @@ test("High Maintenance exit can use a clean recovery run inside the designated e
       if (setId === "clarity.identification") {
         if (fieldKey === "vocabulary") return 2; // mostly accurate / near-stable
         if (fieldKey === "reason") return 1; // partial reason / conditional
-        if (fieldKey === "immediateApply") return 2; // brief hesitation / near-stable
       }
       if (setId === "clarity.light_apply" && repIndex === 0) {
         if (fieldKey === "vocabulary") return 1; // fragmented / conditional
