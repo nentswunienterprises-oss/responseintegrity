@@ -1,3 +1,5 @@
+> Superseded for graduation/content authority by [Sandbox V1R3 — Stateful RI Practice Environment](./SANDBOX_V1R3_STATEFUL_ENVIRONMENT_2026-09-25.md). V1R2 remains the mechanism/proof foundation only. Its 2-scenarios-per-phase / 90% candidate rule is retired and must not be used as the permanent Sandbox graduation gate.
+
 # Sandbox V1R2 — Content and Graduation Architecture
 
 Date: 2026-09-25
