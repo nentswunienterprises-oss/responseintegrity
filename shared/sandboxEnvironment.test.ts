@@ -6,6 +6,7 @@ import {
   evaluateSandboxCapabilityReadiness,
   evaluateSandboxCompletedSession,
   nextSandboxContinuityState,
+  projectSandboxOutcomeToCurrentTrainingContract,
   selectSandboxOutcome,
   validateSandboxOutcomeDefinition,
   type SandboxCapabilityOccurrence,
@@ -15,8 +16,11 @@ import {
 } from "./sandboxEnvironment";
 import {
   getDrillSchemaDefinition,
+  getDrillSchemaDefinitionByVersion,
   getEvidenceSelectionIdentity,
   getFieldDefinitionForRep,
+  getRepPurposeId,
+  resolveEvidenceSelection,
 } from "./responseIntegrityDrillRegistry";
 import type { TopicPhase } from "./topicConditioningEngine";
 
@@ -86,6 +90,76 @@ test("Outcome Matrix definition is bound to the live phase/set/rep schema", () =
 
   const broken = { ...outcome, repNumber: 99 };
   assert.throws(() => validateSandboxOutcomeDefinition(broken));
+});
+
+test("Sandbox bank V1 observations reconcile by evidence meaning into Training V2", () => {
+  const historicalSchema = getDrillSchemaDefinitionByVersion(
+    "training",
+    "Structured Execution",
+    1,
+  );
+  assert.ok(historicalSchema);
+  const historicalSet = historicalSchema!.sets.find(
+    (candidate) => candidate.setId === "structured_execution.required_structure",
+  );
+  assert.ok(historicalSet);
+
+  const historicalObservations = Object.fromEntries(
+    historicalSet!.fields.map((baseField) => {
+      const field =
+        getFieldDefinitionForRep(historicalSet!, 0, baseField.fieldKey) ||
+        baseField;
+      const optionIndex =
+        field.fieldKey === "startBehavior"
+          ? 0
+          : Math.max(0, field.optionLevels.length - 1);
+      return [
+        field.fieldKey,
+        {
+          optionId: `${getRepPurposeId(historicalSet!, 0)}.${field.dimensionId}.option_${optionIndex + 1}`,
+          evidenceStatus: "observed" as const,
+        },
+      ];
+    }),
+  );
+
+  const historicalOutcome: SandboxOutcomeDefinition = {
+    key: "structured_required_rep1_v1_projection",
+    version: 1,
+    phase: "Structured Execution",
+    setId: historicalSet!.setId,
+    repNumber: 1,
+    studentBehavior:
+      "The student delays before producing a valid first execution move.",
+    canonicalObservations: historicalObservations,
+    trajectoryClass: "conditional",
+    weight: 1,
+  };
+
+  const projected = projectSandboxOutcomeToCurrentTrainingContract(
+    historicalOutcome,
+    1,
+  );
+  assert.doesNotThrow(() => validateSandboxOutcomeDefinition(projected));
+
+  const current = getDrillSchemaDefinition("training", "Structured Execution");
+  assert.equal(current.schemaVersion, 2);
+  const projectedStart = projected.canonicalObservations.startBehavior;
+  const resolved = resolveEvidenceSelection({
+    mode: "training",
+    phase: "Structured Execution",
+    setId: historicalSet!.setId,
+    repIndex: 0,
+    fieldKey: "startBehavior",
+    optionId: projectedStart.optionId,
+    schemaVersion: 2,
+  });
+  assert.equal(resolved?.evidenceClass, "conditional");
+  assert.match(
+    resolved?.field.optionLabels?.[resolved.optionIndex] || "",
+    /guessing|disordered/i,
+  );
+  assert.match(projectedStart.optionId, /\.option_2$/);
 });
 
 test("constrained shuffle is deterministic and can target the earliest unsupported capability", () => {
