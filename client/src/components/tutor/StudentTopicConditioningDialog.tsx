@@ -52,7 +52,10 @@ import {
   TUTOR_TRAINING_SESSION_CANCELLATION_REASONS,
   buildTrainingSessionCancellationNote,
 } from "@/lib/trainingSessionCancellation";
-import { evaluateTrainingPackageQuota } from "@shared/trainingPackageQuota";
+import {
+  evaluateTrainingPackageQuota,
+  resolveTrainingTabAvailability,
+} from "@shared/trainingPackageQuota";
 
 type TopicConditioningMap = {
   topic?: string | null;
@@ -1092,7 +1095,10 @@ export default function StudentTopicConditioningDialog({
     operationalMode,
     trainingSessionsData?.monthlyQuota || null,
   );
-  const packageQuotaBlocked = trainingPackageQuotaDecision.blocked;
+  const packageQuotaBlocked =
+    trainingPackageQuotaDecision.blocked ||
+    trainingSessionsData?.commercialState?.blocked === true ||
+    trainingSessionsData?.paymentRequired === true;
   const confirmTrainingSession = useConfirmTrainingSession(studentId);
   const respondTrainingSession = useRespondTrainingSession(studentId);
   const retryMeetSync = useRetryScheduledSessionMeetSync(studentId);
@@ -1606,6 +1612,14 @@ export default function StudentTopicConditioningDialog({
   const actionableTrainingSessions = (trainingSessionsData?.sessions || []).filter(
     (session: any) => !["completed", "cancelled", "flagged"].includes(String(session.status || "")),
   );
+  const trainingTabAvailability =
+    trainingSessionsData?.commercialState ||
+    resolveTrainingTabAvailability({
+      operationalMode,
+      paymentRequired: trainingSessionsData?.paymentRequired === true,
+      monthlyQuota: trainingSessionsData?.monthlyQuota || null,
+      actionableSessionCount: actionableTrainingSessions.length,
+    });
   const confirmedTrainingSessions = actionableTrainingSessions.filter(
     (session: any) => ["confirmed", "ready", "live"].includes(String(session.status || "")),
   );
@@ -2346,28 +2360,34 @@ export default function StudentTopicConditioningDialog({
                         </p>
                       </div>
                       <div className="text-right text-xs text-muted-foreground">
-                        {packageQuotaBlocked
-                          ? trainingPackageQuotaDecision.code === "PACKAGE_QUOTA_EXHAUSTED"
-                            ? "Start Session is locked because this family's package has no sessions remaining."
-                            : "Start Session is locked until the family's package quota can be verified."
-                          : "Start Session unlocks after the week's lesson is confirmed by both parent and Specialist."}
+                        {trainingTabAvailability.code === "PAYMENT_REQUIRED"
+                          ? "No sessions can be booked until the parent completes payment."
+                          : trainingTabAvailability.code === "RENEWAL_REQUIRED"
+                            ? "No more sessions can be booked until the parent renews/pays."
+                            : trainingTabAvailability.code === "NO_SESSIONS_BOOKED"
+                              ? "Package capacity is available, but the parent has not booked a current lesson."
+                              : packageQuotaBlocked
+                                ? "Start Session is locked until the family's package quota can be verified."
+                                : "Start Session unlocks after the week's lesson is confirmed by both parent and Specialist."}
                       </div>
                     </div>
                     <div className="rounded border border-primary/20 bg-background px-3 py-2 text-xs space-y-2">
                       <p className="font-medium text-foreground">
-                        {packageQuotaBlocked
-                          ? trainingPackageQuotaDecision.code === "PACKAGE_QUOTA_EXHAUSTED"
-                            ? "Package exhausted — awaiting renewal"
-                            : "Package quota unavailable"
+                        {trainingTabAvailability.code === "PAYMENT_REQUIRED" ||
+                        trainingTabAvailability.code === "RENEWAL_REQUIRED" ||
+                        trainingTabAvailability.code === "NO_SESSIONS_BOOKED" ||
+                        trainingTabAvailability.code === "QUOTA_UNAVAILABLE"
+                          ? trainingTabAvailability.title
                           : weeklyScheduleReady
                             ? "Confirmed weekly schedule ready"
                             : "Awaiting complete weekly schedule"}
                       </p>
                       <p className="text-muted-foreground">
-                        {packageQuotaBlocked
-                          ? trainingPackageQuotaDecision.code === "PACKAGE_QUOTA_EXHAUSTED"
-                            ? "No additional training session can launch until the family package renews."
-                            : "Training launch stays locked until Response Integrity can verify the family's package capacity."
+                        {trainingTabAvailability.code === "PAYMENT_REQUIRED" ||
+                        trainingTabAvailability.code === "RENEWAL_REQUIRED" ||
+                        trainingTabAvailability.code === "NO_SESSIONS_BOOKED" ||
+                        trainingTabAvailability.code === "QUOTA_UNAVAILABLE"
+                          ? trainingTabAvailability.message
                           : weeklyScheduleReady
                             ? "Use Start Session to choose topics and enter the runner for a confirmed weekly lesson."
                             : "Training launch stays locked until both weekly sessions are scheduled and fully confirmed."}

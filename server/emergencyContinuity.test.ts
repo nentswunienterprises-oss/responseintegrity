@@ -1182,3 +1182,37 @@ test("package quota is authoritative for Specialist training launch and submissi
     /disabled=\{!assignmentAccepted \|\| packageQuotaBlocked\}/,
   );
 });
+
+
+test("Specialist Training tab distinguishes no booking from payment or renewal", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const dialogSource = readFileSync(
+    resolve(process.cwd(), "client/src/components/tutor/StudentTopicConditioningDialog.tsx"),
+    "utf8",
+  );
+
+  const tutorSessionsStart = routesSource.indexOf(
+    '"/api/tutor/students/:studentId/training-sessions"',
+  );
+  const tutorSessionsEnd = routesSource.indexOf(
+    'app.post(',
+    tutorSessionsStart,
+  );
+  const tutorSessionsSource = routesSource.slice(
+    tutorSessionsStart,
+    tutorSessionsEnd > tutorSessionsStart
+      ? tutorSessionsEnd
+      : tutorSessionsStart + 30000,
+  );
+
+  assert.ok(tutorSessionsStart >= 0);
+  assert.match(tutorSessionsSource, /premiumAccess\.status === 402/);
+  assert.match(tutorSessionsSource, /paymentRequired: true/);
+  assert.match(tutorSessionsSource, /commercialState: resolveTrainingTabAvailability/);
+  assert.match(tutorSessionsSource, /actionableSessionCount/);
+
+  assert.match(dialogSource, /trainingTabAvailability/);
+  assert.match(dialogSource, /No sessions can be booked until the parent completes payment/);
+  assert.match(dialogSource, /No more sessions can be booked until the parent renews\/pays/);
+  assert.match(dialogSource, /Package capacity is available, but the parent has not booked a current lesson/);
+});

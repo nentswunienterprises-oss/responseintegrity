@@ -59,3 +59,62 @@ test("Trial is not accidentally governed by monthly package quota", () => {
   assert.equal(decision.required, false);
   assert.equal(decision.blocked, false);
 });
+
+
+test("Training tab distinguishes no booking from commercial blockage", async () => {
+  const { resolveTrainingTabAvailability } = await import("./trainingPackageQuota");
+
+  assert.deepEqual(
+    resolveTrainingTabAvailability({
+      operationalMode: "sandbox",
+      paymentRequired: true,
+      monthlyQuota: null,
+      actionableSessionCount: 0,
+    }),
+    {
+      code: "PAYMENT_REQUIRED",
+      blocked: true,
+      title: "Payment required before booking",
+      message: "The parent has not completed the package payment required to book training sessions.",
+    },
+  );
+
+  const renewal = resolveTrainingTabAvailability({
+    operationalMode: "sandbox",
+    paymentRequired: false,
+    monthlyQuota: {
+      session_quota: 8,
+      sessions_used: 8,
+      sessions_remaining: 0,
+    },
+    actionableSessionCount: 0,
+  });
+  assert.equal(renewal.code, "RENEWAL_REQUIRED");
+  assert.equal(renewal.blocked, true);
+
+  const noBooking = resolveTrainingTabAvailability({
+    operationalMode: "sandbox",
+    paymentRequired: false,
+    monthlyQuota: {
+      session_quota: 8,
+      sessions_used: 3,
+      sessions_remaining: 5,
+    },
+    actionableSessionCount: 0,
+  });
+  assert.equal(noBooking.code, "NO_SESSIONS_BOOKED");
+  assert.equal(noBooking.blocked, false);
+  assert.match(noBooking.message, /5 package sessions remaining/);
+
+  const booked = resolveTrainingTabAvailability({
+    operationalMode: "sandbox",
+    paymentRequired: false,
+    monthlyQuota: {
+      session_quota: 8,
+      sessions_used: 3,
+      sessions_remaining: 5,
+    },
+    actionableSessionCount: 2,
+  });
+  assert.equal(booked.code, "SESSIONS_BOOKED");
+});
