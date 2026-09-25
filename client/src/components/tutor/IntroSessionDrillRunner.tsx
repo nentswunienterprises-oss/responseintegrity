@@ -32,6 +32,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { API_URL } from "@/lib/config";
 import { instructionPromptDisplayText, instructionPromptLabelFor } from "@/lib/instructionPromptLabel";
 import {
+  TRAINING_INHERITED_RESCUE_SIGNAL_FIELD,
+  TRAINING_INHERITED_RESCUE_SIGNAL_OPTIONS,
   TRAINING_INTERVENTION_FIELD,
   TRAINING_INTERVENTION_OPTIONS,
   TRAINING_PREREQUISITE_SENTINEL_FIELD,
@@ -39,6 +41,7 @@ import {
   resolveTrainingEvidenceEligibility,
   trainingEvidenceStatusKey,
   type TrainingEvidenceStatus,
+  type TrainingInheritedRescueSignal,
   type TrainingInterventionEvent,
   type TrainingPrerequisiteSentinelResult,
 } from "@shared/trainingEvidenceCapture";
@@ -2163,6 +2166,25 @@ export default function IntroSessionDrillRunner() {
       : "none";
   };
 
+  const trainingInheritedRescueSignalKey = (setIndex: number, repIndex: number) =>
+    "set" + setIndex + "_rep" + repIndex + "_" + TRAINING_INHERITED_RESCUE_SIGNAL_FIELD;
+
+  const currentTrainingInheritedRescueSignal = (): TrainingInheritedRescueSignal | null => {
+    const raw = String(
+      observations[trainingInheritedRescueSignalKey(currentSet, currentRep)] || "",
+    ).trim();
+    return TRAINING_INHERITED_RESCUE_SIGNAL_OPTIONS.some((option) => option.id === raw)
+      ? raw as TrainingInheritedRescueSignal
+      : null;
+  };
+
+  const handleTrainingInheritedRescueSignal = (signal: TrainingInheritedRescueSignal) => {
+    setObservations((prev: any) => ({
+      ...prev,
+      [trainingInheritedRescueSignalKey(currentSet, currentRep)]: signal,
+    }));
+  };
+
   const currentTrainingEvidenceStatus = (
     field: string,
   ): TrainingEvidenceStatus => {
@@ -2303,6 +2325,18 @@ export default function IntroSessionDrillRunner() {
       (field) => !String(observations[`set${setIndex}_rep${repIndex}_${field.key}`] || "").trim()
     );
     if (
+      isTrainingEvidenceCapture &&
+      displayPhase === "Time Pressure Stability" &&
+      !repSet?.isModelingSet &&
+      !String(observations[trainingInheritedRescueSignalKey(setIndex, repIndex)] || "").trim()
+    ) {
+      missing.push({
+        key: TRAINING_INHERITED_RESCUE_SIGNAL_FIELD,
+        label: "Inherited rescue signal",
+        options: [],
+      });
+    }
+    if (
       repNeedsTrainingPrerequisiteSentinel(setIndex, repIndex) &&
       !trainingPrerequisiteSentinelResultFor(setIndex, repIndex)
     ) {
@@ -2393,6 +2427,14 @@ export default function IntroSessionDrillRunner() {
             trainingPrerequisiteSentinelResultFor(setIndex, repIdx);
           if (prerequisiteSentinel) {
             obs[TRAINING_PREREQUISITE_SENTINEL_FIELD] = prerequisiteSentinel;
+          }
+          if (displayPhase === "Time Pressure Stability") {
+            const inheritedRescueSignal = String(
+              observations[trainingInheritedRescueSignalKey(setIndex, repIdx)] || "",
+            ).trim();
+            if (inheritedRescueSignal) {
+              obs[TRAINING_INHERITED_RESCUE_SIGNAL_FIELD] = inheritedRescueSignal;
+            }
           }
           if (
             displayPhase === "Structured Execution" &&
@@ -3960,6 +4002,46 @@ export default function IntroSessionDrillRunner() {
           </div>
         </div>
       )}
+
+      {isTrainingEvidenceCapture &&
+        displayPhase === "Time Pressure Stability" &&
+        !set?.isModelingSet &&
+        repStarted && (
+          <div className="mb-4 rounded-xl border border-violet-200 bg-violet-50/60 p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-violet-800">
+              Inherited rescue signal
+            </div>
+            <p className="mt-2 text-sm font-semibold text-foreground">
+              Did the student seek rescue during this timed rep?
+            </p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              Record the student's help-seeking separately from what the Specialist did. Withholding help preserves the no-support condition; repeated rescue-seeking can still make the inherited independence layer untrustworthy.
+            </p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {TRAINING_INHERITED_RESCUE_SIGNAL_OPTIONS.map((option) => (
+                <button
+                  type="button"
+                  key={option.id}
+                  onClick={() => handleTrainingInheritedRescueSignal(option.id)}
+                  className={[
+                    "rounded-lg border p-3 text-left",
+                    currentTrainingInheritedRescueSignal() === option.id
+                      ? "border-violet-600 bg-white ring-1 ring-violet-600"
+                      : "border-violet-200 bg-white/70 hover:bg-white",
+                  ].join(" ")}
+                >
+                  <span className="block text-sm font-medium text-foreground">{option.label}</span>
+                  <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.detail}</span>
+                </button>
+              ))}
+            </div>
+            {currentTrainingInheritedRescueSignal() === "repeated" && (
+              <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+                Repeated rescue-seeking is preserved as an inherited-layer contradiction. It does not move the topic backward inside this Training session; the system will require targeted re-diagnosis from Controlled Discomfort after the session is recorded.
+              </p>
+            )}
+          </div>
+        )}
 
       <form className={`space-y-4 ${isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted ? "hidden" : ""}`}>
         {getLiveObservationBlockForRep(set, currentRep).length === 0 && (

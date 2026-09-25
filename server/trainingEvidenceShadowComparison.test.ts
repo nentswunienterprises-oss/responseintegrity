@@ -33,6 +33,7 @@ const buildInput = (): TrainingEvidenceShadowDatasetInput => ({
     },
     ineligibleEvidenceCount: 1,
     interventionEvents: ["first_step_confirmation"],
+    inheritedRescueSignals: [],
     prerequisiteContradiction: {
       status: "not_applicable",
       targetPhase: null,

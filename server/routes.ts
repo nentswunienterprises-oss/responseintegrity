@@ -171,6 +171,12 @@ import {
   persistResponseIntegrityEvidenceLedgerShadowDirect,
 } from "./responseIntegrityEvidenceLedger";
 import {
+  buildEvidenceCorrectionCandidate,
+  prepareEvidenceCorrectionInsert,
+  type EvidenceCorrectionLedgerRow,
+  type EvidenceCorrectionRow,
+} from "./responseIntegrityEvidenceCorrections";
+import {
   persistTrainingEvidenceShadowComparison,
   persistTrainingEvidenceShadowComparisonDirect,
   type TrainingEvidenceShadowDatasetInput,
@@ -9361,6 +9367,243 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
           });
+        app.get(
+          "/api/tutor/students/:studentId/evidence-corrections/:sourceDrillId",
+          isAuthenticated,
+          requireRole(["tutor"]),
+          async (req: Request, res: Response) => {
+            try {
+              const { studentId, sourceDrillId } = req.params;
+              const tutorId = String((req as any).dbUser.id || "").trim();
+              const student = await storage.getStudent(studentId);
+              if (!student || String(student.tutorId) !== tutorId) {
+                return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+              }
+
+              let evidenceRows: EvidenceCorrectionLedgerRow[] = [];
+              let correctionRows: EvidenceCorrectionRow[] = [];
+
+              if (isEmergencyDbMode()) {
+                const evidenceResult = await pool.query(
+                  `SELECT evidence_id, source_drill_id, student_id, tutor_id, topic, drill_type,
+                          drill_schema_version, phase, set_id, set_order, rep_id, rep_number,
+                          dimension_id, field_key, option_id, raw_option, normalized_level
+                     FROM public.response_integrity_evidence_ledger
+                    WHERE source_drill_id = $1 AND student_id = $2 AND tutor_id = $3
+                    ORDER BY block_order, set_order, rep_number, dimension_order`,
+                  [sourceDrillId, studentId, tutorId],
+                );
+                evidenceRows = evidenceResult.rows || [];
+                if (evidenceRows.length > 0) {
+                  const correctionResult = await pool.query(
+                    `SELECT correction_id, evidence_id, correction_sequence,
+                            previous_option_id, previous_raw_option, previous_normalized_level,
+                            corrected_option_id, corrected_raw_option, corrected_normalized_level,
+                            reason, requested_by, requested_by_role, state_review_required, created_at
+                       FROM public.response_integrity_evidence_corrections
+                      WHERE evidence_id = ANY($1::text[])
+                      ORDER BY evidence_id, correction_sequence`,
+                    [evidenceRows.map((row) => row.evidence_id)],
+                  );
+                  correctionRows = correctionResult.rows || [];
+                }
+              } else {
+                const { data: ledgerData, error: ledgerError } = await supabase
+                  .from("response_integrity_evidence_ledger")
+                  .select("evidence_id, source_drill_id, student_id, tutor_id, topic, drill_type, drill_schema_version, phase, set_id, set_order, rep_id, rep_number, dimension_id, field_key, option_id, raw_option, normalized_level, block_order, dimension_order")
+                  .eq("source_drill_id", sourceDrillId)
+                  .eq("student_id", studentId)
+                  .eq("tutor_id", tutorId)
+                  .order("block_order", { ascending: true })
+                  .order("set_order", { ascending: true })
+                  .order("rep_number", { ascending: true })
+                  .order("dimension_order", { ascending: true });
+                if (ledgerError) {
+                  return res.status(500).json({ message: "Failed to load evidence correction candidates" });
+                }
+                evidenceRows = (ledgerData || []) as EvidenceCorrectionLedgerRow[];
+                if (evidenceRows.length > 0) {
+                  const { data: correctionData, error: correctionError } = await supabase
+                    .from("response_integrity_evidence_corrections")
+                    .select("correction_id, evidence_id, correction_sequence, previous_option_id, previous_raw_option, previous_normalized_level, corrected_option_id, corrected_raw_option, corrected_normalized_level, reason, requested_by, requested_by_role, state_review_required, created_at")
+                    .in("evidence_id", evidenceRows.map((row) => row.evidence_id))
+                    .order("evidence_id", { ascending: true })
+                    .order("correction_sequence", { ascending: true });
+                  if (correctionError && String(correctionError.code || "") !== "PGRST205") {
+                    return res.status(500).json({ message: "Failed to load evidence correction history" });
+                  }
+                  correctionRows = (correctionData || []) as EvidenceCorrectionRow[];
+                }
+              }
+
+              const candidates = evidenceRows.map((row) =>
+                buildEvidenceCorrectionCandidate(
+                  row,
+                  correctionRows.filter((item) => item.evidence_id === row.evidence_id),
+                ),
+              );
+
+              return res.json({
+                sourceDrillId,
+                candidates,
+                correctionPolicy: {
+                  originalEvidenceImmutable: true,
+                  correctionsAppendOnly: true,
+                  stateReviewRequired: true,
+                },
+              });
+            } catch (error) {
+              console.error("Evidence correction candidate load failed:", error);
+              return res.status(500).json({ message: "Failed to load evidence correction candidates" });
+            }
+          },
+        );
+
+        app.post(
+          "/api/tutor/students/:studentId/evidence-corrections",
+          isAuthenticated,
+          requireRole(["tutor"]),
+          async (req: Request, res: Response) => {
+            try {
+              const { studentId } = req.params;
+              const tutorId = String((req as any).dbUser.id || "").trim();
+              const evidenceId = String(req.body?.evidenceId || "").trim();
+              const correctedOptionId = String(req.body?.correctedOptionId || "").trim();
+              const reason = String(req.body?.reason || "").trim();
+
+              if (!evidenceId || !correctedOptionId) {
+                return res.status(400).json({ message: "Evidence identity and corrected option are required." });
+              }
+
+              const student = await storage.getStudent(studentId);
+              if (!student || String(student.tutorId) !== tutorId) {
+                return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+              }
+
+              let ledgerRow: EvidenceCorrectionLedgerRow | null = null;
+              let corrections: EvidenceCorrectionRow[] = [];
+
+              if (isEmergencyDbMode()) {
+                const ledgerResult = await pool.query(
+                  `SELECT evidence_id, source_drill_id, student_id, tutor_id, topic, drill_type,
+                          drill_schema_version, phase, set_id, set_order, rep_id, rep_number,
+                          dimension_id, field_key, option_id, raw_option, normalized_level
+                     FROM public.response_integrity_evidence_ledger
+                    WHERE evidence_id = $1 AND student_id = $2 AND tutor_id = $3
+                    LIMIT 1`,
+                  [evidenceId, studentId, tutorId],
+                );
+                ledgerRow = ledgerResult.rows[0] || null;
+                if (ledgerRow) {
+                  const correctionResult = await pool.query(
+                    `SELECT correction_id, evidence_id, correction_sequence,
+                            previous_option_id, previous_raw_option, previous_normalized_level,
+                            corrected_option_id, corrected_raw_option, corrected_normalized_level,
+                            reason, requested_by, requested_by_role, state_review_required, created_at
+                       FROM public.response_integrity_evidence_corrections
+                      WHERE evidence_id = $1
+                      ORDER BY correction_sequence`,
+                    [evidenceId],
+                  );
+                  corrections = correctionResult.rows || [];
+                }
+              } else {
+                const { data: ledgerData, error: ledgerError } = await supabase
+                  .from("response_integrity_evidence_ledger")
+                  .select("evidence_id, source_drill_id, student_id, tutor_id, topic, drill_type, drill_schema_version, phase, set_id, set_order, rep_id, rep_number, dimension_id, field_key, option_id, raw_option, normalized_level")
+                  .eq("evidence_id", evidenceId)
+                  .eq("student_id", studentId)
+                  .eq("tutor_id", tutorId)
+                  .maybeSingle();
+                if (ledgerError) {
+                  return res.status(500).json({ message: "Failed to validate evidence correction identity" });
+                }
+                ledgerRow = ledgerData as EvidenceCorrectionLedgerRow | null;
+                if (ledgerRow) {
+                  const { data: correctionData, error: correctionError } = await supabase
+                    .from("response_integrity_evidence_corrections")
+                    .select("correction_id, evidence_id, correction_sequence, previous_option_id, previous_raw_option, previous_normalized_level, corrected_option_id, corrected_raw_option, corrected_normalized_level, reason, requested_by, requested_by_role, state_review_required, created_at")
+                    .eq("evidence_id", evidenceId)
+                    .order("correction_sequence", { ascending: true });
+                  if (correctionError && String(correctionError.code || "") !== "PGRST205") {
+                    return res.status(500).json({ message: "Failed to load evidence correction history" });
+                  }
+                  corrections = (correctionData || []) as EvidenceCorrectionRow[];
+                }
+              }
+
+              if (!ledgerRow) {
+                return res.status(404).json({ message: "Evidence observation not found." });
+              }
+
+              const prepared = prepareEvidenceCorrectionInsert({
+                row: ledgerRow,
+                corrections,
+                correctedOptionId,
+                reason,
+                requestedBy: tutorId,
+              });
+              if (!prepared.ok) {
+                return res.status(400).json({ message: prepared.error });
+              }
+
+              let inserted: EvidenceCorrectionRow | null = null;
+              if (isEmergencyDbMode()) {
+                const insert = prepared.insert;
+                const result = await pool.query(
+                  `INSERT INTO public.response_integrity_evidence_corrections
+                    (evidence_id, source_drill_id, student_id, tutor_id, correction_sequence,
+                     previous_option_id, previous_raw_option, previous_normalized_level,
+                     corrected_option_id, corrected_raw_option, corrected_normalized_level,
+                     reason, requested_by, requested_by_role, state_review_required)
+                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+                   RETURNING correction_id, evidence_id, correction_sequence,
+                             previous_option_id, previous_raw_option, previous_normalized_level,
+                             corrected_option_id, corrected_raw_option, corrected_normalized_level,
+                             reason, requested_by, requested_by_role, state_review_required, created_at`,
+                  [
+                    insert.evidence_id, insert.source_drill_id, insert.student_id, insert.tutor_id,
+                    insert.correction_sequence, insert.previous_option_id, insert.previous_raw_option,
+                    insert.previous_normalized_level, insert.corrected_option_id, insert.corrected_raw_option,
+                    insert.corrected_normalized_level, insert.reason, insert.requested_by,
+                    insert.requested_by_role, insert.state_review_required,
+                  ],
+                );
+                inserted = result.rows[0] || null;
+              } else {
+                const { data, error } = await supabase
+                  .from("response_integrity_evidence_corrections")
+                  .insert(prepared.insert)
+                  .select("correction_id, evidence_id, correction_sequence, previous_option_id, previous_raw_option, previous_normalized_level, corrected_option_id, corrected_raw_option, corrected_normalized_level, reason, requested_by, requested_by_role, state_review_required, created_at")
+                  .single();
+                if (error) {
+                  if (String(error.code || "") === "23505") {
+                    return res.status(409).json({ message: "This evidence was corrected concurrently. Reload and try again." });
+                  }
+                  return res.status(500).json({ message: "Failed to record evidence correction" });
+                }
+                inserted = data as EvidenceCorrectionRow;
+              }
+
+              const candidate = buildEvidenceCorrectionCandidate(
+                ledgerRow,
+                [...corrections, ...(inserted ? [inserted] : [])],
+              );
+
+              return res.status(201).json({
+                success: true,
+                correction: inserted,
+                candidate,
+                stateReviewRequired: true,
+                message: "Correction recorded. The original evidence remains immutable and dependent state is flagged for review.",
+              });
+            } catch (error) {
+              console.error("Evidence correction submission failed:", error);
+              return res.status(500).json({ message: "Failed to record evidence correction" });
+            }
+          },
+        );
+
         // Tutor: Get all topic activations for a student
         app.get("/api/tutor/students/:studentId/topic-conditioning-activations", isAuthenticated, requireRole(["tutor"]), async (req: Request, res: Response) => {
           try {

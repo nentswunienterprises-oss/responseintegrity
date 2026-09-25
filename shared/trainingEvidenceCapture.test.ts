@@ -2,9 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  TRAINING_INHERITED_RESCUE_SIGNAL_FIELD,
   TRAINING_PREREQUISITE_SENTINEL_FIELD,
   getTrainingPrerequisiteSentinelDefinition,
   interventionConfoundsTrainingDimension,
+  readTrainingInheritedRescueSignal,
   readTrainingPrerequisiteSentinel,
   resolveTrainingEvidenceEligibility,
 } from "./trainingEvidenceCapture";
@@ -89,4 +91,15 @@ test("prerequisite sentinel results are explicit and never inferred from absence
   assert.equal(readTrainingPrerequisiteSentinel({
     [TRAINING_PREREQUISITE_SENTINEL_FIELD]: "something_else",
   }), null);
+});
+
+
+test("TPS inherited rescue-seeking is captured separately from Specialist intervention", () => {
+  assert.equal(readTrainingInheritedRescueSignal({
+    [TRAINING_INHERITED_RESCUE_SIGNAL_FIELD]: "repeated",
+  }), "repeated");
+  assert.equal(readTrainingInheritedRescueSignal({
+    [TRAINING_INHERITED_RESCUE_SIGNAL_FIELD]: "isolated",
+  }), "isolated");
+  assert.equal(readTrainingInheritedRescueSignal({}), null);
 });

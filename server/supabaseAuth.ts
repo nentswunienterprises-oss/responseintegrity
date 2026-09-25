@@ -24,6 +24,7 @@ import {
   createEmergencyTutorAccount,
   emergencyExpectedRoleMatches,
   isPreviewProofPersonaEmail,
+  isPreviewSyntheticSandboxPersonaEmail,
 } from "./emergencyAuth";
 import {
   describeRuntimeDatabaseTarget,
@@ -596,7 +597,7 @@ export async function setupAuth(app: Express) {
               : null;
             const isProofPersona =
               !!fallbackUser &&
-              isPreviewProofPersonaEmail(normalizedEmail);
+              isPreviewSyntheticSandboxPersonaEmail(normalizedEmail);
             const isSandboxSpecialist =
               fallbackUser?.role === "tutor" &&
               !!sandboxAssignment?.rows?.[0];
@@ -610,7 +611,9 @@ export async function setupAuth(app: Express) {
               (req.session as any).email = fallbackUser.email;
               delete (req.session as any).accessToken;
 
-              const redirectUrl = getDefaultDashboardRoute("tutor");
+              const redirectUrl = fallbackUser.role === "parent"
+                ? "/client/parent/gateway"
+                : getDefaultDashboardRoute((fallbackUser.role as any) || "tutor");
 
               return req.session.save((err) => {
                 if (err) {

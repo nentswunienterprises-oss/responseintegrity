@@ -1,0 +1,23 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import test from "node:test";
+
+const FORBIDDEN = [
+  /(^|\/)private-capability-bank[^/]*\.json$/i,
+  /(^|\/)ri_private_capability[^/]*\.json$/i,
+  /(^|\/)\.capability-bank\//i,
+];
+
+test("private capability assessment bank payloads are never tracked in the public repository", () => {
+  const tracked = execFileSync("git", ["ls-files"], { encoding: "utf8" })
+    .split(/\r?\n/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  const leaked = tracked.filter((path) => FORBIDDEN.some((pattern) => pattern.test(path)));
+  assert.deepEqual(
+    leaked,
+    [],
+    `Private capability assessment evaluator content must stay outside the public repository: ${leaked.join(", ")}`,
+  );
+});

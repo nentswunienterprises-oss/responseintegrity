@@ -22,6 +22,57 @@ export type TrainingPrerequisiteSentinelResult =
 export const TRAINING_PREREQUISITE_SENTINEL_FIELD =
   "_training_prerequisite_sentinel";
 
+export type TrainingInheritedRescueSignal =
+  | "none"
+  | "isolated"
+  | "repeated"
+  | "not_observed"
+  | "confounded";
+
+export const TRAINING_INHERITED_RESCUE_SIGNAL_FIELD =
+  "_training_inherited_rescue_signal";
+
+export const TRAINING_INHERITED_RESCUE_SIGNAL_OPTIONS: Array<{
+  id: TrainingInheritedRescueSignal;
+  label: string;
+  detail: string;
+}> = [
+  {
+    id: "none",
+    label: "No rescue-seeking",
+    detail: "The student worked without asking for reassurance, the next step, or help.",
+  },
+  {
+    id: "isolated",
+    label: "One brief rescue request",
+    detail: "The student made one brief request for reassurance or help but did not repeatedly seek rescue.",
+  },
+  {
+    id: "repeated",
+    label: "Repeated rescue-seeking",
+    detail: "The student repeatedly asked for correctness confirmation, the next step, or help during the timed rep.",
+  },
+  {
+    id: "not_observed",
+    label: "Could not observe rescue-seeking",
+    detail: "The opportunity did not make rescue-seeking meaningfully observable.",
+  },
+  {
+    id: "confounded",
+    label: "Rescue signal was confounded",
+    detail: "Interruption, task mismatch, or another condition prevented clean interpretation of rescue-seeking.",
+  },
+];
+
+export const readTrainingInheritedRescueSignal = (
+  rep: Record<string, string>,
+): TrainingInheritedRescueSignal | null => {
+  const raw = String(rep?.[TRAINING_INHERITED_RESCUE_SIGNAL_FIELD] || "").trim();
+  return TRAINING_INHERITED_RESCUE_SIGNAL_OPTIONS.some((option) => option.id === raw)
+    ? raw as TrainingInheritedRescueSignal
+    : null;
+};
+
 export type TrainingPrerequisiteSentinelDefinition = {
   trainingPhase: Exclude<TopicPhase, "Clarity">;
   targetPhase: TopicPhase;

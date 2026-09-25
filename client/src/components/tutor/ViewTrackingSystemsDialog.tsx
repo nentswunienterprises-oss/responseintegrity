@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getQueryFn } from "@/lib/queryClient";
+import { apiRequest, getQueryFn } from "@/lib/queryClient";
 import { getAuthMode } from "@/lib/authMode";
 import {
   Dialog,
@@ -176,7 +176,89 @@ function responseSnapshotColor(level: string) {
   return "text-muted-foreground";
 }
 
-function ResponseSnapshotPanel({ snapshot }: { snapshot: ResponseSnapshotV1 }) {
+type EvidenceCorrectionCandidate = {
+  evidenceId: string;
+  sourceDrillId: string;
+  topic: string;
+  setId: string;
+  setOrder: number;
+  repId: string;
+  repNumber: number;
+  dimensionId: string;
+  fieldKey: string;
+  original: { optionId: string; rawOption: string; normalizedLevel: string };
+  effective: { optionId: string; rawOption: string; normalizedLevel: string };
+  options: Array<{ optionId: string; rawOption: string; normalizedLevel: string }>;
+  correctionHistory: Array<{
+    correctionId: string;
+    sequence: number;
+    previousRawOption: string;
+    correctedRawOption: string;
+    reason: string;
+    stateReviewRequired: boolean;
+    createdAt: string;
+  }>;
+};
+
+function ResponseSnapshotPanel({
+  snapshot,
+  studentId,
+  apiBasePath,
+}: {
+  snapshot: ResponseSnapshotV1;
+  studentId: string;
+  apiBasePath: string;
+}) {
+  const sourceDrillId = String(snapshot.source.sourceDrillId || "").trim();
+  const canCorrect = apiBasePath === "/api/tutor" && !!sourceDrillId;
+  const [correctionOpen, setCorrectionOpen] = useState(false);
+  const [selectedEvidenceId, setSelectedEvidenceId] = useState("");
+  const [correctedOptionId, setCorrectedOptionId] = useState("");
+  const [correctionReason, setCorrectionReason] = useState("");
+  const [correctionSubmitting, setCorrectionSubmitting] = useState(false);
+  const [correctionMessage, setCorrectionMessage] = useState<string | null>(null);
+
+  const correctionQuery = useQuery<{ candidates: EvidenceCorrectionCandidate[] }>({
+    queryKey: [`${apiBasePath}/students/${studentId}/evidence-corrections/${sourceDrillId}`],
+    queryFn: getQueryFn({ on401: "throw" }),
+    enabled: correctionOpen && canCorrect,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  });
+
+  const candidates = correctionQuery.data?.candidates || [];
+  const selectedCandidate =
+    candidates.find((candidate) => candidate.evidenceId === selectedEvidenceId) || null;
+
+  const submitCorrection = async () => {
+    if (!selectedCandidate || !correctedOptionId || correctionReason.trim().length < 10) {
+      setCorrectionMessage("Choose the observation, choose the corrected behavior, and explain the logging mistake.");
+      return;
+    }
+    setCorrectionSubmitting(true);
+    setCorrectionMessage(null);
+    try {
+      const response = await apiRequest(
+        "POST",
+        `${apiBasePath}/students/${studentId}/evidence-corrections`,
+        {
+          evidenceId: selectedCandidate.evidenceId,
+          correctedOptionId,
+          reason: correctionReason.trim(),
+        },
+      );
+      const payload = await response.json();
+      setCorrectionMessage(payload?.message || "Correction recorded.");
+      setCorrectedOptionId("");
+      setCorrectionReason("");
+      await correctionQuery.refetch();
+    } catch (error: any) {
+      setCorrectionMessage(error?.message || "Failed to record the correction.");
+    } finally {
+      setCorrectionSubmitting(false);
+    }
+  };
   return (
     <div className="rounded-xl border border-primary/15 bg-primary/5 p-3">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -224,6 +306,115 @@ function ResponseSnapshotPanel({ snapshot }: { snapshot: ResponseSnapshotV1 }) {
           </AccordionItem>
         ))}
       </Accordion>
+      {canCorrect && (
+        <div className="mt-3 border-t border-primary/10 pt-3">
+          <button
+            type="button"
+            className="text-xs font-semibold text-primary hover:underline"
+            onClick={() => {
+              setCorrectionOpen((open) => !open);
+              setCorrectionMessage(null);
+            }}
+          >
+            {correctionOpen ? "Close evidence correction" : "Correct a logging mistake"}
+          </button>
+          {correctionOpen && (
+            <div className="mt-3 space-y-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+              <div>
+                <p className="text-sm font-semibold text-amber-950">Authorized evidence correction</p>
+                <p className="mt-1 text-xs leading-5 text-amber-900">
+                  The original observation is never overwritten. A correction is appended to the evidence history, and any topic state that depended on the original remains flagged for review.
+                </p>
+              </div>
+              {correctionQuery.isLoading ? (
+                <p className="text-xs text-muted-foreground">Loading recorded observations...</p>
+              ) : correctionQuery.isError ? (
+                <p className="text-xs text-red-700">Evidence correction history could not be loaded.</p>
+              ) : candidates.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No versioned evidence observations are available for correction in this session.</p>
+              ) : (
+                <>
+                  <label className="block text-xs font-semibold text-foreground">
+                    Observation
+                    <select
+                      value={selectedEvidenceId}
+                      onChange={(event) => {
+                        setSelectedEvidenceId(event.target.value);
+                        setCorrectedOptionId("");
+                        setCorrectionMessage(null);
+                      }}
+                      className="mt-1 w-full rounded-md border border-primary/20 bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">Choose an observation</option>
+                      {candidates.map((candidate) => (
+                        <option key={candidate.evidenceId} value={candidate.evidenceId}>
+                          {candidate.setId} · Rep {candidate.repNumber} · {candidate.dimensionId} · current: {candidate.effective.rawOption}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {selectedCandidate && (
+                    <>
+                      <div className="rounded-md border border-primary/10 bg-background p-3 text-xs">
+                        <p><span className="font-semibold">Original:</span> {selectedCandidate.original.rawOption}</p>
+                        <p className="mt-1"><span className="font-semibold">Currently effective:</span> {selectedCandidate.effective.rawOption}</p>
+                        {selectedCandidate.correctionHistory.length > 0 && (
+                          <div className="mt-2 border-t border-primary/10 pt-2">
+                            <p className="font-semibold">Correction history</p>
+                            {selectedCandidate.correctionHistory.map((item) => (
+                              <p key={item.correctionId} className="mt-1 text-muted-foreground">
+                                #{item.sequence}: {item.previousRawOption} → {item.correctedRawOption} — {item.reason}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <label className="block text-xs font-semibold text-foreground">
+                        Correct behavior
+                        <select
+                          value={correctedOptionId}
+                          onChange={(event) => setCorrectedOptionId(event.target.value)}
+                          className="mt-1 w-full rounded-md border border-primary/20 bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="">Choose the behavior that actually occurred</option>
+                          {selectedCandidate.options
+                            .filter((option) => option.optionId !== selectedCandidate.effective.optionId)
+                            .map((option) => (
+                              <option key={option.optionId} value={option.optionId}>
+                                {option.rawOption}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <label className="block text-xs font-semibold text-foreground">
+                        Why is the original recording wrong?
+                        <textarea
+                          value={correctionReason}
+                          onChange={(event) => setCorrectionReason(event.target.value)}
+                          rows={3}
+                          className="mt-1 w-full rounded-md border border-primary/20 bg-background px-3 py-2 text-sm"
+                          placeholder="Describe the recording mistake. Do not rewrite an accurate observation because the outcome was inconvenient."
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        disabled={correctionSubmitting}
+                        onClick={() => void submitCorrection()}
+                        className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+                      >
+                        {correctionSubmitting ? "Recording correction..." : "Record traceable correction"}
+                      </button>
+                    </>
+                  )}
+                  {correctionMessage && (
+                    <p className="text-xs leading-5 text-amber-900">{correctionMessage}</p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -411,6 +602,8 @@ export default function ViewTrackingSystemsDialog({
                                         <ResponseSnapshotPanel
                                           key={snapshot.source.sourceDrillId || `${snapshot.source.topic || "snapshot"}-${index}`}
                                           snapshot={snapshot}
+                                          studentId={studentId}
+                                          apiBasePath={apiBasePath}
                                         />
                                       ))}
                                     </div>

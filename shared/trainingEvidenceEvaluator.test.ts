@@ -17,6 +17,7 @@ import {
   trainingRawObservationRequiresPrerequisiteSentinel,
 } from "./trainingEvidenceEvaluator";
 import {
+  TRAINING_INHERITED_RESCUE_SIGNAL_FIELD,
   TRAINING_INTERVENTION_FIELD,
   TRAINING_PREREQUISITE_SENTINEL_FIELD,
   trainingEvidenceStatusKey,
@@ -550,4 +551,36 @@ test("live prerequisite trigger uses raw field evidence without a registry round
     }),
     false,
   );
+});
+
+
+test("repeated rescue-seeking under otherwise strong TPS evidence routes to Controlled Discomfort re-diagnosis", () => {
+  const sets = buildTrainingSets({ phase: "Time Pressure Stability" });
+  const repeatedSet = sets.find((set) => set.setId === "time_pressure.repeated_timed_execution");
+  assert.ok(repeatedSet);
+  repeatedSet.observations[0][TRAINING_INHERITED_RESCUE_SIGNAL_FIELD] = "repeated";
+
+  const result = evaluate("Time Pressure Stability", "High", sets);
+  assert.equal(result.observedStability, "High");
+  assert.equal(result.inheritedRescueSignals.some((item) => item.signal === "repeated"), true);
+  assert.equal(result.prerequisiteContradiction.status, "confirmed");
+  assert.equal(result.prerequisiteContradiction.targetPhase, "Controlled Discomfort");
+
+  const route = resolveTrainingEvidenceAuthorityRoute(result);
+  assert.equal(route.route, "targeted_rediagnosis");
+  assert.equal(route.targetPhase, "Controlled Discomfort");
+  assert.equal(route.nextPhase, "Time Pressure Stability");
+  assert.equal(route.nextStability, "High");
+});
+
+test("one isolated rescue request is preserved but does not automatically force TPS re-diagnosis", () => {
+  const sets = buildTrainingSets({ phase: "Time Pressure Stability" });
+  const repeatedSet = sets.find((set) => set.setId === "time_pressure.repeated_timed_execution");
+  assert.ok(repeatedSet);
+  repeatedSet.observations[0][TRAINING_INHERITED_RESCUE_SIGNAL_FIELD] = "isolated";
+
+  const result = evaluate("Time Pressure Stability", "High", sets);
+  assert.equal(result.inheritedRescueSignals.some((item) => item.signal === "isolated"), true);
+  assert.equal(result.prerequisiteContradiction.status, "not_triggered");
+  assert.equal(resolveTrainingEvidenceAuthorityRoute(result).route, "normal_training");
 });
