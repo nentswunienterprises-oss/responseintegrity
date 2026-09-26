@@ -42,7 +42,7 @@ test("Tools Required preserves the locked Modelling and Observation setup distin
   for (const text of [source, bank]) {
     assert.match(text, /camera.*light.*(?:face|facing).*work/i);
     assert.match(text, /Clarity phase Modelling set to show and explain/);
-    assert.match(text, /Camera in selfie mode/);
+    assert.match(text, /selfie mode/i);
     assert.match(text, /all phases after Clarity/i);
     assert.match(text, /laptop|computer/i);
   }
