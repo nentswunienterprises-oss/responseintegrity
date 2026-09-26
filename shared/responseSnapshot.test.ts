@@ -198,7 +198,7 @@ test("response snapshot keeps weak evidence visible inside a strong rep", () => 
         phase: "Structured Execution",
         setName: "Required Structure",
         repIndex: 0,
-        classes: { ...supported, startBehavior: "breakdown" },
+        classes: { ...supported, independence: "breakdown" },
       }),
       rawOptionsForEvidenceClasses({
         phase: "Structured Execution",
@@ -248,7 +248,7 @@ test("response snapshot keeps weak evidence visible inside a strong rep", () => 
   );
   assert.equal(firstRep.responseLabel, "Strong response");
   assert.match(firstRep.resultText, /This rep checked whether/);
-  assert.match(firstRep.resultText, /independent execution did not begin/i);
+  assert.match(firstRep.resultText, /depended on external carrying/i);
   assert.doesNotMatch(snapshot.sets[0].resultText, /Require stated step order before solving\. Require stated step order before solving\./);
 });
 
