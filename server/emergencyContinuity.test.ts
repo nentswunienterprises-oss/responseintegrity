@@ -1247,3 +1247,21 @@ test("emergency quota calculation respects package renewal boundaries", () => {
     /monthStartIso, nextMonthIso/,
   );
 });
+
+test("emergency quota uses text-normalized IDs across mixed legacy column types", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const quotaStart = routesSource.indexOf("async function getMonthlySessionQuotaSnapshot");
+  const quotaEnd = routesSource.indexOf(
+    "// detect whether this parent/student should use sandbox membership row",
+    quotaStart,
+  );
+  const emergencyQuotaSource = routesSource.slice(quotaStart, quotaEnd);
+
+  assert.match(emergencyQuotaSource, /parent_id::text = \$1::text/);
+  assert.match(emergencyQuotaSource, /student_id::text = \$2::text/);
+  assert.match(emergencyQuotaSource, /s\.student_id::text = \$2::text/);
+  assert.match(emergencyQuotaSource, /r\.student_id::text = \$2::text/);
+  assert.match(emergencyQuotaSource, /d\.student_id::text = \$2::text/);
+  assert.doesNotMatch(emergencyQuotaSource, /(?:s|r|d)\.student_id = \$2\b/);
+});
+
