@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   RESPONSE_INTEGRITY_DRILL_REGISTRY,
+  TRAINING_SET_OBSERVATION_ELIGIBILITY_V3,
   getDrillSchemaDefinition,
   getDrillSchemaDefinitionByVersion,
   getEvidenceSelectionIdentity,
@@ -76,7 +77,7 @@ test("the versioned registry covers every mode and phase with complete option se
       assert.equal(schema.phase, phase);
       assert.equal(
         schema.schemaVersion,
-        mode === "verification" ? 3 : mode === "training" ? 2 : 1,
+        mode === "verification" ? 3 : mode === "training" ? 3 : 1,
       );
       assert.ok(schema.definitionHash);
       assert.ok(schema.sets.length > 0);
@@ -107,10 +108,10 @@ test("the versioned registry covers every mode and phase with complete option se
   }
 });
 
-test("Training V2 exposes one honest option for every decision-relevant evidence class", () => {
+test("current Training exposes one honest option for every decision-relevant evidence class", () => {
   for (const phase of PHASES) {
     const schema = getDrillSchemaDefinition("training", phase);
-    assert.equal(schema.schemaVersion, 2);
+    assert.equal(schema.schemaVersion, 3);
     for (const definition of schema.sets) {
       if (definition.modelingOnly) continue;
       for (const field of definition.fields) {
@@ -132,6 +133,93 @@ test("Training V2 exposes one honest option for every decision-relevant evidence
       }
     }
   }
+});
+
+test("Training V3 scores only dimensions the active set can genuinely expose", () => {
+  for (const phase of PHASES) {
+    const schema = getDrillSchemaDefinition("training", phase);
+    assert.equal(schema.schemaVersion, 3);
+    for (const definition of schema.sets) {
+      if (definition.modelingOnly) continue;
+      const expected =
+        TRAINING_SET_OBSERVATION_ELIGIBILITY_V3[definition.setId];
+      assert.ok(expected, `Missing eligibility law for ${definition.setId}`);
+      assert.deepEqual(
+        definition.fields.map((field) => field.dimensionId),
+        [...expected],
+        `${definition.setId} must expose exactly its eligible dimensions`,
+      );
+      assert.equal(
+        definition.fields.reduce(
+          (sum, field) => sum + field.scoreWeight,
+          0,
+        ),
+        100,
+        `${definition.setId} eligible-field weights must normalize to 100`,
+      );
+    }
+  }
+
+  const clarity = getDrillSchemaDefinition("training", "Clarity");
+  const identification = clarity.sets.find(
+    (set) => set.setId === "clarity.identification",
+  );
+  const lightApply = clarity.sets.find(
+    (set) => set.setId === "clarity.light_apply",
+  );
+  assert.ok(identification);
+  assert.ok(lightApply);
+  assert.deepEqual(
+    identification!.fields.map((field) => field.dimensionId),
+    ["clarity.vocabulary", "clarity.method", "clarity.reason"],
+  );
+  assert.equal(
+    identification!.fields.some(
+      (field) => field.dimensionId === "clarity.immediate_apply",
+    ),
+    false,
+  );
+  assert.equal(
+    lightApply!.fields.some(
+      (field) => field.dimensionId === "clarity.immediate_apply",
+    ),
+    true,
+  );
+});
+
+test("Training V3 rejects evidence for a dimension the active set cannot observe", () => {
+  const schema = getDrillSchemaDefinition("training", "Clarity");
+  const identificationIndex = schema.sets.findIndex(
+    (set) => set.setId === "clarity.identification",
+  );
+  assert.notEqual(identificationIndex, -1);
+  const submitted = buildValidSet(
+    "training",
+    "Clarity",
+    identificationIndex,
+    3,
+  );
+  submitted.observations[0].immediateApply =
+    "Engaged independently and appropriately";
+  submitted.observations[0].immediateApply_option_id =
+    "clarity.identification.opportunity_1.clarity.immediate_apply.option_4";
+  submitted.observations[0].immediateApply_dimension_id =
+    "clarity.immediate_apply";
+  submitted.observations[0].immediateApply_level = "clear";
+  submitted.observations[0].immediateApply_evidence_class = "supported";
+
+  const result = validateAndNormalizeSemanticEvidenceSet({
+    mode: "training",
+    phase: "Clarity",
+    setIndex: identificationIndex,
+    submittedSet: submitted,
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    error:
+      `Set ${identificationIndex + 1}, rep 1 contains evidence for a dimension that is not eligible in this set`,
+  });
 });
 
 test("the same Training dimension cannot silently change meaning between sets", () => {
@@ -247,17 +335,21 @@ test("stable option identity retains four-option semantics", () => {
 
 test("published schema versions remain explicitly addressable", () => {
   const current = getDrillSchemaDefinition("training", "Controlled Discomfort");
-  assert.equal(current.schemaVersion, 2);
+  assert.equal(current.schemaVersion, 3);
   assert.equal(
     getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 1)?.schemaVersion,
     1,
   );
   assert.equal(
-    getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 2),
-    current,
+    getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 2)?.schemaVersion,
+    2,
   );
   assert.equal(
     getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 3),
+    current,
+  );
+  assert.equal(
+    getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 4),
     null,
   );
   assert.equal(getDrillSchemaDefinitionByVersion("verification", "Structured Execution", 1)?.schemaVersion, 1);

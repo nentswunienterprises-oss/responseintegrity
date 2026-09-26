@@ -258,8 +258,14 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
 
   const repIndex = definition.repNumber - 1;
   const canonicalObservations = Object.fromEntries(
-    Object.entries(definition.canonicalObservations).map(
-      ([fieldKey, canonical]) => {
+    currentSet.fields.map((currentBaseField) => {
+        const fieldKey = currentBaseField.fieldKey;
+        const canonical = definition.canonicalObservations[fieldKey];
+        if (!canonical?.optionId) {
+          throw new Error(
+            `Sandbox outcome ${definition.key} is missing historical observation ${fieldKey} required by current Training.`,
+          );
+        }
         const sourceResolved = resolveEvidenceSelection({
           mode: "training",
           phase: definition.phase,
@@ -337,14 +343,14 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
               auditedObservation?.evidenceStatus || canonical.evidenceStatus,
           },
         ];
-      },
-    ),
+      }),
   );
 
   const auditedStudentBehavior =
     scenarioTruthAudit
       ? renderLegacyStatefulSandboxV1StudentBehavior({
           phase: definition.phase,
+          setId: definition.setId,
           outcomeKey: definition.key,
           repNumber: definition.repNumber,
           repCount: currentSet.reps,

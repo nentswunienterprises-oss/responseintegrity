@@ -1217,7 +1217,13 @@ function IntroSessionDrillRunnerCore() {
     );
     if (!registeredSet) return configuredFields;
 
-    return configuredFields.map((configuredField) => {
+    const registeredFieldKeys = new Set(
+      registeredSet.fields.map((field) => field.fieldKey),
+    );
+
+    return configuredFields
+      .filter((configuredField) => registeredFieldKeys.has(configuredField.key))
+      .map((configuredField) => {
       const registeredField = getFieldDefinitionForRep(registeredSet, repIndex, configuredField.key);
       if (!registeredField?.optionLabels?.length) return configuredField;
       const usesCanonicalResponseEvidence =

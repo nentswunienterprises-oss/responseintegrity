@@ -98,6 +98,8 @@ export const TRAINING_PHASE_EVIDENCE_CONTRACT: Record<TopicPhase, TrainingPhaseE
     progressionTarget: "Structured Execution",
     notes: [
       "Modeling is teaching-only and cannot satisfy independent evidence requirements.",
+      "Identification is recognition-only: Vocabulary, Method, and Reason are observable there; Immediate Apply is not.",
+      "Immediate Apply is decision-eligible only in Light Apply, where active solving actually occurs.",
       "Vocabulary and Method must each include valid Light Apply evidence before High is claimable.",
       "High Maintenance entry requires all four dimensions to resolve SUPPORTED.",
       "Exit confirmation must occur in a later submitted session and cannot use modeling evidence.",

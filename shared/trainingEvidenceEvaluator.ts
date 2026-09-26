@@ -350,9 +350,21 @@ const allDimensionsHaveSupportInSets = (
   decisions: TrainingDimensionDecision[],
   setIds: readonly string[],
   minimumPerSet: number,
-) => decisions.every((decision) =>
-  setIds.every((setId) => supportedInSet(decision, setId) >= minimumPerSet),
-);
+  schema: ReturnType<typeof getDrillSchemaDefinition>,
+) =>
+  decisions.every((decision) => {
+    const eligibleSetIds = setIds.filter((setId) =>
+      schema.sets
+        .find((definition) => definition.setId === setId)
+        ?.fields.some((field) => field.dimensionId === decision.dimensionId),
+    );
+    return (
+      eligibleSetIds.length > 0 &&
+      eligibleSetIds.every(
+        (setId) => supportedInSet(decision, setId) >= minimumPerSet,
+      )
+    );
+  });
 
 export const evaluateTrainingEvidence = ({
   phase,
@@ -521,12 +533,22 @@ export const evaluateTrainingEvidence = ({
   const highMaintenanceEntryQualified =
     observedStability === "High" &&
     decisions.every((decision) => decision.state === "SUPPORTED") &&
-    allDimensionsHaveSupportInSets(decisions, contract.highMaintenanceEntrySetIds, 1);
+    allDimensionsHaveSupportInSets(
+      decisions,
+      contract.highMaintenanceEntrySetIds,
+      1,
+      schema,
+    );
 
   const exitQualified =
     observedStability === "High" &&
     decisions.every((decision) => decision.state === "SUPPORTED") &&
-    allDimensionsHaveSupportInSets(decisions, contract.exitConfirmationSetIds, 2);
+    allDimensionsHaveSupportInSets(
+      decisions,
+      contract.exitConfirmationSetIds,
+      2,
+      schema,
+    );
 
   const phaseOrder = (target: TopicPhase) =>
     ["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"].indexOf(target);

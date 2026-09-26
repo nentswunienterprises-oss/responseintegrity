@@ -171,7 +171,14 @@ export function projectSandboxScenarioToCurrentTrainingContract(
         reps: scenarioSet.reps.map((rep, repIndex) => ({
           ...rep,
           observations: Object.fromEntries(
-            Object.entries(rep.observations).map(([fieldKey, observation]) => {
+            currentSet.fields.map((currentBaseField) => {
+              const fieldKey = currentBaseField.fieldKey;
+              const observation = rep.observations[fieldKey];
+              if (!observation?.optionId) {
+                throw new Error(
+                  `Sandbox scenario ${definition.key} is missing historical observation ${fieldKey} required by current Training.`,
+                );
+              }
               const sourceResolved = resolveEvidenceSelection({
                 mode: "training",
                 phase: definition.phase,
