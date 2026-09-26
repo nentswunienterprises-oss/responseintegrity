@@ -1058,7 +1058,9 @@ export const getScoredFieldDefinitionsForRep = (
   definition: EvidenceSetDefinition,
   repIndex: number,
 ): EvidenceFieldDefinition[] => {
-  const fields = getFieldDefinitionsForRep(definition, repIndex);
+  const fields = getFieldDefinitionsForRep(definition, repIndex).filter(
+    (fieldDefinition) => fieldDefinition.decisionEligible !== false,
+  );
   const positiveWeightTotal = fields.reduce(
     (sum, fieldDefinition) =>
       sum + Math.max(0, Number(fieldDefinition.scoreWeight || 0)),
