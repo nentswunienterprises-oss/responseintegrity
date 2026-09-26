@@ -1253,6 +1253,34 @@ test("parent intro proposal uses direct PostgreSQL in emergency mode", () => {
   assert.match(routeSource, /return res\.status\(200\)\.json/);
 });
 
+test("completed active-training re-diagnosis retires its scheduled lesson", () => {
+  const diagnosisSource = readFileSync(
+    resolve(process.cwd(), "server/evidenceCompleteDiagnosisRoutes.ts"),
+    "utf8",
+  );
+
+  assert.match(
+    diagnosisSource,
+    /async function completeScheduledTrainingSessionAfterDiagnosis/,
+  );
+  assert.match(
+    diagnosisSource,
+    /SET status = 'completed'[\s\S]*attendance_status = 'both_joined'[\s\S]*type = 'training'/,
+  );
+  assert.match(
+    diagnosisSource,
+    /existingRun\.session_context === "active_training"[\s\S]*completeScheduledTrainingSessionAfterDiagnosis/,
+  );
+  assert.match(
+    diagnosisSource,
+    /sessionResult\.sessionKind === "training"[\s\S]*completeScheduledTrainingSessionAfterDiagnosis/,
+  );
+  assert.match(
+    diagnosisSource,
+    /Completed re-diagnosis could not retire its scheduled training session/,
+  );
+});
+
 test("proposal surfaces ignore partial evidence-native diagnosis artifacts", () => {
   const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
   const runnerSource = readFileSync(
