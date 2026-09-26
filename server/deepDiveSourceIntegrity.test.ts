@@ -35,6 +35,25 @@ test("live Deep Dives use Specialist role language", () => {
   }
 });
 
+test("Tools Required preserves the locked Modelling and Observation setup distinction", () => {
+  const source = read("client/src/pages/responseconditioningsystem/session-infrastructure/tools-required.tsx");
+  const bank = read("Battle-Testing Infrastructure/Tutor Battle-Testing/Session Infrastructure/Tools Required.md");
+
+  for (const text of [source, bank]) {
+    assert.match(text, /Camera and light facing work/);
+    assert.match(text, /Clarity phase Modelling set to show and explain/);
+    assert.match(text, /Camera in selfie mode/);
+    assert.match(text, /all phases after Clarity/i);
+    assert.match(text, /laptop|computer/i);
+  }
+
+  assert.match(source, /Modelling: watch me execute\. Observation: you execute; I observe the response\./);
+  assert.match(source, /rear camera and attached ring light face the notebook and hands/i);
+  assert.match(source, /record the student's observable responses as they happen/i);
+  assert.doesNotMatch(source, /smartphone camera is the main delivery tool for the top-down teaching view/i);
+  assert.doesNotMatch(bank, /It stays in one top-down angle for every drill\s*\n\s*Expected Answer/i);
+});
+
 test("live Deep Dives do not restore legacy score-authority mechanics", () => {
   const prohibited = [
     /phaseScore/,
