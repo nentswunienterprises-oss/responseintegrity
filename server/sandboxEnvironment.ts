@@ -390,6 +390,41 @@ async function currentSessionEventCount(bundle: SandboxTrajectoryBundle) {
   return Number(result.rows[0]?.count || 0);
 }
 
+async function previousCompletedSessionBoundary(
+  bundle: SandboxTrajectoryBundle,
+) {
+  if (bundle.trajectory.session_number <= 1) return null;
+  const currentCount = await currentSessionEventCount(bundle);
+  if (currentCount > 0) return null;
+
+  const result = await pool.query(
+    `SELECT session_number, phase, specialist_authority,
+            authority_aligned, state_track_aligned, completed_at
+       FROM specialist_sandbox_session_evaluations
+      WHERE trajectory_id = $1
+        AND session_number = $2
+      LIMIT 1`,
+    [bundle.trajectory.id, bundle.trajectory.session_number - 1],
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+
+  const specialistAuthority =
+    typeof row.specialist_authority === "string"
+      ? JSON.parse(row.specialist_authority)
+      : row.specialist_authority;
+
+  return {
+    completedSessionNumber: Number(row.session_number),
+    nextSessionNumber: bundle.trajectory.session_number,
+    completedPhase: String(row.phase) as TopicPhase,
+    completedAt: row.completed_at,
+    specialistAuthority,
+    authorityAligned: Boolean(row.authority_aligned),
+    stateTrackAligned: Boolean(row.state_track_aligned),
+  };
+}
+
 async function loadCapabilityOccurrences(input: {
   tutorAssignmentId: string;
   tutorId: string;
@@ -675,6 +710,7 @@ export async function prepareSandboxEnvironment(input: {
   tutorId: string;
   studentId: string;
   bankKey?: string;
+  requestedSessionNumber?: number | null;
 }) {
   const sandboxStudent = await assertSandboxAccess(input);
   const bank = await loadActiveEnvironmentBank(input.bankKey);
@@ -685,17 +721,40 @@ export async function prepareSandboxEnvironment(input: {
     studentId: input.studentId,
     bank,
   });
-  const planned = await planNextRep({
-    bundle,
-    bank,
-    tutorAssignmentId: input.tutorAssignmentId,
-    tutorId: input.tutorId,
-  });
 
   const readiness = await readinessFor({
     tutorAssignmentId: input.tutorAssignmentId,
     tutorId: input.tutorId,
     bank,
+  });
+
+  const completedBoundary = await previousCompletedSessionBoundary(bundle);
+  const requestedCurrentSession =
+    Number(input.requestedSessionNumber || 0) ===
+    bundle.trajectory.session_number;
+  if (completedBoundary && !requestedCurrentSession) {
+    return {
+      bankKey: bank.bankKey,
+      bankVersion: bank.bankVersion,
+      bankTitle: bank.title,
+      sandboxStudent,
+      trajectoryId: bundle.trajectory.id,
+      sessionNumber: completedBoundary.completedSessionNumber,
+      status: "session_complete" as const,
+      prescribedPhase: bundle.truth.canonical_phase,
+      prescribedStability: bundle.truth.canonical_stability,
+      completedSession: completedBoundary,
+      studentStateAuthoritative: false as const,
+      evidenceScope: "sandbox" as const,
+      readiness,
+    };
+  }
+
+  const planned = await planNextRep({
+    bundle,
+    bank,
+    tutorAssignmentId: input.tutorAssignmentId,
+    tutorId: input.tutorId,
   });
 
   if (planned.blockedByRoute) {
