@@ -948,11 +948,7 @@ export function renderLegacyStatefulSandboxV1StudentBehavior(input: {
     additions.push(comparison);
   }
 
-  return [
-    vignette,
-    ...additions,
-    `This is opportunity ${input.repNumber} of ${input.repCount} in the current set.`,
-  ].join(" ");
+  return [vignette, ...additions].join(" ");
 }
 
 const normalizeLeakageText = (value: string) =>
