@@ -1102,7 +1102,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
             <button
               type="button"
               className="mt-6 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
-              onClick={() => navigate("/operational/tutor/pod")}
+              onClick={() => navigate("/specialist/pod")}
             >
               Back to Pod
             </button>
