@@ -9,6 +9,12 @@ import {
   TRAINING_OBSERVATION_MATRIX_V2,
 } from "./trainingObservationContractV2";
 import type { TrainingDimensionId } from "./trainingEvidenceContract";
+import {
+  TRAINING_CONDITION_OBSERVATION_DEFINITIONS_V4,
+  TRAINING_REP_OBSERVATION_AUTHORITY_V4,
+  getTrainingRepFieldKeysV4,
+  type TrainingObservationAuthorityRole,
+} from "./trainingObservationAuthorityV4";
 
 export type EvidenceDrillMode = "diagnosis" | "training" | "verification";
 
@@ -26,6 +32,10 @@ export type EvidenceFieldDefinition = {
   optionLabels?: string[];
   optionLevels: ObservationLevel[];
   optionEvidenceClasses?: DiagnosisBehaviorClass[];
+  decisionEligible?: boolean;
+  authorityRole?: TrainingObservationAuthorityRole;
+  observationQuestion?: string;
+  optionDetails?: Record<string, string>;
 };
 
 export type EvidenceSetDefinition = {
@@ -39,6 +49,7 @@ export type EvidenceSetDefinition = {
   modelingOnly?: boolean;
   repPurposeIds: string[];
   fields: EvidenceFieldDefinition[];
+  repFieldKeys?: Record<number, string[]>;
   repFieldOverrides?: Record<number, Record<string, ObservationLevel[]>>;
   repOptionLabelOverrides?: Record<number, Record<string, string[]>>;
   constraints: EvidenceConstraintProfile;
@@ -815,6 +826,103 @@ const RESPONSE_INTEGRITY_DRILL_REGISTRY_TRAINING_V3: Record<
   ]),
 ) as Record<TopicPhase, DrillSchemaDefinition>;
 
+
+const trainingSetForV4 = (
+  definition: EvidenceSetDefinition,
+): EvidenceSetDefinition => {
+  if (definition.modelingOnly) return definition;
+  const authority = TRAINING_REP_OBSERVATION_AUTHORITY_V4[definition.setId];
+  if (!authority) {
+    throw new Error(
+      `Missing Training V4 set-rep observation authority for ${definition.setId}`,
+    );
+  }
+
+  let fields = definition.fields.map((fieldDefinition) => {
+    const authorityEntry = Object.values(authority.reps)
+      .flat()
+      .find((entry) => entry.fieldKey === fieldDefinition.fieldKey);
+    if (!authorityEntry) {
+      throw new Error(
+        `Training V4 authority does not reference ${definition.setId}.${fieldDefinition.fieldKey}`,
+      );
+    }
+    return {
+      ...fieldDefinition,
+      decisionEligible: authorityEntry.decisionEligible,
+      authorityRole: authorityEntry.role,
+    };
+  });
+
+  if (definition.setId === "structured_execution.required_structure") {
+    const condition =
+      TRAINING_CONDITION_OBSERVATION_DEFINITIONS_V4[
+        "condition.required_structure.step_plan_accuracy"
+      ];
+    fields = [
+      ...fields,
+      {
+        fieldKey: condition.fieldKey,
+        dimensionId: "condition.required_structure.step_plan_accuracy",
+        scoreWeight: 0,
+        optionLabels: condition.options.map((option) => option.label),
+        optionLevels: condition.options.map((option) => option.level),
+        optionEvidenceClasses: condition.options.map(
+          (option) => option.evidenceClass,
+        ),
+        decisionEligible: false,
+        authorityRole: "condition_check",
+        observationQuestion: condition.observationQuestion,
+        optionDetails: Object.fromEntries(
+          condition.options.map((option) => [option.label, option.detail]),
+        ),
+      },
+    ];
+  }
+
+  const repFieldKeys = Object.fromEntries(
+    Array.from({ length: definition.reps }, (_, repIndex) => [
+      repIndex + 1,
+      getTrainingRepFieldKeysV4(definition.setId, repIndex + 1),
+    ]),
+  );
+
+  const knownFieldKeys = new Set(fields.map((fieldDefinition) => fieldDefinition.fieldKey));
+  for (const [repNumber, fieldKeys] of Object.entries(repFieldKeys)) {
+    for (const fieldKey of fieldKeys) {
+      if (!knownFieldKeys.has(fieldKey)) {
+        throw new Error(
+          `Training V4 authority references unknown field ${definition.setId}.rep_${repNumber}.${fieldKey}`,
+        );
+      }
+    }
+  }
+
+  return {
+    ...definition,
+    fields,
+    repFieldKeys,
+  };
+};
+
+const TRAINING_SETS_V4: Record<TopicPhase, EvidenceSetDefinition[]> =
+  Object.fromEntries(
+    PHASES.map((phase) => [
+      phase,
+      TRAINING_SETS_V3[phase].map(trainingSetForV4),
+    ]),
+  ) as Record<TopicPhase, EvidenceSetDefinition[]>;
+
+const RESPONSE_INTEGRITY_DRILL_REGISTRY_TRAINING_V4: Record<
+  TopicPhase,
+  DrillSchemaDefinition
+> = Object.fromEntries(
+  PHASES.map((phase) => [
+    phase,
+    schemaFor("training", phase, TRAINING_SETS_V4[phase], 4),
+  ]),
+) as Record<TopicPhase, DrillSchemaDefinition>;
+
 const verificationSetForV3 = (phase: TopicPhase): EvidenceSetDefinition => {
   const inheritedProbe = DIAGNOSIS_SETS[phase][0];
   const fields = inheritedProbe.fields.map((baseField) => {
@@ -849,7 +957,7 @@ const RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT: Record<
   Record<TopicPhase, DrillSchemaDefinition>
 > = {
   diagnosis: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.diagnosis,
-  training: RESPONSE_INTEGRITY_DRILL_REGISTRY_TRAINING_V3,
+  training: RESPONSE_INTEGRITY_DRILL_REGISTRY_TRAINING_V4,
   verification: Object.fromEntries(
     PHASES.map((phase) => [phase, schemaFor("verification", phase, [verificationSetForV3(phase)], 3)]),
   ) as Record<TopicPhase, DrillSchemaDefinition>,
@@ -874,7 +982,8 @@ export const RESPONSE_INTEGRITY_DRILL_REGISTRY_HISTORY: Record<
             ? {
                 1: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.training[phase],
                 2: RESPONSE_INTEGRITY_DRILL_REGISTRY_TRAINING_V2[phase],
-                3: RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT.training[phase],
+                3: RESPONSE_INTEGRITY_DRILL_REGISTRY_TRAINING_V3[phase],
+                4: RESPONSE_INTEGRITY_DRILL_REGISTRY_CURRENT.training[phase],
               }
             : { 1: RESPONSE_INTEGRITY_DRILL_REGISTRY_V1.diagnosis[phase] },
       ]),
@@ -913,6 +1022,8 @@ export const getFieldDefinitionForRep = (
   repIndex: number,
   fieldKey: string,
 ) => {
+  const eligibleFieldKeys = definition.repFieldKeys?.[repIndex + 1];
+  if (eligibleFieldKeys && !eligibleFieldKeys.includes(fieldKey)) return null;
   const base = definition.fields.find((candidate) => candidate.fieldKey === fieldKey);
   if (!base) return null;
   const override = definition.repFieldOverrides?.[repIndex + 1]?.[fieldKey];
@@ -926,7 +1037,41 @@ export const getFieldDefinitionForRep = (
     optionEvidenceClasses: base.optionEvidenceClasses
       ? [...base.optionEvidenceClasses]
       : undefined,
+    optionDetails: base.optionDetails ? { ...base.optionDetails } : undefined,
   };
+};
+
+export const getFieldDefinitionsForRep = (
+  definition: EvidenceSetDefinition,
+  repIndex: number,
+): EvidenceFieldDefinition[] =>
+  definition.fields
+    .map((fieldDefinition) =>
+      getFieldDefinitionForRep(definition, repIndex, fieldDefinition.fieldKey),
+    )
+    .filter(
+      (fieldDefinition): fieldDefinition is EvidenceFieldDefinition =>
+        Boolean(fieldDefinition),
+    );
+
+export const getScoredFieldDefinitionsForRep = (
+  definition: EvidenceSetDefinition,
+  repIndex: number,
+): EvidenceFieldDefinition[] => {
+  const fields = getFieldDefinitionsForRep(definition, repIndex);
+  const positiveWeightTotal = fields.reduce(
+    (sum, fieldDefinition) =>
+      sum + Math.max(0, Number(fieldDefinition.scoreWeight || 0)),
+    0,
+  );
+  if (positiveWeightTotal <= 0 || positiveWeightTotal === 100) return fields;
+  return fields.map((fieldDefinition) => ({
+    ...fieldDefinition,
+    scoreWeight:
+      fieldDefinition.scoreWeight > 0
+        ? (fieldDefinition.scoreWeight / positiveWeightTotal) * 100
+        : 0,
+  }));
 };
 
 const optionIdFor = (
@@ -1110,8 +1255,9 @@ export const validateAndNormalizeSemanticEvidenceSet = ({
       _rep_number: String(repIndex + 1),
     };
 
+    const eligibleFields = getFieldDefinitionsForRep(definition, repIndex);
     const eligibleFieldKeys = new Set(
-      definition.fields.map((fieldDefinition) => fieldDefinition.fieldKey),
+      eligibleFields.map((fieldDefinition) => fieldDefinition.fieldKey),
     );
     const phaseFieldKeys = new Set(
       schema.sets.flatMap((setDefinition) =>
@@ -1131,17 +1277,12 @@ export const validateAndNormalizeSemanticEvidenceSet = ({
       if (forbiddenKeys.some((key) => key in submittedRep)) {
         return {
           ok: false,
-          error: `${location}, rep ${repIndex + 1} contains evidence for a dimension that is not eligible in this set`,
+          error: `${location}, rep ${repIndex + 1} contains evidence for a dimension that is not eligible under this set/rep condition`,
         };
       }
     }
 
-    for (const baseField of definition.fields) {
-      const fieldDefinition = getFieldDefinitionForRep(definition, repIndex, baseField.fieldKey);
-      if (!fieldDefinition) {
-        return { ok: false, error: `${location}, rep ${repIndex + 1} has an unknown evidence dimension` };
-      }
-
+    for (const fieldDefinition of eligibleFields) {
       const rawOption = String(submittedRep[fieldDefinition.fieldKey] || "").trim();
       const optionId = String(submittedRep[`${fieldDefinition.fieldKey}_option_id`] || "").trim();
       const dimensionId = String(submittedRep[`${fieldDefinition.fieldKey}_dimension_id`] || "").trim();
