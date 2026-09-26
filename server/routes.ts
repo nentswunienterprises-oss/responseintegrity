@@ -13406,15 +13406,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(premiumAccess.status).json({ message: premiumAccess.message });
         }
 
-        const tutorTrainingSessionLookupResult: any = await supabase
-          .from("scheduled_sessions")
-          .select(SCHEDULED_SESSION_SELECT)
-          .eq("id", sessionId)
-          .eq("student_id", studentId)
-          .eq("tutor_id", tutorId)
-          .eq("type", "training")
-          .maybeSingle();
-        const { data: session, error: sessionError } = tutorTrainingSessionLookupResult;
+        let session: any = null;
+        let sessionError: any = null;
+        if (isEmergencyDbMode()) {
+          try {
+            const lookupResult = await pool.query(
+              `SELECT ${SCHEDULED_SESSION_SELECT}
+                 FROM public.scheduled_sessions
+                WHERE id::text = $1::text
+                  AND student_id::text = $2::text
+                  AND tutor_id::text = $3::text
+                  AND type = 'training'
+                LIMIT 1`,
+              [sessionId, studentId, tutorId],
+            );
+            session = lookupResult.rows[0] || null;
+          } catch (error) {
+            sessionError = error;
+          }
+        } else {
+          const tutorTrainingSessionLookupResult: any = await supabase
+            .from("scheduled_sessions")
+            .select(SCHEDULED_SESSION_SELECT)
+            .eq("id", sessionId)
+            .eq("student_id", studentId)
+            .eq("tutor_id", tutorId)
+            .eq("type", "training")
+            .maybeSingle();
+          session = tutorTrainingSessionLookupResult.data;
+          sessionError = tutorTrainingSessionLookupResult.error;
+        }
 
         if (sessionError || !session) {
           return res.status(404).json({ message: "Training session not found" });
@@ -13424,19 +13445,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Training session is not waiting for tutor confirmation" });
         }
 
-        const tutorTrainingSessionConfirmResult: any = await supabase
-          .from("scheduled_sessions")
-          .update({
-            parent_confirmed: true,
-            tutor_confirmed: true,
-            status: "confirmed",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", sessionId)
-          .select(SCHEDULED_SESSION_SELECT)
-          .single();
+        let updatedSession: any = null;
+        let updateError: any = null;
+        if (isEmergencyDbMode()) {
+          try {
+            const updateResult = await pool.query(
+              `UPDATE public.scheduled_sessions
+                  SET parent_confirmed = TRUE,
+                      tutor_confirmed = TRUE,
+                      status = 'confirmed',
+                      updated_at = NOW()
+                WHERE id::text = $1::text
+                  AND student_id::text = $2::text
+                  AND tutor_id::text = $3::text
+                  AND type = 'training'
+              RETURNING ${SCHEDULED_SESSION_SELECT}`,
+              [sessionId, studentId, tutorId],
+            );
+            updatedSession = updateResult.rows[0] || null;
+          } catch (error) {
+            updateError = error;
+          }
+        } else {
+          const tutorTrainingSessionConfirmResult: any = await supabase
+            .from("scheduled_sessions")
+            .update({
+              parent_confirmed: true,
+              tutor_confirmed: true,
+              status: "confirmed",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", sessionId)
+            .select(SCHEDULED_SESSION_SELECT)
+            .single();
+          updatedSession = tutorTrainingSessionConfirmResult.data;
+          updateError = tutorTrainingSessionConfirmResult.error;
+        }
 
-        const { data: updatedSession, error: updateError } = tutorTrainingSessionConfirmResult;
         if (updateError || !updatedSession) {
           return res.status(500).json({ message: "Failed to confirm training session" });
         }
@@ -14420,28 +14465,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      let query = supabase
-        .from("scheduled_sessions")
-        .select(SCHEDULED_SESSION_SELECT)
-        .eq("parent_id", userId)
-        .eq("type", "training")
-        .order("scheduled_time", { ascending: true })
-        .limit(12);
+      let data: any[] = [];
+      if (isEmergencyDbMode()) {
+        const values: unknown[] = [userId];
+        const conditions = ["parent_id::text = $1::text", "type = 'training'"];
 
-      if (studentId) {
-        query = query.eq("student_id", studentId);
+        if (studentId) {
+          values.push(String(studentId));
+          conditions.push(`student_id::text = $${values.length}::text`);
+        } else {
+          values.push(String(enrollment.assigned_tutor_id));
+          conditions.push(`tutor_id::text = $${values.length}::text`);
+        }
+
+        const result = await pool.query(
+          `SELECT ${SCHEDULED_SESSION_SELECT}
+             FROM public.scheduled_sessions
+            WHERE ${conditions.join(" AND ")}
+            ORDER BY scheduled_time ASC
+            LIMIT 12`,
+          values,
+        );
+        data = result.rows || [];
       } else {
-        query = query.eq("tutor_id", enrollment.assigned_tutor_id);
-      }
+        let query = supabase
+          .from("scheduled_sessions")
+          .select(SCHEDULED_SESSION_SELECT)
+          .eq("parent_id", userId)
+          .eq("type", "training")
+          .order("scheduled_time", { ascending: true })
+          .limit(12);
 
-      const { data, error } = await query;
-      if (error) {
-        return res.status(500).json({ message: "Failed to fetch training sessions" });
+        if (studentId) {
+          query = query.eq("student_id", studentId);
+        } else {
+          query = query.eq("tutor_id", enrollment.assigned_tutor_id);
+        }
+
+        const result = await query;
+        if (result.error) {
+          return res.status(500).json({ message: "Failed to fetch training sessions" });
+        }
+        data = result.data || [];
       }
 
       const sessionsWithArtifacts = await Promise.all(
         (data || []).map(async (session: any) => {
-          if (shouldReconcileSessionArtifacts(session)) {
+          if (!isEmergencyDbMode() && shouldReconcileSessionArtifacts(session)) {
             try {
               await reconcileArtifactsForScheduledSession(session);
               const { data: refreshedSession } = await supabase
@@ -14604,19 +14674,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Weekly session times must be different." });
       }
 
-      const { data: existingSessions, error: existingSessionsError } = await supabase
-        .from("scheduled_sessions")
-        .select(SCHEDULED_SESSION_SELECT)
-        .eq("parent_id", userId)
-        .eq("student_id", studentId)
-        .eq("tutor_id", enrollment.assigned_tutor_id)
-        .eq("type", "training")
-        .in("status", ["pending_tutor_confirmation", "pending_parent_confirmation", "confirmed", "ready", "live"])
-        .gte("scheduled_time", new Date().toISOString())
-        .order("scheduled_time", { ascending: true });
+      let existingSessions: any[] = [];
+      if (isEmergencyDbMode()) {
+        const existingResult = await pool.query(
+          `SELECT ${SCHEDULED_SESSION_SELECT}
+             FROM public.scheduled_sessions
+            WHERE parent_id::text = $1::text
+              AND student_id::text = $2::text
+              AND tutor_id::text = $3::text
+              AND type = 'training'
+              AND status::text = ANY($4::text[])
+              AND scheduled_time >= $5::timestamptz
+            ORDER BY scheduled_time ASC`,
+          [
+            userId,
+            String(studentId),
+            String(enrollment.assigned_tutor_id),
+            ["pending_tutor_confirmation", "pending_parent_confirmation", "confirmed", "ready", "live"],
+            new Date().toISOString(),
+          ],
+        );
+        existingSessions = existingResult.rows || [];
+      } else {
+        const result = await supabase
+          .from("scheduled_sessions")
+          .select(SCHEDULED_SESSION_SELECT)
+          .eq("parent_id", userId)
+          .eq("student_id", studentId)
+          .eq("tutor_id", enrollment.assigned_tutor_id)
+          .eq("type", "training")
+          .in("status", ["pending_tutor_confirmation", "pending_parent_confirmation", "confirmed", "ready", "live"])
+          .gte("scheduled_time", new Date().toISOString())
+          .order("scheduled_time", { ascending: true });
 
-      if (existingSessionsError) {
-        return res.status(500).json({ message: "Failed to inspect existing training sessions." });
+        if (result.error) {
+          return res.status(500).json({ message: "Failed to inspect existing training sessions." });
+        }
+        existingSessions = result.data || [];
       }
 
       const existingTimes = new Set((existingSessions || []).map((session: any) => String(session.scheduled_time)));
@@ -14630,33 +14724,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { data: insertedSessions, error: insertError } = await supabase
-        .from("scheduled_sessions")
-        .insert(
-          slotsToInsert.map((slot) => ({
-            parent_id: userId,
-            tutor_id: enrollment.assigned_tutor_id,
-            student_id: studentId,
-            scheduled_time: slot.scheduledStart,
-            scheduled_end: slot.scheduledEnd,
-            timezone,
-            type: "training",
-            workflow_stage: "active_training",
-            status: "pending_tutor_confirmation",
-            parent_confirmed: true,
-            tutor_confirmed: false,
-            attendance_status: "not_started",
-            recording_status: "not_expected_yet",
-            transcript_status: "not_expected_yet",
-            cohost_sync_status: "not_configured",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }))
-        )
-        .select(SCHEDULED_SESSION_SELECT);
+      let insertedSessions: any[] = [];
+      if (isEmergencyDbMode()) {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN");
+          for (const slot of slotsToInsert) {
+            const nowIso = new Date().toISOString();
+            const insertResult = await client.query(
+              `INSERT INTO public.scheduled_sessions (
+                 parent_id, tutor_id, student_id, scheduled_time, scheduled_end, timezone,
+                 type, workflow_stage, status, parent_confirmed, tutor_confirmed,
+                 attendance_status, recording_status, transcript_status, cohost_sync_status,
+                 created_at, updated_at
+               )
+               VALUES (
+                 $1, $2, $3, $4::timestamptz, $5::timestamptz, $6,
+                 'training', 'active_training', 'pending_tutor_confirmation', TRUE, FALSE,
+                 'not_started', 'not_expected_yet', 'not_expected_yet', 'not_configured',
+                 $7::timestamptz, $7::timestamptz
+               )
+               RETURNING ${SCHEDULED_SESSION_SELECT}`,
+              [
+                userId,
+                String(enrollment.assigned_tutor_id),
+                String(studentId),
+                slot.scheduledStart,
+                slot.scheduledEnd,
+                timezone,
+                nowIso,
+              ],
+            );
+            if (insertResult.rows[0]) {
+              insertedSessions.push(insertResult.rows[0]);
+            }
+          }
+          await client.query("COMMIT");
+        } catch (error) {
+          await client.query("ROLLBACK");
+          console.error("Failed to schedule emergency weekly training sessions:", error);
+          return res.status(500).json({ message: "Failed to schedule weekly sessions." });
+        } finally {
+          client.release();
+        }
+      } else {
+        const result = await supabase
+          .from("scheduled_sessions")
+          .insert(
+            slotsToInsert.map((slot) => ({
+              parent_id: userId,
+              tutor_id: enrollment.assigned_tutor_id,
+              student_id: studentId,
+              scheduled_time: slot.scheduledStart,
+              scheduled_end: slot.scheduledEnd,
+              timezone,
+              type: "training",
+              workflow_stage: "active_training",
+              status: "pending_tutor_confirmation",
+              parent_confirmed: true,
+              tutor_confirmed: false,
+              attendance_status: "not_started",
+              recording_status: "not_expected_yet",
+              transcript_status: "not_expected_yet",
+              cohost_sync_status: "not_configured",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }))
+          )
+          .select(SCHEDULED_SESSION_SELECT);
 
-      if (insertError) {
-        return res.status(500).json({ message: "Failed to schedule weekly sessions." });
+        if (result.error) {
+          return res.status(500).json({ message: "Failed to schedule weekly sessions." });
+        }
+        insertedSessions = result.data || [];
       }
 
       res.json({
