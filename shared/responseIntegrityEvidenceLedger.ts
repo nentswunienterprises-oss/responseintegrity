@@ -15,6 +15,7 @@ import {
   type TopicPhase,
   type TopicStability,
 } from "./topicConditioningEngine";
+import { trainingEvidenceStatusKey } from "./trainingEvidenceCapture";
 
 export const EVIDENCE_LEDGER_PROJECTION_VERSION = 1;
 
@@ -192,11 +193,12 @@ export const projectResponseIntegrityEvidenceLedger = (
       ) {
         const field = scoredFields[dimensionOrder];
         const normalizedLevel = rep[`${field.fieldKey}_level`] as ObservationLevel;
-        const evidenceClass = String(
-          rep[`${field.fieldKey}_evidence_class`] || "",
+        const evidenceStatus = String(
+          rep[trainingEvidenceStatusKey(field.fieldKey)] || "observed",
         ).trim();
         const decisionIneligible =
-          evidenceClass === "not_observed" || evidenceClass === "confounded";
+          evidenceStatus === "not_observed" ||
+          evidenceStatus === "confounded";
         const entryBase = {
           sourceDrillId: String(input.sourceDrillId).trim(),
           blockOrder: blockIndex + 1,
