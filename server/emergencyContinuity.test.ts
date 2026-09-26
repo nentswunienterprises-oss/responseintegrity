@@ -1253,6 +1253,42 @@ test("parent intro proposal uses direct PostgreSQL in emergency mode", () => {
   assert.match(routeSource, /return res\.status\(200\)\.json/);
 });
 
+test("diagnosis semantics separate the booked session container from the activity", () => {
+  const diagnosisSource = readFileSync(
+    resolve(process.cwd(), "server/evidenceCompleteDiagnosisRoutes.ts"),
+    "utf8",
+  );
+  const migrationSource = readFileSync(
+    resolve(process.cwd(), "migrations/20260927_diagnosis_activity_context_separation.sql"),
+    "utf8",
+  );
+
+  assert.match(
+    diagnosisSource,
+    /sessionContainer: "scheduled_training_session"[\s\S]*activityKind: "targeted_rediagnosis"/,
+  );
+  assert.match(
+    diagnosisSource,
+    /sessionContainer: diagnosisSemanticsForSessionKind\(input\.sessionKind\)\.sessionContainer/,
+  );
+  assert.match(
+    diagnosisSource,
+    /activityKind: diagnosisSemanticsForSessionKind\(input\.sessionKind\)\.activityKind/,
+  );
+  assert.match(
+    migrationSource,
+    /WHEN 'active_training' THEN 'scheduled_training_session'/,
+  );
+  assert.match(
+    migrationSource,
+    /WHEN 'active_training' THEN 'targeted_rediagnosis'/,
+  );
+  assert.match(
+    migrationSource,
+    /Do not interpret as activity type\. Use session_container \+ activity_kind\./,
+  );
+});
+
 test("completed active-training re-diagnosis retires its scheduled lesson", () => {
   const diagnosisSource = readFileSync(
     resolve(process.cwd(), "server/evidenceCompleteDiagnosisRoutes.ts"),
