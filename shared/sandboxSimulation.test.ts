@@ -11,6 +11,7 @@ import {
   getDrillSchemaDefinitionByVersion,
   getEvidenceSelectionIdentity,
   getFieldDefinitionForRep,
+  getFieldDefinitionsForRep,
   getRepPurposeId,
   resolveEvidenceSelection,
 } from "./responseIntegrityDrillRegistry";
@@ -33,8 +34,7 @@ function clarityScenario(): SandboxScenarioDefinition {
         repNumber: repIndex + 1,
         studentBehavior: `Fictional response for ${set.setName} rep ${repIndex + 1}.`,
         observations: Object.fromEntries(
-          set.fields.map((baseField) => {
-            const field = getFieldDefinitionForRep(set, repIndex, baseField.fieldKey) || baseField;
+          getFieldDefinitionsForRep(set, repIndex).map((field) => {
             const optionIndex = field.optionLevels.length - 1;
             const identity = getEvidenceSelectionIdentity({
               mode: "training",
@@ -111,7 +111,7 @@ test("legacy Sandbox scenario truth projects into current Training by evidence m
     "training",
     "Time Pressure Stability",
   );
-  assert.equal(current.schemaVersion, 3);
+  assert.equal(current.schemaVersion, 4);
 
   const projectedSet = projected.sets.find(
     (set) => set.setId === "time_pressure.structure_under_timer",
@@ -132,6 +132,89 @@ test("legacy Sandbox scenario truth projects into current Training by evidence m
     /uneven enough|cause skipping|errors|loss of control/i,
   );
   assert.match(pace.optionId, /\.option_2$/);
+});
+
+test("legacy Structured Sandbox scenarios project Required Structure plan evidence without rep-1 repeatability", () => {
+  const historical = getDrillSchemaDefinitionByVersion(
+    "training",
+    "Structured Execution",
+    1,
+  );
+  assert.ok(historical);
+
+  const legacyScenario: SandboxScenarioDefinition = {
+    key: "legacy-structured-v1",
+    version: 1,
+    title: "Legacy structured",
+    description: "Historical scenario projection proof.",
+    phase: "Structured Execution",
+    previousStability: "Low",
+    passThresholdPercent: 90,
+    sets: historical!.sets
+      .filter((set) => !set.modelingOnly)
+      .map((set) => ({
+        setId: set.setId,
+        reps: Array.from({ length: set.reps }, (_, repIndex) => ({
+          repNumber: repIndex + 1,
+          studentBehavior: `Legacy ${set.setName} rep ${repIndex + 1}`,
+          observations: Object.fromEntries(
+            set.fields.map((baseField) => {
+              const field =
+                getFieldDefinitionForRep(
+                  set,
+                  repIndex,
+                  baseField.fieldKey,
+                ) || baseField;
+              const optionIndex = field.optionLevels.length - 1;
+              return [
+                field.fieldKey,
+                {
+                  optionId:
+                    `${getRepPurposeId(set, repIndex)}.${field.dimensionId}.option_${optionIndex + 1}`,
+                  evidenceStatus: "observed" as const,
+                },
+              ];
+            }),
+          ),
+        })),
+      })),
+  };
+
+  const projected = projectSandboxScenarioToCurrentTrainingContract(
+    legacyScenario,
+    1,
+  );
+  const required = projected.sets.find(
+    (set) => set.setId === "structured_execution.required_structure",
+  );
+  assert.ok(required);
+  assert.ok(required!.reps[0].observations.stepPlanAccuracy);
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(
+      required!.reps[0].observations,
+      "repeatability",
+    ),
+    false,
+  );
+  assert.ok(required!.reps[1].observations.repeatability);
+
+  const publicScenario = projectSandboxScenarioForSpecialist(projected);
+  const publicRequired = publicScenario.sets.find(
+    (set) => set.setId === "structured_execution.required_structure",
+  );
+  assert.ok(publicRequired);
+  assert.equal(
+    publicRequired!.reps[0].fields.some(
+      (field) => field.fieldKey === "stepPlanAccuracy",
+    ),
+    true,
+  );
+  assert.equal(
+    publicRequired!.reps[0].fields.some(
+      (field) => field.fieldKey === "repeatability",
+    ),
+    false,
+  );
 });
 
 test("Sandbox projects student behaviour and live RI observation options without evaluator truth", () => {

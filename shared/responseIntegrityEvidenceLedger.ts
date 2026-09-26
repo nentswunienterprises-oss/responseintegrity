@@ -3,6 +3,7 @@ import {
   getDrillSchemaDefinitionByVersion,
   getFieldDefinitionForRep,
   getRepPurposeId,
+  getScoredFieldDefinitionsForRep,
   hasSemanticEvidenceContract,
   validateAndNormalizeSemanticEvidenceSet,
   type EvidenceConstraintProfile,
@@ -14,6 +15,7 @@ import {
   type TopicPhase,
   type TopicStability,
 } from "./topicConditioningEngine";
+import { trainingEvidenceStatusKey } from "./trainingEvidenceCapture";
 
 export const EVIDENCE_LEDGER_PROJECTION_VERSION = 1;
 
@@ -180,15 +182,28 @@ export const projectResponseIntegrityEvidenceLedger = (
     for (let repIndex = 0; repIndex < normalizedSet.observations.length; repIndex += 1) {
       const rep = normalizedSet.observations[repIndex];
       const repId = getRepPurposeId(definition, repIndex);
-      for (let dimensionOrder = 0; dimensionOrder < definition.fields.length; dimensionOrder += 1) {
-        const baseField = definition.fields[dimensionOrder];
-        const field = getFieldDefinitionForRep(definition, repIndex, baseField.fieldKey)!;
+      const scoredFields = getScoredFieldDefinitionsForRep(
+        definition,
+        repIndex,
+      );
+      for (
+        let dimensionOrder = 0;
+        dimensionOrder < scoredFields.length;
+        dimensionOrder += 1
+      ) {
+        const field = scoredFields[dimensionOrder];
         const normalizedLevel = rep[`${field.fieldKey}_level`] as ObservationLevel;
+        const evidenceStatus = String(
+          rep[trainingEvidenceStatusKey(field.fieldKey)] || "observed",
+        ).trim();
         const evidenceClass = String(
           rep[`${field.fieldKey}_evidence_class`] || "",
         ).trim();
         const decisionIneligible =
-          evidenceClass === "not_observed" || evidenceClass === "confounded";
+          evidenceStatus === "not_observed" ||
+          evidenceStatus === "confounded" ||
+          evidenceClass === "not_observed" ||
+          evidenceClass === "confounded";
         const entryBase = {
           sourceDrillId: String(input.sourceDrillId).trim(),
           blockOrder: blockIndex + 1,

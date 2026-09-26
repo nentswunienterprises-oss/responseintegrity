@@ -160,8 +160,8 @@ function describeTrainingEvidenceOption(fieldKey: string, option: string) {
 }
 
 function describeTrainingObservationQuestion(fieldKey: string, label: string) {
-  if (fieldKey === "repeatability" && label.includes("Step Statement Accuracy")) {
-    return "How accurate was the student's stated step plan before solving?";
+  if (fieldKey === "stepPlanAccuracy") {
+    return "Before solving, how accurately did the student state the required step plan?";
   }
   if (fieldKey === "independence" && label.includes("Independent Completion")) {
     return "How independently did the student complete the transfer?";
@@ -663,15 +663,19 @@ const TRAINING_SETS_BY_PHASE: Record<PhaseLabel, DrillSetConfig[]> = {
       observationBlock: [
         { key: "startBehavior", label: "Start", options: ["delayed", "hesitant", "immediate"] },
         {
+          key: "stepPlanAccuracy",
+          label: "Step Plan Accuracy",
+          options: [
+            "Could not state a usable step plan",
+            "Stated a plan with major order or content errors",
+            "Stated a mostly correct plan with a small gap or ordering issue",
+            "Stated the required steps accurately and in order",
+          ],
+        },
+        {
           key: "repeatability",
-          label: "Step Statement Accuracy",
-          options: ["missing", "out of order", "mostly accurate", "accurate"],
-          optionLevels: {
-            missing: "weak",
-            "out of order": "partial",
-            "mostly accurate": "clear",
-            accurate: "clear",
-          },
+          label: "Repeatability",
+          options: ["breaks", "inconsistent", "stable"],
         },
         { key: "stepExecution", label: "Step Discipline", options: ["skips", "partial", "full"] },
         { key: "independence", label: "Student Independence After Start", options: ["needs help", "light support", "independent"] },
@@ -1217,15 +1221,13 @@ function IntroSessionDrillRunnerCore() {
     );
     if (!registeredSet) return configuredFields;
 
-    const registeredFieldKeys = new Set(
-      registeredSet.fields.map((field) => field.fieldKey),
-    );
-
-    return configuredFields
-      .filter((configuredField) => registeredFieldKeys.has(configuredField.key))
-      .map((configuredField) => {
-      const registeredField = getFieldDefinitionForRep(registeredSet, repIndex, configuredField.key);
-      if (!registeredField?.optionLabels?.length) return configuredField;
+    return configuredFields.flatMap((configuredField) => {
+      const registeredField = getFieldDefinitionForRep(
+        registeredSet,
+        repIndex,
+        configuredField.key,
+      );
+      if (!registeredField?.optionLabels?.length) return [];
       const usesCanonicalResponseEvidence =
         evidenceModeForSubmission === "verification" ||
         (evidenceModeForSubmission === "training" &&
@@ -1249,20 +1251,28 @@ function IntroSessionDrillRunnerCore() {
       return {
         ...configuredField,
         label: canonicalDimension?.label || configuredField.label,
-        observationQuestion: canonicalDimension?.observationQuestion || (
-          evidenceModeForSubmission === "training"
-            ? describeTrainingObservationQuestion(registeredField.fieldKey, configuredField.label)
-            : configuredField.observationQuestion
-        ),
+        observationQuestion:
+          registeredField.observationQuestion ||
+          canonicalDimension?.observationQuestion ||
+          (
+            evidenceModeForSubmission === "training"
+              ? describeTrainingObservationQuestion(
+                  registeredField.fieldKey,
+                  configuredField.label,
+                )
+              : configuredField.observationQuestion
+          ),
         options: [...registeredField.optionLabels],
-        optionDetails: canonicalDimension
-          ? Object.fromEntries(
-              canonicalDimension.options.map((option) => [
-                option.label,
-                option.detail,
-              ]),
-            )
-          : trainingOptionDetails || configuredField.optionDetails,
+        optionDetails:
+          registeredField.optionDetails ||
+          (canonicalDimension
+            ? Object.fromEntries(
+                canonicalDimension.options.map((option) => [
+                  option.label,
+                  option.detail,
+                ]),
+              )
+            : trainingOptionDetails || configuredField.optionDetails),
         optionLevels: Object.fromEntries(
           registeredField.optionLabels.map((label, optionIndex) => [
             label,
@@ -2139,6 +2149,18 @@ function IntroSessionDrillRunnerCore() {
     setObservations((prev: any) => ({
       ...prev,
       [`set${currentSet}_rep${currentRep}_${field}`]: value,
+      ...(isTrainingEvidenceCapture
+        ? {
+            [
+              "set" +
+                currentSet +
+                "_rep" +
+                currentRep +
+                "_" +
+                trainingEvidenceStatusKey(field)
+            ]: "observed",
+          }
+        : {}),
     }));
   };
 
@@ -2146,11 +2168,30 @@ function IntroSessionDrillRunnerCore() {
   const handleTrainingEvidenceStatus = (
     field: string,
     status: TrainingEvidenceStatus,
+    fallbackOption?: string,
   ) => {
-    setObservations((prev: any) => ({
-      ...prev,
-      ["set" + currentSet + "_rep" + currentRep + "_" + trainingEvidenceStatusKey(field)]: status,
-    }));
+    setObservations((prev: any) => {
+      const fieldKey = `set${currentSet}_rep${currentRep}_${field}`;
+      const statusKey =
+        "set" +
+        currentSet +
+        "_rep" +
+        currentRep +
+        "_" +
+        trainingEvidenceStatusKey(field);
+      if (status === "observed") {
+        return {
+          ...prev,
+          [statusKey]: "observed",
+          [fieldKey]: "",
+        };
+      }
+      return {
+        ...prev,
+        [statusKey]: status,
+        [fieldKey]: String(prev[fieldKey] || fallbackOption || ""),
+      };
+    });
   };
 
   const handleTrainingIntervention = (event: TrainingInterventionEvent) => {
@@ -2327,9 +2368,26 @@ function IntroSessionDrillRunnerCore() {
   const getMissingFieldsForRep = (setIndex: number, repIndex: number) => {
     const repSet = drillStructure[setIndex];
     const observationBlock = getLiveObservationBlockForRep(repSet, repIndex);
-    const missing: ObservationField[] = observationBlock.filter(
-      (field) => !String(observations[`set${setIndex}_rep${repIndex}_${field.key}`] || "").trim()
-    );
+    const missing: ObservationField[] = observationBlock.filter((field) => {
+      if (isTrainingEvidenceCapture) {
+        const statusRaw = String(
+          observations[
+            "set" +
+              setIndex +
+              "_rep" +
+              repIndex +
+              "_" +
+              trainingEvidenceStatusKey(field.key)
+          ] || "observed",
+        );
+        if (statusRaw === "not_observed" || statusRaw === "confounded") {
+          return false;
+        }
+      }
+      return !String(
+        observations[`set${setIndex}_rep${repIndex}_${field.key}`] || "",
+      ).trim();
+    });
     if (
       isTrainingEvidenceCapture &&
       displayPhase === "Time Pressure Stability" &&
@@ -4005,15 +4063,24 @@ function IntroSessionDrillRunnerCore() {
                 label: option,
               }))}
               selected={
-                observations[`set${currentSet}_rep${currentRep}_${obs.key}`] || null
+                currentTrainingEvidenceStatus(obs.key) === "observed"
+                  ? observations[
+                      `set${currentSet}_rep${currentRep}_${obs.key}`
+                    ] || null
+                  : null
               }
               optionDetails={obs.optionDetails}
               onSelect={(option) => handleObservation(obs.key, option)}
               showEvidenceExceptions={showEvidenceExceptions}
               evidenceStatus={currentTrainingEvidenceStatus(obs.key)}
               onEvidenceStatus={(status) =>
-                handleTrainingEvidenceStatus(obs.key, status)
+                handleTrainingEvidenceStatus(
+                  obs.key,
+                  status,
+                  obs.options[0],
+                )
               }
+              allowEvidenceExceptionWithoutOption
             />
           ) : (
             <div key={obs.key}>

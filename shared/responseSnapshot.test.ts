@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   getDrillSchemaDefinition,
   getEvidenceSelectionIdentity,
-  getFieldDefinitionForRep,
+  getFieldDefinitionsForRep,
   type EvidenceDrillMode,
   type SubmittedEvidenceSet,
 } from "./responseIntegrityDrillRegistry";
@@ -44,8 +44,7 @@ function buildSubmittedSet({
         _rep_id: set.repPurposeIds[repIndex],
         _rep_number: String(repIndex + 1),
       };
-      set.fields.forEach((baseField) => {
-        const field = getFieldDefinitionForRep(set, repIndex, baseField.fieldKey) || baseField;
+      getFieldDefinitionsForRep(set, repIndex).forEach((field) => {
         const selected = repRaw[field.fieldKey];
         const optionIndex = field.optionLabels?.indexOf(selected) ?? -1;
         const identity = getEvidenceSelectionIdentity({
@@ -99,8 +98,7 @@ function rawOptionsForRepLevel({
   const set = schema.sets.find((candidate) => candidate.setName === setName);
   assert.ok(set, `Expected registered set ${setName}`);
   const raw: Record<string, string> = {};
-  set.fields.forEach((baseField) => {
-    const field = getFieldDefinitionForRep(set, repIndex, baseField.fieldKey) || baseField;
+  getFieldDefinitionsForRep(set, repIndex).forEach((field) => {
     const optionIndex = field.optionLevels.findIndex((candidate) => candidate === level);
     assert.notEqual(optionIndex, -1, `Expected ${setName}.${field.fieldKey} to support ${level}`);
     const selected = field.optionLabels?.[optionIndex];
@@ -153,10 +151,10 @@ function rawOptionsForEvidenceClasses({
   assert.ok(set, `Expected registered set ${setName}`);
   const raw: Record<string, string> = {};
 
-  set.fields.forEach((baseField) => {
-    const field =
-      getFieldDefinitionForRep(set, repIndex, baseField.fieldKey) || baseField;
-    const evidenceClass = classes[field.fieldKey];
+  getFieldDefinitionsForRep(set, repIndex).forEach((field) => {
+    const evidenceClass =
+      classes[field.fieldKey] ||
+      (field.decisionEligible === false ? "supported" : undefined);
     assert.ok(evidenceClass, `Missing evidence class for ${setName}.${field.fieldKey}`);
     const optionIndex =
       field.optionEvidenceClasses?.findIndex(
@@ -200,7 +198,7 @@ test("response snapshot keeps weak evidence visible inside a strong rep", () => 
         phase: "Structured Execution",
         setName: "Required Structure",
         repIndex: 0,
-        classes: { ...supported, startBehavior: "breakdown" },
+        classes: { ...supported, independence: "breakdown" },
       }),
       rawOptionsForEvidenceClasses({
         phase: "Structured Execution",
@@ -228,9 +226,29 @@ test("response snapshot keeps weak evidence visible inside a strong rep", () => 
   });
 
   const firstRep = snapshot.sets[0].reps[0];
+  assert.equal(
+    firstRep.evidence.some(
+      (item) => item.dimensionId === "execution.repeatability",
+    ),
+    false,
+  );
+  assert.equal(
+    firstRep.evidence.some(
+      (item) =>
+        item.dimensionId ===
+        "condition.required_structure.step_plan_accuracy",
+    ),
+    true,
+  );
+  assert.equal(
+    snapshot.sets[0].reps[1].evidence.some(
+      (item) => item.dimensionId === "execution.repeatability",
+    ),
+    true,
+  );
   assert.equal(firstRep.responseLabel, "Strong response");
   assert.match(firstRep.resultText, /This rep checked whether/);
-  assert.match(firstRep.resultText, /independent execution did not begin/i);
+  assert.match(firstRep.resultText, /depended on external carrying/i);
   assert.doesNotMatch(snapshot.sets[0].resultText, /Require stated step order before solving\. Require stated step order before solving\./);
 });
 
@@ -393,6 +411,7 @@ test("rep formatter strips labels from stored evidence clauses", () => {
         selectedOptionId: "option-1",
         selectedRawOption: "correct",
         normalizedLevel: "clear",
+        evidenceStatus: "observed",
         humanClause: "Vocabulary: recognized the problem type correctly",
         weight: 30,
         contribution: 30,
@@ -404,6 +423,7 @@ test("rep formatter strips labels from stored evidence clauses", () => {
         selectedOptionId: "option-2",
         selectedRawOption: "clear",
         normalizedLevel: "clear",
+        evidenceStatus: "observed",
         humanClause: "Method: recalled the method clearly",
         weight: 30,
         contribution: 30,
@@ -415,6 +435,7 @@ test("rep formatter strips labels from stored evidence clauses", () => {
         selectedOptionId: "option-3",
         selectedRawOption: "weak",
         normalizedLevel: "partial",
+        evidenceStatus: "observed",
         humanClause: "Reason: showed weak reason awareness",
         weight: 20,
         contribution: 12,
@@ -628,6 +649,7 @@ test("persisted rep wording is rendered verbatim after generation", () => {
         selectedOptionId: "option-id",
         selectedRawOption: "delayed",
         normalizedLevel: "weak",
+        evidenceStatus: "observed",
         humanClause: "started only after delay",
         weight: 25,
         contribution: 0,

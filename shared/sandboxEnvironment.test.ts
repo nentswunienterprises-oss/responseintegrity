@@ -146,7 +146,7 @@ test("Sandbox bank V1 observations reconcile by evidence meaning into current Tr
   assert.doesNotThrow(() => validateSandboxOutcomeDefinition(projected));
 
   const current = getDrillSchemaDefinition("training", "Structured Execution");
-  assert.equal(current.schemaVersion, 3);
+  assert.equal(current.schemaVersion, 4);
   const projectedStart = projected.canonicalObservations.startBehavior;
   const resolved = resolveEvidenceSelection({
     mode: "training",

@@ -41,6 +41,59 @@ test("first-step confirmation only confounds dimensions whose independence it su
   );
 });
 
+test("first-step confirmation confounds Structured Execution independence and repeatability", () => {
+  for (const dimensionId of [
+    "execution.start",
+    "execution.repeatability",
+    "execution.independence",
+  ] as const) {
+    assert.equal(
+      interventionConfoundsTrainingDimension({
+        phase: "Structured Execution",
+        dimensionId,
+        interventionEvent: "first_step_confirmation",
+      }),
+      true,
+      dimensionId,
+    );
+  }
+  assert.equal(
+    interventionConfoundsTrainingDimension({
+      phase: "Structured Execution",
+      dimensionId: "execution.step_discipline",
+      interventionEvent: "first_step_confirmation",
+    }),
+    false,
+  );
+});
+
+test("method or step prompting confounds downstream dimensions it materially supplies", () => {
+  for (const dimensionId of [
+    "execution.start",
+    "execution.step_discipline",
+    "execution.repeatability",
+    "execution.independence",
+  ] as const) {
+    assert.equal(
+      interventionConfoundsTrainingDimension({
+        phase: "Structured Execution",
+        dimensionId,
+        interventionEvent: "method_or_step_prompt",
+      }),
+      true,
+      dimensionId,
+    );
+  }
+  assert.equal(
+    interventionConfoundsTrainingDimension({
+      phase: "Time Pressure Stability",
+      dimensionId: "time.pace",
+      interventionEvent: "method_or_step_prompt",
+    }),
+    true,
+  );
+});
+
 test("full rescue confounds current-phase capability evidence", () => {
   assert.equal(
     interventionConfoundsTrainingDimension({

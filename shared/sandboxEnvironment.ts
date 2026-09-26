@@ -4,6 +4,7 @@ import {
   getDrillSchemaDefinitionByVersion,
   getEvidenceSelectionIdentity,
   getFieldDefinitionForRep,
+  getFieldDefinitionsForRep,
   getRepPurposeId,
   resolveEvidenceSelection,
   type SubmittedEvidenceSet,
@@ -31,6 +32,7 @@ import {
 } from "./responseEvidenceModel";
 import type { TrainingDimensionId } from "./trainingEvidenceContract";
 import {
+  getLegacyStatefulSandboxV1RequiredStructureStepPlanAudit,
   getLegacyStatefulSandboxV1ScenarioTruthAudit,
   renderLegacyStatefulSandboxV1StudentBehavior,
 } from "./statefulSandboxV1ScenarioTruthAudit";
@@ -257,9 +259,29 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
   }
 
   const repIndex = definition.repNumber - 1;
+  const currentFields = getFieldDefinitionsForRep(currentSet, repIndex);
   const canonicalObservations = Object.fromEntries(
-    currentSet.fields.map((currentBaseField) => {
-        const fieldKey = currentBaseField.fieldKey;
+    currentFields.map((currentField) => {
+      const fieldKey = currentField.fieldKey;
+      let evidenceClass: ResponseEvidenceClass | null = null;
+      let evidenceStatus: TrainingEvidenceStatus = "observed";
+
+      if (
+        currentField.dimensionId ===
+        "condition.required_structure.step_plan_accuracy"
+      ) {
+        const conditionAudit =
+          getLegacyStatefulSandboxV1RequiredStructureStepPlanAudit(
+            definition.key,
+          );
+        if (!conditionAudit) {
+          throw new Error(
+            `Sandbox outcome ${definition.key} has no audited Required Structure step-plan truth.`,
+          );
+        }
+        evidenceClass = conditionAudit.evidenceClass;
+        evidenceStatus = conditionAudit.evidenceStatus;
+      } else {
         const canonical = definition.canonicalObservations[fieldKey];
         if (!canonical?.optionId) {
           throw new Error(
@@ -287,64 +309,90 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
           sourceResolved.field.dimensionId as TrainingDimensionId;
         const auditedObservation =
           scenarioTruthAudit?.observations[dimensionId] || null;
-        const evidenceClass =
+        evidenceClass =
           auditedObservation?.evidenceClass ||
           sourceResolved.evidenceClass ||
           trainingEvidenceClassForRawBehavior(dimensionId, rawLabel);
-        if (
-          !evidenceClass ||
-          evidenceClass === "not_observed" ||
-          evidenceClass === "confounded"
-        ) {
-          throw new Error(
-            `Sandbox outcome ${definition.key} cannot reconcile ${fieldKey} into a decision evidence class.`,
-          );
-        }
-
-        const currentField = getFieldDefinitionForRep(
-          currentSet,
-          repIndex,
-          fieldKey,
+        evidenceStatus = normalizeStatus(
+          auditedObservation?.evidenceStatus || canonical.evidenceStatus,
         );
-        if (!currentField) {
-          throw new Error(
-            `Sandbox outcome ${definition.key} is missing current field ${fieldKey}.`,
-          );
-        }
-        const optionIndex =
-          currentField.optionEvidenceClasses?.findIndex(
-            (candidate) => candidate === evidenceClass,
-          ) ?? -1;
-        if (optionIndex < 0) {
-          throw new Error(
-            `Sandbox outcome ${definition.key} cannot map ${fieldKey} ${evidenceClass} into Training V${currentSchema.schemaVersion}.`,
-          );
-        }
+      }
 
-        const identity = getEvidenceSelectionIdentity({
-          mode: "training",
-          phase: definition.phase,
-          setName: currentSet.setName,
-          repIndex,
-          fieldKey,
-          optionIndex,
-        });
-        if (!identity) {
-          throw new Error(
-            `Sandbox outcome ${definition.key} could not resolve current option identity for ${fieldKey}.`,
-          );
-        }
+      if (
+        !evidenceClass ||
+        evidenceClass === "not_observed" ||
+        evidenceClass === "confounded"
+      ) {
+        throw new Error(
+          `Sandbox outcome ${definition.key} cannot reconcile ${fieldKey} into a decision evidence class.`,
+        );
+      }
 
-        return [
-          fieldKey,
-          {
-            optionId: identity.optionId,
-            evidenceStatus:
-              auditedObservation?.evidenceStatus || canonical.evidenceStatus,
-          },
-        ];
-      }),
+      const optionIndex =
+        currentField.optionEvidenceClasses?.findIndex(
+          (candidate) => candidate === evidenceClass,
+        ) ?? -1;
+      if (optionIndex < 0) {
+        throw new Error(
+          `Sandbox outcome ${definition.key} cannot map ${fieldKey} ${evidenceClass} into Training V${currentSchema.schemaVersion}.`,
+        );
+      }
+
+      const identity = getEvidenceSelectionIdentity({
+        mode: "training",
+        phase: definition.phase,
+        setName: currentSet.setName,
+        repIndex,
+        fieldKey,
+        optionIndex,
+      });
+      if (!identity) {
+        throw new Error(
+          `Sandbox outcome ${definition.key} could not resolve current option identity for ${fieldKey}.`,
+        );
+      }
+
+      return [
+        fieldKey,
+        {
+          optionId: identity.optionId,
+          evidenceStatus,
+        },
+      ];
+    }),
   );
+
+  const decisionClasses: ResponseEvidenceClass[] = currentFields
+    .filter((field) => field.decisionEligible !== false)
+    .map((field) => {
+      const canonical = canonicalObservations[field.fieldKey];
+      const status = normalizeStatus(canonical?.evidenceStatus);
+      if (status === "confounded") return "confounded";
+      if (status === "not_observed") return "not_observed";
+      const resolved = resolveEvidenceSelection({
+        mode: "training",
+        phase: definition.phase,
+        setId: definition.setId,
+        repIndex,
+        fieldKey: field.fieldKey,
+        optionId: canonical?.optionId || "",
+        schemaVersion: currentSchema.schemaVersion,
+      });
+      return (resolved?.evidenceClass || "confounded") as ResponseEvidenceClass;
+    });
+
+  const auditedTrajectoryClass: ResponseEvidenceClass =
+    decisionClasses.includes("breakdown")
+      ? "breakdown"
+      : decisionClasses.includes("conditional")
+        ? "conditional"
+        : decisionClasses.includes("near_stable")
+          ? "near_stable"
+          : decisionClasses.includes("confounded")
+            ? "confounded"
+            : decisionClasses.includes("not_observed")
+              ? "not_observed"
+              : "supported";
 
   const auditedStudentBehavior =
     scenarioTruthAudit
@@ -362,8 +410,6 @@ export function projectSandboxOutcomeToCurrentTrainingContract(
     );
   }
 
-  const auditedTrajectoryClass =
-    scenarioTruthAudit?.trajectoryClass || definition.trajectoryClass;
   const continuityTags = new Set(definition.emitsContinuityTags || []);
   if (auditedTrajectoryClass === "breakdown") {
     continuityTags.add("recent_breakdown");
@@ -405,8 +451,8 @@ export function validateSandboxOutcomeDefinition(definition: SandboxOutcomeDefin
   }
 
   const repIndex = definition.repNumber - 1;
-  for (const baseField of set.fields) {
-    const field = getFieldDefinitionForRep(set, repIndex, baseField.fieldKey) || baseField;
+  const repFields = getFieldDefinitionsForRep(set, repIndex);
+  for (const field of repFields) {
     const canonical = definition.canonicalObservations[field.fieldKey];
     if (!canonical?.optionId) {
       throw new Error(
@@ -431,7 +477,7 @@ export function validateSandboxOutcomeDefinition(definition: SandboxOutcomeDefin
   }
 
   const canonicalKeys = Object.keys(definition.canonicalObservations);
-  const registeredKeys = set.fields.map((field) => field.fieldKey);
+  const registeredKeys = repFields.map((field) => field.fieldKey);
   for (const key of canonicalKeys) {
     if (!registeredKeys.includes(key)) {
       throw new Error(`Sandbox outcome ${definition.key} contains unknown observation ${key}.`);

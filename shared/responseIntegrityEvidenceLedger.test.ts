@@ -9,7 +9,7 @@ import {
 import {
   getDrillSchemaDefinition,
   getEvidenceSelectionIdentity,
-  getFieldDefinitionForRep,
+  getFieldDefinitionsForRep,
   getRepPurposeId,
   type EvidenceDrillMode,
 } from "./responseIntegrityDrillRegistry";
@@ -44,8 +44,7 @@ const buildValidSet = ({
             _rep_id: getRepPurposeId(definition, repIndex),
             _rep_number: String(repIndex + 1),
           };
-          definition.fields.forEach((baseField) => {
-            const field = getFieldDefinitionForRep(definition, repIndex, baseField.fieldKey)!;
+          getFieldDefinitionsForRep(definition, repIndex).forEach((field) => {
             const optionIndex = selectOptionIndex
               ? selectOptionIndex(repIndex, field.fieldKey, field.optionLevels.length)
               : field.optionLevels.length - 1;
@@ -89,7 +88,7 @@ const baseProjectionInput = (sets: LedgerEvidenceSet[]): EvidenceLedgerProjectio
   sets,
 });
 
-test("ledger projection preserves one weak and eight clear opportunities without deduplication", () => {
+test("ledger projection preserves capability evidence without rep-ineligible or condition-only rows", () => {
   const sets = getDrillSchemaDefinition("training", "Structured Execution").sets.map((_, setIndex) =>
     buildValidSet({
       mode: "training",
@@ -104,12 +103,26 @@ test("ledger projection preserves one weak and eight clear opportunities without
   assert.equal(result.status, "projected");
   if (result.status !== "projected") return;
 
-  assert.equal(result.entries.length, 36);
-  assert.equal(new Set(result.entries.map((entry) => entry.evidenceId)).size, 36);
+  assert.equal(result.entries.length, 33);
+  assert.equal(new Set(result.entries.map((entry) => entry.evidenceId)).size, 33);
   const startEvidence = result.entries.filter((entry) => entry.dimensionId === "execution.start");
   assert.equal(startEvidence.length, 9);
   assert.equal(startEvidence.filter((entry) => entry.normalizedLevel === "weak").length, 1);
   assert.equal(startEvidence.filter((entry) => entry.normalizedLevel === "clear").length, 8);
+  assert.equal(
+    result.entries.filter(
+      (entry) => entry.dimensionId === "execution.repeatability",
+    ).length,
+    6,
+  );
+  assert.equal(
+    result.entries.some(
+      (entry) =>
+        entry.dimensionId ===
+        "condition.required_structure.step_plan_accuracy",
+    ),
+    false,
+  );
 });
 
 test("ledger projection retains state, session, constraint, and score lineage", () => {
@@ -130,8 +143,8 @@ test("ledger projection retains state, session, constraint, and score lineage", 
   assert.equal(stepEvidence.transitionReason, "stability advance");
   assert.equal(stepEvidence.constraintProfile.supportLevel, "minimal");
   assert.equal(stepEvidence.normalizedLevel, "partial");
-  assert.equal(stepEvidence.scoreContribution, 18);
-  assert.equal(stepEvidence.scoreContributionMax, 30);
+  assert.equal(stepEvidence.scoreContribution, 24);
+  assert.equal(stepEvidence.scoreContributionMax, 40);
 });
 
 test("handover not-observed and confounded evidence contributes no compatibility points", () => {

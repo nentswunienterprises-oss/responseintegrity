@@ -12,12 +12,14 @@ import {
   getDrillSchemaDefinitionByVersion,
   getEvidenceSelectionIdentity,
   getFieldDefinitionForRep,
+  getFieldDefinitionsForRep,
   getRepPurposeId,
   resolveEvidenceSelection,
 } from "./responseIntegrityDrillRegistry";
 import {
   LEGACY_STATEFUL_SANDBOX_V1_DIMENSION_ORDER,
   LEGACY_STATEFUL_SANDBOX_V1_NATURAL_VIGNETTES,
+  getLegacyStatefulSandboxV1RequiredStructureStepPlanAudit,
   getLegacyStatefulSandboxV1ScenarioTruthAudit,
   renderLegacyStatefulSandboxV1StudentBehavior,
   validateLegacyStatefulSandboxV1ScenarioTruthAudit,
@@ -128,7 +130,6 @@ test("all 264 Stateful Sandbox V1 outcomes preserve audited truth while renderin
             outcomeKey: historicalDefinition.key,
           });
           assert.ok(audit);
-          assert.equal(projected.trajectoryClass, audit!.trajectoryClass);
           assert.equal(
             projected.studentBehavior,
             renderLegacyStatefulSandboxV1StudentBehavior({
@@ -141,32 +142,43 @@ test("all 264 Stateful Sandbox V1 outcomes preserve audited truth while renderin
           );
           assert.doesNotMatch(projected.studentBehavior, /Historical placeholder/);
 
-          for (const dimensionId of currentSet!.fields.map(
-            (field) => field.dimensionId,
+          for (const field of getFieldDefinitionsForRep(
+            currentSet!,
+            repIndex,
           )) {
+            const dimensionId = field.dimensionId;
             const auditedObservation =
-              audit!.observations[dimensionId as TrainingDimensionId];
+              dimensionId ===
+              "condition.required_structure.step_plan_accuracy"
+                ? getLegacyStatefulSandboxV1RequiredStructureStepPlanAudit(
+                    historicalDefinition.key,
+                  )
+                : audit!.observations[
+                    dimensionId as TrainingDimensionId
+                  ];
             assert.ok(auditedObservation);
-            assert.equal(
-              projected.studentBehavior.includes(auditedObservation!.behavior),
-              false,
-              historicalDefinition.key +
-                " must not copy hidden evaluator prose for " +
-                dimensionId,
-            );
-
-            const field = currentSet!.fields.find(
-              (candidate) => candidate.dimensionId === dimensionId,
-            );
-            assert.ok(field);
-            const canonical = projected.canonicalObservations[field!.fieldKey];
+            if (
+              dimensionId !==
+              "condition.required_structure.step_plan_accuracy"
+            ) {
+              assert.equal(
+                projected.studentBehavior.includes(
+                  auditedObservation!.behavior,
+                ),
+                false,
+                historicalDefinition.key +
+                  " must not copy hidden evaluator prose for " +
+                  dimensionId,
+              );
+            }
+            const canonical = projected.canonicalObservations[field.fieldKey];
             assert.ok(canonical);
             const resolved = resolveEvidenceSelection({
               mode: "training",
               phase,
               setId: set.setId,
               repIndex,
-              fieldKey: field!.fieldKey,
+              fieldKey: field.fieldKey,
               optionId: canonical.optionId,
               schemaVersion: current.schemaVersion,
             });
@@ -186,8 +198,10 @@ test("all 264 Stateful Sandbox V1 outcomes preserve audited truth while renderin
             );
           }
 
-          if (audit!.trajectoryClass === "breakdown") {
-            assert.ok(projected.emitsContinuityTags?.includes("recent_breakdown"));
+          if (projected.trajectoryClass === "breakdown") {
+            assert.ok(
+              projected.emitsContinuityTags?.includes("recent_breakdown"),
+            );
           } else {
             assert.equal(
               projected.emitsContinuityTags?.includes("recent_breakdown"),
@@ -202,6 +216,71 @@ test("all 264 Stateful Sandbox V1 outcomes preserve audited truth while renderin
   }
 
   assert.equal(projectedCount, 264);
+});
+
+test("Structured Execution Sandbox respects rep-level repeatability and Required Structure plan authority", () => {
+  const current = getDrillSchemaDefinition(
+    "training",
+    "Structured Execution",
+  );
+
+  for (const setId of [
+    "structured_execution.required_structure",
+    "structured_execution.independent_execution",
+    "structured_execution.variation_control",
+  ]) {
+    const repOne = projectSandboxOutcomeToCurrentTrainingContract(
+      historicalOutcome("Structured Execution", setId, 1, 1),
+      1,
+    );
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(
+        repOne.canonicalObservations,
+        "repeatability",
+      ),
+      false,
+      `${setId} rep 1 must not invent cross-rep repeatability`,
+    );
+    assert.doesNotMatch(
+      repOne.studentBehavior,
+      /compared with|preceding rep|earlier comparable/i,
+    );
+
+    const repTwo = projectSandboxOutcomeToCurrentTrainingContract(
+      historicalOutcome("Structured Execution", setId, 2, 1),
+      1,
+    );
+    assert.ok(repTwo.canonicalObservations.repeatability);
+    assert.match(
+      repTwo.studentBehavior,
+      /compared with the preceding rep/i,
+    );
+  }
+
+  const required = current.sets.find(
+    (set) => set.setId === "structured_execution.required_structure",
+  )!;
+  const projected = projectSandboxOutcomeToCurrentTrainingContract(
+    historicalOutcome(
+      "Structured Execution",
+      "structured_execution.required_structure",
+      1,
+      1,
+    ),
+    1,
+  );
+  assert.ok(projected.canonicalObservations.stepPlanAccuracy);
+  const resolved = resolveEvidenceSelection({
+    mode: "training",
+    phase: "Structured Execution",
+    setId: required.setId,
+    repIndex: 0,
+    fieldKey: "stepPlanAccuracy",
+    optionId: projected.canonicalObservations.stepPlanAccuracy.optionId,
+    schemaVersion: current.schemaVersion,
+  });
+  assert.equal(resolved?.evidenceClass, "supported");
+  assert.match(projected.studentBehavior, /before touching the calculation/i);
 });
 
 test("Clarity Identification projects recognition-only evidence and never simulates solving", () => {

@@ -4,6 +4,7 @@ import type { TrainingEvidenceStatus } from "./trainingEvidenceCapture";
 import type { TrainingDecisionEvidenceClass } from "./trainingObservationContractV2";
 import type { ResponseEvidenceClass } from "./responseEvidenceModel";
 import { TRAINING_OBSERVATION_MATRIX_V2 } from "./trainingObservationContractV2";
+import { TRAINING_CONDITION_OBSERVATION_DEFINITIONS_V4 } from "./trainingObservationAuthorityV4";
 
 export type LegacyStatefulSandboxObservationAudit = {
   evidenceClass: TrainingDecisionEvidenceClass;
@@ -90,14 +91,14 @@ export const LEGACY_STATEFUL_SANDBOX_V1_NATURAL_VIGNETTES: Record<
     8: "The student identifies the important parts of the problem. Before they answer the question about which procedure to use, an on-screen hint briefly flashes the procedure name; after that, they explain the connection in their own words and begin working without help.",
   },
   "Structured Execution": {
-    1: "The student writes the first operation without prompting and works through the planned sequence in order. On the comparable example they use the same sequence again, and they never turn to the Specialist for confirmation.",
-    2: "The student pauses before the first line, then chooses a sound opening move. Midway they place one step out of order, notice it, and fix it; the same small wobble appears on the comparable example, but they keep working without asking for help.",
-    3: "The student starts with the expected first move, but later skips a needed step and has to backtrack. A similar loss of order appears again on the comparable example; after doing most of the work alone, they ask once, 'Is this still right?' before continuing.",
-    4: "The student opens with an operation that does not belong there, notices the problem, and tries to recover the sequence. Several steps still arrive out of order on this attempt and the comparable one, and they ask for help more than once before enough work is done.",
-    5: "The student begins with a guess, then recovers pieces of the expected sequence after some trial and error. When the comparable example arrives, the earlier pattern is not reproduced at all and they fall back to repeated requests for help.",
-    6: "The student waits without making a first move, then writes operations that are disconnected from the known sequence. On the comparable example the same method never gets going, and they refuse to continue unless the Specialist starts carrying the steps.",
-    7: "This is the first comparable use of this method available in the current trajectory. The student starts on their own, follows the sequence through, and does not ask for help, but there is nothing earlier to compare this execution against.",
-    8: "The student begins with the expected first move. Halfway through, the problem display refreshes and changes the order of two required steps; they continue on their own after the glitch, and their work outside that changed segment matches the pattern they had used before.",
+    1: "The student makes a sound opening move and keeps the method in order from one line to the next. They continue without turning to the Specialist for reassurance.",
+    2: "The student pauses before a sound opening move, then places one step out of order, notices it, and fixes it. They keep ownership of the rest of the work.",
+    3: "The student starts with the expected first move but later skips a needed step and has to backtrack. After doing most of the work alone, they ask once, 'Is this still right?' before continuing.",
+    4: "The student opens with an operation that does not belong there, notices the problem, and tries to recover. Several later steps still arrive out of order, and they ask for help more than once before enough work is done.",
+    5: "The student begins with a guess and recovers pieces of the expected method after trial and error. The sequence remains patchy and they fall back to repeated requests for help.",
+    6: "The student waits without making a usable first move, then writes operations disconnected from the known method. They will not continue unless the Specialist starts carrying the work.",
+    7: "The student starts on their own, keeps the visible method in order, and does not ask for help. Nothing in the current rep itself prevents a clean execution observation.",
+    8: "The student begins with a sound first move. Halfway through, the problem display refreshes and changes the required order of two steps; they continue on their own after the glitch.",
   },
   "Controlled Discomfort": {
     1: "As soon as the problem becomes unfamiliar, the student stays with it and writes a sensible first move. When they hit a sticking point, they keep trying, adjust their work, and continue without asking the Specialist to take over.",
@@ -841,6 +842,69 @@ export const LEGACY_STATEFUL_SANDBOX_V1_SET_SPECIFIC_VIGNETTES: Record<
   },
 };
 
+export const LEGACY_STATEFUL_SANDBOX_V1_REQUIRED_STRUCTURE_STEP_PLAN_AUDIT: Record<
+  number,
+  LegacyStatefulSandboxObservationAudit
+> = {
+  1: observed(
+    "supported",
+    "Before touching the calculation, the student states the sequence they intend to use, including every necessary step in the right order.",
+  ),
+  2: observed(
+    "near_stable",
+    "Before solving, the student states the whole sequence but swaps two adjacent steps, notices the issue, and corrects the order.",
+  ),
+  3: observed(
+    "conditional",
+    "Before solving, the student names several useful steps but leaves out one the method needs.",
+  ),
+  4: observed(
+    "conditional",
+    "Before solving, the student gives a sequence but places a major operation in the wrong position.",
+  ),
+  5: observed(
+    "conditional",
+    "Before solving, the student begins listing a plan, stops halfway, and cannot account for the missing middle step.",
+  ),
+  6: observed(
+    "breakdown",
+    "Before solving, the student cannot produce a usable sequence and waits for someone else to supply the plan.",
+  ),
+  7: observed(
+    "supported",
+    "Before solving, the student states the intended sequence completely and in the right order.",
+  ),
+  8: confounded(
+    "supported",
+    "As the student starts to state the plan, an on-screen note flashes the step sequence before their own plan can be heard cleanly.",
+  ),
+};
+
+const LEGACY_STATEFUL_SANDBOX_V1_EXECUTION_REPEATABILITY_CLAUSES: Record<
+  number,
+  string
+> = {
+  1: "Compared with the preceding rep in this set, the same method pattern appears again without meaningful drift.",
+  2: "Compared with the preceding rep, the same method appears again with one small wobble that the student corrects.",
+  3: "Compared with the preceding rep, some of the method returns but the execution pattern does not hold consistently.",
+  4: "Compared with the preceding rep, the method returns only in pieces and the sequence changes materially.",
+  5: "The method that appeared earlier in the set does not reproduce on this rep.",
+  6: "The earlier execution pattern is absent on this rep.",
+  7: "The preceding comparable rep cannot be reviewed because its work disappeared after a connection refresh, so this rep cannot be compared cleanly.",
+  8: "Outside the display glitch, the parts that remain comparable follow the same method pattern as the preceding rep.",
+};
+
+export const getLegacyStatefulSandboxV1RequiredStructureStepPlanAudit = (
+  outcomeKey: string,
+): LegacyStatefulSandboxObservationAudit | null => {
+  const patternNumber = legacyStatefulSandboxV1PatternNumber(outcomeKey);
+  return (
+    LEGACY_STATEFUL_SANDBOX_V1_REQUIRED_STRUCTURE_STEP_PLAN_AUDIT[
+      patternNumber
+    ] || null
+  );
+};
+
 const setIdFromOutcomeKey = (outcomeKey: string) =>
   String(outcomeKey || "").replace(/\.rep_\d+\.pattern_\d+$/, "");
 
@@ -862,8 +926,31 @@ export function renderLegacyStatefulSandboxV1StudentBehavior(input: {
     ] ||
     null;
   if (!vignette) return null;
+
+  const additions: string[] = [];
+  if (setId === "structured_execution.required_structure") {
+    const stepPlan =
+      LEGACY_STATEFUL_SANDBOX_V1_REQUIRED_STRUCTURE_STEP_PLAN_AUDIT[
+        patternNumber
+      ];
+    if (!stepPlan) return null;
+    additions.push(stepPlan.behavior);
+  }
+  if (
+    input.phase === "Structured Execution" &&
+    input.repNumber > 1
+  ) {
+    const comparison =
+      LEGACY_STATEFUL_SANDBOX_V1_EXECUTION_REPEATABILITY_CLAUSES[
+        patternNumber
+      ];
+    if (!comparison) return null;
+    additions.push(comparison);
+  }
+
   return [
     vignette,
+    ...additions,
     `This is opportunity ${input.repNumber} of ${input.repCount} in the current set.`,
   ].join(" ");
 }
@@ -980,6 +1067,32 @@ export function validateLegacyStatefulSandboxV1VignetteLeakage() {
         dimensions: LEGACY_STATEFUL_SANDBOX_V1_DIMENSION_ORDER[phase],
         label: `${phase} pattern ${patternNumber}`,
       });
+    }
+  }
+
+  for (let patternNumber = 1; patternNumber <= 8; patternNumber += 1) {
+    const stepPlan =
+      LEGACY_STATEFUL_SANDBOX_V1_REQUIRED_STRUCTURE_STEP_PLAN_AUDIT[
+        patternNumber
+      ];
+    if (!stepPlan?.behavior.trim()) {
+      throw new Error(
+        `Sandbox V1 Required Structure step-plan behavior is missing pattern ${patternNumber}.`,
+      );
+    }
+    const normalizedStepPlan = normalizeLeakageText(stepPlan.behavior);
+    for (const option of Object.values(
+      TRAINING_CONDITION_OBSERVATION_DEFINITIONS_V4,
+    ).flatMap((definition) => definition.options)) {
+      if (
+        normalizedStepPlan.includes(normalizeLeakageText(option.label)) ||
+        hasSharedRun(stepPlan.behavior, option.label) ||
+        hasSharedRun(stepPlan.behavior, option.detail)
+      ) {
+        throw new Error(
+          `Sandbox V1 Required Structure step-plan vignette leaks answer-key text in pattern ${patternNumber}.`,
+        );
+      }
     }
   }
 

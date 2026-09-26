@@ -5,6 +5,7 @@ import {
   getDrillSchemaDefinition,
   getEvidenceSelectionIdentity,
   getFieldDefinitionForRep,
+  getFieldDefinitionsForRep,
   type EvidenceConstraintProfile,
   type EvidenceSetDefinition,
 } from "@shared/responseIntegrityDrillRegistry";
@@ -541,8 +542,7 @@ async function loadRepOutcomes(input: {
 }
 
 function projectRepFields(phase: TopicPhase, set: EvidenceSetDefinition, repNumber: number) {
-  return set.fields.map((baseField) => {
-    const field = getFieldDefinitionForRep(set, repNumber - 1, baseField.fieldKey) || baseField;
+  return getFieldDefinitionsForRep(set, repNumber - 1).map((field) => {
     return {
       fieldKey: field.fieldKey,
       dimensionId: field.dimensionId,

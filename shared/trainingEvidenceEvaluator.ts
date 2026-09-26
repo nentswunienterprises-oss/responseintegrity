@@ -422,7 +422,12 @@ export const evaluateTrainingEvidence = ({
     submittedSet.observations.forEach((rep, repIndex) => {
       const repOccurrences: TrainingEvidenceOccurrence[] = [];
       definition.fields.forEach((baseField) => {
-        const field = getFieldDefinitionForRep(definition, repIndex, baseField.fieldKey) || baseField;
+        const field = getFieldDefinitionForRep(
+          definition,
+          repIndex,
+          baseField.fieldKey,
+        );
+        if (!field || field.decisionEligible === false) return;
         const dimensionId = field.dimensionId as TrainingDimensionId;
         const rawOption = String(rep[field.fieldKey] || "").trim();
         const explicitEvidenceStatus = readTrainingEvidenceStatus(rep, field.fieldKey);
