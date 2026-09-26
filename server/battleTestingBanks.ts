@@ -160,8 +160,10 @@ const AUTO_CRITICAL_REASON_BY_PHASE: Record<string, Record<string, string>> = {
     "Scenario 3": "Continues normal training despite an unresolved continuity mismatch.",
   },
   tools_required: {
-    "Scenario 1": "Runs and scores a live drill when the written method is not observable.",
-    "Scenario 2": "Scores spoken evidence that could not be heard reliably.",
+    "Scenario 1": "Keeps the session in Modelling view after Clarity, replacing observation of student execution with Specialist demonstration.",
+    "Scenario 2": "Runs Clarity Modelling without making the Specialist's work visible.",
+    "Scenario 3": "Reconstructs missing observation evidence after the live rep instead of preserving live logging integrity.",
+    "Scenario 4": "Accepts a blocked camera or glare-obscured Modelling condition as valid.",
   },
   td_system_integrity: Object.fromEntries(
     ["Q4", "Q5", "Q6", "Q8", "Q9", "Q11", "Q12", "Scenario 1", "Scenario 2", "Scenario 3", "FINAL QUESTION"]
@@ -214,8 +216,12 @@ const QUESTION_PROMPT_VARIANTS: Record<
     form_c: "A new Specialist refuses to use the previous topic-state and performs fresh placement from scratch. Is that Handover Verification?",
   },
   "tools_required:Scenario 1": {
-    form_b: "The camera angle hides the student's working area, but the Specialist completes the drill from spoken final answers. Can those reps be used?",
-    form_c: "Only the top edge of the page is visible during a live set. The Specialist plans to infer the missing working from the student's explanations. Is the condition valid?",
+    form_b: "Structured Execution begins, but the Specialist leaves the phone aimed at the notebook and keeps demonstrating examples. Is the session still in the correct mode?",
+    form_c: "After Clarity, the Specialist never switches from the work camera and continues solving on camera while the student mostly watches. What boundary was crossed?",
+  },
+  "tools_required:Scenario 2": {
+    form_b: "The Specialist begins the Clarity Modelling set with the phone still in selfie mode and explains the example without showing the written method. Is that valid Modelling?",
+    form_c: "During Clarity Modelling, the student can see the Specialist's face but not the worked example. What must be corrected before continuing?",
   },
 };
 

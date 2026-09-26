@@ -452,24 +452,35 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
     title: "Tools Required",
     moduleKey: "session_infrastructure",
     operatingCapability:
-      "Establish and preserve the minimum visible handwritten-work and reliable-audio environment required for valid RI delivery and observable evidence.",
+      "Establish the correct live-session tool condition by switching deliberately between Clarity Modelling and post-Clarity Observation while preserving reliable audio, stable camera placement, live platform logging, and observable evidence.",
     competencyKeys: [
       "tools.compulsory_kit",
-      "tools.top_down_visibility",
+      "tools.platform_workspace",
+      "tools.modelling_mode",
+      "tools.observation_mode",
+      "tools.mode_selection",
+      "tools.camera_light_alignment",
       "tools.audio_reliability",
       "tools.preflight_check",
       "tools.observability_gate",
-      "tools.optional_vs_required",
       "evidence.observability_integrity",
     ],
     criticalBoundaries: [
       {
-        key: "tools.no_scoring_unobservable_work",
-        description: "A live drill cannot be scored when the written method is not reliably observable.",
+        key: "tools.modelling_requires_work_view",
+        description: "Clarity Modelling cannot be delivered with the camera kept in selfie mode or with the Specialist's work obscured.",
       },
       {
-        key: "tools.no_scoring_unreliable_audio",
-        description: "Spoken evidence cannot be scored when audio is not reliably observable.",
+        key: "tools.post_clarity_requires_observation_mode",
+        description: "Post-Clarity conditioning cannot be converted back into Specialist demonstration when the student should be executing and the Specialist should be observing.",
+      },
+      {
+        key: "tools.no_reconstructed_logging",
+        description: "Missing live observations cannot be reconstructed later from memory as if they were captured during the rep.",
+      },
+      {
+        key: "tools.no_unobservable_evidence",
+        description: "A rep cannot be treated as usable evidence when the required visual or audio condition was not reliably observable.",
       },
     ],
     requiredEvidenceKinds: [...FULL_CAPABILITY_EVIDENCE],

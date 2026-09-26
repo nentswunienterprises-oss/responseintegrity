@@ -35,6 +35,36 @@ test("live Deep Dives use Specialist role language", () => {
   }
 });
 
+test("Tools Required preserves the locked Modelling and Observation setup distinction", () => {
+  const source = read("client/src/pages/responseconditioningsystem/session-infrastructure/tools-required.tsx");
+  const bank = read("Battle-Testing Infrastructure/Tutor Battle-Testing/Session Infrastructure/Tools Required.md");
+
+  for (const text of [source, bank]) {
+    assert.match(text, /camera.*light.*(?:face|facing).*work/i);
+    assert.match(text, /Clarity phase Modelling set to show and explain/);
+    assert.match(text, /selfie mode/i);
+    assert.match(text, /all phases after Clarity/i);
+    assert.match(text, /laptop|computer/i);
+  }
+
+  assert.match(source, /Modelling: watch me execute\. Observation: you execute; I observe the response\./);
+  assert.match(source, /rear camera and attached ring light face the notebook and hands/i);
+  assert.match(source, /record the student's observable responses as they happen/i);
+  assert.match(source, /modelling-vs-observation-locked\.png/);
+  assert.match(source, /Canonical setup reference/);
+  assert.doesNotMatch(source, /smartphone camera is the main delivery tool for the top-down teaching view/i);
+  assert.match(source, /modelling-vs-observation-locked\.webp/);
+  assert.ok(
+    fs.existsSync(
+      path.join(
+        process.cwd(),
+        "client/public/images/responseconditioning/tools-required/modelling-vs-observation-locked.webp",
+      ),
+    ),
+  );
+  assert.doesNotMatch(bank, /It stays in one top-down angle for every drill\s*\n\s*Expected Answer/i);
+});
+
 test("live Deep Dives do not restore legacy score-authority mechanics", () => {
   const prohibited = [
     /phaseScore/,
