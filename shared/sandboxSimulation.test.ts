@@ -111,7 +111,7 @@ test("legacy Sandbox scenario truth projects into current Training by evidence m
     "training",
     "Time Pressure Stability",
   );
-  assert.equal(current.schemaVersion, 3);
+  assert.equal(current.schemaVersion, 4);
 
   const projectedSet = projected.sets.find(
     (set) => set.setId === "time_pressure.structure_under_timer",
