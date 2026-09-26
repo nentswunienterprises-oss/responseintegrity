@@ -14733,8 +14733,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         existingSessions = result.data || [];
       }
 
-      const existingTimes = new Set((existingSessions || []).map((session: any) => String(session.scheduled_time)));
-      const slotsToInsert = parsedSlots.filter((slot) => !existingTimes.has(slot.scheduledStart));
+      const normalizeScheduledInstant = (value: unknown) => {
+        const parsed = new Date(String(value || ""));
+        return Number.isNaN(parsed.getTime()) ? String(value || "") : parsed.toISOString();
+      };
+      const existingTimes = new Set(
+        (existingSessions || []).map((session: any) => normalizeScheduledInstant(session.scheduled_time)),
+      );
+      const slotsToInsert = parsedSlots.filter(
+        (slot) => !existingTimes.has(normalizeScheduledInstant(slot.scheduledStart)),
+      );
 
       if (slotsToInsert.length === 0) {
         return res.json({
