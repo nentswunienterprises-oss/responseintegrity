@@ -196,9 +196,14 @@ export const projectResponseIntegrityEvidenceLedger = (
         const evidenceStatus = String(
           rep[trainingEvidenceStatusKey(field.fieldKey)] || "observed",
         ).trim();
+        const evidenceClass = String(
+          rep[`${field.fieldKey}_evidence_class`] || "",
+        ).trim();
         const decisionIneligible =
           evidenceStatus === "not_observed" ||
-          evidenceStatus === "confounded";
+          evidenceStatus === "confounded" ||
+          evidenceClass === "not_observed" ||
+          evidenceClass === "confounded";
         const entryBase = {
           sourceDrillId: String(input.sourceDrillId).trim(),
           blockOrder: blockIndex + 1,
