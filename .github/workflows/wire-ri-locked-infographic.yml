@@ -1,0 +1,84 @@
+name: Wire locked RI infographic into Tools Required
+
+on:
+  push:
+    branches:
+      - training/tools-required-two-mode-standard
+    paths:
+      - .github/workflows/wire-ri-locked-infographic.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: training/tools-required-two-mode-standard
+          fetch-depth: 0
+
+      - name: Wire visual and guard
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          asset = Path("client/public/images/responseconditioning/tools-required/modelling-vs-observation-locked.webp")
+          if not asset.exists():
+              raise SystemExit("Locked infographic asset is missing")
+
+          page = Path("client/src/pages/responseconditioningsystem/session-infrastructure/tools-required.tsx")
+          source = page.read_text()
+
+          asset_path = "/images/responseconditioning/tools-required/modelling-vs-observation-locked.webp"
+          if asset_path not in source:
+              anchor = '''          <div className="grid gap-4 lg:grid-cols-2">
+            {deliveryModes.map((mode) => ('''
+              block = '''          <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+            <img
+              src="/images/responseconditioning/tools-required/modelling-vs-observation-locked.webp"
+              alt="Response Integrity locked reference showing Modelling with the camera and light facing work, and Observation with the camera in selfie mode"
+              className="w-full h-auto object-contain"
+            />
+          </div>
+
+'''
+              if anchor not in source:
+                  raise SystemExit("Tools Required visual insertion anchor not found")
+              source = source.replace(anchor, block + anchor, 1)
+              page.write_text(source)
+
+          test_path = Path("server/deepDiveSourceIntegrity.test.ts")
+          tests = test_path.read_text()
+          marker = '  assert.doesNotMatch(bank, /It stays in one top-down angle for every drill\\s*\\n\\s*Expected Answer/i);'
+          asset_assertion = '''  assert.match(source, /modelling-vs-observation-locked\\.webp/);
+  assert.ok(
+    fs.existsSync(
+      path.join(
+        process.cwd(),
+        "client/public/images/responseconditioning/tools-required/modelling-vs-observation-locked.webp",
+      ),
+    ),
+  );
+'''
+          if 'modelling-vs-observation-locked\\.webp' not in tests:
+              if marker not in tests:
+                  raise SystemExit("Tools Required source-integrity insertion anchor not found")
+              tests = tests.replace(marker, asset_assertion + marker, 1)
+              test_path.write_text(tests)
+
+          Path(".github/workflows/wire-ri-locked-infographic.yml").unlink()
+          PY
+
+      - name: Commit wired visual
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Wire locked infographic into Tools Required"
+          git push origin HEAD:training/tools-required-two-mode-standard
