@@ -2187,6 +2187,41 @@ async function getLatestPaidPaymentForEnrollment(enrollmentId: string) {
 }
 
 async function getLatestPaidPaymentForParent(parentId: string, studentId?: string | null) {
+  if (isEmergencyDbMode()) {
+    try {
+      const result = await pool.query(
+        `SELECT *
+           FROM public.payment_transactions
+          WHERE parent_id::text = $1::text
+            AND provider = $3
+            AND payment_status = 'paid'
+            AND ($2::text IS NULL OR student_id::text = $2::text)
+          ORDER BY paid_at DESC
+          LIMIT 1`,
+        [parentId, studentId || null, PAYMENT_PROVIDER_PAYFAST],
+      );
+
+      if (result.rows[0] || !studentId) {
+        return { data: result.rows[0] || null, error: null };
+      }
+
+      const fallbackResult = await pool.query(
+        `SELECT *
+           FROM public.payment_transactions
+          WHERE parent_id::text = $1::text
+            AND provider = $2
+            AND payment_status = 'paid'
+          ORDER BY paid_at DESC
+          LIMIT 1`,
+        [parentId, PAYMENT_PROVIDER_PAYFAST],
+      );
+
+      return { data: fallbackResult.rows[0] || null, error: null };
+    } catch (error) {
+      return { data: null, error };
+    }
+  }
+
   let query = supabase
     .from("payment_transactions")
     .select("*")
@@ -3633,6 +3668,64 @@ async function applyRenewalTransactionToMembershipMonth(transaction: any) {
 }
 
 async function getParentBillingModel(parentId: string) {
+  if (isEmergencyDbMode()) {
+    try {
+      const [parentResult, enrollmentResult] = await Promise.all([
+        pool.query(
+          `SELECT onboarding_type, affiliate_code, affiliate_type
+             FROM public.parents
+            WHERE user_id::text = $1::text
+            LIMIT 1`,
+          [parentId],
+        ),
+        pool.query(
+          `SELECT id, onboarding_type, demand_flow_version, is_sandbox_account
+             FROM public.parent_enrollments
+            WHERE user_id::text = $1::text
+            ORDER BY updated_at DESC
+            LIMIT 1`,
+          [parentId],
+        ),
+      ]);
+
+      const parent = parentResult.rows[0] || null;
+      const enrollment = enrollmentResult.rows[0] || null;
+      let onboardingType = resolveEntryType(parent);
+      const enrollmentEntryType = resolveEntryType(enrollment);
+      const isSandboxEnrollment = Boolean(enrollment?.is_sandbox_account);
+      const isLegacyEnrollment = Number(enrollment?.demand_flow_version) === 0;
+
+      // Emergency/local Proof must derive billing authority from the same
+      // direct database as the authenticated session. Sandbox and proven
+      // pre-migration enrollments are outside the Demand Production review gate.
+      if (isSandboxEnrollment || isLegacyEnrollment) {
+        if (enrollmentEntryType === "pilot" || enrollmentEntryType === "commercial") {
+          onboardingType = enrollmentEntryType;
+        } else if (!onboardingType || onboardingType === "pending") {
+          onboardingType = "commercial";
+        }
+      }
+
+      return {
+        data: {
+          onboardingType,
+          affiliateCode: parent?.affiliate_code || null,
+          affiliateType: parent?.affiliate_type || null,
+        },
+        error: null,
+      };
+    } catch (error) {
+      return {
+        data: {
+          onboardingType: null,
+          affiliateCode: null,
+          affiliateType: null,
+        },
+        error,
+      };
+    }
+  }
+
   const { data, error } = await supabase
     .from("parents")
     .select("onboarding_type, affiliate_code, affiliate_type")
