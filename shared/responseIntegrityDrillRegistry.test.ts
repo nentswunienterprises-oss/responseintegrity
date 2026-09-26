@@ -8,7 +8,9 @@ import {
   getDrillSchemaDefinitionByVersion,
   getEvidenceSelectionIdentity,
   getFieldDefinitionForRep,
+  getFieldDefinitionsForRep,
   getRepPurposeId,
+  getScoredFieldDefinitionsForRep,
   hasSemanticEvidenceContract,
   validateAndNormalizeSemanticEvidenceSet,
   type EvidenceDrillMode,
@@ -20,6 +22,10 @@ import {
   TRAINING_OBSERVATION_MATRIX_V2,
 } from "./trainingObservationContractV2";
 import type { TrainingDimensionId } from "./trainingEvidenceContract";
+import {
+  TRAINING_CONDITION_OBSERVATION_DEFINITIONS_V4,
+  TRAINING_REP_OBSERVATION_AUTHORITY_V4,
+} from "./trainingObservationAuthorityV4";
 
 const buildValidSet = (
   mode: EvidenceDrillMode,
@@ -45,8 +51,7 @@ const buildValidSet = (
             _rep_id: getRepPurposeId(definition, repIndex),
             _rep_number: String(repIndex + 1),
           };
-          definition.fields.forEach((baseField) => {
-            const field = getFieldDefinitionForRep(definition, repIndex, baseField.fieldKey)!;
+          getFieldDefinitionsForRep(definition, repIndex).forEach((field) => {
             const selectedIndex = Math.min(optionIndex, field.optionLevels.length - 1);
             const identity = getEvidenceSelectionIdentity({
               mode,
@@ -77,7 +82,7 @@ test("the versioned registry covers every mode and phase with complete option se
       assert.equal(schema.phase, phase);
       assert.equal(
         schema.schemaVersion,
-        mode === "verification" ? 3 : mode === "training" ? 3 : 1,
+        mode === "verification" ? 3 : mode === "training" ? 4 : 1,
       );
       assert.ok(schema.definitionHash);
       assert.ok(schema.sets.length > 0);
@@ -93,16 +98,22 @@ test("the versioned registry covers every mode and phase with complete option se
           definition.modelingOnly ? 0 : 100,
           `${definition.setId} score weights`,
         );
-        definition.fields.forEach((baseField) => {
-          for (let repIndex = 0; repIndex < definition.reps; repIndex += 1) {
-            const field = getFieldDefinitionForRep(definition, repIndex, baseField.fieldKey)!;
-            assert.ok(field.optionLabels?.length, `${definition.setId}.${field.fieldKey}`);
+        for (let repIndex = 0; repIndex < definition.reps; repIndex += 1) {
+          const fields = getFieldDefinitionsForRep(definition, repIndex);
+          fields.forEach((field) => {
+            assert.ok(
+              field.optionLabels?.length,
+              `${definition.setId}.rep_${repIndex + 1}.${field.fieldKey}`,
+            );
             assert.equal(field.optionLabels?.length, field.optionLevels.length);
-            if (mode === "verification") {
-              assert.equal(field.optionEvidenceClasses?.length, field.optionLabels?.length);
+            if (mode === "verification" || mode === "training") {
+              assert.equal(
+                field.optionEvidenceClasses?.length,
+                field.optionLabels?.length,
+              );
             }
-          }
-        });
+          });
+        }
       });
     }
   }
@@ -111,7 +122,7 @@ test("the versioned registry covers every mode and phase with complete option se
 test("current Training exposes one honest option for every decision-relevant evidence class", () => {
   for (const phase of PHASES) {
     const schema = getDrillSchemaDefinition("training", phase);
-    assert.equal(schema.schemaVersion, 3);
+    assert.equal(schema.schemaVersion, 4);
     for (const definition of schema.sets) {
       if (definition.modelingOnly) continue;
       for (const field of definition.fields) {
@@ -121,10 +132,23 @@ test("current Training exposes one honest option for every decision-relevant evi
           `${definition.setId}.${field.fieldKey} evidence-class coverage`,
         );
         assert.equal(field.optionLabels?.length, 4);
+        if (field.decisionEligible === false) {
+          const condition =
+            TRAINING_CONDITION_OBSERVATION_DEFINITIONS_V4[
+              field.dimensionId as keyof typeof TRAINING_CONDITION_OBSERVATION_DEFINITIONS_V4
+            ];
+          assert.ok(condition);
+          assert.deepEqual(
+            field.optionLabels,
+            condition.options.map((option) => option.label),
+          );
+          continue;
+        }
         const canonical =
           TRAINING_OBSERVATION_MATRIX_V2[
             field.dimensionId as TrainingDimensionId
           ];
+        assert.ok(canonical);
         assert.deepEqual(
           field.optionLabels,
           canonical.options.map((option) => option.label),
@@ -135,59 +159,99 @@ test("current Training exposes one honest option for every decision-relevant evi
   }
 });
 
-test("Training V3 scores only dimensions the active set can genuinely expose", () => {
+test("Training V3 remains retained with set-level observation eligibility", () => {
   for (const phase of PHASES) {
-    const schema = getDrillSchemaDefinition("training", phase);
-    assert.equal(schema.schemaVersion, 3);
-    for (const definition of schema.sets) {
+    const schema = getDrillSchemaDefinitionByVersion("training", phase, 3);
+    assert.ok(schema);
+    assert.equal(schema!.schemaVersion, 3);
+    for (const definition of schema!.sets) {
       if (definition.modelingOnly) continue;
       const expected =
         TRAINING_SET_OBSERVATION_ELIGIBILITY_V3[definition.setId];
-      assert.ok(expected, `Missing eligibility law for ${definition.setId}`);
+      assert.ok(expected, `Missing V3 eligibility law for ${definition.setId}`);
       assert.deepEqual(
         definition.fields.map((field) => field.dimensionId),
         [...expected],
-        `${definition.setId} must expose exactly its eligible dimensions`,
       );
+    }
+  }
+});
+
+test("Training V4 makes observation authority explicit at set and rep level", () => {
+  for (const phase of PHASES) {
+    const schema = getDrillSchemaDefinition("training", phase);
+    assert.equal(schema.schemaVersion, 4);
+    for (const definition of schema.sets) {
+      if (definition.modelingOnly) continue;
+      const authority =
+        TRAINING_REP_OBSERVATION_AUTHORITY_V4[definition.setId];
+      assert.ok(authority, `Missing V4 authority for ${definition.setId}`);
+
+      for (let repIndex = 0; repIndex < definition.reps; repIndex += 1) {
+        const fields = getFieldDefinitionsForRep(definition, repIndex);
+        assert.deepEqual(
+          fields.map((field) => field.fieldKey),
+          authority.reps[repIndex + 1].map((entry) => entry.fieldKey),
+          `${definition.setId} rep ${repIndex + 1} field authority`,
+        );
+        const scored = getScoredFieldDefinitionsForRep(definition, repIndex);
+        assert.equal(
+          Math.round(
+            scored.reduce(
+              (sum, field) => sum + Math.max(0, field.scoreWeight),
+              0,
+            ),
+          ),
+          100,
+          `${definition.setId} rep ${repIndex + 1} weights`,
+        );
+      }
+    }
+  }
+
+  const structured = getDrillSchemaDefinition(
+    "training",
+    "Structured Execution",
+  );
+  for (const setId of [
+    "structured_execution.required_structure",
+    "structured_execution.independent_execution",
+    "structured_execution.variation_control",
+  ]) {
+    const definition = structured.sets.find((set) => set.setId === setId)!;
+    assert.equal(
+      getFieldDefinitionsForRep(definition, 0).some(
+        (field) => field.dimensionId === "execution.repeatability",
+      ),
+      false,
+      `${setId} rep 1 must not claim cross-rep repeatability`,
+    );
+    for (const repIndex of [1, 2]) {
       assert.equal(
-        definition.fields.reduce(
-          (sum, field) => sum + field.scoreWeight,
-          0,
+        getFieldDefinitionsForRep(definition, repIndex).some(
+          (field) => field.dimensionId === "execution.repeatability",
         ),
-        100,
-        `${definition.setId} eligible-field weights must normalize to 100`,
+        true,
+        `${setId} rep ${repIndex + 1} must expose repeatability`,
       );
     }
   }
 
-  const clarity = getDrillSchemaDefinition("training", "Clarity");
-  const identification = clarity.sets.find(
-    (set) => set.setId === "clarity.identification",
+  const required = structured.sets.find(
+    (set) => set.setId === "structured_execution.required_structure",
+  )!;
+  const stepPlan = getFieldDefinitionsForRep(required, 0).find(
+    (field) => field.fieldKey === "stepPlanAccuracy",
   );
-  const lightApply = clarity.sets.find(
-    (set) => set.setId === "clarity.light_apply",
-  );
-  assert.ok(identification);
-  assert.ok(lightApply);
-  assert.deepEqual(
-    identification!.fields.map((field) => field.dimensionId),
-    ["clarity.vocabulary", "clarity.method", "clarity.reason"],
-  );
-  assert.equal(
-    identification!.fields.some(
-      (field) => field.dimensionId === "clarity.immediate_apply",
-    ),
-    false,
-  );
-  assert.equal(
-    lightApply!.fields.some(
-      (field) => field.dimensionId === "clarity.immediate_apply",
-    ),
-    true,
-  );
+  assert.ok(stepPlan);
+  assert.equal(stepPlan?.decisionEligible, false);
+  assert.equal(stepPlan?.authorityRole, "condition_check");
+  assert.equal(stepPlan?.scoreWeight, 0);
+  assert.match(stepPlan?.observationQuestion || "", /before solving/i);
 });
 
-test("Training V3 rejects evidence for a dimension the active set cannot observe", () => {
+
+test("Training V4 rejects evidence outside the active set-rep authority", () => {
   const schema = getDrillSchemaDefinition("training", "Clarity");
   const identificationIndex = schema.sets.findIndex(
     (set) => set.setId === "clarity.identification",
@@ -218,7 +282,7 @@ test("Training V3 rejects evidence for a dimension the active set cannot observe
   assert.deepEqual(result, {
     ok: false,
     error:
-      `Set ${identificationIndex + 1}, rep 1 contains evidence for a dimension that is not eligible in this set`,
+      `Set ${identificationIndex + 1}, rep 1 contains evidence for a dimension that is not eligible under this set/rep condition`,
   });
 });
 
@@ -232,7 +296,9 @@ test("the same Training dimension cannot silently change meaning between sets", 
     const schema = getDrillSchemaDefinition("training", phase);
     for (const definition of schema.sets) {
       if (definition.modelingOnly) continue;
-      for (const field of definition.fields) {
+      for (const field of definition.fields.filter(
+        (candidate) => candidate.decisionEligible !== false,
+      )) {
         const current = {
           labels: [...(field.optionLabels || [])],
           classes: [...(field.optionEvidenceClasses || [])],
@@ -306,8 +372,8 @@ test("Training V2 student-behavior options do not encode Specialist intervention
   }
 });
 
-test("stable option identity retains four-option semantics", () => {
-  const identity = getEvidenceSelectionIdentity({
+test("repeatability identity exists only after a comparable Structured Execution opportunity", () => {
+  const repOne = getEvidenceSelectionIdentity({
     mode: "training",
     phase: "Structured Execution",
     setName: "Required Structure",
@@ -315,27 +381,25 @@ test("stable option identity retains four-option semantics", () => {
     fieldKey: "repeatability",
     optionIndex: 3,
   });
+  assert.equal(repOne, null);
 
-  assert.deepEqual(
-    {
-      setId: identity?.setId,
-      repId: identity?.repId,
-      dimensionId: identity?.dimensionId,
-      level: identity?.level,
-    },
-    {
-      setId: "structured_execution.required_structure",
-      repId: "structured_execution.required_structure.opportunity_1",
-      dimensionId: "execution.repeatability",
-      level: "clear",
-    },
-  );
-  assert.match(identity?.optionId || "", /\.option_4$/);
+  const repTwo = getEvidenceSelectionIdentity({
+    mode: "training",
+    phase: "Structured Execution",
+    setName: "Required Structure",
+    repIndex: 1,
+    fieldKey: "repeatability",
+    optionIndex: 3,
+  });
+  assert.equal(repTwo?.dimensionId, "execution.repeatability");
+  assert.equal(repTwo?.level, "clear");
+  assert.match(repTwo?.optionId || "", /\.option_4$/);
 });
+
 
 test("published schema versions remain explicitly addressable", () => {
   const current = getDrillSchemaDefinition("training", "Controlled Discomfort");
-  assert.equal(current.schemaVersion, 3);
+  assert.equal(current.schemaVersion, 4);
   assert.equal(
     getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 1)?.schemaVersion,
     1,
@@ -345,11 +409,15 @@ test("published schema versions remain explicitly addressable", () => {
     2,
   );
   assert.equal(
-    getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 3),
-    current,
+    getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 3)?.schemaVersion,
+    3,
   );
   assert.equal(
     getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 4),
+    current,
+  );
+  assert.equal(
+    getDrillSchemaDefinitionByVersion("training", "Controlled Discomfort", 5),
     null,
   );
   assert.equal(getDrillSchemaDefinitionByVersion("verification", "Structured Execution", 1)?.schemaVersion, 1);
