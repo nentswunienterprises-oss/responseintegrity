@@ -1049,10 +1049,7 @@ export const getFieldDefinitionsForRep = (
     .map((fieldDefinition) =>
       getFieldDefinitionForRep(definition, repIndex, fieldDefinition.fieldKey),
     )
-    .filter(
-      (fieldDefinition): fieldDefinition is EvidenceFieldDefinition =>
-        Boolean(fieldDefinition),
-    );
+    .filter(Boolean) as EvidenceFieldDefinition[];
 
 export const getScoredFieldDefinitionsForRep = (
   definition: EvidenceSetDefinition,
