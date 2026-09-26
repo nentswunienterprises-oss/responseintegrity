@@ -221,6 +221,8 @@ export function interventionConfoundsTrainingDimension({
       dimensionId === "clarity.method" ||
       dimensionId === "clarity.immediate_apply" ||
       dimensionId === "execution.start" ||
+      dimensionId === "execution.repeatability" ||
+      dimensionId === "execution.independence" ||
       dimensionId === "difficulty.first_step_control" ||
       dimensionId === "time.start"
     );
@@ -234,18 +236,21 @@ export function interventionConfoundsTrainingDimension({
       return startsWithAny(dimensionId, [
         "execution.start",
         "execution.step_discipline",
+        "execution.repeatability",
         "execution.independence",
       ]);
     }
     if (phase === "Controlled Discomfort") {
       return startsWithAny(dimensionId, [
         "difficulty.first_step_control",
+        "difficulty.tolerance",
         "difficulty.rescue_dependence",
       ]);
     }
     return startsWithAny(dimensionId, [
       "time.start",
       "time.structure",
+      "time.pace",
       "time.completion_integrity",
     ]);
   }
