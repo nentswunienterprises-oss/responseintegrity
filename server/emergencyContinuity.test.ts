@@ -1105,6 +1105,42 @@ test("emergency assignment acceptance advances the enrollment on the direct DB p
   assert.match(routeSource, /RETURNING id, user_id, status, current_step, assigned_tutor_id/);
 });
 
+test("preview training sessions use the direct Proof database without enabling emergency auth", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const emergencyModeSource = readFileSync(resolve(process.cwd(), "server/emergencyMode.ts"), "utf8");
+
+  assert.match(
+    routesSource,
+    /function usesDirectProofSessionDatabase\(\) \{[\s\S]*?isEmergencyDbMode\(\) \|\| process\.env\.VERCEL_ENV === "preview"/,
+  );
+  assert.match(
+    emergencyModeSource,
+    /if \(process\.env\.VERCEL_ENV === "preview"\) \{[\s\S]*?return false;/,
+  );
+
+  const parentScheduleStart = routesSource.indexOf(
+    'app.post("/api/parent/training-sessions/schedule-week"',
+  );
+  const parentRespondStart = routesSource.indexOf(
+    'app.post("/api/parent/training-sessions/respond"',
+    parentScheduleStart,
+  );
+  const parentScheduleSource = routesSource.slice(parentScheduleStart, parentRespondStart);
+  assert.match(parentScheduleSource, /usesDirectProofSessionDatabase\(\)/);
+  assert.match(parentScheduleSource, /INSERT INTO public\.scheduled_sessions/);
+
+  const parentGetStart = routesSource.indexOf('app.get("/api/parent/training-sessions"');
+  const parentGetSource = routesSource.slice(parentGetStart, parentScheduleStart);
+  assert.match(parentGetSource, /usesDirectProofSessionDatabase\(\)/);
+  assert.match(parentGetSource, /FROM public\.scheduled_sessions/);
+
+  const weeklyStart = routesSource.indexOf('"/api/tutor/weekly-schedule"');
+  const weeklyEnd = routesSource.indexOf('"/api/tutor/scheduled-sessions/:sessionId/log"', weeklyStart);
+  const weeklySource = routesSource.slice(weeklyStart, weeklyEnd);
+  assert.match(weeklySource, /usesDirectProofSessionDatabase\(\)/);
+  assert.match(weeklySource, /FROM public\.scheduled_sessions/);
+});
+
 test("emergency weekly training scheduling and Specialist confirmation stay on direct PostgreSQL", () => {
   const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
 
