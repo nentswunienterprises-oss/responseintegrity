@@ -93,6 +93,20 @@ test("Sandbox evidence exceptions never force a hidden behavior guess", () => {
   );
 });
 
+test("completed Sandbox sessions terminate before the next stateful session can begin", () => {
+  assert.match(sandboxRunnerSource, /"session_complete"/);
+  assert.match(sandboxRunnerSource, /Sandbox session complete/);
+  assert.match(sandboxRunnerSource, /the next session has\s*not started/i);
+  assert.match(sandboxRunnerSource, /Start Sandbox session/);
+  assert.match(sandboxRunnerSource, /searchParams\.get\("sandboxSession"\)/);
+  assert.match(
+    sandboxRunnerSource,
+    /requestedSandboxSessionNumber[\s\S]*sessionNumber=/,
+  );
+  assert.match(sandboxRouteSource, /requestedSessionNumber/);
+  assert.match(sandboxRouteSource, /req\.query\.sessionNumber/);
+});
+
 test("ordinary Training and embedded Sandbox share the same live-delivery UI primitives", () => {
   assert.match(liveRunnerSource, /LiveRepContextCard/);
   assert.match(liveRunnerSource, /LiveSupportPanel/);

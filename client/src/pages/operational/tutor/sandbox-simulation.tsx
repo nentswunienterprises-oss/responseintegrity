@@ -131,12 +131,28 @@ type EnvironmentForm = {
   sessionNumber: number;
   status:
     | "rep_ready"
+    | "session_complete"
     | "targeted_rediagnosis_required"
     | "rediagnosis_probe_ready"
     | "rediagnosis_blocked";
   prescribedPhase: string;
   prescribedStability: string;
   targetPhase?: string | null;
+  completedSession?: {
+    completedSessionNumber: number;
+    nextSessionNumber: number;
+    completedPhase: string;
+    completedAt: string;
+    specialistAuthority: null | {
+      route: string;
+      nextPhase: string;
+      nextStability: string;
+      targetPhase: string | null;
+      reason: string;
+    };
+    authorityAligned: boolean;
+    stateTrackAligned: boolean;
+  };
   rediagnosisRunId?: string;
   sequenceNumber?: number;
   turnFormId?: string;
@@ -318,7 +334,7 @@ export default function SpecialistSandboxSimulation({
   embedded?: boolean;
 } = {}) {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [selections, setSelections] = useState<Record<string, Selection>>({});
   const [interventionEvent, setInterventionEvent] = useState<InterventionEvent>("none");
@@ -375,6 +391,14 @@ export default function SpecialistSandboxSimulation({
   const studentId = String(
     studentIdOverride || selectedSandboxStudent?.id || "",
   );
+  const requestedSandboxSessionNumberRaw = Number(
+    searchParams.get("sandboxSession") || 0,
+  );
+  const requestedSandboxSessionNumber =
+    Number.isInteger(requestedSandboxSessionNumberRaw) &&
+    requestedSandboxSessionNumberRaw > 0
+      ? requestedSandboxSessionNumberRaw
+      : null;
 
   useEffect(() => {
     setSelections({});
@@ -391,14 +415,22 @@ export default function SpecialistSandboxSimulation({
   }, [studentId]);
 
   const environmentQuery = useQuery<EnvironmentForm>({
-    queryKey: ["sandbox-environment", tutorAssignmentId, studentId],
+    queryKey: [
+      "sandbox-environment",
+      tutorAssignmentId,
+      studentId,
+      requestedSandboxSessionNumber,
+    ],
     enabled: Boolean(tutorAssignmentId && studentId && inSandbox),
     retry: false,
     staleTime: 0,
     queryFn: async () => {
+      const requestedSessionQuery = requestedSandboxSessionNumber
+        ? `&sessionNumber=${encodeURIComponent(String(requestedSandboxSessionNumber))}`
+        : "";
       const response = await apiRequest(
         "GET",
-        `/api/tutor/sandbox-environment?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}&studentId=${encodeURIComponent(studentId)}`,
+        `/api/tutor/sandbox-environment?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}&studentId=${encodeURIComponent(studentId)}${requestedSessionQuery}`,
       );
       return response.json();
     },
@@ -705,6 +737,24 @@ export default function SpecialistSandboxSimulation({
 
   const readiness = form.readiness;
   const routeTopic = String(searchParams.get("topic") || "").trim() || "Sandbox practice";
+
+  const startNextSandboxSession = () => {
+    if (
+      form.status !== "session_complete" ||
+      !form.completedSession?.nextSessionNumber
+    ) {
+      return;
+    }
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set(
+      "sandboxSession",
+      String(form.completedSession.nextSessionNumber),
+    );
+    setLastResult(null);
+    setSelections({});
+    setRepStarted(false);
+    setSearchParams(nextParams, { replace: true });
+  };
   const prescribedPhase = (
     ["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"].includes(
       form.prescribedPhase,
@@ -712,6 +762,68 @@ export default function SpecialistSandboxSimulation({
       ? form.prescribedPhase
       : "Clarity"
   ) as LivePhaseLabel;
+
+  if (form.status === "session_complete" && form.completedSession) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
+        <div>
+          <h2 className="text-xl font-bold sm:text-2xl">Sandbox session complete</h2>
+          <p className="mt-3 text-sm">
+            <span className="font-semibold">Diagnostic Topic:</span> {routeTopic}
+          </p>
+          <p className="mt-4 text-muted-foreground">{form.sandboxStudent.name}</p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Session {form.completedSession.completedSessionNumber} complete
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertDescription>
+                All opportunities in this Sandbox session were recorded. The simulated
+                student's trajectory has been carried forward, but the next session has
+                not started.
+              </AlertDescription>
+            </Alert>
+            <div className="grid gap-2 text-sm sm:grid-cols-2">
+              <div className="rounded-lg border p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Completed phase
+                </p>
+                <p className="mt-1 font-semibold">
+                  {form.completedSession.completedPhase}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Next Sandbox session
+                </p>
+                <p className="mt-1 font-semibold">
+                  Session {form.completedSession.nextSessionNumber}
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Starting the next session is deliberate. It will continue with this same
+              stateful Sandbox student from the carried-forward RI state.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={startNextSandboxSession}>
+                Start Sandbox session {form.completedSession.nextSessionNumber}
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/specialist/pod")}>
+                Return to Pod
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (embedded) {
     const fallbackRules = rep

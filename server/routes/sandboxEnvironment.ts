@@ -126,6 +126,12 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
       if (!user) return;
       const tutorAssignmentId = String(req.query.tutorAssignmentId || "").trim();
       const studentId = String(req.query.studentId || "").trim();
+      const requestedSessionNumberRaw = Number(req.query.sessionNumber || 0);
+      const requestedSessionNumber =
+        Number.isInteger(requestedSessionNumberRaw) &&
+        requestedSessionNumberRaw > 0
+          ? requestedSessionNumberRaw
+          : null;
       if (!tutorAssignmentId || !studentId) {
         return res.status(400).json({ message: "tutorAssignmentId and studentId are required." });
       }
@@ -133,6 +139,7 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
         tutorAssignmentId,
         tutorId: String(user.id),
         studentId,
+        requestedSessionNumber,
       });
       if (environment.status === "targeted_rediagnosis_required") {
         const rediagnosis = await prepareSandboxRediagnosis({

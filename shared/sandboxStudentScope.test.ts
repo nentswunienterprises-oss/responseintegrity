@@ -50,6 +50,21 @@ test("Sandbox runtime and history require student identity at the API boundary",
   assert.match(routeSource, /studentId,/);
 });
 
+test("a completed Sandbox session is held until the next session is explicitly requested", () => {
+  assert.match(serverSource, /async function previousCompletedSessionBoundary/);
+  assert.match(
+    serverSource,
+    /session_number = \$2[\s\S]*bundle\.trajectory\.session_number - 1/,
+  );
+  assert.match(serverSource, /status: "session_complete" as const/);
+  assert.match(
+    serverSource,
+    /Number\(input\.requestedSessionNumber \|\| 0\)[\s\S]*bundle\.trajectory\.session_number/,
+  );
+  assert.match(routeSource, /requestedSessionNumber/);
+  assert.match(runnerSource, /next session has\s*not started/i);
+});
+
 test("rep, session, capability, and targeted diagnosis evidence retain student lineage", () => {
   assert.match(serverSource, /specialist_sandbox_rep_events[\s\S]*student_id/);
   assert.match(serverSource, /specialist_sandbox_session_evaluations[\s\S]*student_id/);
