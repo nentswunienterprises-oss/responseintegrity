@@ -3,6 +3,7 @@ import {
   getDrillSchemaDefinition,
   getDrillSchemaDefinitionByVersion,
   getFieldDefinitionForRep,
+  getScoredFieldDefinitionsForRep,
   type EvidenceDrillMode,
   type SubmittedEvidenceSet,
 } from "./responseIntegrityDrillRegistry";
@@ -891,8 +892,10 @@ export const buildResponseSnapshotV1 = ({
     }
 
     const reps: ResponseSnapshotRep[] = (submittedSet.observations || []).map((repObs, repIndex) => {
-      const evidence = definition.fields.map((baseField) => {
-        const field = getFieldDefinitionForRep(definition, repIndex, baseField.fieldKey) || baseField;
+      const evidence = getScoredFieldDefinitionsForRep(
+        definition,
+        repIndex,
+      ).map((field) => {
         const selectedRawOption = String(repObs?.[field.fieldKey] || "").trim();
         const normalizedLevel = String(repObs?.[`${field.fieldKey}_level`] || "") as ObservationLevel;
         const contribution = scoreContribution(field.scoreWeight, normalizedLevel);
@@ -1030,6 +1033,7 @@ const fieldLabel = (fieldKey: string) => {
     startBehavior: "Start",
     stepExecution: "Step execution",
     repeatability: "Repeatability",
+    stepPlanAccuracy: "Step plan accuracy",
     independence: "Independence",
     initialResponse: "Initial response",
     firstStepControl: "First-step control",
