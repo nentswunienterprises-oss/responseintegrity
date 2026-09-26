@@ -1105,6 +1105,35 @@ test("emergency assignment acceptance advances the enrollment on the direct DB p
   assert.match(routeSource, /RETURNING id, user_id, status, current_step, assigned_tutor_id/);
 });
 
+test("weekly scheduling dedupe normalizes database timestamps before comparing slots", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const scheduleStart = routesSource.indexOf(
+    'app.post("/api/parent/training-sessions/schedule-week"',
+  );
+  const scheduleEnd = routesSource.indexOf(
+    'app.post("/api/parent/training-sessions/respond"',
+    scheduleStart,
+  );
+  const scheduleSource = routesSource.slice(scheduleStart, scheduleEnd);
+
+  assert.match(
+    scheduleSource,
+    /const normalizeScheduledInstant = \(value: unknown\) => \{/,
+  );
+  assert.match(
+    scheduleSource,
+    /new Date\(String\(value \|\| ""\)\)/,
+  );
+  assert.match(
+    scheduleSource,
+    /normalizeScheduledInstant\(session\.scheduled_time\)/,
+  );
+  assert.match(
+    scheduleSource,
+    /normalizeScheduledInstant\(slot\.scheduledStart\)/,
+  );
+});
+
 test("training session reads select recent rows before historical rows", () => {
   const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
 
