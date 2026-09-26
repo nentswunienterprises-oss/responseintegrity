@@ -153,8 +153,8 @@ export default function Landing() {
               style={{ backgroundColor: "#FFF0F0" }}
             />
             <img
-              src="/images/Benefits-of-Online-Tutoring-1-1080x589.png"
-              alt="Student training calm focus"
+              src="/images/ri-home-calm-precision.webp"
+              alt="Student thinking with calm precision during online response training"
               className="relative rounded-3xl shadow-2xl w-full object-cover"
               style={{ aspectRatio: "4/3" }}
               onError={(e) => {

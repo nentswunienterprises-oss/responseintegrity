@@ -237,8 +237,8 @@ function PortalLanding() {
           <div className="relative overflow-visible w-full max-w-full">
             <div className="absolute inset-0 rounded-3xl hidden sm:block transform sm:rotate-3" style={{ backgroundColor: "var(--ri-blush)" }} />
             <img
-              src="/images/Benefits-of-Online-Tutoring-1-1080x589.png"
-              alt="Student training calm focus"
+              src="/images/ri-home-calm-precision.webp"
+              alt="Student thinking with calm precision during online response training"
               className="relative rounded-3xl shadow-2xl w-full object-cover max-w-[calc(100vw-32px)]"
               style={{ aspectRatio: "4/3" }}
             />
