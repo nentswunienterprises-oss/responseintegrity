@@ -1,0 +1,54 @@
+name: Embed locked RI infographic asset
+
+on:
+  push:
+    branches:
+      - training/tools-required-two-mode-standard
+    paths:
+      - .github/workflows/embed-ri-locked-asset.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  embed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: training/tools-required-two-mode-standard
+          fetch-depth: 0
+
+      - name: Decode locked visual
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          source = Path("tmp/ri-locked-image.hex.000")
+          target = Path("client/public/images/responseconditioning/tools-required/modelling-vs-observation-locked.webp")
+          data = bytes.fromhex(source.read_text().strip())
+
+          expected = "485413f6b07adf611b8c42421081b9d00311602ed59d6634f29e6d0b59ee395e"
+          actual = hashlib.sha256(data).hexdigest()
+          if actual != expected:
+              raise SystemExit(f"Asset checksum mismatch: {actual}")
+
+          target.parent.mkdir(parents=True, exist_ok=True)
+          target.write_bytes(data)
+
+          source.unlink()
+          Path(".github/workflows/embed-ri-locked-asset.yml").unlink()
+          PY
+
+      - name: Commit repo-owned asset
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Embed locked Modelling vs Observation reference"
+          git push origin HEAD:training/tools-required-two-mode-standard
