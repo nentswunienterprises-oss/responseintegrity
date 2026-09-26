@@ -50,6 +50,8 @@ test("Tools Required preserves the locked Modelling and Observation setup distin
   assert.match(source, /Modelling: watch me execute\. Observation: you execute; I observe the response\./);
   assert.match(source, /rear camera and attached ring light face the notebook and hands/i);
   assert.match(source, /record the student's observable responses as they happen/i);
+  assert.match(source, /modelling-vs-observation-locked\.png/);
+  assert.match(source, /Canonical setup reference/);
   assert.doesNotMatch(source, /smartphone camera is the main delivery tool for the top-down teaching view/i);
   assert.match(source, /modelling-vs-observation-locked\.webp/);
   assert.ok(

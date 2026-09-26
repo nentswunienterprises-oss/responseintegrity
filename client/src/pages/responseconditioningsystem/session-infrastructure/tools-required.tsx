@@ -235,6 +235,20 @@ export default function ResponseConditioningToolsRequired() {
             </p>
           </div>
 
+          <div className="space-y-3">
+            <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+              <img
+                src="/images/responseconditioning/tools-required/modelling-vs-observation-locked.png"
+                alt="Response Integrity Modelling and Observation setup comparison"
+                className="w-full h-auto object-contain"
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Canonical setup reference. Modelling faces the Specialist's work; Observation returns
+              the phone upright in selfie mode while the Specialist observes and logs on the laptop.
+            </p>
+          </div>
+
           <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
             <img
               src="/images/responseconditioning/tools-required/modelling-vs-observation-locked.webp"
