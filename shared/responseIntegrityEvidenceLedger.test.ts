@@ -88,7 +88,7 @@ const baseProjectionInput = (sets: LedgerEvidenceSet[]): EvidenceLedgerProjectio
   sets,
 });
 
-test("ledger projection preserves one weak and eight clear opportunities without deduplication", () => {
+test("ledger projection preserves capability evidence without rep-ineligible or condition-only rows", () => {
   const sets = getDrillSchemaDefinition("training", "Structured Execution").sets.map((_, setIndex) =>
     buildValidSet({
       mode: "training",
@@ -103,8 +103,8 @@ test("ledger projection preserves one weak and eight clear opportunities without
   assert.equal(result.status, "projected");
   if (result.status !== "projected") return;
 
-  assert.equal(result.entries.length, 36);
-  assert.equal(new Set(result.entries.map((entry) => entry.evidenceId)).size, 36);
+  assert.equal(result.entries.length, 33);
+  assert.equal(new Set(result.entries.map((entry) => entry.evidenceId)).size, 33);
   const startEvidence = result.entries.filter((entry) => entry.dimensionId === "execution.start");
   assert.equal(startEvidence.length, 9);
   assert.equal(startEvidence.filter((entry) => entry.normalizedLevel === "weak").length, 1);
@@ -116,12 +116,12 @@ test("ledger projection preserves one weak and eight clear opportunities without
     6,
   );
   assert.equal(
-    result.entries.filter(
+    result.entries.some(
       (entry) =>
         entry.dimensionId ===
         "condition.required_structure.step_plan_accuracy",
-    ).length,
-    3,
+    ),
+    false,
   );
 });
 
