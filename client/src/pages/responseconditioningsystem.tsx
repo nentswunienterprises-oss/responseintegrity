@@ -161,22 +161,6 @@ export default function ResponseConditioningSystem() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-12 space-y-8">
-        <Card className="border-primary/20 bg-primary/5 shadow-sm">
-          <div className="p-6">
-            <div className="flex gap-3 items-start">
-              <AlertTriangle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-              <div className="space-y-2">
-                <h2 className="font-bold text-lg">Gate Access</h2>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Response Integrity-OS is the internal operating system tutors are expected to follow. This page is
-                  the entry point. Each section below links to a deeper operating page. Use this as
-                  the map, not as a shortcut summary.
-                </p>
-              </div>
-            </div>
-          </div>
-        </Card>
-
         <Card className="group border border-primary/15 bg-card shadow-sm hover:border-primary/40 transition-colors">
           <Link
             to="/responseconditioningsystem/introduction"
