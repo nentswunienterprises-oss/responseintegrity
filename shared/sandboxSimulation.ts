@@ -4,6 +4,7 @@ import {
   getDrillSchemaDefinitionByVersion,
   getEvidenceSelectionIdentity,
   getFieldDefinitionForRep,
+  getFieldDefinitionsForRep,
   getRepPurposeId,
   resolveEvidenceSelection,
   type SubmittedEvidenceSet,
@@ -168,96 +169,112 @@ export function projectSandboxScenarioToCurrentTrainingContract(
 
       return {
         ...scenarioSet,
-        reps: scenarioSet.reps.map((rep, repIndex) => ({
-          ...rep,
-          observations: Object.fromEntries(
-            currentSet.fields.map((currentBaseField) => {
-              const fieldKey = currentBaseField.fieldKey;
-              const observation = rep.observations[fieldKey];
-              if (!observation?.optionId) {
-                throw new Error(
-                  `Sandbox scenario ${definition.key} is missing historical observation ${fieldKey} required by current Training.`,
-                );
-              }
-              const sourceResolved = resolveEvidenceSelection({
-                mode: "training",
-                phase: definition.phase,
-                setId: scenarioSet.setId,
-                repIndex,
-                fieldKey,
-                optionId: observation.optionId,
-                schemaVersion: sourceTrainingSchemaVersion,
-              });
-              if (!sourceResolved) {
-                throw new Error(
-                  `Sandbox scenario ${definition.key} has an invalid historical option for ${fieldKey}.`,
-                );
-              }
+        reps: scenarioSet.reps.map((rep, repIndex) => {
+          const currentFields = getFieldDefinitionsForRep(
+            currentSet,
+            repIndex,
+          );
+          return {
+            ...rep,
+            observations: Object.fromEntries(
+              currentFields.map((currentField) => {
+                const fieldKey = currentField.fieldKey;
+                let sourceObservation = rep.observations[fieldKey];
 
-              const rawLabel =
-                sourceResolved.field.optionLabels?.[
-                  sourceResolved.optionIndex
-                ] || "";
-              const evidenceClass =
-                sourceResolved.evidenceClass ||
-                trainingEvidenceClassForRawBehavior(
-                  sourceResolved.field.dimensionId as TrainingDimensionId,
-                  rawLabel,
-                );
-              if (
-                !evidenceClass ||
-                evidenceClass === "not_observed" ||
-                evidenceClass === "confounded"
-              ) {
-                throw new Error(
-                  `Sandbox scenario ${definition.key} cannot reconcile ${fieldKey} into a decision evidence class.`,
-                );
-              }
+                // Sandbox Observation Foundation V1-V3 overloaded the
+                // Required Structure repeatability slot with the student's
+                // stated-plan quality. V4 restores those as separate
+                // authorities. Reuse that retained semantic class for the
+                // condition-only step-plan check, while rep 1 no longer mints
+                // execution.repeatability.
+                if (
+                  currentField.dimensionId ===
+                  "condition.required_structure.step_plan_accuracy"
+                ) {
+                  sourceObservation = rep.observations.repeatability;
+                }
 
-              const currentField = getFieldDefinitionForRep(
-                currentSet,
-                repIndex,
-                fieldKey,
-              );
-              if (!currentField) {
-                throw new Error(
-                  `Sandbox scenario ${definition.key} is missing current field ${fieldKey}.`,
-                );
-              }
-              const optionIndex =
-                currentField.optionEvidenceClasses?.findIndex(
-                  (candidate) => candidate === evidenceClass,
-                ) ?? -1;
-              if (optionIndex < 0) {
-                throw new Error(
-                  `Sandbox scenario ${definition.key} cannot map ${fieldKey} ${evidenceClass} into Training V${currentSchema.schemaVersion}.`,
-                );
-              }
+                if (!sourceObservation?.optionId) {
+                  throw new Error(
+                    `Sandbox scenario ${definition.key} is missing historical observation ${fieldKey} required by current Training.`,
+                  );
+                }
 
-              const identity = getEvidenceSelectionIdentity({
-                mode: "training",
-                phase: definition.phase,
-                setName: currentSet.setName,
-                repIndex,
-                fieldKey,
-                optionIndex,
-              });
-              if (!identity) {
-                throw new Error(
-                  `Sandbox scenario ${definition.key} could not resolve current option identity for ${fieldKey}.`,
-                );
-              }
+                const sourceFieldKey =
+                  currentField.dimensionId ===
+                  "condition.required_structure.step_plan_accuracy"
+                    ? "repeatability"
+                    : fieldKey;
+                const sourceResolved = resolveEvidenceSelection({
+                  mode: "training",
+                  phase: definition.phase,
+                  setId: scenarioSet.setId,
+                  repIndex,
+                  fieldKey: sourceFieldKey,
+                  optionId: sourceObservation.optionId,
+                  schemaVersion: sourceTrainingSchemaVersion,
+                });
+                if (!sourceResolved) {
+                  throw new Error(
+                    `Sandbox scenario ${definition.key} has an invalid historical option for ${sourceFieldKey}.`,
+                  );
+                }
 
-              return [
-                fieldKey,
-                {
-                  optionId: identity.optionId,
-                  evidenceStatus: observation.evidenceStatus,
-                },
-              ];
-            }),
-          ),
-        })),
+                const rawLabel =
+                  sourceResolved.field.optionLabels?.[
+                    sourceResolved.optionIndex
+                  ] || "";
+                const evidenceClass =
+                  sourceResolved.evidenceClass ||
+                  trainingEvidenceClassForRawBehavior(
+                    sourceResolved.field.dimensionId as TrainingDimensionId,
+                    rawLabel,
+                  );
+                if (
+                  !evidenceClass ||
+                  evidenceClass === "not_observed" ||
+                  evidenceClass === "confounded"
+                ) {
+                  throw new Error(
+                    `Sandbox scenario ${definition.key} cannot reconcile ${fieldKey} into a decision evidence class.`,
+                  );
+                }
+
+                const optionIndex =
+                  currentField.optionEvidenceClasses?.findIndex(
+                    (candidate) => candidate === evidenceClass,
+                  ) ?? -1;
+                if (optionIndex < 0) {
+                  throw new Error(
+                    `Sandbox scenario ${definition.key} cannot map ${fieldKey} ${evidenceClass} into Training V${currentSchema.schemaVersion}.`,
+                  );
+                }
+
+                const identity = getEvidenceSelectionIdentity({
+                  mode: "training",
+                  phase: definition.phase,
+                  setName: currentSet.setName,
+                  repIndex,
+                  fieldKey,
+                  optionIndex,
+                });
+                if (!identity) {
+                  throw new Error(
+                    `Sandbox scenario ${definition.key} could not resolve current option identity for ${fieldKey}.`,
+                  );
+                }
+
+                return [
+                  fieldKey,
+                  {
+                    optionId: identity.optionId,
+                    evidenceStatus: sourceObservation.evidenceStatus,
+                  },
+                ];
+              }),
+            ),
+          };
+        }),
       };
     }),
   };
@@ -303,8 +320,7 @@ export function validateSandboxScenarioDefinition(definition: SandboxScenarioDef
         );
       }
 
-      registeredSet.fields.forEach((baseField) => {
-        const field = getFieldDefinitionForRep(registeredSet, repIndex, baseField.fieldKey) || baseField;
+      getFieldDefinitionsForRep(registeredSet, repIndex).forEach((field) => {
         const canonical = rep.observations[field.fieldKey];
         if (!canonical?.optionId) {
           throw new Error(
@@ -355,8 +371,10 @@ export function projectSandboxScenarioForSpecialist(
         reps: scenarioSet.reps.map((rep, repIndex) => ({
           repNumber: rep.repNumber,
           studentBehavior: rep.studentBehavior,
-          fields: registeredSet.fields.map((baseField) => {
-            const field = getFieldDefinitionForRep(registeredSet, repIndex, baseField.fieldKey) || baseField;
+          fields: getFieldDefinitionsForRep(
+            registeredSet,
+            repIndex,
+          ).map((field) => {
             const options = (field.optionLabels || []).map((label, optionIndex) => {
               const identity = getEvidenceSelectionIdentity({
                 mode: "training",
@@ -427,8 +445,7 @@ function materializeEvidenceSets(
         [TRAINING_INTERVENTION_FIELD]: "none",
       };
 
-      registeredSet.fields.forEach((baseField) => {
-        const field = getFieldDefinitionForRep(registeredSet, repIndex, baseField.fieldKey) || baseField;
+      getFieldDefinitionsForRep(registeredSet, repIndex).forEach((field) => {
         const submitted = rep.observations[field.fieldKey];
         if (!submitted?.optionId) {
           throw new Error(
@@ -551,10 +568,14 @@ export function evaluateSandboxSimulation(
   let matchingObservations = 0;
   for (const [key, expectedObservation] of expected.entries()) {
     const actualObservation = actual.get(key);
-    if (
-      actualObservation?.optionId === expectedObservation.optionId &&
-      normalizeStatus(actualObservation?.evidenceStatus) === normalizeStatus(expectedObservation.evidenceStatus)
-    ) {
+    const expectedStatus = normalizeStatus(expectedObservation.evidenceStatus);
+    const actualStatus = normalizeStatus(actualObservation?.evidenceStatus);
+    const statusMatches = actualStatus === expectedStatus;
+    const optionMatches =
+      expectedStatus === "observed"
+        ? actualObservation?.optionId === expectedObservation.optionId
+        : statusMatches;
+    if (statusMatches && optionMatches) {
       matchingObservations += 1;
     }
   }
