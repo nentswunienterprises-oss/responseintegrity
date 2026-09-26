@@ -51,6 +51,15 @@ test("Tools Required preserves the locked Modelling and Observation setup distin
   assert.match(source, /rear camera and attached ring light face the notebook and hands/i);
   assert.match(source, /record the student's observable responses as they happen/i);
   assert.doesNotMatch(source, /smartphone camera is the main delivery tool for the top-down teaching view/i);
+  assert.match(source, /modelling-vs-observation-locked\.webp/);
+  assert.ok(
+    fs.existsSync(
+      path.join(
+        process.cwd(),
+        "client/public/images/responseconditioning/tools-required/modelling-vs-observation-locked.webp",
+      ),
+    ),
+  );
   assert.doesNotMatch(bank, /It stays in one top-down angle for every drill\s*\n\s*Expected Answer/i);
 });
 

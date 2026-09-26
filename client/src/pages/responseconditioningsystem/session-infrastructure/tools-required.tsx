@@ -235,6 +235,14 @@ export default function ResponseConditioningToolsRequired() {
             </p>
           </div>
 
+          <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+            <img
+              src="/images/responseconditioning/tools-required/modelling-vs-observation-locked.webp"
+              alt="Response Integrity locked reference showing Modelling with the camera and light facing work, and Observation with the camera in selfie mode"
+              className="w-full h-auto object-contain"
+            />
+          </div>
+
           <div className="grid gap-4 lg:grid-cols-2">
             {deliveryModes.map((mode) => (
               <div key={mode.title} className="rounded-2xl border bg-card p-5 space-y-4">
