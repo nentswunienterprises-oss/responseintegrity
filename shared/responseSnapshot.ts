@@ -3,7 +3,7 @@ import {
   getDrillSchemaDefinition,
   getDrillSchemaDefinitionByVersion,
   getFieldDefinitionForRep,
-  getScoredFieldDefinitionsForRep,
+  getFieldDefinitionsForRep,
   type EvidenceDrillMode,
   type SubmittedEvidenceSet,
 } from "./responseIntegrityDrillRegistry";
@@ -928,7 +928,7 @@ export const buildResponseSnapshotV1 = ({
     }
 
     const reps: ResponseSnapshotRep[] = (submittedSet.observations || []).map((repObs, repIndex) => {
-      const fields = getScoredFieldDefinitionsForRep(definition, repIndex);
+      const fields = getFieldDefinitionsForRep(definition, repIndex);
       const fieldStates = fields.map((field) => {
         const rawStatus = String(
           repObs?.[trainingEvidenceStatusKey(field.fieldKey)] || "observed",
