@@ -257,21 +257,6 @@ function PortalLanding() {
 
       <section className="pb-12 sm:pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12">
-          <div className="rounded-[30px] border border-[var(--ri-warm-border)] bg-white/82 p-5 sm:p-6 md:p-8 shadow-sm">
-            <div className="max-w-2xl">
-              <h2 className="mt-2 text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight" style={{ color: "var(--ri-charcoal)" }}>
-                Two annual intakes. One standard.
-              </h2>
-              <p className="mt-4 text-sm sm:text-base leading-7" style={{ color: "var(--ri-muted)" }}>
-                Families enter through a defined intake and continue on a cadence that prepares response ahead of pressure.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="pb-12 sm:pb-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12">
           <div className="relative overflow-hidden rounded-[38px] border border-[var(--ri-dark-border)] bg-[var(--ri-charcoal)] shadow-[0_24px_70px_rgba(26,26,26,0.18)]">
             <div className="absolute inset-0 opacity-100">
               <div className="absolute -top-16 right-0 h-44 w-44 rounded-full bg-[var(--ri-red)]/18 blur-3xl" />
