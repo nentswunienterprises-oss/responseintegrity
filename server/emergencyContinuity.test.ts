@@ -1105,6 +1105,48 @@ test("emergency assignment acceptance advances the enrollment on the direct DB p
   assert.match(routeSource, /RETURNING id, user_id, status, current_step, assigned_tutor_id/);
 });
 
+test("emergency weekly training scheduling and Specialist confirmation stay on direct PostgreSQL", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+
+  const parentGetStart = routesSource.indexOf('app.get("/api/parent/training-sessions"');
+  const parentScheduleStart = routesSource.indexOf(
+    'app.post("/api/parent/training-sessions/schedule-week"',
+    parentGetStart,
+  );
+  const parentRespondStart = routesSource.indexOf(
+    'app.post("/api/parent/training-sessions/respond"',
+    parentScheduleStart,
+  );
+
+  const parentGetSource = routesSource.slice(parentGetStart, parentScheduleStart);
+  const parentScheduleSource = routesSource.slice(parentScheduleStart, parentRespondStart);
+
+  assert.ok(parentGetStart >= 0);
+  assert.ok(parentScheduleStart > parentGetStart);
+  assert.match(parentGetSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(parentGetSource, /FROM public\.scheduled_sessions/);
+  assert.match(parentScheduleSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(parentScheduleSource, /FROM public\.scheduled_sessions/);
+  assert.match(parentScheduleSource, /INSERT INTO public\.scheduled_sessions/);
+  assert.match(parentScheduleSource, /await client\.query\("BEGIN"\)/);
+  assert.match(parentScheduleSource, /await client\.query\("COMMIT"\)/);
+
+  const tutorConfirmStart = routesSource.indexOf(
+    '"/api/tutor/students/:studentId/training-sessions/:sessionId/confirm"',
+  );
+  const tutorRespondStart = routesSource.indexOf(
+    '"/api/tutor/students/:studentId/training-sessions/:sessionId/respond"',
+    tutorConfirmStart,
+  );
+  const tutorConfirmSource = routesSource.slice(tutorConfirmStart, tutorRespondStart);
+
+  assert.ok(tutorConfirmStart >= 0);
+  assert.ok(tutorRespondStart > tutorConfirmStart);
+  assert.match(tutorConfirmSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(tutorConfirmSource, /FROM public\.scheduled_sessions/);
+  assert.match(tutorConfirmSource, /UPDATE public\.scheduled_sessions/);
+});
+
 test("parent intro proposal uses direct PostgreSQL in emergency mode", () => {
   const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
   const routeStart = routesSource.indexOf('app.post("/api/parent/intro-session/propose"');
