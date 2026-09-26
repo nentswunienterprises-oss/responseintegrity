@@ -842,6 +842,24 @@ test("sandbox family scheduling keeps payment authority separate from sandbox qu
   assert.doesNotMatch(accessSource, /hasActiveSandboxMembership/);
   assert.doesNotMatch(accessSource, /onboardingType:\s*"sandbox"/);
 
+  const billingStart = routesSource.indexOf("async function getParentBillingModel");
+  const billingEnd = routesSource.indexOf("function parseStoredDrillPayload", billingStart);
+  const billingSource = routesSource.slice(billingStart, billingEnd);
+  assert.match(billingSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(billingSource, /FROM public\.parents/);
+  assert.match(billingSource, /FROM public\.parent_enrollments/);
+  assert.match(billingSource, /is_sandbox_account/);
+  assert.match(billingSource, /demand_flow_version/);
+  assert.match(billingSource, /enrollmentEntryType/);
+
+  const paidParentStart = routesSource.indexOf("async function getLatestPaidPaymentForParent");
+  const paidParentEnd = routesSource.indexOf("const RESCHEDULE_LIMIT_PER_SESSION_PER_MONTH", paidParentStart);
+  const paidParentSource = routesSource.slice(paidParentStart, paidParentEnd);
+  assert.match(paidParentSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(paidParentSource, /FROM public\.payment_transactions/);
+  assert.match(paidParentSource, /parent_id::text = \$1::text/);
+  assert.match(paidParentSource, /student_id::text = \$2::text/);
+
   const quotaStart = routesSource.indexOf("async function getMonthlySessionQuotaSnapshot");
   const quotaEnd = routesSource.indexOf("async function resolveEnrollmentIdForSession", quotaStart);
   const quotaSource = routesSource.slice(quotaStart, quotaEnd);
