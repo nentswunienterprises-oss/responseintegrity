@@ -2766,6 +2766,75 @@ async function getMonthlySessionQuotaSnapshot(options: {
     const nextMonth = new Date(monthStartIso);
     nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
     const nextMonthIso = nextMonth.toISOString();
+    const nowIso = new Date().toISOString();
+    let usageWindowStart = monthStartIso;
+
+    try {
+      const boundaryResult = await pool.query(
+        `WITH student_renewal AS (
+           SELECT paid_at
+             FROM public.payment_transactions
+            WHERE parent_id = $1
+              AND student_id = $2
+              AND provider = $6
+              AND payment_status = 'paid'
+              AND raw_payload @> '{"renewal": true}'::jsonb
+              AND paid_at >= $3::timestamptz
+              AND paid_at < $4::timestamptz
+            ORDER BY paid_at DESC
+            LIMIT 1
+         ),
+         parent_renewal AS (
+           SELECT paid_at
+             FROM public.payment_transactions
+            WHERE parent_id = $1
+              AND provider = $6
+              AND payment_status = 'paid'
+              AND raw_payload @> '{"renewal": true}'::jsonb
+              AND paid_at >= $3::timestamptz
+              AND paid_at < $4::timestamptz
+            ORDER BY paid_at DESC
+            LIMIT 1
+         ),
+         restore_event AS (
+           SELECT effective_at
+             FROM public.session_billing_events
+            WHERE parent_id = $1
+              AND student_id = $2
+              AND event_type = 'renewal_payment'
+              AND billing_impact = 'restore'
+              AND is_sandbox = $5
+              AND effective_at >= $3::timestamptz
+              AND effective_at < $4::timestamptz
+            ORDER BY effective_at DESC
+            LIMIT 1
+         )
+         SELECT GREATEST(
+           $3::timestamptz,
+           COALESCE(
+             (SELECT paid_at FROM student_renewal),
+             (SELECT paid_at FROM parent_renewal),
+             $3::timestamptz
+           ),
+           COALESCE((SELECT effective_at FROM restore_event), $3::timestamptz)
+         ) AS usage_window_start`,
+        [
+          options.parentId,
+          options.studentId,
+          monthStartIso,
+          nextMonthIso,
+          isSandbox,
+          PAYMENT_PROVIDER_PAYFAST,
+        ],
+      );
+
+      const resolvedBoundary = toIsoDateTime(boundaryResult.rows[0]?.usage_window_start);
+      if (resolvedBoundary) {
+        usageWindowStart = resolvedBoundary;
+      }
+    } catch (error) {
+      console.error("Failed to determine emergency quota renewal window:", error);
+    }
 
     const usageResult = await pool.query(
       `WITH completed_keys AS (
@@ -2788,10 +2857,29 @@ async function getMonthlySessionQuotaSnapshot(options: {
             AND r.status IN ('submitted', 'completed')
             AND COALESCE(r.submitted_at, r.started_at, r.created_at) >= $3::timestamptz
             AND COALESCE(r.submitted_at, r.started_at, r.created_at) < $4::timestamptz
+         UNION
+         SELECT CASE
+                  WHEN d.scheduled_session_id IS NOT NULL
+                    THEN 'training:' || d.scheduled_session_id::text
+                  WHEN d.training_session_run_id IS NOT NULL
+                    THEN 'training:' || d.training_session_run_id::text
+                  ELSE 'training-drill:' || d.id::text
+                END AS usage_key
+           FROM public.intro_session_drills d
+          WHERE d.student_id = $2
+            AND d.submitted_at >= $3::timestamptz
+            AND d.submitted_at < $4::timestamptz
+            AND LOWER(
+              COALESCE(
+                NULLIF(d.drill->>'drillType', ''),
+                NULLIF(d.drill->>'sessionContextKind', ''),
+                CASE WHEN d.training_session_run_id IS NOT NULL THEN 'training' ELSE '' END
+              )
+            ) = 'training'
        )
        SELECT COUNT(*)::int AS completed_used
          FROM completed_keys`,
-      [options.parentId, options.studentId, monthStartIso, nextMonthIso],
+      [options.parentId, options.studentId, usageWindowStart, nowIso],
     );
 
     const eventResult = await pool.query(
@@ -2803,7 +2891,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
           AND effective_at < $4::timestamptz
           AND billing_impact = 'consume'
           AND is_sandbox = $5`,
-      [options.parentId, options.studentId, monthStartIso, nextMonthIso, isSandbox],
+      [options.parentId, options.studentId, usageWindowStart, nowIso, isSandbox],
     );
 
     const sessionQuota = Number(row.session_quota ?? DEFAULT_SERVICE_PACKAGE.sessionsPerMonth);
