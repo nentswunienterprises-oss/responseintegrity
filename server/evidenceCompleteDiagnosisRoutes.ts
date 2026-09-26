@@ -388,6 +388,88 @@ async function resolveSessionContext(input: {
   };
 }
 
+async function completeScheduledTrainingSessionAfterDiagnosis(input: {
+  scheduledSessionId: string | null;
+  tutorId: string;
+  studentId: string;
+  completedAt?: string | null;
+}) {
+  const scheduledSessionId = String(input.scheduledSessionId || "").trim();
+  if (!scheduledSessionId) return;
+
+  const completedAt = input.completedAt || new Date().toISOString();
+
+  if (isEmergencyDbMode()) {
+    const updated = await pool.query(
+      `UPDATE public.scheduled_sessions
+          SET status = 'completed',
+              attendance_status = 'both_joined',
+              recording_status = 'manual_not_tracked',
+              transcript_status = 'manual_not_tracked',
+              updated_at = $4
+        WHERE id::text = $1::text
+          AND tutor_id::text = $2::text
+          AND student_id::text = $3::text
+          AND type = 'training'
+          AND status IN ('confirmed', 'scheduled', 'ready', 'live')
+      RETURNING id, status`,
+      [scheduledSessionId, input.tutorId, input.studentId, completedAt],
+    );
+    if (updated.rows[0]) return;
+
+    const existing = await pool.query(
+      `SELECT status
+         FROM public.scheduled_sessions
+        WHERE id::text = $1::text
+          AND tutor_id::text = $2::text
+          AND student_id::text = $3::text
+          AND type = 'training'
+        LIMIT 1`,
+      [scheduledSessionId, input.tutorId, input.studentId],
+    );
+    if (String(existing.rows[0]?.status || "") === "completed") return;
+    throw new Error("Completed re-diagnosis could not retire its scheduled training session.");
+  }
+
+  const { data: updatedSession, error: updateError } = await supabase
+    .from("scheduled_sessions")
+    .update({
+      status: "completed",
+      attendance_status: "both_joined",
+      recording_status: "manual_not_tracked",
+      transcript_status: "manual_not_tracked",
+      updated_at: completedAt,
+    })
+    .eq("id", scheduledSessionId)
+    .eq("tutor_id", input.tutorId)
+    .eq("student_id", input.studentId)
+    .eq("type", "training")
+    .in("status", ["confirmed", "scheduled", "ready", "live"])
+    .select("id, status")
+    .maybeSingle();
+
+  if (updateError) {
+    throw new Error(`Failed to retire completed re-diagnosis session: ${updateError.message}`);
+  }
+  if (updatedSession) return;
+
+  const { data: existingSession, error: existingError } = await supabase
+    .from("scheduled_sessions")
+    .select("status")
+    .eq("id", scheduledSessionId)
+    .eq("tutor_id", input.tutorId)
+    .eq("student_id", input.studentId)
+    .eq("type", "training")
+    .maybeSingle();
+
+  if (existingError) {
+    throw new Error(`Failed to verify completed re-diagnosis session: ${existingError.message}`);
+  }
+  if (String(existingSession?.status || "") === "completed") return;
+
+  throw new Error("Completed re-diagnosis could not retire its scheduled training session.");
+}
+
 const canonicalJson = canonicalizeEvidenceJson;
 
 const assertHistoryPrefix = (
@@ -975,6 +1057,17 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           }
 
           if (existingRun.status === "completed") {
+            if (
+              existingRun.session_context === "active_training" &&
+              existingRun.scheduled_session_id
+            ) {
+              await completeScheduledTrainingSessionAfterDiagnosis({
+                scheduledSessionId: String(existingRun.scheduled_session_id),
+                tutorId,
+                studentId,
+                completedAt: existingRun.completed_at || null,
+              });
+            }
             if (existingRun.timing_policy_version !== 1) {
               return res.json(responseForLegacyCompletedRun(existingRun));
             }
@@ -1162,6 +1255,15 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           timingAuthorityContractId: effectiveTimingContractId,
           timingAuthorityBaselineSeconds: effectiveTimingBaselineSeconds,
         });
+
+        if (sessionResult.sessionKind === "training") {
+          await completeScheduledTrainingSessionAfterDiagnosis({
+            scheduledSessionId: sessionResult.scheduledSessionId,
+            tutorId,
+            studentId,
+            completedAt: finalized.observedAt,
+          });
+        }
 
         return res.json({
           ...responseForReplay(
