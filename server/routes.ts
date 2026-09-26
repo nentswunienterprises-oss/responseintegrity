@@ -2056,6 +2056,10 @@ async function buildPodOperatingOverview(pod: any) {
   };
 }
 
+function usesDirectProofSessionDatabase() {
+  return isEmergencyDbMode() || process.env.VERCEL_ENV === "preview";
+}
+
 const SCHEDULED_SESSION_SELECT = [
   "id",
   "scheduled_time",
@@ -3106,7 +3110,7 @@ async function reconcileTrainingSessionCompletionFromRun(options: {
     return session;
   }
 
-  if (isEmergencyDbMode()) {
+  if (usesDirectProofSessionDatabase()) {
     const runResult = await pool.query(
       `SELECT id
          FROM public.training_session_runs
@@ -4602,7 +4606,7 @@ async function resolveTutorScheduledSession(
   kind: "intro" | "handover" | "training",
   sessionId?: string | null
 ) {
-  if (isEmergencyDbMode()) {
+  if (usesDirectProofSessionDatabase()) {
     const values: unknown[] = [tutorId, studentId, kind];
     let query = `SELECT ${SCHEDULED_SESSION_SELECT}
                    FROM public.scheduled_sessions
@@ -4655,7 +4659,7 @@ async function resolveTutorScheduledSession(
 }
 
 async function getPendingTrainingConfirmationSession(tutorId: string, studentId: string) {
-  if (isEmergencyDbMode()) {
+  if (usesDirectProofSessionDatabase()) {
     const result = await pool.query(
       `SELECT ${SCHEDULED_SESSION_SELECT}
          FROM public.scheduled_sessions
@@ -12610,7 +12614,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         weekEnd.setDate(weekEnd.getDate() + 6);
         weekEnd.setHours(23, 59, 59, 999);
 
-        if (isEmergencyDbMode()) {
+        if (usesDirectProofSessionDatabase()) {
           const scheduleResult = await pool.query(
             `SELECT id, scheduled_time, scheduled_end, timezone, status, type, workflow_stage,
                     parent_confirmed, tutor_confirmed, student_id, parent_id, google_meet_url,
@@ -13124,7 +13128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const operationalMode = await getTutorOperationalMode(tutorId);
 
-        if (isEmergencyDbMode()) {
+        if (usesDirectProofSessionDatabase()) {
           const result = await pool.query(
             `SELECT ${SCHEDULED_SESSION_SELECT}
                FROM public.scheduled_sessions
@@ -13408,7 +13412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         let session: any = null;
         let sessionError: any = null;
-        if (isEmergencyDbMode()) {
+        if (usesDirectProofSessionDatabase()) {
           try {
             const lookupResult = await pool.query(
               `SELECT ${SCHEDULED_SESSION_SELECT}
@@ -13447,7 +13451,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         let updatedSession: any = null;
         let updateError: any = null;
-        if (isEmergencyDbMode()) {
+        if (usesDirectProofSessionDatabase()) {
           try {
             const updateResult = await pool.query(
               `UPDATE public.scheduled_sessions
@@ -14324,7 +14328,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/parent/training-sessions", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).dbUser.id;
-      if (isEmergencyDbMode()) {
+      if (usesDirectProofSessionDatabase()) {
         const enrollmentResult = await pool.query(
           `SELECT id, assigned_tutor_id, status, student_full_name, student_grade, parent_email
              FROM public.parent_enrollments
@@ -14675,7 +14679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let existingSessions: any[] = [];
-      if (isEmergencyDbMode()) {
+      if (usesDirectProofSessionDatabase()) {
         const existingResult = await pool.query(
           `SELECT ${SCHEDULED_SESSION_SELECT}
              FROM public.scheduled_sessions
@@ -14725,7 +14729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let insertedSessions: any[] = [];
-      if (isEmergencyDbMode()) {
+      if (usesDirectProofSessionDatabase()) {
         const client = await pool.connect();
         try {
           await client.query("BEGIN");
@@ -15754,7 +15758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!enrollment) return null;
     const tutorId = enrollment?.assigned_tutor_id;
 
-    if (isEmergencyDbMode()) {
+    if (usesDirectProofSessionDatabase()) {
       if (enrollment.assigned_student_id) {
         const assignedStudent = await storage.getStudent(enrollment.assigned_student_id);
         if (assignedStudent) return normalizeStudentRecord(assignedStudent);
