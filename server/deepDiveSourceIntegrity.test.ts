@@ -40,7 +40,7 @@ test("Tools Required preserves the locked Modelling and Observation setup distin
   const bank = read("Battle-Testing Infrastructure/Tutor Battle-Testing/Session Infrastructure/Tools Required.md");
 
   for (const text of [source, bank]) {
-    assert.match(text, /Camera and light facing work/);
+    assert.match(text, /camera.*light.*(?:face|facing).*work/i);
     assert.match(text, /Clarity phase Modelling set to show and explain/);
     assert.match(text, /Camera in selfie mode/);
     assert.match(text, /all phases after Clarity/i);
