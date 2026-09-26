@@ -10,6 +10,10 @@ import {
 import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
 import { TRAINING_OBSERVATION_MATRIX_V2 } from "./trainingObservationContractV2";
 import type { TrainingDimensionId } from "./trainingEvidenceContract";
+import {
+  trainingEvidenceStatusKey,
+  type TrainingEvidenceStatus,
+} from "./trainingEvidenceCapture";
 
 export type ResponseSnapshotDisplayLevel = "weak" | "partial" | "strong" | "not_scored";
 
@@ -20,6 +24,7 @@ export type ResponseSnapshotEvidence = {
   selectedOptionId: string;
   selectedRawOption: string;
   normalizedLevel: ObservationLevel;
+  evidenceStatus: TrainingEvidenceStatus;
   humanClause: string;
   weight: number;
   contribution: number;
@@ -337,7 +342,12 @@ export const formatSnapshotResultText = (value: string, purposeText?: string | n
 
 const clearNarrativeForRep = (repPurposeId: string, evidence: ResponseSnapshotEvidence[]) => {
   const hasClear = (dimensionLabel: string) =>
-    evidence.some((item) => item.dimensionLabel === dimensionLabel && item.normalizedLevel === "clear");
+    evidence.some(
+      (item) =>
+        item.evidenceStatus === "observed" &&
+        item.dimensionLabel === dimensionLabel &&
+        item.normalizedLevel === "clear",
+    );
 
   if (repPurposeId === "clarity.identification.opportunity_1" && hasClear("Vocabulary") && hasClear("Method")) {
     return ["identified the important terms and selected the method before solving"];
@@ -359,7 +369,11 @@ const clearNarrativeForRep = (repPurposeId: string, evidence: ResponseSnapshotEv
   }
 
   return evidence
-    .filter((item) => item.normalizedLevel === "clear")
+    .filter(
+      (item) =>
+        item.evidenceStatus === "observed" &&
+        item.normalizedLevel === "clear",
+    )
     .map((item) => item.humanClause)
     .slice(0, 2);
 };
@@ -392,7 +406,10 @@ const summarizeClearEvidence = (snapshot: Pick<ResponseSnapshotV1, "sets" | "sou
   snapshot.sets.forEach((set) => {
     set.reps.forEach((rep) => {
       rep.evidence.forEach((item) => {
-        if (item.normalizedLevel === "clear") {
+        if (
+          item.evidenceStatus === "observed" &&
+          item.normalizedLevel === "clear"
+        ) {
           clearDimensions.add(item.dimensionLabel);
         }
       });
@@ -438,7 +455,12 @@ export const summarizeSnapshotObservedResponse = (snapshot?: ResponseSnapshotV1 
   snapshot.sets.forEach((set) => {
     set.reps.forEach((rep) => {
       rep.evidence
-        .filter((item) => item.normalizedLevel === "weak" || item.normalizedLevel === "partial")
+        .filter(
+          (item) =>
+            item.evidenceStatus === "observed" &&
+            (item.normalizedLevel === "weak" ||
+              item.normalizedLevel === "partial"),
+        )
         .forEach((item) => {
           const phrase = limitationPhraseForEvidence(item);
           if (phrase) {
@@ -719,8 +741,22 @@ const buildRepResultText = (
   repPurposeId = "",
 ) => {
   const clearClauses = clearNarrativeForRep(repPurposeId, evidence).map(cleanEvidenceClause);
-  const partialClauses = evidence.filter((item) => item.normalizedLevel === "partial").map((item) => cleanEvidenceClause(item.humanClause)).slice(0, 1);
-  const weakClauses = evidence.filter((item) => item.normalizedLevel === "weak").map((item) => cleanEvidenceClause(item.humanClause)).slice(0, 2);
+  const partialClauses = evidence
+    .filter(
+      (item) =>
+        item.evidenceStatus === "observed" &&
+        item.normalizedLevel === "partial",
+    )
+    .map((item) => cleanEvidenceClause(item.humanClause))
+    .slice(0, 1);
+  const weakClauses = evidence
+    .filter(
+      (item) =>
+        item.evidenceStatus === "observed" &&
+        item.normalizedLevel === "weak",
+    )
+    .map((item) => cleanEvidenceClause(item.humanClause))
+    .slice(0, 2);
   const label = responseLabelForLevel(responseLevel).replace(" response", "").toLowerCase();
 
   if (clearClauses.length && !partialClauses.length && !weakClauses.length) {
@@ -892,43 +928,102 @@ export const buildResponseSnapshotV1 = ({
     }
 
     const reps: ResponseSnapshotRep[] = (submittedSet.observations || []).map((repObs, repIndex) => {
-      const evidence = getScoredFieldDefinitionsForRep(
-        definition,
-        repIndex,
-      ).map((field) => {
-        const selectedRawOption = String(repObs?.[field.fieldKey] || "").trim();
-        const normalizedLevel = String(repObs?.[`${field.fieldKey}_level`] || "") as ObservationLevel;
-        const contribution = scoreContribution(field.scoreWeight, normalizedLevel);
-        const repPurposeId = String(repObs?._rep_id || definition.repPurposeIds[repIndex] || `${definition.setId}.opportunity_${repIndex + 1}`);
-        const repNumber = Number(repObs?._rep_number || repIndex + 1);
-        const dimensionId = String(repObs?.[`${field.fieldKey}_dimension_id`] || field.dimensionId);
-        return {
-          evidenceId: buildEvidenceOccurrenceId({
-            sourceDrillId,
-            schemaId: setSchema.schemaId,
-            schemaVersion: setSchema.schemaVersion,
-            definitionHash: setSchema.definitionHash,
-            setId: definition.setId,
-            setOrder: Number(submittedSet.setOrder || setIndex + 1),
-            repPurposeId,
-            repNumber,
-            dimensionId,
-          }),
-          dimensionId,
-          dimensionLabel: fieldLabel(field.fieldKey),
-          selectedOptionId: String(repObs?.[`${field.fieldKey}_option_id`] || ""),
-          selectedRawOption,
-          normalizedLevel,
-          humanClause: resolveHumanClause(
-            fieldLabel(field.fieldKey),
-            selectedRawOption,
-            dimensionId,
-          ),
-          weight: field.scoreWeight,
-          contribution,
-        };
+      const fields = getScoredFieldDefinitionsForRep(definition, repIndex);
+      const fieldStates = fields.map((field) => {
+        const rawStatus = String(
+          repObs?.[trainingEvidenceStatusKey(field.fieldKey)] || "observed",
+        ).trim();
+        const evidenceStatus: TrainingEvidenceStatus =
+          rawStatus === "not_observed" || rawStatus === "confounded"
+            ? rawStatus
+            : "observed";
+        const scoreEligible =
+          field.decisionEligible !== false &&
+          evidenceStatus === "observed" &&
+          field.scoreWeight > 0;
+        return { field, evidenceStatus, scoreEligible };
       });
-      const score = clampScore(evidence.reduce((sum, item) => sum + item.contribution, 0));
+      const observedWeightTotal = fieldStates.reduce(
+        (sum, item) =>
+          sum + (item.scoreEligible ? item.field.scoreWeight : 0),
+        0,
+      );
+
+      const evidence = fieldStates.map(
+        ({ field, evidenceStatus, scoreEligible }) => {
+          const storedRawOption = String(
+            repObs?.[field.fieldKey] || "",
+          ).trim();
+          const normalizedLevel = String(
+            repObs?.[`${field.fieldKey}_level`] || "",
+          ) as ObservationLevel;
+          const effectiveWeight =
+            scoreEligible && observedWeightTotal > 0
+              ? (field.scoreWeight / observedWeightTotal) * 100
+              : 0;
+          const contribution = scoreEligible
+            ? scoreContribution(effectiveWeight, normalizedLevel)
+            : 0;
+          const repPurposeId = String(
+            repObs?._rep_id ||
+              definition.repPurposeIds[repIndex] ||
+              `${definition.setId}.opportunity_${repIndex + 1}`,
+          );
+          const repNumber = Number(repObs?._rep_number || repIndex + 1);
+          const dimensionId = String(
+            repObs?.[`${field.fieldKey}_dimension_id`] ||
+              field.dimensionId,
+          );
+          const selectedRawOption =
+            evidenceStatus === "observed" ? storedRawOption : "";
+          const humanClause =
+            evidenceStatus === "not_observed"
+              ? "was not meaningfully observable in this opportunity"
+              : evidenceStatus === "confounded"
+                ? "could not be interpreted cleanly because the evidence was confounded"
+                : resolveHumanClause(
+                    fieldLabel(field.fieldKey),
+                    selectedRawOption,
+                    dimensionId,
+                  );
+          return {
+            evidenceId: buildEvidenceOccurrenceId({
+              sourceDrillId,
+              schemaId: setSchema.schemaId,
+              schemaVersion: setSchema.schemaVersion,
+              definitionHash: setSchema.definitionHash,
+              setId: definition.setId,
+              setOrder: Number(submittedSet.setOrder || setIndex + 1),
+              repPurposeId,
+              repNumber,
+              dimensionId,
+            }),
+            dimensionId,
+            dimensionLabel: fieldLabel(field.fieldKey),
+            selectedOptionId:
+              evidenceStatus === "observed"
+                ? String(
+                    repObs?.[`${field.fieldKey}_option_id`] || "",
+                  )
+                : "",
+            selectedRawOption,
+            normalizedLevel,
+            evidenceStatus,
+            humanClause,
+            weight: effectiveWeight,
+            contribution,
+          };
+        },
+      );
+      const score =
+        observedWeightTotal > 0
+          ? clampScore(
+              evidence.reduce(
+                (sum, item) => sum + item.contribution,
+                0,
+              ),
+            )
+          : null;
       const responseLevel = displayLevelForScore(score);
       const repPurposeId = String(repObs?._rep_id || definition.repPurposeIds[repIndex] || `${definition.setId}.opportunity_${repIndex + 1}`);
       const repPurposeText = REP_PURPOSE_TEXT[repPurposeId] || `the target response would hold on rep ${repIndex + 1}`;
