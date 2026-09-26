@@ -5,6 +5,7 @@ import {
   getDrillSchemaDefinition,
   getEvidenceSelectionIdentity,
   getFieldDefinitionForRep,
+  getFieldDefinitionsForRep,
   type SubmittedEvidenceSet,
 } from "./responseIntegrityDrillRegistry";
 import {
@@ -38,12 +39,16 @@ test("all registered training raw options map into evidence classes", () => {
       if (setDefinition.modelingOnly) return;
 
       setDefinition.fields.forEach((field) => {
+        if (field.decisionEligible === false) {
+          assert.equal(field.optionEvidenceClasses?.length, field.optionLabels?.length);
+          return;
+        }
         const dimensionId = trainingDimensionForFieldKey(field.fieldKey);
         assert.ok(dimensionId, `Expected dimension mapping for ${phase} / ${setDefinition.setId} / ${field.fieldKey}`);
 
         field.optionLabels?.forEach((rawOption) => {
           assert.ok(
-            trainingEvidenceClassForRawBehavior(dimensionId, rawOption),
+            trainingEvidenceClassForRawBehavior(dimensionId!, rawOption),
             `Expected evidence class for ${phase} / ${setDefinition.setId} / ${field.fieldKey}: ${rawOption}`,
           );
         });
@@ -86,8 +91,7 @@ const buildTrainingSets = ({
         _rep_number: String(repIndex + 1),
       };
 
-      definition.fields.forEach((baseField) => {
-        const field = getFieldDefinitionForRep(definition, repIndex, baseField.fieldKey) || baseField;
+      getFieldDefinitionsForRep(definition, repIndex).forEach((field) => {
         const optionLabels = [...(field.optionLabels || [])];
         const selectedIndex = optionIndexFor
           ? optionIndexFor({
@@ -172,6 +176,41 @@ test("fully supported evidence establishes High from Low but not High Maintenanc
   assert.equal(result.exitQualified, true);
   assert.equal(result.predictedTransition.nextStability, "High");
   assert.equal(result.predictedTransition.transitionReason, "stability advance");
+});
+
+test("Structured Execution repeatability is evidenced only after a comparable prior opportunity", () => {
+  const sets = buildTrainingSets({ phase: "Structured Execution" });
+  const result = evaluate("Structured Execution", "High", sets);
+  const repeatability = result.dimensions.find(
+    (item) => item.dimensionId === "execution.repeatability",
+  );
+
+  assert.equal(repeatability?.validOpportunityCount, 6);
+  assert.equal(repeatability?.supportedCount, 6);
+  for (const set of sets.filter((item) => item.observations.length)) {
+    assert.equal(
+      "repeatability" in set.observations[0],
+      false,
+      `${set.setId} rep 1 cannot claim repeatability`,
+    );
+    assert.equal("repeatability" in set.observations[1], true);
+    assert.equal("repeatability" in set.observations[2], true);
+  }
+
+  const required = sets.find(
+    (set) => set.setId === "structured_execution.required_structure",
+  );
+  assert.ok(required);
+  assert.equal("stepPlanAccuracy" in required!.observations[0], true);
+  assert.equal(
+    result.dimensions.some(
+      (item) =>
+        (item.dimensionId as string) ===
+        "condition.required_structure.step_plan_accuracy",
+    ),
+    false,
+    "condition checks must not mint phase capability dimensions",
+  );
 });
 
 test("repeated phase-critical breakdown cannot be averaged away by otherwise supported evidence", () => {
@@ -328,6 +367,78 @@ test("recorded intervention confounds only the dimensions it supplied", () => {
   assert.equal(tolerance?.state, "SUPPORTED");
   assert.equal(result.observedStability, "Medium");
   assert.ok(result.interventionEvents.includes("first_step_confirmation"));
+});
+
+test("first-step confirmation cannot leave clean Structured Execution independence or repeatability evidence", () => {
+  const sets = buildTrainingSets({ phase: "Structured Execution" });
+  for (const set of sets) {
+    for (const rep of set.observations) {
+      rep[TRAINING_INTERVENTION_FIELD] = "first_step_confirmation";
+    }
+  }
+
+  const result = evaluate("Structured Execution", "High", sets);
+  const start = result.dimensions.find(
+    (item) => item.dimensionId === "execution.start",
+  );
+  const repeatability = result.dimensions.find(
+    (item) => item.dimensionId === "execution.repeatability",
+  );
+  const independence = result.dimensions.find(
+    (item) => item.dimensionId === "execution.independence",
+  );
+  const stepDiscipline = result.dimensions.find(
+    (item) => item.dimensionId === "execution.step_discipline",
+  );
+
+  assert.equal(start?.state, "UNRESOLVED");
+  assert.equal(repeatability?.state, "UNRESOLVED");
+  assert.equal(independence?.state, "UNRESOLVED");
+  assert.equal(stepDiscipline?.state, "SUPPORTED");
+});
+
+test("method or step prompting contaminates later execution and time-pressure dimensions it materially supplies", () => {
+  const structuredSets = buildTrainingSets({ phase: "Structured Execution" });
+  for (const set of structuredSets) {
+    for (const rep of set.observations) {
+      rep[TRAINING_INTERVENTION_FIELD] = "method_or_step_prompt";
+    }
+  }
+  const structured = evaluate(
+    "Structured Execution",
+    "High",
+    structuredSets,
+  );
+  assert.equal(
+    structured.dimensions.find(
+      (item) => item.dimensionId === "execution.repeatability",
+    )?.state,
+    "UNRESOLVED",
+  );
+  assert.equal(
+    structured.dimensions.find(
+      (item) => item.dimensionId === "execution.independence",
+    )?.state,
+    "UNRESOLVED",
+  );
+
+  const timedSets = buildTrainingSets({ phase: "Time Pressure Stability" });
+  for (const set of timedSets) {
+    for (const rep of set.observations) {
+      rep[TRAINING_INTERVENTION_FIELD] = "method_or_step_prompt";
+    }
+  }
+  const timed = evaluate("Time Pressure Stability", "High", timedSets);
+  assert.equal(
+    timed.dimensions.find((item) => item.dimensionId === "time.pace")?.state,
+    "UNRESOLVED",
+  );
+  assert.equal(
+    timed.dimensions.find(
+      (item) => item.dimensionId === "time.completion_integrity",
+    )?.state,
+    "UNRESOLVED",
+  );
 });
 
 test("score-vs-evidence divergence is explicitly preserved for proof analysis", () => {
