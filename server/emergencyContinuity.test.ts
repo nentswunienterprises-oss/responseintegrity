@@ -848,7 +848,13 @@ test("sandbox family scheduling keeps payment authority separate from sandbox qu
 
   assert.match(quotaSource, /WITH completed_keys AS/);
   assert.match(quotaSource, /public\.training_session_runs/);
+  assert.match(quotaSource, /public\.intro_session_drills/);
   assert.match(quotaSource, /public\.session_billing_events/);
+  assert.match(quotaSource, /student_renewal/);
+  assert.match(quotaSource, /parent_renewal/);
+  assert.match(quotaSource, /event_type = 'renewal_payment'/);
+  assert.match(quotaSource, /usageWindowStart/);
+  assert.match(quotaSource, /raw_payload @> '\{"renewal": true\}'::jsonb/);
   assert.match(quotaSource, /sessions_remaining: sessionsRemaining/);
 
   const acceptStart = routesSource.indexOf('app.post("/api/parent/proposal/accept"');
@@ -1215,4 +1221,29 @@ test("Specialist Training tab distinguishes no booking from payment or renewal",
   assert.match(dialogSource, /No sessions can be booked until the parent completes payment/);
   assert.match(dialogSource, /No more sessions can be booked until the parent renews\/pays/);
   assert.match(dialogSource, /Package capacity is available, but the parent has not booked a current lesson/);
+});
+
+
+test("emergency quota calculation respects package renewal boundaries", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const quotaStart = routesSource.indexOf("async function getMonthlySessionQuotaSnapshot");
+  const quotaEnd = routesSource.indexOf("// detect whether this parent/student should use sandbox membership row", quotaStart);
+  const emergencyQuotaSource = routesSource.slice(quotaStart, quotaEnd);
+
+  assert.ok(quotaStart >= 0);
+  assert.ok(quotaEnd > quotaStart);
+  assert.match(emergencyQuotaSource, /if \(isEmergencyDbMode\(\)\)/);
+  assert.match(emergencyQuotaSource, /student_renewal/);
+  assert.match(emergencyQuotaSource, /parent_renewal/);
+  assert.match(emergencyQuotaSource, /restore_event/);
+  assert.match(emergencyQuotaSource, /usage_window_start/);
+  assert.match(emergencyQuotaSource, /usageWindowStart, nowIso/);
+  assert.match(emergencyQuotaSource, /public\.intro_session_drills/);
+  assert.doesNotMatch(
+    emergencyQuotaSource.slice(
+      emergencyQuotaSource.indexOf("const usageResult"),
+      emergencyQuotaSource.indexOf("const sessionQuota"),
+    ),
+    /monthStartIso, nextMonthIso/,
+  );
 });
