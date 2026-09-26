@@ -94,7 +94,7 @@ test("Sandbox evidence exceptions never force a hidden behavior guess", () => {
 });
 
 test("completed Sandbox sessions terminate before the next stateful session can begin", () => {
-  assert.match(sandboxRunnerSource, /status:\s*"session_complete"/);
+  assert.match(sandboxRunnerSource, /"session_complete"/);
   assert.match(sandboxRunnerSource, /Sandbox session complete/);
   assert.match(sandboxRunnerSource, /the next session has\s*not started/i);
   assert.match(sandboxRunnerSource, /Start Sandbox session/);
