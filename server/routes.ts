@@ -2754,7 +2754,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
     const result = await pool.query(
       `SELECT *
          FROM public.membership_months
-        WHERE parent_id = $1 AND student_id = $2
+        WHERE parent_id::text = $1::text AND student_id::text = $2::text
           AND month_key = $3 AND is_sandbox = $4
         LIMIT 1`,
       [options.parentId, options.studentId, monthKey, isSandbox],
@@ -2774,8 +2774,8 @@ async function getMonthlySessionQuotaSnapshot(options: {
         `WITH student_renewal AS (
            SELECT paid_at
              FROM public.payment_transactions
-            WHERE parent_id = $1
-              AND student_id = $2
+            WHERE parent_id::text = $1::text
+              AND student_id::text = $2::text
               AND provider = $6
               AND payment_status = 'paid'
               AND raw_payload @> '{"renewal": true}'::jsonb
@@ -2787,7 +2787,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
          parent_renewal AS (
            SELECT paid_at
              FROM public.payment_transactions
-            WHERE parent_id = $1
+            WHERE parent_id::text = $1::text
               AND provider = $6
               AND payment_status = 'paid'
               AND raw_payload @> '{"renewal": true}'::jsonb
@@ -2799,8 +2799,8 @@ async function getMonthlySessionQuotaSnapshot(options: {
          restore_event AS (
            SELECT effective_at
              FROM public.session_billing_events
-            WHERE parent_id = $1
-              AND student_id = $2
+            WHERE parent_id::text = $1::text
+              AND student_id::text = $2::text
               AND event_type = 'renewal_payment'
               AND billing_impact = 'restore'
               AND is_sandbox = $5
@@ -2840,8 +2840,8 @@ async function getMonthlySessionQuotaSnapshot(options: {
       `WITH completed_keys AS (
          SELECT 'training:' || s.id::text AS usage_key
            FROM public.scheduled_sessions s
-          WHERE s.parent_id = $1
-            AND s.student_id = $2
+          WHERE s.parent_id::text = $1::text
+            AND s.student_id::text = $2::text
             AND s.type = 'training'
             AND s.status = 'completed'
             AND s.scheduled_time >= $3::timestamptz
@@ -2853,7 +2853,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
                   ELSE 'training-run:' || r.id::text
                 END AS usage_key
            FROM public.training_session_runs r
-          WHERE r.student_id = $2
+          WHERE r.student_id::text = $2::text
             AND r.status IN ('submitted', 'completed')
             AND COALESCE(r.submitted_at, r.started_at, r.created_at) >= $3::timestamptz
             AND COALESCE(r.submitted_at, r.started_at, r.created_at) < $4::timestamptz
@@ -2866,7 +2866,7 @@ async function getMonthlySessionQuotaSnapshot(options: {
                   ELSE 'training-drill:' || d.id::text
                 END AS usage_key
            FROM public.intro_session_drills d
-          WHERE d.student_id = $2
+          WHERE d.student_id::text = $2::text
             AND d.submitted_at >= $3::timestamptz
             AND d.submitted_at < $4::timestamptz
             AND LOWER(
@@ -2885,8 +2885,8 @@ async function getMonthlySessionQuotaSnapshot(options: {
     const eventResult = await pool.query(
       `SELECT COALESCE(SUM(GREATEST(credits_delta, 0)), 0)::int AS event_used
          FROM public.session_billing_events
-        WHERE parent_id = $1
-          AND student_id = $2
+        WHERE parent_id::text = $1::text
+          AND student_id::text = $2::text
           AND effective_at >= $3::timestamptz
           AND effective_at < $4::timestamptz
           AND billing_impact = 'consume'
