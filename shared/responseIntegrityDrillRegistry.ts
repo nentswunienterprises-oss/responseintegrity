@@ -1044,12 +1044,16 @@ export const getFieldDefinitionForRep = (
 export const getFieldDefinitionsForRep = (
   definition: EvidenceSetDefinition,
   repIndex: number,
-): EvidenceFieldDefinition[] =>
-  definition.fields
-    .map((fieldDefinition) =>
-      getFieldDefinitionForRep(definition, repIndex, fieldDefinition.fieldKey),
+): EvidenceFieldDefinition[] => {
+  const orderedFieldKeys =
+    definition.repFieldKeys?.[repIndex + 1] ||
+    definition.fields.map((fieldDefinition) => fieldDefinition.fieldKey);
+  return orderedFieldKeys
+    .map((fieldKey) =>
+      getFieldDefinitionForRep(definition, repIndex, fieldKey),
     )
     .filter(Boolean) as EvidenceFieldDefinition[];
+};
 
 export const getScoredFieldDefinitionsForRep = (
   definition: EvidenceSetDefinition,
