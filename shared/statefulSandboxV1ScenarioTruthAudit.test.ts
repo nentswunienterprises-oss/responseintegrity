@@ -24,6 +24,7 @@ import {
   validateLegacyStatefulSandboxV1VignetteLeakage,
 } from "./statefulSandboxV1ScenarioTruthAudit";
 import type { TopicPhase } from "./topicConditioningEngine";
+import type { TrainingDimensionId } from "./trainingEvidenceContract";
 
 const phases: TopicPhase[] = [
   "Clarity",
@@ -144,7 +145,7 @@ test("all 264 Stateful Sandbox V1 outcomes preserve audited truth while renderin
             (field) => field.dimensionId,
           )) {
             const auditedObservation =
-              audit!.observations[dimensionId as keyof typeof audit.observations];
+              audit!.observations[dimensionId as TrainingDimensionId];
             assert.ok(auditedObservation);
             assert.equal(
               projected.studentBehavior.includes(auditedObservation!.behavior),
