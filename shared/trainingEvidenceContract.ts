@@ -121,6 +121,8 @@ export const TRAINING_PHASE_EVIDENCE_CONTRACT: Record<TopicPhase, TrainingPhaseE
     exitConfirmationSetIds: ["structured_execution.variation_control"],
     progressionTarget: "Controlled Discomfort",
     notes: [
+      "Required Structure records the stated step plan as a condition check before solving; that check never mints a phase capability dimension.",
+      "Execution Repeatability is cross-rep evidence and begins only after a valid prior comparable opportunity; rep 1 cannot claim it.",
       "Independent Execution must contain valid no-help evidence.",
       "Variation Control must contain valid changed-form evidence.",
       "High Maintenance entry requires all four dimensions to resolve SUPPORTED.",
