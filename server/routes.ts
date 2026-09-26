@@ -2056,6 +2056,10 @@ async function buildPodOperatingOverview(pod: any) {
   };
 }
 
+function usesDirectProofSessionDatabase() {
+  return isEmergencyDbMode() || process.env.VERCEL_ENV === "preview";
+}
+
 const SCHEDULED_SESSION_SELECT = [
   "id",
   "scheduled_time",
@@ -3106,7 +3110,7 @@ async function reconcileTrainingSessionCompletionFromRun(options: {
     return session;
   }
 
-  if (isEmergencyDbMode()) {
+  if (usesDirectProofSessionDatabase()) {
     const runResult = await pool.query(
       `SELECT id
          FROM public.training_session_runs
@@ -4602,7 +4606,7 @@ async function resolveTutorScheduledSession(
   kind: "intro" | "handover" | "training",
   sessionId?: string | null
 ) {
-  if (isEmergencyDbMode()) {
+  if (usesDirectProofSessionDatabase()) {
     const values: unknown[] = [tutorId, studentId, kind];
     let query = `SELECT ${SCHEDULED_SESSION_SELECT}
                    FROM public.scheduled_sessions
@@ -4655,7 +4659,7 @@ async function resolveTutorScheduledSession(
 }
 
 async function getPendingTrainingConfirmationSession(tutorId: string, studentId: string) {
-  if (isEmergencyDbMode()) {
+  if (usesDirectProofSessionDatabase()) {
     const result = await pool.query(
       `SELECT ${SCHEDULED_SESSION_SELECT}
          FROM public.scheduled_sessions
@@ -12610,7 +12614,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         weekEnd.setDate(weekEnd.getDate() + 6);
         weekEnd.setHours(23, 59, 59, 999);
 
-        if (isEmergencyDbMode()) {
+        if (usesDirectProofSessionDatabase()) {
           const scheduleResult = await pool.query(
             `SELECT id, scheduled_time, scheduled_end, timezone, status, type, workflow_stage,
                     parent_confirmed, tutor_confirmed, student_id, parent_id, google_meet_url,
@@ -13124,17 +13128,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const operationalMode = await getTutorOperationalMode(tutorId);
 
-        if (isEmergencyDbMode()) {
+        if (usesDirectProofSessionDatabase()) {
           const result = await pool.query(
             `SELECT ${SCHEDULED_SESSION_SELECT}
                FROM public.scheduled_sessions
               WHERE tutor_id = $1 AND student_id = $2 AND type = 'training'
-              ORDER BY scheduled_time ASC
+              ORDER BY scheduled_time DESC
               LIMIT 12`,
             [tutorId, studentId],
           );
+          const recentSessions = [...(result.rows || [])].sort(
+            (left: any, right: any) =>
+              new Date(left.scheduled_time).getTime() - new Date(right.scheduled_time).getTime(),
+          );
           const reconciledSessions = await Promise.all(
-            (result.rows || []).map((session: any) =>
+            recentSessions.map((session: any) =>
               reconcileTrainingSessionCompletionFromRun({
                 session,
                 tutorId,
@@ -13202,15 +13210,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .eq("tutor_id", tutorId)
           .eq("student_id", studentId)
           .eq("type", "training")
-          .order("scheduled_time", { ascending: true })
+          .order("scheduled_time", { ascending: false })
           .limit(12);
 
         if (error) {
           return res.status(500).json({ message: "Failed to fetch training sessions" });
         }
 
+        const recentSessions = [...(data || [])].sort(
+          (left: any, right: any) =>
+            new Date(left.scheduled_time).getTime() - new Date(right.scheduled_time).getTime(),
+        );
         const sessionsWithArtifacts = await Promise.all(
-          (data || []).map(async (session: any) => {
+          recentSessions.map(async (session: any) => {
             if (shouldReconcileSessionArtifacts(session)) {
               await reconcileArtifactsForScheduledSession(session);
               const { data: refreshedSession } = await supabase
@@ -13408,7 +13420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         let session: any = null;
         let sessionError: any = null;
-        if (isEmergencyDbMode()) {
+        if (usesDirectProofSessionDatabase()) {
           try {
             const lookupResult = await pool.query(
               `SELECT ${SCHEDULED_SESSION_SELECT}
@@ -13447,7 +13459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         let updatedSession: any = null;
         let updateError: any = null;
-        if (isEmergencyDbMode()) {
+        if (usesDirectProofSessionDatabase()) {
           try {
             const updateResult = await pool.query(
               `UPDATE public.scheduled_sessions
@@ -14324,7 +14336,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/parent/training-sessions", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).dbUser.id;
-      if (isEmergencyDbMode()) {
+      if (usesDirectProofSessionDatabase()) {
         const enrollmentResult = await pool.query(
           `SELECT id, assigned_tutor_id, status, student_full_name, student_grade, parent_email
              FROM public.parent_enrollments
@@ -14356,7 +14368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             WHERE parent_id = $1
               AND tutor_id = $2
               AND type = 'training'${studentFilter}
-            ORDER BY scheduled_time ASC
+            ORDER BY scheduled_time DESC
             LIMIT 12`,
           sessionValues,
         );
@@ -14368,7 +14380,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               isSandboxContext: String(enrollment.parent_email || "").toLowerCase().startsWith("sandbox-parent-"),
             })
           : null;
-        const sessionsWithCancellation = await attachTrainingSessionCancellationContext(sessionsResult.rows);
+        const recentSessions = [...sessionsResult.rows].sort(
+          (left: any, right: any) =>
+            new Date(left.scheduled_time).getTime() - new Date(right.scheduled_time).getTime(),
+        );
+        const sessionsWithCancellation = await attachTrainingSessionCancellationContext(recentSessions);
         return res.json({
           operationalMode,
           sessionSchedulingEnabled: isFamilySchedulingMode(operationalMode),
@@ -14493,7 +14509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .select(SCHEDULED_SESSION_SELECT)
           .eq("parent_id", userId)
           .eq("type", "training")
-          .order("scheduled_time", { ascending: true })
+          .order("scheduled_time", { ascending: false })
           .limit(12);
 
         if (studentId) {
@@ -14509,8 +14525,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         data = result.data || [];
       }
 
+      const recentSessions = [...(data || [])].sort(
+        (left: any, right: any) =>
+          new Date(left.scheduled_time).getTime() - new Date(right.scheduled_time).getTime(),
+      );
       const sessionsWithArtifacts = await Promise.all(
-        (data || []).map(async (session: any) => {
+        recentSessions.map(async (session: any) => {
           if (!isEmergencyDbMode() && shouldReconcileSessionArtifacts(session)) {
             try {
               await reconcileArtifactsForScheduledSession(session);
@@ -14675,7 +14695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let existingSessions: any[] = [];
-      if (isEmergencyDbMode()) {
+      if (usesDirectProofSessionDatabase()) {
         const existingResult = await pool.query(
           `SELECT ${SCHEDULED_SESSION_SELECT}
              FROM public.scheduled_sessions
@@ -14713,8 +14733,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         existingSessions = result.data || [];
       }
 
-      const existingTimes = new Set((existingSessions || []).map((session: any) => String(session.scheduled_time)));
-      const slotsToInsert = parsedSlots.filter((slot) => !existingTimes.has(slot.scheduledStart));
+      const normalizeScheduledInstant = (value: unknown) => {
+        const parsed = new Date(String(value || ""));
+        return Number.isNaN(parsed.getTime()) ? String(value || "") : parsed.toISOString();
+      };
+      const existingTimes = new Set(
+        (existingSessions || []).map((session: any) => normalizeScheduledInstant(session.scheduled_time)),
+      );
+      const slotsToInsert = parsedSlots.filter(
+        (slot) => !existingTimes.has(normalizeScheduledInstant(slot.scheduledStart)),
+      );
 
       if (slotsToInsert.length === 0) {
         return res.json({
@@ -14725,7 +14753,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let insertedSessions: any[] = [];
-      if (isEmergencyDbMode()) {
+      if (usesDirectProofSessionDatabase()) {
         const client = await pool.connect();
         try {
           await client.query("BEGIN");
@@ -15754,7 +15782,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!enrollment) return null;
     const tutorId = enrollment?.assigned_tutor_id;
 
-    if (isEmergencyDbMode()) {
+    if (usesDirectProofSessionDatabase()) {
       if (enrollment.assigned_student_id) {
         const assignedStudent = await storage.getStudent(enrollment.assigned_student_id);
         if (assignedStudent) return normalizeStudentRecord(assignedStudent);

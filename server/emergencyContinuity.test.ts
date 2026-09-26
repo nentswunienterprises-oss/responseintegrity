@@ -1105,6 +1105,97 @@ test("emergency assignment acceptance advances the enrollment on the direct DB p
   assert.match(routeSource, /RETURNING id, user_id, status, current_step, assigned_tutor_id/);
 });
 
+test("weekly scheduling dedupe normalizes database timestamps before comparing slots", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const scheduleStart = routesSource.indexOf(
+    'app.post("/api/parent/training-sessions/schedule-week"',
+  );
+  const scheduleEnd = routesSource.indexOf(
+    'app.post("/api/parent/training-sessions/respond"',
+    scheduleStart,
+  );
+  const scheduleSource = routesSource.slice(scheduleStart, scheduleEnd);
+
+  assert.match(
+    scheduleSource,
+    /const normalizeScheduledInstant = \(value: unknown\) => \{/,
+  );
+  assert.match(
+    scheduleSource,
+    /new Date\(String\(value \|\| ""\)\)/,
+  );
+  assert.match(
+    scheduleSource,
+    /normalizeScheduledInstant\(session\.scheduled_time\)/,
+  );
+  assert.match(
+    scheduleSource,
+    /normalizeScheduledInstant\(slot\.scheduledStart\)/,
+  );
+});
+
+test("training session reads select recent rows before historical rows", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+
+  const parentGetStart = routesSource.indexOf('app.get("/api/parent/training-sessions"');
+  const parentScheduleStart = routesSource.indexOf(
+    'app.post("/api/parent/training-sessions/schedule-week"',
+    parentGetStart,
+  );
+  const parentSource = routesSource.slice(parentGetStart, parentScheduleStart);
+  assert.match(parentSource, /ORDER BY scheduled_time DESC\s+LIMIT 12/);
+  assert.match(parentSource, /\.order\("scheduled_time", \{ ascending: false \}\)\s*\.limit\(12\)/);
+  assert.match(parentSource, /const recentSessions = \[\.\.\./);
+
+  const tutorGetStart = routesSource.indexOf(
+    '"/api/tutor/students/:studentId/training-sessions"',
+  );
+  const tutorPostStart = routesSource.indexOf(
+    '"/api/tutor/students/:studentId/training-sessions",',
+    tutorGetStart + 10,
+  );
+  const tutorSource = routesSource.slice(tutorGetStart, tutorPostStart);
+  assert.match(tutorSource, /ORDER BY scheduled_time DESC\s+LIMIT 12/);
+  assert.match(tutorSource, /\.order\("scheduled_time", \{ ascending: false \}\)\s*\.limit\(12\)/);
+  assert.match(tutorSource, /const recentSessions = \[\.\.\./);
+});
+
+test("preview training sessions use the direct Proof database without enabling emergency auth", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const emergencyModeSource = readFileSync(resolve(process.cwd(), "server/emergencyMode.ts"), "utf8");
+
+  assert.match(
+    routesSource,
+    /function usesDirectProofSessionDatabase\(\) \{[\s\S]*?isEmergencyDbMode\(\) \|\| process\.env\.VERCEL_ENV === "preview"/,
+  );
+  assert.match(
+    emergencyModeSource,
+    /if \(process\.env\.VERCEL_ENV === "preview"\) \{[\s\S]*?return false;/,
+  );
+
+  const parentScheduleStart = routesSource.indexOf(
+    'app.post("/api/parent/training-sessions/schedule-week"',
+  );
+  const parentRespondStart = routesSource.indexOf(
+    'app.post("/api/parent/training-sessions/respond"',
+    parentScheduleStart,
+  );
+  const parentScheduleSource = routesSource.slice(parentScheduleStart, parentRespondStart);
+  assert.match(parentScheduleSource, /usesDirectProofSessionDatabase\(\)/);
+  assert.match(parentScheduleSource, /INSERT INTO public\.scheduled_sessions/);
+
+  const parentGetStart = routesSource.indexOf('app.get("/api/parent/training-sessions"');
+  const parentGetSource = routesSource.slice(parentGetStart, parentScheduleStart);
+  assert.match(parentGetSource, /usesDirectProofSessionDatabase\(\)/);
+  assert.match(parentGetSource, /FROM public\.scheduled_sessions/);
+
+  const weeklyStart = routesSource.indexOf('"/api/tutor/weekly-schedule"');
+  const weeklyEnd = routesSource.indexOf('"/api/tutor/scheduled-sessions/:sessionId/log"', weeklyStart);
+  const weeklySource = routesSource.slice(weeklyStart, weeklyEnd);
+  assert.match(weeklySource, /usesDirectProofSessionDatabase\(\)/);
+  assert.match(weeklySource, /FROM public\.scheduled_sessions/);
+});
+
 test("emergency weekly training scheduling and Specialist confirmation stay on direct PostgreSQL", () => {
   const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
 
