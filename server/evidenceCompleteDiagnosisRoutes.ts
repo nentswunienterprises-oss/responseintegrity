@@ -37,6 +37,12 @@ import {
   type PersistedTpsTimerContract,
 } from "./tpsTimingAuthority";
 
+type DiagnosisSessionContainer =
+  | "intro_session"
+  | "scheduled_training_session"
+  | "handover_session";
+type DiagnosisActivityKind = "intro_diagnosis" | "targeted_rediagnosis";
+
 type DiagnosisRunRow = {
   id: string;
   student_id: string;
@@ -44,7 +50,10 @@ type DiagnosisRunRow = {
   topic: string;
   starting_phase: TopicPhase;
   scheduled_session_id?: string | null;
+  // Legacy compatibility lineage. Do not interpret this field as the activity performed.
   session_context: "intro" | "active_training" | "handover_verification";
+  session_container?: DiagnosisSessionContainer | null;
+  activity_kind?: DiagnosisActivityKind | null;
   status: "in_progress" | "blocked" | "completed";
   probe_history: DiagnosisProbeResult[] | string | null;
   decision: Record<string, unknown> | string | null;
@@ -75,6 +84,37 @@ const isLaunchableDiagnosisSessionStatus = (
   LAUNCHABLE_SESSION_STATUSES.has(String(status || "")) ||
   (requestedKind === "handover" && String(status || "") === "completed");
 const LIVE_SCHEDULING_MODES = new Set(["trial", "certified_live"]);
+
+const diagnosisSemanticsForSessionKind = (
+  kind: "intro" | "training" | "handover",
+): {
+  sessionContainer: DiagnosisSessionContainer;
+  activityKind: DiagnosisActivityKind;
+} =>
+  kind === "training"
+    ? {
+        sessionContainer: "scheduled_training_session",
+        activityKind: "targeted_rediagnosis",
+      }
+    : kind === "handover"
+      ? {
+          sessionContainer: "handover_session",
+          activityKind: "targeted_rediagnosis",
+        }
+      : {
+          sessionContainer: "intro_session",
+          activityKind: "intro_diagnosis",
+        };
+
+const isScheduledTrainingRediagnosisRun = (run: DiagnosisRunRow) =>
+  (run.session_container === "scheduled_training_session" &&
+    run.activity_kind === "targeted_rediagnosis") ||
+  (
+    // Backward compatibility before/without the semantic-column migration.
+    !run.session_container &&
+    !run.activity_kind &&
+    run.session_context === "active_training"
+  );
 
 const isUuid = (value: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -374,16 +414,21 @@ async function resolveSessionContext(input: {
         ? "training"
         : "intro";
 
+  const semantics = diagnosisSemanticsForSessionKind(kind);
+
   return {
     error: null,
     scheduledSession,
     scheduledSessionId: scheduledSession ? String(scheduledSession.id) : null,
+    // Legacy compatibility field. Semantic authority is sessionContainer + activityKind.
     sessionContext:
       kind === "handover"
         ? "handover_verification" as const
         : kind === "training"
           ? "active_training" as const
           : "intro" as const,
+    sessionContainer: semantics.sessionContainer,
+    activityKind: semantics.activityKind,
     sessionKind: kind,
   };
 }
@@ -568,6 +613,8 @@ async function ensureIntroDrill(input: {
     topic: input.topic,
     mode: input.sessionKind === "handover" ? "handover_rediagnosis" : "diagnosis",
     sessionContextKind: input.sessionKind,
+    sessionContainer: diagnosisSemanticsForSessionKind(input.sessionKind).sessionContainer,
+    activityKind: diagnosisSemanticsForSessionKind(input.sessionKind).activityKind,
     startingPhase: input.startingPhase,
     placementPhase: decision.placementPhase,
     placementStability: decision.stability,
@@ -637,6 +684,8 @@ async function ensureIntroDrill(input: {
     diagnosisEngine: "evidence_native_v2",
     scheduledSessionId: input.scheduledSessionId,
     sessionContextKind: input.sessionKind,
+    sessionContainer: diagnosisSemanticsForSessionKind(input.sessionKind).sessionContainer,
+    activityKind: diagnosisSemanticsForSessionKind(input.sessionKind).activityKind,
     sets,
     probeHistory: state.probeHistory,
     evidence: state.evidence,
@@ -745,6 +794,8 @@ async function ensureIntroDrill(input: {
         diagnosisMode: "evidence_native",
         diagnosisEngine: "evidence_native_v2",
         decisionAuthority: "behavioral_evidence",
+        sessionContainer: diagnosisSemanticsForSessionKind(input.sessionKind).sessionContainer,
+        activityKind: diagnosisSemanticsForSessionKind(input.sessionKind).activityKind,
         startingPhase: input.startingPhase,
         placementPhase: decision.placementPhase,
         placementEvidence: decision.placementEvidence,
@@ -1058,7 +1109,7 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
 
           if (existingRun.status === "completed") {
             if (
-              existingRun.session_context === "active_training" &&
+              isScheduledTrainingRediagnosisRun(existingRun) &&
               existingRun.scheduled_session_id
             ) {
               await completeScheduledTrainingSessionAfterDiagnosis({
@@ -1174,11 +1225,14 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         const effectiveScheduledSessionId =
           String(existingRun?.scheduled_session_id || scheduledSessionId || "").trim() || null;
         const effectiveRequestedKind =
+          existingRun?.session_container === "handover_session" ||
           existingRun?.session_context === "handover_verification"
             ? "handover" as const
-            : existingRun?.session_context === "active_training"
+            : existingRun?.session_container === "scheduled_training_session" ||
+                existingRun?.session_context === "active_training"
               ? "training" as const
-              : existingRun?.session_context === "intro"
+              : existingRun?.session_container === "intro_session" ||
+                  existingRun?.session_context === "intro"
                 ? "intro" as const
                 : requestedKind;
 
@@ -1256,7 +1310,10 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
           timingAuthorityBaselineSeconds: effectiveTimingBaselineSeconds,
         });
 
-        if (sessionResult.sessionKind === "training") {
+        if (
+          sessionResult.sessionContainer === "scheduled_training_session" &&
+          sessionResult.activityKind === "targeted_rediagnosis"
+        ) {
           await completeScheduledTrainingSessionAfterDiagnosis({
             scheduledSessionId: sessionResult.scheduledSessionId,
             tutorId,
