@@ -12017,7 +12017,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               pool.query(
                 `SELECT id, student_id, session_number
                    FROM public.specialist_sandbox_session_evaluations
-                  WHERE tutor_id = $1 AND student_id = ANY($2::uuid[])`,
+                  WHERE tutor_id = $1 AND student_id = ANY($2::text[])`,
                 [tutorId, studentIds],
               ),
               pool.query(
@@ -12025,7 +12025,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         student_id, specialist_phase, specialist_stability
                    FROM public.specialist_sandbox_trajectories
                   WHERE tutor_id = $1
-                    AND student_id = ANY($2::uuid[])
+                    AND student_id = ANY($2::text[])
                     AND status = 'active'
                   ORDER BY student_id, updated_at DESC`,
                 [tutorId, studentIds],
