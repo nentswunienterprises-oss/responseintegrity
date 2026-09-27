@@ -71,5 +71,11 @@
       }
     ]
   },
-  "managedMigrations": []
+  "managedMigrations": [
+    {
+      "path": "migrations/20260927_diagnosis_activity_context_separation.sql",
+      "description": "Add generated session-container and activity-kind semantics for diagnosis and evidence lineage without changing legacy context storage.",
+      "risk": "additive"
+    }
+  ]
 }
