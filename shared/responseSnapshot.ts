@@ -1149,6 +1149,12 @@ const evidenceLocationsForClass = (
   });
 };
 
+const joinEvidenceLocations = (locations: string[]) => {
+  const filtered = locations.map((location) => location.trim()).filter(Boolean);
+  if (filtered.length <= 1) return filtered[0] || "";
+  return filtered.join("; ");
+};
+
 const buildSetEvidenceResultText = (reps: ResponseSnapshotRep[]) => {
   const allEvidence = reps.flatMap((rep) => rep.evidence);
   const canonical = canonicalDecisionEvidence(allEvidence);
@@ -1171,16 +1177,16 @@ const buildSetEvidenceResultText = (reps: ResponseSnapshotRep[]) => {
   const supported = evidenceLocationsForClass(reps, "supported");
 
   if (breakdown.length) {
-    sentences.push(`Breakdown evidence appeared on ${naturalJoin(breakdown)}.`);
+    sentences.push(`Breakdown evidence appeared on ${joinEvidenceLocations(breakdown)}.`);
   }
   if (conditional.length) {
-    sentences.push(`Conditional evidence remained on ${naturalJoin(conditional)}.`);
+    sentences.push(`Conditional evidence remained on ${joinEvidenceLocations(conditional)}.`);
   }
   if (nearStable.length) {
-    sentences.push(`Near-stable evidence remained on ${naturalJoin(nearStable)}.`);
+    sentences.push(`Near-stable evidence remained on ${joinEvidenceLocations(nearStable)}.`);
   }
   if (supported.length) {
-    sentences.push(`Supported evidence was recorded on ${naturalJoin(supported)}.`);
+    sentences.push(`Supported evidence was recorded on ${joinEvidenceLocations(supported)}.`);
   }
 
   return sentences.join(" ");
