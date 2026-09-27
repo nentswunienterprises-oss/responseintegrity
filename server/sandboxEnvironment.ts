@@ -310,7 +310,7 @@ async function completeSandboxScheduledTrainingSession(input: {
     );
     const enrollmentId = String(enrollmentResult.rows[0]?.parent_enrollment_id || "").trim() || null;
 
-    await client.query(
+    const billingEventInsert = await client.query(
       `INSERT INTO public.session_billing_events (
          session_id, parent_id, student_id, enrollment_id, event_type,
          actor_role, actor_id, billing_impact, credits_delta,
@@ -332,7 +332,8 @@ async function completeSandboxScheduledTrainingSession(input: {
            FROM public.session_billing_events
           WHERE session_id = $1
             AND event_type = 'sandbox_training_completed'
-       )`,
+       )
+       RETURNING id`,
       [
         scheduledSessionId,
         String(session.parent_id || ""),
@@ -345,6 +346,46 @@ async function completeSandboxScheduledTrainingSession(input: {
       ],
     );
 
+    let programProgress: null | {
+      sessionQuota: number;
+      sessionsUsed: number;
+      sessionsRemaining: number;
+    } = null;
+
+    if (billingEventInsert.rowCount && billingEventInsert.rowCount > 0) {
+      const progressResult = await client.query(
+        `WITH target AS (
+           SELECT id
+             FROM public.membership_months
+            WHERE parent_id::text = $1::text
+              AND student_id::text = $2::text
+              AND is_sandbox = true
+              AND status = 'active'
+            ORDER BY month_start DESC, updated_at DESC
+            LIMIT 1
+         )
+         UPDATE public.membership_months membership
+            SET sessions_used = LEAST(membership.session_quota, membership.sessions_used + 1),
+                sessions_remaining = GREATEST(
+                  0,
+                  membership.session_quota - LEAST(membership.session_quota, membership.sessions_used + 1)
+                ),
+                updated_at = $3::timestamptz
+           FROM target
+          WHERE membership.id = target.id
+          RETURNING membership.session_quota, membership.sessions_used, membership.sessions_remaining`,
+        [String(session.parent_id || ""), input.studentId, completedAt],
+      );
+      const progress = progressResult.rows[0];
+      if (progress) {
+        programProgress = {
+          sessionQuota: Number(progress.session_quota || 0),
+          sessionsUsed: Number(progress.sessions_used || 0),
+          sessionsRemaining: Number(progress.sessions_remaining || 0),
+        };
+      }
+    }
+
     await client.query("COMMIT");
     return {
       id: scheduledSessionId,
@@ -352,6 +393,7 @@ async function completeSandboxScheduledTrainingSession(input: {
       completedAt,
       parentId: String(session.parent_id || ""),
       enrollmentId,
+      programProgress,
     };
   } catch (error) {
     await client.query("ROLLBACK");
@@ -359,6 +401,88 @@ async function completeSandboxScheduledTrainingSession(input: {
   } finally {
     client.release();
   }
+}
+
+async function persistSandboxStudentTopicState(input: {
+  studentId: string;
+  topic: string;
+  phase: TopicPhase;
+  stability: TopicStability;
+  sessionEvaluationId: string;
+  observedAt: string;
+  reason: string;
+}) {
+  const topic = String(input.topic || "").trim();
+  if (!topic) return;
+
+  const result = await pool.query(
+    `SELECT concept_mastery
+       FROM public.students
+      WHERE id::text = $1::text
+      LIMIT 1`,
+    [input.studentId],
+  );
+  const existing =
+    result.rows[0]?.concept_mastery && typeof result.rows[0].concept_mastery === "object"
+      ? { ...result.rows[0].concept_mastery }
+      : {};
+  const topicConditioning =
+    existing.topicConditioning && typeof existing.topicConditioning === "object"
+      ? { ...existing.topicConditioning }
+      : {};
+  const topics =
+    topicConditioning.topics && typeof topicConditioning.topics === "object"
+      ? { ...topicConditioning.topics }
+      : {};
+  const existingKey =
+    Object.keys(topics).find((key) => key.trim().toLowerCase() === topic.toLowerCase()) || topic;
+  const existingTopic =
+    topics[existingKey] && typeof topics[existingKey] === "object"
+      ? { ...topics[existingKey] }
+      : {};
+  const history = Array.isArray(existingTopic.history) ? [...existingTopic.history] : [];
+
+  if (!history.some((entry: any) => String(entry?.drillId || "") === input.sessionEvaluationId)) {
+    history.push({
+      date: input.observedAt,
+      phase: input.phase,
+      stability: input.stability,
+      nextAction: input.reason,
+      observationNotes: `Stateful Sandbox Training. ${input.reason}`,
+      structuredObservation: {
+        drillType: "training",
+        evidenceScope: "sandbox",
+        studentStateAuthoritative: false,
+      },
+      drillId: input.sessionEvaluationId,
+    });
+  }
+
+  topics[existingKey] = {
+    ...existingTopic,
+    topic,
+    phase: input.phase,
+    stability: input.stability,
+    lastUpdated: input.observedAt,
+    nextAction: input.reason,
+    observationNotes: `Stateful Sandbox Training. ${input.reason}`,
+    requiresTargetedRediagnosis: false,
+    targetedRediagnosisStartPhase: null,
+    history: history.slice(-60),
+  };
+  topicConditioning.topic = topic;
+  topicConditioning.entry_phase = input.phase;
+  topicConditioning.stability = input.stability;
+  topicConditioning.lastUpdatedAt = input.observedAt;
+  topicConditioning.topics = topics;
+  existing.topicConditioning = topicConditioning;
+
+  await pool.query(
+    `UPDATE public.students
+        SET concept_mastery = $2::jsonb
+      WHERE id::text = $1::text`,
+    [input.studentId, JSON.stringify(existing)],
+  );
 }
 
 function buildSandboxResponseSnapshot(input: {
@@ -1568,6 +1692,16 @@ export async function submitSandboxEnvironmentRep(input: {
         ],
       ),
     ]);
+
+    await persistSandboxStudentTopicState({
+      studentId: bundle.trajectory.student_id,
+      topic: String(input.topic || "Sandbox practice"),
+      phase: evaluation.specialistRoute.nextPhase,
+      stability: evaluation.specialistRoute.nextStability,
+      sessionEvaluationId: sessionId,
+      observedAt: String(inserted.rows[0]?.completed_at || new Date().toISOString()),
+      reason: evaluation.specialistRoute.reason,
+    });
 
     sessionAuthority = {
       specialist: evaluation.specialistRoute,
