@@ -598,6 +598,8 @@ Legacy `weak / partial / clear` levels and `Weak / Partial / Strong response` la
 
 The Specialist-facing Snapshot does **not** render numeric delivery totals, per-set totals, rep totals, aggregate averages, or any retired delivery-rating language.
 
+Rep narration is opportunity-local. A single rep may state only what that opportunity itself showed. It must not claim that a behavior was repeatable, consistent, confirmed across the set, or otherwise established across multiple opportunities merely because that rep was successful. Repeatability and consistency are set-level inferences that require the ordered evidence pattern across comparable reps. A strong final rep after earlier conditional or breakdown evidence is recovery evidence, not proof that the behavior was repeatable.
+
 Clarity Modeling remains visible as instructional preparation rather than student evidence:
 
 > Modeling completed as preparation. No student observation evidence was recorded for this set.
