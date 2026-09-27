@@ -34,6 +34,11 @@ import {
 } from "@/components/tutor/TrainingLiveDeliveryUi";
 import { ResponseSnapshotCard } from "@/components/tutor/ResponseSnapshotCard";
 import type { ResponseSnapshotV1 } from "@shared/responseSnapshot";
+import {
+  NEXT_ACTION_ENGINE,
+  type TopicPhase,
+  type TopicStability,
+} from "@shared/topicConditioningEngine";
 
 type EvidenceStatus = "observed" | "not_observed" | "confounded";
 type InterventionEvent =
@@ -777,6 +782,34 @@ export default function SpecialistSandboxSimulation({
   if (form.status === "session_complete" && form.completedSession) {
     const snapshot = form.completedSession.responseSnapshot;
     const authority = form.completedSession.specialistAuthority;
+    const phaseBefore =
+      snapshot.engineOutcomeRef.phaseBefore || form.completedSession.completedPhase;
+    const stabilityBefore = snapshot.engineOutcomeRef.stabilityBefore;
+    const phaseAfter =
+      (snapshot.engineOutcomeRef.phaseAfter || authority?.nextPhase || null) as TopicPhase | null;
+    const stabilityAfter =
+      (snapshot.engineOutcomeRef.stabilityAfter || authority?.nextStability || null) as TopicStability | null;
+    const transitionReason = String(
+      snapshot.engineOutcomeRef.transitionReason || authority?.transitionReason || "remain",
+    ).toLowerCase();
+    const nextActionData =
+      phaseAfter && stabilityAfter ? NEXT_ACTION_ENGINE[phaseAfter]?.[stabilityAfter] : null;
+    const nextFocus =
+      nextActionData?.nextActions?.[0] ||
+      nextActionData?.primaryAction ||
+      "Not recorded";
+    const formatState = (phase?: string | null, stability?: string | null) =>
+      phase && stability ? `${phase} · ${stability}` : phase || stability || "Not recorded";
+    const sessionResult =
+      phaseAfter && stabilityAfter
+        ? transitionReason === "stability advance"
+          ? `${routeTopic}: stability improved to ${stabilityAfter} in ${phaseAfter}`
+          : transitionReason === "stability regress"
+            ? `${routeTopic}: stability regressed to ${stabilityAfter} in ${phaseAfter}`
+            : transitionReason === "phase progress"
+              ? `${routeTopic}: phase advanced to ${phaseAfter} at ${stabilityAfter} stability`
+              : `${routeTopic}: stability held at ${stabilityAfter} in ${phaseAfter}`
+        : `${routeTopic}: session evidence recorded`;
     return (
       <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
         <div>
@@ -801,24 +834,26 @@ export default function SpecialistSandboxSimulation({
                   This Session Result
                 </p>
                 <p className="font-semibold text-foreground">
-                  {authority.nextPhase} · {authority.nextStability}
+                  {sessionResult}
                 </p>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">Before</span>
-                <span className="font-medium">{form.completedSession.completedPhase}</span>
+                <span className="font-medium">
+                  {formatState(phaseBefore, stabilityBefore)}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">Now</span>
                 <span className="font-medium">
-                  {authority.nextPhase} · {authority.nextStability}
+                  {formatState(phaseAfter, stabilityAfter)}
                 </span>
               </div>
               <div className="border-t pt-2">
                 <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Next Focus
+                  Next Session Focus
                 </p>
-                <p className="font-semibold text-blue-700">{authority.reason}</p>
+                <p className="font-semibold text-blue-700">{nextFocus}</p>
               </div>
             </div>
           </div>
