@@ -1719,11 +1719,16 @@ export async function submitSandboxEnvironmentRep(input: {
     };
   }
 
-  const readiness = await readinessFor({
+  const nextEnvironment = await prepareSandboxEnvironment({
     tutorAssignmentId: input.tutorAssignmentId,
     tutorId: input.tutorId,
-    bank,
+    studentId: input.studentId,
+    bankKey: bank.bankKey,
+    requestedSessionNumber: null,
+    scheduledSessionId: input.scheduledSessionId || null,
+    topic: input.topic || null,
   });
+  const readiness = nextEnvironment.readiness;
 
   return {
     studentId: bundle.trajectory.student_id,
@@ -1743,6 +1748,7 @@ export async function submitSandboxEnvironmentRep(input: {
     sessionAuthority,
     responseSnapshot,
     completedScheduledSession,
+    nextEnvironment,
     studentStateAuthoritative: false as const,
     evidenceScope: "sandbox" as const,
     readiness,
