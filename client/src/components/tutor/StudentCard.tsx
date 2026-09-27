@@ -280,18 +280,27 @@ export function StudentCard({
     </div>
   );
 
+  const isSandboxStudent =
+    String(student?.name || "").toLowerCase().includes("sandbox") ||
+    String(student?.parentContact || student?.parent_contact || "").toLowerCase().includes("sandbox") ||
+    String(operationalMode || "").toLowerCase() === "sandbox";
   const quotaSnapshot = student.parentInfo?.monthlyQuota || student.monthlyQuota || null;
-  const progressLabel = 'Program Progress';
+  const progressLabel = "Program Progress";
   const progressTotal = Math.max(1, Number(quotaSnapshot?.session_quota ?? 8));
-  const sessionProgress = quotaSnapshot
-    ? Math.max(0, Number(quotaSnapshot.sessions_used ?? 0))
-    : (() => {
-        const completedSessions = Math.max(0, Number(student.sessionProgress || 0));
-        return completedSessions > 0 ? (((completedSessions - 1) % progressTotal) + 1) : 0;
-      })();
-  const sessionsRemaining = quotaSnapshot
-    ? Math.max(0, Number(quotaSnapshot.sessions_remaining ?? progressTotal))
-    : (sessionProgress === 0 ? progressTotal : Math.max(0, progressTotal - sessionProgress));
+  const countedProgramProgress = (() => {
+    const completedSessions = Math.max(0, Number(student.sessionProgress || 0));
+    return completedSessions > 0 ? (((completedSessions - 1) % progressTotal) + 1) : 0;
+  })();
+  const sessionProgress = isSandboxStudent
+    ? countedProgramProgress
+    : quotaSnapshot
+      ? Math.max(0, Number(quotaSnapshot.sessions_used ?? 0))
+      : countedProgramProgress;
+  const sessionsRemaining = isSandboxStudent
+    ? (sessionProgress === 0 ? progressTotal : Math.max(0, progressTotal - sessionProgress))
+    : quotaSnapshot
+      ? Math.max(0, Number(quotaSnapshot.sessions_remaining ?? progressTotal))
+      : (sessionProgress === 0 ? progressTotal : Math.max(0, progressTotal - sessionProgress));
   const initials = student.name
     .split(" ")
     .map((n) => n[0])
@@ -300,7 +309,6 @@ export function StudentCard({
     .slice(0, 2);
   const studentSchool = resolveStudentSchool(student);
   const sandboxGuideSteps = getSandboxGuideSteps(student.name || "this sandbox student");
-  const isSandboxStudent = String(student?.name || "").toLowerCase().includes("sandbox") || String(student?.parentContact || student?.parent_contact || "").toLowerCase().includes("sandbox") || String(operationalMode || "").toLowerCase() === "sandbox";
 
   const handleSandboxGuideAction = (action?: string) => {
     if (!student?.id) return;
