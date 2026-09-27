@@ -38,6 +38,18 @@ const trainingLiveUiSource = readFileSync(
   new URL("../client/src/components/tutor/TrainingLiveDeliveryUi.tsx", import.meta.url),
   "utf8",
 );
+const tdOverviewSource = readFileSync(
+  new URL("../client/src/pages/operational/td/overview.tsx", import.meta.url),
+  "utf8",
+);
+const cooPodDetailSource = readFileSync(
+  new URL("../client/src/pages/executive/coo/pod-detail.tsx", import.meta.url),
+  "utf8",
+);
+const sandboxReadinessCardSource = readFileSync(
+  new URL("../client/src/components/sandbox/SandboxReadinessAssessmentCard.tsx", import.meta.url),
+  "utf8",
+);
 
 test("Sandbox mode uses the existing live-runner route rather than a separate runner flow", () => {
   assert.match(
@@ -298,5 +310,47 @@ test("Sandbox guide names the stateful experience as the normal live runner", ()
   assert.match(
     studentCardSource,
     /scheduledSessionId=\$\{encodeURIComponent\([\s\S]*confirmedLesson\.id/,
+  );
+});
+
+test("Sandbox Specialist evaluation is system-derived and TD-owned, not COO-owned", () => {
+  assert.match(serverRoutesSource, /"\/api\/td\/tutors\/:tutorId\/sandbox-readiness"/);
+  assert.match(
+    serverRoutesSource,
+    /"\/api\/td\/tutors\/:tutorId\/sandbox-readiness-assessment"/,
+  );
+  assert.match(
+    serverRoutesSource,
+    /requireRole\(\["td"\]\)[\s\S]*getTDAccessibleTutorIds/,
+  );
+  assert.doesNotMatch(
+    serverRoutesSource,
+    /"\/api\/coo\/tutors\/:tutorId\/sandbox-mock-assessment"/,
+  );
+  assert.match(
+    serverRoutesSource,
+    /getSandboxCapabilityReadiness\([\s\S]*systemPracticalsReady/,
+  );
+
+  assert.match(tdOverviewSource, /SandboxReadinessAssessmentCard/);
+  assert.match(sandboxReadinessCardSource, /Sandbox Specialist Evaluation/);
+  assert.match(sandboxReadinessCardSource, /TD Readiness Review/);
+  assert.match(sandboxReadinessCardSource, /Ready for Practicals/);
+  assert.match(sandboxReadinessCardSource, /Open Practicals/);
+  assert.doesNotMatch(cooPodDetailSource, /SandboxMockGateCard/);
+});
+
+test("Sandbox readiness never skips Practicals by promoting directly to Trial", () => {
+  assert.match(
+    sandboxEnvironmentSource,
+    /practicalsReady:[\s\S]*automaticTransition: false[\s\S]*nextStage: "practicals"/,
+  );
+  assert.match(
+    serverRoutesSource,
+    /nextStage: "practicals" as const[\s\S]*automaticTransition: false as const/,
+  );
+  assert.doesNotMatch(
+    serverRoutesSource,
+    /recordSandboxMockAssessment\(/,
   );
 });
