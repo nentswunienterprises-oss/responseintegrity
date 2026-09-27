@@ -209,10 +209,10 @@ import {
   removeTrialPlacementCreatedDuringFailedAssignment,
 } from "./trialCertification";
 import {
-  buildSandboxReadinessOverview,
-  getLatestSandboxMockAssessment,
-  recordSandboxMockAssessment,
+  getLatestSandboxReadinessAssessment,
+  recordSandboxReadinessAssessment,
 } from "./sandboxReadiness";
+import { getSandboxCapabilityReadiness } from "./sandboxEnvironment";
 import {
   approveSpecialistPathwayExtension,
   ensureSpecialistDevelopmentPathway,
@@ -771,11 +771,19 @@ async function getTutorSandboxReadiness(tutorId: string) {
   const assignment = await storage.getTutorAssignment(tutorId);
   if (!assignment?.id) throw new Error("Specialist must have an active pod assignment.");
 
-  const [tutor, students, docsComplete, latestMockAssessment, pathway, sandboxAccounts] = await Promise.all([
+  const [
+    tutor,
+    students,
+    docsComplete,
+    latestAssessment,
+    pathway,
+    sandboxAccounts,
+    capabilityReadiness,
+  ] = await Promise.all([
     storage.getUser(tutorId),
     storage.getStudentsByTutor(tutorId),
     checkTutorDocumentationComplete(tutorId),
-    getLatestSandboxMockAssessment(assignment.id),
+    getLatestSandboxReadinessAssessment(assignment.id),
     getSpecialistDevelopmentPathway(tutorId),
     supabase
       .from("parent_enrollments")
@@ -783,7 +791,12 @@ async function getTutorSandboxReadiness(tutorId: string) {
       .eq("assigned_tutor_id", tutorId)
       .eq("is_sandbox_account", true)
       .in("status", ACTIVE_PARENT_ENROLLMENT_STATUSES),
+    getSandboxCapabilityReadiness({
+      tutorAssignmentId: assignment.id,
+      tutorId,
+    }),
   ]);
+
   const summary = await buildPodBattleTestingSummary(
     assignment.podId,
     [{
@@ -797,14 +810,37 @@ async function getTutorSandboxReadiness(tutorId: string) {
   );
   const specialistSummary = summary.tutorSummaries[0] || null;
   const moduleProgress = specialistSummary?.moduleProgress || [];
-  const transformationComplete = moduleProgress.find((entry) => entry.moduleKey === "transformation_phases")?.completed || false;
-  const sessionInfrastructureComplete = moduleProgress.find((entry) => entry.moduleKey === "session_infrastructure")?.completed || false;
+  const transformationComplete =
+    moduleProgress.find((entry) => entry.moduleKey === "transformation_phases")?.completed || false;
+  const sessionInfrastructureComplete =
+    moduleProgress.find((entry) => entry.moduleKey === "session_infrastructure")?.completed || false;
   const hasActiveFailHealth =
     specialistSummary?.state === "fail" ||
     specialistSummary?.hasCriticalFail === true ||
     (specialistSummary?.deepDiveProgress || []).some(
       (entry) => entry.currentHealthState === "drift" || entry.criticalFlag,
     );
+
+  const preparationBlockers: string[] = [];
+  if (!docsComplete) preparationBlockers.push("Specialist onboarding documents are incomplete.");
+  if (!transformationComplete) preparationBlockers.push("Transformation Phases deep dives are incomplete.");
+  if (!sessionInfrastructureComplete) preparationBlockers.push("Session Infrastructure deep dives are incomplete.");
+  if (hasActiveFailHealth) preparationBlockers.push("An active fail or critical-drift condition must be resolved.");
+  if ((sandboxAccounts.count || 0) < SANDBOX_REQUIRED_ACCOUNT_COUNT) {
+    preparationBlockers.push(
+      `${SANDBOX_REQUIRED_ACCOUNT_COUNT} Sandbox practice accounts are required; ${Math.max(0, sandboxAccounts.count || 0)} are available.`,
+    );
+  }
+
+  const blockers = [...preparationBlockers];
+  if (!capabilityReadiness.practicalsReady) {
+    blockers.push(capabilityReadiness.reason);
+  }
+  if (!latestAssessment) {
+    blockers.push("TD Sandbox readiness assessment has not been recorded.");
+  } else if (latestAssessment.decision !== "passed") {
+    blockers.push("The latest TD Sandbox readiness assessment requires remediation.");
+  }
 
   return {
     tutorId,
@@ -813,14 +849,17 @@ async function getTutorSandboxReadiness(tutorId: string) {
     pathway,
     sandboxAccountCount: sandboxAccounts.count || 0,
     moduleProgress,
-    ...buildSandboxReadinessOverview({
-      docsComplete,
-      transformationComplete,
-      sessionInfrastructureComplete,
-      hasActiveFailHealth,
-      sandboxAccountCount: sandboxAccounts.count || 0,
-      latestMockAssessment,
-    }),
+    capabilityReadiness,
+    latestAssessment,
+    gate: {
+      readyForPracticals: blockers.length === 0,
+      blockers,
+      preparationBlockers,
+      systemPracticalsReady: capabilityReadiness.practicalsReady === true,
+      tdApproved: latestAssessment?.decision === "passed",
+      nextStage: "practicals" as const,
+      automaticTransition: false as const,
+    },
   };
 }
 
@@ -25414,60 +25453,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   app.get(
-    "/api/coo/tutors/:tutorId/sandbox-readiness",
+    "/api/td/tutors/:tutorId/sandbox-readiness",
     isAuthenticated,
-    requireRole(["coo"]),
+    requireRole(["td"]),
     async (req: Request, res: Response) => {
       try {
-        res.json(await getTutorSandboxReadiness(String(req.params.tutorId || "").trim()));
+        const tdId = (req as any).dbUser.id;
+        const tutorId = String(req.params.tutorId || "").trim();
+        const tutorIds = await getTDAccessibleTutorIds(tdId);
+        if (!tutorIds.has(tutorId)) {
+          return res.status(403).json({ message: "Unauthorized tutor access" });
+        }
+        res.json(await getTutorSandboxReadiness(tutorId));
       } catch (error) {
-        console.error("Error loading Sandbox Mock readiness:", error);
-        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to load Sandbox readiness" });
+        console.error("Error loading TD Sandbox readiness:", error);
+        res.status(500).json({
+          message: error instanceof Error ? error.message : "Failed to load Sandbox readiness",
+        });
       }
     },
   );
 
   app.post(
-    "/api/coo/tutors/:tutorId/sandbox-mock-assessment",
+    "/api/td/tutors/:tutorId/sandbox-readiness-assessment",
     isAuthenticated,
-    requireRole(["coo"]),
+    requireRole(["td"]),
     async (req: Request, res: Response) => {
       try {
+        const tdId = (req as any).dbUser.id;
         const tutorId = String(req.params.tutorId || "").trim();
+        const tutorIds = await getTDAccessibleTutorIds(tdId);
+        if (!tutorIds.has(tutorId)) {
+          return res.status(403).json({ message: "Unauthorized tutor access" });
+        }
+
         const before = await getTutorSandboxReadiness(tutorId);
         if (before.mode !== "sandbox") {
-          return res.status(409).json({ message: `Sandbox Mock requires Sandbox mode. Current lifecycle: ${before.mode}.` });
+          return res.status(409).json({
+            message: `Sandbox readiness can be assessed only in Sandbox. Current lifecycle: ${before.mode}.`,
+          });
         }
         if (!before.pathway?.timeline?.canContinue) {
           return res.status(409).json({
-            message: before.pathway?.timeline?.state === "extension_required"
-              ? "The 75-day pathway window has ended. Approve a documented extension before the Mock."
-              : "The Specialist Development Pathway is missing or has expired.",
+            message:
+              before.pathway?.timeline?.state === "extension_required"
+                ? "The 75-day pathway window has ended. COO approval is required for a documented extension before readiness can be signed off."
+                : "The Specialist Development Pathway is missing or has expired.",
           });
-        }
-        const prerequisiteBlockers = before.gate.blockers.filter(
-          (blocker: string) => !blocker.startsWith("The Sandbox Mock"),
-        );
-        if (prerequisiteBlockers.length > 0) {
-          return res.status(409).json({ message: prerequisiteBlockers.join(" ") });
         }
 
         const decision = String(req.body?.decision || "").trim();
         if (!(["passed", "remediation_required"] as string[]).includes(decision)) {
-          return res.status(400).json({ message: "Choose passed or remediation required." });
+          return res.status(400).json({ message: "Choose ready for Practicals or remediation required." });
         }
-        await recordSandboxMockAssessment({
+
+        if (
+          decision === "passed" &&
+          (
+            before.gate.preparationBlockers.length > 0 ||
+            before.capabilityReadiness.practicalsReady !== true
+          )
+        ) {
+          const blockers = [
+            ...before.gate.preparationBlockers,
+            ...(before.capabilityReadiness.practicalsReady
+              ? []
+              : [before.capabilityReadiness.reason]),
+          ];
+          return res.status(409).json({ message: blockers.join(" ") });
+        }
+
+        await recordSandboxReadinessAssessment({
           tutorId,
           tutorAssignmentId: before.tutorAssignmentId,
           decision: decision as "passed" | "remediation_required",
-          checklist: req.body?.checklist,
           evidenceNote: String(req.body?.evidenceNote || ""),
-          assessedByUserId: (req as any).dbUser.id,
+          assessedByUserId: tdId,
+          capabilitySnapshot: before.capabilityReadiness as Record<string, unknown>,
         });
+
         res.json(await getTutorSandboxReadiness(tutorId));
       } catch (error) {
-        console.error("Error recording Sandbox Mock assessment:", error);
-        res.status(409).json({ message: error instanceof Error ? error.message : "Failed to record Sandbox Mock assessment" });
+        console.error("Error recording TD Sandbox readiness assessment:", error);
+        res.status(409).json({
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to record Sandbox readiness assessment",
+        });
       }
     },
   );
