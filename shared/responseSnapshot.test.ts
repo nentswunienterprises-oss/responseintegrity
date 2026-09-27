@@ -924,7 +924,7 @@ test("clarity light-apply narrative states what happened instead of repeating th
   assert.match(snapshot.drill.resultText, /near-stable evidence/i);
 });
 
-test("Snapshot preserves response subject and only slashes paired or-descriptors", () => {
+test("Snapshot uses concrete behavior and only slashes paired or-descriptors", () => {
   const submittedSet = buildSubmittedSet({
     mode: "training",
     phase: "Clarity",
@@ -955,9 +955,9 @@ test("Snapshot preserves response subject and only slashes paired or-descriptors
   const repText = snapshot.sets[0].reps[2].resultText;
   assert.match(
     repText,
-    /the response was usable but not yet clean and immediate/i,
+    /the student engaged independently, but only after a brief hesitation/i,
   );
-  assert.doesNotMatch(repText, /the student was usable/i);
+  assert.doesNotMatch(repText, /the response was usable|the student was usable/i);
   assert.doesNotMatch(repText, /clean\/immediate/i);
   assert.match(repText, /selection was unstable\/speculative/i);
   assert.doesNotMatch(repText, /selection was unstable or speculative/i);
