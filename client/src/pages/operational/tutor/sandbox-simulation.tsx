@@ -794,10 +794,21 @@ export default function SpecialistSandboxSimulation({
     ).toLowerCase();
     const nextActionData =
       phaseAfter && stabilityAfter ? NEXT_ACTION_ENGINE[phaseAfter]?.[stabilityAfter] : null;
-    const nextFocus =
-      nextActionData?.nextActions?.[0] ||
-      nextActionData?.primaryAction ||
-      "Not recorded";
+    const enteredMaintenanceCheckpoint =
+      (transitionReason === "high maintenance entry" ||
+        transitionReason === "stability advance") &&
+      phaseBefore === phaseAfter &&
+      stabilityBefore === "High" &&
+      stabilityAfter === "High Maintenance";
+    const nextFocusLabel = enteredMaintenanceCheckpoint
+      ? "Immediate Next Drill"
+      : "Next Session Focus";
+    const nextFocus = enteredMaintenanceCheckpoint
+      ? nextActionData?.nextActions?.[0] ||
+        nextActionData?.primaryAction ||
+        "Not recorded"
+      : nextActionData?.primaryAction || "Not recorded";
+    const nextConstraint = nextActionData?.rules?.[0] || null;
     const formatState = (phase?: string | null, stability?: string | null) =>
       phase && stability ? `${phase} · ${stability}` : phase || stability || "Not recorded";
     const sessionResult =
@@ -851,9 +862,14 @@ export default function SpecialistSandboxSimulation({
               </div>
               <div className="border-t pt-2">
                 <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Next Session Focus
+                  {nextFocusLabel}
                 </p>
                 <p className="font-semibold text-blue-700">{nextFocus}</p>
+                {nextConstraint && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Constraint: {nextConstraint}
+                  </p>
+                )}
               </div>
             </div>
           </div>
