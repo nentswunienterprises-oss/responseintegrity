@@ -983,8 +983,9 @@ const canonicalResponseEvidenceClause = (
   const studentLed = detail.replace(/^The student\s+/i, "");
   if (studentLed !== detail) return lowerFirst(studentLed);
 
-  const responseLed = detail.replace(/^The response\s+/i, "");
-  if (responseLed !== detail) return lowerFirst(responseLed);
+  if (/^The response\s+/i.test(detail)) {
+    return lowerFirst(detail);
+  }
 
   return detail ? `showed evidence that ${lowerFirst(detail)}` : lowerFirst(option.label);
 };
