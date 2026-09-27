@@ -38,6 +38,10 @@ const trainingLiveUiSource = readFileSync(
   new URL("../client/src/components/tutor/TrainingLiveDeliveryUi.tsx", import.meta.url),
   "utf8",
 );
+const battleTestingSource = readFileSync(
+  new URL("../server/battleTesting.ts", import.meta.url),
+  "utf8",
+);
 const tdOverviewSource = readFileSync(
   new URL("../client/src/pages/operational/td/overview.tsx", import.meta.url),
   "utf8",
@@ -352,5 +356,25 @@ test("Sandbox readiness never skips Practicals by promoting directly to Trial", 
   assert.doesNotMatch(
     serverRoutesSource,
     /recordSandboxMockAssessment\(/,
+  );
+
+  const deriveModeStart = battleTestingSource.indexOf(
+    "function deriveTutorTrainingMode",
+  );
+  const deriveModeEnd = battleTestingSource.indexOf(
+    "export function deriveTutorAuditStateFromProgress",
+    deriveModeStart,
+  );
+  const deriveModeSource = battleTestingSource.slice(
+    deriveModeStart,
+    deriveModeEnd,
+  );
+  assert.match(
+    deriveModeSource,
+    /if \(transformationComplete && sessionComplete\) return "sandbox"/,
+  );
+  assert.doesNotMatch(
+    deriveModeSource,
+    /sandboxMockPassed[\s\S]*return "trial"/,
   );
 });
