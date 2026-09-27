@@ -336,7 +336,7 @@ test("Sandbox Specialist evaluation is system-derived and TD-owned, not COO-owne
   assert.match(sandboxReadinessCardSource, /Sandbox Specialist Evaluation/);
   assert.match(sandboxReadinessCardSource, /TD Readiness Review/);
   assert.match(sandboxReadinessCardSource, /Ready for Practicals/);
-  assert.match(sandboxReadinessCardSource, /Open Practicals/);
+  assert.match(sandboxReadinessCardSource, /Approve for Practicals/);
   assert.doesNotMatch(cooPodDetailSource, /SandboxMockGateCard/);
 });
 
