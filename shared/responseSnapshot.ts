@@ -1,4 +1,5 @@
 import type { ObservationLevel } from "./observationScoring";
+import type { ResponseEvidenceClass } from "./responseEvidenceModel";
 import {
   getDrillSchemaDefinition,
   getDrillSchemaDefinitionByVersion,
@@ -25,6 +26,8 @@ export type ResponseSnapshotEvidence = {
   selectedRawOption: string;
   normalizedLevel: ObservationLevel;
   evidenceStatus: TrainingEvidenceStatus;
+  evidenceClass?: ResponseEvidenceClass | null;
+  decisionEligible?: boolean;
   humanClause: string;
   weight: number;
   contribution: number;
@@ -110,6 +113,114 @@ const DISPLAY_LABEL_BY_LEVEL: Record<ResponseSnapshotDisplayLevel, string> = {
   partial: "Partial response",
   strong: "Strong response",
   not_scored: "Not scored",
+};
+
+export type ResponseSnapshotDecisionEvidenceClass =
+  | "breakdown"
+  | "conditional"
+  | "near_stable"
+  | "supported";
+
+const RESPONSE_SNAPSHOT_DECISION_CLASSES: readonly ResponseSnapshotDecisionEvidenceClass[] = [
+  "supported",
+  "near_stable",
+  "conditional",
+  "breakdown",
+];
+
+const isDecisionEvidenceClass = (
+  value: unknown,
+): value is ResponseSnapshotDecisionEvidenceClass =>
+  (RESPONSE_SNAPSHOT_DECISION_CLASSES as readonly string[]).includes(String(value || ""));
+
+const legacyDecisionClassForLevel = (
+  level: ObservationLevel | string | null | undefined,
+): ResponseSnapshotDecisionEvidenceClass | null => {
+  if (level === "weak") return "breakdown";
+  if (level === "partial") return "conditional";
+  if (level === "clear") return "supported";
+  return null;
+};
+
+const decisionEvidenceClassForItem = (
+  item: Pick<
+    ResponseSnapshotEvidence,
+    "evidenceStatus" | "evidenceClass" | "normalizedLevel" | "decisionEligible"
+  >,
+  allowLegacyFallback = true,
+): ResponseSnapshotDecisionEvidenceClass | null => {
+  if (item.decisionEligible === false || item.evidenceStatus !== "observed") return null;
+  if (isDecisionEvidenceClass(item.evidenceClass)) return item.evidenceClass;
+  return allowLegacyFallback ? legacyDecisionClassForLevel(item.normalizedLevel) : null;
+};
+
+export const formatSnapshotEvidenceClassLabel = (
+  item: Pick<
+    ResponseSnapshotEvidence,
+    "evidenceStatus" | "evidenceClass" | "normalizedLevel" | "decisionEligible"
+  >,
+) => {
+  if (item.decisionEligible === false) return "Condition check";
+  if (item.evidenceStatus === "not_observed") return "Not observed";
+  if (item.evidenceStatus === "confounded") return "Confounded";
+  if (item.evidenceClass === "supported") return "Supported";
+  if (item.evidenceClass === "near_stable") return "Near-stable";
+  if (item.evidenceClass === "conditional") return "Conditional";
+  if (item.evidenceClass === "breakdown") return "Breakdown";
+  if (item.normalizedLevel === "clear") return "Legacy clear";
+  if (item.normalizedLevel === "partial") return "Legacy partial";
+  if (item.normalizedLevel === "weak") return "Legacy weak";
+  return "Unresolved";
+};
+
+export const summarizeSnapshotEvidenceMix = (
+  evidence: Array<
+    Pick<
+      ResponseSnapshotEvidence,
+      "evidenceStatus" | "evidenceClass" | "normalizedLevel" | "decisionEligible"
+    >
+  >,
+) => {
+  const decisionEvidence = evidence.filter((item) => item.decisionEligible !== false);
+  const counts = new Map<ResponseSnapshotDecisionEvidenceClass, number>();
+  let notObserved = 0;
+  let confounded = 0;
+  let legacy = 0;
+
+  decisionEvidence.forEach((item) => {
+    if (item.evidenceStatus === "not_observed") {
+      notObserved += 1;
+      return;
+    }
+    if (item.evidenceStatus === "confounded") {
+      confounded += 1;
+      return;
+    }
+    const evidenceClass = decisionEvidenceClassForItem(item, false);
+    if (evidenceClass) {
+      counts.set(evidenceClass, (counts.get(evidenceClass) || 0) + 1);
+      return;
+    }
+    if (item.normalizedLevel) legacy += 1;
+  });
+
+  const parts: string[] = [];
+  (["supported", "near_stable", "conditional", "breakdown"] as const).forEach(
+    (evidenceClass) => {
+      const count = counts.get(evidenceClass) || 0;
+      if (!count) return;
+      const label =
+        evidenceClass === "near_stable"
+          ? "near-stable"
+          : evidenceClass;
+      parts.push(`${count} ${label}`);
+    },
+  );
+  if (notObserved) parts.push(`${notObserved} not observed`);
+  if (confounded) parts.push(`${confounded} confounded`);
+  if (legacy) parts.push(`${legacy} legacy`);
+
+  return parts.join(" · ") || "No decision evidence";
 };
 
 const REP_PATTERN_SENTENCE: Record<string, string> = {
@@ -387,9 +498,10 @@ const clearNarrativeForRep = (repPurposeId: string, evidence: ResponseSnapshotEv
   const hasClear = (dimensionLabel: string) =>
     evidence.some(
       (item) =>
+        item.decisionEligible !== false &&
         item.evidenceStatus === "observed" &&
         item.dimensionLabel === dimensionLabel &&
-        item.normalizedLevel === "clear",
+        decisionEvidenceClassForItem(item) === "supported",
     );
 
   if (repPurposeId === "clarity.identification.opportunity_1" && hasClear("Vocabulary") && hasClear("Method")) {
@@ -414,8 +526,9 @@ const clearNarrativeForRep = (repPurposeId: string, evidence: ResponseSnapshotEv
   return evidence
     .filter(
       (item) =>
+        item.decisionEligible !== false &&
         item.evidenceStatus === "observed" &&
-        item.normalizedLevel === "clear",
+        decisionEvidenceClassForItem(item) === "supported",
     )
     .map((item) => item.humanClause)
     .slice(0, 2);
@@ -476,8 +589,9 @@ const summarizeClearEvidence = (snapshot: Pick<ResponseSnapshotV1, "sets" | "sou
     set.reps.forEach((rep) => {
       rep.evidence.forEach((item) => {
         if (
+          item.decisionEligible !== false &&
           item.evidenceStatus === "observed" &&
-          item.normalizedLevel === "clear"
+          decisionEvidenceClassForItem(item) === "supported"
         ) {
           clearDimensions.add(item.dimensionLabel);
         }
@@ -525,10 +639,17 @@ export const summarizeSnapshotObservedResponse = (snapshot?: ResponseSnapshotV1 
     set.reps.forEach((rep) => {
       rep.evidence
         .filter(
-          (item) =>
-            item.evidenceStatus === "observed" &&
-            (item.normalizedLevel === "weak" ||
-              item.normalizedLevel === "partial"),
+          (item) => {
+            if (item.decisionEligible === false || item.evidenceStatus !== "observed") {
+              return false;
+            }
+            const evidenceClass = decisionEvidenceClassForItem(item);
+            return (
+              evidenceClass === "breakdown" ||
+              evidenceClass === "conditional" ||
+              evidenceClass === "near_stable"
+            );
+          },
         )
         .forEach((item) => {
           const phrase = limitationPhraseForEvidence(item);
@@ -822,58 +943,64 @@ const buildRepResultText = (
   evidence: ResponseSnapshotEvidence[],
   repPurposeId = "",
 ) => {
-  const clearClauses = clearNarrativeForRep(repPurposeId, evidence)
+  const decisionEvidence = evidence.filter((item) => item.decisionEligible !== false);
+  const supportedClauses = clearNarrativeForRep(repPurposeId, decisionEvidence)
     .map(normalizeNarrativeClause)
     .filter(Boolean);
-  const partialClauses = evidence
+  const nearStableClauses = decisionEvidence
     .filter(
       (item) =>
         item.evidenceStatus === "observed" &&
-        item.normalizedLevel === "partial",
+        decisionEvidenceClassForItem(item) === "near_stable",
     )
     .map((item) => normalizeNarrativeClause(item.humanClause))
     .filter(Boolean)
     .slice(0, 2);
-  const weakClauses = evidence
+  const conditionalClauses = decisionEvidence
     .filter(
       (item) =>
         item.evidenceStatus === "observed" &&
-        item.normalizedLevel === "weak",
+        decisionEvidenceClassForItem(item) === "conditional",
+    )
+    .map((item) => normalizeNarrativeClause(item.humanClause))
+    .filter(Boolean)
+    .slice(0, 2);
+  const breakdownClauses = decisionEvidence
+    .filter(
+      (item) =>
+        item.evidenceStatus === "observed" &&
+        decisionEvidenceClassForItem(item) === "breakdown",
     )
     .map((item) => normalizeNarrativeClause(item.humanClause))
     .filter(Boolean)
     .slice(0, 2);
   const opening = `This rep checked whether ${repPurposeText}.`;
-  const clearText = sentenceCase(naturalJoin(clearClauses));
-  const partialText = naturalJoin(partialClauses);
-  const weakText = naturalJoin(weakClauses);
-  const incompleteLead =
-    partialClauses.length === 1
-      ? "One part remained incomplete:"
-      : "Some parts remained incomplete:";
+  const sentences: string[] = [opening];
 
-  if (clearClauses.length && !partialClauses.length && !weakClauses.length) {
-    return `${opening} ${clearText}.`;
+  if (supportedClauses.length) {
+    sentences.push(`${sentenceCase(naturalJoin(supportedClauses))}.`);
   }
-  if (clearClauses.length && partialClauses.length && !weakClauses.length) {
-    return `${opening} ${clearText}. ${incompleteLead} ${partialText}.`;
+  if (nearStableClauses.length) {
+    sentences.push(
+      `${nearStableClauses.length === 1 ? "One part was near-stable" : "Some parts were near-stable"}: ${naturalJoin(nearStableClauses)}.`,
+    );
   }
-  if (clearClauses.length && weakClauses.length && !partialClauses.length) {
-    return `${opening} ${clearText}. The breakdown was that ${weakText}.`;
+  if (conditionalClauses.length) {
+    sentences.push(
+      `${conditionalClauses.length === 1 ? "One part remained conditional" : "Some parts remained conditional"}: ${naturalJoin(conditionalClauses)}.`,
+    );
   }
-  if (clearClauses.length && partialClauses.length && weakClauses.length) {
-    return `${opening} ${clearText}. ${incompleteLead} ${partialText}. The limiting breakdown was that ${weakText}.`;
+  if (breakdownClauses.length) {
+    sentences.push(
+      `${breakdownClauses.length === 1 ? "The breakdown was that" : "The breakdowns were that"} ${naturalJoin(breakdownClauses)}.`,
+    );
   }
-  if (!clearClauses.length && partialClauses.length && !weakClauses.length) {
-    return `${opening} ${sentenceCase(partialText)}. The target behavior was present but not yet secure.`;
+
+  if (sentences.length === 1) {
+    sentences.push("No decision-eligible observed evidence was available for this rep.");
   }
-  if (!clearClauses.length && partialClauses.length && weakClauses.length) {
-    return `${opening} ${sentenceCase(partialText)}. The breakdown was that ${weakText}.`;
-  }
-  if (weakClauses.length) {
-    return `${opening} ${sentenceCase(weakText)}.`;
-  }
-  return `${opening} No scored evidence was available for this rep.`;
+
+  return sentences.join(" ");
 };
 
 const drillModeForRegistry = (mode: BuildResponseSnapshotInput["mode"]): EvidenceDrillMode =>
@@ -939,7 +1066,80 @@ const buildEvidenceOccurrenceId = ({
 const roleForSet = (set: Pick<ResponseSnapshotSet, "setId" | "setName">) =>
   SET_ROLE_BY_ID[set.setId] || set.setName.toLowerCase();
 
-const buildDrillPatternResultText = (
+const canonicalDecisionEvidence = (evidence: ResponseSnapshotEvidence[]) =>
+  evidence.filter(
+    (item) =>
+      item.decisionEligible !== false &&
+      item.evidenceStatus === "observed" &&
+      decisionEvidenceClassForItem(item, false),
+  );
+
+const evidenceLocationsForClass = (
+  reps: ResponseSnapshotRep[],
+  evidenceClass: ResponseSnapshotDecisionEvidenceClass,
+) => {
+  const byDimension = new Map<string, number[]>();
+  reps.forEach((rep) => {
+    canonicalDecisionEvidence(rep.evidence)
+      .filter((item) => item.evidenceClass === evidenceClass)
+      .forEach((item) => {
+        const repsForDimension = byDimension.get(item.dimensionLabel) || [];
+        if (!repsForDimension.includes(rep.repNumber)) {
+          repsForDimension.push(rep.repNumber);
+        }
+        byDimension.set(item.dimensionLabel, repsForDimension);
+      });
+  });
+
+  return Array.from(byDimension.entries()).map(([dimension, repNumbers]) => {
+    const repsText =
+      repNumbers.length === 1
+        ? `rep ${repNumbers[0]}`
+        : `reps ${repNumbers.join(", ")}`;
+    return `${dimension.toLowerCase()} on ${repsText}`;
+  });
+};
+
+const buildSetEvidenceResultText = (reps: ResponseSnapshotRep[]) => {
+  const allEvidence = reps.flatMap((rep) => rep.evidence);
+  const canonical = canonicalDecisionEvidence(allEvidence);
+  if (!canonical.length) return null;
+
+  const classes = new Set(
+    canonical
+      .map((item) => item.evidenceClass)
+      .filter(isDecisionEvidenceClass),
+  );
+
+  if (classes.size === 1 && classes.has("supported")) {
+    return "Every decision-eligible observation in this set was supported.";
+  }
+
+  const sentences: string[] = [];
+  const breakdown = evidenceLocationsForClass(reps, "breakdown");
+  const conditional = evidenceLocationsForClass(reps, "conditional");
+  const nearStable = evidenceLocationsForClass(reps, "near_stable");
+  const supported = evidenceLocationsForClass(reps, "supported");
+
+  if (breakdown.length) {
+    sentences.push(`Breakdown evidence was recorded in ${naturalJoin(breakdown)}.`);
+  }
+  if (conditional.length) {
+    sentences.push(`Conditional evidence remained in ${naturalJoin(conditional)}.`);
+  }
+  if (nearStable.length) {
+    sentences.push(`Near-stable evidence remained in ${naturalJoin(nearStable)}.`);
+  }
+  if (supported.length) {
+    sentences.push(
+      `Supported evidence held in ${naturalJoin(supported.slice(0, 3))}${supported.length > 3 ? " and other recorded opportunities" : ""}.`,
+    );
+  }
+
+  return sentences.join(" ");
+};
+
+const buildLegacyDrillPatternResultText = (
   phase: TopicPhase,
   sets: ResponseSnapshotSet[],
 ) => {
@@ -976,6 +1176,33 @@ const buildDrillPatternResultText = (
       : "";
 
   return `Across this ${phase} drill, ${naturalJoin(clauses)}. ${decisiveInstability} ${PHASE_INSTABILITY_MEANING[phase]}`.replace(/\s+/g, " ").trim();
+};
+
+const buildDrillEvidenceResultText = (
+  phase: TopicPhase,
+  sets: ResponseSnapshotSet[],
+) => {
+  const evidence = sets.flatMap((set) => set.reps.flatMap((rep) => rep.evidence));
+  const canonical = canonicalDecisionEvidence(evidence);
+  if (!canonical.length) {
+    return buildLegacyDrillPatternResultText(phase, sets);
+  }
+
+  const classes = (["supported", "near_stable", "conditional", "breakdown"] as const)
+    .filter((evidenceClass) =>
+      canonical.some((item) => item.evidenceClass === evidenceClass),
+    )
+    .map((evidenceClass) =>
+      evidenceClass === "near_stable"
+        ? "near-stable evidence"
+        : `${evidenceClass} evidence`,
+    );
+
+  if (classes.length === 1 && classes[0] === "supported evidence") {
+    return `Across this ${phase} drill, every recorded decision-eligible observation was supported.`;
+  }
+
+  return `Across this ${phase} drill, the recorded decision evidence included ${naturalJoin(classes)}. The set and rep detail below shows where each class occurred.`;
 };
 
 export const buildResponseSnapshotV1 = ({
@@ -1067,6 +1294,22 @@ export const buildResponseSnapshotV1 = ({
           );
           const selectedRawOption =
             evidenceStatus === "observed" ? storedRawOption : "";
+          const selectedOptionIndex =
+            evidenceStatus === "observed"
+              ? (field.optionLabels || []).findIndex(
+                  (candidate) => candidate === selectedRawOption,
+                )
+              : -1;
+          const registeredEvidenceClass =
+            selectedOptionIndex >= 0
+              ? (field.optionEvidenceClasses?.[selectedOptionIndex] as
+                  | ResponseEvidenceClass
+                  | undefined)
+              : undefined;
+          const evidenceClass: ResponseEvidenceClass | null =
+            evidenceStatus === "not_observed" || evidenceStatus === "confounded"
+              ? evidenceStatus
+              : registeredEvidenceClass || null;
           const humanClause =
             evidenceStatus === "not_observed"
               ? "was not meaningfully observable in this opportunity"
@@ -1100,6 +1343,8 @@ export const buildResponseSnapshotV1 = ({
             selectedRawOption,
             normalizedLevel,
             evidenceStatus,
+            evidenceClass,
+            decisionEligible: field.decisionEligible !== false,
             humanClause,
             weight: effectiveWeight,
             contribution,
@@ -1143,7 +1388,9 @@ export const buildResponseSnapshotV1 = ({
       : computedSetScore;
     const responseLevel = displayLevelForScore(score);
     const patternCode = scoredReps.map((rep) => patternCharForLevel(rep.responseLevel)).join("");
+    const semanticSetResult = buildSetEvidenceResultText(reps);
     const basePatternSentence =
+      semanticSetResult ||
       REP_PATTERN_SENTENCE[patternCode] ||
       (scoredReps.length
         ? "The set pattern was recorded from scored reps."
@@ -1200,7 +1447,7 @@ export const buildResponseSnapshotV1 = ({
       responseLevel,
       responseLabel: responseLabelForLevel(responseLevel),
       patternCode,
-      resultText: buildDrillPatternResultText(phase, snapshotSets),
+      resultText: buildDrillEvidenceResultText(phase, snapshotSets),
     },
     sets: snapshotSets,
     engineOutcomeRef: {
