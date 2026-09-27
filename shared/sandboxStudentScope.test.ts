@@ -50,7 +50,7 @@ test("Sandbox runtime and history require student identity at the API boundary",
   assert.match(routeSource, /studentId,/);
 });
 
-test("a completed Sandbox session is held until the next session is explicitly requested", () => {
+test("a completed Sandbox session is held until the next confirmed weekly lesson is launched", () => {
   assert.match(serverSource, /async function previousCompletedSessionBoundary/);
   assert.match(
     serverSource,
@@ -62,7 +62,15 @@ test("a completed Sandbox session is held until the next session is explicitly r
     /Number\(input\.requestedSessionNumber \|\| 0\)[\s\S]*bundle\.trajectory\.session_number/,
   );
   assert.match(routeSource, /requestedSessionNumber/);
-  assert.match(runnerSource, /next session has\s*not started/i);
+  assert.match(runnerSource, /Return to Pod/);
+  assert.match(
+    runnerSource,
+    /next Sandbox session starts from the next confirmed weekly lesson/i,
+  );
+  assert.match(
+    serverSource,
+    /This Sandbox lesson is already complete\. Return to the Pod/,
+  );
 });
 
 test("rep, session, capability, and targeted diagnosis evidence retain student lineage", () => {
