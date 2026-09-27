@@ -25,6 +25,7 @@ import {
   formatSnapshotPurposeText,
   formatSnapshotRepResult,
   formatSnapshotResultText,
+  prepareResponseSnapshotForDisplay,
   summarizeSnapshotEvidenceMix,
   summarizeSnapshotObservedResponse,
   type ResponseSnapshotEvidence,
@@ -221,18 +222,19 @@ function ResponseSnapshotPanel({
   studentId: string;
   apiBasePath: string;
 }) {
-  const sourceDrillId = String(snapshot.source.sourceDrillId || "").trim();
+  const view = prepareResponseSnapshotForDisplay(snapshot);
+  const sourceDrillId = String(view.source.sourceDrillId || "").trim();
   const canCorrect = apiBasePath === "/api/tutor" && !!sourceDrillId;
-  const allEvidence = snapshot.sets.flatMap((set) =>
+  const allEvidence = view.sets.flatMap((set) =>
     set.reps.flatMap((rep) => rep.evidence),
   );
   const beforeState = formatSnapshotState(
-    snapshot.engineOutcomeRef?.phaseBefore,
-    snapshot.engineOutcomeRef?.stabilityBefore,
+    view.engineOutcomeRef?.phaseBefore,
+    view.engineOutcomeRef?.stabilityBefore,
   );
   const afterState = formatSnapshotState(
-    snapshot.engineOutcomeRef?.phaseAfter,
-    snapshot.engineOutcomeRef?.stabilityAfter,
+    view.engineOutcomeRef?.phaseAfter,
+    view.engineOutcomeRef?.stabilityAfter,
   );
   const [correctionOpen, setCorrectionOpen] = useState(false);
   const [selectedEvidenceId, setSelectedEvidenceId] = useState("");
@@ -286,7 +288,7 @@ function ResponseSnapshotPanel({
     <div className="rounded-xl border border-primary/15 bg-primary/5 p-3">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm font-semibold">
-          Response Snapshot{snapshot.source.topic ? ` - ${snapshot.source.topic}` : ""}
+          Response Snapshot{view.source.topic ? ` - ${view.source.topic}` : ""}
         </p>
         <p className="text-xs font-semibold text-muted-foreground">
           {afterState || summarizeSnapshotEvidenceMix(allEvidence)}
@@ -294,11 +296,11 @@ function ResponseSnapshotPanel({
       </div>
       <div className="mt-2 space-y-1">
         <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Drill purpose</p>
-        <p className="text-xs text-foreground">{formatSnapshotPurposeText(snapshot.drill.purposeText)}</p>
+        <p className="text-xs text-foreground">{formatSnapshotPurposeText(view.drill.purposeText)}</p>
         <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Drill evidence</p>
-        <p className="text-xs text-muted-foreground">{formatSnapshotResultText(snapshot.drill.resultText)}</p>
+        <p className="text-xs text-muted-foreground">{formatSnapshotResultText(view.drill.resultText)}</p>
       </div>
-      {(beforeState || afterState || snapshot.engineOutcomeRef?.transitionReason) && (
+      {(beforeState || afterState || view.engineOutcomeRef?.transitionReason) && (
         <div className="mt-2 rounded-md border border-primary/10 bg-background px-3 py-2">
           <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Evidence decision</p>
           {beforeState && afterState && (
@@ -309,20 +311,20 @@ function ResponseSnapshotPanel({
           {!beforeState && afterState && (
             <p className="mt-1 text-xs text-foreground">{afterState}</p>
           )}
-          {snapshot.engineOutcomeRef?.transitionReason && (
+          {view.engineOutcomeRef?.transitionReason && (
             <p className="mt-1 text-xs text-muted-foreground">
-              Decision: {snapshot.engineOutcomeRef.transitionReason}
+              Decision: {view.engineOutcomeRef.transitionReason}
             </p>
           )}
         </div>
       )}
       <Accordion type="multiple" className="mt-2">
-        {snapshot.sets.map((set) => {
+        {view.sets.map((set) => {
           const setEvidence = set.reps.flatMap((rep) => rep.evidence);
           return (
             <AccordionItem
               key={set.setId}
-              value={`${snapshot.source.sourceDrillId || snapshot.source.topic}-${set.setId}`}
+              value={`${view.source.sourceDrillId || view.source.topic}-${set.setId}`}
             >
               <AccordionTrigger className="text-left text-sm">
                 <span className="flex w-full flex-col gap-1 pr-3 sm:flex-row sm:items-center sm:justify-between">
