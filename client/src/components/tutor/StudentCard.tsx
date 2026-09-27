@@ -309,6 +309,7 @@ export function StudentCard({
     .slice(0, 2);
   const studentSchool = resolveStudentSchool(student);
   const sandboxGuideSteps = getSandboxGuideSteps(student.name || "this sandbox student");
+  const { toast } = useToast();
 
   const handleSandboxGuideAction = (action?: string) => {
     if (!student?.id) return;
@@ -341,10 +342,27 @@ export function StudentCard({
         break;
       }
       case "stateful-sandbox": {
+        const confirmedLesson = (trainingSessionsData?.sessions || []).find(
+          (session: any) =>
+            ["confirmed", "ready", "live"].includes(
+              String(session?.status || "").trim().toLowerCase(),
+            ),
+        );
+        if (!confirmedLesson?.id) {
+          toast({
+            title: "Confirm a weekly lesson first",
+            description:
+              "Sandbox Training starts from a confirmed weekly lesson so the completed session can be consumed and recorded correctly.",
+          });
+          break;
+        }
         const topicParam = encodeURIComponent(suggestedTopic || "");
         const phaseParam = encodeURIComponent(recommendedStartingPhase || "Clarity");
+        const sessionParam = `&scheduledSessionId=${encodeURIComponent(
+          String(confirmedLesson.id),
+        )}`;
         navigate(
-          `/specialist/intro-session/${student.id}?mode=training&topic=${topicParam}&phase=${phaseParam}`,
+          `/specialist/intro-session/${student.id}?mode=training&topic=${topicParam}&phase=${phaseParam}${sessionParam}`,
         );
         break;
       }
@@ -354,7 +372,6 @@ export function StudentCard({
     }
   };
 
-  const { toast } = useToast();
   const { data: workflow, isLoading: workflowLoading } = useStudentWorkflowState(student.id);
   const markHandoverCompleted = useMarkHandoverCompleted(student.id);
   const respondToAssignment = useRespondToAssignment(
