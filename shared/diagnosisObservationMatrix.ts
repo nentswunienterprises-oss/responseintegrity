@@ -97,8 +97,8 @@ export const DIAGNOSIS_OBSERVATION_MATRIX: Record<
     "What did the student actually do when deciding which method or mathematical approach applies?",
     [
       option("no_method", "Could not identify a relevant method", "breakdown", "No usable method was produced without being supplied."),
-      option("guessed_or_competing_methods", "Guessed or moved between methods without a clear basis", "conditional", "A method signal existed, but selection was unstable/speculative."),
-      option("correct_but_hesitant", "Selected the correct method after visible uncertainty", "near_stable", "The right method was present, but recognition was not yet automatic/clean."),
+      option("guessed_or_competing_methods", "Guessed or moved between methods without a clear basis", "conditional", "The method choice lacked a clear basis and did not stay anchored to one method."),
+      option("correct_but_hesitant", "Selected the correct method after visible uncertainty", "near_stable", "The student selected the correct method only after visible uncertainty."),
       option("correct_method_cleanly", "Selected the correct method cleanly", "supported", "The student independently identified the appropriate method."),
       ...commonTail("The problem did not require a meaningful method choice, or content exposure made the choice uninterpretable."),
     ],
@@ -138,7 +138,7 @@ export const DIAGNOSIS_OBSERVATION_MATRIX: Record<
     [
       option("no_start", "Waited for help or could not produce a first move", "breakdown", "Independent execution did not begin."),
       option("guessing_or_disordered_start", "Started by guessing or with a structurally unrelated move", "conditional", "The student acted, but the start did not reliably express the known method."),
-      option("valid_start_after_hesitation", "Produced a valid first move after noticeable hesitation", "near_stable", "The start was method-aligned but not yet clean/automatic."),
+      option("valid_start_after_hesitation", "Produced a valid first move after noticeable hesitation", "near_stable", "The student produced a valid method-aligned first move only after noticeable hesitation."),
       option("valid_independent_start", "Produced a valid first move independently", "supported", "Execution began from the correct structure without support."),
       ...commonTail("The opportunity did not require an independent first move, or an earlier intervention removed the cold-start condition."),
     ],
