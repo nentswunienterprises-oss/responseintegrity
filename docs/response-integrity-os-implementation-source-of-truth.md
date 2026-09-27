@@ -101,7 +101,7 @@ The Specialist development pathway is:
 - approved documented extension maximum: 90 active days
 - Training Battle Test: 15 questions per Deep Dive, 96%+ required three consecutive times for that Deep Dive
 - Sandbox capability evaluation: continuous, system-derived evidence across Condition, Observation, Evidence, Authority, and Continuity Integrity
-- Sandbox exit authority: the system must first resolve Practicals readiness; the assigned TD then records either remediation or an explicit readiness sign-off
+- Sandbox exit authority: the system must first resolve Practicals readiness; the assigned TD then records either remediation or an explicit readiness sign-off for Practicals entry
 - Practicals is the governed stage after Sandbox; it is not a shortcut into Trial and it is not opened by Battle Testing
 - Trial evidence requirement: exactly 2 families x 9 qualifying completed sessions per family
 - Trial cadence follows the approved delivery rhythm; the normal maximum Trial window is 35 calendar days from the first Trial session unless a governed exception is approved
@@ -2738,7 +2738,7 @@ The current lifecycle permission keys remain `applicant`, `training`, `sandbox`,
 
 `watchlist` and `suspended` are operational risk states and enforcement states. They do not replace the evidence-gated graduation path.
 
-Training Battle Testing may establish the knowledge/preparation evidence required to enter and remain in Sandbox. It cannot authorize Sandbox exit. During Sandbox, the stateful capability engine continuously derives Specialist capability evidence across Condition Integrity, Observation Integrity, Evidence Integrity, Authority Integrity, and Continuity Integrity. Only when that engine resolves `practicalsReady=true`, required breadth and longitudinal proof are present, and preparation blockers are clear may the assigned TD record the human readiness decision that opens Practicals.
+Training Battle Testing may establish the knowledge/preparation evidence required to enter and remain in Sandbox. It cannot authorize Sandbox exit. During Sandbox, the stateful capability engine continuously derives Specialist capability evidence across Condition Integrity, Observation Integrity, Evidence Integrity, Authority Integrity, and Continuity Integrity. Only when that engine resolves `practicalsReady=true`, required breadth and longitudinal proof are present, and preparation blockers are clear may the assigned TD record the human readiness decision that authorizes Practicals entry; the stage transition remains explicit.
 
 The TD owns routine Sandbox remediation and readiness review because this is operational Specialist development. The COO does not manually evaluate each Sandbox Specialist; COO authority is reserved for policy, documented exceptions/extensions, later Trial governance, and explicit final certification decisions. No Sandbox assessment may skip Practicals by directly issuing `trial`.
 
