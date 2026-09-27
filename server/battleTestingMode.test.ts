@@ -75,7 +75,7 @@ test("reconcileTutorTrainingMode keeps a preparation-complete Specialist in Sand
   );
 });
 
-test("reconcileTutorTrainingMode promotes persisted Sandbox into Trial only after a passed Mock gate", () => {
+test("reconcileTutorTrainingMode keeps Sandbox authoritative even when the retired Mock flag is passed", () => {
   const moduleProgress: TutorBattleTestModuleProgress[] = [
     {
       moduleKey: "transformation_phases",
@@ -102,7 +102,7 @@ test("reconcileTutorTrainingMode promotes persisted Sandbox into Trial only afte
       docsComplete: true,
       sandboxMockPassed: true,
     }),
-    "trial",
+    "sandbox",
   );
 });
 
