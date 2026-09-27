@@ -182,6 +182,89 @@ function allPatterns(length: number) {
   return patterns;
 }
 
+test("not observed evidence stays neutral while observed evidence still scores the rep", () => {
+  const submittedSet = buildSubmittedSet({
+    mode: "training",
+    phase: "Clarity",
+    setName: "Light Apply",
+    rawByRep: [0, 1, 2].map((repIndex) =>
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Light Apply",
+        repIndex,
+        classes: {
+          vocabulary: "supported",
+          method: "supported",
+          reason: "supported",
+          immediateApply: "supported",
+        },
+      }),
+    ),
+  });
+
+  submittedSet.observations[2].reason_evidence_status = "not_observed";
+
+  const snapshot = buildResponseSnapshotV1({
+    sourceDrillId: "clarity-not-observed",
+    topic: "Algebra",
+    mode: "training",
+    phase: "Clarity",
+    sets: [submittedSet],
+  });
+
+  const finalRep = snapshot.sets[0].reps[2];
+  assert.equal(finalRep.responseLabel, "Strong response");
+  assert.equal(finalRep.score, 100);
+  assert.match(formatSnapshotRepResult(finalRep), /Reason was not observed/i);
+  assert.match(
+    formatSnapshotRepResult(finalRep),
+    /did not count as weakness or strength/i,
+  );
+  assert.equal(snapshot.sets[0].responseLabel, "Strong response");
+});
+
+test("a fully unscored rep does not lower a set score", () => {
+  const submittedSet = buildSubmittedSet({
+    mode: "training",
+    phase: "Clarity",
+    setName: "Light Apply",
+    rawByRep: [0, 1, 2].map((repIndex) =>
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Light Apply",
+        repIndex,
+        classes: {
+          vocabulary: "supported",
+          method: "supported",
+          reason: "supported",
+          immediateApply: "supported",
+        },
+      }),
+    ),
+  });
+
+  Object.keys(submittedSet.observations[2])
+    .filter((key) => key.endsWith("_evidence_status"))
+    .forEach((key) => {
+      submittedSet.observations[2][key] = "not_observed";
+    });
+  ["vocabulary", "method", "reason", "immediateApply"].forEach((fieldKey) => {
+    submittedSet.observations[2][`${fieldKey}_evidence_status`] = "not_observed";
+  });
+
+  const snapshot = buildResponseSnapshotV1({
+    sourceDrillId: "clarity-unscored-rep",
+    topic: "Algebra",
+    mode: "training",
+    phase: "Clarity",
+    sets: [submittedSet],
+  });
+
+  assert.equal(snapshot.sets[0].reps[2].responseLabel, "Not scored");
+  assert.equal(snapshot.sets[0].score, 100);
+  assert.match(snapshot.sets[0].resultText, /did not count as weakness or strength/i);
+});
+
 test("response snapshot keeps weak evidence visible inside a strong rep", () => {
   const supported = {
     startBehavior: "supported",
