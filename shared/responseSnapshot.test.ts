@@ -616,7 +616,7 @@ test("single rep narratives never claim cross-rep repeatability from that rep al
     });
   });
 
-  assert.ok(checked >= 20, `Expected broad rep-local coverage, checked ${checked}`);
+  assert.equal(checked, 19, "Expected every registered three-rep scored set to enforce rep-local narration");
 });
 
 test("clarity light-apply narrative states what happened instead of repeating the response label", () => {
