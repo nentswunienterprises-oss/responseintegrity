@@ -804,6 +804,63 @@ test("historical persisted Snapshots recover exact evidence classes without expo
   );
 });
 
+test("persisted Snapshots refresh canonical behavior wording even when evidence classes already exist", () => {
+  const submittedSet = buildSubmittedSet({
+    mode: "training",
+    phase: "Clarity",
+    setName: "Light Apply",
+    rawByRep: [0, 1, 2].map((repIndex) =>
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Light Apply",
+        repIndex,
+        classes: {
+          vocabulary: "supported",
+          method: "supported",
+          reason: "supported",
+          immediateApply: "supported",
+        },
+      }),
+    ),
+  });
+
+  const generated = buildResponseSnapshotV1({
+    sourceDrillId: "persisted-copy-refresh",
+    topic: "Algebra",
+    mode: "training",
+    phase: "Clarity",
+    sets: [submittedSet],
+  });
+  const persisted = JSON.parse(JSON.stringify(generated));
+  const reason = persisted.sets[0].reps[2].evidence.find(
+    (item: any) => item.dimensionId === "clarity.reason",
+  );
+  assert.ok(reason);
+  assert.equal(reason.evidenceClass, "supported");
+  reason.humanClause =
+    "connected the problem structure and method without help";
+  persisted.sets[0].reps[2].resultText =
+    "This rep checked whether the student could apply the method independently on the final light solving attempt. The final independent light application kept the vocabulary and method intact. The student connected the problem structure and method without help. Understanding translated into an appropriate response without support.";
+
+  const view = prepareResponseSnapshotForDisplay(persisted);
+  const refreshedReason = view.sets[0].reps[2].evidence.find(
+    (item) => item.dimensionId === "clarity.reason",
+  );
+
+  assert.equal(
+    refreshedReason?.humanClause,
+    "explained clearly why the method fit the problem without help",
+  );
+  assert.match(
+    view.sets[0].reps[2].resultText,
+    /explained clearly why the method fit the problem without help/i,
+  );
+  assert.doesNotMatch(
+    view.sets[0].reps[2].resultText,
+    /connected the problem structure and method without help/i,
+  );
+});
+
 test("clarity light-apply narrative states what happened instead of repeating the response label", () => {
   const classes = {
     vocabulary: "supported",
