@@ -438,7 +438,7 @@ test("response snapshot formatter makes old stored text read naturally", () => {
     formatSnapshotResultText(
       "When testing whether clarity could be confirmed, the student produced a strong response: Vocabulary: kept the correct response and Method: stated the required response clearly, with Reason: showed weak reason awareness.",
     ),
-    "This rep checked whether clarity could be confirmed. The student kept the correct response and stated the required response clearly. One part remained incomplete: the student showed weak reason awareness.",
+    "This rep checked whether clarity could be confirmed. The student kept the correct response and stated the required response clearly. The student showed weak reason awareness.",
   );
   assert.equal(
     formatSnapshotResultText(
@@ -553,11 +553,11 @@ test("Identification recovery prose uses complete sentences and natural punctuat
 
   assert.equal(
     rep1,
-    "This rep checked whether the student could identify the type, recall the steps, and explain the reason before solving. Some parts remained conditional. Some vocabulary was available, but the problem could not yet be described reliably. A method signal existed, but selection was unstable/speculative. The explanation contained some correct structure but could not yet justify the method reliably.",
+    "This rep checked whether the student could identify the type, recall the steps, and explain the reason before solving. Some vocabulary was available, but the problem could not yet be described reliably. The method choice lacked a clear basis and did not stay anchored to one method. The explanation contained some correct structure but could not yet justify the method reliably.",
   );
   assert.equal(
     rep2,
-    "This rep checked whether the student could identify the type, recall the method, and explain the reason on a second unsolved example. Several observed areas broke down. The student could not name what was present or named unrelated features. No usable method was produced without being supplied. The student could not connect the problem structure to the method.",
+    "This rep checked whether the student could identify the type, recall the method, and explain the reason on a second unsolved example. The student could not name what was present or named unrelated features. No usable method was produced without being supplied. The student could not connect the problem structure to the method.",
   );
   assert.equal(
     rep3,
@@ -1042,6 +1042,77 @@ test("rep narratives do not omit decision-eligible evidence dimensions", () => {
   assert.match(mixedRep, /breakdown/i);
 });
 
+test("rep narratives state behavior directly instead of announcing evidence-class buckets", () => {
+  const submittedSet = buildSubmittedSet({
+    mode: "training",
+    phase: "Clarity",
+    setName: "Identification",
+    rawByRep: [
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Identification",
+        repIndex: 0,
+        classes: {
+          vocabulary: "near_stable",
+          method: "supported",
+          reason: "conditional",
+          immediateApply: "supported",
+        },
+      }),
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Identification",
+        repIndex: 1,
+        classes: {
+          vocabulary: "breakdown",
+          method: "supported",
+          reason: "conditional",
+          immediateApply: "supported",
+        },
+      }),
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Identification",
+        repIndex: 2,
+        classes: {
+          vocabulary: "supported",
+          method: "supported",
+          reason: "supported",
+          immediateApply: "supported",
+        },
+      }),
+    ],
+  });
+
+  const snapshot = buildResponseSnapshotV1({
+    sourceDrillId: "direct-behavior-rep-narrative",
+    topic: "Algebra",
+    mode: "training",
+    phase: "Clarity",
+    sets: [submittedSet],
+  });
+
+  snapshot.sets[0].reps.forEach((rep) => {
+    assert.doesNotMatch(
+      rep.resultText,
+      /one part|some parts|several observed areas|remained conditional|was near-stable|breakdown was that/i,
+    );
+  });
+
+  assert.match(
+    snapshot.sets[0].reps[0].resultText,
+    /recognition was substantially present but not completely clean/i,
+  );
+  assert.match(
+    snapshot.sets[0].reps[0].resultText,
+    /explanation contained some correct structure but could not yet justify the method reliably/i,
+  );
+  assert.match(
+    snapshot.sets[0].reps[1].resultText,
+    /could not name what was present or named unrelated features/i,
+  );
+});
+
 test("rep narratives remain natural across every phase, drill mode, set, rep, and response level", () => {
   const phases: TopicPhase[] = [
     "Clarity",
@@ -1266,8 +1337,18 @@ test("conditional and near-stable remain distinct in Response Snapshot evidence"
   assert.equal(secondReason?.evidenceClass, "near_stable");
   assert.equal(formatSnapshotEvidenceClassLabel(firstReason!), "Conditional");
   assert.equal(formatSnapshotEvidenceClassLabel(secondReason!), "Near-stable");
-  assert.match(snapshot.sets[0].reps[0].resultText, /remained conditional/i);
-  assert.match(snapshot.sets[0].reps[1].resultText, /was near-stable/i);
+  assert.match(
+    snapshot.sets[0].reps[0].resultText,
+    /explanation contained some correct structure but could not yet justify the method reliably/i,
+  );
+  assert.match(
+    snapshot.sets[0].reps[1].resultText,
+    /causal logic was substantially correct but still had a small decision-relevant gap/i,
+  );
+  assert.doesNotMatch(
+    snapshot.sets[0].reps[0].resultText,
+    /one part|some parts|remained conditional|was near-stable|breakdown was that/i,
+  );
   assert.doesNotMatch(
     snapshot.sets[0].reps[0].resultText,
     /partial response|strong response|weak response/i,
@@ -1361,7 +1442,11 @@ test("rep formatter strips labels from stored evidence clauses", () => {
   assert.doesNotMatch(text, /Reason:/);
   assert.doesNotMatch(text, /produced a strong response/i);
   assert.doesNotMatch(text, /remaining logged observation/i);
-  assert.match(text, /One part remained conditional: the student showed weak reason awareness/);
+  assert.match(text, /The student showed weak reason awareness/);
+  assert.doesNotMatch(
+    text,
+    /one part|some parts|remained conditional|was near-stable|breakdown was that/i,
+  );
 });
 
 test("clarity modeling is persisted as a non-scored snapshot set", () => {
