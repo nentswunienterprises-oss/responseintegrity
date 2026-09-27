@@ -1100,8 +1100,7 @@ function getTutorCertificationActionRequired(
   if (
     mode === "sandbox" &&
     deepDiveProgress.length > 0 &&
-    deepDiveProgress.every((entry) => entry.historicalState === "completed") &&
-    true
+    deepDiveProgress.every((entry) => entry.historicalState === "completed")
   ) {
     return "Continue Sandbox capability development until the system is Practicals-ready, then complete the TD readiness review.";
   }
