@@ -379,7 +379,23 @@ const clearNarrativeForRep = (repPurposeId: string, evidence: ResponseSnapshotEv
 };
 
 export const formatSnapshotRepResult = (rep: Pick<ResponseSnapshotRep, "repPurposeId" | "repPurposeText" | "responseLevel" | "evidence" | "resultText">) => {
-  return formatSnapshotResultText(rep.resultText);
+  const base = formatSnapshotResultText(rep.resultText);
+  const notObserved = rep.evidence.filter((item) => item.evidenceStatus === "not_observed");
+  const confounded = rep.evidence.filter((item) => item.evidenceStatus === "confounded");
+  const caveats: string[] = [];
+
+  if (notObserved.length) {
+    caveats.push(
+      `${naturalJoin(notObserved.map((item) => item.dimensionLabel))} ${notObserved.length === 1 ? "was" : "were"} not observed and did not count as weakness or strength.`,
+    );
+  }
+  if (confounded.length) {
+    caveats.push(
+      `${naturalJoin(confounded.map((item) => item.dimensionLabel))} ${confounded.length === 1 ? "was" : "were"} confounded and did not count as weakness or strength.`,
+    );
+  }
+
+  return [base, ...caveats].filter(Boolean).join(" ");
 };
 
 const OBSERVED_RESPONSE_CLEAR_LABELS: Record<string, string> = {
@@ -1039,16 +1055,28 @@ export const buildResponseSnapshotV1 = ({
       };
     });
 
-    const computedSetScore = reps.length
-      ? clampScore(reps.reduce((sum, rep) => sum + Number(rep.score || 0), 0) / reps.length)
+    const scoredReps = reps.filter((rep) => typeof rep.score === "number");
+    const computedSetScore = scoredReps.length
+      ? clampScore(
+          scoredReps.reduce((sum, rep) => sum + Number(rep.score), 0) /
+            scoredReps.length,
+        )
       : null;
     const scoredSetIndex = snapshotSets.filter((set) => set.responseLevel !== "not_scored").length;
     const score = typeof setScores?.[scoredSetIndex] === "number"
       ? clampScore(setScores[scoredSetIndex])
       : computedSetScore;
     const responseLevel = displayLevelForScore(score);
-    const patternCode = reps.map((rep) => patternCharForLevel(rep.responseLevel)).join("");
-    const patternSentence = REP_PATTERN_SENTENCE[patternCode] || "The set pattern was recorded from scored reps.";
+    const patternCode = scoredReps.map((rep) => patternCharForLevel(rep.responseLevel)).join("");
+    const basePatternSentence =
+      REP_PATTERN_SENTENCE[patternCode] ||
+      (scoredReps.length
+        ? "The set pattern was recorded from scored reps."
+        : "No scored student response was recorded for this set.");
+    const unscoredRepCount = reps.length - scoredReps.length;
+    const patternSentence = unscoredRepCount
+      ? `${basePatternSentence} ${unscoredRepCount} ${unscoredRepCount === 1 ? "rep had" : "reps had"} no decision-eligible observed evidence and did not count as weakness or strength.`
+      : basePatternSentence;
 
     snapshotSets.push({
       setId: definition.setId,
@@ -1059,7 +1087,7 @@ export const buildResponseSnapshotV1 = ({
       score,
       responseLevel,
       responseLabel: responseLabelForLevel(responseLevel),
-      patternCode,
+      patternCode: patternCode || null,
       resultText: patternSentence,
       reps,
     });
