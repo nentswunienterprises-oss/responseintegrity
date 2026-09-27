@@ -97,7 +97,7 @@ Final Practicals readiness requires:
 - longitudinal evidence across a persistent trajectory;
 - an **approved** capability policy.
 
-The capability engine is the evidence authority; it evaluates the Specialist continuously from Sandbox rep and session evidence. The assigned TD is the human operational evaluator. The TD reviews the capability truth, records remediation where needed, and may sign off Practicals only after the system resolves `practicalsReady=true` and the remaining preparation gates are clear.
+The capability engine is the evidence authority; it evaluates the Specialist continuously from Sandbox rep and session evidence. The assigned TD is the human operational evaluator. The TD reviews the capability truth, records remediation where needed, and may approve Practicals readiness only after the system resolves `practicalsReady=true` and the remaining preparation gates are clear.
 
 COO does not perform routine Sandbox readiness assessment. COO retains policy, pathway-extension/exception, Trial-governance, and later certification authority.
 
