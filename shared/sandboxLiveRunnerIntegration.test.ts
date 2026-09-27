@@ -132,7 +132,11 @@ test("completed Sandbox training uses the live Response Snapshot completion cont
   assert.match(sandboxRunnerSource, /<ResponseSnapshotCard snapshot=\{snapshot\}/);
   assert.match(sandboxRunnerSource, /System Direction/);
   assert.match(responseSnapshotCardSource, /What This Drill Tested/);
-  assert.match(responseSnapshotCardSource, /Drill Response/);
+  assert.match(responseSnapshotCardSource, /Drill Evidence/);
+  assert.match(responseSnapshotCardSource, /summarizeSnapshotEvidenceMix/);
+  assert.match(responseSnapshotCardSource, /formatSnapshotEvidenceClassLabel/);
+  assert.doesNotMatch(responseSnapshotCardSource, /snapshot\.drill\.responseLabel/);
+  assert.doesNotMatch(responseSnapshotCardSource, /rep\.responseLabel/);
   assert.doesNotMatch(sandboxRunnerSource, /Start Sandbox session \{/);
   assert.match(sandboxRunnerSource, /The next Sandbox session starts from the next confirmed weekly lesson/);
   assert.match(sandboxRunnerSource, /Return to Pod/);
