@@ -1,5 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 206 227" role="img" aria-label="Response Integrity favicon">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-27 -15 256 256" role="img" aria-label="Response Integrity favicon">
   <defs>
+    <mask id="outsideShield">
+      <rect x="-27" y="-15" width="256" height="256" rx="48" fill="white"/>
+      <path d="M18 29C52 18 80 14 101 14C123 14 151 18 186 30C188 31 189 33 189 36V139C189 146 185 151 179 155L102 210L24 157C17 152 13 145 13 137V34C13 32 15 30 18 29Z" fill="black"/>
+    </mask>
     <clipPath id="shieldInterior">
       <path d="M18 29C52 18 80 14 101 14C123 14 151 18 186 30C188 31 189 33 189 36V139C189 146 185 151 179 155L102 210L24 157C17 152 13 145 13 137V34C13 32 15 30 18 29Z"/>
     </clipPath>
@@ -7,6 +11,8 @@
       <path d="M52 224V138C52 114.3 74.4 95 101 95S150 114.3 150 138V224Z"/>
     </clipPath>
   </defs>
+
+  <rect x="-27" y="-15" width="256" height="256" rx="48" fill="#FFF0F0" mask="url(#outsideShield)"/>
 
   <g clip-path="url(#shieldInterior)">
     <circle cx="51" cy="84" r="18.5" fill="#FEDDD8"/>
