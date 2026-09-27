@@ -299,49 +299,49 @@ const HANDOVER_PURPOSE_BY_PHASE: Record<TopicPhase, string> = {
 const REP_PURPOSE_TEXT: Record<string, string> = {
   "clarity.recognition_probe.cold_name": "the student could name and recognize the topic from a cold first look without solving",
   "clarity.recognition_probe.second_look": "recognition and step awareness would hold on a second look",
-  "clarity.recognition_probe.confirmation": "phase-level clarity could be confirmed across the verification block",
+  "clarity.recognition_probe.confirmation": "the student could identify the topic, method, and reason on the final recognition check",
   "structured_execution.start_and_structure.cold_start": "the student could begin a known method from a cold start before help was available",
-  "structured_execution.start_and_structure.execution_under_observation": "step discipline and independence would hold while the student remained under observation",
-  "structured_execution.start_and_structure.finish_alone_check": "the student could complete the method and finish alone across the verification block",
+  "structured_execution.start_and_structure.execution_under_observation": "the student could preserve step discipline and independence during the second observed execution",
+  "structured_execution.start_and_structure.finish_alone_check": "the student could complete the final verification problem independently from start to finish",
   "controlled_discomfort.first_contact.cold_contact": "the student could meet the first difficult problem without freezing or immediately seeking rescue",
   "controlled_discomfort.first_contact.persistence_under_hold": "persistence, first-step control, and emotional regulation would hold through the discomfort window",
   "controlled_discomfort.first_contact.reengagement": "the student could re-engage and finish the verification block with controlled behavior",
   "time_pressure.light_timer.first_timer": "the student could begin the first timed attempt without freezing and preserve the method",
-  "time_pressure.light_timer.adjustment": "start, structure, pace, and completion would adjust on a second timed attempt",
-  "time_pressure.light_timer.consistency_check": "the timed response could be confirmed across the verification block",
+  "time_pressure.light_timer.adjustment": "the student could preserve start, structure, pace, and completion on the second timed attempt",
+  "time_pressure.light_timer.consistency_check": "the student could preserve start, structure, pace, and completion on the final timed verification attempt",
   "clarity.identification.opportunity_1": "the student could identify the type, recall the steps, and explain the reason before solving",
-  "clarity.identification.opportunity_2": "recognition and explanation would hold on another unsolved example",
-  "clarity.identification.opportunity_3": "clarity could be confirmed as repeatable before active solving",
+  "clarity.identification.opportunity_2": "the student could identify the type, recall the method, and explain the reason on a second unsolved example",
+  "clarity.identification.opportunity_3": "the student could identify the type, recall the method, and explain the reason on the final unsolved example",
   "clarity.light_apply.opportunity_1": "the student's clarity would carry into the first light solving attempt",
-  "clarity.light_apply.opportunity_2": "clarity would hold while applying the method again with minimal guidance",
-  "clarity.light_apply.opportunity_3": "clarity could be confirmed during independent light application",
+  "clarity.light_apply.opportunity_2": "the student could apply the method on a second light solving attempt with minimal guidance",
+  "clarity.light_apply.opportunity_3": "the student could apply the method independently on the final light solving attempt",
   "structured_execution.required_structure.opportunity_1": "the student could pause, state the required method, and execute from the first attempt",
-  "structured_execution.required_structure.opportunity_2": "required step discipline would hold on repetition",
-  "structured_execution.required_structure.opportunity_3": "the required structure could be treated as repeatable within the set",
+  "structured_execution.required_structure.opportunity_2": "the student could state and follow the required step structure on a second attempt",
+  "structured_execution.required_structure.opportunity_3": "the student could state and follow the required step structure on the final attempt",
   "structured_execution.independent_execution.opportunity_1": "execution could begin and continue without Specialist help",
-  "structured_execution.independent_execution.opportunity_2": "independence and error handling would hold on repetition",
-  "structured_execution.independent_execution.opportunity_3": "independent execution was repeatable rather than isolated",
+  "structured_execution.independent_execution.opportunity_2": "the student could continue independently and handle errors on a second attempt",
+  "structured_execution.independent_execution.opportunity_3": "the student could execute the final attempt independently from start to finish",
   "structured_execution.variation_control.opportunity_1": "the method would survive the first changed problem form",
-  "structured_execution.variation_control.opportunity_2": "step retention would hold through another variation",
-  "structured_execution.variation_control.opportunity_3": "transfer could be confirmed across the variation set",
+  "structured_execution.variation_control.opportunity_2": "the student could retain the method structure through a second changed problem form",
+  "structured_execution.variation_control.opportunity_3": "the student could transfer the method to the final changed problem form",
   "controlled_discomfort.controlled_entry.opportunity_1": "the student could pause and produce a controlled first action under difficulty",
-  "controlled_discomfort.controlled_entry.opportunity_2": "first-step control and stability would hold under another difficult entry",
-  "controlled_discomfort.controlled_entry.opportunity_3": "controlled entry could be confirmed across the set",
+  "controlled_discomfort.controlled_entry.opportunity_2": "the student could produce a controlled first action on a second difficult entry",
+  "controlled_discomfort.controlled_entry.opportunity_3": "the student could produce a controlled first action on the final difficult entry",
   "controlled_discomfort.no_rescue.opportunity_1": "the student could continue under difficulty without being rescued",
-  "controlled_discomfort.no_rescue.opportunity_2": "independence and recovery would hold after difficulty continued",
-  "controlled_discomfort.no_rescue.opportunity_3": "the no-rescue response could be confirmed across repetition",
-  "controlled_discomfort.repeat_exposure.opportunity_1": "the student could meet repeated difficulty at the same level",
-  "controlled_discomfort.repeat_exposure.opportunity_2": "stability would hold through another difficult exposure",
-  "controlled_discomfort.repeat_exposure.opportunity_3": "difficulty tolerance could be confirmed as repeatable",
+  "controlled_discomfort.no_rescue.opportunity_2": "the student could continue independently and recover within a second difficult attempt",
+  "controlled_discomfort.no_rescue.opportunity_3": "the student could continue through the final difficult attempt without rescue",
+  "controlled_discomfort.repeat_exposure.opportunity_1": "the student could meet a difficult problem at the target exposure level",
+  "controlled_discomfort.repeat_exposure.opportunity_2": "the student could remain controlled through a second difficult exposure",
+  "controlled_discomfort.repeat_exposure.opportunity_3": "the student could remain controlled through the final difficult exposure",
   "time_pressure.structure_under_timer.opportunity_1": "the student could meet the first timed attempt with control, structure, pace, and completion",
-  "time_pressure.structure_under_timer.opportunity_2": "the student could adjust to the same timer without sacrificing structure",
-  "time_pressure.structure_under_timer.opportunity_3": "method structure and pace control could be confirmed across the first timed set",
-  "time_pressure.repeated_timed_execution.opportunity_1": "the timed response would repeat after initial timed exposure",
-  "time_pressure.repeated_timed_execution.opportunity_2": "pace or structure would drift on another attempt under the same timer",
-  "time_pressure.repeated_timed_execution.opportunity_3": "timed consistency could be confirmed across repetition",
+  "time_pressure.structure_under_timer.opportunity_2": "the student could preserve structure while working under the same timer on a second attempt",
+  "time_pressure.structure_under_timer.opportunity_3": "the student could preserve method structure and pace on the final attempt in the first timed set",
+  "time_pressure.repeated_timed_execution.opportunity_1": "the student could preserve start, structure, pace, and completion on the first repeated timed attempt",
+  "time_pressure.repeated_timed_execution.opportunity_2": "the student could preserve pace and structure on a second attempt under the same timer",
+  "time_pressure.repeated_timed_execution.opportunity_3": "the student could preserve pace, structure, and completion on the final repeated timed attempt",
   "time_pressure.full_constraint.opportunity_1": "structure and completion would survive the first tighter-time attempt",
-  "time_pressure.full_constraint.opportunity_2": "the response would stabilize under a second full-constraint attempt",
-  "time_pressure.full_constraint.opportunity_3": "controlled pace, structure, and completion could be confirmed under the maximum intended constraint",
+  "time_pressure.full_constraint.opportunity_2": "the student could preserve structure and completion on a second full-constraint attempt",
+  "time_pressure.full_constraint.opportunity_3": "the student could preserve controlled pace, structure, and completion on the final full-constraint attempt",
 };
 
 const OPTION_CLAUSES: Record<string, string> = {
@@ -508,19 +508,19 @@ const clearNarrativeForRep = (repPurposeId: string, evidence: ResponseSnapshotEv
     return ["identified the important terms and selected the method before solving"];
   }
   if (repPurposeId === "clarity.identification.opportunity_2" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["term recognition and method selection held on the second example"];
+    return ["the student identified the important terms and selected the method on the second unsolved example"];
   }
   if (repPurposeId === "clarity.identification.opportunity_3" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["term recognition and method selection repeated again before active solving"];
+    return ["the student identified the important terms and selected the method on the final unsolved example"];
   }
   if (repPurposeId === "clarity.light_apply.opportunity_1" && hasClear("Vocabulary") && hasClear("Method")) {
     return ["the first light solving attempt kept the vocabulary and method intact"];
   }
   if (repPurposeId === "clarity.light_apply.opportunity_2" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["clarity carried into the repeated solving attempt"];
+    return ["the second light solving attempt kept the vocabulary and method intact"];
   }
   if (repPurposeId === "clarity.light_apply.opportunity_3" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["clarity held through the final independent application check"];
+    return ["the final independent light application kept the vocabulary and method intact"];
   }
 
   return evidence
@@ -538,9 +538,10 @@ const LEGACY_REP_NARRATIVE_PATTERN =
   /(?:^When testing whether|The student produced a (?:strong|partial|weak) response|The response was (?:strong|partial|weak)(?: overall)?|remaining logged observation|limiting evidence|showed evidence that)/i;
 
 export const formatSnapshotRepResult = (rep: Pick<ResponseSnapshotRep, "repPurposeId" | "repPurposeText" | "responseLevel" | "evidence" | "resultText">) => {
+  const displayPurposeText = REP_PURPOSE_TEXT[rep.repPurposeId] || rep.repPurposeText;
   const base = LEGACY_REP_NARRATIVE_PATTERN.test(String(rep.resultText || ""))
     ? buildRepResultText(
-        rep.repPurposeText,
+        displayPurposeText,
         rep.responseLevel,
         rep.evidence,
         rep.repPurposeId,
