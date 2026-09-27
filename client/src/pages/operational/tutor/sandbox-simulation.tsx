@@ -759,23 +759,6 @@ export default function SpecialistSandboxSimulation({
 
   const readiness = form.readiness;
 
-  const startNextSandboxSession = () => {
-    if (
-      form.status !== "session_complete" ||
-      !form.completedSession?.nextSessionNumber
-    ) {
-      return;
-    }
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set(
-      "sandboxSession",
-      String(form.completedSession.nextSessionNumber),
-    );
-    setLastResult(null);
-    setSelections({});
-    setRepStarted(false);
-    setSearchParams(nextParams, { replace: true });
-  };
   const prescribedPhase = (
     ["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"].includes(
       form.prescribedPhase,
@@ -835,12 +818,12 @@ export default function SpecialistSandboxSimulation({
         )}
 
         <div className="flex flex-wrap gap-2">
-          <Button onClick={startNextSandboxSession}>
-            Start Sandbox session {form.completedSession.nextSessionNumber}
-          </Button>
-          <Button variant="outline" onClick={() => navigate("/specialist/pod")}>
+          <Button onClick={() => navigate("/specialist/pod")}>
             Return to Pod
           </Button>
+          <p className="w-full text-xs text-muted-foreground">
+            The next Sandbox session starts from the next confirmed weekly lesson.
+          </p>
         </div>
       </div>
     );
