@@ -761,7 +761,7 @@ test("clarity light-apply narrative states what happened instead of repeating th
   );
   assert.match(
     snapshot.sets[0].reps[0].resultText,
-    /began the work|engaged|started/i,
+    /understanding translated into an appropriate response without support/i,
   );
   assert.doesNotMatch(
     snapshot.sets[0].reps[0].resultText,
@@ -847,7 +847,7 @@ test("rep narratives do not omit decision-eligible evidence dimensions", () => {
   assert.match(mixedRep, /named the decision-relevant mathematical features without help/i);
   assert.match(mixedRep, /right method was present/i);
   assert.match(mixedRep, /explanation contained some correct structure/i);
-  assert.match(mixedRep, /could not move from recognizing the method into beginning the work|could not begin|did not begin/i);
+  assert.match(mixedRep, /avoided, stalled completely, or had no usable response/i);
   assert.match(mixedRep, /near-stable/i);
   assert.match(mixedRep, /conditional/i);
   assert.match(mixedRep, /breakdown/i);
