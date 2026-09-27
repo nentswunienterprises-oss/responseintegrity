@@ -29,6 +29,107 @@ function isMissingSandboxMockTable(error: any) {
   );
 }
 
+export interface SandboxTdReadinessAssessment {
+  id: string;
+  tutorId: string;
+  tutorAssignmentId: string;
+  decision: SandboxMockDecision;
+  evidenceNote: string;
+  assessedByUserId: string;
+  assessedAt: string;
+  capabilitySnapshot: Record<string, unknown> | null;
+}
+
+function mapTdReadinessAssessment(row: any): SandboxTdReadinessAssessment {
+  const rawChecklist =
+    row?.checklist && typeof row.checklist === "object" ? row.checklist : {};
+  const capabilitySnapshot =
+    rawChecklist?.capability_snapshot &&
+    typeof rawChecklist.capability_snapshot === "object"
+      ? rawChecklist.capability_snapshot
+      : null;
+
+  return {
+    id: String(row.id),
+    tutorId: String(row.tutor_id),
+    tutorAssignmentId: String(row.tutor_assignment_id),
+    decision: row.decision as SandboxMockDecision,
+    evidenceNote: String(row.evidence_note || ""),
+    assessedByUserId: String(row.assessed_by_user_id),
+    assessedAt: String(row.assessed_at),
+    capabilitySnapshot,
+  };
+}
+
+export async function getLatestSandboxReadinessAssessment(
+  tutorAssignmentId: string,
+) {
+  const { data, error } = await supabase
+    .from("tutor_sandbox_mock_assessments")
+    .select("*")
+    .eq("tutor_assignment_id", tutorAssignmentId)
+    .order("assessed_at", { ascending: false })
+    .limit(20);
+
+  if (error) {
+    if (isMissingSandboxMockTable(error)) return null;
+    throw new Error(`Failed to load Sandbox readiness assessments: ${error.message}`);
+  }
+
+  const row = (data || []).find((candidate: any) => {
+    const checklist =
+      candidate?.checklist && typeof candidate.checklist === "object"
+        ? candidate.checklist
+        : {};
+    return checklist.assessment_version === 2 && checklist.assessment_owner === "td";
+  });
+
+  return row ? mapTdReadinessAssessment(row) : null;
+}
+
+export async function recordSandboxReadinessAssessment(input: {
+  tutorId: string;
+  tutorAssignmentId: string;
+  decision: SandboxMockDecision;
+  evidenceNote: string;
+  assessedByUserId: string;
+  capabilitySnapshot: Record<string, unknown>;
+}) {
+  const evidenceNote = String(input.evidenceNote || "").trim();
+  if (!evidenceNote) {
+    throw new Error("TD readiness evidence note is required.");
+  }
+
+  if (
+    input.decision === "passed" &&
+    input.capabilitySnapshot?.practicalsReady !== true
+  ) {
+    throw new Error(
+      "Practicals cannot open until the Sandbox capability engine is ready.",
+    );
+  }
+
+  const { error } = await supabase.from("tutor_sandbox_mock_assessments").insert({
+    tutor_id: input.tutorId,
+    tutor_assignment_id: input.tutorAssignmentId,
+    decision: input.decision,
+    checklist: {
+      assessment_version: 2,
+      assessment_owner: "td",
+      next_stage: "practicals",
+      capability_snapshot: input.capabilitySnapshot,
+    },
+    evidence_note: evidenceNote,
+    assessed_by_user_id: input.assessedByUserId,
+  });
+
+  if (error) {
+    throw new Error(`Failed to record Sandbox readiness assessment: ${error.message}`);
+  }
+
+  return getLatestSandboxReadinessAssessment(input.tutorAssignmentId);
+}
+
 export async function loadLatestSandboxMockAssessmentMap(assignmentIds: string[]) {
   const uniqueAssignmentIds = Array.from(new Set(assignmentIds.map(String).filter(Boolean)));
   const result = new Map<string, SandboxMockAssessment>();
