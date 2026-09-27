@@ -3,16 +3,21 @@ import { pool } from "./db";
 import { loadTutorOperationalModeAuthority } from "./tutorOperationalModeAuthority";
 import {
   getDrillSchemaDefinition,
+  getDrillSchemaDefinitionByVersion,
   getEvidenceSelectionIdentity,
   getFieldDefinitionForRep,
   getFieldDefinitionsForRep,
+  getRepPurposeId,
+  resolveEvidenceSelection,
   type EvidenceConstraintProfile,
   type EvidenceSetDefinition,
+  type SubmittedEvidenceSet,
 } from "@shared/responseIntegrityDrillRegistry";
 import {
   TRAINING_INHERITED_RESCUE_SIGNAL_OPTIONS,
   TRAINING_INTERVENTION_OPTIONS,
   getTrainingPrerequisiteSentinelDefinition,
+  trainingEvidenceStatusKey,
   type TrainingEvidenceStatus,
   type TrainingInheritedRescueSignal,
   type TrainingInterventionEvent,
@@ -37,6 +42,7 @@ import {
 } from "@shared/sandboxEnvironment";
 import { trainingRawObservationRequiresPrerequisiteSentinel } from "@shared/trainingEvidenceEvaluator";
 import type { TopicPhase, TopicStability } from "@shared/topicConditioningEngine";
+import { buildResponseSnapshotV1, type ResponseSnapshotV1 } from "@shared/responseSnapshot";
 
 export const DEFAULT_SANDBOX_ENVIRONMENT_BANK_KEY = "sandbox_stateful_environment";
 
@@ -191,6 +197,248 @@ async function assertSandboxAccess(input: {
     name: String(row.student_name || "Sandbox Student"),
     grade: row.student_grade ? String(row.student_grade) : null,
   };
+}
+
+
+type SandboxScheduledTrainingSession = {
+  id: string;
+  parent_id: string;
+  tutor_id: string;
+  student_id: string;
+  type: string;
+  status: string;
+};
+
+async function loadSandboxScheduledTrainingSession(input: {
+  scheduledSessionId?: string | null;
+  tutorId: string;
+  studentId: string;
+}) {
+  const scheduledSessionId = String(input.scheduledSessionId || "").trim();
+  if (!scheduledSessionId) return null;
+
+  const result = await pool.query(
+    `SELECT id, parent_id, tutor_id, student_id, type, status
+       FROM public.scheduled_sessions
+      WHERE id::text = $1::text
+        AND tutor_id::text = $2::text
+        AND student_id::text = $3::text
+        AND type = 'training'
+      LIMIT 1`,
+    [scheduledSessionId, input.tutorId, input.studentId],
+  );
+  const session = result.rows[0] as SandboxScheduledTrainingSession | undefined;
+  if (!session) {
+    throw httpError(404, "The selected Sandbox training lesson could not be found.");
+  }
+  if (!["confirmed", "ready", "live", "completed"].includes(String(session.status || ""))) {
+    throw httpError(
+      409,
+      "The selected Sandbox training lesson must be confirmed before Training can run.",
+    );
+  }
+  return session;
+}
+
+async function completeSandboxScheduledTrainingSession(input: {
+  scheduledSessionId?: string | null;
+  tutorId: string;
+  studentId: string;
+  trajectoryId: string;
+  sandboxSessionNumber: number;
+}) {
+  const scheduledSessionId = String(input.scheduledSessionId || "").trim();
+  if (!scheduledSessionId) return null;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
+      `SELECT id, parent_id, tutor_id, student_id, type, status
+         FROM public.scheduled_sessions
+        WHERE id::text = $1::text
+          AND tutor_id::text = $2::text
+          AND student_id::text = $3::text
+          AND type = 'training'
+        FOR UPDATE`,
+      [scheduledSessionId, input.tutorId, input.studentId],
+    );
+    const session = result.rows[0] as SandboxScheduledTrainingSession | undefined;
+    if (!session) {
+      throw httpError(404, "The selected Sandbox training lesson could not be found.");
+    }
+    if (!["confirmed", "ready", "live", "completed"].includes(String(session.status || ""))) {
+      throw httpError(
+        409,
+        "The selected Sandbox training lesson is no longer available for completion.",
+      );
+    }
+
+    const completedAt = new Date().toISOString();
+    if (String(session.status) !== "completed") {
+      await client.query(
+        `UPDATE public.scheduled_sessions
+            SET status = 'completed',
+                attendance_status = 'both_joined',
+                recording_status = 'manual_not_tracked',
+                transcript_status = 'manual_not_tracked',
+                updated_at = $4::timestamptz
+          WHERE id::text = $1::text
+            AND tutor_id::text = $2::text
+            AND student_id::text = $3::text`,
+        [scheduledSessionId, input.tutorId, input.studentId, completedAt],
+      );
+    }
+
+    const enrollmentResult = await client.query(
+      `SELECT parent_enrollment_id
+         FROM public.students
+        WHERE id::text = $1::text
+        LIMIT 1`,
+      [input.studentId],
+    );
+    const enrollmentId = String(enrollmentResult.rows[0]?.parent_enrollment_id || "").trim() || null;
+
+    await client.query(
+      `INSERT INTO public.session_billing_events (
+         session_id, parent_id, student_id, enrollment_id, event_type,
+         actor_role, actor_id, billing_impact, credits_delta,
+         reason_codes, reason_note, metadata, is_sandbox, effective_at, created_at
+       )
+       SELECT
+         $1, $2, $3, $4, 'sandbox_training_completed',
+         'tutor', $5, 'consume', 1,
+         '["sandbox_training_completed"]'::jsonb,
+         'Stateful Sandbox Training session completed',
+         jsonb_build_object(
+           'evidence_scope', 'sandbox',
+           'trajectory_id', $6::text,
+           'sandbox_session_number', $7::int
+         ),
+         true, $8::timestamptz, $8::timestamptz
+       WHERE NOT EXISTS (
+         SELECT 1
+           FROM public.session_billing_events
+          WHERE session_id = $1
+            AND event_type = 'sandbox_training_completed'
+       )`,
+      [
+        scheduledSessionId,
+        String(session.parent_id || ""),
+        input.studentId,
+        enrollmentId,
+        input.tutorId,
+        input.trajectoryId,
+        input.sandboxSessionNumber,
+        completedAt,
+      ],
+    );
+
+    await client.query("COMMIT");
+    return {
+      id: scheduledSessionId,
+      status: "completed" as const,
+      completedAt,
+      parentId: String(session.parent_id || ""),
+      enrollmentId,
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+function buildSandboxResponseSnapshot(input: {
+  sourceDrillId: string;
+  topic: string;
+  phase: TopicPhase;
+  bankVersion: number;
+  turns: SandboxCompletedTurn[];
+  phaseBefore: TopicPhase | null;
+  stabilityBefore: TopicStability | null;
+  authority: {
+    nextPhase: TopicPhase;
+    nextStability: TopicStability;
+    reason?: string | null;
+    transitionReason?: string | null;
+  };
+}): ResponseSnapshotV1 {
+  const schemaVersion = trainingSchemaVersionForSandboxBank(input.bankVersion);
+  const schema =
+    getDrillSchemaDefinitionByVersion("training", input.phase, schemaVersion) ||
+    getDrillSchemaDefinition("training", input.phase);
+  const turnsBySet = new Map<string, SandboxCompletedTurn[]>();
+  input.turns.forEach((turn) => {
+    const rows = turnsBySet.get(turn.setId) || [];
+    rows.push(turn);
+    turnsBySet.set(turn.setId, rows);
+  });
+
+  const sets: SubmittedEvidenceSet[] = schema.sets
+    .filter((definition) => !definition.modelingOnly && turnsBySet.has(definition.setId))
+    .map((definition, schemaSetIndex) => {
+      const turns = [...(turnsBySet.get(definition.setId) || [])].sort(
+        (left, right) => left.repNumber - right.repNumber,
+      );
+      return {
+        setName: definition.setName,
+        setId: definition.setId,
+        setOrder: schemaSetIndex + 1,
+        drillSchemaId: schema.schemaId,
+        drillSchemaVersion: schema.schemaVersion,
+        drillDefinitionHash: schema.definitionHash,
+        constraintProfile: { ...definition.constraints },
+        observations: turns.map((turn) => {
+          const repIndex = turn.repNumber - 1;
+          const rep: Record<string, string> = {
+            _rep_id: getRepPurposeId(definition, repIndex),
+            _rep_number: String(turn.repNumber),
+          };
+          for (const field of getFieldDefinitionsForRep(definition, repIndex)) {
+            const selected = turn.specialistObservations[field.fieldKey];
+            if (!selected?.optionId) continue;
+            const resolved = resolveEvidenceSelection({
+              mode: "training",
+              phase: input.phase,
+              setId: definition.setId,
+              repIndex,
+              fieldKey: field.fieldKey,
+              optionId: selected.optionId,
+              schemaVersion: schema.schemaVersion,
+            });
+            if (!resolved) continue;
+            rep[field.fieldKey] = String(
+              resolved.field.optionLabels?.[resolved.optionIndex] || "",
+            );
+            rep[`${field.fieldKey}_level`] = String(resolved.level);
+            rep[`${field.fieldKey}_option_id`] = selected.optionId;
+            rep[`${field.fieldKey}_dimension_id`] = field.dimensionId;
+            rep[trainingEvidenceStatusKey(field.fieldKey)] =
+              selected.evidenceStatus || "observed";
+          }
+          return rep;
+        }),
+      };
+    });
+
+  return buildResponseSnapshotV1({
+    sourceDrillId: input.sourceDrillId,
+    generatedBy: "deterministic-server",
+    topic: input.topic || "Sandbox practice",
+    mode: "training",
+    phase: input.phase,
+    sets,
+    engineOutcomeRef: {
+      phaseBefore: input.phaseBefore,
+      stabilityBefore: input.stabilityBefore,
+      phaseAfter: input.authority.nextPhase,
+      stabilityAfter: input.authority.nextStability,
+      transitionReason:
+        input.authority.transitionReason || input.authority.reason || null,
+    },
+  });
 }
 
 async function loadActiveEnvironmentBank(
@@ -392,13 +640,15 @@ async function currentSessionEventCount(bundle: SandboxTrajectoryBundle) {
 
 async function previousCompletedSessionBoundary(
   bundle: SandboxTrajectoryBundle,
+  bank: SandboxEnvironmentBank,
+  topic: string,
 ) {
   if (bundle.trajectory.session_number <= 1) return null;
   const currentCount = await currentSessionEventCount(bundle);
   if (currentCount > 0) return null;
 
   const result = await pool.query(
-    `SELECT session_number, phase, specialist_authority,
+    `SELECT id, session_number, phase, specialist_authority,
             authority_aligned, state_track_aligned, completed_at
        FROM specialist_sandbox_session_evaluations
       WHERE trajectory_id = $1
@@ -413,15 +663,28 @@ async function previousCompletedSessionBoundary(
     typeof row.specialist_authority === "string"
       ? JSON.parse(row.specialist_authority)
       : row.specialist_authority;
+  const completedPhase = String(row.phase) as TopicPhase;
+  const turns = await loadSessionTurns(bundle, Number(row.session_number));
+  const responseSnapshot = buildSandboxResponseSnapshot({
+    sourceDrillId: String(row.id),
+    topic,
+    phase: completedPhase,
+    bankVersion: bank.bankVersion,
+    turns,
+    phaseBefore: completedPhase,
+    stabilityBefore: null,
+    authority: specialistAuthority,
+  });
 
   return {
     completedSessionNumber: Number(row.session_number),
     nextSessionNumber: bundle.trajectory.session_number,
-    completedPhase: String(row.phase) as TopicPhase,
+    completedPhase,
     completedAt: row.completed_at,
     specialistAuthority,
     authorityAligned: Boolean(row.authority_aligned),
     stateTrackAligned: Boolean(row.state_track_aligned),
+    responseSnapshot,
   };
 }
 
@@ -711,6 +974,8 @@ export async function prepareSandboxEnvironment(input: {
   studentId: string;
   bankKey?: string;
   requestedSessionNumber?: number | null;
+  scheduledSessionId?: string | null;
+  topic?: string | null;
 }) {
   const sandboxStudent = await assertSandboxAccess(input);
   const bank = await loadActiveEnvironmentBank(input.bankKey);
@@ -721,6 +986,11 @@ export async function prepareSandboxEnvironment(input: {
     studentId: input.studentId,
     bank,
   });
+  await loadSandboxScheduledTrainingSession({
+    scheduledSessionId: input.scheduledSessionId,
+    tutorId: input.tutorId,
+    studentId: input.studentId,
+  });
 
   const readiness = await readinessFor({
     tutorAssignmentId: input.tutorAssignmentId,
@@ -728,7 +998,11 @@ export async function prepareSandboxEnvironment(input: {
     bank,
   });
 
-  const completedBoundary = await previousCompletedSessionBoundary(bundle);
+  const completedBoundary = await previousCompletedSessionBoundary(
+    bundle,
+    bank,
+    String(input.topic || "Sandbox practice"),
+  );
   const requestedCurrentSession =
     Number(input.requestedSessionNumber || 0) ===
     bundle.trajectory.session_number;
@@ -876,7 +1150,10 @@ async function insertCapabilityOccurrences(input: {
   }
 }
 
-async function loadCurrentSessionTurns(bundle: SandboxTrajectoryBundle): Promise<SandboxCompletedTurn[]> {
+async function loadSessionTurns(
+  bundle: SandboxTrajectoryBundle,
+  sessionNumber: number,
+): Promise<SandboxCompletedTurn[]> {
   const result = await pool.query(
     `SELECT e.event_sequence, e.session_number, e.phase, e.set_id, e.rep_number,
             e.student_behavior, e.specialist_submission, e.condition_kept,
@@ -889,7 +1166,7 @@ async function loadCurrentSessionTurns(bundle: SandboxTrajectoryBundle): Promise
       WHERE e.trajectory_id = $1
         AND e.session_number = $2
       ORDER BY e.event_sequence ASC`,
-    [bundle.trajectory.id, bundle.trajectory.session_number],
+    [bundle.trajectory.id, sessionNumber],
   );
 
   return result.rows.map((row) => {
@@ -932,6 +1209,10 @@ async function loadCurrentSessionTurns(bundle: SandboxTrajectoryBundle): Promise
   });
 }
 
+async function loadCurrentSessionTurns(bundle: SandboxTrajectoryBundle) {
+  return loadSessionTurns(bundle, bundle.trajectory.session_number);
+}
+
 function sessionHasBreakdownRecovery(turns: SandboxCompletedTurn[]) {
   const ordered = [...turns].sort((a, b) => a.sequenceNumber - b.sequenceNumber);
   const firstBreakdown = ordered.findIndex((turn) => turn.outcome.trajectoryClass === "breakdown");
@@ -948,6 +1229,8 @@ export async function submitSandboxEnvironmentRep(input: {
   trajectoryId: string;
   eventSequence: number;
   eventFormId: string;
+  scheduledSessionId?: string | null;
+  topic?: string | null;
   submission: SandboxRepSubmission;
 }) {
   await assertSandboxAccess(input);
@@ -960,6 +1243,11 @@ export async function submitSandboxEnvironmentRep(input: {
     tutorId: input.tutorId,
     studentId: input.studentId,
     bank,
+  });
+  await loadSandboxScheduledTrainingSession({
+    scheduledSessionId: input.scheduledSessionId,
+    tutorId: input.tutorId,
+    studentId: input.studentId,
   });
   if (bundle.trajectory.id !== input.trajectoryId) {
     throw httpError(409, "Sandbox trajectory changed. Reload the current rep.");
@@ -1126,6 +1414,14 @@ export async function submitSandboxEnvironmentRep(input: {
     authorityAligned: boolean;
     stateTrackAligned: boolean;
   } | null = null;
+  let responseSnapshot: ResponseSnapshotV1 | null = null;
+  let completedScheduledSession: {
+    id: string;
+    status: "completed";
+    completedAt: string;
+    parentId: string;
+    enrollmentId: string | null;
+  } | null = null;
 
   if (sessionCompleted) {
     const refreshedBundle = await ensureTrajectory({
@@ -1179,6 +1475,23 @@ export async function submitSandboxEnvironmentRep(input: {
       ],
     );
     const sessionId = String(sessionInsert.rows[0]?.id || "");
+    responseSnapshot = buildSandboxResponseSnapshot({
+      sourceDrillId: sessionId,
+      topic: String(input.topic || "Sandbox practice"),
+      phase: planned.phase,
+      bankVersion: bank.bankVersion,
+      turns,
+      phaseBefore: bundle.trajectory.specialist_phase,
+      stabilityBefore: bundle.trajectory.specialist_stability,
+      authority: evaluation.specialistRoute,
+    });
+    completedScheduledSession = await completeSandboxScheduledTrainingSession({
+      scheduledSessionId: input.scheduledSessionId,
+      tutorId: input.tutorId,
+      studentId: input.studentId,
+      trajectoryId: bundle.trajectory.id,
+      sandboxSessionNumber: bundle.trajectory.session_number,
+    });
 
     await pool.query(
       `INSERT INTO private.specialist_sandbox_session_truth (
@@ -1266,6 +1579,8 @@ export async function submitSandboxEnvironmentRep(input: {
     conditionKept: turn.conditionConformed,
     sessionCompleted,
     sessionAuthority,
+    responseSnapshot,
+    completedScheduledSession,
     studentStateAuthoritative: false as const,
     evidenceScope: "sandbox" as const,
     readiness,
