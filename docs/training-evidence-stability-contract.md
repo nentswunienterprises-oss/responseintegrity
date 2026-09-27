@@ -500,7 +500,9 @@ Existing rep, set, and session scores may remain temporarily for:
 - analytics,
 - charts,
 - comparison during shadow validation,
-- and legacy Response Snapshot surfaces.
+- and persisted legacy snapshot records.
+
+Current Specialist-facing Response Snapshot rendering is evidence-native and must not use those scores to present a rep, set, or drill as `Weak`, `Partial`, or `Strong`.
 
 They are non-authoritative.
 
@@ -518,6 +520,15 @@ Specifically, a score may not independently:
 ## 14. Response Snapshot
 
 Response Snapshot is an evidence explanation layer.
+
+Its current Specialist-facing classification vocabulary is the four decision evidence classes:
+
+- `BREAKDOWN`
+- `CONDITIONAL`
+- `NEAR_STABLE`
+- `SUPPORTED`
+
+`not_observed` and `confounded` remain explicit non-decision evidence states. A rep may contain more than one evidence class at once, so the Snapshot must describe the evidence mix rather than invent a single four-class rep verdict. Set and drill summaries preserve the evidence pattern, while the engine outcome supplies the authoritative phase/stability decision.
 
 The durable source is already the exact evidence occurrence:
 

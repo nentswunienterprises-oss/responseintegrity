@@ -141,6 +141,10 @@ test("all 264 Stateful Sandbox V1 outcomes preserve audited truth while renderin
             }),
           );
           assert.doesNotMatch(projected.studentBehavior, /Historical placeholder/);
+          assert.doesNotMatch(
+            projected.studentBehavior,
+            /This is opportunity \d+ of \d+ in the current set\./,
+          );
 
           for (const field of getFieldDefinitionsForRep(
             currentSet!,

@@ -54,11 +54,11 @@ test("Tools Required preserves the locked Modelling and Observation setup distin
   assert.match(source, /Canonical setup reference/);
   assert.doesNotMatch(source, /smartphone camera is the main delivery tool for the top-down teaching view/i);
   assert.equal(
-    (source.match(/modelling-vs-observation-locked\\.png/g) ?? []).length,
+    (source.match(/modelling-vs-observation-locked\.png/g) ?? []).length,
     1,
     "Tools Required must render the canonical locked visual exactly once",
   );
-  assert.doesNotMatch(source, /modelling-vs-observation-locked\\.webp/);
+  assert.doesNotMatch(source, /modelling-vs-observation-locked\.webp/);
   assert.doesNotMatch(bank, /It stays in one top-down angle for every drill\s*\n\s*Expected Answer/i);
 });
 

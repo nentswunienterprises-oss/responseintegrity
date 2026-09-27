@@ -1,9 +1,11 @@
 import type { ObservationLevel } from "./observationScoring";
+import type { ResponseEvidenceClass } from "./responseEvidenceModel";
 import {
   getDrillSchemaDefinition,
   getDrillSchemaDefinitionByVersion,
   getFieldDefinitionForRep,
   getFieldDefinitionsForRep,
+  resolveEvidenceSelection,
   type EvidenceDrillMode,
   type SubmittedEvidenceSet,
 } from "./responseIntegrityDrillRegistry";
@@ -25,6 +27,8 @@ export type ResponseSnapshotEvidence = {
   selectedRawOption: string;
   normalizedLevel: ObservationLevel;
   evidenceStatus: TrainingEvidenceStatus;
+  evidenceClass?: ResponseEvidenceClass | null;
+  decisionEligible?: boolean;
   humanClause: string;
   weight: number;
   contribution: number;
@@ -112,34 +116,172 @@ const DISPLAY_LABEL_BY_LEVEL: Record<ResponseSnapshotDisplayLevel, string> = {
   not_scored: "Not scored",
 };
 
-const REP_PATTERN_SENTENCE: Record<string, string> = {
-  WWW: "The response remained weak across all three reps; the target behavior did not become stable in this set.",
-  WWP: "The first two reps were weak and the final rep improved to partial; the set ended with emerging control, not stability.",
-  WWS: "The first two reps were weak before a strong final response; the breakthrough still needs repetition.",
-  WPW: "The response improved from weak to partial, then fell back to weak; the change did not hold.",
-  WPP: "The response moved from weak to partial and held partial; improvement emerged but remained incomplete.",
-  WPS: "The response strengthened on each rep from weak to partial to strong; it finished well without repeated strength.",
-  WSW: "A strong middle rep appeared between two weak reps; the strong response was isolated.",
-  WSP: "The response jumped from weak to strong, then softened to partial; improvement appeared but did not finish stable.",
-  WSS: "The response began weak, then became strong and held strong; repeatable strength emerged after the first breakdown.",
-  PWW: "The response began partial, then deteriorated to weak and remained weak; the set lost control under repetition.",
-  PWP: "The response dropped from partial to weak, then recovered to partial; recovery occurred but remained incomplete.",
-  PWS: "The response dropped to weak on the second rep, then recovered strongly; consistency remains unproven.",
-  PPW: "The response remained partial for two reps, then broke to weak; the set ended less stable than it began.",
-  PPP: "The response stayed partial across all three reps; the target behavior was present but consistently incomplete.",
-  PPS: "The response stayed partial for two reps and finished strong; the final strength still needs confirmation.",
-  PSW: "The response improved to strong on the second rep, then broke to weak; the improvement did not survive.",
-  PSP: "The response moved from partial to strong and back to partial; partial performance remained the stable pattern.",
-  PSS: "The response began partial, then became strong and held strong; stable strength emerged after the first rep.",
-  SWW: "The response began strong, then collapsed to weak and remained weak; the initial strength did not survive repetition.",
-  SWP: "The response began strong, broke to weak, and recovered only to partial; the set ended below the opening level.",
-  SWS: "Strong responses appeared on the first and final reps with a weak breakdown between them; capability is present but unstable.",
-  SPW: "The response deteriorated on each rep from strong to partial to weak; the target behavior weakened under repetition.",
-  SPP: "The response began strong, then settled at partial for two reps; the initial strength was not sustained.",
-  SPS: "The response was strong on the first and final reps with a partial dip in the middle; strength largely held.",
-  SSW: "The response was strong for the first two reps, then broke on the final rep; the set did not finish stable.",
-  SSP: "The response was strong for two reps and softened to partial on the final rep; strength was present but not fully maintained.",
-  SSS: "The response remained strong across all three reps; the target behavior was repeatable within this set.",
+export type ResponseSnapshotDecisionEvidenceClass =
+  | "breakdown"
+  | "conditional"
+  | "near_stable"
+  | "supported";
+
+const RESPONSE_SNAPSHOT_DECISION_CLASSES: readonly ResponseSnapshotDecisionEvidenceClass[] = [
+  "supported",
+  "near_stable",
+  "conditional",
+  "breakdown",
+];
+
+const isDecisionEvidenceClass = (
+  value: unknown,
+): value is ResponseSnapshotDecisionEvidenceClass =>
+  (RESPONSE_SNAPSHOT_DECISION_CLASSES as readonly string[]).includes(String(value || ""));
+
+const legacyDecisionClassForLevel = (
+  level: ObservationLevel | string | null | undefined,
+): ResponseSnapshotDecisionEvidenceClass | null => {
+  if (level === "weak") return "breakdown";
+  if (level === "partial") return "conditional";
+  if (level === "clear") return "supported";
+  return null;
+};
+
+const decisionEvidenceClassForItem = (
+  item: Pick<
+    ResponseSnapshotEvidence,
+    "evidenceStatus" | "evidenceClass" | "normalizedLevel" | "decisionEligible"
+  >,
+  allowLegacyFallback = true,
+): ResponseSnapshotDecisionEvidenceClass | null => {
+  if (item.decisionEligible === false || item.evidenceStatus !== "observed") return null;
+  if (isDecisionEvidenceClass(item.evidenceClass)) return item.evidenceClass;
+  return allowLegacyFallback ? legacyDecisionClassForLevel(item.normalizedLevel) : null;
+};
+
+export const formatSnapshotEvidenceClassLabel = (
+  item: Pick<
+    ResponseSnapshotEvidence,
+    "evidenceStatus" | "evidenceClass" | "normalizedLevel" | "decisionEligible"
+  >,
+) => {
+  if (item.decisionEligible === false) return "Condition check";
+  if (item.evidenceStatus === "not_observed" || item.evidenceClass === "not_observed") return "Not observed";
+  if (item.evidenceStatus === "confounded" || item.evidenceClass === "confounded") return "Confounded";
+  if (item.evidenceClass === "supported") return "Supported";
+  if (item.evidenceClass === "near_stable") return "Near-stable";
+  if (item.evidenceClass === "conditional") return "Conditional";
+  if (item.evidenceClass === "breakdown") return "Breakdown";
+  if (item.normalizedLevel) return "Recorded observation";
+  return "Unresolved";
+};
+
+export const summarizeSnapshotEvidenceMix = (
+  evidence: Array<
+    Pick<
+      ResponseSnapshotEvidence,
+      "evidenceStatus" | "evidenceClass" | "normalizedLevel" | "decisionEligible"
+    >
+  >,
+) => {
+  const decisionEvidence = evidence.filter((item) => item.decisionEligible !== false);
+  const counts = new Map<ResponseSnapshotDecisionEvidenceClass, number>();
+  let notObserved = 0;
+  let confounded = 0;
+  let historical = 0;
+
+  decisionEvidence.forEach((item) => {
+    if (item.evidenceStatus === "not_observed" || item.evidenceClass === "not_observed") {
+      notObserved += 1;
+      return;
+    }
+    if (item.evidenceStatus === "confounded" || item.evidenceClass === "confounded") {
+      confounded += 1;
+      return;
+    }
+    const evidenceClass = decisionEvidenceClassForItem(item, false);
+    if (evidenceClass) {
+      counts.set(evidenceClass, (counts.get(evidenceClass) || 0) + 1);
+      return;
+    }
+    if (item.normalizedLevel) historical += 1;
+  });
+
+  const parts: string[] = [];
+  (["supported", "near_stable", "conditional", "breakdown"] as const).forEach(
+    (evidenceClass) => {
+      const count = counts.get(evidenceClass) || 0;
+      if (!count) return;
+      const label =
+        evidenceClass === "near_stable"
+          ? "near-stable"
+          : evidenceClass;
+      parts.push(`${count} ${label}`);
+    },
+  );
+  if (notObserved) parts.push(`${notObserved} not observed`);
+  if (confounded) parts.push(`${confounded} confounded`);
+  if (historical) parts.push(`${historical} recorded`);
+
+  return parts.join(" · ") || "No decision evidence";
+};
+
+const legacyBehaviorPhraseForLevel = (
+  level: ResponseSnapshotDisplayLevel,
+  plural = false,
+) => {
+  if (level === "strong") return "held cleanly";
+  if (level === "partial") {
+    return plural ? "were present but unreliable" : "was present but unreliable";
+  }
+  if (level === "weak") return "broke down";
+  return "was not scored";
+};
+
+const buildLegacySetBehaviorResultText = (
+  reps: ResponseSnapshotRep[],
+) => {
+  const scored = reps.filter((rep) => rep.responseLevel !== "not_scored");
+  if (!scored.length) {
+    return "No scored student response was recorded for this set.";
+  }
+
+  const runs: Array<{
+    level: ResponseSnapshotDisplayLevel;
+    repNumbers: number[];
+  }> = [];
+
+  scored.forEach((rep) => {
+    const previous = runs[runs.length - 1];
+    if (previous?.level === rep.responseLevel) {
+      previous.repNumbers.push(rep.repNumber);
+    } else {
+      runs.push({
+        level: rep.responseLevel,
+        repNumbers: [rep.repNumber],
+      });
+    }
+  });
+
+  const clauses = runs.map((run) => {
+    const reference =
+      run.repNumbers.length === 1
+        ? `rep ${run.repNumbers[0]}`
+        : `reps ${naturalJoin(run.repNumbers.map(String))}`;
+    return `${legacyBehaviorPhraseForLevel(run.level)} on ${reference}`;
+  });
+
+  const trajectory =
+    clauses.length === 1
+      ? `The target behavior ${clauses[0]}.`
+      : `The target behavior ${clauses.slice(0, -1).join(", ")}, then ${clauses[clauses.length - 1]}.`;
+
+  const finalRun = runs[runs.length - 1];
+  const earlierRuns = runs.slice(0, -1);
+  const isolatedCleanRecovery =
+    finalRun.level === "strong" &&
+    finalRun.repNumbers.length === 1 &&
+    earlierRuns.some((run) => run.level !== "strong");
+
+  return isolatedCleanRecovery
+    ? `${trajectory} The final rep showed recovery, but that clean response was not repeated within the set.`
+    : trajectory;
 };
 
 const SET_ROLE_BY_ID: Record<string, string> = {
@@ -188,49 +330,49 @@ const HANDOVER_PURPOSE_BY_PHASE: Record<TopicPhase, string> = {
 const REP_PURPOSE_TEXT: Record<string, string> = {
   "clarity.recognition_probe.cold_name": "the student could name and recognize the topic from a cold first look without solving",
   "clarity.recognition_probe.second_look": "recognition and step awareness would hold on a second look",
-  "clarity.recognition_probe.confirmation": "phase-level clarity could be confirmed across the verification block",
+  "clarity.recognition_probe.confirmation": "the student could identify the topic, method, and reason on the final recognition check",
   "structured_execution.start_and_structure.cold_start": "the student could begin a known method from a cold start before help was available",
-  "structured_execution.start_and_structure.execution_under_observation": "step discipline and independence would hold while the student remained under observation",
-  "structured_execution.start_and_structure.finish_alone_check": "the student could complete the method and finish alone across the verification block",
+  "structured_execution.start_and_structure.execution_under_observation": "the student could preserve step discipline and independence during the second observed execution",
+  "structured_execution.start_and_structure.finish_alone_check": "the student could complete the final verification problem independently from start to finish",
   "controlled_discomfort.first_contact.cold_contact": "the student could meet the first difficult problem without freezing or immediately seeking rescue",
   "controlled_discomfort.first_contact.persistence_under_hold": "persistence, first-step control, and emotional regulation would hold through the discomfort window",
   "controlled_discomfort.first_contact.reengagement": "the student could re-engage and finish the verification block with controlled behavior",
   "time_pressure.light_timer.first_timer": "the student could begin the first timed attempt without freezing and preserve the method",
-  "time_pressure.light_timer.adjustment": "start, structure, pace, and completion would adjust on a second timed attempt",
-  "time_pressure.light_timer.consistency_check": "the timed response could be confirmed across the verification block",
+  "time_pressure.light_timer.adjustment": "the student could preserve start, structure, pace, and completion on the second timed attempt",
+  "time_pressure.light_timer.consistency_check": "the student could preserve start, structure, pace, and completion on the final timed verification attempt",
   "clarity.identification.opportunity_1": "the student could identify the type, recall the steps, and explain the reason before solving",
-  "clarity.identification.opportunity_2": "recognition and explanation would hold on another unsolved example",
-  "clarity.identification.opportunity_3": "clarity could be confirmed as repeatable before active solving",
+  "clarity.identification.opportunity_2": "the student could identify the type, recall the method, and explain the reason on a second unsolved example",
+  "clarity.identification.opportunity_3": "the student could identify the type, recall the method, and explain the reason on the final unsolved example",
   "clarity.light_apply.opportunity_1": "the student's clarity would carry into the first light solving attempt",
-  "clarity.light_apply.opportunity_2": "clarity would hold while applying the method again with minimal guidance",
-  "clarity.light_apply.opportunity_3": "clarity could be confirmed during independent light application",
+  "clarity.light_apply.opportunity_2": "the student could apply the method on a second light solving attempt with minimal guidance",
+  "clarity.light_apply.opportunity_3": "the student could apply the method independently on the final light solving attempt",
   "structured_execution.required_structure.opportunity_1": "the student could pause, state the required method, and execute from the first attempt",
-  "structured_execution.required_structure.opportunity_2": "required step discipline would hold on repetition",
-  "structured_execution.required_structure.opportunity_3": "the required structure could be treated as repeatable within the set",
+  "structured_execution.required_structure.opportunity_2": "the student could state and follow the required step structure on a second attempt",
+  "structured_execution.required_structure.opportunity_3": "the student could state and follow the required step structure on the final attempt",
   "structured_execution.independent_execution.opportunity_1": "execution could begin and continue without Specialist help",
-  "structured_execution.independent_execution.opportunity_2": "independence and error handling would hold on repetition",
-  "structured_execution.independent_execution.opportunity_3": "independent execution was repeatable rather than isolated",
+  "structured_execution.independent_execution.opportunity_2": "the student could continue independently and handle errors on a second attempt",
+  "structured_execution.independent_execution.opportunity_3": "the student could execute the final attempt independently from start to finish",
   "structured_execution.variation_control.opportunity_1": "the method would survive the first changed problem form",
-  "structured_execution.variation_control.opportunity_2": "step retention would hold through another variation",
-  "structured_execution.variation_control.opportunity_3": "transfer could be confirmed across the variation set",
+  "structured_execution.variation_control.opportunity_2": "the student could retain the method structure through a second changed problem form",
+  "structured_execution.variation_control.opportunity_3": "the student could transfer the method to the final changed problem form",
   "controlled_discomfort.controlled_entry.opportunity_1": "the student could pause and produce a controlled first action under difficulty",
-  "controlled_discomfort.controlled_entry.opportunity_2": "first-step control and stability would hold under another difficult entry",
-  "controlled_discomfort.controlled_entry.opportunity_3": "controlled entry could be confirmed across the set",
+  "controlled_discomfort.controlled_entry.opportunity_2": "the student could produce a controlled first action on a second difficult entry",
+  "controlled_discomfort.controlled_entry.opportunity_3": "the student could produce a controlled first action on the final difficult entry",
   "controlled_discomfort.no_rescue.opportunity_1": "the student could continue under difficulty without being rescued",
-  "controlled_discomfort.no_rescue.opportunity_2": "independence and recovery would hold after difficulty continued",
-  "controlled_discomfort.no_rescue.opportunity_3": "the no-rescue response could be confirmed across repetition",
-  "controlled_discomfort.repeat_exposure.opportunity_1": "the student could meet repeated difficulty at the same level",
-  "controlled_discomfort.repeat_exposure.opportunity_2": "stability would hold through another difficult exposure",
-  "controlled_discomfort.repeat_exposure.opportunity_3": "difficulty tolerance could be confirmed as repeatable",
+  "controlled_discomfort.no_rescue.opportunity_2": "the student could continue independently and recover within a second difficult attempt",
+  "controlled_discomfort.no_rescue.opportunity_3": "the student could continue through the final difficult attempt without rescue",
+  "controlled_discomfort.repeat_exposure.opportunity_1": "the student could meet a difficult problem at the target exposure level",
+  "controlled_discomfort.repeat_exposure.opportunity_2": "the student could remain controlled through a second difficult exposure",
+  "controlled_discomfort.repeat_exposure.opportunity_3": "the student could remain controlled through the final difficult exposure",
   "time_pressure.structure_under_timer.opportunity_1": "the student could meet the first timed attempt with control, structure, pace, and completion",
-  "time_pressure.structure_under_timer.opportunity_2": "the student could adjust to the same timer without sacrificing structure",
-  "time_pressure.structure_under_timer.opportunity_3": "method structure and pace control could be confirmed across the first timed set",
-  "time_pressure.repeated_timed_execution.opportunity_1": "the timed response would repeat after initial timed exposure",
-  "time_pressure.repeated_timed_execution.opportunity_2": "pace or structure would drift on another attempt under the same timer",
-  "time_pressure.repeated_timed_execution.opportunity_3": "timed consistency could be confirmed across repetition",
+  "time_pressure.structure_under_timer.opportunity_2": "the student could preserve structure while working under the same timer on a second attempt",
+  "time_pressure.structure_under_timer.opportunity_3": "the student could preserve method structure and pace on the final attempt in the first timed set",
+  "time_pressure.repeated_timed_execution.opportunity_1": "the student could preserve start, structure, pace, and completion on the first repeated timed attempt",
+  "time_pressure.repeated_timed_execution.opportunity_2": "the student could preserve pace and structure on a second attempt under the same timer",
+  "time_pressure.repeated_timed_execution.opportunity_3": "the student could preserve pace, structure, and completion on the final repeated timed attempt",
   "time_pressure.full_constraint.opportunity_1": "structure and completion would survive the first tighter-time attempt",
-  "time_pressure.full_constraint.opportunity_2": "the response would stabilize under a second full-constraint attempt",
-  "time_pressure.full_constraint.opportunity_3": "controlled pace, structure, and completion could be confirmed under the maximum intended constraint",
+  "time_pressure.full_constraint.opportunity_2": "the student could preserve structure and completion on a second full-constraint attempt",
+  "time_pressure.full_constraint.opportunity_3": "the student could preserve controlled pace, structure, and completion on the final full-constraint attempt",
 };
 
 const OPTION_CLAUSES: Record<string, string> = {
@@ -329,8 +471,51 @@ export const formatSnapshotResultText = (value: string, purposeText?: string | n
     .replace(/^When testing whether ([^,]+), the response was ([^:]+): /, "This rep checked whether $1. The response was $2: ")
     .replace(/, with ([^.]+)\.$/, ". The remaining logged observation was that the student $1.")
     .replace(/\b(Vocabulary|Method|Reason|First response|Start|Step execution|Repeatability|Independence|Initial response|First-step control|Discomfort tolerance|Rescue behavior|Start under time|Structure under time|Pace control|Completion): /g, "")
-    .replace("The partial evidence was that the student", "The remaining logged observation was that the student")
-    .replace("The student showed a", "Across the drill, the student produced a")
+    .replace(
+      /The remaining logged observation was that (?:the student )?([^,]+), while the limiting evidence was that (?:the student )?([^.]+)\./g,
+      (_match, partialClause, weakClause) =>
+        `${sentenceCase(normalizeNarrativeClause(partialClause))}. ${sentenceCase(normalizeNarrativeClause(weakClause))}.`,
+    )
+    .replace(
+      /The response was (?:strong|partial|weak)(?: overall)?: (?:the student )?([^,]+), while also showing ([^.]+)\./gi,
+      (_match, partialClause, weakClause) =>
+        `${sentenceCase(normalizeNarrativeClause(partialClause))}. ${sentenceCase(normalizeNarrativeClause(weakClause))}.`,
+    )
+    .replace(
+      /The remaining logged observation was that (?:the student )?([^.]+)\./g,
+      (_match, clause) =>
+        `${sentenceCase(normalizeNarrativeClause(clause))}.`,
+    )
+    .replace(
+      /The partial evidence was that (?:the student )?([^.]+)\./g,
+      (_match, clause) =>
+        `${sentenceCase(normalizeNarrativeClause(clause))}.`,
+    )
+    .replace(
+      /The limiting evidence was that (?:the student )?([^.]+)\./g,
+      (_match, clause) =>
+        `${sentenceCase(normalizeNarrativeClause(clause))}.`,
+    )
+    .replace(
+      /The student produced a partial response: every measured part was present but incomplete\./gi,
+      "The target behavior was present across the measured parts, but it remained incomplete.",
+    )
+    .replace(
+      /The student produced a (?:strong|partial|weak) response: ([^.]+)\./gi,
+      (_match, clause) => `${sentenceCase(normalizeNarrativeClause(clause))}.`,
+    )
+    .replace(
+      /The response was (?:strong|partial|weak)(?: overall)?: ([^.]+)\./gi,
+      (_match, clause) => `${sentenceCase(normalizeNarrativeClause(clause))}.`,
+    )
+    .replace(
+      /Across this ([^,]+), the student produced a (?:strong|partial|weak) response: /gi,
+      "Across this $1, ",
+    )
+    .replace(
+      /The student showed a (strong|partial|weak) response/gi,
+      (_match, level) => `Across the drill, performance was ${String(level).toLowerCase()}`,
+    )
     .replace("in Clarity evidence across the scored drill", "across the Clarity checks")
     .replace("in Structured Execution evidence across the scored drill", "across the Structured Execution checks")
     .replace("in Controlled Discomfort evidence across the scored drill", "across the Controlled Discomfort checks")
@@ -340,46 +525,103 @@ export const formatSnapshotResultText = (value: string, purposeText?: string | n
   return text;
 };
 
-const clearNarrativeForRep = (repPurposeId: string, evidence: ResponseSnapshotEvidence[]) => {
-  const hasClear = (dimensionLabel: string) =>
-    evidence.some(
-      (item) =>
-        item.evidenceStatus === "observed" &&
-        item.dimensionLabel === dimensionLabel &&
-        item.normalizedLevel === "clear",
-    );
-
-  if (repPurposeId === "clarity.identification.opportunity_1" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["identified the important terms and selected the method before solving"];
-  }
-  if (repPurposeId === "clarity.identification.opportunity_2" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["term recognition and method selection held on the second example"];
-  }
-  if (repPurposeId === "clarity.identification.opportunity_3" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["term recognition and method selection repeated again before active solving"];
-  }
-  if (repPurposeId === "clarity.light_apply.opportunity_1" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["the first light solving attempt kept the vocabulary and method intact"];
-  }
-  if (repPurposeId === "clarity.light_apply.opportunity_2" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["clarity carried into the repeated solving attempt"];
-  }
-  if (repPurposeId === "clarity.light_apply.opportunity_3" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["clarity held through the final independent application check"];
-  }
-
-  return evidence
-    .filter(
-      (item) =>
-        item.evidenceStatus === "observed" &&
-        item.normalizedLevel === "clear",
-    )
-    .map((item) => item.humanClause)
-    .slice(0, 2);
+type SupportedNarrativeGroup = {
+  clause: string;
+  coveredDimensions: string[];
 };
 
+const supportedNarrativeGroupForRep = (
+  repPurposeId: string,
+  evidence: ResponseSnapshotEvidence[],
+): SupportedNarrativeGroup | null => {
+  const supportedEvidence = evidence.filter(
+    (item) =>
+      item.decisionEligible !== false &&
+      item.evidenceStatus === "observed" &&
+      decisionEvidenceClassForItem(item) === "supported",
+  );
+  const hasClear = (dimensionLabel: string) =>
+    supportedEvidence.some((item) => item.dimensionLabel === dimensionLabel);
+
+  if (!(hasClear("Vocabulary") && hasClear("Method"))) return null;
+
+  if (repPurposeId === "clarity.identification.opportunity_1") {
+    return {
+      clause: "the student identified the important terms and selected the method before solving",
+      coveredDimensions: ["Vocabulary", "Method"],
+    };
+  }
+  if (repPurposeId === "clarity.identification.opportunity_2") {
+    return {
+      clause: "the student identified the important terms and selected the method on the second unsolved example",
+      coveredDimensions: ["Vocabulary", "Method"],
+    };
+  }
+  if (repPurposeId === "clarity.identification.opportunity_3") {
+    return {
+      clause: "the student identified the important terms and selected the method on the final unsolved example",
+      coveredDimensions: ["Vocabulary", "Method"],
+    };
+  }
+  if (repPurposeId === "clarity.light_apply.opportunity_1") {
+    return {
+      clause: "the first light solving attempt kept the vocabulary and method intact",
+      coveredDimensions: ["Vocabulary", "Method"],
+    };
+  }
+  if (repPurposeId === "clarity.light_apply.opportunity_2") {
+    return {
+      clause: "the second light solving attempt kept the vocabulary and method intact",
+      coveredDimensions: ["Vocabulary", "Method"],
+    };
+  }
+  if (repPurposeId === "clarity.light_apply.opportunity_3") {
+    return {
+      clause: "the final independent light application kept the vocabulary and method intact",
+      coveredDimensions: ["Vocabulary", "Method"],
+    };
+  }
+
+  return null;
+};
+
+const LEGACY_REP_NARRATIVE_PATTERN =
+  /(?:^When testing whether|The student produced a (?:strong|partial|weak) response|The response was (?:strong|partial|weak)(?: overall)?|remaining logged observation|limiting evidence|showed evidence that)/i;
+
 export const formatSnapshotRepResult = (rep: Pick<ResponseSnapshotRep, "repPurposeId" | "repPurposeText" | "responseLevel" | "evidence" | "resultText">) => {
-  return formatSnapshotResultText(rep.resultText);
+  const displayPurposeText = REP_PURPOSE_TEXT[rep.repPurposeId] || rep.repPurposeText;
+  const base = LEGACY_REP_NARRATIVE_PATTERN.test(String(rep.resultText || ""))
+    ? buildRepResultText(
+        displayPurposeText,
+        rep.responseLevel,
+        rep.evidence,
+        rep.repPurposeId,
+      )
+    : formatSnapshotResultText(rep.resultText);
+  const notObserved = rep.evidence.filter(
+    (item) =>
+      item.evidenceStatus === "not_observed" ||
+      item.evidenceClass === "not_observed",
+  );
+  const confounded = rep.evidence.filter(
+    (item) =>
+      item.evidenceStatus === "confounded" ||
+      item.evidenceClass === "confounded",
+  );
+  const caveats: string[] = [];
+
+  if (notObserved.length) {
+    caveats.push(
+      `${naturalJoin(notObserved.map((item) => item.dimensionLabel))} ${notObserved.length === 1 ? "was" : "were"} not observed and did not count toward the evidence decision.`,
+    );
+  }
+  if (confounded.length) {
+    caveats.push(
+      `${naturalJoin(confounded.map((item) => item.dimensionLabel))} ${confounded.length === 1 ? "was" : "were"} confounded and did not count toward the evidence decision.`,
+    );
+  }
+
+  return [base, ...caveats].filter(Boolean).join(" ");
 };
 
 const OBSERVED_RESPONSE_CLEAR_LABELS: Record<string, string> = {
@@ -407,8 +649,9 @@ const summarizeClearEvidence = (snapshot: Pick<ResponseSnapshotV1, "sets" | "sou
     set.reps.forEach((rep) => {
       rep.evidence.forEach((item) => {
         if (
+          item.decisionEligible !== false &&
           item.evidenceStatus === "observed" &&
-          item.normalizedLevel === "clear"
+          decisionEvidenceClassForItem(item) === "supported"
         ) {
           clearDimensions.add(item.dimensionLabel);
         }
@@ -456,10 +699,17 @@ export const summarizeSnapshotObservedResponse = (snapshot?: ResponseSnapshotV1 
     set.reps.forEach((rep) => {
       rep.evidence
         .filter(
-          (item) =>
-            item.evidenceStatus === "observed" &&
-            (item.normalizedLevel === "weak" ||
-              item.normalizedLevel === "partial"),
+          (item) => {
+            if (item.decisionEligible === false || item.evidenceStatus !== "observed") {
+              return false;
+            }
+            const evidenceClass = decisionEvidenceClassForItem(item);
+            return (
+              evidenceClass === "breakdown" ||
+              evidenceClass === "conditional" ||
+              evidenceClass === "near_stable"
+            );
+          },
         )
         .forEach((item) => {
           const phrase = limitationPhraseForEvidence(item);
@@ -508,10 +758,32 @@ const sentenceCase = (value: string) => {
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 };
 
+const asNarrativeSentence = (value: string) => {
+  const text = sentenceCase(String(value || "").trim());
+  if (!text) return "";
+  return /[.!?]$/.test(text) ? text : `${text}.`;
+};
+
+const narrativeSentences = (values: string[]) =>
+  values.map(asNarrativeSentence).filter(Boolean).join(" ");
+
 const cleanEvidenceClause = (value: string) =>
   String(value || "")
     .trim()
     .replace(/^(Vocabulary|Method|Reason|First response|Start|Step execution|Repeatability|Independence|Initial response|First-step control|Discomfort tolerance|Rescue behavior|Start under time|Structure under time|Pace control|Completion):\s*/i, "");
+
+const NARRATIVE_SUBJECT_PREFIX =
+  /^(?:the|a|an|some|no|recognition|understanding|execution|independent|difficulty|tolerance|repeatability|pace|pacing|completion|urgency|structure|method|time pressure|clarity|term|control)\b/i;
+
+const normalizeNarrativeClause = (value: string) => {
+  const text = cleanEvidenceClause(value)
+    .replace(/[.]+$/, "")
+    .replace(/^showed evidence that\s+/i, "")
+    .trim();
+  if (!text) return "";
+  if (NARRATIVE_SUBJECT_PREFIX.test(text)) return lowerFirst(text);
+  return `the student ${lowerFirst(text)}`;
+};
 
 const scoreContribution = (weight: number, level: ObservationLevel) =>
   level === "clear" ? weight : level === "partial" ? Math.round(weight * 0.6) : 0;
@@ -711,8 +983,9 @@ const canonicalResponseEvidenceClause = (
   const studentLed = detail.replace(/^The student\s+/i, "");
   if (studentLed !== detail) return lowerFirst(studentLed);
 
-  const responseLed = detail.replace(/^The response\s+/i, "");
-  if (responseLed !== detail) return lowerFirst(responseLed);
+  if (/^The response\s+/i.test(detail)) {
+    return lowerFirst(detail);
+  }
 
   return detail ? `showed evidence that ${lowerFirst(detail)}` : lowerFirst(option.label);
 };
@@ -736,51 +1009,49 @@ const resolveHumanClause = (
 
 const buildRepResultText = (
   repPurposeText: string,
-  responseLevel: ResponseSnapshotDisplayLevel,
+  _responseLevel: ResponseSnapshotDisplayLevel,
   evidence: ResponseSnapshotEvidence[],
   repPurposeId = "",
 ) => {
-  const clearClauses = clearNarrativeForRep(repPurposeId, evidence).map(cleanEvidenceClause);
-  const partialClauses = evidence
-    .filter(
-      (item) =>
-        item.evidenceStatus === "observed" &&
-        item.normalizedLevel === "partial",
-    )
-    .map((item) => cleanEvidenceClause(item.humanClause))
-    .slice(0, 1);
-  const weakClauses = evidence
-    .filter(
-      (item) =>
-        item.evidenceStatus === "observed" &&
-        item.normalizedLevel === "weak",
-    )
-    .map((item) => cleanEvidenceClause(item.humanClause))
-    .slice(0, 2);
-  const label = responseLabelForLevel(responseLevel).replace(" response", "").toLowerCase();
+  const decisionEvidence = evidence.filter(
+    (item) =>
+      item.decisionEligible !== false &&
+      item.evidenceStatus === "observed" &&
+      decisionEvidenceClassForItem(item),
+  );
+  const supportedGroup = supportedNarrativeGroupForRep(
+    repPurposeId,
+    decisionEvidence,
+  );
+  let supportedGroupInserted = false;
+  const behaviorClauses: string[] = [];
 
-  if (clearClauses.length && !partialClauses.length && !weakClauses.length) {
-    return `This rep checked whether ${repPurposeText}. The student produced a strong response: ${naturalJoin(clearClauses)}.`;
+  decisionEvidence.forEach((item) => {
+    const isGroupedSupportedDimension =
+      supportedGroup &&
+      decisionEvidenceClassForItem(item) === "supported" &&
+      supportedGroup.coveredDimensions.includes(item.dimensionLabel);
+
+    if (isGroupedSupportedDimension) {
+      if (!supportedGroupInserted) {
+        behaviorClauses.push(normalizeNarrativeClause(supportedGroup.clause));
+        supportedGroupInserted = true;
+      }
+      return;
+    }
+
+    const clause = normalizeNarrativeClause(item.humanClause);
+    if (clause) behaviorClauses.push(clause);
+  });
+
+  const opening = `This rep checked whether ${repPurposeText}.`;
+  if (!behaviorClauses.length) {
+    return `${opening} No decision-eligible observed evidence was available for this rep.`;
   }
-  if (clearClauses.length && partialClauses.length && !weakClauses.length) {
-    return `This rep checked whether ${repPurposeText}. The student produced a ${label} response: ${naturalJoin(clearClauses)}. The remaining logged observation was that the student ${naturalJoin(partialClauses)}.`;
-  }
-  if (clearClauses.length && weakClauses.length && !partialClauses.length) {
-    return `This rep checked whether ${repPurposeText}. The response was ${label} overall: ${naturalJoin(clearClauses)}. The limiting evidence was that the student ${naturalJoin(weakClauses)}.`;
-  }
-  if (clearClauses.length && partialClauses.length && weakClauses.length) {
-    return `This rep checked whether ${repPurposeText}. The response was ${label}: ${naturalJoin(clearClauses)}. The remaining logged observation was that the student ${naturalJoin(partialClauses)}, while the limiting evidence was that the student ${naturalJoin(weakClauses)}.`;
-  }
-  if (!clearClauses.length && partialClauses.length && !weakClauses.length) {
-    return `This rep checked whether ${repPurposeText}. The student produced a partial response: every measured part was present but incomplete.`;
-  }
-  if (!clearClauses.length && partialClauses.length && weakClauses.length) {
-    return `This rep checked whether ${repPurposeText}. The response was ${label}: the student ${naturalJoin(partialClauses)}, while also showing ${naturalJoin(weakClauses)}.`;
-  }
-  if (weakClauses.length) {
-    return `This rep checked whether ${repPurposeText}. The response was weak: the student ${naturalJoin(weakClauses)}.`;
-  }
-  return `This rep checked whether ${repPurposeText}. No scored evidence was available for this rep.`;
+
+  return `${opening} ${narrativeSentences(behaviorClauses)}`
+    .replace(/\s+/g, " ")
+    .trim();
 };
 
 const drillModeForRegistry = (mode: BuildResponseSnapshotInput["mode"]): EvidenceDrillMode =>
@@ -846,13 +1117,167 @@ const buildEvidenceOccurrenceId = ({
 const roleForSet = (set: Pick<ResponseSnapshotSet, "setId" | "setName">) =>
   SET_ROLE_BY_ID[set.setId] || set.setName.toLowerCase();
 
-const buildDrillPatternResultText = (
+const canonicalDecisionEvidence = (evidence: ResponseSnapshotEvidence[]) =>
+  evidence.filter(
+    (item) =>
+      item.decisionEligible !== false &&
+      item.evidenceStatus === "observed" &&
+      decisionEvidenceClassForItem(item, false),
+  );
+
+const BEHAVIOR_LABEL_BY_DIMENSION: Record<string, string> = {
+  Vocabulary: "vocabulary recognition",
+  Method: "method selection",
+  Reason: "reasoning",
+  "First response": "first response",
+  Start: "independent start",
+  "Step execution": "step execution",
+  Repeatability: "method consistency",
+  "Step plan accuracy": "step-plan accuracy",
+  Independence: "independence",
+  "Initial response": "initial response",
+  "First-step control": "first-step control",
+  "Discomfort tolerance": "difficulty tolerance",
+  "Rescue behavior": "rescue behavior",
+  "Start under time": "timed start",
+  "Structure under time": "structure under time",
+  "Pace control": "pace control",
+  Completion: "completion",
+};
+
+const behaviorLabelForDimension = (dimensionLabel: string) =>
+  BEHAVIOR_LABEL_BY_DIMENSION[dimensionLabel] ||
+  lowerFirst(dimensionLabel);
+
+const repReference = (repNumbers: number[]) => {
+  const ordered = [...repNumbers].sort((left, right) => left - right);
+  if (ordered.length === 1) return `rep ${ordered[0]}`;
+  return `reps ${naturalJoin(ordered.map(String))}`;
+};
+
+const behaviorStatePhrase = (
+  evidenceClass: ResponseSnapshotDecisionEvidenceClass,
+  plural: boolean,
+) => {
+  if (evidenceClass === "supported") return "held cleanly";
+  if (evidenceClass === "near_stable") {
+    return plural
+      ? "were mostly intact with small gaps"
+      : "was mostly intact with a small gap";
+  }
+  if (evidenceClass === "conditional") {
+    return plural ? "were present but unreliable" : "was present but unreliable";
+  }
+  return "broke down";
+};
+
+type SetBehaviorPatternGroup = {
+  dimensions: string[];
+  runs: Array<{
+    evidenceClass: ResponseSnapshotDecisionEvidenceClass;
+    repNumbers: number[];
+  }>;
+};
+
+const setBehaviorPatternGroups = (
+  reps: ResponseSnapshotRep[],
+): SetBehaviorPatternGroup[] => {
+  const byDimension = new Map<
+    string,
+    Array<{
+      repNumber: number;
+      evidenceClass: ResponseSnapshotDecisionEvidenceClass;
+    }>
+  >();
+
+  reps.forEach((rep) => {
+    canonicalDecisionEvidence(rep.evidence).forEach((item) => {
+      const evidenceClass = decisionEvidenceClassForItem(item, false);
+      if (!evidenceClass) return;
+      const current = byDimension.get(item.dimensionLabel) || [];
+      current.push({ repNumber: rep.repNumber, evidenceClass });
+      byDimension.set(item.dimensionLabel, current);
+    });
+  });
+
+  const grouped = new Map<string, SetBehaviorPatternGroup>();
+  Array.from(byDimension.entries()).forEach(([dimensionLabel, observations]) => {
+    const ordered = [...observations].sort(
+      (left, right) => left.repNumber - right.repNumber,
+    );
+    const runs: SetBehaviorPatternGroup["runs"] = [];
+    ordered.forEach((observation) => {
+      const previous = runs[runs.length - 1];
+      if (previous?.evidenceClass === observation.evidenceClass) {
+        previous.repNumbers.push(observation.repNumber);
+      } else {
+        runs.push({
+          evidenceClass: observation.evidenceClass,
+          repNumbers: [observation.repNumber],
+        });
+      }
+    });
+    const signature = ordered
+      .map((item) => `${item.repNumber}:${item.evidenceClass}`)
+      .join("|");
+    const current = grouped.get(signature) || { dimensions: [], runs };
+    current.dimensions.push(behaviorLabelForDimension(dimensionLabel));
+    grouped.set(signature, current);
+  });
+
+  return Array.from(grouped.values());
+};
+
+const describeSetBehaviorPattern = (group: SetBehaviorPatternGroup) => {
+  const subject = sentenceCase(naturalJoin(group.dimensions));
+  const plural = group.dimensions.length > 1;
+  const runs = group.runs;
+
+  if (!runs.length) return "";
+
+  if (runs.length === 1) {
+    const run = runs[0];
+    return `${subject} ${behaviorStatePhrase(run.evidenceClass, plural)} across ${repReference(run.repNumbers)}.`;
+  }
+
+  const clauses = runs.map(
+    (run) =>
+      `${behaviorStatePhrase(run.evidenceClass, plural)} on ${repReference(run.repNumbers)}`,
+  );
+  const trajectoryText =
+    clauses.length === 2
+      ? `${clauses[0]}, then ${clauses[1]}`
+      : `${clauses.slice(0, -1).join(", ")}, then ${clauses[clauses.length - 1]}`;
+  const trajectory = `${subject} ${trajectoryText}.`;
+
+  const lastRun = runs[runs.length - 1];
+  const earlierRuns = runs.slice(0, -1);
+  const cleanFinalWasIsolated =
+    lastRun.evidenceClass === "supported" &&
+    lastRun.repNumbers.length === 1 &&
+    earlierRuns.some((run) => run.evidenceClass !== "supported");
+
+  if (cleanFinalWasIsolated) {
+    return `${trajectory} The final rep showed recovery, but that clean response was not repeated within the set.`;
+  }
+
+  return trajectory;
+};
+
+const buildSetEvidenceResultText = (reps: ResponseSnapshotRep[]) => {
+  const groups = setBehaviorPatternGroups(reps);
+  if (!groups.length) return null;
+  return groups
+    .map(describeSetBehaviorPattern)
+    .filter(Boolean)
+    .join(" ");
+};
+
+const buildLegacyDrillPatternResultText = (
   phase: TopicPhase,
-  responseLevel: ResponseSnapshotDisplayLevel,
   sets: ResponseSnapshotSet[],
 ) => {
   const scoredSets = sets.filter((set) => set.responseLevel !== "not_scored");
-  const label = responseLabelForLevel(responseLevel).toLowerCase();
   if (!scoredSets.length) {
     return `Across this ${phase} drill, no scored student response was recorded.`;
   }
@@ -864,13 +1289,13 @@ const buildDrillPatternResultText = (
   };
 
   if (grouped.strong.length === scoredSets.length) {
-    return `Across this ${phase} drill, the student produced a ${label}: ${naturalJoin(grouped.strong)} held together across the scored sets.`;
+    return `Across this ${phase} drill, ${naturalJoin(grouped.strong)} held together across the scored sets.`;
   }
   if (grouped.weak.length === scoredSets.length) {
-    return `Across this ${phase} drill, the student produced a ${label}: ${naturalJoin(grouped.weak)} remained weak across the scored sets. ${PHASE_INSTABILITY_MEANING[phase]}`;
+    return `Across this ${phase} drill, ${naturalJoin(grouped.weak)} remained weak across the scored sets. ${PHASE_INSTABILITY_MEANING[phase]}`;
   }
   if (grouped.partial.length === scoredSets.length) {
-    return `Across this ${phase} drill, the student produced a ${label}: ${naturalJoin(grouped.partial)} appeared in every scored set but remained incomplete. ${PHASE_INSTABILITY_MEANING[phase]}`;
+    return `Across this ${phase} drill, ${naturalJoin(grouped.partial)} appeared in every scored set but remained incomplete. ${PHASE_INSTABILITY_MEANING[phase]}`;
   }
 
   const clauses: string[] = [];
@@ -884,7 +1309,195 @@ const buildDrillPatternResultText = (
       ? `${sentenceCase(naturalJoin(grouped.partial))} is the remaining incomplete part of this drill pattern.`
       : "";
 
-  return `Across this ${phase} drill, the student produced a ${label}: ${naturalJoin(clauses)}. ${decisiveInstability} ${PHASE_INSTABILITY_MEANING[phase]}`.replace(/\s+/g, " ").trim();
+  return `Across this ${phase} drill, ${naturalJoin(clauses)}. ${decisiveInstability} ${PHASE_INSTABILITY_MEANING[phase]}`.replace(/\s+/g, " ").trim();
+};
+
+const buildDrillEvidenceResultText = (
+  phase: TopicPhase,
+  sets: ResponseSnapshotSet[],
+) => {
+  const evidence = sets.flatMap((set) => set.reps.flatMap((rep) => rep.evidence));
+  const canonical = canonicalDecisionEvidence(evidence);
+  if (!canonical.length) {
+    return buildLegacyDrillPatternResultText(phase, sets);
+  }
+
+  const scoredRoles = sets
+    .filter((set) => set.reps.length > 0)
+    .map(roleForSet);
+  const drillScope = naturalJoin(scoredRoles) || "the recorded sets";
+  const classes = (["supported", "near_stable", "conditional", "breakdown"] as const)
+    .filter((evidenceClass) =>
+      canonical.some((item) => item.evidenceClass === evidenceClass),
+    )
+    .map((evidenceClass) =>
+      evidenceClass === "near_stable"
+        ? "near-stable evidence"
+        : `${evidenceClass} evidence`,
+    );
+
+  if (classes.length === 1 && classes[0] === "supported evidence") {
+    return `Across this ${phase} drill, ${drillScope} ${scoredRoles.length === 1 ? "was" : "were"} supported across every recorded decision-eligible observation.`;
+  }
+
+  return `Across this ${phase} drill, ${drillScope} produced ${naturalJoin(classes)}. The set and rep detail below shows where each class occurred.`;
+};
+
+
+const recoverSnapshotEvidenceForDisplay = ({
+  snapshot,
+  set,
+  rep,
+  evidence,
+}: {
+  snapshot: ResponseSnapshotV1;
+  set: ResponseSnapshotSet;
+  rep: ResponseSnapshotRep;
+  evidence: ResponseSnapshotEvidence;
+}): ResponseSnapshotEvidence => {
+  const displayHumanClause =
+    evidence.evidenceStatus === "observed"
+      ? canonicalResponseEvidenceClause(
+          evidence.dimensionId,
+          evidence.selectedRawOption,
+        ) || evidence.humanClause
+      : evidence.humanClause;
+
+  if (
+    evidence.evidenceClass ||
+    evidence.evidenceStatus === "not_observed" ||
+    evidence.evidenceStatus === "confounded"
+  ) {
+    return {
+      ...evidence,
+      humanClause: displayHumanClause,
+    };
+  }
+
+  const mode = drillModeForRegistry(snapshot.source.mode);
+  const schema =
+    typeof snapshot.source.schemaVersion === "number"
+      ? getDrillSchemaDefinitionByVersion(
+          mode,
+          snapshot.source.observedPhase,
+          snapshot.source.schemaVersion,
+        )
+      : getDrillSchemaDefinition(mode, snapshot.source.observedPhase);
+  const definition =
+    schema?.sets.find((candidate) => candidate.setId === set.setId) ||
+    schema?.sets.find((candidate) => candidate.setName === set.setName) ||
+    null;
+  if (!definition) return evidence;
+
+  const repIndex = Math.max(0, Number(rep.repNumber || 1) - 1);
+  const field = getFieldDefinitionsForRep(definition, repIndex).find(
+    (candidate) => candidate.dimensionId === evidence.dimensionId,
+  );
+  if (!field) return evidence;
+
+  let evidenceClass: ResponseEvidenceClass | null = null;
+  if (evidence.selectedOptionId) {
+    evidenceClass =
+      (resolveEvidenceSelection({
+        mode,
+        phase: snapshot.source.observedPhase,
+        setId: definition.setId,
+        repIndex,
+        fieldKey: field.fieldKey,
+        optionId: evidence.selectedOptionId,
+        ...(typeof snapshot.source.schemaVersion === "number"
+          ? { schemaVersion: snapshot.source.schemaVersion }
+          : {}),
+      })?.evidenceClass as ResponseEvidenceClass | null | undefined) || null;
+  }
+
+  if (!evidenceClass && evidence.selectedRawOption) {
+    const optionIndex = (field.optionLabels || []).findIndex(
+      (candidate) => candidate === evidence.selectedRawOption,
+    );
+    evidenceClass =
+      optionIndex >= 0
+        ? ((field.optionEvidenceClasses?.[optionIndex] as
+            | ResponseEvidenceClass
+            | undefined) || null)
+        : null;
+  }
+
+  return {
+    ...evidence,
+    evidenceClass,
+    decisionEligible:
+      typeof evidence.decisionEligible === "boolean"
+        ? evidence.decisionEligible
+        : field.decisionEligible !== false,
+    humanClause: displayHumanClause,
+  };
+};
+
+export const prepareResponseSnapshotForDisplay = (
+  snapshot: ResponseSnapshotV1,
+): ResponseSnapshotV1 => {
+  const sets = snapshot.sets.map((set) => {
+    const reps = set.reps.map((rep) => {
+      const evidence = rep.evidence.map((item) =>
+        recoverSnapshotEvidenceForDisplay({
+          snapshot,
+          set,
+          rep,
+          evidence: item,
+        }),
+      );
+      const hasCanonicalEvidence = evidence.some(
+        (item) =>
+          item.evidenceStatus === "observed" &&
+          isDecisionEvidenceClass(item.evidenceClass),
+      );
+      const repPurposeText =
+        REP_PURPOSE_TEXT[rep.repPurposeId] || rep.repPurposeText;
+
+      return {
+        ...rep,
+        repPurposeText,
+        evidence,
+        resultText: hasCanonicalEvidence
+          ? buildRepResultText(
+              repPurposeText,
+              rep.responseLevel,
+              evidence,
+              rep.repPurposeId,
+            )
+          : rep.resultText,
+      };
+    });
+
+    const semanticResult = buildSetEvidenceResultText(reps);
+    return {
+      ...set,
+      reps,
+      resultText: semanticResult || set.resultText,
+    };
+  });
+
+  const canonicalEvidence = sets.flatMap((set) =>
+    set.reps.flatMap((rep) =>
+      rep.evidence.filter(
+        (item) =>
+          item.evidenceStatus === "observed" &&
+          isDecisionEvidenceClass(item.evidenceClass),
+      ),
+    ),
+  );
+
+  return {
+    ...snapshot,
+    sets,
+    drill: {
+      ...snapshot.drill,
+      resultText: canonicalEvidence.length
+        ? buildDrillEvidenceResultText(snapshot.source.observedPhase, sets)
+        : snapshot.drill.resultText,
+    },
+  };
 };
 
 export const buildResponseSnapshotV1 = ({
@@ -921,7 +1534,7 @@ export const buildResponseSnapshotV1 = ({
         responseLevel: "not_scored",
         responseLabel: responseLabelForLevel("not_scored"),
         patternCode: null,
-        resultText: `${definition.setName} was completed as a modeling set. No scored student response was recorded for this set.`,
+        resultText: `${definition.setName} was completed as a modeling set. No student observation evidence was recorded for this set.`,
         reps: [],
       });
       return;
@@ -976,6 +1589,22 @@ export const buildResponseSnapshotV1 = ({
           );
           const selectedRawOption =
             evidenceStatus === "observed" ? storedRawOption : "";
+          const selectedOptionIndex =
+            evidenceStatus === "observed"
+              ? (field.optionLabels || []).findIndex(
+                  (candidate) => candidate === selectedRawOption,
+                )
+              : -1;
+          const registeredEvidenceClass =
+            selectedOptionIndex >= 0
+              ? (field.optionEvidenceClasses?.[selectedOptionIndex] as
+                  | ResponseEvidenceClass
+                  | undefined)
+              : undefined;
+          const evidenceClass: ResponseEvidenceClass | null =
+            evidenceStatus === "not_observed" || evidenceStatus === "confounded"
+              ? evidenceStatus
+              : registeredEvidenceClass || null;
           const humanClause =
             evidenceStatus === "not_observed"
               ? "was not meaningfully observable in this opportunity"
@@ -1009,6 +1638,8 @@ export const buildResponseSnapshotV1 = ({
             selectedRawOption,
             normalizedLevel,
             evidenceStatus,
+            evidenceClass,
+            decisionEligible: field.decisionEligible !== false,
             humanClause,
             weight: effectiveWeight,
             contribution,
@@ -1039,16 +1670,26 @@ export const buildResponseSnapshotV1 = ({
       };
     });
 
-    const computedSetScore = reps.length
-      ? clampScore(reps.reduce((sum, rep) => sum + Number(rep.score || 0), 0) / reps.length)
+    const scoredReps = reps.filter((rep) => typeof rep.score === "number");
+    const computedSetScore = scoredReps.length
+      ? clampScore(
+          scoredReps.reduce((sum, rep) => sum + Number(rep.score), 0) /
+            scoredReps.length,
+        )
       : null;
     const scoredSetIndex = snapshotSets.filter((set) => set.responseLevel !== "not_scored").length;
     const score = typeof setScores?.[scoredSetIndex] === "number"
       ? clampScore(setScores[scoredSetIndex])
       : computedSetScore;
     const responseLevel = displayLevelForScore(score);
-    const patternCode = reps.map((rep) => patternCharForLevel(rep.responseLevel)).join("");
-    const patternSentence = REP_PATTERN_SENTENCE[patternCode] || "The set pattern was recorded from scored reps.";
+    const patternCode = scoredReps.map((rep) => patternCharForLevel(rep.responseLevel)).join("");
+    const semanticSetResult = buildSetEvidenceResultText(reps);
+    const basePatternSentence =
+      semanticSetResult || buildLegacySetBehaviorResultText(reps);
+    const unscoredRepCount = reps.length - scoredReps.length;
+    const patternSentence = unscoredRepCount
+      ? `${basePatternSentence} ${unscoredRepCount} ${unscoredRepCount === 1 ? "rep had" : "reps had"} no decision-eligible observed evidence and did not count toward the evidence decision.`
+      : basePatternSentence;
 
     snapshotSets.push({
       setId: definition.setId,
@@ -1059,7 +1700,7 @@ export const buildResponseSnapshotV1 = ({
       score,
       responseLevel,
       responseLabel: responseLabelForLevel(responseLevel),
-      patternCode,
+      patternCode: patternCode || null,
       resultText: patternSentence,
       reps,
     });
@@ -1097,7 +1738,7 @@ export const buildResponseSnapshotV1 = ({
       responseLevel,
       responseLabel: responseLabelForLevel(responseLevel),
       patternCode,
-      resultText: buildDrillPatternResultText(phase, responseLevel, snapshotSets),
+      resultText: buildDrillEvidenceResultText(phase, snapshotSets),
     },
     sets: snapshotSets,
     engineOutcomeRef: {

@@ -340,7 +340,7 @@ export function LiveSupportPanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Support this rep
+            Support used in this rep
           </div>
           <div className="mt-1 text-sm font-semibold text-foreground">
             {selected?.label || "No intervention"}
@@ -504,11 +504,13 @@ export function LiveSandboxStudentResponse({
   children: ReactNode;
 }) {
   return (
-    <div className="mb-4 rounded-xl border border-primary/15 bg-primary/[0.025] p-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+    <div className="mb-5 rounded-xl border border-primary/15 bg-primary/[0.025] p-5 sm:p-6">
+      <div className="text-xs font-semibold uppercase tracking-wide text-primary">
         Simulated student response
       </div>
-      <div className="mt-2 text-sm leading-6 text-foreground">{children}</div>
+      <div className="mt-3 text-base leading-7 text-foreground sm:text-[17px]">
+        {children}
+      </div>
     </div>
   );
 }

@@ -77,7 +77,18 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Database
 DATABASE_URL=your_neon_database_url
+
+# Required when emergency DB mode handles Specialist onboarding file uploads
+EMERGENCY_DOCUMENT_ENCRYPTION_KEY=your_32_byte_base64_key
 ```
+
+Generate the onboarding encryption key once and keep it stable for that environment:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+Changing this key after files have been uploaded will make previously encrypted emergency-mode onboarding files unreadable. Never commit the real key.
 
 See `.env.example` for a complete template.
 

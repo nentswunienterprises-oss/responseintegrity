@@ -96,16 +96,17 @@ Do not describe the live commercial model as a R1,000 Premium plan, loose sessio
 
 The Specialist development pathway is:
 
-- Application -> Training -> Sandbox -> Sandbox Mock Gate -> Trial -> Certified Live
+- Application -> Training -> Sandbox -> Practicals -> Trial -> Certification -> Certified Live
 - standard development window: 75 active days
 - approved documented extension maximum: 90 active days
 - Training Battle Test: 15 questions per Deep Dive, 96%+ required three consecutive times for that Deep Dive
-- Sandbox Mock Gate: final Sandbox exit assessment, not a separate first-class mode
-- Trial window: 14 calendar days starting after both Trial families are placed
+- Sandbox capability evaluation: continuous, system-derived evidence across Condition, Observation, Evidence, Authority, and Continuity Integrity
+- Sandbox exit authority: the system must first resolve Practicals readiness; the assigned TD then records either remediation or an explicit readiness sign-off for Practicals entry
+- Practicals is the governed stage after Sandbox; it is not a shortcut into Trial and it is not opened by Battle Testing
 - Trial evidence requirement: exactly 2 families x 9 qualifying completed sessions per family
-- Trial cadence target: intensive 4-5 sessions per week per family
+- Trial cadence follows the approved delivery rhythm; the normal maximum Trial window is 35 calendar days from the first Trial session unless a governed exception is approved
 
-The 14-day Trial window never replaces the 2 x 9 evidence requirement. If the window expires before the evidence requirement is met, COO must record a justified extension, and the final effective date may not exceed the approved pathway maximum.
+COO authority is reserved for pathway policy, documented exceptions/extensions, Trial governance, and final certification decisions. Routine Sandbox capability evaluation and readiness review are not COO work.
 
 ## System Layers
 
@@ -588,18 +589,29 @@ Response Snapshot is the Specialist-facing evidence explanation layer over persi
 It shows:
 
 - what the drill and each set were intended to expose;
-- the response label derived from the recorded behavior pattern;
-- the ordered rep pattern;
-- the exact weak / partial / clear evidence translation;
+- the actual Response Evidence class attached to each decision-eligible observation: `BREAKDOWN`, `CONDITIONAL`, `NEAR_STABLE`, or `SUPPORTED`;
+- explicit `not_observed` and `confounded` evidence without converting either into weakness or strength;
+- the ordered rep-level evidence pattern without inventing a single aggregate rep or set verdict;
+- the evidence-engine state decision through the persisted before/after phase and stability reference;
 - evidence lineage needed for later reporting.
 
+Legacy `weak / partial / clear` levels and `Weak / Partial / Strong response` labels may remain inside persisted compatibility fields, but they are non-authoritative and are not rendered as current Response Snapshot truth. In particular, `CONDITIONAL` and `NEAR_STABLE` must never be collapsed into one visible class merely because both map to the old `partial` compatibility level.
+
 The Specialist-facing Snapshot does **not** render numeric delivery totals, per-set totals, rep totals, aggregate averages, or any retired delivery-rating language.
+
+Rep narration is opportunity-local. A single rep may state only what that opportunity itself showed. It must not claim that a behavior was repeatable, consistent, confirmed across the set, or otherwise established across multiple opportunities merely because that rep was successful. Repeatability and consistency are set-level inferences that require the ordered evidence pattern across comparable reps. A strong final rep after earlier conditional or breakdown evidence is recovery evidence, not proof that the behavior was repeatable.
+
+Rep narration is also evidence-complete. Every decision-eligible observed dimension recorded for that rep must remain represented in the prose or in an explicit semantically equivalent grouped clause. Purpose-specific phrasing may combine dimensions for readability, but it must not silently omit a supported, near-stable, conditional, or breakdown dimension. For example, if Identification records supported Vocabulary, Method, and Reason, the narrative must describe the reason evidence as well as recognition and method selection.
+
+Rep prose is behavior-first, not evidence-class-first. The prose must state the concrete observed behavior directly and must not announce generic buckets such as "One part was near-stable", "One part remained conditional", "Some parts remained conditional", "Several observed areas broke down", or "The breakdown was that". Evidence classes already remain visible in rep-level badges/counts. The narrative exists to explain what happened, not to repeat the taxonomy.
+
+Set summaries are behavior-first. They describe what the student did across the ordered reps, derived from the underlying evidence classes, rather than narrating the taxonomy itself. Evidence labels remain visible in the evidence detail and badges, while the set summary uses behavioral language such as held cleanly, mostly held with a small gap, was present but unreliable, broke down, or recovered. Cross-rep claims such as recovery or consistency are allowed only at set level and only when the ordered evidence pattern supports them.
 
 Clarity Modeling remains visible as instructional preparation rather than student evidence:
 
 > Modeling completed as preparation. No student observation evidence was recorded for this set.
 
-Persisted snapshot wording is historical output. Render stored `resultText` for persisted drill, set, and rep rows; use live formatters only for generation-time construction, cleanup, or explicit migrations. Future wording improvements must not silently rewrite the meaning of an already submitted drill log.
+Persisted snapshot wording remains historical output, but Specialist-facing display may re-render wording from the persisted structured evidence when the stored lineage is sufficient to recover the same semantic truth deterministically. Display normalization must never invent a stronger class, fill missing evidence by guesswork, or rewrite the underlying meaning of the submitted drill log. If semantic recovery is not trustworthy, preserve the historical wording or show a neutral recorded-observation fallback.
 
 Evidence lineage must separate evidence occurrences from selected option definitions. `reportingLineage.evidenceIds` stores deterministic occurrence IDs tied to the source drill, schema, set, rep, and dimension. `reportingLineage.selectedOptionIds` stores reusable semantic option IDs. Later reports may aggregate occurrence IDs and option IDs, but must not treat option IDs alone as proof that a specific student produced specific evidence.
 
@@ -656,7 +668,8 @@ For new diagnosis, training, and verification submissions, the captured set cont
 - stable observation-dimension ID
 - stable selected-option ID
 - selected raw option label
-- normalized `weak` / `partial` / `clear` level
+- normalized legacy `weak` / `partial` / `clear` compatibility level
+- canonical evidence class where the versioned contract exposes one (`breakdown`, `conditional`, `near_stable`, `supported`)
 
 The registry owns the live raw-option ordering and level mapping. `IntroSessionDrillRunner` uses those registered options when rendering and serializing evidence. The server validates the raw option, option ID, dimension, rep identity, set identity, mode, phase, schema version, and definition hash as one contract. It then writes the registry-derived level and constraint profile into the normalized stored payload; it does not accept a contradictory client-supplied level.
 
@@ -2717,15 +2730,19 @@ Without this layer:
 
 ## Specialist Certification Lifecycle
 
-The implemented Specialist lifecycle is:
+The governed Specialist pathway is:
 
 ```text
-applicant -> training -> sandbox -> trial -> certified_live
+application -> training -> sandbox -> practicals -> trial -> certification -> certified_live
 ```
+
+The current lifecycle permission keys remain `applicant`, `training`, `sandbox`, `trial`, and `certified_live`. Practicals is a governed pathway stage between Sandbox and Trial; it does not give Battle Testing permission to mutate the Specialist directly from Sandbox into Trial.
 
 `watchlist` and `suspended` are operational risk states and enforcement states. They do not replace the evidence-gated graduation path.
 
-Battle Testing and readiness checks may move a Specialist into `trial` after training, sandbox, and preparation evidence is complete. They must not issue new `certified_live` status on their own.
+Training Battle Testing may establish the knowledge/preparation evidence required to enter and remain in Sandbox. It cannot authorize Sandbox exit. During Sandbox, the stateful capability engine continuously derives Specialist capability evidence across Condition Integrity, Observation Integrity, Evidence Integrity, Authority Integrity, and Continuity Integrity. Only when that engine resolves `practicalsReady=true`, required breadth and longitudinal proof are present, and preparation blockers are clear may the assigned TD record the human readiness decision that authorizes Practicals entry; the stage transition remains explicit.
+
+The TD owns routine Sandbox remediation and readiness review because this is operational Specialist development. The COO does not manually evaluate each Sandbox Specialist; COO authority is reserved for policy, documented exceptions/extensions, later Trial governance, and explicit final certification decisions. No Sandbox assessment may skip Practicals by directly issuing `trial`.
 
 ### Trial validation gate
 

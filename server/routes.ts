@@ -209,10 +209,10 @@ import {
   removeTrialPlacementCreatedDuringFailedAssignment,
 } from "./trialCertification";
 import {
-  buildSandboxReadinessOverview,
-  getLatestSandboxMockAssessment,
-  recordSandboxMockAssessment,
+  getLatestSandboxReadinessAssessment,
+  recordSandboxReadinessAssessment,
 } from "./sandboxReadiness";
+import { getSandboxCapabilityReadiness } from "./sandboxEnvironment";
 import {
   approveSpecialistPathwayExtension,
   ensureSpecialistDevelopmentPathway,
@@ -230,7 +230,10 @@ import {
   isMonthlyPackageKey,
   type MonthlyPackageKey,
 } from "@shared/servicePackages";
-import { SANDBOX_REQUIRED_ACCOUNT_COUNT } from "@shared/sandboxReadiness";
+import {
+  SANDBOX_REQUIRED_ACCOUNT_COUNT,
+  evaluateSandboxPreparationGate,
+} from "@shared/sandboxReadiness";
 
 const PAYMENT_PROVIDER_PAYFAST = "payfast";
 const DEFAULT_SERVICE_PACKAGE = MONTHLY_SERVICE_PACKAGES[DEFAULT_MONTHLY_PACKAGE_KEY];
@@ -771,11 +774,19 @@ async function getTutorSandboxReadiness(tutorId: string) {
   const assignment = await storage.getTutorAssignment(tutorId);
   if (!assignment?.id) throw new Error("Specialist must have an active pod assignment.");
 
-  const [tutor, students, docsComplete, latestMockAssessment, pathway, sandboxAccounts] = await Promise.all([
+  const [
+    tutor,
+    students,
+    docsComplete,
+    latestAssessment,
+    pathway,
+    sandboxAccounts,
+    capabilityReadiness,
+  ] = await Promise.all([
     storage.getUser(tutorId),
     storage.getStudentsByTutor(tutorId),
     checkTutorDocumentationComplete(tutorId),
-    getLatestSandboxMockAssessment(assignment.id),
+    getLatestSandboxReadinessAssessment(assignment.id),
     getSpecialistDevelopmentPathway(tutorId),
     supabase
       .from("parent_enrollments")
@@ -783,7 +794,12 @@ async function getTutorSandboxReadiness(tutorId: string) {
       .eq("assigned_tutor_id", tutorId)
       .eq("is_sandbox_account", true)
       .in("status", ACTIVE_PARENT_ENROLLMENT_STATUSES),
+    getSandboxCapabilityReadiness({
+      tutorAssignmentId: assignment.id,
+      tutorId,
+    }),
   ]);
+
   const summary = await buildPodBattleTestingSummary(
     assignment.podId,
     [{
@@ -797,14 +813,35 @@ async function getTutorSandboxReadiness(tutorId: string) {
   );
   const specialistSummary = summary.tutorSummaries[0] || null;
   const moduleProgress = specialistSummary?.moduleProgress || [];
-  const transformationComplete = moduleProgress.find((entry) => entry.moduleKey === "transformation_phases")?.completed || false;
-  const sessionInfrastructureComplete = moduleProgress.find((entry) => entry.moduleKey === "session_infrastructure")?.completed || false;
+  const transformationComplete =
+    moduleProgress.find((entry) => entry.moduleKey === "transformation_phases")?.completed || false;
+  const sessionInfrastructureComplete =
+    moduleProgress.find((entry) => entry.moduleKey === "session_infrastructure")?.completed || false;
   const hasActiveFailHealth =
     specialistSummary?.state === "fail" ||
     specialistSummary?.hasCriticalFail === true ||
     (specialistSummary?.deepDiveProgress || []).some(
       (entry) => entry.currentHealthState === "drift" || entry.criticalFlag,
     );
+
+  const preparationGate = evaluateSandboxPreparationGate({
+    docsComplete,
+    transformationComplete,
+    sessionInfrastructureComplete,
+    hasActiveFailHealth,
+    sandboxAccountCount: sandboxAccounts.count || 0,
+  });
+  const preparationBlockers = preparationGate.blockers;
+
+  const blockers = [...preparationBlockers];
+  if (!capabilityReadiness.practicalsReady) {
+    blockers.push(capabilityReadiness.reason);
+  }
+  if (!latestAssessment) {
+    blockers.push("TD Sandbox readiness assessment has not been recorded.");
+  } else if (latestAssessment.decision !== "passed") {
+    blockers.push("The latest TD Sandbox readiness assessment requires remediation.");
+  }
 
   return {
     tutorId,
@@ -813,14 +850,17 @@ async function getTutorSandboxReadiness(tutorId: string) {
     pathway,
     sandboxAccountCount: sandboxAccounts.count || 0,
     moduleProgress,
-    ...buildSandboxReadinessOverview({
-      docsComplete,
-      transformationComplete,
-      sessionInfrastructureComplete,
-      hasActiveFailHealth,
-      sandboxAccountCount: sandboxAccounts.count || 0,
-      latestMockAssessment,
-    }),
+    capabilityReadiness,
+    latestAssessment,
+    gate: {
+      readyForPracticals: blockers.length === 0,
+      blockers,
+      preparationBlockers,
+      systemPracticalsReady: capabilityReadiness.practicalsReady === true,
+      tdApproved: latestAssessment?.decision === "passed",
+      nextStage: "practicals" as const,
+      automaticTransition: false as const,
+    },
   };
 }
 
@@ -2056,6 +2096,10 @@ async function buildPodOperatingOverview(pod: any) {
   };
 }
 
+function usesDirectProofSessionDatabase() {
+  return isEmergencyDbMode() || process.env.VERCEL_ENV === "preview";
+}
+
 const SCHEDULED_SESSION_SELECT = [
   "id",
   "scheduled_time",
@@ -2521,7 +2565,7 @@ async function recalculateMembershipMonthUsage(options: {
 
   const { data: eventRows } = await supabase
     .from("session_billing_events")
-    .select("credits_delta, billing_impact")
+    .select("session_id, credits_delta, billing_impact")
     .eq("parent_id", options.parentId)
     .eq("student_id", options.studentId)
     .gte("effective_at", usageWindowStart)
@@ -2530,6 +2574,10 @@ async function recalculateMembershipMonthUsage(options: {
     .eq("is_sandbox", !!options.isSandbox);
 
   const eventUsed = (eventRows || []).reduce((sum: number, row: any) => {
+    const sessionId = String(row?.session_id || "").trim();
+    if (sessionId && completedSessionKeys.has(`training:${sessionId}`)) {
+      return sum;
+    }
     const delta = Number(row?.credits_delta || 0);
     return sum + Math.max(0, delta);
   }, 0);
@@ -3106,7 +3154,7 @@ async function reconcileTrainingSessionCompletionFromRun(options: {
     return session;
   }
 
-  if (isEmergencyDbMode()) {
+  if (usesDirectProofSessionDatabase()) {
     const runResult = await pool.query(
       `SELECT id
          FROM public.training_session_runs
@@ -4602,7 +4650,7 @@ async function resolveTutorScheduledSession(
   kind: "intro" | "handover" | "training",
   sessionId?: string | null
 ) {
-  if (isEmergencyDbMode()) {
+  if (usesDirectProofSessionDatabase()) {
     const values: unknown[] = [tutorId, studentId, kind];
     let query = `SELECT ${SCHEDULED_SESSION_SELECT}
                    FROM public.scheduled_sessions
@@ -4655,7 +4703,7 @@ async function resolveTutorScheduledSession(
 }
 
 async function getPendingTrainingConfirmationSession(tutorId: string, studentId: string) {
-  if (isEmergencyDbMode()) {
+  if (usesDirectProofSessionDatabase()) {
     const result = await pool.query(
       `SELECT ${SCHEDULED_SESSION_SELECT}
          FROM public.scheduled_sessions
@@ -11993,14 +12041,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const students = await storage.getStudentsByTutor(tutorId);
           const studentIds = students.map((student: any) => student.id).filter(Boolean);
           const progressByStudent = new Map<string, number>();
+          const sandboxStateByStudent = new Map<
+            string,
+            { phase: string; stability: string }
+          >();
           if (studentIds.length > 0) {
-            const trainingRuns = await pool.query(
-              `SELECT student_id, scheduled_session_id, id, status
-                 FROM public.training_session_runs
-                WHERE tutor_id = $1 AND student_id = ANY($2::uuid[])
-                  AND status IN ('submitted', 'completed')`,
-              [tutorId, studentIds],
-            );
+            const [trainingRuns, sandboxSessions, sandboxStates] = await Promise.all([
+              pool.query(
+                `SELECT student_id, scheduled_session_id, id, status
+                   FROM public.training_session_runs
+                  WHERE tutor_id = $1 AND student_id = ANY($2::uuid[])
+                    AND status IN ('submitted', 'completed')`,
+                [tutorId, studentIds],
+              ),
+              pool.query(
+                `SELECT id, student_id, session_number
+                   FROM public.specialist_sandbox_session_evaluations
+                  WHERE tutor_id = $1 AND student_id = ANY($2::text[])`,
+                [tutorId, studentIds],
+              ),
+              pool.query(
+                `SELECT DISTINCT ON (student_id)
+                        student_id, specialist_phase, specialist_stability
+                   FROM public.specialist_sandbox_trajectories
+                  WHERE tutor_id = $1
+                    AND student_id = ANY($2::text[])
+                    AND status = 'active'
+                  ORDER BY student_id, updated_at DESC`,
+                [tutorId, studentIds],
+              ),
+            ]);
             const seen = new Set<string>();
             trainingRuns.rows.forEach((row: any) => {
               const studentId = String(row.student_id || "");
@@ -12009,6 +12079,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 seen.add(key);
                 progressByStudent.set(studentId, (progressByStudent.get(studentId) || 0) + 1);
               }
+            });
+            sandboxSessions.rows.forEach((row: any) => {
+              const studentId = String(row.student_id || "");
+              const key = `${studentId}:sandbox-session:${row.id}`;
+              if (studentId && !seen.has(key)) {
+                seen.add(key);
+                progressByStudent.set(studentId, (progressByStudent.get(studentId) || 0) + 1);
+              }
+            });
+            sandboxStates.rows.forEach((row: any) => {
+              const studentId = String(row.student_id || "").trim();
+              if (!studentId) return;
+              sandboxStateByStudent.set(studentId, {
+                phase: String(row.specialist_phase || "").trim(),
+                stability: String(row.specialist_stability || "").trim(),
+              });
             });
           }
           console.log("[EMERGENCY POD]", {
@@ -12038,6 +12124,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 sessionProgress: progressByStudent.get(String(student.id)) || 0,
                 enrollmentId: enrollment?.id || student.parentEnrollmentId || null,
                 parentInfo: enrollment,
+                topicConditioning: (() => {
+                  const sandboxState = sandboxStateByStudent.get(String(student.id));
+                  if (!sandboxState) return null;
+                  return {
+                    topic:
+                      buildReportedTopics(
+                        enrollment?.topic_response_symptoms,
+                        enrollment?.reported_topics,
+                        enrollment?.topic_recommended_starting_phases,
+                      )[0] || null,
+                    entry_phase: sandboxState.phase || null,
+                    stability: sandboxState.stability || null,
+                  };
+                })(),
                 pendingTutorAcceptance: enrollment?.status === "awaiting_tutor_acceptance" &&
                   !Boolean((student.personalProfile as any)?.workflow?.assignmentAcceptedAt),
               };
@@ -12346,7 +12446,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     }
                   : null,
                 monthlyQuota,
-                topicConditioning: buildTopicConditioningMap(proposalSnapshot),
+                topicConditioning: await (async () => {
+                  const proposalState = buildTopicConditioningMap(proposalSnapshot);
+                  if (certificationMode !== "sandbox" || !student?.id) {
+                    return proposalState;
+                  }
+                  try {
+                    const sandboxStateResult = await pool.query(
+                      `SELECT specialist_phase, specialist_stability
+                         FROM public.specialist_sandbox_trajectories
+                        WHERE tutor_id::text = $1::text
+                          AND student_id::text = $2::text
+                          AND status = 'active'
+                        ORDER BY updated_at DESC
+                        LIMIT 1`,
+                      [tutorId, String(student.id)],
+                    );
+                    const sandboxState = sandboxStateResult.rows[0];
+                    if (!sandboxState) return proposalState;
+                    return {
+                      ...(proposalState || {}),
+                      topic:
+                        proposalState?.topic ||
+                        buildReportedTopics(
+                          parentEnrollment?.topic_response_symptoms,
+                          parentEnrollment?.reported_topics,
+                          parentEnrollment?.topic_recommended_starting_phases,
+                        )[0] ||
+                        null,
+                      entry_phase: String(sandboxState.specialist_phase || proposalState?.entry_phase || "").trim() || null,
+                      stability: String(sandboxState.specialist_stability || proposalState?.stability || "").trim() || null,
+                    };
+                  } catch (sandboxStateError) {
+                    console.error("Failed to overlay Sandbox trajectory state on Pod:", sandboxStateError);
+                    return proposalState;
+                  }
+                })(),
                 proposalSentAt: parentEnrollment?.proposal_sent_at || null,
                 parentApprovedAt: isApproved ? (proposalAcceptedAt || parentEnrollment?.updated_at) : null,
                 pendingTutorAcceptance: isPending,
@@ -12610,7 +12745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         weekEnd.setDate(weekEnd.getDate() + 6);
         weekEnd.setHours(23, 59, 59, 999);
 
-        if (isEmergencyDbMode()) {
+        if (usesDirectProofSessionDatabase()) {
           const scheduleResult = await pool.query(
             `SELECT id, scheduled_time, scheduled_end, timezone, status, type, workflow_stage,
                     parent_confirmed, tutor_confirmed, student_id, parent_id, google_meet_url,
@@ -13124,17 +13259,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const operationalMode = await getTutorOperationalMode(tutorId);
 
-        if (isEmergencyDbMode()) {
-          const result = await pool.query(
-            `SELECT ${SCHEDULED_SESSION_SELECT}
-               FROM public.scheduled_sessions
-              WHERE tutor_id = $1 AND student_id = $2 AND type = 'training'
-              ORDER BY scheduled_time ASC
-              LIMIT 12`,
-            [tutorId, studentId],
+        if (usesDirectProofSessionDatabase()) {
+          const [currentSessionsResult, latestCompletedSessionResult] = await Promise.all([
+            pool.query(
+              `SELECT ${SCHEDULED_SESSION_SELECT}
+                 FROM public.scheduled_sessions
+                WHERE tutor_id = $1
+                  AND student_id = $2
+                  AND type = 'training'
+                  AND status NOT IN ('completed', 'flagged')
+                  AND scheduled_time >= NOW() - INTERVAL '2 hours'
+                ORDER BY scheduled_time ASC`,
+              [tutorId, studentId],
+            ),
+            pool.query(
+              `SELECT ${SCHEDULED_SESSION_SELECT}
+                 FROM public.scheduled_sessions
+                WHERE tutor_id = $1
+                  AND student_id = $2
+                  AND type = 'training'
+                  AND status = 'completed'
+                ORDER BY scheduled_time DESC
+                LIMIT 1`,
+              [tutorId, studentId],
+            ),
+          ]);
+          const recentSessions = [
+            ...(currentSessionsResult.rows || []),
+            ...(latestCompletedSessionResult.rows || []),
+          ].sort(
+            (left: any, right: any) =>
+              new Date(left.scheduled_time).getTime() - new Date(right.scheduled_time).getTime(),
           );
           const reconciledSessions = await Promise.all(
-            (result.rows || []).map((session: any) =>
+            recentSessions.map((session: any) =>
               reconcileTrainingSessionCompletionFromRun({
                 session,
                 tutorId,
@@ -13196,21 +13354,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(premiumAccess.status).json({ message: premiumAccess.message, sessions: [] });
         }
 
-        const { data, error } = await supabase
-          .from("scheduled_sessions")
-          .select(SCHEDULED_SESSION_SELECT)
-          .eq("tutor_id", tutorId)
-          .eq("student_id", studentId)
-          .eq("type", "training")
-          .order("scheduled_time", { ascending: true })
-          .limit(12);
+        const currentTrainingSessionFloor = new Date(
+          Date.now() - 2 * 60 * 60 * 1000,
+        ).toISOString();
+        const [currentSessionsResult, latestCompletedSessionResult] = await Promise.all([
+          supabase
+            .from("scheduled_sessions")
+            .select(SCHEDULED_SESSION_SELECT)
+            .eq("tutor_id", tutorId)
+            .eq("student_id", studentId)
+            .eq("type", "training")
+            .not("status", "in", "(completed,flagged)")
+            .gte("scheduled_time", currentTrainingSessionFloor)
+            .order("scheduled_time", { ascending: true }),
+          supabase
+            .from("scheduled_sessions")
+            .select(SCHEDULED_SESSION_SELECT)
+            .eq("tutor_id", tutorId)
+            .eq("student_id", studentId)
+            .eq("type", "training")
+            .eq("status", "completed")
+            .order("scheduled_time", { ascending: false })
+            .limit(1),
+        ]);
 
-        if (error) {
+        if (currentSessionsResult.error || latestCompletedSessionResult.error) {
           return res.status(500).json({ message: "Failed to fetch training sessions" });
         }
 
+        const recentSessions = [
+          ...(currentSessionsResult.data || []),
+          ...(latestCompletedSessionResult.data || []),
+        ].sort(
+          (left: any, right: any) =>
+            new Date(left.scheduled_time).getTime() - new Date(right.scheduled_time).getTime(),
+        );
         const sessionsWithArtifacts = await Promise.all(
-          (data || []).map(async (session: any) => {
+          recentSessions.map(async (session: any) => {
             if (shouldReconcileSessionArtifacts(session)) {
               await reconcileArtifactsForScheduledSession(session);
               const { data: refreshedSession } = await supabase
@@ -13408,7 +13588,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         let session: any = null;
         let sessionError: any = null;
-        if (isEmergencyDbMode()) {
+        if (usesDirectProofSessionDatabase()) {
           try {
             const lookupResult = await pool.query(
               `SELECT ${SCHEDULED_SESSION_SELECT}
@@ -13447,7 +13627,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         let updatedSession: any = null;
         let updateError: any = null;
-        if (isEmergencyDbMode()) {
+        if (usesDirectProofSessionDatabase()) {
           try {
             const updateResult = await pool.query(
               `UPDATE public.scheduled_sessions
@@ -14324,7 +14504,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/parent/training-sessions", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).dbUser.id;
-      if (isEmergencyDbMode()) {
+      if (usesDirectProofSessionDatabase()) {
         const enrollmentResult = await pool.query(
           `SELECT id, assigned_tutor_id, status, student_full_name, student_grade, parent_email
              FROM public.parent_enrollments
@@ -14350,16 +14530,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const sessionValues: unknown[] = [String(userId), String(enrollment.assigned_tutor_id)];
         const studentFilter = studentId ? " AND student_id = $3::uuid" : "";
         if (studentId) sessionValues.push(studentId);
-        const sessionsResult = await pool.query(
-          `SELECT ${SCHEDULED_SESSION_SELECT}
-             FROM public.scheduled_sessions
-            WHERE parent_id = $1
-              AND tutor_id = $2
-              AND type = 'training'${studentFilter}
-            ORDER BY scheduled_time ASC
-            LIMIT 12`,
-          sessionValues,
-        );
+        const [currentSessionsResult, latestCompletedSessionResult] = await Promise.all([
+          pool.query(
+            `SELECT ${SCHEDULED_SESSION_SELECT}
+               FROM public.scheduled_sessions
+              WHERE parent_id = $1
+                AND tutor_id = $2
+                AND type = 'training'${studentFilter}
+                AND status NOT IN ('completed', 'flagged')
+                AND scheduled_time >= NOW() - INTERVAL '2 hours'
+              ORDER BY scheduled_time ASC`,
+            sessionValues,
+          ),
+          pool.query(
+            `SELECT ${SCHEDULED_SESSION_SELECT}
+               FROM public.scheduled_sessions
+              WHERE parent_id = $1
+                AND tutor_id = $2
+                AND type = 'training'${studentFilter}
+                AND status = 'completed'
+              ORDER BY scheduled_time DESC
+              LIMIT 1`,
+            sessionValues,
+          ),
+        ]);
+        const sessionRows = [
+          ...(currentSessionsResult.rows || []),
+          ...(latestCompletedSessionResult.rows || []),
+        ];
         const operationalMode = await getParentAssignedTutorOperationalMode(userId);
         const monthlyQuota = studentId
           ? await getMonthlySessionQuotaSnapshot({
@@ -14368,7 +14566,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               isSandboxContext: String(enrollment.parent_email || "").toLowerCase().startsWith("sandbox-parent-"),
             })
           : null;
-        const sessionsWithCancellation = await attachTrainingSessionCancellationContext(sessionsResult.rows);
+        const recentSessions = [...sessionRows].sort(
+          (left: any, right: any) =>
+            new Date(left.scheduled_time).getTime() - new Date(right.scheduled_time).getTime(),
+        );
+        const sessionsWithCancellation = await attachTrainingSessionCancellationContext(recentSessions);
         return res.json({
           operationalMode,
           sessionSchedulingEnabled: isFamilySchedulingMode(operationalMode),
@@ -14488,29 +14690,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         data = result.rows || [];
       } else {
-        let query = supabase
+        const currentTrainingSessionFloor = new Date(
+          Date.now() - 2 * 60 * 60 * 1000,
+        ).toISOString();
+        let currentQuery = supabase
           .from("scheduled_sessions")
           .select(SCHEDULED_SESSION_SELECT)
           .eq("parent_id", userId)
           .eq("type", "training")
-          .order("scheduled_time", { ascending: true })
-          .limit(12);
+          .not("status", "in", "(completed,flagged)")
+          .gte("scheduled_time", currentTrainingSessionFloor)
+          .order("scheduled_time", { ascending: true });
+        let latestCompletedQuery = supabase
+          .from("scheduled_sessions")
+          .select(SCHEDULED_SESSION_SELECT)
+          .eq("parent_id", userId)
+          .eq("type", "training")
+          .eq("status", "completed")
+          .order("scheduled_time", { ascending: false })
+          .limit(1);
 
         if (studentId) {
-          query = query.eq("student_id", studentId);
+          currentQuery = currentQuery.eq("student_id", studentId);
+          latestCompletedQuery = latestCompletedQuery.eq("student_id", studentId);
         } else {
-          query = query.eq("tutor_id", enrollment.assigned_tutor_id);
+          currentQuery = currentQuery.eq("tutor_id", enrollment.assigned_tutor_id);
+          latestCompletedQuery = latestCompletedQuery.eq("tutor_id", enrollment.assigned_tutor_id);
         }
 
-        const result = await query;
-        if (result.error) {
+        const [currentResult, latestCompletedResult] = await Promise.all([
+          currentQuery,
+          latestCompletedQuery,
+        ]);
+        if (currentResult.error || latestCompletedResult.error) {
           return res.status(500).json({ message: "Failed to fetch training sessions" });
         }
-        data = result.data || [];
+        data = [
+          ...(currentResult.data || []),
+          ...(latestCompletedResult.data || []),
+        ];
       }
 
+      const recentSessions = [...(data || [])].sort(
+        (left: any, right: any) =>
+          new Date(left.scheduled_time).getTime() - new Date(right.scheduled_time).getTime(),
+      );
       const sessionsWithArtifacts = await Promise.all(
-        (data || []).map(async (session: any) => {
+        recentSessions.map(async (session: any) => {
           if (!isEmergencyDbMode() && shouldReconcileSessionArtifacts(session)) {
             try {
               await reconcileArtifactsForScheduledSession(session);
@@ -14675,7 +14901,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let existingSessions: any[] = [];
-      if (isEmergencyDbMode()) {
+      if (usesDirectProofSessionDatabase()) {
         const existingResult = await pool.query(
           `SELECT ${SCHEDULED_SESSION_SELECT}
              FROM public.scheduled_sessions
@@ -14713,8 +14939,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         existingSessions = result.data || [];
       }
 
-      const existingTimes = new Set((existingSessions || []).map((session: any) => String(session.scheduled_time)));
-      const slotsToInsert = parsedSlots.filter((slot) => !existingTimes.has(slot.scheduledStart));
+      const normalizeScheduledInstant = (value: unknown) => {
+        const parsed = new Date(String(value || ""));
+        return Number.isNaN(parsed.getTime()) ? String(value || "") : parsed.toISOString();
+      };
+      const existingTimes = new Set(
+        (existingSessions || []).map((session: any) => normalizeScheduledInstant(session.scheduled_time)),
+      );
+      const slotsToInsert = parsedSlots.filter(
+        (slot) => !existingTimes.has(normalizeScheduledInstant(slot.scheduledStart)),
+      );
 
       if (slotsToInsert.length === 0) {
         return res.json({
@@ -14725,7 +14959,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let insertedSessions: any[] = [];
-      if (isEmergencyDbMode()) {
+      if (usesDirectProofSessionDatabase()) {
         const client = await pool.connect();
         try {
           await client.query("BEGIN");
@@ -15754,7 +15988,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!enrollment) return null;
     const tutorId = enrollment?.assigned_tutor_id;
 
-    if (isEmergencyDbMode()) {
+    if (usesDirectProofSessionDatabase()) {
       if (enrollment.assigned_student_id) {
         const assignedStudent = await storage.getStudent(enrollment.assigned_student_id);
         if (assignedStudent) return normalizeStudentRecord(assignedStudent);
@@ -16660,6 +16894,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .eq("tutor_id", tutorId)
         .in("student_id", studentIds);
 
+      const { data: sandboxSessionEvaluations } = await supabase
+        .from("specialist_sandbox_session_evaluations")
+        .select("id, student_id, session_number")
+        .eq("tutor_id", tutorId)
+        .in("student_id", studentIds);
+
       (drills || []).forEach((row: any) => {
         const id = String(row.student_id || "");
         if (!id) return;
@@ -16679,6 +16919,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (countedSessionKeys.has(seenKey)) return;
         countedSessionKeys.add(seenKey);
         drillCounts[id] += 1;
+      });
+
+      (sandboxSessionEvaluations || []).forEach((row: any) => {
+        const studentId = String(row?.student_id || "").trim();
+        const evaluationId = String(row?.id || "").trim();
+        if (!studentId || !evaluationId) return;
+        const seenKey = `${studentId}:sandbox-session:${evaluationId}`;
+        if (countedSessionKeys.has(seenKey)) return;
+        countedSessionKeys.add(seenKey);
+        drillCounts[studentId] = (drillCounts[studentId] || 0) + 1;
       });
     }
 
@@ -25204,60 +25454,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   app.get(
-    "/api/coo/tutors/:tutorId/sandbox-readiness",
+    "/api/td/tutors/:tutorId/sandbox-readiness",
     isAuthenticated,
-    requireRole(["coo"]),
+    requireRole(["td"]),
     async (req: Request, res: Response) => {
       try {
-        res.json(await getTutorSandboxReadiness(String(req.params.tutorId || "").trim()));
+        const tdId = (req as any).dbUser.id;
+        const tutorId = String(req.params.tutorId || "").trim();
+        const tutorIds = await getTDAccessibleTutorIds(tdId);
+        if (!tutorIds.has(tutorId)) {
+          return res.status(403).json({ message: "Unauthorized tutor access" });
+        }
+        res.json(await getTutorSandboxReadiness(tutorId));
       } catch (error) {
-        console.error("Error loading Sandbox Mock readiness:", error);
-        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to load Sandbox readiness" });
+        console.error("Error loading TD Sandbox readiness:", error);
+        res.status(500).json({
+          message: error instanceof Error ? error.message : "Failed to load Sandbox readiness",
+        });
       }
     },
   );
 
   app.post(
-    "/api/coo/tutors/:tutorId/sandbox-mock-assessment",
+    "/api/td/tutors/:tutorId/sandbox-readiness-assessment",
     isAuthenticated,
-    requireRole(["coo"]),
+    requireRole(["td"]),
     async (req: Request, res: Response) => {
       try {
+        const tdId = (req as any).dbUser.id;
         const tutorId = String(req.params.tutorId || "").trim();
+        const tutorIds = await getTDAccessibleTutorIds(tdId);
+        if (!tutorIds.has(tutorId)) {
+          return res.status(403).json({ message: "Unauthorized tutor access" });
+        }
+
         const before = await getTutorSandboxReadiness(tutorId);
         if (before.mode !== "sandbox") {
-          return res.status(409).json({ message: `Sandbox Mock requires Sandbox mode. Current lifecycle: ${before.mode}.` });
+          return res.status(409).json({
+            message: `Sandbox readiness can be assessed only in Sandbox. Current lifecycle: ${before.mode}.`,
+          });
         }
         if (!before.pathway?.timeline?.canContinue) {
           return res.status(409).json({
-            message: before.pathway?.timeline?.state === "extension_required"
-              ? "The 75-day pathway window has ended. Approve a documented extension before the Mock."
-              : "The Specialist Development Pathway is missing or has expired.",
+            message:
+              before.pathway?.timeline?.state === "extension_required"
+                ? "The 75-day pathway window has ended. COO approval is required for a documented extension before readiness can be signed off."
+                : "The Specialist Development Pathway is missing or has expired.",
           });
-        }
-        const prerequisiteBlockers = before.gate.blockers.filter(
-          (blocker: string) => !blocker.startsWith("The Sandbox Mock"),
-        );
-        if (prerequisiteBlockers.length > 0) {
-          return res.status(409).json({ message: prerequisiteBlockers.join(" ") });
         }
 
         const decision = String(req.body?.decision || "").trim();
         if (!(["passed", "remediation_required"] as string[]).includes(decision)) {
-          return res.status(400).json({ message: "Choose passed or remediation required." });
+          return res.status(400).json({ message: "Choose ready for Practicals or remediation required." });
         }
-        await recordSandboxMockAssessment({
+
+        if (
+          decision === "passed" &&
+          (
+            before.gate.preparationBlockers.length > 0 ||
+            before.capabilityReadiness.practicalsReady !== true
+          )
+        ) {
+          const blockers = [
+            ...before.gate.preparationBlockers,
+            ...(before.capabilityReadiness.practicalsReady
+              ? []
+              : [before.capabilityReadiness.reason]),
+          ];
+          return res.status(409).json({ message: blockers.join(" ") });
+        }
+
+        await recordSandboxReadinessAssessment({
           tutorId,
           tutorAssignmentId: before.tutorAssignmentId,
           decision: decision as "passed" | "remediation_required",
-          checklist: req.body?.checklist,
           evidenceNote: String(req.body?.evidenceNote || ""),
-          assessedByUserId: (req as any).dbUser.id,
+          assessedByUserId: tdId,
+          capabilitySnapshot: before.capabilityReadiness as Record<string, unknown>,
         });
+
         res.json(await getTutorSandboxReadiness(tutorId));
       } catch (error) {
-        console.error("Error recording Sandbox Mock assessment:", error);
-        res.status(409).json({ message: error instanceof Error ? error.message : "Failed to record Sandbox Mock assessment" });
+        console.error("Error recording TD Sandbox readiness assessment:", error);
+        res.status(409).json({
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to record Sandbox readiness assessment",
+        });
       }
     },
   );

@@ -32,6 +32,13 @@ import {
   liveTrainingInstruction,
   type LivePhaseLabel,
 } from "@/components/tutor/TrainingLiveDeliveryUi";
+import { ResponseSnapshotCard } from "@/components/tutor/ResponseSnapshotCard";
+import type { ResponseSnapshotV1 } from "@shared/responseSnapshot";
+import {
+  NEXT_ACTION_ENGINE,
+  type TopicPhase,
+  type TopicStability,
+} from "@shared/topicConditioningEngine";
 
 type EvidenceStatus = "observed" | "not_observed" | "confounded";
 type InterventionEvent =
@@ -152,6 +159,7 @@ type EnvironmentForm = {
     };
     authorityAligned: boolean;
     stateTrackAligned: boolean;
+    responseSnapshot: ResponseSnapshotV1;
   };
   rediagnosisRunId?: string;
   sequenceNumber?: number;
@@ -244,6 +252,15 @@ type RepResult = {
     authorityAligned: boolean;
     stateTrackAligned: boolean;
   };
+  responseSnapshot: ResponseSnapshotV1 | null;
+  completedScheduledSession: null | {
+    id: string;
+    status: "completed";
+    completedAt: string;
+    parentId: string;
+    enrollmentId: string | null;
+  };
+  nextEnvironment: EnvironmentForm;
   readiness: Readiness;
 };
 
@@ -399,6 +416,8 @@ export default function SpecialistSandboxSimulation({
     requestedSandboxSessionNumberRaw > 0
       ? requestedSandboxSessionNumberRaw
       : null;
+  const scheduledSessionId = String(searchParams.get("scheduledSessionId") || "").trim();
+  const routeTopic = String(searchParams.get("topic") || "").trim() || "Sandbox practice";
 
   useEffect(() => {
     setSelections({});
@@ -414,13 +433,17 @@ export default function SpecialistSandboxSimulation({
     setShowEvidenceExceptions(false);
   }, [studentId]);
 
+  const environmentQueryKey = [
+    "sandbox-environment",
+    tutorAssignmentId,
+    studentId,
+    requestedSandboxSessionNumber,
+    scheduledSessionId,
+    routeTopic,
+  ] as const;
+
   const environmentQuery = useQuery<EnvironmentForm>({
-    queryKey: [
-      "sandbox-environment",
-      tutorAssignmentId,
-      studentId,
-      requestedSandboxSessionNumber,
-    ],
+    queryKey: environmentQueryKey,
     enabled: Boolean(tutorAssignmentId && studentId && inSandbox),
     retry: false,
     staleTime: 0,
@@ -430,7 +453,7 @@ export default function SpecialistSandboxSimulation({
         : "";
       const response = await apiRequest(
         "GET",
-        `/api/tutor/sandbox-environment?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}&studentId=${encodeURIComponent(studentId)}${requestedSessionQuery}`,
+        `/api/tutor/sandbox-environment?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}&studentId=${encodeURIComponent(studentId)}${requestedSessionQuery}${scheduledSessionId ? `&scheduledSessionId=${encodeURIComponent(scheduledSessionId)}` : ""}&topic=${encodeURIComponent(routeTopic)}`,
       );
       return response.json();
     },
@@ -607,6 +630,8 @@ export default function SpecialistSandboxSimulation({
           trajectoryId: form.trajectoryId,
           eventSequence: form.eventSequence,
           eventFormId: form.eventFormId,
+          ...(scheduledSessionId ? { scheduledSessionId } : {}),
+          topic: routeTopic,
           submission: {
             interventionEvent,
             ...(requiresPrerequisiteSentinel && prerequisiteSentinel
@@ -630,6 +655,10 @@ export default function SpecialistSandboxSimulation({
       return response.json() as Promise<RepResult>;
     },
     onSuccess: async (result) => {
+      queryClient.setQueryData<EnvironmentForm>(
+        environmentQueryKey,
+        result.nextEnvironment,
+      );
       setLastResult(result);
       setSelections({});
       setInterventionEvent("none");
@@ -645,6 +674,11 @@ export default function SpecialistSandboxSimulation({
         queryClient.invalidateQueries({
           queryKey: ["sandbox-environment-history", tutorAssignmentId, studentId],
         }),
+        queryClient.invalidateQueries({ queryKey: ["/api/tutor/pod"] }),
+        queryClient.invalidateQueries({
+          queryKey: [`/api/tutor/students/${studentId}/training-sessions`],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["/api/tutor/sessions"] }),
       ]);
     },
   });
@@ -736,25 +770,7 @@ export default function SpecialistSandboxSimulation({
   }
 
   const readiness = form.readiness;
-  const routeTopic = String(searchParams.get("topic") || "").trim() || "Sandbox practice";
 
-  const startNextSandboxSession = () => {
-    if (
-      form.status !== "session_complete" ||
-      !form.completedSession?.nextSessionNumber
-    ) {
-      return;
-    }
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set(
-      "sandboxSession",
-      String(form.completedSession.nextSessionNumber),
-    );
-    setLastResult(null);
-    setSelections({});
-    setRepStarted(false);
-    setSearchParams(nextParams, { replace: true });
-  };
   const prescribedPhase = (
     ["Clarity", "Structured Execution", "Controlled Discomfort", "Time Pressure Stability"].includes(
       form.prescribedPhase,
@@ -764,63 +780,109 @@ export default function SpecialistSandboxSimulation({
   ) as LivePhaseLabel;
 
   if (form.status === "session_complete" && form.completedSession) {
+    const snapshot = form.completedSession.responseSnapshot;
+    const authority = form.completedSession.specialistAuthority;
+    const phaseBefore =
+      snapshot.engineOutcomeRef.phaseBefore || form.completedSession.completedPhase;
+    const stabilityBefore = snapshot.engineOutcomeRef.stabilityBefore;
+    const phaseAfter =
+      (snapshot.engineOutcomeRef.phaseAfter || authority?.nextPhase || null) as TopicPhase | null;
+    const stabilityAfter =
+      (snapshot.engineOutcomeRef.stabilityAfter || authority?.nextStability || null) as TopicStability | null;
+    const transitionReason = String(
+      snapshot.engineOutcomeRef.transitionReason || authority?.transitionReason || "remain",
+    ).toLowerCase();
+    const nextActionData =
+      phaseAfter && stabilityAfter ? NEXT_ACTION_ENGINE[phaseAfter]?.[stabilityAfter] : null;
+    const enteredMaintenanceCheckpoint =
+      (transitionReason === "high maintenance entry" ||
+        transitionReason === "stability advance") &&
+      phaseBefore === phaseAfter &&
+      stabilityBefore === "High" &&
+      stabilityAfter === "High Maintenance";
+    const nextFocusLabel = enteredMaintenanceCheckpoint
+      ? "Immediate Next Drill"
+      : "Next Session Focus";
+    const nextFocus = enteredMaintenanceCheckpoint
+      ? nextActionData?.nextActions?.[0] ||
+        nextActionData?.primaryAction ||
+        "Not recorded"
+      : nextActionData?.primaryAction || "Not recorded";
+    const nextConstraint = nextActionData?.rules?.[0] || null;
+    const formatState = (phase?: string | null, stability?: string | null) =>
+      phase && stability ? `${phase} · ${stability}` : phase || stability || "Not recorded";
+    const sessionResult =
+      phaseAfter && stabilityAfter
+        ? transitionReason === "stability advance"
+          ? `${routeTopic}: stability improved to ${stabilityAfter} in ${phaseAfter}`
+          : transitionReason === "stability regress"
+            ? `${routeTopic}: stability regressed to ${stabilityAfter} in ${phaseAfter}`
+            : transitionReason === "phase progress"
+              ? `${routeTopic}: phase advanced to ${phaseAfter} at ${stabilityAfter} stability`
+              : `${routeTopic}: stability held at ${stabilityAfter} in ${phaseAfter}`
+        : `${routeTopic}: session evidence recorded`;
     return (
       <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
         <div>
-          <h2 className="text-xl font-bold sm:text-2xl">Sandbox session complete</h2>
+          <h2 className="text-xl font-bold sm:text-2xl">Training session complete</h2>
           <p className="mt-3 text-sm">
-            <span className="font-semibold">Diagnostic Topic:</span> {routeTopic}
+            <span className="font-semibold">Topic:</span> {routeTopic}
           </p>
-          <p className="mt-4 text-muted-foreground">{form.sandboxStudent.name}</p>
+          <p className="mt-2 text-muted-foreground">{form.sandboxStudent.name}</p>
+          <Badge variant="outline" className="mt-2">Sandbox</Badge>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              Session {form.completedSession.completedSessionNumber} complete
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Alert>
-              <CheckCircle2 className="h-4 w-4" />
-              <AlertDescription>
-                All opportunities in this Sandbox session were recorded. The simulated
-                student's trajectory has been carried forward, but the next session has
-                not started.
-              </AlertDescription>
-            </Alert>
-            <div className="grid gap-2 text-sm sm:grid-cols-2">
-              <div className="rounded-lg border p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Completed phase
+        <ResponseSnapshotCard snapshot={snapshot} />
+
+        {authority && (
+          <div className="overflow-hidden rounded-xl border border-primary/15 bg-background">
+            <div className="bg-primary/5 px-4 py-2">
+              <span className="text-sm font-semibold">System Direction</span>
+            </div>
+            <div className="space-y-3 px-4 py-3 text-sm">
+              <div>
+                <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  This Session Result
                 </p>
-                <p className="mt-1 font-semibold">
-                  {form.completedSession.completedPhase}
+                <p className="font-semibold text-foreground">
+                  {sessionResult}
                 </p>
               </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Next Sandbox session
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Before</span>
+                <span className="font-medium">
+                  {formatState(phaseBefore, stabilityBefore)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Now</span>
+                <span className="font-medium">
+                  {formatState(phaseAfter, stabilityAfter)}
+                </span>
+              </div>
+              <div className="border-t pt-2">
+                <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {nextFocusLabel}
                 </p>
-                <p className="mt-1 font-semibold">
-                  Session {form.completedSession.nextSessionNumber}
-                </p>
+                <p className="font-semibold text-blue-700">{nextFocus}</p>
+                {nextConstraint && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Constraint: {nextConstraint}
+                  </p>
+                )}
               </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Starting the next session is deliberate. It will continue with this same
-              stateful Sandbox student from the carried-forward RI state.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={startNextSandboxSession}>
-                Start Sandbox session {form.completedSession.nextSessionNumber}
-              </Button>
-              <Button variant="outline" onClick={() => navigate("/specialist/pod")}>
-                Return to Pod
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => navigate("/specialist/pod")}>
+            Return to Pod
+          </Button>
+          <p className="w-full text-xs text-muted-foreground">
+            The next Sandbox session starts from the next confirmed weekly lesson.
+          </p>
+        </div>
       </div>
     );
   }
@@ -1227,47 +1289,6 @@ export default function SpecialistSandboxSimulation({
           </>
         ) : null}
 
-        <details className="rounded-xl border border-primary/15 bg-background">
-          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
-            Sandbox evidence & trajectory
-          </summary>
-          <div className="space-y-4 border-t border-primary/10 p-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Capability evidence
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {readiness.earliestUnsupportedCapability
-                  ? `Current evidence focus: ${CAPABILITY_LABELS[readiness.earliestUnsupportedCapability]}`
-                  : "All currently evaluated capability layers are supported."}
-              </p>
-              {readiness.policyAvailable && (
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {readiness.layers.map((layer) => (
-                    <div key={layer.layer} className="rounded-lg border p-3">
-                      <p className="text-sm font-medium">
-                        {CAPABILITY_LABELS[layer.layer]}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {humanize(layer.state)} · {layer.validOpportunityCount}/
-                        {layer.minimumValidOpportunities} valid opportunities
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Trajectory record
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {historyQuery.data?.trajectory.completedRepCount || 0} Sandbox reps recorded on
-                this persistent trajectory.
-              </p>
-            </div>
-          </div>
-        </details>
       </div>
     );
   }

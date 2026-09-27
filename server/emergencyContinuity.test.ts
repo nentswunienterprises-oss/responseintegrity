@@ -1105,6 +1105,122 @@ test("emergency assignment acceptance advances the enrollment on the direct DB p
   assert.match(routeSource, /RETURNING id, user_id, status, current_step, assigned_tutor_id/);
 });
 
+test("weekly scheduling dedupe normalizes database timestamps before comparing slots", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const scheduleStart = routesSource.indexOf(
+    'app.post("/api/parent/training-sessions/schedule-week"',
+  );
+  const scheduleEnd = routesSource.indexOf(
+    'app.post("/api/parent/training-sessions/respond"',
+    scheduleStart,
+  );
+  const scheduleSource = routesSource.slice(scheduleStart, scheduleEnd);
+
+  assert.match(
+    scheduleSource,
+    /const normalizeScheduledInstant = \(value: unknown\) => \{/,
+  );
+  assert.match(
+    scheduleSource,
+    /new Date\(String\(value \|\| ""\)\)/,
+  );
+  assert.match(
+    scheduleSource,
+    /normalizeScheduledInstant\(session\.scheduled_time\)/,
+  );
+  assert.match(
+    scheduleSource,
+    /normalizeScheduledInstant\(slot\.scheduledStart\)/,
+  );
+});
+
+test("training session reads preserve current authority before bounded history", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+
+  const parentGetStart = routesSource.indexOf('app.get("/api/parent/training-sessions"');
+  const parentScheduleStart = routesSource.indexOf(
+    'app.post("/api/parent/training-sessions/schedule-week"',
+    parentGetStart,
+  );
+  const parentSource = routesSource.slice(parentGetStart, parentScheduleStart);
+  assert.match(
+    parentSource,
+    /status NOT IN \('completed', 'flagged'\)[\s\S]*scheduled_time >= NOW\(\) - INTERVAL '2 hours'/,
+  );
+  assert.match(
+    parentSource,
+    /status = 'completed'[\s\S]*ORDER BY scheduled_time DESC[\s\S]*LIMIT 1/,
+  );
+  assert.match(
+    parentSource,
+    /\.not\("status", "in", "\(completed,flagged\)"\)[\s\S]*\.gte\("scheduled_time", currentTrainingSessionFloor\)/,
+  );
+  assert.match(
+    parentSource,
+    /\.eq\("status", "completed"\)[\s\S]*\.limit\(1\)/,
+  );
+
+  const tutorGetStart = routesSource.indexOf(
+    '"/api/tutor/students/:studentId/training-sessions"',
+  );
+  const tutorPostStart = routesSource.indexOf(
+    '"/api/tutor/students/:studentId/training-sessions",',
+    tutorGetStart + 10,
+  );
+  const tutorSource = routesSource.slice(tutorGetStart, tutorPostStart);
+  assert.match(
+    tutorSource,
+    /status NOT IN \('completed', 'flagged'\)[\s\S]*scheduled_time >= NOW\(\) - INTERVAL '2 hours'/,
+  );
+  assert.match(
+    tutorSource,
+    /status = 'completed'[\s\S]*ORDER BY scheduled_time DESC[\s\S]*LIMIT 1/,
+  );
+  assert.match(
+    tutorSource,
+    /\.not\("status", "in", "\(completed,flagged\)"\)[\s\S]*\.gte\("scheduled_time", currentTrainingSessionFloor\)/,
+  );
+  assert.match(
+    tutorSource,
+    /\.eq\("status", "completed"\)[\s\S]*\.limit\(1\)/,
+  );
+});
+test("preview training sessions use the direct Proof database without enabling emergency auth", () => {
+  const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const emergencyModeSource = readFileSync(resolve(process.cwd(), "server/emergencyMode.ts"), "utf8");
+
+  assert.match(
+    routesSource,
+    /function usesDirectProofSessionDatabase\(\) \{[\s\S]*?isEmergencyDbMode\(\) \|\| process\.env\.VERCEL_ENV === "preview"/,
+  );
+  assert.match(
+    emergencyModeSource,
+    /if \(process\.env\.VERCEL_ENV === "preview"\) \{[\s\S]*?return false;/,
+  );
+
+  const parentScheduleStart = routesSource.indexOf(
+    'app.post("/api/parent/training-sessions/schedule-week"',
+  );
+  const parentRespondStart = routesSource.indexOf(
+    'app.post("/api/parent/training-sessions/respond"',
+    parentScheduleStart,
+  );
+  const parentScheduleSource = routesSource.slice(parentScheduleStart, parentRespondStart);
+  assert.match(parentScheduleSource, /usesDirectProofSessionDatabase\(\)/);
+  assert.match(parentScheduleSource, /INSERT INTO public\.scheduled_sessions/);
+
+  const parentGetStart = routesSource.indexOf('app.get("/api/parent/training-sessions"');
+  const parentGetSource = routesSource.slice(parentGetStart, parentScheduleStart);
+  assert.match(parentGetSource, /usesDirectProofSessionDatabase\(\)/);
+  assert.match(parentGetSource, /FROM public\.scheduled_sessions/);
+
+  const weeklyStart = routesSource.indexOf('"/api/tutor/weekly-schedule"');
+  const weeklyEnd = routesSource.indexOf('"/api/tutor/scheduled-sessions/:sessionId/log"', weeklyStart);
+  const weeklySource = routesSource.slice(weeklyStart, weeklyEnd);
+  assert.match(weeklySource, /usesDirectProofSessionDatabase\(\)/);
+  assert.match(weeklySource, /FROM public\.scheduled_sessions/);
+});
+
 test("emergency weekly training scheduling and Specialist confirmation stay on direct PostgreSQL", () => {
   const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
 
@@ -1160,6 +1276,70 @@ test("parent intro proposal uses direct PostgreSQL in emergency mode", () => {
   assert.match(routeSource, /INSERT INTO public\.scheduled_sessions/);
   assert.match(routeSource, /UPDATE public\.parent_enrollments[\s\S]*?intro_session_booked/);
   assert.match(routeSource, /return res\.status\(200\)\.json/);
+});
+
+test("diagnosis semantics separate the booked session container from the activity", () => {
+  const diagnosisSource = readFileSync(
+    resolve(process.cwd(), "server/evidenceCompleteDiagnosisRoutes.ts"),
+    "utf8",
+  );
+  const migrationSource = readFileSync(
+    resolve(process.cwd(), "migrations/20260927_diagnosis_activity_context_separation.sql"),
+    "utf8",
+  );
+
+  assert.match(
+    diagnosisSource,
+    /sessionContainer: "scheduled_training_session"[\s\S]*activityKind: "targeted_rediagnosis"/,
+  );
+  assert.match(
+    diagnosisSource,
+    /sessionContainer: diagnosisSemanticsForSessionKind\(input\.sessionKind\)\.sessionContainer/,
+  );
+  assert.match(
+    diagnosisSource,
+    /activityKind: diagnosisSemanticsForSessionKind\(input\.sessionKind\)\.activityKind/,
+  );
+  assert.match(
+    migrationSource,
+    /WHEN 'active_training' THEN 'scheduled_training_session'/,
+  );
+  assert.match(
+    migrationSource,
+    /WHEN 'active_training' THEN 'targeted_rediagnosis'/,
+  );
+  assert.match(
+    migrationSource,
+    /Do not interpret as activity type\. Use session_container \+ activity_kind\./,
+  );
+});
+
+test("completed active-training re-diagnosis retires its scheduled lesson", () => {
+  const diagnosisSource = readFileSync(
+    resolve(process.cwd(), "server/evidenceCompleteDiagnosisRoutes.ts"),
+    "utf8",
+  );
+
+  assert.match(
+    diagnosisSource,
+    /async function completeScheduledTrainingSessionAfterDiagnosis/,
+  );
+  assert.match(
+    diagnosisSource,
+    /SET status = 'completed'[\s\S]*attendance_status = 'both_joined'[\s\S]*type = 'training'/,
+  );
+  assert.match(
+    diagnosisSource,
+    /existingRun\.session_context === "active_training"[\s\S]*completeScheduledTrainingSessionAfterDiagnosis/,
+  );
+  assert.match(
+    diagnosisSource,
+    /sessionResult\.sessionKind === "training"[\s\S]*completeScheduledTrainingSessionAfterDiagnosis/,
+  );
+  assert.match(
+    diagnosisSource,
+    /Completed re-diagnosis could not retire its scheduled training session/,
+  );
 });
 
 test("proposal surfaces ignore partial evidence-native diagnosis artifacts", () => {
@@ -1325,3 +1505,16 @@ test("emergency quota uses text-normalized IDs across mixed legacy column types"
   assert.doesNotMatch(emergencyQuotaSource, /(?:s|r|d)\.student_id = \$2\b/);
 });
 
+
+test("local server preloads environment before database-dependent imports", () => {
+  const indexSource = readFileSync(resolve(process.cwd(), "server/index.ts"), "utf8");
+  const envSource = readFileSync(resolve(process.cwd(), "server/loadEnv.ts"), "utf8");
+
+  const preloadIndex = indexSource.indexOf('import "./loadEnv"');
+  const routesIndex = indexSource.indexOf('import { registerRoutes }');
+  assert.ok(preloadIndex >= 0);
+  assert.ok(routesIndex > preloadIndex);
+
+  assert.match(envSource, /dotenv\.config\(\{ path: "\.env\.local" \}\)/);
+  assert.match(envSource, /dotenv\.config\(\)/);
+});

@@ -564,7 +564,7 @@ export default function ParentSessions() {
   const replacementRequiredCancelledSessions = futureCancelledSessions.filter(
     (session) => session.cancellation?.disposition === "replacement_required",
   );
-  const visibleSessions = [...actionableSessions, ...futureCancelledSessions].sort(
+  const visibleSessions = [...actionableSessions, ...replacementRequiredCancelledSessions].sort(
     (a, b) => new Date(a.scheduled_time).getTime() - new Date(b.scheduled_time).getTime(),
   );
   const canScheduleNewWeek =
