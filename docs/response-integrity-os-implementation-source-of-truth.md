@@ -600,6 +600,8 @@ The Specialist-facing Snapshot does **not** render numeric delivery totals, per-
 
 Rep narration is opportunity-local. A single rep may state only what that opportunity itself showed. It must not claim that a behavior was repeatable, consistent, confirmed across the set, or otherwise established across multiple opportunities merely because that rep was successful. Repeatability and consistency are set-level inferences that require the ordered evidence pattern across comparable reps. A strong final rep after earlier conditional or breakdown evidence is recovery evidence, not proof that the behavior was repeatable.
 
+Rep narration is also evidence-complete. Every decision-eligible observed dimension recorded for that rep must remain represented in the prose or in an explicit semantically equivalent grouped clause. Purpose-specific phrasing may combine dimensions for readability, but it must not silently omit a supported, near-stable, conditional, or breakdown dimension. For example, if Identification records supported Vocabulary, Method, and Reason, the narrative must describe the reason evidence as well as recognition and method selection.
+
 Clarity Modeling remains visible as instructional preparation rather than student evidence:
 
 > Modeling completed as preparation. No student observation evidence was recorded for this set.
