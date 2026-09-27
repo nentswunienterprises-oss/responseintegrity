@@ -88,7 +88,6 @@ export function ResponseSnapshotCard({ snapshot }: { snapshot: ResponseSnapshotV
         )}
         <div className="space-y-2 border-t pt-1">
           {view.sets.map((set) => {
-            const setEvidence = set.reps.flatMap((rep) => rep.evidence);
             return (
               <div
                 key={set.setId}
@@ -96,9 +95,6 @@ export function ResponseSnapshotCard({ snapshot }: { snapshot: ResponseSnapshotV
               >
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <p className="font-semibold text-foreground">{set.setName}</p>
-                  <p className="text-xs font-semibold text-muted-foreground">
-                    {set.reps.length ? summarizeSnapshotEvidenceMix(setEvidence) : "Instructional set"}
-                  </p>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {formatSnapshotPurposeText(set.purposeText)}
