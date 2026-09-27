@@ -125,6 +125,17 @@ test("completed Sandbox training uses the live Response Snapshot completion cont
   assert.match(sandboxRouteSource, /req\.query\.sessionNumber/);
 });
 
+test("a newly confirmed Sandbox lesson overrides the previous completion boundary", () => {
+  assert.match(
+    sandboxEnvironmentSource,
+    /const hasActiveBoundScheduledLesson =[\s\S]*\["confirmed", "ready", "live"\]\.includes/,
+  );
+  assert.match(
+    sandboxEnvironmentSource,
+    /completedBoundary[\s\S]*!requestedCurrentSession[\s\S]*!hasActiveBoundScheduledLesson/,
+  );
+});
+
 test("Sandbox completion is bound to the exact confirmed scheduled lesson", () => {
   assert.match(sandboxRunnerSource, /searchParams\.get\("scheduledSessionId"\)/);
   assert.match(
