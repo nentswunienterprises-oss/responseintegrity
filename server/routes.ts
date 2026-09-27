@@ -12392,7 +12392,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       ...(proposalState || {}),
                       topic:
                         proposalState?.topic ||
-                        splitReportedTopics(String(parentEnrollment?.reported_topics || ""))[0] ||
+                        buildReportedTopics(
+                          parentEnrollment?.topic_response_symptoms,
+                          parentEnrollment?.reported_topics,
+                          parentEnrollment?.topic_recommended_starting_phases,
+                        )[0] ||
                         null,
                       entry_phase: String(sandboxState.specialist_phase || proposalState?.entry_phase || "").trim() || null,
                       stability: String(sandboxState.specialist_stability || proposalState?.stability || "").trim() || null,
