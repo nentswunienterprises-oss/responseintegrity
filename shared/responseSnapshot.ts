@@ -1233,7 +1233,11 @@ const describeSetBehaviorPattern = (group: SetBehaviorPatternGroup) => {
     (run) =>
       `${behaviorStatePhrase(run.evidenceClass, plural)} on ${repReference(run.repNumbers)}`,
   );
-  const trajectory = `${subject} ${naturalJoin(clauses)}.`;
+  const trajectoryText =
+    clauses.length === 2
+      ? `${clauses[0]}, then ${clauses[1]}`
+      : `${clauses.slice(0, -1).join(", ")}, then ${clauses[clauses.length - 1]}`;
+  const trajectory = `${subject} ${trajectoryText}.`;
 
   const lastRun = runs[runs.length - 1];
   const earlierRuns = runs.slice(0, -1);
