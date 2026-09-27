@@ -565,7 +565,7 @@ test("Identification recovery prose uses complete sentences and natural punctuat
   );
   assert.equal(
     snapshot.sets[0].resultText,
-    "Breakdown evidence appeared on rep 2 in vocabulary, method, and reason. Conditional evidence remained on rep 1 in vocabulary, method, and reason. Supported evidence was recorded on rep 3 in vocabulary, method, and reason.",
+    "Vocabulary recognition, method selection, and reasoning were present but unreliable on rep 1, broke down on rep 2, then held cleanly on rep 3. The final rep showed recovery, but that clean response was not repeated within the set.",
   );
   [rep1, rep2, rep3].forEach((text) => {
     assert.doesNotMatch(text, /, and selected/i);
@@ -636,9 +636,14 @@ test("a successful final Identification rep does not manufacture repeatability a
     finalRep.repPurposeText,
     /repeatable|confirmed across|rather than isolated/i,
   );
-  assert.match(snapshot.sets[0].resultText, /breakdown evidence/i);
-  assert.match(snapshot.sets[0].resultText, /conditional evidence/i);
-  assert.match(snapshot.sets[0].resultText, /supported evidence/i);
+  assert.match(snapshot.sets[0].resultText, /present but unreliable on rep 1/i);
+  assert.match(snapshot.sets[0].resultText, /broke down on rep 2/i);
+  assert.match(snapshot.sets[0].resultText, /held cleanly on rep 3/i);
+  assert.match(snapshot.sets[0].resultText, /final rep showed recovery/i);
+  assert.doesNotMatch(
+    snapshot.sets[0].resultText,
+    /supported evidence|conditional evidence|near-stable evidence|breakdown evidence/i,
+  );
 });
 
 test("single rep narratives never claim cross-rep repeatability from that rep alone", () => {
@@ -853,7 +858,12 @@ test("clarity light-apply narrative states what happened instead of repeating th
     summarizeSnapshotEvidenceMix(snapshot.sets[0].reps[0].evidence),
     "3 supported · 1 near-stable",
   );
-  assert.match(snapshot.sets[0].resultText, /Near-stable evidence remained/i);
+  assert.match(snapshot.sets[0].resultText, /held cleanly across reps 1, 2, and 3/i);
+  assert.match(snapshot.sets[0].resultText, /reasoning was mostly intact with a small gap across reps 1, 2, and 3/i);
+  assert.doesNotMatch(
+    snapshot.sets[0].resultText,
+    /supported evidence|conditional evidence|near-stable evidence|breakdown evidence/i,
+  );
   assert.match(snapshot.drill.resultText, /near-stable evidence/i);
 });
 
@@ -993,6 +1003,64 @@ test("rep narratives remain natural across every phase, drill mode, set, rep, an
   });
 
   assert.equal(checked, 195, "Expected every scored rep across training, diagnosis, and verification schemas");
+});
+
+test("set summaries describe student behavior rather than evidence taxonomy across every phase and drill mode", () => {
+  const phases: TopicPhase[] = [
+    "Clarity",
+    "Structured Execution",
+    "Controlled Discomfort",
+    "Time Pressure Stability",
+  ];
+  const modes: EvidenceDrillMode[] = ["training", "diagnosis", "verification"];
+  const forbiddenEvidenceTaxonomy =
+    /supported evidence|conditional evidence|near-stable evidence|breakdown evidence/i;
+  let checked = 0;
+
+  modes.forEach((mode) => {
+    phases.forEach((phase) => {
+      const schema = getDrillSchemaDefinition(mode, phase);
+      schema.sets
+        .filter((set) => !set.modelingOnly && set.fields.length > 0)
+        .forEach((set) => {
+          const submittedSet = buildSubmittedSet({
+            mode,
+            phase,
+            setName: set.setName,
+            rawByRep: Array.from({ length: set.reps }, (_, repIndex) =>
+              rawOptionsForMixedRepLevels({
+                mode,
+                phase,
+                setName: set.setName,
+                repIndex,
+                levels:
+                  repIndex === 0
+                    ? ["partial", "clear"]
+                    : repIndex === set.reps - 1
+                      ? ["clear"]
+                      : ["weak", "partial"],
+              }),
+            ),
+          });
+          const snapshot = buildResponseSnapshotV1({
+            sourceDrillId: `behavior-first-set-${mode}-${phase}-${set.setId}`,
+            topic: "Algebra",
+            mode,
+            phase,
+            sets: [submittedSet],
+          });
+
+          assert.doesNotMatch(snapshot.sets[0].resultText, forbiddenEvidenceTaxonomy);
+          assert.match(
+            snapshot.sets[0].resultText,
+            /held cleanly|mostly intact|present but unreliable|broke down/i,
+          );
+          checked += 1;
+        });
+    });
+  });
+
+  assert.ok(checked >= 20, `Expected broad behavior-first set coverage, checked ${checked}`);
 });
 
 test("mixed evidence combinations stay natural across every phase and drill mode", () => {
