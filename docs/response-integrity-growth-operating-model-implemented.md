@@ -489,9 +489,11 @@ For each major transition, define required conditions and machine-readable failu
 
 Examples:
 
-- Training -> Sandbox requires: docs complete, transformation module complete, no critical fail lock
-- Sandbox -> Trial requires: transformation complete, session infrastructure complete, six sandbox accounts, passed Sandbox Mock Gate, no active fail health
-- Trial -> Certified Live requires: exactly two distinct Trial families, nine qualifying sessions per family inside the approved Trial window, required logs and reports, feedback received or declined, positive COO outcome reviews, no active Trial risk, and explicit COO approval
+- Training -> Sandbox requires: docs complete, required Training Deep Dive authority, and no critical fail lock
+- Sandbox -> Practicals readiness requires: preparation gates clear, every ordered Sandbox capability layer supported, required phase breadth and longitudinal proof present, approved capability policy, and explicit assigned-TD sign-off
+- Practicals -> Trial requires: the governed Practicals completion/transition contract; Sandbox or Battle Testing cannot skip this stage
+- Trial -> Certification requires: exactly two distinct Trial families, nine qualifying sessions per family, required logs and reports, feedback received or declined, positive governed outcome reviews, and no active Trial risk
+- Certification -> Certified Live requires: explicit COO approval
 - Certified Live -> Pod Assignment requires: mode is certified_live, health not fail, assignment-cap rules satisfied
 
 ### Tweak 3: Introduce a single Validation Gate object
