@@ -9,9 +9,11 @@ import {
 } from "./responseIntegrityDrillRegistry";
 import {
   buildResponseSnapshotV1,
+  formatSnapshotEvidenceClassLabel,
   formatSnapshotPurposeText,
   formatSnapshotRepResult,
   formatSnapshotResultText,
+  summarizeSnapshotEvidenceMix,
   summarizeSnapshotObservedResponse,
 } from "./responseSnapshot";
 import type { TopicPhase } from "./topicConditioningEngine";
@@ -366,6 +368,14 @@ test("response snapshot keeps weak evidence visible inside a strong rep", () => 
     true,
   );
   assert.equal(firstRep.responseLabel, "Strong response");
+  const conditionEvidence = firstRep.evidence.find(
+    (item) =>
+      item.dimensionId ===
+      "condition.required_structure.step_plan_accuracy",
+  );
+  assert.equal(conditionEvidence?.decisionEligible, false);
+  assert.equal(formatSnapshotEvidenceClassLabel(conditionEvidence!), "Condition check");
+  assert.doesNotMatch(summarizeSnapshotEvidenceMix(firstRep.evidence), /condition/i);
   assert.match(firstRep.resultText, /This rep checked whether/);
   assert.match(firstRep.resultText, /depended on external carrying/i);
   assert.doesNotMatch(snapshot.sets[0].resultText, /Require stated step order before solving\. Require stated step order before solving\./);
@@ -517,12 +527,23 @@ test("clarity light-apply narrative states what happened instead of repeating th
 
   assert.equal(
     snapshot.sets[0].reps[0].resultText,
-    "This rep checked whether the student's clarity would carry into the first light solving attempt. The first light solving attempt kept the vocabulary and method intact. One part remained incomplete: the causal logic was substantially correct but still had a small decision-relevant gap.",
+    "This rep checked whether the student's clarity would carry into the first light solving attempt. The first light solving attempt kept the vocabulary and method intact. One part was near-stable: the causal logic was substantially correct but still had a small decision-relevant gap.",
   );
   assert.doesNotMatch(
     snapshot.sets[0].reps[0].resultText,
     /produced a (?:strong|partial|weak) response|showed evidence that|remaining logged observation/i,
   );
+  const reasonEvidence = snapshot.sets[0].reps[0].evidence.find(
+    (item) => item.dimensionId === "clarity.reason",
+  );
+  assert.equal(reasonEvidence?.evidenceClass, "near_stable");
+  assert.equal(formatSnapshotEvidenceClassLabel(reasonEvidence!), "Near-stable");
+  assert.equal(
+    summarizeSnapshotEvidenceMix(snapshot.sets[0].reps[0].evidence),
+    "3 supported · 1 near-stable",
+  );
+  assert.match(snapshot.sets[0].resultText, /Near-stable evidence remained/i);
+  assert.match(snapshot.drill.resultText, /near-stable evidence/i);
 });
 
 test("rep narratives remain natural across every phase, drill mode, set, rep, and response level", () => {
@@ -652,6 +673,53 @@ test("mixed evidence combinations stay natural across every phase and drill mode
   assert.ok(checked >= 250, `Expected broad mixed-evidence coverage, checked ${checked}`);
 });
 
+test("conditional and near-stable remain distinct in Response Snapshot evidence", () => {
+  const submittedSet = buildSubmittedSet({
+    mode: "training",
+    phase: "Clarity",
+    setName: "Light Apply",
+    rawByRep: [0, 1, 2].map((repIndex) =>
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Light Apply",
+        repIndex,
+        classes: {
+          vocabulary: "supported",
+          method: "supported",
+          reason: repIndex === 0 ? "conditional" : "near_stable",
+          immediateApply: "supported",
+        },
+      }),
+    ),
+  });
+
+  const snapshot = buildResponseSnapshotV1({
+    sourceDrillId: "clarity-four-class-separation",
+    topic: "Algebra",
+    mode: "training",
+    phase: "Clarity",
+    sets: [submittedSet],
+  });
+
+  const firstReason = snapshot.sets[0].reps[0].evidence.find(
+    (item) => item.dimensionId === "clarity.reason",
+  );
+  const secondReason = snapshot.sets[0].reps[1].evidence.find(
+    (item) => item.dimensionId === "clarity.reason",
+  );
+
+  assert.equal(firstReason?.evidenceClass, "conditional");
+  assert.equal(secondReason?.evidenceClass, "near_stable");
+  assert.equal(formatSnapshotEvidenceClassLabel(firstReason!), "Conditional");
+  assert.equal(formatSnapshotEvidenceClassLabel(secondReason!), "Near-stable");
+  assert.match(snapshot.sets[0].reps[0].resultText, /remained conditional/i);
+  assert.match(snapshot.sets[0].reps[1].resultText, /was near-stable/i);
+  assert.doesNotMatch(
+    snapshot.sets[0].reps[0].resultText,
+    /partial response|strong response|weak response/i,
+  );
+});
+
 test("observed response summary preserves limiting evidence from strong clarity reps", () => {
   const classes = {
     vocabulary: "supported",
@@ -739,7 +807,7 @@ test("rep formatter strips labels from stored evidence clauses", () => {
   assert.doesNotMatch(text, /Reason:/);
   assert.doesNotMatch(text, /produced a strong response/i);
   assert.doesNotMatch(text, /remaining logged observation/i);
-  assert.match(text, /One part remained incomplete: the student showed weak reason awareness/);
+  assert.match(text, /One part remained conditional: the student showed weak reason awareness/);
 });
 
 test("clarity modeling is persisted as a non-scored snapshot set", () => {
