@@ -113,7 +113,9 @@ test("completed Sandbox training uses the live Response Snapshot completion cont
   assert.match(sandboxRunnerSource, /System Direction/);
   assert.match(responseSnapshotCardSource, /What This Drill Tested/);
   assert.match(responseSnapshotCardSource, /Drill Response/);
-  assert.match(sandboxRunnerSource, /Start Sandbox session/);
+  assert.doesNotMatch(sandboxRunnerSource, /Start Sandbox session \{/);
+  assert.match(sandboxRunnerSource, /The next Sandbox session starts from the next confirmed weekly lesson/);
+  assert.match(sandboxRunnerSource, /Return to Pod/);
   assert.match(sandboxRunnerSource, /searchParams\.get\("sandboxSession"\)/);
   assert.match(
     sandboxRunnerSource,
@@ -133,6 +135,14 @@ test("Sandbox completion is bound to the exact confirmed scheduled lesson", () =
   assert.match(sandboxRouteSource, /req\.query\.scheduledSessionId/);
   assert.match(sandboxRouteSource, /scheduledSessionId: payload\.scheduledSessionId \|\| null/);
   assert.match(sandboxEnvironmentSource, /loadSandboxScheduledTrainingSession/);
+  assert.match(
+    sandboxEnvironmentSource,
+    /Start Sandbox Training from a confirmed weekly lesson/,
+  );
+  assert.match(
+    sandboxEnvironmentSource,
+    /This Sandbox lesson is already complete\. Return to the Pod/,
+  );
   assert.match(sandboxEnvironmentSource, /completeSandboxScheduledTrainingSession/);
   assert.match(sandboxEnvironmentSource, /UPDATE public\.scheduled_sessions[\s\S]*status = 'completed'/);
   assert.match(sandboxEnvironmentSource, /event_type[\s\S]*'sandbox_training_completed'/);
@@ -189,4 +199,9 @@ test("Sandbox guide names the stateful experience as the normal live runner", ()
   assert.match(sandboxGuideSource, /title: "13\. Run the live training session"/);
   assert.match(sandboxGuideSource, /open the normal live runner/);
   assert.match(sandboxGuideSource, /actionLabel: "Open live runner"/);
+  assert.match(studentCardSource, /Confirm a weekly lesson first/);
+  assert.match(
+    studentCardSource,
+    /scheduledSessionId=\$\{encodeURIComponent\([\s\S]*confirmedLesson\.id/,
+  );
 });
