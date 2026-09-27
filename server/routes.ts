@@ -2525,7 +2525,7 @@ async function recalculateMembershipMonthUsage(options: {
 
   const { data: eventRows } = await supabase
     .from("session_billing_events")
-    .select("credits_delta, billing_impact")
+    .select("session_id, credits_delta, billing_impact")
     .eq("parent_id", options.parentId)
     .eq("student_id", options.studentId)
     .gte("effective_at", usageWindowStart)
@@ -2534,6 +2534,10 @@ async function recalculateMembershipMonthUsage(options: {
     .eq("is_sandbox", !!options.isSandbox);
 
   const eventUsed = (eventRows || []).reduce((sum: number, row: any) => {
+    const sessionId = String(row?.session_id || "").trim();
+    if (sessionId && completedSessionKeys.has(`training:${sessionId}`)) {
+      return sum;
+    }
     const delta = Number(row?.credits_delta || 0);
     return sum + Math.max(0, delta);
   }, 0);
@@ -11998,17 +12002,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const studentIds = students.map((student: any) => student.id).filter(Boolean);
           const progressByStudent = new Map<string, number>();
           if (studentIds.length > 0) {
-            const trainingRuns = await pool.query(
-              `SELECT student_id, scheduled_session_id, id, status
-                 FROM public.training_session_runs
-                WHERE tutor_id = $1 AND student_id = ANY($2::uuid[])
-                  AND status IN ('submitted', 'completed')`,
-              [tutorId, studentIds],
-            );
+            const [trainingRuns, sandboxSessions] = await Promise.all([
+              pool.query(
+                `SELECT student_id, scheduled_session_id, id, status
+                   FROM public.training_session_runs
+                  WHERE tutor_id = $1 AND student_id = ANY($2::uuid[])
+                    AND status IN ('submitted', 'completed')`,
+                [tutorId, studentIds],
+              ),
+              pool.query(
+                `SELECT id, student_id, session_number
+                   FROM public.specialist_sandbox_session_evaluations
+                  WHERE tutor_id = $1 AND student_id = ANY($2::uuid[])`,
+                [tutorId, studentIds],
+              ),
+            ]);
             const seen = new Set<string>();
             trainingRuns.rows.forEach((row: any) => {
               const studentId = String(row.student_id || "");
               const key = `${studentId}:${row.scheduled_session_id || row.id}`;
+              if (studentId && !seen.has(key)) {
+                seen.add(key);
+                progressByStudent.set(studentId, (progressByStudent.get(studentId) || 0) + 1);
+              }
+            });
+            sandboxSessions.rows.forEach((row: any) => {
+              const studentId = String(row.student_id || "");
+              const key = `${studentId}:sandbox-session:${row.id}`;
               if (studentId && !seen.has(key)) {
                 seen.add(key);
                 progressByStudent.set(studentId, (progressByStudent.get(studentId) || 0) + 1);
@@ -12350,7 +12370,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     }
                   : null,
                 monthlyQuota,
-                topicConditioning: buildTopicConditioningMap(proposalSnapshot),
+                topicConditioning: await (async () => {
+                  const proposalState = buildTopicConditioningMap(proposalSnapshot);
+                  if (certificationMode !== "sandbox" || !student?.id) {
+                    return proposalState;
+                  }
+                  try {
+                    const sandboxStateResult = await pool.query(
+                      `SELECT specialist_phase, specialist_stability
+                         FROM public.specialist_sandbox_trajectories
+                        WHERE tutor_id::text = $1::text
+                          AND student_id::text = $2::text
+                          AND status = 'active'
+                        ORDER BY updated_at DESC
+                        LIMIT 1`,
+                      [tutorId, String(student.id)],
+                    );
+                    const sandboxState = sandboxStateResult.rows[0];
+                    if (!sandboxState) return proposalState;
+                    return {
+                      ...(proposalState || {}),
+                      topic:
+                        proposalState?.topic ||
+                        splitReportedTopics(String(parentEnrollment?.reported_topics || ""))[0] ||
+                        null,
+                      entry_phase: String(sandboxState.specialist_phase || proposalState?.entry_phase || "").trim() || null,
+                      stability: String(sandboxState.specialist_stability || proposalState?.stability || "").trim() || null,
+                    };
+                  } catch (sandboxStateError) {
+                    console.error("Failed to overlay Sandbox trajectory state on Pod:", sandboxStateError);
+                    return proposalState;
+                  }
+                })(),
                 proposalSentAt: parentEnrollment?.proposal_sent_at || null,
                 parentApprovedAt: isApproved ? (proposalAcceptedAt || parentEnrollment?.updated_at) : null,
                 pendingTutorAcceptance: isPending,
@@ -16688,6 +16739,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .eq("tutor_id", tutorId)
         .in("student_id", studentIds);
 
+      const { data: sandboxSessionEvaluations } = await supabase
+        .from("specialist_sandbox_session_evaluations")
+        .select("id, student_id, session_number")
+        .eq("tutor_id", tutorId)
+        .in("student_id", studentIds);
+
       (drills || []).forEach((row: any) => {
         const id = String(row.student_id || "");
         if (!id) return;
@@ -16707,6 +16764,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (countedSessionKeys.has(seenKey)) return;
         countedSessionKeys.add(seenKey);
         drillCounts[id] += 1;
+      });
+
+      (sandboxSessionEvaluations || []).forEach((row: any) => {
+        const studentId = String(row?.student_id || "").trim();
+        const evaluationId = String(row?.id || "").trim();
+        if (!studentId || !evaluationId) return;
+        const seenKey = `${studentId}:sandbox-session:${evaluationId}`;
+        if (countedSessionKeys.has(seenKey)) return;
+        countedSessionKeys.add(seenKey);
+        drillCounts[studentId] = (drillCounts[studentId] || 0) + 1;
       });
     }
 
