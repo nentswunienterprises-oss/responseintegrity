@@ -429,6 +429,12 @@ test("response snapshot formatter makes old stored text read naturally", () => {
     ),
     "This rep checked whether clarity could be confirmed. The student kept the correct response and stated the required response clearly. One part remained incomplete: the student showed weak reason awareness.",
   );
+  assert.equal(
+    formatSnapshotResultText(
+      "The student showed a strong response in Clarity evidence across the scored drill.",
+    ),
+    "Across the drill, performance was strong across the Clarity checks.",
+  );
 });
 
 test("clarity identification rep text changes by rep purpose", () => {
