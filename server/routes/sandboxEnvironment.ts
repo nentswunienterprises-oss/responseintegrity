@@ -21,6 +21,8 @@ const repSubmissionSchema = z.object({
   trajectoryId: z.string().trim().min(1),
   eventSequence: z.number().int().positive(),
   eventFormId: z.string().trim().min(1),
+  scheduledSessionId: z.string().trim().uuid().optional(),
+  topic: z.string().trim().max(200).optional(),
   submission: z.object({
     interventionEvent: z.enum([
       "none",
@@ -132,6 +134,8 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
         requestedSessionNumberRaw > 0
           ? requestedSessionNumberRaw
           : null;
+      const scheduledSessionId = String(req.query.scheduledSessionId || "").trim() || null;
+      const topic = String(req.query.topic || "").trim() || null;
       if (!tutorAssignmentId || !studentId) {
         return res.status(400).json({ message: "tutorAssignmentId and studentId are required." });
       }
@@ -140,6 +144,8 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
         tutorId: String(user.id),
         studentId,
         requestedSessionNumber,
+        scheduledSessionId,
+        topic,
       });
       if (environment.status === "targeted_rediagnosis_required") {
         const rediagnosis = await prepareSandboxRediagnosis({
@@ -175,6 +181,8 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
         trajectoryId: payload.trajectoryId,
         eventSequence: payload.eventSequence,
         eventFormId: payload.eventFormId,
+        scheduledSessionId: payload.scheduledSessionId || null,
+        topic: payload.topic || null,
         submission: payload.submission,
       });
       return res.status(201).json(result);
