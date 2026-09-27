@@ -3,10 +3,6 @@ import { supabase } from "./storage";
 import { TUTOR_BATTLE_TEST_PHASES_EXACT } from "./battleTestingBanks";
 import { cleanupLegacyLiveEnrollmentsForNonLiveTutor } from "./tutorAssignmentProtection";
 import {
-  getLatestSandboxMockAssessment,
-  loadLatestSandboxMockAssessmentMap,
-} from "./sandboxReadiness";
-import {
   BATTLE_TEST_SCORE_POINTS,
   TUTOR_BATTLE_TEST_PHASE_ORDER,
   computeBattleTestOutcome,
@@ -462,7 +458,6 @@ async function syncTutorCertificationState(
   const deepDiveProgress = buildTutorDeepDiveProgress(phaseScores, runs);
   const moduleProgress = buildTutorModuleProgress(deepDiveProgress);
   const nextBattleTests = buildTutorNextBattleTests(deepDiveProgress);
-  const latestSandboxMockAssessment = await getLatestSandboxMockAssessment(tutorAssignmentId);
   const syncedAt = new Date().toISOString();
 
   const { error: deleteProgressError } = await supabase
@@ -518,7 +513,7 @@ async function syncTutorCertificationState(
     deepDiveProgress,
     currentState,
     docsComplete,
-    sandboxMockPassed: latestSandboxMockAssessment?.decision === "passed",
+    sandboxMockPassed: false,
   });
 
   if (previousStatus?.mode === "certified_live" && mode === "training") {
@@ -905,7 +900,7 @@ function deriveTutorTrainingMode(
   deepDiveProgress: TutorBattleTestDeepDiveProgress[],
   currentState: BattleTestState | null,
   docsComplete: boolean,
-  sandboxMockPassed: boolean,
+  _sandboxMockPassed: boolean,
 ): TutorTrainingMode {
   // Applicant mode: blocks all access until documentation is complete
   if (!docsComplete) {
@@ -935,7 +930,8 @@ function deriveTutorTrainingMode(
     return "watchlist";
   }
 
-  if (transformationComplete && sessionComplete && sandboxMockPassed) return "trial";
+  // Battle Testing can open Sandbox, but it cannot promote a Specialist out of Sandbox.
+  // Practicals readiness is governed by the Sandbox capability engine plus explicit TD sign-off.
   if (transformationComplete && sessionComplete) return "sandbox";
   if (transformationComplete) return "sandbox";
   return "training";
@@ -1087,7 +1083,7 @@ function getTutorCertificationActionRequired(
   mode: TutorTrainingMode,
   deepDiveProgress: TutorBattleTestDeepDiveProgress[],
   fallback: string | null,
-  sandboxMockPassed = false,
+  _sandboxMockPassed = false,
 ) {
   if (mode === "suspended") {
     return "Suspended after repeated drift. Return to retraining before live responsibility can resume.";
@@ -1105,9 +1101,9 @@ function getTutorCertificationActionRequired(
     mode === "sandbox" &&
     deepDiveProgress.length > 0 &&
     deepDiveProgress.every((entry) => entry.historicalState === "completed") &&
-    !sandboxMockPassed
+    true
   ) {
-    return "Complete and pass the Sandbox Mock Readiness Gate before Trial responsibility opens.";
+    return "Continue Sandbox capability development until the system is Practicals-ready, then complete the TD readiness review.";
   }
 
   return fallback;
@@ -1407,9 +1403,6 @@ export async function buildPodBattleTestingSummary(
   const { statusByAssignmentId, deepDiveProgressByAssignmentId } = await loadTutorCertificationSnapshots(
     tutorMeta.map((entry) => entry.assignmentId)
   );
-  const sandboxMockByAssignmentId = await loadLatestSandboxMockAssessmentMap(
-    tutorMeta.map((entry) => entry.assignmentId),
-  );
   const docsCompleteByTutorId = await loadTutorDocumentationCompleteMap(tutorMeta.map((entry) => entry.tutorId));
 
   for (const run of runRows) {
@@ -1488,14 +1481,13 @@ export async function buildPodBattleTestingSummary(
       effectiveDeepDiveProgress,
       derivedSummary.state || latestRun?.state || null
     );
-    const sandboxMockAssessment = sandboxMockByAssignmentId.get(meta.assignmentId) || null;
     const derivedMode = reconcileTutorTrainingMode({
       persistedMode: persistedStatus?.mode,
       moduleProgress: effectiveModuleProgress,
       deepDiveProgress: effectiveDeepDiveProgress,
       currentState: effectiveState,
       docsComplete: docsCompleteByTutorId.get(meta.tutorId) ?? false,
-      sandboxMockPassed: sandboxMockAssessment?.decision === "passed",
+      sandboxMockPassed: false,
     });
     const tutorSummary: BattleTestingTutorSummary = {
       assignmentId: meta.assignmentId,
@@ -1510,7 +1502,7 @@ export async function buildPodBattleTestingSummary(
         derivedMode,
         effectiveDeepDiveProgress,
         derivedSummary.actionRequired || latestRun?.action_required || null,
-        sandboxMockAssessment?.decision === "passed",
+        false,
       ),
       lastAuditAt: derivedLastAuditAt ? new Date(derivedLastAuditAt).toISOString() : latestRun?.completed_at || null,
       phaseScores,
@@ -1518,8 +1510,8 @@ export async function buildPodBattleTestingSummary(
       moduleProgress: effectiveModuleProgress,
       deepDiveProgress: effectiveDeepDiveProgress,
       nextBattleTests: persistedStatus?.next_battle_tests || buildTutorNextBattleTests(deepDiveProgress),
-      sandboxMockDecision: sandboxMockAssessment?.decision || null,
-      sandboxMockAssessedAt: sandboxMockAssessment?.assessedAt || null,
+      sandboxMockDecision: null,
+      sandboxMockAssessedAt: null,
       certificationRecoveryNote: persistedStatus?.certification_recovery_note || null,
       recoveryRequiredUntil: persistedStatus?.recovery_required_until || null,
     };
