@@ -5,6 +5,7 @@ import {
   getDrillSchemaDefinitionByVersion,
   getFieldDefinitionForRep,
   getFieldDefinitionsForRep,
+  resolveEvidenceSelection,
   type EvidenceDrillMode,
   type SubmittedEvidenceSet,
 } from "./responseIntegrityDrillRegistry";
@@ -167,9 +168,7 @@ export const formatSnapshotEvidenceClassLabel = (
   if (item.evidenceClass === "near_stable") return "Near-stable";
   if (item.evidenceClass === "conditional") return "Conditional";
   if (item.evidenceClass === "breakdown") return "Breakdown";
-  if (item.normalizedLevel === "clear") return "Legacy clear";
-  if (item.normalizedLevel === "partial") return "Legacy partial";
-  if (item.normalizedLevel === "weak") return "Legacy weak";
+  if (item.normalizedLevel) return "Recorded observation";
   return "Unresolved";
 };
 
@@ -185,7 +184,7 @@ export const summarizeSnapshotEvidenceMix = (
   const counts = new Map<ResponseSnapshotDecisionEvidenceClass, number>();
   let notObserved = 0;
   let confounded = 0;
-  let legacy = 0;
+  let historical = 0;
 
   decisionEvidence.forEach((item) => {
     if (item.evidenceStatus === "not_observed" || item.evidenceClass === "not_observed") {
@@ -201,7 +200,7 @@ export const summarizeSnapshotEvidenceMix = (
       counts.set(evidenceClass, (counts.get(evidenceClass) || 0) + 1);
       return;
     }
-    if (item.normalizedLevel) legacy += 1;
+    if (item.normalizedLevel) historical += 1;
   });
 
   const parts: string[] = [];
@@ -218,7 +217,7 @@ export const summarizeSnapshotEvidenceMix = (
   );
   if (notObserved) parts.push(`${notObserved} not observed`);
   if (confounded) parts.push(`${confounded} confounded`);
-  if (legacy) parts.push(`${legacy} legacy`);
+  if (historical) parts.push(`${historical} recorded`);
 
   return parts.join(" · ") || "No decision evidence";
 };
@@ -1216,6 +1215,151 @@ const buildDrillEvidenceResultText = (
   }
 
   return `Across this ${phase} drill, ${drillScope} produced ${naturalJoin(classes)}. The set and rep detail below shows where each class occurred.`;
+};
+
+
+const recoverSnapshotEvidenceForDisplay = ({
+  snapshot,
+  set,
+  rep,
+  evidence,
+}: {
+  snapshot: ResponseSnapshotV1;
+  set: ResponseSnapshotSet;
+  rep: ResponseSnapshotRep;
+  evidence: ResponseSnapshotEvidence;
+}): ResponseSnapshotEvidence => {
+  if (
+    evidence.evidenceClass ||
+    evidence.evidenceStatus === "not_observed" ||
+    evidence.evidenceStatus === "confounded"
+  ) {
+    return evidence;
+  }
+
+  const mode = drillModeForRegistry(snapshot.source.mode);
+  const schema =
+    typeof snapshot.source.schemaVersion === "number"
+      ? getDrillSchemaDefinitionByVersion(
+          mode,
+          snapshot.source.observedPhase,
+          snapshot.source.schemaVersion,
+        )
+      : getDrillSchemaDefinition(mode, snapshot.source.observedPhase);
+  const definition =
+    schema?.sets.find((candidate) => candidate.setId === set.setId) ||
+    schema?.sets.find((candidate) => candidate.setName === set.setName) ||
+    null;
+  if (!definition) return evidence;
+
+  const repIndex = Math.max(0, Number(rep.repNumber || 1) - 1);
+  const field = getFieldDefinitionsForRep(definition, repIndex).find(
+    (candidate) => candidate.dimensionId === evidence.dimensionId,
+  );
+  if (!field) return evidence;
+
+  let evidenceClass: ResponseEvidenceClass | null = null;
+  if (evidence.selectedOptionId) {
+    evidenceClass =
+      (resolveEvidenceSelection({
+        mode,
+        phase: snapshot.source.observedPhase,
+        setId: definition.setId,
+        repIndex,
+        fieldKey: field.fieldKey,
+        optionId: evidence.selectedOptionId,
+        ...(typeof snapshot.source.schemaVersion === "number"
+          ? { schemaVersion: snapshot.source.schemaVersion }
+          : {}),
+      })?.evidenceClass as ResponseEvidenceClass | null | undefined) || null;
+  }
+
+  if (!evidenceClass && evidence.selectedRawOption) {
+    const optionIndex = (field.optionLabels || []).findIndex(
+      (candidate) => candidate === evidence.selectedRawOption,
+    );
+    evidenceClass =
+      optionIndex >= 0
+        ? ((field.optionEvidenceClasses?.[optionIndex] as
+            | ResponseEvidenceClass
+            | undefined) || null)
+        : null;
+  }
+
+  return {
+    ...evidence,
+    evidenceClass,
+    decisionEligible:
+      typeof evidence.decisionEligible === "boolean"
+        ? evidence.decisionEligible
+        : field.decisionEligible !== false,
+  };
+};
+
+export const prepareResponseSnapshotForDisplay = (
+  snapshot: ResponseSnapshotV1,
+): ResponseSnapshotV1 => {
+  const sets = snapshot.sets.map((set) => {
+    const reps = set.reps.map((rep) => {
+      const evidence = rep.evidence.map((item) =>
+        recoverSnapshotEvidenceForDisplay({
+          snapshot,
+          set,
+          rep,
+          evidence: item,
+        }),
+      );
+      const hasCanonicalEvidence = evidence.some(
+        (item) =>
+          item.evidenceStatus === "observed" &&
+          isDecisionEvidenceClass(item.evidenceClass),
+      );
+      const repPurposeText =
+        REP_PURPOSE_TEXT[rep.repPurposeId] || rep.repPurposeText;
+
+      return {
+        ...rep,
+        repPurposeText,
+        evidence,
+        resultText: hasCanonicalEvidence
+          ? buildRepResultText(
+              repPurposeText,
+              rep.responseLevel,
+              evidence,
+              rep.repPurposeId,
+            )
+          : rep.resultText,
+      };
+    });
+
+    const semanticResult = buildSetEvidenceResultText(reps);
+    return {
+      ...set,
+      reps,
+      resultText: semanticResult || set.resultText,
+    };
+  });
+
+  const canonicalEvidence = sets.flatMap((set) =>
+    set.reps.flatMap((rep) =>
+      rep.evidence.filter(
+        (item) =>
+          item.evidenceStatus === "observed" &&
+          isDecisionEvidenceClass(item.evidenceClass),
+      ),
+    ),
+  );
+
+  return {
+    ...snapshot,
+    sets,
+    drill: {
+      ...snapshot.drill,
+      resultText: canonicalEvidence.length
+        ? buildDrillEvidenceResultText(snapshot.source.observedPhase, sets)
+        : snapshot.drill.resultText,
+    },
+  };
 };
 
 export const buildResponseSnapshotV1 = ({
