@@ -712,6 +712,10 @@ test("historical persisted Snapshots recover exact evidence classes without expo
     view.sets[0].reps[2].resultText,
     /final unsolved example/i,
   );
+  assert.match(
+    view.sets[0].reps[2].resultText,
+    /connected the problem structure and method without help/i,
+  );
   assert.doesNotMatch(
     view.sets[0].reps[2].resultText,
     /repeatable|repeated again/i,
@@ -747,9 +751,17 @@ test("clarity light-apply narrative states what happened instead of repeating th
     sets: [submittedSet],
   });
 
-  assert.equal(
+  assert.match(
     snapshot.sets[0].reps[0].resultText,
-    "This rep checked whether the student's clarity would carry into the first light solving attempt. The first light solving attempt kept the vocabulary and method intact. One part was near-stable: the causal logic was substantially correct but still had a small decision-relevant gap.",
+    /first light solving attempt kept the vocabulary and method intact/i,
+  );
+  assert.match(
+    snapshot.sets[0].reps[0].resultText,
+    /causal logic was substantially correct but still had a small decision-relevant gap/i,
+  );
+  assert.match(
+    snapshot.sets[0].reps[0].resultText,
+    /began the work|engaged|started/i,
   );
   assert.doesNotMatch(
     snapshot.sets[0].reps[0].resultText,
@@ -766,6 +778,79 @@ test("clarity light-apply narrative states what happened instead of repeating th
   );
   assert.match(snapshot.sets[0].resultText, /Near-stable evidence remained/i);
   assert.match(snapshot.drill.resultText, /near-stable evidence/i);
+});
+
+test("rep narratives do not omit decision-eligible evidence dimensions", () => {
+  const identificationSet = buildSubmittedSet({
+    mode: "training",
+    phase: "Clarity",
+    setName: "Identification",
+    rawByRep: [0, 1, 2].map((repIndex) =>
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Identification",
+        repIndex,
+        classes: {
+          vocabulary: "supported",
+          method: "supported",
+          reason: "supported",
+          immediateApply: "supported",
+        },
+      }),
+    ),
+  });
+  const identification = buildResponseSnapshotV1({
+    sourceDrillId: "identification-evidence-complete-narrative",
+    topic: "Algebra",
+    mode: "training",
+    phase: "Clarity",
+    sets: [identificationSet],
+  });
+  const finalIdentification = formatSnapshotRepResult(
+    identification.sets[0].reps[2],
+  );
+
+  assert.match(finalIdentification, /final unsolved example/i);
+  assert.match(
+    finalIdentification,
+    /connected the problem structure and method without help/i,
+    "Supported Reason evidence must be narrated, not only shown in the evidence badges",
+  );
+
+  const lightApplySet = buildSubmittedSet({
+    mode: "training",
+    phase: "Clarity",
+    setName: "Light Apply",
+    rawByRep: [0, 1, 2].map((repIndex) =>
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Light Apply",
+        repIndex,
+        classes: {
+          vocabulary: "supported",
+          method: "near_stable",
+          reason: "conditional",
+          immediateApply: "breakdown",
+        },
+      }),
+    ),
+  });
+  const lightApply = buildResponseSnapshotV1({
+    sourceDrillId: "mixed-evidence-complete-narrative",
+    topic: "Algebra",
+    mode: "training",
+    phase: "Clarity",
+    sets: [lightApplySet],
+  });
+  const mixedRep = formatSnapshotRepResult(lightApply.sets[0].reps[0]);
+
+  assert.match(mixedRep, /named the decision-relevant mathematical features without help/i);
+  assert.match(mixedRep, /right method was present/i);
+  assert.match(mixedRep, /explanation contained some correct structure/i);
+  assert.match(mixedRep, /could not move from recognizing the method into beginning the work|could not begin|did not begin/i);
+  assert.match(mixedRep, /near-stable/i);
+  assert.match(mixedRep, /conditional/i);
+  assert.match(mixedRep, /breakdown/i);
 });
 
 test("rep narratives remain natural across every phase, drill mode, set, rep, and response level", () => {
