@@ -937,6 +937,33 @@ async function readinessFor(input: {
   };
 }
 
+export async function getSandboxCapabilityReadiness(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+}) {
+  const bank = await loadActiveEnvironmentBank();
+  if (!bank) {
+    return {
+      policyAvailable: false as const,
+      evidenceReady: false,
+      practicalsReady: false,
+      automaticTransition: false as const,
+      nextStage: "practicals" as const,
+      earliestUnsupportedCapability: null,
+      layers: [],
+      breadthReady: false,
+      longitudinalReady: false,
+      reason: "No active stateful Sandbox environment bank is available.",
+    };
+  }
+
+  return readinessFor({
+    tutorAssignmentId: input.tutorAssignmentId,
+    tutorId: input.tutorId,
+    bank,
+  });
+}
+
 async function loadRepOutcomes(input: {
   bank: SandboxEnvironmentBank;
   phase: TopicPhase;
