@@ -22,6 +22,18 @@ const sandboxRouteSource = readFileSync(
   new URL("../server/routes/sandboxEnvironment.ts", import.meta.url),
   "utf8",
 );
+const sandboxEnvironmentSource = readFileSync(
+  new URL("../server/sandboxEnvironment.ts", import.meta.url),
+  "utf8",
+);
+const serverRoutesSource = readFileSync(
+  new URL("../server/routes.ts", import.meta.url),
+  "utf8",
+);
+const responseSnapshotCardSource = readFileSync(
+  new URL("../client/src/components/tutor/ResponseSnapshotCard.tsx", import.meta.url),
+  "utf8",
+);
 const trainingLiveUiSource = readFileSync(
   new URL("../client/src/components/tutor/TrainingLiveDeliveryUi.tsx", import.meta.url),
   "utf8",
@@ -93,10 +105,14 @@ test("Sandbox evidence exceptions never force a hidden behavior guess", () => {
   );
 });
 
-test("completed Sandbox sessions terminate before the next stateful session can begin", () => {
+test("completed Sandbox training uses the live Response Snapshot completion contract", () => {
   assert.match(sandboxRunnerSource, /"session_complete"/);
-  assert.match(sandboxRunnerSource, /Sandbox session complete/);
-  assert.match(sandboxRunnerSource, /the next session has\s*not started/i);
+  assert.match(sandboxRunnerSource, /Training session complete/);
+  assert.doesNotMatch(sandboxRunnerSource, /Sandbox session complete/);
+  assert.match(sandboxRunnerSource, /<ResponseSnapshotCard snapshot=\{snapshot\}/);
+  assert.match(sandboxRunnerSource, /System Direction/);
+  assert.match(responseSnapshotCardSource, /What This Drill Tested/);
+  assert.match(responseSnapshotCardSource, /Drill Response/);
   assert.match(sandboxRunnerSource, /Start Sandbox session/);
   assert.match(sandboxRunnerSource, /searchParams\.get\("sandboxSession"\)/);
   assert.match(
@@ -105,6 +121,55 @@ test("completed Sandbox sessions terminate before the next stateful session can 
   );
   assert.match(sandboxRouteSource, /requestedSessionNumber/);
   assert.match(sandboxRouteSource, /req\.query\.sessionNumber/);
+});
+
+test("Sandbox completion is bound to the exact confirmed scheduled lesson", () => {
+  assert.match(sandboxRunnerSource, /searchParams\.get\("scheduledSessionId"\)/);
+  assert.match(
+    sandboxRunnerSource,
+    /scheduledSessionId \? `&scheduledSessionId=\$\{encodeURIComponent\(scheduledSessionId\)\}`/,
+  );
+  assert.match(sandboxRunnerSource, /\.\.\.\(scheduledSessionId \? \{ scheduledSessionId \} : \{\}\)/);
+  assert.match(sandboxRouteSource, /req\.query\.scheduledSessionId/);
+  assert.match(sandboxRouteSource, /scheduledSessionId: payload\.scheduledSessionId \|\| null/);
+  assert.match(sandboxEnvironmentSource, /loadSandboxScheduledTrainingSession/);
+  assert.match(sandboxEnvironmentSource, /completeSandboxScheduledTrainingSession/);
+  assert.match(sandboxEnvironmentSource, /UPDATE public\.scheduled_sessions[\s\S]*status = 'completed'/);
+  assert.match(sandboxEnvironmentSource, /event_type[\s\S]*'sandbox_training_completed'/);
+  assert.match(sandboxEnvironmentSource, /billing_impact[\s\S]*'consume'/);
+});
+
+test("Sandbox Response Snapshot is derived from Specialist-recorded evidence, not hidden canonical truth", () => {
+  assert.match(sandboxEnvironmentSource, /buildSandboxResponseSnapshot/);
+  assert.match(sandboxEnvironmentSource, /turn\.specialistObservations/);
+  assert.match(sandboxEnvironmentSource, /resolveEvidenceSelection/);
+  assert.match(sandboxEnvironmentSource, /buildResponseSnapshotV1/);
+  assert.doesNotMatch(
+    sandboxEnvironmentSource.slice(
+      sandboxEnvironmentSource.indexOf("function buildSandboxResponseSnapshot"),
+      sandboxEnvironmentSource.indexOf("async function loadActiveEnvironmentBank"),
+    ),
+    /canonicalObservations/,
+  );
+});
+
+test("Sandbox Program Progress counts completed stateful sessions and carries visible Specialist state", () => {
+  assert.match(studentCardSource, /const sessionProgress = isSandboxStudent[\s\S]*countedProgramProgress/);
+  assert.match(serverRoutesSource, /specialist_sandbox_session_evaluations/);
+  assert.match(serverRoutesSource, /sandbox-session:/);
+  assert.match(serverRoutesSource, /specialist_phase, specialist_stability/);
+  assert.match(serverRoutesSource, /certificationMode !== "sandbox"/);
+});
+
+test("completion-time Sandbox consumption cannot double-count the same scheduled lesson later", () => {
+  assert.match(
+    serverRoutesSource,
+    /select\("session_id, credits_delta, billing_impact"\)/,
+  );
+  assert.match(
+    serverRoutesSource,
+    /completedSessionKeys\.has\(`training:\$\{sessionId\}`\)/,
+  );
 });
 
 test("ordinary Training and embedded Sandbox share the same live-delivery UI primitives", () => {
