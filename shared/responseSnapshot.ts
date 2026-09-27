@@ -494,43 +494,63 @@ export const formatSnapshotResultText = (value: string, purposeText?: string | n
 };
 
 const clearNarrativeForRep = (repPurposeId: string, evidence: ResponseSnapshotEvidence[]) => {
+  const supportedEvidence = evidence.filter(
+    (item) =>
+      item.decisionEligible !== false &&
+      item.evidenceStatus === "observed" &&
+      decisionEvidenceClassForItem(item) === "supported",
+  );
   const hasClear = (dimensionLabel: string) =>
-    evidence.some(
-      (item) =>
-        item.decisionEligible !== false &&
-        item.evidenceStatus === "observed" &&
-        item.dimensionLabel === dimensionLabel &&
-        decisionEvidenceClassForItem(item) === "supported",
-    );
+    supportedEvidence.some((item) => item.dimensionLabel === dimensionLabel);
+
+  const withRemainingSupported = (
+    primaryClause: string,
+    coveredDimensions: string[],
+  ) => [
+    primaryClause,
+    ...supportedEvidence
+      .filter((item) => !coveredDimensions.includes(item.dimensionLabel))
+      .map((item) => item.humanClause),
+  ];
 
   if (repPurposeId === "clarity.identification.opportunity_1" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["identified the important terms and selected the method before solving"];
+    return withRemainingSupported(
+      "the student identified the important terms and selected the method before solving",
+      ["Vocabulary", "Method"],
+    );
   }
   if (repPurposeId === "clarity.identification.opportunity_2" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["the student identified the important terms and selected the method on the second unsolved example"];
+    return withRemainingSupported(
+      "the student identified the important terms and selected the method on the second unsolved example",
+      ["Vocabulary", "Method"],
+    );
   }
   if (repPurposeId === "clarity.identification.opportunity_3" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["the student identified the important terms and selected the method on the final unsolved example"];
+    return withRemainingSupported(
+      "the student identified the important terms and selected the method on the final unsolved example",
+      ["Vocabulary", "Method"],
+    );
   }
   if (repPurposeId === "clarity.light_apply.opportunity_1" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["the first light solving attempt kept the vocabulary and method intact"];
+    return withRemainingSupported(
+      "the first light solving attempt kept the vocabulary and method intact",
+      ["Vocabulary", "Method"],
+    );
   }
   if (repPurposeId === "clarity.light_apply.opportunity_2" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["the second light solving attempt kept the vocabulary and method intact"];
+    return withRemainingSupported(
+      "the second light solving attempt kept the vocabulary and method intact",
+      ["Vocabulary", "Method"],
+    );
   }
   if (repPurposeId === "clarity.light_apply.opportunity_3" && hasClear("Vocabulary") && hasClear("Method")) {
-    return ["the final independent light application kept the vocabulary and method intact"];
+    return withRemainingSupported(
+      "the final independent light application kept the vocabulary and method intact",
+      ["Vocabulary", "Method"],
+    );
   }
 
-  return evidence
-    .filter(
-      (item) =>
-        item.decisionEligible !== false &&
-        item.evidenceStatus === "observed" &&
-        decisionEvidenceClassForItem(item) === "supported",
-    )
-    .map((item) => item.humanClause)
-    .slice(0, 2);
+  return supportedEvidence.map((item) => item.humanClause);
 };
 
 const LEGACY_REP_NARRATIVE_PATTERN =
@@ -962,8 +982,7 @@ const buildRepResultText = (
         decisionEvidenceClassForItem(item) === "near_stable",
     )
     .map((item) => normalizeNarrativeClause(item.humanClause))
-    .filter(Boolean)
-    .slice(0, 2);
+    .filter(Boolean);
   const conditionalClauses = decisionEvidence
     .filter(
       (item) =>
@@ -971,8 +990,7 @@ const buildRepResultText = (
         decisionEvidenceClassForItem(item) === "conditional",
     )
     .map((item) => normalizeNarrativeClause(item.humanClause))
-    .filter(Boolean)
-    .slice(0, 2);
+    .filter(Boolean);
   const breakdownClauses = decisionEvidence
     .filter(
       (item) =>
@@ -980,8 +998,7 @@ const buildRepResultText = (
         decisionEvidenceClassForItem(item) === "breakdown",
     )
     .map((item) => normalizeNarrativeClause(item.humanClause))
-    .filter(Boolean)
-    .slice(0, 2);
+    .filter(Boolean);
   const opening = `This rep checked whether ${repPurposeText}.`;
   const sentences: string[] = [opening];
 
