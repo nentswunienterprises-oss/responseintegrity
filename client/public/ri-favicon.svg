@@ -1,4 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 206 227" role="img" aria-label="Response Integrity favicon">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-27 -15 256 256" role="img" aria-label="Response Integrity favicon">
+  <rect x="-27" y="-15" width="256" height="256" rx="48" fill="#FFF0F0"/>
+
   <defs>
     <clipPath id="shieldInterior">
       <path d="M18 29C52 18 80 14 101 14C123 14 151 18 186 30C188 31 189 33 189 36V139C189 146 185 151 179 155L102 210L24 157C17 152 13 145 13 137V34C13 32 15 30 18 29Z"/>
