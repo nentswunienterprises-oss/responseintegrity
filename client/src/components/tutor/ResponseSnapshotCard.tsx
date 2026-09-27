@@ -3,6 +3,7 @@ import {
   formatSnapshotPurposeText,
   formatSnapshotRepResult,
   formatSnapshotResultText,
+  prepareResponseSnapshotForDisplay,
   summarizeSnapshotEvidenceMix,
   type ResponseSnapshotEvidence,
   type ResponseSnapshotV1,
@@ -25,23 +26,24 @@ function formatState(phase?: string | null, stability?: string | null) {
 }
 
 export function ResponseSnapshotCard({ snapshot }: { snapshot: ResponseSnapshotV1 }) {
-  const allEvidence = snapshot.sets.flatMap((set) =>
+  const view = prepareResponseSnapshotForDisplay(snapshot);
+  const allEvidence = view.sets.flatMap((set) =>
     set.reps.flatMap((rep) => rep.evidence),
   );
   const beforeState = formatState(
-    snapshot.engineOutcomeRef?.phaseBefore,
-    snapshot.engineOutcomeRef?.stabilityBefore,
+    view.engineOutcomeRef?.phaseBefore,
+    view.engineOutcomeRef?.stabilityBefore,
   );
   const afterState = formatState(
-    snapshot.engineOutcomeRef?.phaseAfter,
-    snapshot.engineOutcomeRef?.stabilityAfter,
+    view.engineOutcomeRef?.phaseAfter,
+    view.engineOutcomeRef?.stabilityAfter,
   );
 
   return (
     <div className="overflow-hidden rounded-xl border border-primary/15 bg-background">
       <div className="flex flex-col gap-1 bg-primary/5 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
         <span className="text-sm font-semibold">
-          Response Snapshot{snapshot.source.topic ? ` - ${snapshot.source.topic}` : ""}
+          Response Snapshot{view.source.topic ? ` - ${view.source.topic}` : ""}
         </span>
         <span className="text-xs font-semibold text-muted-foreground">
           {afterState || summarizeSnapshotEvidenceMix(allEvidence)}
@@ -53,7 +55,7 @@ export function ResponseSnapshotCard({ snapshot }: { snapshot: ResponseSnapshotV
             What This Drill Tested
           </p>
           <p className="text-foreground">
-            {formatSnapshotPurposeText(snapshot.drill.purposeText)}
+            {formatSnapshotPurposeText(view.drill.purposeText)}
           </p>
         </div>
         <div>
@@ -61,10 +63,10 @@ export function ResponseSnapshotCard({ snapshot }: { snapshot: ResponseSnapshotV
             Drill Evidence
           </p>
           <p className="text-muted-foreground">
-            {formatSnapshotResultText(snapshot.drill.resultText)}
+            {formatSnapshotResultText(view.drill.resultText)}
           </p>
         </div>
-        {(beforeState || afterState || snapshot.engineOutcomeRef?.transitionReason) && (
+        {(beforeState || afterState || view.engineOutcomeRef?.transitionReason) && (
           <div className="rounded-md border border-primary/10 bg-primary/5 px-3 py-2">
             <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
               Evidence Decision
@@ -77,15 +79,15 @@ export function ResponseSnapshotCard({ snapshot }: { snapshot: ResponseSnapshotV
             {!beforeState && afterState && (
               <p className="text-xs text-foreground">{afterState}</p>
             )}
-            {snapshot.engineOutcomeRef?.transitionReason && (
+            {view.engineOutcomeRef?.transitionReason && (
               <p className="mt-1 text-xs text-muted-foreground">
-                Decision: {snapshot.engineOutcomeRef.transitionReason}
+                Decision: {view.engineOutcomeRef.transitionReason}
               </p>
             )}
           </div>
         )}
         <div className="space-y-2 border-t pt-1">
-          {snapshot.sets.map((set) => {
+          {view.sets.map((set) => {
             const setEvidence = set.reps.flatMap((rep) => rep.evidence);
             return (
               <div
