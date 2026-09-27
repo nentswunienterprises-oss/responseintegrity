@@ -213,6 +213,7 @@ async function loadSandboxScheduledTrainingSession(input: {
   scheduledSessionId?: string | null;
   tutorId: string;
   studentId: string;
+  allowCompleted?: boolean;
 }) {
   const scheduledSessionId = String(input.scheduledSessionId || "").trim();
   if (!scheduledSessionId) {
@@ -236,10 +237,15 @@ async function loadSandboxScheduledTrainingSession(input: {
   if (!session) {
     throw httpError(404, "The selected Sandbox training lesson could not be found.");
   }
-  if (!["confirmed", "ready", "live", "completed"].includes(String(session.status || ""))) {
+  const allowedStatuses = input.allowCompleted
+    ? ["confirmed", "ready", "live", "completed"]
+    : ["confirmed", "ready", "live"];
+  if (!allowedStatuses.includes(String(session.status || ""))) {
     throw httpError(
       409,
-      "The selected Sandbox training lesson must be confirmed before Training can run.",
+      String(session.status || "") === "completed"
+        ? "This Sandbox lesson is already complete. Return to the Pod and start the next confirmed weekly lesson."
+        : "The selected Sandbox training lesson must be confirmed before Training can run.",
     );
   }
   return session;
@@ -991,10 +997,11 @@ export async function prepareSandboxEnvironment(input: {
     studentId: input.studentId,
     bank,
   });
-  await loadSandboxScheduledTrainingSession({
+  const boundScheduledSession = await loadSandboxScheduledTrainingSession({
     scheduledSessionId: input.scheduledSessionId,
     tutorId: input.tutorId,
     studentId: input.studentId,
+    allowCompleted: true,
   });
 
   const readiness = await readinessFor({
@@ -1028,6 +1035,13 @@ export async function prepareSandboxEnvironment(input: {
       readiness,
     };
   }
+  if (String(boundScheduledSession.status || "") === "completed") {
+    throw httpError(
+      409,
+      "This Sandbox lesson is already complete. Return to the Pod and start the next confirmed weekly lesson.",
+    );
+  }
+
 
   const planned = await planNextRep({
     bundle,
