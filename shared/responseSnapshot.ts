@@ -546,18 +546,26 @@ export const formatSnapshotRepResult = (rep: Pick<ResponseSnapshotRep, "repPurpo
         rep.repPurposeId,
       )
     : formatSnapshotResultText(rep.resultText);
-  const notObserved = rep.evidence.filter((item) => item.evidenceStatus === "not_observed");
-  const confounded = rep.evidence.filter((item) => item.evidenceStatus === "confounded");
+  const notObserved = rep.evidence.filter(
+    (item) =>
+      item.evidenceStatus === "not_observed" ||
+      item.evidenceClass === "not_observed",
+  );
+  const confounded = rep.evidence.filter(
+    (item) =>
+      item.evidenceStatus === "confounded" ||
+      item.evidenceClass === "confounded",
+  );
   const caveats: string[] = [];
 
   if (notObserved.length) {
     caveats.push(
-      `${naturalJoin(notObserved.map((item) => item.dimensionLabel))} ${notObserved.length === 1 ? "was" : "were"} not observed and did not count as weakness or strength.`,
+      `${naturalJoin(notObserved.map((item) => item.dimensionLabel))} ${notObserved.length === 1 ? "was" : "were"} not observed and did not count toward the evidence decision.`,
     );
   }
   if (confounded.length) {
     caveats.push(
-      `${naturalJoin(confounded.map((item) => item.dimensionLabel))} ${confounded.length === 1 ? "was" : "were"} confounded and did not count as weakness or strength.`,
+      `${naturalJoin(confounded.map((item) => item.dimensionLabel))} ${confounded.length === 1 ? "was" : "were"} confounded and did not count toward the evidence decision.`,
     );
   }
 
@@ -1239,7 +1247,7 @@ export const buildResponseSnapshotV1 = ({
         responseLevel: "not_scored",
         responseLabel: responseLabelForLevel("not_scored"),
         patternCode: null,
-        resultText: `${definition.setName} was completed as a modeling set. No scored student response was recorded for this set.`,
+        resultText: `${definition.setName} was completed as a modeling set. No student observation evidence was recorded for this set.`,
         reps: [],
       });
       return;
@@ -1397,7 +1405,7 @@ export const buildResponseSnapshotV1 = ({
         : "No scored student response was recorded for this set.");
     const unscoredRepCount = reps.length - scoredReps.length;
     const patternSentence = unscoredRepCount
-      ? `${basePatternSentence} ${unscoredRepCount} ${unscoredRepCount === 1 ? "rep had" : "reps had"} no decision-eligible observed evidence and did not count as weakness or strength.`
+      ? `${basePatternSentence} ${unscoredRepCount} ${unscoredRepCount === 1 ? "rep had" : "reps had"} no decision-eligible observed evidence and did not count toward the evidence decision.`
       : basePatternSentence;
 
     snapshotSets.push({
