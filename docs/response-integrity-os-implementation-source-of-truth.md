@@ -588,10 +588,13 @@ Response Snapshot is the Specialist-facing evidence explanation layer over persi
 It shows:
 
 - what the drill and each set were intended to expose;
-- the response label derived from the recorded behavior pattern;
-- the ordered rep pattern;
-- the exact weak / partial / clear evidence translation;
+- the actual Response Evidence class attached to each decision-eligible observation: `BREAKDOWN`, `CONDITIONAL`, `NEAR_STABLE`, or `SUPPORTED`;
+- explicit `not_observed` and `confounded` evidence without converting either into weakness or strength;
+- the ordered rep-level evidence pattern without inventing a single aggregate rep or set verdict;
+- the evidence-engine state decision through the persisted before/after phase and stability reference;
 - evidence lineage needed for later reporting.
+
+Legacy `weak / partial / clear` levels and `Weak / Partial / Strong response` labels may remain inside persisted compatibility fields, but they are non-authoritative and are not rendered as current Response Snapshot truth. In particular, `CONDITIONAL` and `NEAR_STABLE` must never be collapsed into one visible class merely because both map to the old `partial` compatibility level.
 
 The Specialist-facing Snapshot does **not** render numeric delivery totals, per-set totals, rep totals, aggregate averages, or any retired delivery-rating language.
 
@@ -656,7 +659,8 @@ For new diagnosis, training, and verification submissions, the captured set cont
 - stable observation-dimension ID
 - stable selected-option ID
 - selected raw option label
-- normalized `weak` / `partial` / `clear` level
+- normalized legacy `weak` / `partial` / `clear` compatibility level
+- canonical evidence class where the versioned contract exposes one (`breakdown`, `conditional`, `near_stable`, `supported`)
 
 The registry owns the live raw-option ordering and level mapping. `IntroSessionDrillRunner` uses those registered options when rendering and serializing evidence. The server validates the raw option, option ID, dimension, rep identity, set identity, mode, phase, schema version, and definition hash as one contract. It then writes the registry-derived level and constraint profile into the normalized stored payload; it does not accept a contradictory client-supplied level.
 
