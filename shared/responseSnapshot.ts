@@ -329,7 +329,47 @@ export const formatSnapshotResultText = (value: string, purposeText?: string | n
     .replace(/^When testing whether ([^,]+), the response was ([^:]+): /, "This rep checked whether $1. The response was $2: ")
     .replace(/, with ([^.]+)\.$/, ". The remaining logged observation was that the student $1.")
     .replace(/\b(Vocabulary|Method|Reason|First response|Start|Step execution|Repeatability|Independence|Initial response|First-step control|Discomfort tolerance|Rescue behavior|Start under time|Structure under time|Pace control|Completion): /g, "")
-    .replace("The partial evidence was that the student", "The remaining logged observation was that the student")
+    .replace(
+      /The remaining logged observation was that (?:the student )?([^,]+), while the limiting evidence was that (?:the student )?([^.]+)\./g,
+      (_match, partialClause, weakClause) =>
+        `One part remained incomplete: ${normalizeNarrativeClause(partialClause)}. The limiting breakdown was that ${normalizeNarrativeClause(weakClause)}.`,
+    )
+    .replace(
+      /The response was (?:strong|partial|weak)(?: overall)?: (?:the student )?([^,]+), while also showing ([^.]+)\./gi,
+      (_match, partialClause, weakClause) =>
+        `${sentenceCase(normalizeNarrativeClause(partialClause))}. The breakdown was that ${normalizeNarrativeClause(weakClause)}.`,
+    )
+    .replace(
+      /The remaining logged observation was that (?:the student )?([^.]+)\./g,
+      (_match, clause) =>
+        `One part remained incomplete: ${normalizeNarrativeClause(clause)}.`,
+    )
+    .replace(
+      /The partial evidence was that (?:the student )?([^.]+)\./g,
+      (_match, clause) =>
+        `One part remained incomplete: ${normalizeNarrativeClause(clause)}.`,
+    )
+    .replace(
+      /The limiting evidence was that (?:the student )?([^.]+)\./g,
+      (_match, clause) =>
+        `The breakdown was that ${normalizeNarrativeClause(clause)}.`,
+    )
+    .replace(
+      /The student produced a partial response: every measured part was present but incomplete\./gi,
+      "The target behavior was present across the measured parts, but it remained incomplete.",
+    )
+    .replace(
+      /The student produced a (?:strong|partial|weak) response: ([^.]+)\./gi,
+      (_match, clause) => `${sentenceCase(normalizeNarrativeClause(clause))}.`,
+    )
+    .replace(
+      /The response was (?:strong|partial|weak)(?: overall)?: ([^.]+)\./gi,
+      (_match, clause) => `${sentenceCase(normalizeNarrativeClause(clause))}.`,
+    )
+    .replace(
+      /Across this ([^,]+), the student produced a (?:strong|partial|weak) response: /gi,
+      "Across this $1, ",
+    )
     .replace("The student showed a", "Across the drill, the student produced a")
     .replace("in Clarity evidence across the scored drill", "across the Clarity checks")
     .replace("in Structured Execution evidence across the scored drill", "across the Structured Execution checks")
@@ -378,8 +418,18 @@ const clearNarrativeForRep = (repPurposeId: string, evidence: ResponseSnapshotEv
     .slice(0, 2);
 };
 
+const LEGACY_REP_NARRATIVE_PATTERN =
+  /(?:^When testing whether|The student produced a (?:strong|partial|weak) response|The response was (?:strong|partial|weak)(?: overall)?|remaining logged observation|limiting evidence|showed evidence that)/i;
+
 export const formatSnapshotRepResult = (rep: Pick<ResponseSnapshotRep, "repPurposeId" | "repPurposeText" | "responseLevel" | "evidence" | "resultText">) => {
-  const base = formatSnapshotResultText(rep.resultText);
+  const base = LEGACY_REP_NARRATIVE_PATTERN.test(String(rep.resultText || ""))
+    ? buildRepResultText(
+        rep.repPurposeText,
+        rep.responseLevel,
+        rep.evidence,
+        rep.repPurposeId,
+      )
+    : formatSnapshotResultText(rep.resultText);
   const notObserved = rep.evidence.filter((item) => item.evidenceStatus === "not_observed");
   const confounded = rep.evidence.filter((item) => item.evidenceStatus === "confounded");
   const caveats: string[] = [];
@@ -528,6 +578,19 @@ const cleanEvidenceClause = (value: string) =>
   String(value || "")
     .trim()
     .replace(/^(Vocabulary|Method|Reason|First response|Start|Step execution|Repeatability|Independence|Initial response|First-step control|Discomfort tolerance|Rescue behavior|Start under time|Structure under time|Pace control|Completion):\s*/i, "");
+
+const NARRATIVE_SUBJECT_PREFIX =
+  /^(?:the|a|an|some|no|recognition|understanding|execution|independent|difficulty|tolerance|repeatability|pace|pacing|completion|urgency|structure|method|time pressure|clarity|term|control)\b/i;
+
+const normalizeNarrativeClause = (value: string) => {
+  const text = cleanEvidenceClause(value)
+    .replace(/[.]+$/, "")
+    .replace(/^showed evidence that\s+/i, "")
+    .trim();
+  if (!text) return "";
+  if (NARRATIVE_SUBJECT_PREFIX.test(text)) return lowerFirst(text);
+  return `the student ${lowerFirst(text)}`;
+};
 
 const scoreContribution = (weight: number, level: ObservationLevel) =>
   level === "clear" ? weight : level === "partial" ? Math.round(weight * 0.6) : 0;
@@ -752,51 +815,62 @@ const resolveHumanClause = (
 
 const buildRepResultText = (
   repPurposeText: string,
-  responseLevel: ResponseSnapshotDisplayLevel,
+  _responseLevel: ResponseSnapshotDisplayLevel,
   evidence: ResponseSnapshotEvidence[],
   repPurposeId = "",
 ) => {
-  const clearClauses = clearNarrativeForRep(repPurposeId, evidence).map(cleanEvidenceClause);
+  const clearClauses = clearNarrativeForRep(repPurposeId, evidence)
+    .map(normalizeNarrativeClause)
+    .filter(Boolean);
   const partialClauses = evidence
     .filter(
       (item) =>
         item.evidenceStatus === "observed" &&
         item.normalizedLevel === "partial",
     )
-    .map((item) => cleanEvidenceClause(item.humanClause))
-    .slice(0, 1);
+    .map((item) => normalizeNarrativeClause(item.humanClause))
+    .filter(Boolean)
+    .slice(0, 2);
   const weakClauses = evidence
     .filter(
       (item) =>
         item.evidenceStatus === "observed" &&
         item.normalizedLevel === "weak",
     )
-    .map((item) => cleanEvidenceClause(item.humanClause))
+    .map((item) => normalizeNarrativeClause(item.humanClause))
+    .filter(Boolean)
     .slice(0, 2);
-  const label = responseLabelForLevel(responseLevel).replace(" response", "").toLowerCase();
+  const opening = `This rep checked whether ${repPurposeText}.`;
+  const clearText = sentenceCase(naturalJoin(clearClauses));
+  const partialText = naturalJoin(partialClauses);
+  const weakText = naturalJoin(weakClauses);
+  const incompleteLead =
+    partialClauses.length === 1
+      ? "One part remained incomplete:"
+      : "Some parts remained incomplete:";
 
   if (clearClauses.length && !partialClauses.length && !weakClauses.length) {
-    return `This rep checked whether ${repPurposeText}. The student produced a strong response: ${naturalJoin(clearClauses)}.`;
+    return `${opening} ${clearText}.`;
   }
   if (clearClauses.length && partialClauses.length && !weakClauses.length) {
-    return `This rep checked whether ${repPurposeText}. The student produced a ${label} response: ${naturalJoin(clearClauses)}. The remaining logged observation was that the student ${naturalJoin(partialClauses)}.`;
+    return `${opening} ${clearText}. ${incompleteLead} ${partialText}.`;
   }
   if (clearClauses.length && weakClauses.length && !partialClauses.length) {
-    return `This rep checked whether ${repPurposeText}. The response was ${label} overall: ${naturalJoin(clearClauses)}. The limiting evidence was that the student ${naturalJoin(weakClauses)}.`;
+    return `${opening} ${clearText}. The breakdown was that ${weakText}.`;
   }
   if (clearClauses.length && partialClauses.length && weakClauses.length) {
-    return `This rep checked whether ${repPurposeText}. The response was ${label}: ${naturalJoin(clearClauses)}. The remaining logged observation was that the student ${naturalJoin(partialClauses)}, while the limiting evidence was that the student ${naturalJoin(weakClauses)}.`;
+    return `${opening} ${clearText}. ${incompleteLead} ${partialText}. The limiting breakdown was that ${weakText}.`;
   }
   if (!clearClauses.length && partialClauses.length && !weakClauses.length) {
-    return `This rep checked whether ${repPurposeText}. The student produced a partial response: every measured part was present but incomplete.`;
+    return `${opening} ${sentenceCase(partialText)}. The target behavior was present but not yet secure.`;
   }
   if (!clearClauses.length && partialClauses.length && weakClauses.length) {
-    return `This rep checked whether ${repPurposeText}. The response was ${label}: the student ${naturalJoin(partialClauses)}, while also showing ${naturalJoin(weakClauses)}.`;
+    return `${opening} ${sentenceCase(partialText)}. The breakdown was that ${weakText}.`;
   }
   if (weakClauses.length) {
-    return `This rep checked whether ${repPurposeText}. The response was weak: the student ${naturalJoin(weakClauses)}.`;
+    return `${opening} ${sentenceCase(weakText)}.`;
   }
-  return `This rep checked whether ${repPurposeText}. No scored evidence was available for this rep.`;
+  return `${opening} No scored evidence was available for this rep.`;
 };
 
 const drillModeForRegistry = (mode: BuildResponseSnapshotInput["mode"]): EvidenceDrillMode =>
@@ -864,11 +938,9 @@ const roleForSet = (set: Pick<ResponseSnapshotSet, "setId" | "setName">) =>
 
 const buildDrillPatternResultText = (
   phase: TopicPhase,
-  responseLevel: ResponseSnapshotDisplayLevel,
   sets: ResponseSnapshotSet[],
 ) => {
   const scoredSets = sets.filter((set) => set.responseLevel !== "not_scored");
-  const label = responseLabelForLevel(responseLevel).toLowerCase();
   if (!scoredSets.length) {
     return `Across this ${phase} drill, no scored student response was recorded.`;
   }
@@ -880,13 +952,13 @@ const buildDrillPatternResultText = (
   };
 
   if (grouped.strong.length === scoredSets.length) {
-    return `Across this ${phase} drill, the student produced a ${label}: ${naturalJoin(grouped.strong)} held together across the scored sets.`;
+    return `Across this ${phase} drill, ${naturalJoin(grouped.strong)} held together across the scored sets.`;
   }
   if (grouped.weak.length === scoredSets.length) {
-    return `Across this ${phase} drill, the student produced a ${label}: ${naturalJoin(grouped.weak)} remained weak across the scored sets. ${PHASE_INSTABILITY_MEANING[phase]}`;
+    return `Across this ${phase} drill, ${naturalJoin(grouped.weak)} remained weak across the scored sets. ${PHASE_INSTABILITY_MEANING[phase]}`;
   }
   if (grouped.partial.length === scoredSets.length) {
-    return `Across this ${phase} drill, the student produced a ${label}: ${naturalJoin(grouped.partial)} appeared in every scored set but remained incomplete. ${PHASE_INSTABILITY_MEANING[phase]}`;
+    return `Across this ${phase} drill, ${naturalJoin(grouped.partial)} appeared in every scored set but remained incomplete. ${PHASE_INSTABILITY_MEANING[phase]}`;
   }
 
   const clauses: string[] = [];
@@ -900,7 +972,7 @@ const buildDrillPatternResultText = (
       ? `${sentenceCase(naturalJoin(grouped.partial))} is the remaining incomplete part of this drill pattern.`
       : "";
 
-  return `Across this ${phase} drill, the student produced a ${label}: ${naturalJoin(clauses)}. ${decisiveInstability} ${PHASE_INSTABILITY_MEANING[phase]}`.replace(/\s+/g, " ").trim();
+  return `Across this ${phase} drill, ${naturalJoin(clauses)}. ${decisiveInstability} ${PHASE_INSTABILITY_MEANING[phase]}`.replace(/\s+/g, " ").trim();
 };
 
 export const buildResponseSnapshotV1 = ({
@@ -1125,7 +1197,7 @@ export const buildResponseSnapshotV1 = ({
       responseLevel,
       responseLabel: responseLabelForLevel(responseLevel),
       patternCode,
-      resultText: buildDrillPatternResultText(phase, responseLevel, snapshotSets),
+      resultText: buildDrillPatternResultText(phase, snapshotSets),
     },
     sets: snapshotSets,
     engineOutcomeRef: {
