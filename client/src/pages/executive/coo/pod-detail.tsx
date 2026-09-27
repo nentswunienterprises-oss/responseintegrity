@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { TrialProgressCard } from "@/components/trial/TrialProgressCard";
-import { SandboxMockGateCard } from "@/components/sandbox/SandboxMockGateCard";
 import type {
   TrialCaseOverview,
   TrialOutcomeClassification,
@@ -2162,12 +2161,6 @@ function TutorStudentsSection({
       </div>
 
       <TrialCertificationPanel
-        tutorId={tutorId}
-        tutorName={tutorName}
-        operationalMode={operationalMode}
-      />
-
-      <SandboxMockGateCard
         tutorId={tutorId}
         tutorName={tutorName}
         operationalMode={operationalMode}
