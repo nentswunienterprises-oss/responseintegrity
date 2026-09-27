@@ -89,20 +89,25 @@ Operational shorthand:
 
 Trial is a first-class tutor lifecycle mode between Sandbox and Certified Live.
 
-Current implementation progression:
+Current governed progression:
 
-Applicant -> Training -> Sandbox -> Sandbox Mock Gate -> Trial -> Certified Live
+Application -> Training -> Sandbox -> Practicals -> Trial -> Certification -> Certified Live
 
 Definitions:
 
-- Trial: tutor is actively running exactly two governed live family placements under validation constraints
-- Certified Live: COO has explicitly approved the tutor after the Trial certification gate
+- Sandbox: stateful simulated delivery where the system continuously derives Specialist capability evidence
+- Practicals: governed post-Sandbox operational execution stage opened only after system readiness plus TD sign-off
+- Trial: Specialist runs exactly two governed live family placements under validation constraints
+- Certification: the explicit review/gate after Trial evidence is complete
+- Certified Live: COO has explicitly approved the Specialist after the certification gate
 - Pod Ready: operator-level and pod-level gates are both satisfied for scale participation
 
 Graduation rule:
 
-Trial -> Certified Live is determined by the Specialist Academy Validation Gate and an explicit COO decision record.
-Training and Battle Testing completion can open Sandbox. Sandbox opens Trial only after the Sandbox Mock Gate passes.
+Training and Battle Testing may open Sandbox once preparation evidence is complete. They cannot promote Sandbox directly into Trial.
+Sandbox -> Practicals requires the capability engine to resolve Practicals readiness and the assigned TD to record the human readiness decision.
+Practicals -> Trial remains a governed stage transition.
+Trial -> Certification -> Certified Live requires the Trial evidence gates and an explicit COO decision record.
 
 Operational interpretation:
 
@@ -114,22 +119,24 @@ Target architecture note:
 - operating mode should be lifecycle only (applicant, training, sandbox, trial, certified_live, suspended)
 - risk should be tracked separately as health state (locked, watchlist, fail)
 
-### Implemented gate logic behind mode progression
+### Implemented gate logic behind pathway progression
 
-1. If documentation is incomplete, mode is forced to Applicant.
-2. If Transformation Phases module is complete, tutor can move to SB.
-3. If Transformation Phases plus Session Infrastructure are complete, tutor remains in Sandbox until the Mock Gate passes.
-4. If drift or critical fail appears, mode shifts into watchlist behavior.
-5. If repeated drift reaches threshold, mode moves to retraining or suspension based on severity.
+1. If documentation is incomplete, lifecycle permission is forced to Applicant.
+2. Training Deep Dives establish preparation authority for Sandbox; Battle Testing does not issue Trial.
+3. In Sandbox, the system continuously evaluates Condition, Observation, Evidence, Authority, and Continuity Integrity.
+4. Sandbox -> Practicals requires system `practicalsReady`, required breadth/longitudinal proof, no preparation blocker, and explicit TD readiness sign-off.
+5. A TD remediation decision keeps the Specialist in Sandbox and the capability engine continues targeting the earliest unsupported layer.
+6. Practicals -> Trial is a separate governed transition; Sandbox readiness never jumps directly to Trial.
+7. If drift or critical fail appears, risk/recovery rules constrain responsibility independently of the pathway stage.
 
-Trial gate overlay:
+Later gates:
 
-1. Sandbox -> Trial gate:
-	docs complete, transformation complete, session infrastructure complete, six sandbox accounts available, Sandbox Mock Gate passed, no active fail health.
-2. Trial -> Certified Live gate:
-	exactly two distinct Trial families, nine qualifying sessions per family inside the approved Trial window, required logs and reports, feedback received or declined, positive COO outcome reviews, no active Trial risk, and explicit COO approval.
-3. Certified Live -> Pod Ready gate:
-	certified_live operator conditions plus pod-level composition and quality gates pass.
+1. Trial -> Certification gate:
+	exactly two distinct Trial families, nine qualifying sessions per family, required logs and reports, feedback received or declined, positive governed outcome reviews, and no active Trial risk.
+2. Certification -> Certified Live:
+	explicit COO certification decision.
+3. Certified Live -> Pod Ready:
+	certified-live operator conditions plus pod-level composition and quality gates pass.
 
 Meaning: trust expands only when evidence is present.
 
@@ -170,59 +177,27 @@ This must not be implemented as ad-hoc session capacity or loose credits.
 4. Commercial activation gate:
 	billing profile valid, payment authorization complete, and post-trial schedule activated.
 
-## Sandbox Criteria Framework (6 Sandbox Accounts)
+## Sandbox Readiness Framework
 
-This is the practical readiness pack before Trial.
+Six Sandbox accounts remain part of the available controlled practice environment, but account counts or scenario totals do not authorize graduation.
 
-Total sandbox accounts allocated per specialist: 6
+The authoritative Sandbox readiness model is evidence-native:
 
-### Lane A: Reporting Proficiency (3 accounts)
+1. Condition Integrity
+2. Observation Integrity
+3. Evidence Integrity
+4. Authority Integrity
+5. Continuity Integrity
 
-Required evidence from each account:
+The system resolves these capability layers from actual Sandbox rep/session evidence, alongside required RI phase breadth and longitudinal proof. Later capability layers cannot override an unsupported earlier layer, and one isolated clean rep cannot erase a real breakdown.
 
-- 4 weekly reports triggered
-- 1 monthly report triggered
+When the system resolves `practicalsReady=true`, the assigned TD reviews the capability record and either:
 
-Interpretation:
+- records remediation, keeping the Specialist in Sandbox; or
+- records readiness and opens Practicals.
 
-- report content must match actual drill logic from the OS
+This is operational development work owned by the TD. COO is not the routine Sandbox assessor. COO remains responsible for policy, governed exceptions/extensions, Trial governance, and final certification authority.
 
-### Lane B: Conditioning Execution (2 active accounts)
-
-Required evidence:
-
-- 1 account with 1 topic completed end-to-end through the full conditioning loop (all phases)
-- other account parallel handling proven as 3 active topics managed concurrently for 4 weeks across the active Lane B accounts
-
-Interpretation:
-
-- end-to-end means phase progression with valid transition evidence
-- concurrency means quality must hold while load increases at the same time
-
-### Lane C: Control Buffer (1 untouched account)
-
-Required evidence:
-
-- one sandbox account remains intentionally untouched during the evaluation window
-
-Purpose:
-
-- preserves a controlled account for late-stage corrections and stress tests
-- provides contingency for remediation or verification without contaminating completed evidence
-
-### Sandbox -> Trial Gate Decision
-
-A specialist moves from Sandbox to Trial only when all are true:
-
-1. Lane A thresholds are met and triggered.
-2. Lane B thresholds are met and evidenced.
-3. Lane C control buffer is preserved.
-4. No active fail health state exists.
-5. The Sandbox Mock Gate is passed by COO using the required checklist and evidence note.
-
-If any condition fails, the system returns a deterministic failure reason and assigns remediation work before retest.
-
-There should be a progress bar regarding this so the user knows
 
 ## Capacity -> Validation -> Pod Economy
 
