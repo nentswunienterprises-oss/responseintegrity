@@ -1,74 +1,49 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  createEmptySandboxMockChecklist,
-  evaluateSandboxReadinessGate,
-  SANDBOX_MOCK_CRITERIA,
+  evaluateSandboxPreparationGate,
+  SANDBOX_REQUIRED_ACCOUNT_COUNT,
 } from "./sandboxReadiness";
 
-function completeChecklist() {
-  return Object.fromEntries(SANDBOX_MOCK_CRITERIA.map((criterion) => [criterion.key, true])) as any;
-}
-
-test("Sandbox cannot open Trial before the Mock Readiness Gate passes", () => {
-  const result = evaluateSandboxReadinessGate({
+test("Sandbox preparation points to Practicals and never to Trial", () => {
+  const result = evaluateSandboxPreparationGate({
     docsComplete: true,
     transformationComplete: true,
     sessionInfrastructureComplete: true,
     hasActiveFailHealth: false,
-    sandboxAccountCount: 6,
-    latestMockAssessment: null,
+    sandboxAccountCount: SANDBOX_REQUIRED_ACCOUNT_COUNT,
   });
 
-  assert.equal(result.readyForTrial, false);
-  assert.match(result.blockers.join(" "), /Mock Readiness Gate/);
+  assert.deepEqual(result, {
+    readyForCapabilityReadiness: true,
+    blockers: [],
+    nextStage: "practicals",
+  });
 });
 
-test("a passed decision with an incomplete checklist is not a valid Sandbox exit", () => {
-  const result = evaluateSandboxReadinessGate({
+test("Sandbox preparation remains blocked until all six practice accounts are available", () => {
+  const result = evaluateSandboxPreparationGate({
     docsComplete: true,
     transformationComplete: true,
     sessionInfrastructureComplete: true,
     hasActiveFailHealth: false,
-    sandboxAccountCount: 6,
-    latestMockAssessment: {
-      decision: "passed",
-      checklist: createEmptySandboxMockChecklist(),
-    },
+    sandboxAccountCount: SANDBOX_REQUIRED_ACCOUNT_COUNT - 1,
   });
 
-  assert.equal(result.readyForTrial, false);
-});
-
-test("complete preparation plus a clean Mock assessment opens Trial readiness", () => {
-  const result = evaluateSandboxReadinessGate({
-    docsComplete: true,
-    transformationComplete: true,
-    sessionInfrastructureComplete: true,
-    hasActiveFailHealth: false,
-    sandboxAccountCount: 6,
-    latestMockAssessment: {
-      decision: "passed",
-      checklist: completeChecklist(),
-    },
-  });
-
-  assert.deepEqual(result, { readyForTrial: true, blockers: [] });
-});
-
-test("Sandbox exit remains blocked until all six practice accounts are available", () => {
-  const result = evaluateSandboxReadinessGate({
-    docsComplete: true,
-    transformationComplete: true,
-    sessionInfrastructureComplete: true,
-    hasActiveFailHealth: false,
-    sandboxAccountCount: 5,
-    latestMockAssessment: {
-      decision: "passed",
-      checklist: completeChecklist(),
-    },
-  });
-
-  assert.equal(result.readyForTrial, false);
+  assert.equal(result.readyForCapabilityReadiness, false);
   assert.match(result.blockers.join(" "), /6 Sandbox practice accounts/);
+  assert.equal(result.nextStage, "practicals");
+});
+
+test("Sandbox preparation refuses active fail health even when preparation is otherwise complete", () => {
+  const result = evaluateSandboxPreparationGate({
+    docsComplete: true,
+    transformationComplete: true,
+    sessionInfrastructureComplete: true,
+    hasActiveFailHealth: true,
+    sandboxAccountCount: SANDBOX_REQUIRED_ACCOUNT_COUNT,
+  });
+
+  assert.equal(result.readyForCapabilityReadiness, false);
+  assert.match(result.blockers.join(" "), /active fail or critical-drift/i);
 });
