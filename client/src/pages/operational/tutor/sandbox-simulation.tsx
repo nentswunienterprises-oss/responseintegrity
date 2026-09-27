@@ -32,6 +32,8 @@ import {
   liveTrainingInstruction,
   type LivePhaseLabel,
 } from "@/components/tutor/TrainingLiveDeliveryUi";
+import { ResponseSnapshotCard } from "@/components/tutor/ResponseSnapshotCard";
+import type { ResponseSnapshotV1 } from "@shared/responseSnapshot";
 
 type EvidenceStatus = "observed" | "not_observed" | "confounded";
 type InterventionEvent =
@@ -152,6 +154,7 @@ type EnvironmentForm = {
     };
     authorityAligned: boolean;
     stateTrackAligned: boolean;
+    responseSnapshot: ResponseSnapshotV1;
   };
   rediagnosisRunId?: string;
   sequenceNumber?: number;
@@ -243,6 +246,14 @@ type RepResult = {
     };
     authorityAligned: boolean;
     stateTrackAligned: boolean;
+  };
+  responseSnapshot: ResponseSnapshotV1 | null;
+  completedScheduledSession: null | {
+    id: string;
+    status: "completed";
+    completedAt: string;
+    parentId: string;
+    enrollmentId: string | null;
   };
   readiness: Readiness;
 };
@@ -399,6 +410,8 @@ export default function SpecialistSandboxSimulation({
     requestedSandboxSessionNumberRaw > 0
       ? requestedSandboxSessionNumberRaw
       : null;
+  const scheduledSessionId = String(searchParams.get("scheduledSessionId") || "").trim();
+  const routeTopic = String(searchParams.get("topic") || "").trim() || "Sandbox practice";
 
   useEffect(() => {
     setSelections({});
@@ -420,6 +433,8 @@ export default function SpecialistSandboxSimulation({
       tutorAssignmentId,
       studentId,
       requestedSandboxSessionNumber,
+      scheduledSessionId,
+      routeTopic,
     ],
     enabled: Boolean(tutorAssignmentId && studentId && inSandbox),
     retry: false,
@@ -430,7 +445,7 @@ export default function SpecialistSandboxSimulation({
         : "";
       const response = await apiRequest(
         "GET",
-        `/api/tutor/sandbox-environment?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}&studentId=${encodeURIComponent(studentId)}${requestedSessionQuery}`,
+        `/api/tutor/sandbox-environment?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}&studentId=${encodeURIComponent(studentId)}${requestedSessionQuery}${scheduledSessionId ? `&scheduledSessionId=${encodeURIComponent(scheduledSessionId)}` : ""}&topic=${encodeURIComponent(routeTopic)}`,
       );
       return response.json();
     },
@@ -607,6 +622,8 @@ export default function SpecialistSandboxSimulation({
           trajectoryId: form.trajectoryId,
           eventSequence: form.eventSequence,
           eventFormId: form.eventFormId,
+          ...(scheduledSessionId ? { scheduledSessionId } : {}),
+          topic: routeTopic,
           submission: {
             interventionEvent,
             ...(requiresPrerequisiteSentinel && prerequisiteSentinel
@@ -645,6 +662,11 @@ export default function SpecialistSandboxSimulation({
         queryClient.invalidateQueries({
           queryKey: ["sandbox-environment-history", tutorAssignmentId, studentId],
         }),
+        queryClient.invalidateQueries({ queryKey: ["/api/tutor/pod"] }),
+        queryClient.invalidateQueries({
+          queryKey: [`/api/tutor/students/${studentId}/training-sessions`],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["/api/tutor/sessions"] }),
       ]);
     },
   });
@@ -736,7 +758,6 @@ export default function SpecialistSandboxSimulation({
   }
 
   const readiness = form.readiness;
-  const routeTopic = String(searchParams.get("topic") || "").trim() || "Sandbox practice";
 
   const startNextSandboxSession = () => {
     if (
@@ -764,63 +785,63 @@ export default function SpecialistSandboxSimulation({
   ) as LivePhaseLabel;
 
   if (form.status === "session_complete" && form.completedSession) {
+    const snapshot = form.completedSession.responseSnapshot;
+    const authority = form.completedSession.specialistAuthority;
     return (
       <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
         <div>
-          <h2 className="text-xl font-bold sm:text-2xl">Sandbox session complete</h2>
+          <h2 className="text-xl font-bold sm:text-2xl">Training session complete</h2>
           <p className="mt-3 text-sm">
-            <span className="font-semibold">Diagnostic Topic:</span> {routeTopic}
+            <span className="font-semibold">Topic:</span> {routeTopic}
           </p>
-          <p className="mt-4 text-muted-foreground">{form.sandboxStudent.name}</p>
+          <p className="mt-2 text-muted-foreground">{form.sandboxStudent.name}</p>
+          <Badge variant="outline" className="mt-2">Sandbox</Badge>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              Session {form.completedSession.completedSessionNumber} complete
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Alert>
-              <CheckCircle2 className="h-4 w-4" />
-              <AlertDescription>
-                All opportunities in this Sandbox session were recorded. The simulated
-                student's trajectory has been carried forward, but the next session has
-                not started.
-              </AlertDescription>
-            </Alert>
-            <div className="grid gap-2 text-sm sm:grid-cols-2">
-              <div className="rounded-lg border p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Completed phase
+        <ResponseSnapshotCard snapshot={snapshot} />
+
+        {authority && (
+          <div className="overflow-hidden rounded-xl border border-primary/15 bg-background">
+            <div className="bg-primary/5 px-4 py-2">
+              <span className="text-sm font-semibold">System Direction</span>
+            </div>
+            <div className="space-y-3 px-4 py-3 text-sm">
+              <div>
+                <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  This Session Result
                 </p>
-                <p className="mt-1 font-semibold">
-                  {form.completedSession.completedPhase}
+                <p className="font-semibold text-foreground">
+                  {authority.nextPhase} · {authority.nextStability}
                 </p>
               </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Next Sandbox session
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Before</span>
+                <span className="font-medium">{form.completedSession.completedPhase}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Now</span>
+                <span className="font-medium">
+                  {authority.nextPhase} · {authority.nextStability}
+                </span>
+              </div>
+              <div className="border-t pt-2">
+                <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Next Focus
                 </p>
-                <p className="mt-1 font-semibold">
-                  Session {form.completedSession.nextSessionNumber}
-                </p>
+                <p className="font-semibold text-blue-700">{authority.reason}</p>
               </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Starting the next session is deliberate. It will continue with this same
-              stateful Sandbox student from the carried-forward RI state.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={startNextSandboxSession}>
-                Start Sandbox session {form.completedSession.nextSessionNumber}
-              </Button>
-              <Button variant="outline" onClick={() => navigate("/specialist/pod")}>
-                Return to Pod
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={startNextSandboxSession}>
+            Start Sandbox session {form.completedSession.nextSessionNumber}
+          </Button>
+          <Button variant="outline" onClick={() => navigate("/specialist/pod")}>
+            Return to Pod
+          </Button>
+        </div>
       </div>
     );
   }
