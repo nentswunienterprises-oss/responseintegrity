@@ -1142,7 +1142,16 @@ export async function prepareSandboxEnvironment(input: {
   const requestedCurrentSession =
     Number(input.requestedSessionNumber || 0) ===
     bundle.trajectory.session_number;
-  if (completedBoundary && !requestedCurrentSession) {
+  const hasActiveBoundScheduledLesson =
+    Boolean(boundScheduledSession) &&
+    ["confirmed", "ready", "live"].includes(
+      String(boundScheduledSession?.status || "").trim().toLowerCase(),
+    );
+  if (
+    completedBoundary &&
+    !requestedCurrentSession &&
+    !hasActiveBoundScheduledLesson
+  ) {
     return {
       bankKey: bank.bankKey,
       bankVersion: bank.bankVersion,
