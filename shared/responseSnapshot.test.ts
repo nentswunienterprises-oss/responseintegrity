@@ -13,6 +13,7 @@ import {
   formatSnapshotPurposeText,
   formatSnapshotRepResult,
   formatSnapshotResultText,
+  prepareResponseSnapshotForDisplay,
   summarizeSnapshotEvidenceMix,
   summarizeSnapshotObservedResponse,
 } from "./responseSnapshot";
@@ -617,6 +618,104 @@ test("single rep narratives never claim cross-rep repeatability from that rep al
   });
 
   assert.equal(checked, 19, "Expected every registered three-rep scored set to enforce rep-local narration");
+});
+
+test("historical persisted Snapshots recover exact evidence classes without exposing legacy labels", () => {
+  const submittedSet = buildSubmittedSet({
+    mode: "training",
+    phase: "Clarity",
+    setName: "Identification",
+    rawByRep: [
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Identification",
+        repIndex: 0,
+        classes: {
+          vocabulary: "conditional",
+          method: "conditional",
+          reason: "conditional",
+          immediateApply: "supported",
+        },
+      }),
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Identification",
+        repIndex: 1,
+        classes: {
+          vocabulary: "breakdown",
+          method: "breakdown",
+          reason: "breakdown",
+          immediateApply: "supported",
+        },
+      }),
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Identification",
+        repIndex: 2,
+        classes: {
+          vocabulary: "supported",
+          method: "supported",
+          reason: "supported",
+          immediateApply: "supported",
+        },
+      }),
+    ],
+  });
+
+  const generated = buildResponseSnapshotV1({
+    sourceDrillId: "historical-snapshot-display-upgrade",
+    topic: "Algebra",
+    mode: "training",
+    phase: "Clarity",
+    sets: [submittedSet],
+  });
+  const historical = JSON.parse(JSON.stringify(generated));
+
+  historical.sets[0].reps.forEach((rep: any) => {
+    rep.evidence.forEach((item: any) => {
+      delete item.evidenceClass;
+      delete item.decisionEligible;
+    });
+  });
+  historical.sets[0].reps[2].repPurposeText =
+    "clarity could be confirmed as repeatable before active solving";
+  historical.sets[0].reps[2].resultText =
+    "This rep checked whether clarity could be confirmed as repeatable before active solving. Term recognition and method selection repeated again before active solving.";
+
+  const view = prepareResponseSnapshotForDisplay(historical);
+
+  assert.equal(
+    summarizeSnapshotEvidenceMix(view.sets[0].reps[0].evidence),
+    "3 conditional",
+  );
+  assert.equal(
+    summarizeSnapshotEvidenceMix(view.sets[0].reps[1].evidence),
+    "3 breakdown",
+  );
+  assert.equal(
+    summarizeSnapshotEvidenceMix(view.sets[0].reps[2].evidence),
+    "3 supported",
+  );
+  assert.equal(
+    formatSnapshotEvidenceClassLabel(view.sets[0].reps[0].evidence[0]),
+    "Conditional",
+  );
+  assert.doesNotMatch(
+    view.sets.flatMap((set: any) =>
+      set.reps.flatMap((rep: any) =>
+        rep.evidence.map((item: any) => formatSnapshotEvidenceClassLabel(item)),
+      ),
+    ).join(" "),
+    /legacy/i,
+  );
+  assert.match(
+    view.sets[0].reps[2].resultText,
+    /final unsolved example/i,
+  );
+  assert.doesNotMatch(
+    view.sets[0].reps[2].resultText,
+    /repeatable|repeated again/i,
+  );
 });
 
 test("clarity light-apply narrative states what happened instead of repeating the response label", () => {
