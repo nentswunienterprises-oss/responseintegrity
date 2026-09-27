@@ -222,34 +222,66 @@ export const summarizeSnapshotEvidenceMix = (
   return parts.join(" · ") || "No decision evidence";
 };
 
-const REP_PATTERN_SENTENCE: Record<string, string> = {
-  WWW: "The response remained weak across all three reps; the target behavior did not become stable in this set.",
-  WWP: "The first two reps were weak and the final rep improved to partial; the set ended with emerging control, not stability.",
-  WWS: "The first two reps were weak before a strong final response; the breakthrough still needs repetition.",
-  WPW: "The response improved from weak to partial, then fell back to weak; the change did not hold.",
-  WPP: "The response moved from weak to partial and held partial; improvement emerged but remained incomplete.",
-  WPS: "The response strengthened on each rep from weak to partial to strong; it finished well without repeated strength.",
-  WSW: "A strong middle rep appeared between two weak reps; the strong response was isolated.",
-  WSP: "The response jumped from weak to strong, then softened to partial; improvement appeared but did not finish stable.",
-  WSS: "The response began weak, then became strong and held strong; repeatable strength emerged after the first breakdown.",
-  PWW: "The response began partial, then deteriorated to weak and remained weak; the set lost control under repetition.",
-  PWP: "The response dropped from partial to weak, then recovered to partial; recovery occurred but remained incomplete.",
-  PWS: "The response dropped to weak on the second rep, then recovered strongly; consistency remains unproven.",
-  PPW: "The response remained partial for two reps, then broke to weak; the set ended less stable than it began.",
-  PPP: "The response stayed partial across all three reps; the target behavior was present but consistently incomplete.",
-  PPS: "The response stayed partial for two reps and finished strong; the final strength still needs confirmation.",
-  PSW: "The response improved to strong on the second rep, then broke to weak; the improvement did not survive.",
-  PSP: "The response moved from partial to strong and back to partial; partial performance remained the stable pattern.",
-  PSS: "The response began partial, then became strong and held strong; stable strength emerged after the first rep.",
-  SWW: "The response began strong, then collapsed to weak and remained weak; the initial strength did not survive repetition.",
-  SWP: "The response began strong, broke to weak, and recovered only to partial; the set ended below the opening level.",
-  SWS: "Strong responses appeared on the first and final reps with a weak breakdown between them; capability is present but unstable.",
-  SPW: "The response deteriorated on each rep from strong to partial to weak; the target behavior weakened under repetition.",
-  SPP: "The response began strong, then settled at partial for two reps; the initial strength was not sustained.",
-  SPS: "The response was strong on the first and final reps with a partial dip in the middle; strength largely held.",
-  SSW: "The response was strong for the first two reps, then broke on the final rep; the set did not finish stable.",
-  SSP: "The response was strong for two reps and softened to partial on the final rep; strength was present but not fully maintained.",
-  SSS: "The response remained strong across all three reps; the target behavior was repeatable within this set.",
+const legacyBehaviorPhraseForLevel = (
+  level: ResponseSnapshotDisplayLevel,
+  plural = false,
+) => {
+  if (level === "strong") return "held cleanly";
+  if (level === "partial") {
+    return plural ? "were present but unreliable" : "was present but unreliable";
+  }
+  if (level === "weak") return "broke down";
+  return "was not scored";
+};
+
+const buildLegacySetBehaviorResultText = (
+  reps: ResponseSnapshotRep[],
+) => {
+  const scored = reps.filter((rep) => rep.responseLevel !== "not_scored");
+  if (!scored.length) {
+    return "No scored student response was recorded for this set.";
+  }
+
+  const runs: Array<{
+    level: ResponseSnapshotDisplayLevel;
+    repNumbers: number[];
+  }> = [];
+
+  scored.forEach((rep) => {
+    const previous = runs[runs.length - 1];
+    if (previous?.level === rep.responseLevel) {
+      previous.repNumbers.push(rep.repNumber);
+    } else {
+      runs.push({
+        level: rep.responseLevel,
+        repNumbers: [rep.repNumber],
+      });
+    }
+  });
+
+  const clauses = runs.map((run) => {
+    const reference =
+      run.repNumbers.length === 1
+        ? `rep ${run.repNumbers[0]}`
+        : `reps ${naturalJoin(run.repNumbers.map(String))}`;
+    return `${legacyBehaviorPhraseForLevel(run.level)} on ${reference}`;
+  });
+
+  const trajectory =
+    clauses.length === 1
+      ? `The target behavior ${clauses[0]}.`
+      : `The target behavior ${clauses.slice(0, -1).join(", ")}, then ${clauses[clauses.length - 1]}.`;
+
+  const finalRun = runs[runs.length - 1];
+  const earlierRuns = runs.slice(0, -1);
+  const isolatedCleanRecovery =
+    finalRun.level === "strong" &&
+    finalRun.repNumbers.length === 1 &&
+    earlierRuns.some((run) => run.level !== "strong");
+
+  return isolatedCleanRecovery
+    ? `${trajectory} The final rep showed recovery, but that clean response was not repeated within the set.`
+    : trajectory;
 };
 
 const SET_ROLE_BY_ID: Record<string, string> = {
@@ -1674,11 +1706,7 @@ export const buildResponseSnapshotV1 = ({
     const patternCode = scoredReps.map((rep) => patternCharForLevel(rep.responseLevel)).join("");
     const semanticSetResult = buildSetEvidenceResultText(reps);
     const basePatternSentence =
-      semanticSetResult ||
-      REP_PATTERN_SENTENCE[patternCode] ||
-      (scoredReps.length
-        ? "The set pattern was recorded from scored reps."
-        : "No scored student response was recorded for this set.");
+      semanticSetResult || buildLegacySetBehaviorResultText(reps);
     const unscoredRepCount = reps.length - scoredReps.length;
     const patternSentence = unscoredRepCount
       ? `${basePatternSentence} ${unscoredRepCount} ${unscoredRepCount === 1 ? "rep had" : "reps had"} no decision-eligible observed evidence and did not count toward the evidence decision.`
