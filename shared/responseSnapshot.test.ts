@@ -924,6 +924,45 @@ test("clarity light-apply narrative states what happened instead of repeating th
   assert.match(snapshot.drill.resultText, /near-stable evidence/i);
 });
 
+test("Snapshot preserves response subject and only slashes paired or-descriptors", () => {
+  const submittedSet = buildSubmittedSet({
+    mode: "training",
+    phase: "Clarity",
+    setName: "Light Apply",
+    rawByRep: [0, 1, 2].map((repIndex) =>
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Light Apply",
+        repIndex,
+        classes: {
+          vocabulary: "supported",
+          method: "conditional",
+          reason: "supported",
+          immediateApply: "near_stable",
+        },
+      }),
+    ),
+  });
+
+  const snapshot = buildResponseSnapshotV1({
+    sourceDrillId: "clarity-light-apply-subject-and-descriptor-copy",
+    topic: "Algebra",
+    mode: "training",
+    phase: "Clarity",
+    sets: [submittedSet],
+  });
+
+  const repText = snapshot.sets[0].reps[2].resultText;
+  assert.match(
+    repText,
+    /the response was usable but not yet clean and immediate/i,
+  );
+  assert.doesNotMatch(repText, /the student was usable/i);
+  assert.doesNotMatch(repText, /clean\/immediate/i);
+  assert.match(repText, /selection was unstable\/speculative/i);
+  assert.doesNotMatch(repText, /selection was unstable or speculative/i);
+});
+
 test("rep narratives do not omit decision-eligible evidence dimensions", () => {
   const identificationSet = buildSubmittedSet({
     mode: "training",
