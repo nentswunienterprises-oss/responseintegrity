@@ -180,6 +180,51 @@ test("Sandbox completion is bound to the exact confirmed scheduled lesson", () =
   assert.match(sandboxEnvironmentSource, /billing_impact[\s\S]*'consume'/);
 });
 
+test("Sandbox Response Snapshot resolves the same current Training schema used by the live runner", () => {
+  const snapshotStart = sandboxEnvironmentSource.indexOf(
+    "function buildSandboxResponseSnapshot",
+  );
+  const snapshotEnd = sandboxEnvironmentSource.indexOf(
+    "async function loadActiveEnvironmentBank",
+    snapshotStart,
+  );
+  const snapshotSource = sandboxEnvironmentSource.slice(snapshotStart, snapshotEnd);
+
+  assert.match(
+    snapshotSource,
+    /const schema = getDrillSchemaDefinition\("training", input\.phase\)/,
+  );
+  assert.doesNotMatch(snapshotSource, /trainingSchemaVersionForSandboxBank/);
+  assert.match(
+    snapshotSource,
+    /Sandbox Response Snapshot could not resolve current Training evidence/,
+  );
+});
+
+test("Sandbox System Direction preserves Before stability and uses a real next-session action", () => {
+  assert.match(
+    sandboxEnvironmentSource,
+    /previous\.specialist_authority AS previous_specialist_authority/,
+  );
+  assert.match(
+    sandboxEnvironmentSource,
+    /stabilityBefore[\s\S]*previousAuthority\?\.nextStability/,
+  );
+  assert.match(
+    sandboxRunnerSource,
+    /snapshot\.engineOutcomeRef\.stabilityBefore/,
+  );
+  assert.match(sandboxRunnerSource, /NEXT_ACTION_ENGINE/);
+  assert.match(sandboxRunnerSource, /Next Session Focus/);
+  assert.doesNotMatch(
+    sandboxRunnerSource.slice(
+      sandboxRunnerSource.indexOf('if \(form.status === "session_complete"'),
+      sandboxRunnerSource.indexOf("if (embedded)", sandboxRunnerSource.indexOf('if \(form.status === "session_complete"')),
+    ),
+    /Next Focus[\s\S]*authority\.reason/,
+  );
+});
+
 test("Sandbox Response Snapshot is derived from Specialist-recorded evidence, not hidden canonical truth", () => {
   assert.match(sandboxEnvironmentSource, /buildSandboxResponseSnapshot/);
   assert.match(sandboxEnvironmentSource, /turn\.specialistObservations/);
