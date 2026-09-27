@@ -787,11 +787,15 @@ async function previousCompletedSessionBoundary(
   if (currentCount > 0) return null;
 
   const result = await pool.query(
-    `SELECT id, session_number, phase, specialist_authority,
-            authority_aligned, state_track_aligned, completed_at
-       FROM specialist_sandbox_session_evaluations
-      WHERE trajectory_id = $1
-        AND session_number = $2
+    `SELECT current.id, current.session_number, current.phase, current.specialist_authority,
+            current.authority_aligned, current.state_track_aligned, current.completed_at,
+            previous.specialist_authority AS previous_specialist_authority
+       FROM specialist_sandbox_session_evaluations current
+       LEFT JOIN specialist_sandbox_session_evaluations previous
+         ON previous.trajectory_id = current.trajectory_id
+        AND previous.session_number = current.session_number - 1
+      WHERE current.trajectory_id = $1
+        AND current.session_number = $2
       LIMIT 1`,
     [bundle.trajectory.id, bundle.trajectory.session_number - 1],
   );
@@ -803,6 +807,15 @@ async function previousCompletedSessionBoundary(
       ? JSON.parse(row.specialist_authority)
       : row.specialist_authority;
   const completedPhase = String(row.phase) as TopicPhase;
+  const previousAuthority =
+    typeof row.previous_specialist_authority === "string"
+      ? JSON.parse(row.previous_specialist_authority)
+      : row.previous_specialist_authority;
+  const phaseBefore =
+    (previousAuthority?.nextPhase as TopicPhase | undefined) || completedPhase;
+  const stabilityBefore =
+    (previousAuthority?.nextStability as TopicStability | undefined) ||
+    (Number(row.session_number) === 1 ? "Low" : null);
   const turns = await loadSessionTurns(bundle, Number(row.session_number));
   const responseSnapshot = buildSandboxResponseSnapshot({
     sourceDrillId: String(row.id),
@@ -810,8 +823,8 @@ async function previousCompletedSessionBoundary(
     phase: completedPhase,
     bankVersion: bank.bankVersion,
     turns,
-    phaseBefore: completedPhase,
-    stabilityBefore: null,
+    phaseBefore,
+    stabilityBefore,
     authority: specialistAuthority,
   });
 
