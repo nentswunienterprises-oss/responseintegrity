@@ -105,6 +105,26 @@ test("Sandbox evidence exceptions never force a hidden behavior guess", () => {
   );
 });
 
+test("Sandbox rep submission swaps to the authoritative next form without replaying the old rep", () => {
+  assert.match(
+    sandboxEnvironmentSource,
+    /const nextEnvironment = await prepareSandboxEnvironment\([\s\S]*nextEnvironment,/,
+  );
+  assert.match(
+    sandboxRunnerSource,
+    /queryClient\.setQueryData<EnvironmentForm>\([\s\S]*environmentQueryKey,[\s\S]*result\.nextEnvironment/,
+  );
+
+  const successStart = sandboxRunnerSource.indexOf("onSuccess: async (result) => {", sandboxRunnerSource.indexOf("const submitRep = useMutation"));
+  const successEnd = sandboxRunnerSource.indexOf("    },\n  });", successStart);
+  const successSource = sandboxRunnerSource.slice(successStart, successEnd);
+  assert.ok(
+    successSource.indexOf("queryClient.setQueryData<EnvironmentForm>") <
+      successSource.indexOf("setRepStarted(false)"),
+    "The next authoritative form must enter the cache before the completed rep UI resets.",
+  );
+});
+
 test("completed Sandbox training uses the live Response Snapshot completion contract", () => {
   assert.match(sandboxRunnerSource, /"session_complete"/);
   assert.match(sandboxRunnerSource, /Training session complete/);
