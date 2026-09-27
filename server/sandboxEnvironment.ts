@@ -500,10 +500,10 @@ function buildSandboxResponseSnapshot(input: {
     transitionReason?: string | null;
   };
 }): ResponseSnapshotV1 {
-  const schemaVersion = trainingSchemaVersionForSandboxBank(input.bankVersion);
-  const schema =
-    getDrillSchemaDefinitionByVersion("training", input.phase, schemaVersion) ||
-    getDrillSchemaDefinition("training", input.phase);
+  // The bank version governs hidden simulated outcomes, not the Specialist-facing
+  // observation contract. Sandbox reps are captured through the current live Training
+  // schema, so Response Snapshot reconstruction must resolve those same current option IDs.
+  const schema = getDrillSchemaDefinition("training", input.phase);
   const turnsBySet = new Map<string, SandboxCompletedTurn[]>();
   input.turns.forEach((turn) => {
     const rows = turnsBySet.get(turn.setId) || [];
@@ -543,7 +543,11 @@ function buildSandboxResponseSnapshot(input: {
               optionId: selected.optionId,
               schemaVersion: schema.schemaVersion,
             });
-            if (!resolved) continue;
+            if (!resolved) {
+              throw new Error(
+                `Sandbox Response Snapshot could not resolve current Training evidence ${definition.setId}.rep_${turn.repNumber}.${field.fieldKey} (${selected.optionId}).`,
+              );
+            }
             rep[field.fieldKey] = String(
               resolved.field.optionLabels?.[resolved.optionIndex] || "",
             );
