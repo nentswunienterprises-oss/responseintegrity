@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import StudentTopicConditioningDialog from "@/components/tutor/StudentTopicConditioningDialog";
 import ViewAssignmentsDialog from "@/components/tutor/ViewAssignmentsDialog";
 import ViewTrackingSystemsDialog from "@/components/tutor/ViewTrackingSystemsDialog";
+import { SandboxReadinessAssessmentCard } from "@/components/sandbox/SandboxReadinessAssessmentCard";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -1029,6 +1030,15 @@ export default function TDOverview() {
                                                 {(tutor.assignment as any)?.student_count || 0} students assigned.
                                               </p>
                                             </div>
+                                            {String(operationalMode || "").toLowerCase() === "sandbox" ? (
+                                              <div className="lg:col-span-2">
+                                                <SandboxReadinessAssessmentCard
+                                                  tutorId={tutor.id}
+                                                  tutorName={tutorName}
+                                                  operationalMode={operationalMode}
+                                                />
+                                              </div>
+                                            ) : null}
                                           </div>
                                         ) : (
                                           <p className="text-sm leading-6 text-muted-foreground">
