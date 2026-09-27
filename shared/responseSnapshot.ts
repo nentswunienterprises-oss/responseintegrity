@@ -474,27 +474,27 @@ export const formatSnapshotResultText = (value: string, purposeText?: string | n
     .replace(
       /The remaining logged observation was that (?:the student )?([^,]+), while the limiting evidence was that (?:the student )?([^.]+)\./g,
       (_match, partialClause, weakClause) =>
-        `One part remained incomplete: ${normalizeNarrativeClause(partialClause)}. The limiting breakdown was that ${normalizeNarrativeClause(weakClause)}.`,
+        `${sentenceCase(normalizeNarrativeClause(partialClause))}. ${sentenceCase(normalizeNarrativeClause(weakClause))}.`,
     )
     .replace(
       /The response was (?:strong|partial|weak)(?: overall)?: (?:the student )?([^,]+), while also showing ([^.]+)\./gi,
       (_match, partialClause, weakClause) =>
-        `${sentenceCase(normalizeNarrativeClause(partialClause))}. The breakdown was that ${normalizeNarrativeClause(weakClause)}.`,
+        `${sentenceCase(normalizeNarrativeClause(partialClause))}. ${sentenceCase(normalizeNarrativeClause(weakClause))}.`,
     )
     .replace(
       /The remaining logged observation was that (?:the student )?([^.]+)\./g,
       (_match, clause) =>
-        `One part remained incomplete: ${normalizeNarrativeClause(clause)}.`,
+        `${sentenceCase(normalizeNarrativeClause(clause))}.`,
     )
     .replace(
       /The partial evidence was that (?:the student )?([^.]+)\./g,
       (_match, clause) =>
-        `One part remained incomplete: ${normalizeNarrativeClause(clause)}.`,
+        `${sentenceCase(normalizeNarrativeClause(clause))}.`,
     )
     .replace(
       /The limiting evidence was that (?:the student )?([^.]+)\./g,
       (_match, clause) =>
-        `The breakdown was that ${normalizeNarrativeClause(clause)}.`,
+        `${sentenceCase(normalizeNarrativeClause(clause))}.`,
     )
     .replace(
       /The student produced a partial response: every measured part was present but incomplete\./gi,
@@ -525,7 +525,15 @@ export const formatSnapshotResultText = (value: string, purposeText?: string | n
   return text;
 };
 
-const clearNarrativeForRep = (repPurposeId: string, evidence: ResponseSnapshotEvidence[]) => {
+type SupportedNarrativeGroup = {
+  clause: string;
+  coveredDimensions: string[];
+};
+
+const supportedNarrativeGroupForRep = (
+  repPurposeId: string,
+  evidence: ResponseSnapshotEvidence[],
+): SupportedNarrativeGroup | null => {
   const supportedEvidence = evidence.filter(
     (item) =>
       item.decisionEligible !== false &&
@@ -535,54 +543,46 @@ const clearNarrativeForRep = (repPurposeId: string, evidence: ResponseSnapshotEv
   const hasClear = (dimensionLabel: string) =>
     supportedEvidence.some((item) => item.dimensionLabel === dimensionLabel);
 
-  const withRemainingSupported = (
-    primaryClause: string,
-    coveredDimensions: string[],
-  ) => [
-    primaryClause,
-    ...supportedEvidence
-      .filter((item) => !coveredDimensions.includes(item.dimensionLabel))
-      .map((item) => item.humanClause),
-  ];
+  if (!(hasClear("Vocabulary") && hasClear("Method"))) return null;
 
-  if (repPurposeId === "clarity.identification.opportunity_1" && hasClear("Vocabulary") && hasClear("Method")) {
-    return withRemainingSupported(
-      "the student identified the important terms and selected the method before solving",
-      ["Vocabulary", "Method"],
-    );
+  if (repPurposeId === "clarity.identification.opportunity_1") {
+    return {
+      clause: "the student identified the important terms and selected the method before solving",
+      coveredDimensions: ["Vocabulary", "Method"],
+    };
   }
-  if (repPurposeId === "clarity.identification.opportunity_2" && hasClear("Vocabulary") && hasClear("Method")) {
-    return withRemainingSupported(
-      "the student identified the important terms and selected the method on the second unsolved example",
-      ["Vocabulary", "Method"],
-    );
+  if (repPurposeId === "clarity.identification.opportunity_2") {
+    return {
+      clause: "the student identified the important terms and selected the method on the second unsolved example",
+      coveredDimensions: ["Vocabulary", "Method"],
+    };
   }
-  if (repPurposeId === "clarity.identification.opportunity_3" && hasClear("Vocabulary") && hasClear("Method")) {
-    return withRemainingSupported(
-      "the student identified the important terms and selected the method on the final unsolved example",
-      ["Vocabulary", "Method"],
-    );
+  if (repPurposeId === "clarity.identification.opportunity_3") {
+    return {
+      clause: "the student identified the important terms and selected the method on the final unsolved example",
+      coveredDimensions: ["Vocabulary", "Method"],
+    };
   }
-  if (repPurposeId === "clarity.light_apply.opportunity_1" && hasClear("Vocabulary") && hasClear("Method")) {
-    return withRemainingSupported(
-      "the first light solving attempt kept the vocabulary and method intact",
-      ["Vocabulary", "Method"],
-    );
+  if (repPurposeId === "clarity.light_apply.opportunity_1") {
+    return {
+      clause: "the first light solving attempt kept the vocabulary and method intact",
+      coveredDimensions: ["Vocabulary", "Method"],
+    };
   }
-  if (repPurposeId === "clarity.light_apply.opportunity_2" && hasClear("Vocabulary") && hasClear("Method")) {
-    return withRemainingSupported(
-      "the second light solving attempt kept the vocabulary and method intact",
-      ["Vocabulary", "Method"],
-    );
+  if (repPurposeId === "clarity.light_apply.opportunity_2") {
+    return {
+      clause: "the second light solving attempt kept the vocabulary and method intact",
+      coveredDimensions: ["Vocabulary", "Method"],
+    };
   }
-  if (repPurposeId === "clarity.light_apply.opportunity_3" && hasClear("Vocabulary") && hasClear("Method")) {
-    return withRemainingSupported(
-      "the final independent light application kept the vocabulary and method intact",
-      ["Vocabulary", "Method"],
-    );
+  if (repPurposeId === "clarity.light_apply.opportunity_3") {
+    return {
+      clause: "the final independent light application kept the vocabulary and method intact",
+      coveredDimensions: ["Vocabulary", "Method"],
+    };
   }
 
-  return supportedEvidence.map((item) => item.humanClause);
+  return null;
 };
 
 const LEGACY_REP_NARRATIVE_PATTERN =
@@ -1013,67 +1013,45 @@ const buildRepResultText = (
   evidence: ResponseSnapshotEvidence[],
   repPurposeId = "",
 ) => {
-  const decisionEvidence = evidence.filter((item) => item.decisionEligible !== false);
-  const supportedClauses = clearNarrativeForRep(repPurposeId, decisionEvidence)
-    .map(normalizeNarrativeClause)
-    .filter(Boolean);
-  const nearStableClauses = decisionEvidence
-    .filter(
-      (item) =>
-        item.evidenceStatus === "observed" &&
-        decisionEvidenceClassForItem(item) === "near_stable",
-    )
-    .map((item) => normalizeNarrativeClause(item.humanClause))
-    .filter(Boolean);
-  const conditionalClauses = decisionEvidence
-    .filter(
-      (item) =>
-        item.evidenceStatus === "observed" &&
-        decisionEvidenceClassForItem(item) === "conditional",
-    )
-    .map((item) => normalizeNarrativeClause(item.humanClause))
-    .filter(Boolean);
-  const breakdownClauses = decisionEvidence
-    .filter(
-      (item) =>
-        item.evidenceStatus === "observed" &&
-        decisionEvidenceClassForItem(item) === "breakdown",
-    )
-    .map((item) => normalizeNarrativeClause(item.humanClause))
-    .filter(Boolean);
+  const decisionEvidence = evidence.filter(
+    (item) =>
+      item.decisionEligible !== false &&
+      item.evidenceStatus === "observed" &&
+      decisionEvidenceClassForItem(item),
+  );
+  const supportedGroup = supportedNarrativeGroupForRep(
+    repPurposeId,
+    decisionEvidence,
+  );
+  let supportedGroupInserted = false;
+  const behaviorClauses: string[] = [];
+
+  decisionEvidence.forEach((item) => {
+    const isGroupedSupportedDimension =
+      supportedGroup &&
+      decisionEvidenceClassForItem(item) === "supported" &&
+      supportedGroup.coveredDimensions.includes(item.dimensionLabel);
+
+    if (isGroupedSupportedDimension) {
+      if (!supportedGroupInserted) {
+        behaviorClauses.push(normalizeNarrativeClause(supportedGroup.clause));
+        supportedGroupInserted = true;
+      }
+      return;
+    }
+
+    const clause = normalizeNarrativeClause(item.humanClause);
+    if (clause) behaviorClauses.push(clause);
+  });
+
   const opening = `This rep checked whether ${repPurposeText}.`;
-  const sentences: string[] = [opening];
-
-  if (supportedClauses.length) {
-    sentences.push(narrativeSentences(supportedClauses));
-  }
-  if (nearStableClauses.length === 1) {
-    sentences.push(`One part was near-stable: ${nearStableClauses[0]}.`);
-  } else if (nearStableClauses.length > 1) {
-    sentences.push(
-      `Some parts were near-stable. ${narrativeSentences(nearStableClauses)}`,
-    );
-  }
-  if (conditionalClauses.length === 1) {
-    sentences.push(`One part remained conditional: ${conditionalClauses[0]}.`);
-  } else if (conditionalClauses.length > 1) {
-    sentences.push(
-      `Some parts remained conditional. ${narrativeSentences(conditionalClauses)}`,
-    );
-  }
-  if (breakdownClauses.length === 1) {
-    sentences.push(`The breakdown was that ${breakdownClauses[0]}.`);
-  } else if (breakdownClauses.length > 1) {
-    sentences.push(
-      `Several observed areas broke down. ${narrativeSentences(breakdownClauses)}`,
-    );
+  if (!behaviorClauses.length) {
+    return `${opening} No decision-eligible observed evidence was available for this rep.`;
   }
 
-  if (sentences.length === 1) {
-    sentences.push("No decision-eligible observed evidence was available for this rep.");
-  }
-
-  return sentences.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+  return `${opening} ${narrativeSentences(behaviorClauses)}`
+    .replace(/\s+/g, " ")
+    .trim();
 };
 
 const drillModeForRegistry = (mode: BuildResponseSnapshotInput["mode"]): EvidenceDrillMode =>
