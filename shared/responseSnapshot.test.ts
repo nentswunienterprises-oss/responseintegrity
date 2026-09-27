@@ -303,7 +303,7 @@ test("a fully unscored rep does not lower a set score", () => {
   assert.match(snapshot.sets[0].resultText, /did not count toward the evidence decision/i);
 });
 
-test("response snapshot keeps weak evidence visible inside a strong rep", () => {
+test("response snapshot preserves breakdown evidence even when the legacy compatibility band is strong", () => {
   const supported = {
     startBehavior: "supported",
     stepExecution: "supported",
@@ -850,7 +850,7 @@ test("clarity modeling is persisted as a non-scored snapshot set", () => {
   assert.equal(snapshot.sets[0].setName, "Modeling");
   assert.equal(snapshot.sets[0].responseLabel, "Not scored");
   assert.equal(snapshot.sets[0].score, null);
-  assert.match(snapshot.sets[0].resultText, /No scored student response was recorded/);
+  assert.match(snapshot.sets[0].resultText, /No student observation evidence was recorded/);
   assert.equal(snapshot.drill.patternCode, "SS");
   assert.equal(snapshot.drill.score, 90);
 });
