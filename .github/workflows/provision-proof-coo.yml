@@ -3,7 +3,7 @@ name: Provision Proof COO
 on:
   push:
     branches:
-      - feat/evidence-complete-diagnosis
+      - fix/preview-training-session-authority
     paths:
       - '.github/workflows/provision-proof-coo.yml'
       - '.github/scripts/provision-proof-coo.mjs'
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      PROOF_BASE_URL: https://tt-confidence-hub-git-feat-evi-31b8c6-relief-works-technologies.vercel.app
+      PROOF_BASE_URL: https://tt-confidence-hub-git-fix-prev-504b23-relief-works-technologies.vercel.app
       RI_PROOF_SPECIALIST_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
       RI_PROOF_SPECIALIST_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
       RI_PROOF_COO_PASSWORD: ${{ secrets.RI_PROOF_COO_PASSWORD }}
