@@ -320,7 +320,6 @@ function ResponseSnapshotPanel({
       )}
       <Accordion type="multiple" className="mt-2">
         {view.sets.map((set) => {
-          const setEvidence = set.reps.flatMap((rep) => rep.evidence);
           return (
             <AccordionItem
               key={set.setId}
@@ -329,9 +328,6 @@ function ResponseSnapshotPanel({
               <AccordionTrigger className="text-left text-sm">
                 <span className="flex w-full flex-col gap-1 pr-3 sm:flex-row sm:items-center sm:justify-between">
                   <span>{set.setName}</span>
-                  <span className="text-xs font-semibold text-muted-foreground">
-                    {set.reps.length ? summarizeSnapshotEvidenceMix(setEvidence) : "Instructional set"}
-                  </span>
                 </span>
               </AccordionTrigger>
               <AccordionContent className="space-y-2">
