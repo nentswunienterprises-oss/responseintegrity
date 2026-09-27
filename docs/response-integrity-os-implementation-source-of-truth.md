@@ -603,6 +603,8 @@ Rep narration is opportunity-local. A single rep may state only what that opport
 
 Rep narration is also evidence-complete. Every decision-eligible observed dimension recorded for that rep must remain represented in the prose or in an explicit semantically equivalent grouped clause. Purpose-specific phrasing may combine dimensions for readability, but it must not silently omit a supported, near-stable, conditional, or breakdown dimension. For example, if Identification records supported Vocabulary, Method, and Reason, the narrative must describe the reason evidence as well as recognition and method selection.
 
+Rep prose is behavior-first, not evidence-class-first. The prose must state the concrete observed behavior directly and must not announce generic buckets such as "One part was near-stable", "One part remained conditional", "Some parts remained conditional", "Several observed areas broke down", or "The breakdown was that". Evidence classes already remain visible in rep-level badges/counts. The narrative exists to explain what happened, not to repeat the taxonomy.
+
 Set summaries are behavior-first. They describe what the student did across the ordered reps, derived from the underlying evidence classes, rather than narrating the taxonomy itself. Evidence labels remain visible in the evidence detail and badges, while the set summary uses behavioral language such as held cleanly, mostly held with a small gap, was present but unreliable, broke down, or recovered. Cross-rep claims such as recovery or consistency are allowed only at set level and only when the ordered evidence pattern supports them.
 
 Clarity Modeling remains visible as instructional preparation rather than student evidence:
