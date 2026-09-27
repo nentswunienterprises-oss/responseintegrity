@@ -1114,82 +1114,148 @@ const canonicalDecisionEvidence = (evidence: ResponseSnapshotEvidence[]) =>
       decisionEvidenceClassForItem(item, false),
   );
 
-const evidenceLocationsForClass = (
-  reps: ResponseSnapshotRep[],
-  evidenceClass: ResponseSnapshotDecisionEvidenceClass,
-) => {
-  const byDimension = new Map<string, number[]>();
-  reps.forEach((rep) => {
-    canonicalDecisionEvidence(rep.evidence)
-      .filter((item) => item.evidenceClass === evidenceClass)
-      .forEach((item) => {
-        const repsForDimension = byDimension.get(item.dimensionLabel) || [];
-        if (!repsForDimension.includes(rep.repNumber)) {
-          repsForDimension.push(rep.repNumber);
-        }
-        byDimension.set(item.dimensionLabel, repsForDimension);
-      });
-  });
-
-  const grouped = new Map<string, { repNumbers: number[]; dimensions: string[] }>();
-  Array.from(byDimension.entries()).forEach(([dimension, repNumbers]) => {
-    const orderedReps = [...repNumbers].sort((left, right) => left - right);
-    const key = orderedReps.join(",");
-    const current = grouped.get(key) || { repNumbers: orderedReps, dimensions: [] };
-    current.dimensions.push(dimension.toLowerCase());
-    grouped.set(key, current);
-  });
-
-  return Array.from(grouped.values()).map(({ repNumbers, dimensions }) => {
-    const repText =
-      repNumbers.length === 1
-        ? `rep ${repNumbers[0]}`
-        : `reps ${naturalJoin(repNumbers.map(String))}`;
-    return `${repText} in ${naturalJoin(dimensions)}`;
-  });
+const BEHAVIOR_LABEL_BY_DIMENSION: Record<string, string> = {
+  Vocabulary: "vocabulary recognition",
+  Method: "method selection",
+  Reason: "reasoning",
+  "First response": "first response",
+  Start: "independent start",
+  "Step execution": "step execution",
+  Repeatability: "method consistency",
+  "Step plan accuracy": "step-plan accuracy",
+  Independence: "independence",
+  "Initial response": "initial response",
+  "First-step control": "first-step control",
+  "Discomfort tolerance": "difficulty tolerance",
+  "Rescue behavior": "rescue behavior",
+  "Start under time": "timed start",
+  "Structure under time": "structure under time",
+  "Pace control": "pace control",
+  Completion: "completion",
 };
 
-const joinEvidenceLocations = (locations: string[]) => {
-  const filtered = locations.map((location) => location.trim()).filter(Boolean);
-  if (filtered.length <= 1) return filtered[0] || "";
-  return filtered.join("; ");
+const behaviorLabelForDimension = (dimensionLabel: string) =>
+  BEHAVIOR_LABEL_BY_DIMENSION[dimensionLabel] ||
+  lowerFirst(dimensionLabel);
+
+const repReference = (repNumbers: number[]) => {
+  const ordered = [...repNumbers].sort((left, right) => left - right);
+  if (ordered.length === 1) return `rep ${ordered[0]}`;
+  return `reps ${naturalJoin(ordered.map(String))}`;
+};
+
+const behaviorStatePhrase = (
+  evidenceClass: ResponseSnapshotDecisionEvidenceClass,
+  plural: boolean,
+) => {
+  if (evidenceClass === "supported") return "held cleanly";
+  if (evidenceClass === "near_stable") {
+    return plural
+      ? "were mostly intact with small gaps"
+      : "was mostly intact with a small gap";
+  }
+  if (evidenceClass === "conditional") {
+    return plural ? "were present but unreliable" : "was present but unreliable";
+  }
+  return "broke down";
+};
+
+type SetBehaviorPatternGroup = {
+  dimensions: string[];
+  runs: Array<{
+    evidenceClass: ResponseSnapshotDecisionEvidenceClass;
+    repNumbers: number[];
+  }>;
+};
+
+const setBehaviorPatternGroups = (
+  reps: ResponseSnapshotRep[],
+): SetBehaviorPatternGroup[] => {
+  const byDimension = new Map<
+    string,
+    Array<{
+      repNumber: number;
+      evidenceClass: ResponseSnapshotDecisionEvidenceClass;
+    }>
+  >();
+
+  reps.forEach((rep) => {
+    canonicalDecisionEvidence(rep.evidence).forEach((item) => {
+      const evidenceClass = decisionEvidenceClassForItem(item, false);
+      if (!evidenceClass) return;
+      const current = byDimension.get(item.dimensionLabel) || [];
+      current.push({ repNumber: rep.repNumber, evidenceClass });
+      byDimension.set(item.dimensionLabel, current);
+    });
+  });
+
+  const grouped = new Map<string, SetBehaviorPatternGroup>();
+  Array.from(byDimension.entries()).forEach(([dimensionLabel, observations]) => {
+    const ordered = [...observations].sort(
+      (left, right) => left.repNumber - right.repNumber,
+    );
+    const runs: SetBehaviorPatternGroup["runs"] = [];
+    ordered.forEach((observation) => {
+      const previous = runs[runs.length - 1];
+      if (previous?.evidenceClass === observation.evidenceClass) {
+        previous.repNumbers.push(observation.repNumber);
+      } else {
+        runs.push({
+          evidenceClass: observation.evidenceClass,
+          repNumbers: [observation.repNumber],
+        });
+      }
+    });
+    const signature = ordered
+      .map((item) => `${item.repNumber}:${item.evidenceClass}`)
+      .join("|");
+    const current = grouped.get(signature) || { dimensions: [], runs };
+    current.dimensions.push(behaviorLabelForDimension(dimensionLabel));
+    grouped.set(signature, current);
+  });
+
+  return Array.from(grouped.values());
+};
+
+const describeSetBehaviorPattern = (group: SetBehaviorPatternGroup) => {
+  const subject = sentenceCase(naturalJoin(group.dimensions));
+  const plural = group.dimensions.length > 1;
+  const runs = group.runs;
+
+  if (!runs.length) return "";
+
+  if (runs.length === 1) {
+    const run = runs[0];
+    return `${subject} ${behaviorStatePhrase(run.evidenceClass, plural)} across ${repReference(run.repNumbers)}.`;
+  }
+
+  const clauses = runs.map(
+    (run) =>
+      `${behaviorStatePhrase(run.evidenceClass, plural)} on ${repReference(run.repNumbers)}`,
+  );
+  const trajectory = `${subject} ${naturalJoin(clauses)}.`;
+
+  const lastRun = runs[runs.length - 1];
+  const earlierRuns = runs.slice(0, -1);
+  const cleanFinalWasIsolated =
+    lastRun.evidenceClass === "supported" &&
+    lastRun.repNumbers.length === 1 &&
+    earlierRuns.some((run) => run.evidenceClass !== "supported");
+
+  if (cleanFinalWasIsolated) {
+    return `${trajectory} The final rep showed recovery, but that clean response was not repeated within the set.`;
+  }
+
+  return trajectory;
 };
 
 const buildSetEvidenceResultText = (reps: ResponseSnapshotRep[]) => {
-  const allEvidence = reps.flatMap((rep) => rep.evidence);
-  const canonical = canonicalDecisionEvidence(allEvidence);
-  if (!canonical.length) return null;
-
-  const classes = new Set(
-    canonical
-      .map((item) => item.evidenceClass)
-      .filter(isDecisionEvidenceClass),
-  );
-
-  if (classes.size === 1 && classes.has("supported")) {
-    return "Every decision-eligible observation in this set was supported.";
-  }
-
-  const sentences: string[] = [];
-  const breakdown = evidenceLocationsForClass(reps, "breakdown");
-  const conditional = evidenceLocationsForClass(reps, "conditional");
-  const nearStable = evidenceLocationsForClass(reps, "near_stable");
-  const supported = evidenceLocationsForClass(reps, "supported");
-
-  if (breakdown.length) {
-    sentences.push(`Breakdown evidence appeared on ${joinEvidenceLocations(breakdown)}.`);
-  }
-  if (conditional.length) {
-    sentences.push(`Conditional evidence remained on ${joinEvidenceLocations(conditional)}.`);
-  }
-  if (nearStable.length) {
-    sentences.push(`Near-stable evidence remained on ${joinEvidenceLocations(nearStable)}.`);
-  }
-  if (supported.length) {
-    sentences.push(`Supported evidence was recorded on ${joinEvidenceLocations(supported)}.`);
-  }
-
-  return sentences.join(" ");
+  const groups = setBehaviorPatternGroups(reps);
+  if (!groups.length) return null;
+  return groups
+    .map(describeSetBehaviorPattern)
+    .filter(Boolean)
+    .join(" ");
 };
 
 const buildLegacyDrillPatternResultText = (
