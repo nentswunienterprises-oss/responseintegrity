@@ -135,11 +135,11 @@ export function SandboxReadinessAssessmentCard({
       toast({
         title:
           decision === "passed"
-            ? "Practicals opened"
+            ? "Practicals readiness approved"
             : "Sandbox remediation recorded",
         description:
           decision === "passed"
-            ? `${tutorName} has TD sign-off to move into Practicals. Sandbox lifecycle mode remains in place until the next governed stage transition.`
+            ? `${tutorName} is approved for Practicals entry. Sandbox lifecycle permission remains in place until the governed stage transition is executed.`
             : `${tutorName} remains in Sandbox while the identified capability gap is recovered.`,
       });
     },
@@ -174,7 +174,7 @@ export function SandboxReadinessAssessmentCard({
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
             The Sandbox engine builds Specialist capability truth continuously.
             The TD reviews that evidence, records remediation where needed, and
-            explicitly opens Practicals only when the system is ready.
+            approves Practicals readiness only when the system is ready.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -331,7 +331,7 @@ export function SandboxReadinessAssessmentCard({
               {mutation.isPending
                 ? "Saving..."
                 : decision === "passed"
-                  ? "Open Practicals"
+                  ? "Approve for Practicals"
                   : "Record remediation"}
             </Button>
           </div>
