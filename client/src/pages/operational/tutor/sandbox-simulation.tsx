@@ -255,6 +255,7 @@ type RepResult = {
     parentId: string;
     enrollmentId: string | null;
   };
+  nextEnvironment: EnvironmentForm;
   readiness: Readiness;
 };
 
@@ -427,15 +428,17 @@ export default function SpecialistSandboxSimulation({
     setShowEvidenceExceptions(false);
   }, [studentId]);
 
+  const environmentQueryKey = [
+    "sandbox-environment",
+    tutorAssignmentId,
+    studentId,
+    requestedSandboxSessionNumber,
+    scheduledSessionId,
+    routeTopic,
+  ] as const;
+
   const environmentQuery = useQuery<EnvironmentForm>({
-    queryKey: [
-      "sandbox-environment",
-      tutorAssignmentId,
-      studentId,
-      requestedSandboxSessionNumber,
-      scheduledSessionId,
-      routeTopic,
-    ],
+    queryKey: environmentQueryKey,
     enabled: Boolean(tutorAssignmentId && studentId && inSandbox),
     retry: false,
     staleTime: 0,
@@ -647,6 +650,10 @@ export default function SpecialistSandboxSimulation({
       return response.json() as Promise<RepResult>;
     },
     onSuccess: async (result) => {
+      queryClient.setQueryData<EnvironmentForm>(
+        environmentQueryKey,
+        result.nextEnvironment,
+      );
       setLastResult(result);
       setSelections({});
       setInterventionEvent("none");
