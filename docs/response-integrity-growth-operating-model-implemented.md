@@ -105,7 +105,7 @@ Definitions:
 Graduation rule:
 
 Training and Battle Testing may open Sandbox once preparation evidence is complete. They cannot promote Sandbox directly into Trial.
-Sandbox -> Practicals requires the capability engine to resolve Practicals readiness and the assigned TD to record the human readiness decision.
+Sandbox -> Practicals requires the capability engine to resolve Practicals readiness and the assigned TD to record the human readiness decision for Practicals entry.
 Practicals -> Trial remains a governed stage transition.
 Trial -> Certification -> Certified Live requires the Trial evidence gates and an explicit COO decision record.
 
@@ -194,7 +194,7 @@ The system resolves these capability layers from actual Sandbox rep/session evid
 When the system resolves `practicalsReady=true`, the assigned TD reviews the capability record and either:
 
 - records remediation, keeping the Specialist in Sandbox; or
-- records readiness and opens Practicals.
+- records readiness for Practicals; the governed stage transition remains explicit.
 
 This is operational development work owned by the TD. COO is not the routine Sandbox assessor. COO remains responsible for policy, governed exceptions/extensions, Trial governance, and final certification authority.
 
