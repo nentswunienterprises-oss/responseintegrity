@@ -256,7 +256,7 @@ test("not observed evidence stays neutral while observed evidence still scores t
   assert.match(formatSnapshotRepResult(finalRep), /Reason was not observed/i);
   assert.match(
     formatSnapshotRepResult(finalRep),
-    /did not count as weakness or strength/i,
+    /did not count toward the evidence decision/i,
   );
   assert.equal(snapshot.sets[0].responseLabel, "Strong response");
 });
@@ -300,7 +300,7 @@ test("a fully unscored rep does not lower a set score", () => {
 
   assert.equal(snapshot.sets[0].reps[2].responseLabel, "Not scored");
   assert.equal(snapshot.sets[0].score, 100);
-  assert.match(snapshot.sets[0].resultText, /did not count as weakness or strength/i);
+  assert.match(snapshot.sets[0].resultText, /did not count toward the evidence decision/i);
 });
 
 test("response snapshot keeps weak evidence visible inside a strong rep", () => {
