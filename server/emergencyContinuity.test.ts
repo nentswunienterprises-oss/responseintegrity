@@ -1505,3 +1505,16 @@ test("emergency quota uses text-normalized IDs across mixed legacy column types"
   assert.doesNotMatch(emergencyQuotaSource, /(?:s|r|d)\.student_id = \$2\b/);
 });
 
+
+test("local server preloads environment before database-dependent imports", () => {
+  const indexSource = readFileSync(resolve(process.cwd(), "server/index.ts"), "utf8");
+  const envSource = readFileSync(resolve(process.cwd(), "server/loadEnv.ts"), "utf8");
+
+  const preloadIndex = indexSource.indexOf('import "./loadEnv"');
+  const routesIndex = indexSource.indexOf('import { registerRoutes }');
+  assert.ok(preloadIndex >= 0);
+  assert.ok(routesIndex > preloadIndex);
+
+  assert.match(envSource, /dotenv\.config\(\{ path: "\.env\.local" \}\)/);
+  assert.match(envSource, /dotenv\.config\(\)/);
+});
