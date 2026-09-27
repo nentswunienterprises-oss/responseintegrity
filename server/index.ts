@@ -1,4 +1,9 @@
-import 'dotenv/config';
+import dotenv from "dotenv";
+
+if (process.env.NODE_ENV !== "production") {
+  dotenv.config({ path: ".env.local" });
+}
+dotenv.config();
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes.ts";
 import { registerEvidenceCompleteDiagnosisRoutes } from "./evidenceCompleteDiagnosisRoutes";
