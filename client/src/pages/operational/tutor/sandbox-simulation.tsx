@@ -1289,47 +1289,6 @@ export default function SpecialistSandboxSimulation({
           </>
         ) : null}
 
-        <details className="rounded-xl border border-primary/15 bg-background">
-          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
-            Sandbox evidence & trajectory
-          </summary>
-          <div className="space-y-4 border-t border-primary/10 p-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Capability evidence
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {readiness.earliestUnsupportedCapability
-                  ? `Current evidence focus: ${CAPABILITY_LABELS[readiness.earliestUnsupportedCapability]}`
-                  : "All currently evaluated capability layers are supported."}
-              </p>
-              {readiness.policyAvailable && (
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {readiness.layers.map((layer) => (
-                    <div key={layer.layer} className="rounded-lg border p-3">
-                      <p className="text-sm font-medium">
-                        {CAPABILITY_LABELS[layer.layer]}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {humanize(layer.state)} · {layer.validOpportunityCount}/
-                        {layer.minimumValidOpportunities} valid opportunities
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Trajectory record
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {historyQuery.data?.trajectory.completedRepCount || 0} Sandbox reps recorded on
-                this persistent trajectory.
-              </p>
-            </div>
-          </div>
-        </details>
       </div>
     );
   }
