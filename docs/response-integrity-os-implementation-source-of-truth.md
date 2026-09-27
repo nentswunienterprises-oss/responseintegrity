@@ -96,16 +96,17 @@ Do not describe the live commercial model as a R1,000 Premium plan, loose sessio
 
 The Specialist development pathway is:
 
-- Application -> Training -> Sandbox -> Sandbox Mock Gate -> Trial -> Certified Live
+- Application -> Training -> Sandbox -> Practicals -> Trial -> Certification -> Certified Live
 - standard development window: 75 active days
 - approved documented extension maximum: 90 active days
 - Training Battle Test: 15 questions per Deep Dive, 96%+ required three consecutive times for that Deep Dive
-- Sandbox Mock Gate: final Sandbox exit assessment, not a separate first-class mode
-- Trial window: 14 calendar days starting after both Trial families are placed
+- Sandbox capability evaluation: continuous, system-derived evidence across Condition, Observation, Evidence, Authority, and Continuity Integrity
+- Sandbox exit authority: the system must first resolve Practicals readiness; the assigned TD then records either remediation or an explicit readiness sign-off
+- Practicals is the governed stage after Sandbox; it is not a shortcut into Trial and it is not opened by Battle Testing
 - Trial evidence requirement: exactly 2 families x 9 qualifying completed sessions per family
-- Trial cadence target: intensive 4-5 sessions per week per family
+- Trial cadence follows the approved delivery rhythm; the normal maximum Trial window is 35 calendar days from the first Trial session unless a governed exception is approved
 
-The 14-day Trial window never replaces the 2 x 9 evidence requirement. If the window expires before the evidence requirement is met, COO must record a justified extension, and the final effective date may not exceed the approved pathway maximum.
+COO authority is reserved for pathway policy, documented exceptions/extensions, Trial governance, and final certification decisions. Routine Sandbox capability evaluation and readiness review are not COO work.
 
 ## System Layers
 
@@ -2727,15 +2728,19 @@ Without this layer:
 
 ## Specialist Certification Lifecycle
 
-The implemented Specialist lifecycle is:
+The governed Specialist pathway is:
 
 ```text
-applicant -> training -> sandbox -> trial -> certified_live
+application -> training -> sandbox -> practicals -> trial -> certification -> certified_live
 ```
+
+The current lifecycle permission keys remain `applicant`, `training`, `sandbox`, `trial`, and `certified_live`. Practicals is a governed pathway stage between Sandbox and Trial; it does not give Battle Testing permission to mutate the Specialist directly from Sandbox into Trial.
 
 `watchlist` and `suspended` are operational risk states and enforcement states. They do not replace the evidence-gated graduation path.
 
-Battle Testing and readiness checks may move a Specialist into `trial` after training, sandbox, and preparation evidence is complete. They must not issue new `certified_live` status on their own.
+Training Battle Testing may establish the knowledge/preparation evidence required to enter and remain in Sandbox. It cannot authorize Sandbox exit. During Sandbox, the stateful capability engine continuously derives Specialist capability evidence across Condition Integrity, Observation Integrity, Evidence Integrity, Authority Integrity, and Continuity Integrity. Only when that engine resolves `practicalsReady=true`, required breadth and longitudinal proof are present, and preparation blockers are clear may the assigned TD record the human readiness decision that opens Practicals.
+
+The TD owns routine Sandbox remediation and readiness review because this is operational Specialist development. The COO does not manually evaluate each Sandbox Specialist; COO authority is reserved for policy, documented exceptions/extensions, later Trial governance, and explicit final certification decisions. No Sandbox assessment may skip Practicals by directly issuing `trial`.
 
 ### Trial validation gate
 
