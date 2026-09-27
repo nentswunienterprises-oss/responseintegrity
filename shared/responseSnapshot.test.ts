@@ -135,6 +135,42 @@ function buildSubmittedSetByPattern({
   });
 }
 
+function rawOptionsForMixedRepLevels({
+  mode,
+  phase,
+  setName,
+  repIndex,
+  levels,
+}: {
+  mode: EvidenceDrillMode;
+  phase: TopicPhase;
+  setName: string;
+  repIndex: number;
+  levels: Array<"weak" | "partial" | "clear">;
+}) {
+  const schema = getDrillSchemaDefinition(mode, phase);
+  const set = schema.sets.find((candidate) => candidate.setName === setName);
+  assert.ok(set, `Expected registered set ${setName}`);
+  const raw: Record<string, string> = {};
+
+  getFieldDefinitionsForRep(set, repIndex).forEach((field, fieldIndex) => {
+    const level = levels[(fieldIndex + repIndex) % levels.length];
+    const optionIndex = field.optionLevels.findIndex(
+      (candidate) => candidate === level,
+    );
+    assert.notEqual(
+      optionIndex,
+      -1,
+      `Expected ${setName}.${field.fieldKey} to support ${level}`,
+    );
+    const selected = field.optionLabels?.[optionIndex];
+    assert.ok(selected);
+    raw[field.fieldKey] = selected;
+  });
+
+  return raw;
+}
+
 function rawOptionsForEvidenceClasses({
   phase,
   setName,
@@ -391,7 +427,7 @@ test("response snapshot formatter makes old stored text read naturally", () => {
     formatSnapshotResultText(
       "When testing whether clarity could be confirmed, the student produced a strong response: Vocabulary: kept the correct response and Method: stated the required response clearly, with Reason: showed weak reason awareness.",
     ),
-    "This rep checked whether clarity could be confirmed. The student produced a strong response: kept the correct response and stated the required response clearly. The remaining logged observation was that the student showed weak reason awareness.",
+    "This rep checked whether clarity could be confirmed. The student kept the correct response and stated the required response clearly. One part remained incomplete: the student showed weak reason awareness.",
   );
 });
 
@@ -443,6 +479,172 @@ test("clarity identification rep text changes by rep purpose", () => {
   assert.equal(new Set(repTexts).size, 3);
 });
 
+
+test("clarity light-apply narrative states what happened instead of repeating the response label", () => {
+  const classes = {
+    vocabulary: "supported",
+    method: "supported",
+    reason: "near_stable",
+    immediateApply: "supported",
+  } as const;
+  const submittedSet = buildSubmittedSet({
+    mode: "training",
+    phase: "Clarity",
+    setName: "Light Apply",
+    rawByRep: [0, 1, 2].map((repIndex) =>
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Light Apply",
+        repIndex,
+        classes,
+      }),
+    ),
+  });
+
+  const snapshot = buildResponseSnapshotV1({
+    sourceDrillId: "clarity-light-apply-natural-language",
+    topic: "Algebra",
+    mode: "training",
+    phase: "Clarity",
+    sets: [submittedSet],
+  });
+
+  assert.equal(
+    snapshot.sets[0].reps[0].resultText,
+    "This rep checked whether the student's clarity would carry into the first light solving attempt. The first light solving attempt kept the vocabulary and method intact. One part remained incomplete: the causal logic was substantially correct but still had a small decision-relevant gap.",
+  );
+  assert.doesNotMatch(
+    snapshot.sets[0].reps[0].resultText,
+    /produced a (?:strong|partial|weak) response|showed evidence that|remaining logged observation/i,
+  );
+});
+
+test("rep narratives remain natural across every phase, drill mode, set, rep, and response level", () => {
+  const phases: TopicPhase[] = [
+    "Clarity",
+    "Structured Execution",
+    "Controlled Discomfort",
+    "Time Pressure Stability",
+  ];
+  const modes: EvidenceDrillMode[] = ["training", "diagnosis", "verification"];
+  const levels: Array<"weak" | "partial" | "clear"> = [
+    "weak",
+    "partial",
+    "clear",
+  ];
+  const roboticPhrases =
+    /produced a (?:strong|partial|weak) response|response was (?:strong|partial|weak)(?: overall)?|remaining logged observation|limiting evidence|showed evidence that/i;
+  let checked = 0;
+
+  modes.forEach((mode) => {
+    phases.forEach((phase) => {
+      const schema = getDrillSchemaDefinition(mode, phase);
+      schema.sets
+        .filter((set) => !set.modelingOnly && set.fields.length > 0)
+        .forEach((set) => {
+          levels.forEach((level) => {
+            const submittedSet = buildSubmittedSet({
+              mode,
+              phase,
+              setName: set.setName,
+              rawByRep: Array.from({ length: set.reps }, (_, repIndex) =>
+                rawOptionsForRepLevel({
+                  mode,
+                  phase,
+                  setName: set.setName,
+                  repIndex,
+                  level,
+                }),
+              ),
+            });
+            const snapshot = buildResponseSnapshotV1({
+              sourceDrillId: `natural-${mode}-${phase}-${set.setId}-${level}`,
+              topic: "Algebra",
+              mode,
+              phase,
+              sets: [submittedSet],
+            });
+
+            snapshot.sets[0].reps.forEach((rep) => {
+              const rendered = formatSnapshotRepResult(rep);
+              assert.match(rendered, /^This rep checked whether /);
+              assert.doesNotMatch(rep.resultText, roboticPhrases);
+              assert.doesNotMatch(rendered, roboticPhrases);
+              checked += 1;
+            });
+            assert.doesNotMatch(
+              snapshot.drill.resultText,
+              /student produced a (?:strong|partial|weak) response/i,
+            );
+          });
+        });
+    });
+  });
+
+  assert.ok(checked >= 200, `Expected broad rep coverage, checked ${checked}`);
+});
+
+test("mixed evidence combinations stay natural across every phase and drill mode", () => {
+  const phases: TopicPhase[] = [
+    "Clarity",
+    "Structured Execution",
+    "Controlled Discomfort",
+    "Time Pressure Stability",
+  ];
+  const modes: EvidenceDrillMode[] = ["training", "diagnosis", "verification"];
+  const combinations: Array<Array<"weak" | "partial" | "clear">> = [
+    ["clear", "partial"],
+    ["clear", "weak"],
+    ["clear", "partial", "weak"],
+    ["partial", "weak"],
+  ];
+  const roboticPhrases =
+    /produced a (?:strong|partial|weak) response|response was (?:strong|partial|weak)(?: overall)?|remaining logged observation|limiting evidence|showed evidence that/i;
+  let checked = 0;
+
+  modes.forEach((mode) => {
+    phases.forEach((phase) => {
+      const schema = getDrillSchemaDefinition(mode, phase);
+      schema.sets
+        .filter((set) => !set.modelingOnly && set.fields.length > 0)
+        .forEach((set) => {
+          combinations.forEach((levels, combinationIndex) => {
+            const submittedSet = buildSubmittedSet({
+              mode,
+              phase,
+              setName: set.setName,
+              rawByRep: Array.from({ length: set.reps }, (_, repIndex) =>
+                rawOptionsForMixedRepLevels({
+                  mode,
+                  phase,
+                  setName: set.setName,
+                  repIndex,
+                  levels,
+                }),
+              ),
+            });
+            const snapshot = buildResponseSnapshotV1({
+              sourceDrillId: `mixed-${mode}-${phase}-${set.setId}-${combinationIndex}`,
+              topic: "Algebra",
+              mode,
+              phase,
+              sets: [submittedSet],
+            });
+
+            snapshot.sets[0].reps.forEach((rep) => {
+              const rendered = formatSnapshotRepResult(rep);
+              assert.match(rendered, /^This rep checked whether /);
+              assert.doesNotMatch(rep.resultText, roboticPhrases);
+              assert.doesNotMatch(rendered, roboticPhrases);
+              checked += 1;
+            });
+          });
+        });
+    });
+  });
+
+  assert.ok(checked >= 250, `Expected broad mixed-evidence coverage, checked ${checked}`);
+});
 
 test("observed response summary preserves limiting evidence from strong clarity reps", () => {
   const classes = {
@@ -529,7 +731,9 @@ test("rep formatter strips labels from stored evidence clauses", () => {
   });
 
   assert.doesNotMatch(text, /Reason:/);
-  assert.match(text, /The remaining logged observation was that the student showed weak reason awareness/);
+  assert.doesNotMatch(text, /produced a strong response/i);
+  assert.doesNotMatch(text, /remaining logged observation/i);
+  assert.match(text, /One part remained incomplete: the student showed weak reason awareness/);
 });
 
 test("clarity modeling is persisted as a non-scored snapshot set", () => {
