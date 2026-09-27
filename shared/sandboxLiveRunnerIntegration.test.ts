@@ -287,7 +287,7 @@ test("ordinary Training and embedded Sandbox share the same live-delivery UI pri
   assert.match(sandboxRunnerSource, /LiveRepStage/);
   assert.match(sandboxRunnerSource, /Begin Rep/);
   assert.match(trainingLiveUiSource, /Simulated student response/);
-  assert.match(trainingLiveUiSource, /Support this rep/);
+  assert.match(trainingLiveUiSource, /Support used in this rep/);
 });
 
 test("Sandbox guide names the stateful experience as the normal live runner", () => {
