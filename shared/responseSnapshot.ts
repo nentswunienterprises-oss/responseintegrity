@@ -726,6 +726,15 @@ const sentenceCase = (value: string) => {
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 };
 
+const asNarrativeSentence = (value: string) => {
+  const text = sentenceCase(String(value || "").trim());
+  if (!text) return "";
+  return /[.!?]$/.test(text) ? text : `${text}.`;
+};
+
+const narrativeSentences = (values: string[]) =>
+  values.map(asNarrativeSentence).filter(Boolean).join(" ");
+
 const cleanEvidenceClause = (value: string) =>
   String(value || "")
     .trim()
@@ -1003,21 +1012,27 @@ const buildRepResultText = (
   const sentences: string[] = [opening];
 
   if (supportedClauses.length) {
-    sentences.push(`${sentenceCase(naturalJoin(supportedClauses))}.`);
+    sentences.push(narrativeSentences(supportedClauses));
   }
-  if (nearStableClauses.length) {
+  if (nearStableClauses.length === 1) {
+    sentences.push(`One part was near-stable: ${nearStableClauses[0]}.`);
+  } else if (nearStableClauses.length > 1) {
     sentences.push(
-      `${nearStableClauses.length === 1 ? "One part was near-stable" : "Some parts were near-stable"}: ${naturalJoin(nearStableClauses)}.`,
+      `Some parts were near-stable. ${narrativeSentences(nearStableClauses)}`,
     );
   }
-  if (conditionalClauses.length) {
+  if (conditionalClauses.length === 1) {
+    sentences.push(`One part remained conditional: ${conditionalClauses[0]}.`);
+  } else if (conditionalClauses.length > 1) {
     sentences.push(
-      `${conditionalClauses.length === 1 ? "One part remained conditional" : "Some parts remained conditional"}: ${naturalJoin(conditionalClauses)}.`,
+      `Some parts remained conditional. ${narrativeSentences(conditionalClauses)}`,
     );
   }
-  if (breakdownClauses.length) {
+  if (breakdownClauses.length === 1) {
+    sentences.push(`The breakdown was that ${breakdownClauses[0]}.`);
+  } else if (breakdownClauses.length > 1) {
     sentences.push(
-      `${breakdownClauses.length === 1 ? "The breakdown was that" : "The breakdowns were that"} ${naturalJoin(breakdownClauses)}.`,
+      `Several observed areas broke down. ${narrativeSentences(breakdownClauses)}`,
     );
   }
 
@@ -1025,7 +1040,7 @@ const buildRepResultText = (
     sentences.push("No decision-eligible observed evidence was available for this rep.");
   }
 
-  return sentences.join(" ");
+  return sentences.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
 };
 
 const drillModeForRegistry = (mode: BuildResponseSnapshotInput["mode"]): EvidenceDrillMode =>
@@ -1116,12 +1131,21 @@ const evidenceLocationsForClass = (
       });
   });
 
-  return Array.from(byDimension.entries()).map(([dimension, repNumbers]) => {
-    const repsText =
+  const grouped = new Map<string, { repNumbers: number[]; dimensions: string[] }>();
+  Array.from(byDimension.entries()).forEach(([dimension, repNumbers]) => {
+    const orderedReps = [...repNumbers].sort((left, right) => left - right);
+    const key = orderedReps.join(",");
+    const current = grouped.get(key) || { repNumbers: orderedReps, dimensions: [] };
+    current.dimensions.push(dimension.toLowerCase());
+    grouped.set(key, current);
+  });
+
+  return Array.from(grouped.values()).map(({ repNumbers, dimensions }) => {
+    const repText =
       repNumbers.length === 1
         ? `rep ${repNumbers[0]}`
-        : `reps ${repNumbers.join(", ")}`;
-    return `${dimension.toLowerCase()} on ${repsText}`;
+        : `reps ${naturalJoin(repNumbers.map(String))}`;
+    return `${repText} in ${naturalJoin(dimensions)}`;
   });
 };
 
@@ -1147,18 +1171,16 @@ const buildSetEvidenceResultText = (reps: ResponseSnapshotRep[]) => {
   const supported = evidenceLocationsForClass(reps, "supported");
 
   if (breakdown.length) {
-    sentences.push(`Breakdown evidence was recorded in ${naturalJoin(breakdown)}.`);
+    sentences.push(`Breakdown evidence appeared on ${naturalJoin(breakdown)}.`);
   }
   if (conditional.length) {
-    sentences.push(`Conditional evidence remained in ${naturalJoin(conditional)}.`);
+    sentences.push(`Conditional evidence remained on ${naturalJoin(conditional)}.`);
   }
   if (nearStable.length) {
-    sentences.push(`Near-stable evidence remained in ${naturalJoin(nearStable)}.`);
+    sentences.push(`Near-stable evidence remained on ${naturalJoin(nearStable)}.`);
   }
   if (supported.length) {
-    sentences.push(
-      `Supported evidence held in ${naturalJoin(supported.slice(0, 3))}${supported.length > 3 ? " and other recorded opportunities" : ""}.`,
-    );
+    sentences.push(`Supported evidence was recorded on ${naturalJoin(supported)}.`);
   }
 
   return sentences.join(" ");
