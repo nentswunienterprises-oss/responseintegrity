@@ -215,7 +215,12 @@ async function loadSandboxScheduledTrainingSession(input: {
   studentId: string;
 }) {
   const scheduledSessionId = String(input.scheduledSessionId || "").trim();
-  if (!scheduledSessionId) return null;
+  if (!scheduledSessionId) {
+    throw httpError(
+      409,
+      "Start Sandbox Training from a confirmed weekly lesson so completion can retire the exact session.",
+    );
+  }
 
   const result = await pool.query(
     `SELECT id, parent_id, tutor_id, student_id, type, status
