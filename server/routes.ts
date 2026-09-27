@@ -230,7 +230,10 @@ import {
   isMonthlyPackageKey,
   type MonthlyPackageKey,
 } from "@shared/servicePackages";
-import { SANDBOX_REQUIRED_ACCOUNT_COUNT } from "@shared/sandboxReadiness";
+import {
+  SANDBOX_REQUIRED_ACCOUNT_COUNT,
+  evaluateSandboxPreparationGate,
+} from "@shared/sandboxReadiness";
 
 const PAYMENT_PROVIDER_PAYFAST = "payfast";
 const DEFAULT_SERVICE_PACKAGE = MONTHLY_SERVICE_PACKAGES[DEFAULT_MONTHLY_PACKAGE_KEY];
@@ -821,16 +824,14 @@ async function getTutorSandboxReadiness(tutorId: string) {
       (entry) => entry.currentHealthState === "drift" || entry.criticalFlag,
     );
 
-  const preparationBlockers: string[] = [];
-  if (!docsComplete) preparationBlockers.push("Specialist onboarding documents are incomplete.");
-  if (!transformationComplete) preparationBlockers.push("Transformation Phases deep dives are incomplete.");
-  if (!sessionInfrastructureComplete) preparationBlockers.push("Session Infrastructure deep dives are incomplete.");
-  if (hasActiveFailHealth) preparationBlockers.push("An active fail or critical-drift condition must be resolved.");
-  if ((sandboxAccounts.count || 0) < SANDBOX_REQUIRED_ACCOUNT_COUNT) {
-    preparationBlockers.push(
-      `${SANDBOX_REQUIRED_ACCOUNT_COUNT} Sandbox practice accounts are required; ${Math.max(0, sandboxAccounts.count || 0)} are available.`,
-    );
-  }
+  const preparationGate = evaluateSandboxPreparationGate({
+    docsComplete,
+    transformationComplete,
+    sessionInfrastructureComplete,
+    hasActiveFailHealth,
+    sandboxAccountCount: sandboxAccounts.count || 0,
+  });
+  const preparationBlockers = preparationGate.blockers;
 
   const blockers = [...preparationBlockers];
   if (!capabilityReadiness.practicalsReady) {
