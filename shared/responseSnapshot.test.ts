@@ -561,7 +561,7 @@ test("Identification recovery prose uses complete sentences and natural punctuat
   );
   assert.equal(
     rep3,
-    "This rep checked whether the student could identify the type, recall the method, and explain the reason on the final unsolved example. The student identified the important terms and selected the method on the final unsolved example. The student connected the problem structure and method without help.",
+    "This rep checked whether the student could identify the type, recall the method, and explain the reason on the final unsolved example. The student identified the important terms and selected the method on the final unsolved example. The student explained clearly why the method fit the problem without help.",
   );
   assert.equal(
     snapshot.sets[0].resultText,
@@ -796,7 +796,7 @@ test("historical persisted Snapshots recover exact evidence classes without expo
   );
   assert.match(
     view.sets[0].reps[2].resultText,
-    /connected the problem structure and method without help/i,
+    /explained clearly why the method fit the problem without help/i,
   );
   assert.doesNotMatch(
     view.sets[0].reps[2].resultText,
@@ -900,7 +900,7 @@ test("rep narratives do not omit decision-eligible evidence dimensions", () => {
   assert.match(finalIdentification, /final unsolved example/i);
   assert.match(
     finalIdentification,
-    /connected the problem structure and method without help/i,
+    /explained clearly why the method fit the problem without help/i,
     "Supported Reason evidence must be narrated, not only shown in the evidence badges",
   );
 
