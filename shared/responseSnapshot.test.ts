@@ -490,11 +490,134 @@ test("clarity identification rep text changes by rep purpose", () => {
   const repTexts = snapshot.sets[0].reps.map((rep) => formatSnapshotRepResult(rep));
   assert.match(repTexts[0], /identified the important terms and selected the method before solving/);
   assert.match(repTexts[0], /explanation contained some correct structure/i);
-  assert.match(repTexts[1], /term recognition and method selection held on the second example/i);
-  assert.match(repTexts[2], /term recognition and method selection repeated again before active solving/i);
+  assert.match(repTexts[1], /identified the important terms and selected the method on the second unsolved example/i);
+  assert.match(repTexts[2], /identified the important terms and selected the method on the final unsolved example/i);
   assert.equal(new Set(repTexts).size, 3);
 });
 
+
+test("a successful final Identification rep does not manufacture repeatability after earlier weak evidence", () => {
+  const submittedSet = buildSubmittedSet({
+    mode: "training",
+    phase: "Clarity",
+    setName: "Identification",
+    rawByRep: [
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Identification",
+        repIndex: 0,
+        classes: {
+          vocabulary: "conditional",
+          method: "conditional",
+          reason: "conditional",
+          immediateApply: "supported",
+        },
+      }),
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Identification",
+        repIndex: 1,
+        classes: {
+          vocabulary: "breakdown",
+          method: "breakdown",
+          reason: "breakdown",
+          immediateApply: "supported",
+        },
+      }),
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Identification",
+        repIndex: 2,
+        classes: {
+          vocabulary: "supported",
+          method: "supported",
+          reason: "supported",
+          immediateApply: "supported",
+        },
+      }),
+    ],
+  });
+
+  const snapshot = buildResponseSnapshotV1({
+    sourceDrillId: "clarity-identification-recovery-without-repeatability",
+    topic: "Algebra",
+    mode: "training",
+    phase: "Clarity",
+    sets: [submittedSet],
+  });
+
+  const finalRep = snapshot.sets[0].reps[2];
+  const renderedFinalRep = formatSnapshotRepResult(finalRep);
+
+  assert.match(renderedFinalRep, /final unsolved example/i);
+  assert.doesNotMatch(
+    renderedFinalRep,
+    /repeatable|repeated again|confirmed across|consistency (?:was )?confirmed|rather than isolated/i,
+  );
+  assert.doesNotMatch(
+    finalRep.repPurposeText,
+    /repeatable|confirmed across|rather than isolated/i,
+  );
+  assert.match(snapshot.sets[0].resultText, /breakdown evidence/i);
+  assert.match(snapshot.sets[0].resultText, /conditional evidence/i);
+  assert.match(snapshot.sets[0].resultText, /supported evidence/i);
+});
+
+test("single rep narratives never claim cross-rep repeatability from that rep alone", () => {
+  const phases: TopicPhase[] = [
+    "Clarity",
+    "Structured Execution",
+    "Controlled Discomfort",
+    "Time Pressure Stability",
+  ];
+  const modes: EvidenceDrillMode[] = ["training", "diagnosis", "verification"];
+  const crossRepClaim =
+    /repeatable|confirmed across|across repetition|rather than isolated|consistency (?:was )?confirmed/i;
+  let checked = 0;
+
+  modes.forEach((mode) => {
+    phases.forEach((phase) => {
+      const schema = getDrillSchemaDefinition(mode, phase);
+      schema.sets
+        .filter((set) => !set.modelingOnly && set.fields.length > 0 && set.reps >= 3)
+        .forEach((set) => {
+          const submittedSet = buildSubmittedSet({
+            mode,
+            phase,
+            setName: set.setName,
+            rawByRep: Array.from({ length: set.reps }, (_, repIndex) =>
+              rawOptionsForRepLevel({
+                mode,
+                phase,
+                setName: set.setName,
+                repIndex,
+                level:
+                  repIndex === set.reps - 1
+                    ? "clear"
+                    : repIndex === 0
+                      ? "weak"
+                      : "partial",
+              }),
+            ),
+          });
+          const snapshot = buildResponseSnapshotV1({
+            sourceDrillId: `rep-local-${mode}-${phase}-${set.setId}`,
+            topic: "Algebra",
+            mode,
+            phase,
+            sets: [submittedSet],
+          });
+          const finalRep = snapshot.sets[0].reps.at(-1);
+          assert.ok(finalRep);
+          assert.doesNotMatch(finalRep.repPurposeText, crossRepClaim);
+          assert.doesNotMatch(formatSnapshotRepResult(finalRep), crossRepClaim);
+          checked += 1;
+        });
+    });
+  });
+
+  assert.ok(checked >= 20, `Expected broad rep-local coverage, checked ${checked}`);
+});
 
 test("clarity light-apply narrative states what happened instead of repeating the response label", () => {
   const classes = {
