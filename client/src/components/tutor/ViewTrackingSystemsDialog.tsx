@@ -174,8 +174,8 @@ function FieldRow({ label, value }: { label: string; value?: string | null }) {
 
 function evidenceClassColor(item: ResponseSnapshotEvidence) {
   if (item.decisionEligible === false) return "text-muted-foreground";
-  if (item.evidenceStatus === "not_observed") return "text-muted-foreground";
-  if (item.evidenceStatus === "confounded") return "text-violet-700";
+  if (item.evidenceStatus === "not_observed" || item.evidenceClass === "not_observed") return "text-muted-foreground";
+  if (item.evidenceStatus === "confounded" || item.evidenceClass === "confounded") return "text-violet-700";
   if (item.evidenceClass === "supported") return "text-green-700";
   if (item.evidenceClass === "near_stable") return "text-yellow-700";
   if (item.evidenceClass === "conditional") return "text-amber-700";
