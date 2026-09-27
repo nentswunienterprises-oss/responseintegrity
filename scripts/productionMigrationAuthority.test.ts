@@ -14,7 +14,15 @@ test("production DB authority locks the verified The Hub baseline", () => {
   assert.equal(result.authority.productionProjectRef, "yzcnavucvwgmulcxgxvw");
   assert.equal(result.authority.baseline.commit, "a8c1aab29b230ce523c0353cfcc4eb4b1ae07627");
   assert.equal(result.baselineCount, 15);
-  assert.equal(result.managedCount, 0);
+  assert.equal(result.managedCount, 1);
+  assert.deepEqual(result.authority.managedMigrations, [
+    {
+      path: "migrations/20260927_diagnosis_activity_context_separation.sql",
+      description:
+        "Add generated session-container and activity-kind semantics for diagnosis and evidence lineage without changing legacy context storage.",
+      risk: "additive",
+    },
+  ]);
 });
 
 test("production target guard accepts only a URL carrying The Hub project ref", () => {
