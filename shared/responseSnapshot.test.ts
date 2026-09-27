@@ -553,7 +553,7 @@ test("Identification recovery prose uses complete sentences and natural punctuat
 
   assert.equal(
     rep1,
-    "This rep checked whether the student could identify the type, recall the steps, and explain the reason before solving. Some parts remained conditional. Some vocabulary was available, but the problem could not yet be described reliably. A method signal existed, but selection was unstable or speculative. The explanation contained some correct structure but could not yet justify the method reliably.",
+    "This rep checked whether the student could identify the type, recall the steps, and explain the reason before solving. Some parts remained conditional. Some vocabulary was available, but the problem could not yet be described reliably. A method signal existed, but selection was unstable/speculative. The explanation contained some correct structure but could not yet justify the method reliably.",
   );
   assert.equal(
     rep2,
