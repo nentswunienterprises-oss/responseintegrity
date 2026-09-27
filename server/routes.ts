@@ -12001,8 +12001,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const students = await storage.getStudentsByTutor(tutorId);
           const studentIds = students.map((student: any) => student.id).filter(Boolean);
           const progressByStudent = new Map<string, number>();
+          const sandboxStateByStudent = new Map<
+            string,
+            { phase: string; stability: string }
+          >();
           if (studentIds.length > 0) {
-            const [trainingRuns, sandboxSessions] = await Promise.all([
+            const [trainingRuns, sandboxSessions, sandboxStates] = await Promise.all([
               pool.query(
                 `SELECT student_id, scheduled_session_id, id, status
                    FROM public.training_session_runs
@@ -12014,6 +12018,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 `SELECT id, student_id, session_number
                    FROM public.specialist_sandbox_session_evaluations
                   WHERE tutor_id = $1 AND student_id = ANY($2::uuid[])`,
+                [tutorId, studentIds],
+              ),
+              pool.query(
+                `SELECT DISTINCT ON (student_id)
+                        student_id, specialist_phase, specialist_stability
+                   FROM public.specialist_sandbox_trajectories
+                  WHERE tutor_id = $1
+                    AND student_id = ANY($2::uuid[])
+                    AND status = 'active'
+                  ORDER BY student_id, updated_at DESC`,
                 [tutorId, studentIds],
               ),
             ]);
@@ -12033,6 +12047,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 seen.add(key);
                 progressByStudent.set(studentId, (progressByStudent.get(studentId) || 0) + 1);
               }
+            });
+            sandboxStates.rows.forEach((row: any) => {
+              const studentId = String(row.student_id || "").trim();
+              if (!studentId) return;
+              sandboxStateByStudent.set(studentId, {
+                phase: String(row.specialist_phase || "").trim(),
+                stability: String(row.specialist_stability || "").trim(),
+              });
             });
           }
           console.log("[EMERGENCY POD]", {
@@ -12062,6 +12084,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 sessionProgress: progressByStudent.get(String(student.id)) || 0,
                 enrollmentId: enrollment?.id || student.parentEnrollmentId || null,
                 parentInfo: enrollment,
+                topicConditioning: (() => {
+                  const sandboxState = sandboxStateByStudent.get(String(student.id));
+                  if (!sandboxState) return null;
+                  return {
+                    topic:
+                      buildReportedTopics(
+                        enrollment?.topic_response_symptoms,
+                        enrollment?.reported_topics,
+                        enrollment?.topic_recommended_starting_phases,
+                      )[0] || null,
+                    entry_phase: sandboxState.phase || null,
+                    stability: sandboxState.stability || null,
+                  };
+                })(),
                 pendingTutorAcceptance: enrollment?.status === "awaiting_tutor_acceptance" &&
                   !Boolean((student.personalProfile as any)?.workflow?.assignmentAcceptedAt),
               };
