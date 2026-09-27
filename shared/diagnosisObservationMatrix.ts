@@ -124,7 +124,7 @@ export const DIAGNOSIS_OBSERVATION_MATRIX: Record<
     [
       option("cannot_engage", "Could not engage with the problem from their own understanding", "breakdown", "The student avoided, stalled completely, or had no usable response."),
       option("engages_only_after_extended_uncertainty", "Engaged only after extended uncertainty", "conditional", "Understanding was present only conditionally and did not translate reliably into action."),
-      option("engages_with_brief_hesitation", "Engaged independently after a brief hesitation", "near_stable", "The response was usable but not yet clean and immediate."),
+      option("engages_with_brief_hesitation", "Engaged independently after a brief hesitation", "near_stable", "The student engaged independently, but only after a brief hesitation."),
       option("engages_cleanly", "Engaged independently and appropriately", "supported", "Understanding translated into an appropriate response without support."),
       ...commonTail("The task ended before immediate application could be observed, or the problem did not require it."),
     ],
