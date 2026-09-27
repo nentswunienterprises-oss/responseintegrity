@@ -1509,8 +1509,6 @@ export async function buildPodBattleTestingSummary(
       moduleProgress: effectiveModuleProgress,
       deepDiveProgress: effectiveDeepDiveProgress,
       nextBattleTests: persistedStatus?.next_battle_tests || buildTutorNextBattleTests(deepDiveProgress),
-      sandboxMockDecision: null,
-      sandboxMockAssessedAt: null,
       certificationRecoveryNote: persistedStatus?.certification_recovery_note || null,
       recoveryRequiredUntil: persistedStatus?.recovery_required_until || null,
     };
