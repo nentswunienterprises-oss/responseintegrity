@@ -370,7 +370,10 @@ export const formatSnapshotResultText = (value: string, purposeText?: string | n
       /Across this ([^,]+), the student produced a (?:strong|partial|weak) response: /gi,
       "Across this $1, ",
     )
-    .replace("The student showed a", "Across the drill, the student produced a")
+    .replace(
+      /The student showed a (strong|partial|weak) response/gi,
+      (_match, level) => `Across the drill, performance was ${String(level).toLowerCase()}`,
+    )
     .replace("in Clarity evidence across the scored drill", "across the Clarity checks")
     .replace("in Structured Execution evidence across the scored drill", "across the Structured Execution checks")
     .replace("in Controlled Discomfort evidence across the scored drill", "across the Controlled Discomfort checks")
