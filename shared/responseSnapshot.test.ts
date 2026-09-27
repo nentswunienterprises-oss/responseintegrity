@@ -924,7 +924,7 @@ test("clarity light-apply narrative states what happened instead of repeating th
   assert.match(snapshot.drill.resultText, /near-stable evidence/i);
 });
 
-test("Snapshot uses concrete behavior and only slashes paired or-descriptors", () => {
+test("Snapshot uses concrete behavior instead of compressed descriptor shorthand", () => {
   const submittedSet = buildSubmittedSet({
     mode: "training",
     phase: "Clarity",
@@ -959,8 +959,14 @@ test("Snapshot uses concrete behavior and only slashes paired or-descriptors", (
   );
   assert.doesNotMatch(repText, /the response was usable|the student was usable/i);
   assert.doesNotMatch(repText, /clean\/immediate/i);
-  assert.match(repText, /selection was unstable\/speculative/i);
-  assert.doesNotMatch(repText, /selection was unstable or speculative/i);
+  assert.match(
+    repText,
+    /method choice lacked a clear basis and did not stay anchored to one method/i,
+  );
+  assert.doesNotMatch(
+    repText,
+    /unstable\/speculative|unstable or speculative|automatic\/clean|clean\/automatic/i,
+  );
 });
 
 test("rep narratives do not omit decision-eligible evidence dimensions", () => {
