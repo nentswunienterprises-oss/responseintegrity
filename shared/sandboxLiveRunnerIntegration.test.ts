@@ -163,6 +163,21 @@ test("Sandbox Response Snapshot is derived from Specialist-recorded evidence, no
   );
 });
 
+test("emergency Pod respects mixed student ID column types", () => {
+  assert.match(
+    serverRoutesSource,
+    /FROM public\.training_session_runs[\s\S]*student_id = ANY\(\$2::uuid\[\]\)/,
+  );
+  assert.match(
+    serverRoutesSource,
+    /FROM public\.specialist_sandbox_session_evaluations[\s\S]*student_id = ANY\(\$2::text\[\]\)/,
+  );
+  assert.match(
+    serverRoutesSource,
+    /FROM public\.specialist_sandbox_trajectories[\s\S]*student_id = ANY\(\$2::text\[\]\)/,
+  );
+});
+
 test("Sandbox Program Progress counts completed stateful sessions and carries visible Specialist state", () => {
   assert.match(studentCardSource, /const sessionProgress = isSandboxStudent[\s\S]*countedProgramProgress/);
   assert.match(serverRoutesSource, /specialist_sandbox_session_evaluations/);
