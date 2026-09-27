@@ -1344,12 +1344,23 @@ const recoverSnapshotEvidenceForDisplay = ({
   rep: ResponseSnapshotRep;
   evidence: ResponseSnapshotEvidence;
 }): ResponseSnapshotEvidence => {
+  const displayHumanClause =
+    evidence.evidenceStatus === "observed"
+      ? canonicalResponseEvidenceClause(
+          evidence.dimensionId,
+          evidence.selectedRawOption,
+        ) || evidence.humanClause
+      : evidence.humanClause;
+
   if (
     evidence.evidenceClass ||
     evidence.evidenceStatus === "not_observed" ||
     evidence.evidenceStatus === "confounded"
   ) {
-    return evidence;
+    return {
+      ...evidence,
+      humanClause: displayHumanClause,
+    };
   }
 
   const mode = drillModeForRegistry(snapshot.source.mode);
@@ -1408,6 +1419,7 @@ const recoverSnapshotEvidenceForDisplay = ({
       typeof evidence.decisionEligible === "boolean"
         ? evidence.decisionEligible
         : field.decisionEligible !== false,
+    humanClause: displayHumanClause,
   };
 };
 
