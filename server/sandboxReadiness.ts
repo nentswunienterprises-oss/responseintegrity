@@ -1,5 +1,5 @@
 import { supabase } from "./storage";
-import type { SandboxMockDecision } from "@shared/sandboxReadiness";
+import type { SandboxReadinessDecision } from "@shared/sandboxReadiness";
 
 function isMissingSandboxMockTable(error: any) {
   const message = String(error?.message || "").toLowerCase();
@@ -14,7 +14,7 @@ export interface SandboxTdReadinessAssessment {
   id: string;
   tutorId: string;
   tutorAssignmentId: string;
-  decision: SandboxMockDecision;
+  decision: SandboxReadinessDecision;
   evidenceNote: string;
   assessedByUserId: string;
   assessedAt: string;
@@ -34,7 +34,7 @@ function mapTdReadinessAssessment(row: any): SandboxTdReadinessAssessment {
     id: String(row.id),
     tutorId: String(row.tutor_id),
     tutorAssignmentId: String(row.tutor_assignment_id),
-    decision: row.decision as SandboxMockDecision,
+    decision: row.decision as SandboxReadinessDecision,
     evidenceNote: String(row.evidence_note || ""),
     assessedByUserId: String(row.assessed_by_user_id),
     assessedAt: String(row.assessed_at),
@@ -71,7 +71,7 @@ export async function getLatestSandboxReadinessAssessment(
 export async function recordSandboxReadinessAssessment(input: {
   tutorId: string;
   tutorAssignmentId: string;
-  decision: SandboxMockDecision;
+  decision: SandboxReadinessDecision;
   evidenceNote: string;
   assessedByUserId: string;
   capabilitySnapshot: Record<string, unknown>;
