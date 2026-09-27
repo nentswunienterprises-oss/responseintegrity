@@ -1196,6 +1196,10 @@ const buildDrillEvidenceResultText = (
     return buildLegacyDrillPatternResultText(phase, sets);
   }
 
+  const scoredRoles = sets
+    .filter((set) => set.reps.length > 0)
+    .map(roleForSet);
+  const drillScope = naturalJoin(scoredRoles) || "the recorded sets";
   const classes = (["supported", "near_stable", "conditional", "breakdown"] as const)
     .filter((evidenceClass) =>
       canonical.some((item) => item.evidenceClass === evidenceClass),
@@ -1207,10 +1211,10 @@ const buildDrillEvidenceResultText = (
     );
 
   if (classes.length === 1 && classes[0] === "supported evidence") {
-    return `Across this ${phase} drill, every recorded decision-eligible observation was supported.`;
+    return `Across this ${phase} drill, ${drillScope} ${scoredRoles.length === 1 ? "was" : "were"} supported across every recorded decision-eligible observation.`;
   }
 
-  return `Across this ${phase} drill, the recorded decision evidence included ${naturalJoin(classes)}. The set and rep detail below shows where each class occurred.`;
+  return `Across this ${phase} drill, ${drillScope} produced ${naturalJoin(classes)}. The set and rep detail below shows where each class occurred.`;
 };
 
 export const buildResponseSnapshotV1 = ({
