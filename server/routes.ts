@@ -4802,6 +4802,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         const user = userResult.rows[0];
 
+        if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+          return res.status(503).json({
+            message: "Proof persona Supabase Auth provisioning is unavailable",
+          });
+        }
+
+        const authLookup = await supabase.auth.admin.getUserById(user.id);
+        const authLookupMissing =
+          !!authLookup.error &&
+          (
+            authLookup.error.status === 404 ||
+            authLookup.error.code === "user_not_found" ||
+            /not found/i.test(String(authLookup.error.message || ""))
+          );
+
+        if (authLookup.error && !authLookupMissing) {
+          throw authLookup.error;
+        }
+
+        let authUser = authLookup.data?.user || null;
+
+        if (authUser) {
+          if (normalizeEmail(authUser.email || "") !== email) {
+            throw new Error("Proof Auth identity ID is already bound to another email");
+          }
+
+          const updatedAuth = await supabase.auth.admin.updateUserById(user.id, {
+            email,
+            password,
+            email_confirm: true,
+            app_metadata: {
+              ...(authUser.app_metadata || {}),
+              proof_persona: true,
+            },
+            user_metadata: {
+              ...(authUser.user_metadata || {}),
+              first_name: firstName,
+              last_name: lastName,
+              name: fullName,
+            },
+          });
+
+          if (updatedAuth.error || !updatedAuth.data.user) {
+            throw updatedAuth.error || new Error("Failed to update Proof Supabase Auth identity");
+          }
+
+          authUser = updatedAuth.data.user;
+        } else {
+          const createdAuth = await supabase.auth.admin.createUser({
+            id: user.id,
+            email,
+            password,
+            email_confirm: true,
+            app_metadata: {
+              proof_persona: true,
+            },
+            user_metadata: {
+              first_name: firstName,
+              last_name: lastName,
+              name: fullName,
+            },
+          });
+
+          if (createdAuth.error || !createdAuth.data.user) {
+            throw createdAuth.error || new Error("Failed to create Proof Supabase Auth identity");
+          }
+
+          authUser = createdAuth.data.user;
+        }
+
+        if (authUser.id !== user.id || normalizeEmail(authUser.email || "") !== email) {
+          throw new Error("Proof Supabase Auth identity does not match canonical public user");
+        }
+
         await setEmergencyCredentialForExistingUser(pool, user.id, password);
 
         if (role === "coo") {
@@ -4838,6 +4912,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           user,
           appointedExecutiveRole: role === "coo" ? "coo" : null,
           credentialProvisioned: true,
+          supabaseAuthProvisioned: true,
+          authUserId: authUser.id,
         });
       } catch (error) {
         console.error("[PROOF] Failed to provision Proof persona", error);
