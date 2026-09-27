@@ -1134,7 +1134,7 @@ test("weekly scheduling dedupe normalizes database timestamps before comparing s
   );
 });
 
-test("training session reads select recent rows before historical rows", () => {
+test("training session reads preserve current authority before bounded history", () => {
   const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
 
   const parentGetStart = routesSource.indexOf('app.get("/api/parent/training-sessions"');
@@ -1143,9 +1143,22 @@ test("training session reads select recent rows before historical rows", () => {
     parentGetStart,
   );
   const parentSource = routesSource.slice(parentGetStart, parentScheduleStart);
-  assert.match(parentSource, /ORDER BY scheduled_time DESC\s+LIMIT 12/);
-  assert.match(parentSource, /\.order\("scheduled_time", \{ ascending: false \}\)\s*\.limit\(12\)/);
-  assert.match(parentSource, /const recentSessions = \[\.\.\./);
+  assert.match(
+    parentSource,
+    /status NOT IN \('completed', 'flagged'\)[\s\S]*scheduled_time >= NOW\(\) - INTERVAL '2 hours'/,
+  );
+  assert.match(
+    parentSource,
+    /status = 'completed'[\s\S]*ORDER BY scheduled_time DESC[\s\S]*LIMIT 1/,
+  );
+  assert.match(
+    parentSource,
+    /\.not\("status", "in", "\(completed,flagged\)"\)[\s\S]*\.gte\("scheduled_time", currentTrainingSessionFloor\)/,
+  );
+  assert.match(
+    parentSource,
+    /\.eq\("status", "completed"\)[\s\S]*\.limit\(1\)/,
+  );
 
   const tutorGetStart = routesSource.indexOf(
     '"/api/tutor/students/:studentId/training-sessions"',
@@ -1155,11 +1168,23 @@ test("training session reads select recent rows before historical rows", () => {
     tutorGetStart + 10,
   );
   const tutorSource = routesSource.slice(tutorGetStart, tutorPostStart);
-  assert.match(tutorSource, /ORDER BY scheduled_time DESC\s+LIMIT 12/);
-  assert.match(tutorSource, /\.order\("scheduled_time", \{ ascending: false \}\)\s*\.limit\(12\)/);
-  assert.match(tutorSource, /const recentSessions = \[\.\.\./);
+  assert.match(
+    tutorSource,
+    /status NOT IN \('completed', 'flagged'\)[\s\S]*scheduled_time >= NOW\(\) - INTERVAL '2 hours'/,
+  );
+  assert.match(
+    tutorSource,
+    /status = 'completed'[\s\S]*ORDER BY scheduled_time DESC[\s\S]*LIMIT 1/,
+  );
+  assert.match(
+    tutorSource,
+    /\.not\("status", "in", "\(completed,flagged\)"\)[\s\S]*\.gte\("scheduled_time", currentTrainingSessionFloor\)/,
+  );
+  assert.match(
+    tutorSource,
+    /\.eq\("status", "completed"\)[\s\S]*\.limit\(1\)/,
+  );
 });
-
 test("preview training sessions use the direct Proof database without enabling emergency auth", () => {
   const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
   const emergencyModeSource = readFileSync(resolve(process.cwd(), "server/emergencyMode.ts"), "utf8");
