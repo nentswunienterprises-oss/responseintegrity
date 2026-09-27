@@ -161,8 +161,8 @@ export const formatSnapshotEvidenceClassLabel = (
   >,
 ) => {
   if (item.decisionEligible === false) return "Condition check";
-  if (item.evidenceStatus === "not_observed") return "Not observed";
-  if (item.evidenceStatus === "confounded") return "Confounded";
+  if (item.evidenceStatus === "not_observed" || item.evidenceClass === "not_observed") return "Not observed";
+  if (item.evidenceStatus === "confounded" || item.evidenceClass === "confounded") return "Confounded";
   if (item.evidenceClass === "supported") return "Supported";
   if (item.evidenceClass === "near_stable") return "Near-stable";
   if (item.evidenceClass === "conditional") return "Conditional";
@@ -188,11 +188,11 @@ export const summarizeSnapshotEvidenceMix = (
   let legacy = 0;
 
   decisionEvidence.forEach((item) => {
-    if (item.evidenceStatus === "not_observed") {
+    if (item.evidenceStatus === "not_observed" || item.evidenceClass === "not_observed") {
       notObserved += 1;
       return;
     }
-    if (item.evidenceStatus === "confounded") {
+    if (item.evidenceStatus === "confounded" || item.evidenceClass === "confounded") {
       confounded += 1;
       return;
     }
