@@ -110,10 +110,3 @@ export async function recordSandboxReadinessAssessment(input: {
 
   return getLatestSandboxReadinessAssessment(input.tutorAssignmentId);
 }
-
-) {
-  return {
-    latestMockAssessment: input.latestMockAssessment,
-    gate: evaluateSandboxReadinessGate(input),
-  };
-}
