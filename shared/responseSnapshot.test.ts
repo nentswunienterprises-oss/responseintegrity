@@ -497,6 +497,83 @@ test("clarity identification rep text changes by rep purpose", () => {
 });
 
 
+test("Identification recovery prose uses complete sentences and natural punctuation", () => {
+  const submittedSet = buildSubmittedSet({
+    mode: "training",
+    phase: "Clarity",
+    setName: "Identification",
+    rawByRep: [
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Identification",
+        repIndex: 0,
+        classes: {
+          vocabulary: "conditional",
+          method: "conditional",
+          reason: "conditional",
+          immediateApply: "supported",
+        },
+      }),
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Identification",
+        repIndex: 1,
+        classes: {
+          vocabulary: "breakdown",
+          method: "breakdown",
+          reason: "breakdown",
+          immediateApply: "supported",
+        },
+      }),
+      rawOptionsForEvidenceClasses({
+        phase: "Clarity",
+        setName: "Identification",
+        repIndex: 2,
+        classes: {
+          vocabulary: "supported",
+          method: "supported",
+          reason: "supported",
+          immediateApply: "supported",
+        },
+      }),
+    ],
+  });
+
+  const snapshot = buildResponseSnapshotV1({
+    sourceDrillId: "identification-natural-punctuation",
+    topic: "Algebra",
+    mode: "training",
+    phase: "Clarity",
+    sets: [submittedSet],
+  });
+
+  const [rep1, rep2, rep3] = snapshot.sets[0].reps.map((rep) =>
+    formatSnapshotRepResult(rep),
+  );
+
+  assert.equal(
+    rep1,
+    "This rep checked whether the student could identify the type, recall the steps, and explain the reason before solving. Some parts remained conditional. Some vocabulary was available, but the problem could not yet be described reliably. A method signal existed, but selection was unstable or speculative. The explanation contained some correct structure but could not yet justify the method reliably.",
+  );
+  assert.equal(
+    rep2,
+    "This rep checked whether the student could identify the type, recall the method, and explain the reason on a second unsolved example. Several observed areas broke down. The student could not name what was present or named unrelated features. No usable method was produced without being supplied. The student could not connect the problem structure to the method.",
+  );
+  assert.equal(
+    rep3,
+    "This rep checked whether the student could identify the type, recall the method, and explain the reason on the final unsolved example. The student identified the important terms and selected the method on the final unsolved example. The student connected the problem structure and method without help.",
+  );
+  assert.equal(
+    snapshot.sets[0].resultText,
+    "Breakdown evidence appeared on rep 2 in vocabulary, method, and reason. Conditional evidence remained on rep 1 in vocabulary, method, and reason. Supported evidence was recorded on rep 3 in vocabulary, method, and reason.",
+  );
+  [rep1, rep2, rep3].forEach((text) => {
+    assert.doesNotMatch(text, /, and selected/i);
+    assert.doesNotMatch(text, /, and the student/i);
+    assert.doesNotMatch(text, /: [^.!?]+, [^.!?]+, and [^.!?]+\./i);
+  });
+});
+
 test("a successful final Identification rep does not manufacture repeatability after earlier weak evidence", () => {
   const submittedSet = buildSubmittedSet({
     mode: "training",
