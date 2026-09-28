@@ -1,0 +1,185 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  buildCapabilityTrainingAvailability,
+  isCapabilityTransformationSandboxReady,
+  type CapabilityTrainingActiveBank,
+  type CapabilityTrainingAttempt,
+} from "./capabilityTrainingSequencing";
+import {
+  TRANSFORMATION_DEEP_DIVE_KEYS,
+  TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
+  TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
+} from "./capabilityAssessmentPlan";
+
+const transformationMasteryKeys = TRANSFORMATION_DEEP_DIVE_KEYS.map(
+  (key) => `${key}_mastery_v1`,
+);
+
+function bank(
+  assessmentKey: string,
+  evidenceKind: "mastery" | "retrieval" | "transfer",
+): CapabilityTrainingActiveBank {
+  return {
+    assessmentKey,
+    bankVersion: 1,
+    evidenceKind,
+    maxAttempts: 3,
+    retryCooldownHours: 0,
+  };
+}
+
+const activeBanks: CapabilityTrainingActiveBank[] = [
+  ...transformationMasteryKeys.map((key) => bank(key, "mastery")),
+  bank(TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY, "retrieval"),
+  bank(TRANSFORMATION_TRANSFER_ASSESSMENT_KEY, "transfer"),
+  bank("intro_session_structure_mastery_v1", "mastery"),
+  bank("logging_system_mastery_v1", "mastery"),
+  bank("session_flow_control_mastery_v1", "mastery"),
+];
+
+function pass(
+  assessmentKey: string,
+  completedAt: string,
+  evidenceKind: "mastery" | "retrieval" | "transfer" = "mastery",
+): CapabilityTrainingAttempt {
+  return {
+    assessmentKey,
+    bankVersion: 1,
+    attemptNumber: 1,
+    evidenceKind,
+    passed: true,
+    completedAt,
+  };
+}
+
+test("Transformation Retrieval waits for all five Mastery passes and the spacing interval", () => {
+  const fourPasses = transformationMasteryKeys
+    .slice(0, 4)
+    .map((key) => pass(key, "2026-09-28T08:00:00Z"));
+
+  let status = buildCapabilityTrainingAvailability({
+    now: "2026-09-29T12:00:00Z",
+    activeBanks,
+    attempts: fourPasses,
+  }).find((entry) => entry.assessmentKey === TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY);
+
+  assert.equal(status?.status, "locked");
+  assert.equal(status?.reason, "prerequisite_incomplete");
+
+  const allPasses = [
+    ...fourPasses,
+    pass(transformationMasteryKeys[4], "2026-09-28T10:00:00Z"),
+  ];
+  status = buildCapabilityTrainingAvailability({
+    now: "2026-09-29T09:59:00Z",
+    activeBanks,
+    attempts: allPasses,
+  }).find((entry) => entry.assessmentKey === TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY);
+
+  assert.equal(status?.status, "locked");
+  assert.equal(status?.reason, "spacing_interval");
+  assert.equal(status?.unlockAt, "2026-09-29T10:00:00.000Z");
+
+  status = buildCapabilityTrainingAvailability({
+    now: "2026-09-29T10:00:00Z",
+    activeBanks,
+    attempts: allPasses,
+  }).find((entry) => entry.assessmentKey === TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY);
+
+  assert.equal(status?.status, "available");
+});
+
+test("one current-version clean pass completes a Mastery gate", () => {
+  const attempts = [pass(transformationMasteryKeys[0], "2026-09-28T08:00:00Z")];
+  const status = buildCapabilityTrainingAvailability({
+    now: "2026-09-28T09:00:00Z",
+    activeBanks,
+    attempts,
+  }).find((entry) => entry.assessmentKey === transformationMasteryKeys[0]);
+
+  assert.equal(status?.status, "complete");
+  assert.equal(status?.attemptCount, 1);
+});
+
+test("Transfer opens after Retrieval and Sandbox opens only after the full Transformation gate", () => {
+  const masteryPasses = transformationMasteryKeys.map((key) =>
+    pass(key, "2026-09-27T08:00:00Z"),
+  );
+  const retrievalPass = pass(
+    TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
+    "2026-09-28T09:00:00Z",
+    "retrieval",
+  );
+
+  let assessments = buildCapabilityTrainingAvailability({
+    now: "2026-09-28T09:01:00Z",
+    activeBanks,
+    attempts: [...masteryPasses, retrievalPass],
+  });
+
+  const transfer = assessments.find(
+    (entry) => entry.assessmentKey === TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
+  );
+  assert.equal(transfer?.status, "available");
+  assert.equal(isCapabilityTransformationSandboxReady(assessments), false);
+
+  const transferPass = pass(
+    TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
+    "2026-09-28T10:00:00Z",
+    "transfer",
+  );
+  assessments = buildCapabilityTrainingAvailability({
+    now: "2026-09-28T10:01:00Z",
+    activeBanks,
+    attempts: [...masteryPasses, retrievalPass, transferPass],
+  });
+
+  assert.equal(isCapabilityTransformationSandboxReady(assessments), true);
+  for (const key of [
+    "intro_session_structure_mastery_v1",
+    "logging_system_mastery_v1",
+    "session_flow_control_mastery_v1",
+  ]) {
+    const sessionGate = assessments.find((entry) => entry.assessmentKey === key);
+    assert.equal(sessionGate?.status, "available");
+  }
+});
+
+test("Session Infrastructure stays locked until Transformation Transfer is evidenced", () => {
+  const masteryPasses = transformationMasteryKeys.map((key) =>
+    pass(key, "2026-09-27T08:00:00Z"),
+  );
+  const assessments = buildCapabilityTrainingAvailability({
+    now: "2026-09-28T10:00:00Z",
+    activeBanks,
+    attempts: masteryPasses,
+  });
+
+  const intro = assessments.find(
+    (entry) => entry.assessmentKey === "intro_session_structure_mastery_v1",
+  );
+  assert.equal(intro?.status, "locked");
+  assert.equal(intro?.reason, "prerequisite_incomplete");
+});
+
+test("three failed attempts exhaust the configured allowance", () => {
+  const key = transformationMasteryKeys[0];
+  const attempts: CapabilityTrainingAttempt[] = [1, 2, 3].map((attemptNumber) => ({
+    assessmentKey: key,
+    bankVersion: 1,
+    attemptNumber,
+    evidenceKind: "mastery",
+    passed: false,
+    completedAt: `2026-09-28T0${attemptNumber}:00:00Z`,
+  }));
+  const status = buildCapabilityTrainingAvailability({
+    now: "2026-09-28T12:00:00Z",
+    activeBanks,
+    attempts,
+  }).find((entry) => entry.assessmentKey === key);
+
+  assert.equal(status?.status, "locked");
+  assert.equal(status?.reason, "attempt_limit");
+  assert.equal(status?.attemptCount, 3);
+});
