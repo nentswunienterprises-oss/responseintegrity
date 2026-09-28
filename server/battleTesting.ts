@@ -930,10 +930,13 @@ function deriveTutorTrainingMode(
     return "watchlist";
   }
 
-  // Battle Testing can open Sandbox, but it cannot promote a Specialist out of Sandbox.
-  // Practicals readiness is governed by the Sandbox capability engine plus explicit TD sign-off.
-  if (transformationComplete && sessionComplete) return "sandbox";
-  if (transformationComplete) return "sandbox";
+  // Legacy Battle Testing remains a health/history surface. It no longer issues
+  // Training -> Sandbox authority. Sandbox opens only from the Capability
+  // Transformation gate: Mastery -> delayed Retrieval -> interleaved Transfer.
+  // Once another authority has opened Sandbox, reconcileTutorTrainingMode
+  // preserves the persisted Sandbox state unless a separate health rule applies.
+  void transformationComplete;
+  void sessionComplete;
   return "training";
 }
 
