@@ -104,6 +104,15 @@ function orderedResponseComplete(question: CapabilityQuestion, selected: string[
   return selected.length > 0;
 }
 
+function cleanCapabilityCopy(value: string) {
+  return value
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\s*---\s*$/g, "")
+    .trim();
+}
+
 export default function SpecialistCapabilityAssessment() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -601,7 +610,7 @@ export default function SpecialistCapabilityAssessment() {
               Question {currentIndex + 1} of {form.totalQuestions}
             </p>
             <CardTitle className="text-xl leading-relaxed">
-              {currentQuestion.prompt}
+              {cleanCapabilityCopy(currentQuestion.prompt)}
             </CardTitle>
           </CardHeader>
 
@@ -638,7 +647,7 @@ export default function SpecialistCapabilityAssessment() {
                             option.key,
                           )) && <Check className="h-3 w-3" />}
                       </span>
-                      <span>{option.label}</span>
+                      <span>{cleanCapabilityCopy(option.label)}</span>
                     </button>
                   );
                 })}
@@ -680,7 +689,7 @@ export default function SpecialistCapabilityAssessment() {
                             option.key,
                           )) && <Check className="h-3 w-3" />}
                       </span>
-                      <span>{option.label}</span>
+                      <span>{cleanCapabilityCopy(option.label)}</span>
                     </button>
                   );
                 })}
@@ -714,7 +723,7 @@ export default function SpecialistCapabilityAssessment() {
                             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold">
                               {index + 1}
                             </span>
-                            <span className="flex-1">{option.label}</span>
+                            <span className="flex-1">{cleanCapabilityCopy(option.label)}</span>
                             <Button
                               type="button"
                               size="icon"
@@ -788,7 +797,7 @@ export default function SpecialistCapabilityAssessment() {
                             )
                           }
                         >
-                          {option.label}
+                          {cleanCapabilityCopy(option.label)}
                         </Button>
                       ))}
                     </div>
@@ -816,7 +825,7 @@ export default function SpecialistCapabilityAssessment() {
                       {currentConfirmation.correct ? "Correct" : "Not quite"}
                     </p>
                     <p className="text-sm leading-relaxed">
-                      {currentConfirmation.feedback}
+                      {cleanCapabilityCopy(currentConfirmation.feedback)}
                     </p>
                   </div>
                 </div>
