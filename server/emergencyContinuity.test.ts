@@ -610,7 +610,7 @@ test("emergency Step 2 upload requires Step 2 acceptance and never calls Supabas
   const nonEmergencyStart = routesSource.indexOf("// Decode base64 file data", emergencyBranchStart);
   const emergencyBranch = routesSource.slice(emergencyBranchStart, nonEmergencyStart);
 
-  assert.match(routesSource, /You must accept Response Integrity-EQV-002 in app before uploading your certified Matric certificate\./);
+  assert.match(routesSource, /You must accept the current Response Integrity-EQV-002 in app before uploading your certified Matric certificate\./);
   assert.match(emergencyBranch, /private\.emergency_tutor_onboarding_files/);
   assert.match(emergencyBranch, /createEmergencyFileBundle\(/);
   assert.match(emergencyBranch, /documentsStatus\["2"\] = "pending_review"/);
@@ -664,6 +664,8 @@ test("emergency Step 1 acceptance enforces ownership, approval, current step, an
   assert.match(emergencyMethod, /existing\.status !== "approved"/);
   assert.match(emergencyMethod, /currentStep/);
   assert.match(emergencyMethod, /already been accepted/);
+  assert.match(emergencyMethod, /document_version = \\$4/);
+  assert.match(emergencyMethod, /document_checksum = \\$5/);
   assert.match(emergencyMethod, /FOR UPDATE/);
 });
 
@@ -684,6 +686,7 @@ test("emergency Step 1 acceptance writes evidence atomically and advances exactl
         acceptedAt,
         formSnapshotJson: { idType: "passport" },
         acceptedClausesJson: ["platform_rules"],
+        documentVersion: "2",
         documentChecksum: "checksum-1",
         typedFullName: "Testie Tester",
       }],
@@ -691,6 +694,7 @@ test("emergency Step 1 acceptance writes evidence atomically and advances exactl
 
     assert.equal(application.onboardingAcceptanceMap["1"].acceptedAt, acceptedAt);
     assert.equal(application.onboardingAcceptanceMap["1"].formSnapshotJson.idType, "passport");
+    assert.equal(application.onboardingCurrentAcceptanceMap["1"].documentVersion, "2");
     assert.equal(application.documentsStatus["1"], "approved");
     assert.equal(application.documentSubmissionStep, 2);
   });

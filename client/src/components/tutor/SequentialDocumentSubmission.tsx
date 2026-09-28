@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { sanitizeLegacyOnboardingDocumentText } from "@shared/onboardingDocumentSanitizer";
+import { buildCurrentTutorOnboardingAcceptanceMap } from "@shared/tutorOnboardingAcceptanceVersion";
 import {
   deriveSpecialistDateOfBirth,
   getSpecialistIdentificationLabel,
@@ -1404,10 +1405,25 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
     () => normalizeDocumentStatuses(liveApplication?.documentsStatus || liveApplication?.documents_status),
     [liveApplication]
   );
-  const acceptanceMap = {
-    ...acceptedDocuments,
-    ...(liveApplication?.onboardingAcceptanceMap || {}),
-  };
+  const acceptanceHistory = useMemo(() => {
+    const rows = [
+      ...(Array.isArray(liveApplication?.onboardingAcceptances) ? liveApplication.onboardingAcceptances : []),
+      ...Object.values(liveApplication?.onboardingAcceptanceMap || {}),
+      ...Object.values(acceptedDocuments),
+    ];
+    const byId = new Map<string, any>();
+    rows.forEach((acceptance: any, index) => {
+      if (!acceptance) return;
+      const key = String(acceptance.id || `acceptance-${index}-${acceptance.documentStep || acceptance.document_step || ""}-${acceptance.acceptedAt || acceptance.accepted_at || ""}`);
+      byId.set(key, acceptance);
+    });
+    return Array.from(byId.values());
+  }, [acceptedDocuments, liveApplication]);
+
+  const acceptanceMap = useMemo(
+    () => buildCurrentTutorOnboardingAcceptanceMap(acceptanceHistory, data?.documents || []),
+    [acceptanceHistory, data?.documents],
+  );
   const doc1Acceptance = acceptanceMap["1"];
   const currentStep = getCurrentStep(documentsStatus);
   const currentDocument = data?.documents?.find((entry) => entry.step === currentStep);

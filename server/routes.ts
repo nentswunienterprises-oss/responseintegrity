@@ -9,6 +9,7 @@ import { createServer, type Server } from "http";
 import { join, resolve } from "path";
 import { storage, supabase, createAffiliateCode } from "./storage";
 import { getTutorOnboardingDocumentDefinition, loadTutorOnboardingDocument, TUTOR_ONBOARDING_DOCUMENTS } from "./tutorOnboardingDocuments";
+import { selectCurrentTutorOnboardingAcceptance } from "@shared/tutorOnboardingAcceptanceVersion";
 import { EGP_ONBOARDING_DOCUMENTS, getEgpOnboardingDocumentDefinition, loadEgpOnboardingDocument } from "./egpOnboardingDocuments";
 import { TD_ONBOARDING_DOCUMENTS, getTdOnboardingDocumentDefinition, loadTdOnboardingDocument } from "./tdOnboardingDocuments";
 import { isAuthenticated } from "./supabaseAuth";
@@ -22882,8 +22883,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Application not found or access denied" });
         }
 
-        if (parsedDocStep === 2 && !app?.onboardingAcceptanceMap?.["2"]) {
-          return res.status(400).json({ message: "You must accept Response Integrity-EQV-002 in app before uploading your certified Matric certificate." });
+        const currentDoc2 =
+          parsedDocStep === 2 ? await loadTutorOnboardingDocument(2) : null;
+        const hasCurrentDoc2Acceptance =
+          parsedDocStep !== 2 ||
+          Boolean(
+            selectCurrentTutorOnboardingAcceptance(
+              app?.onboardingAcceptances ?? [],
+              currentDoc2,
+            ),
+          );
+
+        if (parsedDocStep === 2 && !hasCurrentDoc2Acceptance) {
+          return res.status(400).json({ message: "You must accept the current Response Integrity-EQV-002 in app before uploading your certified Matric certificate." });
         }
 
         if (isEmergencyDbMode()) {
@@ -22955,8 +22967,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 };
 
             if (parsedDocStep === 2) {
-              if (!app?.onboardingAcceptanceMap?.["2"]) {
-                throw new Error("You must accept Response Integrity-EQV-002 in app before uploading your certified Matric certificate.");
+              if (!hasCurrentDoc2Acceptance) {
+                throw new Error("You must accept the current Response Integrity-EQV-002 in app before uploading your certified Matric certificate.");
               }
 
               if (String(documentsStatus["2"] || "not_started") === "approved") {
