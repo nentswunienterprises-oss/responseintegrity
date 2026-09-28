@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";\nimport { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
 import { ArrowLeft, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
