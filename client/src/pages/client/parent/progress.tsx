@@ -269,7 +269,7 @@ export default function ParentProgress() {
         </TabsList>
 
         <TabsContent value="reports">
-          {/* Summary cards removed — Analytics tab now shows quota and usage */}
+          {/* Summary cards removed - Analytics tab now shows quota and usage */}
 
           <Tabs defaultValue={defaultTab} className="space-y-4 sm:space-y-6">
             <TabsList className="grid w-full grid-cols-2 h-auto rounded-xl bg-muted/60 p-1">
@@ -476,7 +476,7 @@ export default function ParentProgress() {
                 <Card>
                   <CardContent className="p-3">
                     <p className="text-[10px] sm:text-xs text-muted-foreground">Monthly Quota</p>
-                    <p className="text-lg sm:text-2xl font-bold">{monthlyQuota.session_quota ?? "—"}</p>
+                    <p className="text-lg sm:text-2xl font-bold">{monthlyQuota.session_quota ?? " - "}</p>
                   </CardContent>
                 </Card>
                 <Card>
