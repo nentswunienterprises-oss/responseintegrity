@@ -304,7 +304,9 @@ export default function SpecialistCapabilityAssessment() {
           <div className="flex items-end justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Capability Check</p>
-              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{form.title}</h1>
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                {form.title.replace(/\s+Check$/, "")}
+              </h1>
             </div>
             <p className="text-sm font-medium">{answeredCount}/{form.totalQuestions}</p>
           </div>
