@@ -61,3 +61,10 @@ test("private bank validation rejects implementation jargon from learner-facing 
   assert.match(source, /runner vocabulary/);
   assert.match(source, /plain Specialist language/);
 });
+
+
+test("private bank validation requires option-specific feedback for every wrong single-choice option", () => {
+  assert.match(source, /missing option-specific feedback for wrong option/);
+  assert.match(source, /Wrong-answer feedback must be distinct from the approved Truth/);
+  assert.match(source, /stores option-specific feedback for correct option/);
+});
