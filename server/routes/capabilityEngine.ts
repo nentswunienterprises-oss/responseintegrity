@@ -12,7 +12,8 @@ import {
 } from "../capabilityEngine";
 import {
   assertCapabilityAssessmentAvailable,
-  getSpecialistCapabilityPlanStatus,
+  getSpecialistCapabilityTrainingState,
+  reconcileCapabilitySandboxAuthority,
 } from "../capabilitySequencing";
 
 const capabilityAttemptSchema = z.object({
@@ -77,11 +78,11 @@ export function registerCapabilityEngineRoutes(app: Express) {
           return res.status(400).json({ message: "tutorAssignmentId is required." });
         }
 
-        const assessments = await getSpecialistCapabilityPlanStatus({
+        const state = await getSpecialistCapabilityTrainingState({
           tutorAssignmentId,
           tutorId: String(dbUser.id),
         });
-        return res.json({ assessments });
+        return res.json(state);
       } catch (error) {
         return respondError(res, error, "Failed to load capability assessment plan.");
       }
@@ -192,7 +193,19 @@ export function registerCapabilityEngineRoutes(app: Express) {
           receipts: payload.receipts,
         });
 
-        return res.status(201).json(result);
+        const progression = result.passed
+          ? await reconcileCapabilitySandboxAuthority({
+              tutorAssignmentId: payload.tutorAssignmentId,
+              tutorId: String(dbUser.id),
+            })
+          : null;
+
+        return res.status(201).json({
+          ...result,
+          sandboxReady: progression?.sandboxReady ?? false,
+          operationalMode: progression?.mode ?? null,
+          sandboxUnlocked: Boolean(progression?.promoted),
+        });
       } catch (error) {
         return respondError(res, error, "Failed to save capability assessment attempt.");
       }
