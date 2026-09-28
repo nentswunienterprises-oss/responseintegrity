@@ -1,4 +1,5 @@
 import { pool } from "./db";
+import { cleanCapabilityDisplayCopy } from "./capabilityDisplayCopy";
 import { buildCapabilityAttemptPlan, type CapabilityAttemptPlan } from "./capabilityBank";
 import {
   buildCapabilityLedger,
@@ -163,10 +164,10 @@ function resolveQuestionFeedback(
   if (question.kind === "single_choice" && selectedOptionKeys.length === 1) {
     const optionFeedback = question.optionFeedback?.[selectedOptionKeys[0]];
     if (typeof optionFeedback === "string" && optionFeedback.trim()) {
-      return optionFeedback.trim();
+      return cleanCapabilityDisplayCopy(optionFeedback.trim());
     }
   }
-  return question.explanation;
+  return cleanCapabilityDisplayCopy(question.explanation);
 }
 
 export async function assertCapabilityTutorAssignmentOwnership(
@@ -227,7 +228,7 @@ async function loadQuestionConfirmations(input: {
     questionKey: String(row.question_key),
     selectedOptionKeys: parseJsonArray(row.selected_option_keys),
     correct: Boolean(row.correct),
-    feedback: String(row.feedback),
+    feedback: cleanCapabilityDisplayCopy(String(row.feedback)),
     confirmedAt: row.confirmed_at,
   })) satisfies CapabilityQuestionConfirmationPublic[];
 }
@@ -338,7 +339,7 @@ export async function confirmCapabilityQuestion(input: {
             questionKey: String(row.question_key),
             selectedOptionKeys: parseJsonArray(row.selected_option_keys),
             correct: Boolean(row.correct),
-            feedback: String(row.feedback),
+            feedback: cleanCapabilityDisplayCopy(String(row.feedback)),
             confirmedAt: row.confirmed_at,
           }
         : null,
