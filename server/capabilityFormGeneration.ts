@@ -27,6 +27,7 @@ export interface PrivateCapabilityAssessmentConfig {
   formSize: number;
   maxAttempts: number;
   retryCooldownHours: number;
+  reviewMode: boolean;
   competencyBlueprint: CapabilityCompetencyBlueprintEntry[];
   criticalBoundaryRequirements?: CapabilityCriticalBoundaryRequirement[];
 }
