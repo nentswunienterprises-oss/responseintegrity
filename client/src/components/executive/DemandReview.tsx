@@ -30,7 +30,7 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
   const person = (id: string) => id ? staff.find((user) => user.id === id)?.name || id : "Unset";
   const sla = lineage.handoverSla;
   const slaLabel = sla.status === "breached" ? "Breached" : sla.status === "within_standard" ? "Within standard"
-    : sla.status === "pending" ? "Within 24 hours — transfer pending" : "Not yet measurable";
+    : sla.status === "pending" ? "Within 24 hours - transfer pending" : "Not yet measurable";
   const legacy = e.demand_flow_version === 0;
 
   return <div className="space-y-4 border rounded-lg p-4">
@@ -39,13 +39,13 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
       {[
         ["Source", lineage.code ? `Production Link ${lineage.code} · ${lineage.source?.ownerName || "Owner unavailable"}` : "Organic"],
         ["Original source / campaign", `${lineage.originalSource || "Not recorded"} / ${lineage.originalCampaign || "Not recorded"}`],
-        ["Qualification", legacy ? "Historical — unknown" : words(e.qualification_status)],
+        ["Qualification", legacy ? "Historical - unknown" : words(e.qualification_status)],
         ["Qualification owner", person(e.qualification_owner_id)],
         ["Contact recorded", when(e.qualification_contacted_at)],
         ["Decision", `${person(e.qualification_decided_by)} · ${when(e.qualification_completed_at)}`],
         ["Entry type", words(lineage.entryType)],
         ["Entry selected by", `${person(e.entry_selected_by)} · ${when(e.entry_selected_at)}`],
-        ["Handover", e.handover_completed_at ? "Completed" : legacy ? "Historical — unknown" : "Pending"],
+        ["Handover", e.handover_completed_at ? "Completed" : legacy ? "Historical - unknown" : "Pending"],
         ["Handover sender → recipient", `${person(e.handover_from_user_id)} → ${person(e.handover_to_user_id)}`],
         ["Responsibility transferred", when(e.handover_completed_at)],
         ["24-hour SLA", `${slaLabel}${sla.hours == null ? "" : ` (${sla.hours.toFixed(1)} hours)`}`],
@@ -75,7 +75,7 @@ export function DemandReview({ lineage, staff }: { lineage: any; staff: { id: st
         <Button disabled={save.isPending}>Save qualification</Button>
       </form>}
       {e.qualification_status === "qualified" && !e.entry_selected_at && <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); save.mutate({ action: "entry", entryType: entry }); }}>
-        <label className="block text-sm">Service entry arrangement<select required className={control} value={entry} onChange={(event) => setEntry(event.target.value)}><option value="">Choose entry type</option><option value="pilot">Pilot — approved free access</option><option value="commercial">Commercial — paid monthly package</option></select></label>
+        <label className="block text-sm">Service entry arrangement<select required className={control} value={entry} onChange={(event) => setEntry(event.target.value)}><option value="">Choose entry type</option><option value="pilot">Pilot - approved free access</option><option value="commercial">Commercial - paid monthly package</option></select></label>
         <Button disabled={save.isPending || !entry}>Confirm entry type</Button>
       </form>}
       {e.entry_selected_at && <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); save.mutate({ action: "handover", ownerId: recipient, note }); }}>
