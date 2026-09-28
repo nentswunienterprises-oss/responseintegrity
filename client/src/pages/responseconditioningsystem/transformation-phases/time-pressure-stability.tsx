@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";\nimport { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -199,6 +199,29 @@ export default function ResponseConditioningTimePressureStability() {
           </ul>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="A student finishes very quickly under the timer but abandons the method structure. How should RI read that?"
+          options={[
+            {
+              key: "a",
+              label: "Strong Time Pressure Stability because speed improved.",
+              feedback: "Speed without preserved structure is not the target.",
+            },
+            {
+              key: "b",
+              label: "The timed response is unstable because urgency displaced the method.",
+              feedback: "Time Pressure Stability requires structure and completion integrity under time, not speed alone.",
+            },
+            {
+              key: "c",
+              label: "The student should receive a tighter timer next.",
+              feedback: "A tighter constraint is not earned from a response that already lost structure.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="The timer is an added constraint on an already-known method. A fast answer that loses structure is evidence of breakdown under time, not successful stability."
+        />
+
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Time Pressure Training Recipe</h2>
           <p className="text-muted-foreground">
@@ -342,6 +365,29 @@ export default function ResponseConditioningTimePressureStability() {
           </div>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="The timer fails halfway through a rep. What should happen to that rep?"
+          options={[
+            {
+              key: "a",
+              label: "Estimate the remaining time and keep the rep as normal evidence.",
+              feedback: "Estimated timing cannot replace the actual timed condition.",
+            },
+            {
+              key: "b",
+              label: "Preserve the technical-failure lineage and run a valid replacement rep.",
+              feedback: "A technical failure must not be converted into false timed evidence.",
+            },
+            {
+              key: "c",
+              label: "Treat the unfinished rep as a student failure.",
+              feedback: "The failure came from the timing condition, not from the student's response.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Technical timer failure and student performance are separate truths. The failed timing condition remains recorded, and a valid replacement rep supplies the evidence."
+        />
+
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What You Observe</h2>
           <p className="text-muted-foreground">
@@ -369,6 +415,29 @@ export default function ResponseConditioningTimePressureStability() {
             Failed Specialist execution is different: changing the timer, helping during the rep, ignoring lost structure because the answer was fast, or logging stable pace when the response was panic-driven.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="Who decides the Full Constraint timer?"
+          options={[
+            {
+              key: "a",
+              label: "The Specialist chooses a time that feels challenging.",
+              feedback: "Personal timer rules would make pressure inconsistent and unauditable.",
+            },
+            {
+              key: "b",
+              label: "The system derives it from the student's established eligible timing baseline.",
+              feedback: "The pressure condition is evidence-derived rather than improvised.",
+            },
+            {
+              key: "c",
+              label: "Every student receives the same fixed time for the topic.",
+              feedback: "TPS timing is based on the student's own eligible baseline, not a universal arbitrary duration.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Time pressure is derived from eligible timing evidence. Full Constraint uses the defined relationship to the established baseline; the Specialist does not invent the timer."
+        />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression Logic</h2>
