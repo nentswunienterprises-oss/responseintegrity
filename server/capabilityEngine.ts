@@ -13,6 +13,14 @@ import {
   projectCapabilityAssessmentForSpecialist,
   projectCapabilityAttemptResultForSpecialist,
 } from "./capabilityPublicProjection";
+import {
+  createCapabilityInteractionToken,
+  createCapabilityQuestionReceipt,
+  readCapabilityInteractionToken,
+  readCapabilityQuestionReceipt,
+  type CapabilityInteractionPayload,
+  type CapabilityQuestionReceiptPayload,
+} from "./capabilityInteractionEnvelope";
 
 export interface CapabilityQuestionConfirmationPublic {
   questionKey: string;
@@ -277,6 +285,278 @@ async function findCompletedAttemptForForm(input: {
     ],
   );
   return result.rows[0] || null;
+}
+
+function assertInteractionBinding(
+  payload: CapabilityInteractionPayload,
+  input: {
+    tutorId: string;
+    assessmentKey: string;
+    tutorAssignmentId?: string;
+  },
+) {
+  if (
+    payload.tutorId !== input.tutorId ||
+    payload.assessmentKey !== input.assessmentKey ||
+    (input.tutorAssignmentId &&
+      payload.tutorAssignmentId !== input.tutorAssignmentId)
+  ) {
+    const error = new Error(
+      "Capability interaction does not belong to this Specialist or assignment.",
+    ) as Error & { status?: number };
+    error.status = 403;
+    throw error;
+  }
+}
+
+function assertReceiptBinding(
+  receipt: CapabilityQuestionReceiptPayload,
+  interaction: CapabilityInteractionPayload,
+  expectedIndex: number,
+) {
+  const expectedQuestion = interaction.definition.questions[expectedIndex];
+  if (
+    !expectedQuestion ||
+    receipt.tutorAssignmentId !== interaction.tutorAssignmentId ||
+    receipt.tutorId !== interaction.tutorId ||
+    receipt.assessmentKey !== interaction.assessmentKey ||
+    receipt.bankVersion !== interaction.bankVersion ||
+    receipt.attemptNumber !== interaction.attemptNumber ||
+    receipt.formId !== interaction.formId ||
+    receipt.questionIndex !== expectedIndex ||
+    receipt.questionKey !== expectedQuestion.key
+  ) {
+    const error = new Error(
+      "Capability answer receipt does not match this assessment interaction.",
+    ) as Error & { status?: number };
+    error.status = 409;
+    throw error;
+  }
+}
+
+export async function prepareCapabilityInteractiveAssessmentForm(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  assessmentKey: string;
+}) {
+  await assertCapabilityTutorAssignmentOwnership(
+    input.tutorAssignmentId,
+    input.tutorId,
+  );
+
+  const plan = await buildCapabilityAttemptPlan({
+    tutorAssignmentId: input.tutorAssignmentId,
+    assessmentKey: input.assessmentKey,
+  });
+
+  const interactionToken = createCapabilityInteractionToken({
+    tutorAssignmentId: input.tutorAssignmentId,
+    tutorId: input.tutorId,
+    assessmentKey: input.assessmentKey,
+    bankVersion: plan.form.bankVersion,
+    attemptNumber: plan.attemptNumber,
+    formId: plan.form.formId,
+    definition: plan.form.definition,
+  });
+
+  return {
+    ...buildPublicCapabilityAssessment(plan),
+    interactionToken,
+    confirmations: [],
+  };
+}
+
+export function confirmCapabilityQuestionStateless(input: {
+  tutorId: string;
+  assessmentKey: string;
+  interactionToken: string;
+  priorReceipts: string[];
+  questionKey: string;
+  selectedOptionKeys: string[];
+}) {
+  const interaction = readCapabilityInteractionToken(input.interactionToken);
+  assertInteractionBinding(interaction, input);
+
+  const prior = input.priorReceipts.map((receipt, index) => {
+    const decoded = readCapabilityQuestionReceipt(receipt);
+    assertReceiptBinding(decoded, interaction, index);
+    return decoded;
+  });
+
+  const questionIndex = prior.length;
+  const question = interaction.definition.questions[questionIndex];
+  if (!question || question.key !== input.questionKey) {
+    const error = new Error(
+      "Capability questions must be confirmed in form order.",
+    ) as Error & { status?: number };
+    error.status = 409;
+    throw error;
+  }
+
+  const oneQuestionResult = evaluateCapabilityAssessment(
+    { ...interaction.definition, questions: [question] },
+    [
+      {
+        questionKey: question.key,
+        selectedOptionKeys: input.selectedOptionKeys,
+      },
+    ],
+  ).questionResults[0];
+
+  const feedback = resolveQuestionFeedback(
+    question,
+    input.selectedOptionKeys,
+    oneQuestionResult.correct,
+  );
+  const confirmedAt = Date.now();
+
+  const receipt = createCapabilityQuestionReceipt({
+    version: 1,
+    tutorAssignmentId: interaction.tutorAssignmentId,
+    tutorId: interaction.tutorId,
+    assessmentKey: interaction.assessmentKey,
+    bankVersion: interaction.bankVersion,
+    attemptNumber: interaction.attemptNumber,
+    formId: interaction.formId,
+    questionIndex,
+    questionKey: question.key,
+    selectedOptionKeys: input.selectedOptionKeys,
+    confirmedAt,
+  });
+
+  return {
+    confirmation: {
+      questionKey: question.key,
+      selectedOptionKeys: input.selectedOptionKeys,
+      correct: oneQuestionResult.correct,
+      feedback,
+      confirmedAt: new Date(confirmedAt).toISOString(),
+    },
+    receipt,
+  };
+}
+
+export async function persistCapabilityInteractiveAttempt(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  assessmentKey: string;
+  interactionToken: string;
+  receipts: string[];
+}) {
+  await assertCapabilityTutorAssignmentOwnership(
+    input.tutorAssignmentId,
+    input.tutorId,
+  );
+
+  const interaction = readCapabilityInteractionToken(input.interactionToken);
+  assertInteractionBinding(interaction, input);
+
+  const existingAttempt = await findCompletedAttemptForForm({
+    tutorAssignmentId: interaction.tutorAssignmentId,
+    tutorId: interaction.tutorId,
+    assessmentKey: interaction.assessmentKey,
+    bankVersion: interaction.bankVersion,
+    formId: interaction.formId,
+  });
+  if (existingAttempt) return projectStoredAttempt(existingAttempt);
+
+  if (input.receipts.length !== interaction.definition.questions.length) {
+    const error = new Error(
+      "Every Capability question must be confirmed before the attempt can be finalized.",
+    ) as Error & { status?: number };
+    error.status = 409;
+    throw error;
+  }
+
+  const decodedReceipts = input.receipts.map((receipt, index) => {
+    const decoded = readCapabilityQuestionReceipt(receipt);
+    assertReceiptBinding(decoded, interaction, index);
+    return decoded;
+  });
+
+  const responses: CapabilityResponseInput[] = decodedReceipts.map((receipt) => ({
+    questionKey: receipt.questionKey,
+    selectedOptionKeys: receipt.selectedOptionKeys,
+  }));
+
+  const result = evaluateCapabilityAssessment(
+    interaction.definition,
+    responses,
+  );
+
+  try {
+    const insertResult = await pool.query(
+      `INSERT INTO specialist_capability_assessment_attempts (
+         tutor_assignment_id,
+         tutor_id,
+         assessment_key,
+         bank_version,
+         attempt_number,
+         form_id,
+         form_item_keys,
+         assessment_deep_dive_key,
+         evidence_kind,
+         covered_deep_dive_keys,
+         pass_threshold_percent,
+         total_questions,
+         correct_questions,
+         percent,
+         has_critical_fail,
+         critical_fail_question_keys,
+         passed,
+         responses,
+         question_results
+       ) VALUES (
+         $1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10::jsonb,
+         $11, $12, $13, $14, $15, $16::jsonb, $17, $18::jsonb, $19::jsonb
+       )
+       RETURNING id, completed_at`,
+      [
+        interaction.tutorAssignmentId,
+        interaction.tutorId,
+        result.assessmentKey,
+        interaction.bankVersion,
+        interaction.attemptNumber,
+        interaction.formId,
+        JSON.stringify(
+          interaction.definition.questions.map((question) => question.key),
+        ),
+        result.assessmentDeepDiveKey,
+        result.evidenceKind,
+        JSON.stringify(result.coveredDeepDiveKeys),
+        interaction.definition.passThresholdPercent,
+        result.totalQuestions,
+        result.correctQuestions,
+        result.percent,
+        result.hasCriticalFail,
+        JSON.stringify(result.criticalFailQuestionKeys),
+        result.passed,
+        JSON.stringify(responses),
+        JSON.stringify(result.questionResults),
+      ],
+    );
+
+    return projectCapabilityAttemptResultForSpecialist({
+      attemptId: insertResult.rows[0]?.id,
+      completedAt: insertResult.rows[0]?.completed_at,
+      bankVersion: interaction.bankVersion,
+      attemptNumber: interaction.attemptNumber,
+      formId: interaction.formId,
+      result,
+    });
+  } catch (error) {
+    if ((error as { code?: string })?.code === "23505") {
+      const stored = await findCompletedAttemptForForm({
+        tutorAssignmentId: interaction.tutorAssignmentId,
+        tutorId: interaction.tutorId,
+        assessmentKey: interaction.assessmentKey,
+        bankVersion: interaction.bankVersion,
+        formId: interaction.formId,
+      });
+      if (stored) return projectStoredAttempt(stored);
+    }
+    throw error;
+  }
 }
 
 export async function prepareCapabilityAssessmentForm(input: {
