@@ -241,6 +241,17 @@ export default function ResponseConditioningStructuredExecution() {
           </p>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="Which material is most appropriate when the learner is being asked to stabilize execution of a method they already know?"
+          options={[
+            { key: "a", label: "Problems that use the known method and allow the execution sequence to be observed repeatedly.", feedback: "The material should expose whether the learner can carry the known method reliably." },
+            { key: "b", label: "Problems requiring a completely new method the learner has never seen.", feedback: "A new method can turn the session into recognition or teaching rather than execution evidence." },
+            { key: "c", label: "Only one familiar example, because repetition would be redundant.", feedback: "Repeatability cannot be established from one execution opportunity." },
+          ]}
+          correctOptionKey="a"
+          truth="This phase assumes the method is already recognized. Preparation should create repeated opportunities to observe whether the learner can execute that known method in a stable sequence."
+        />
+
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
           <p className="text-muted-foreground">
@@ -400,6 +411,17 @@ export default function ResponseConditioningStructuredExecution() {
             method held across repetition.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="During a correctly run no-help rep, the learner stops halfway and cannot continue. What is the correct interpretation?"
+          options={[
+            { key: "a", label: "The rep failed and should be removed from the record.", feedback: "The no-help condition worked: it revealed where independent execution stopped." },
+            { key: "b", label: "The learner produced useful evidence of an execution breakdown.", feedback: "A breakdown under the intended condition is valid evidence, not a failed session." },
+            { key: "c", label: "The Specialist should finish the method and record the rep as complete.", feedback: "Finishing for the learner would hide the point where independence ended." },
+          ]}
+          correctOptionKey="b"
+          truth="A no-help rep is successful as an evidence event when it truthfully reveals the learner's independent execution, even when that execution breaks down."
+        />
 
         <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
           <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
