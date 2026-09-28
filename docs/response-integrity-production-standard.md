@@ -171,7 +171,11 @@ Training
     ↓
 Sandbox
     ↓
+Practicals
+    ↓
 Trial
+    ↓
+Certification
     ↓
 Certified Live Specialist
     ↓
@@ -213,53 +217,68 @@ Applicant.
 #### 3. Training (training mode)
 The applicant enters the Academy.
 
-They learn:
+The learning experience is active rather than document-only: Deep Dives interleave short doctrine segments with formative teaching interactions and immediate feedback. Those formative interactions teach; they do not consume Capability attempts or create formal Mastery evidence.
 
-- Response Integrity philosophy (audited on 5 deep dives)
-- topic conditioning
-- platform usage
-- session structure
-- parent communication
-- operating standards
+Transformation authority is then evidenced through:
+
+- five separate Deep Dive Mastery gates, each using a 45-item private bank and a balanced 15-question form
+- a clean Mastery pass of 15/15 with no critical fail
+- at most three total attempts per Deep Dive, with retries preferring unseen bank items
+- a separate delayed 25-question Transformation Retrieval gate at 24/25+ with no critical fail
+- a separate 25-question interleaved Transformation Transfer gate at 24/25+ with no critical fail
 
 Output:
 
-Training-stage specialist.
+Transformation-qualified Training-stage Specialist.
 
 #### 4. Sandbox
-The trainee practices inside a controlled environment.
+Sandbox opens only after the complete Transformation Capability gate is satisfied.
 
-No live deployment.
+The trainee practices inside a controlled environment using the real operating system without live-family risk.
 
-Skills are observed.
-
-Quality is measured.
+Sandbox access does not mean Training is complete. It expands the learning environment so Session Infrastructure can be learned and evidenced against the system the Specialist can actually operate.
 
 Output:
 
-Sandbox specialist.
+Sandbox-stage Specialist still in capability development.
 
-#### 5. Trial
-The specialist has demonstrated operational readiness and enters supervised live validation.
+#### 5. Practicals
+The Specialist enters the governed post-Sandbox operational execution stage only after the Sandbox capability system resolves readiness and the assigned TD records the required readiness decision.
+
+Output:
+
+Practicals-stage Specialist.
+
+#### 6. Trial
+The Specialist has demonstrated operational readiness and enters supervised live validation.
 
 They may carry exactly two governed Trial families.
 
-Each family requires nine qualifying sessions, required deterministic logs and reports, feedback received or declined, and a positive COO outcome review.
+Each family requires nine qualifying sessions, required deterministic logs and reports, feedback received or declined, and a positive governed outcome review.
 
 Output:
 
-Trial specialist.
+Trial Specialist.
 
-#### 6. Certified Live Specialist
-The specialist satisfies all Academy standards and the full Trial validation gate.
+#### 7. Certification
+The Specialist's completed Trial evidence is reviewed against the certification gate.
 
-Certification is issued only after explicit COO approval. Testimonials remain optional.
+Certification is a distinct decision stage. Completing Trial does not silently create Certified Live authority.
 
 Output:
 
-Deployable specialist.
+Certification-ready Specialist.
 
-#### 7. Deployment
+#### 8. Certified Live Specialist
+The Specialist satisfies all Academy standards and the full Trial validation gate.
+
+Certified Live authority is issued only after the approved certification decision. Testimonials remain optional.
+
+Output:
+
+Deployable Specialist.
+
+#### 9. Deployment
 The specialist is assigned learners inside a Pod.
 
 Capacity becomes active.
