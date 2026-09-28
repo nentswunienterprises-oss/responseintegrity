@@ -48,7 +48,7 @@ function statePresentation(assessment: MasteryAvailability) {
   if (assessment.status === "available") {
     return {
       label: "Ready",
-      detail: "The Founder-approved private bank is active and this mastery check can be taken.",
+      detail: "The approved private bank is active and this mastery check can be taken.",
       Icon: PlayCircle,
     };
   }
@@ -154,7 +154,7 @@ export default function SpecialistCapabilityPlan() {
           </h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
             Each active check draws a deterministic 15-question form from the
-            Founder-approved private bank for that Deep Dive. The assessment tests
+            approved private bank for that Deep Dive. The assessment tests
             operating understanding and scenario judgment; it does not replace
             Sandbox observation, Practical execution, Trial, or Certification.
           </p>
