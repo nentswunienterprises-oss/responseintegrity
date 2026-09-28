@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { ArrowLeft, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -441,6 +442,7 @@ export default function ResponseConditioningTopicConditioning() {
             <li>the student's transformation</li>
           </ul>
         </Card>
+        <DeepDiveCapabilityCheck assessmentKey="topic_conditioning_mastery_v1" />
       </div>
     </div>
   );
