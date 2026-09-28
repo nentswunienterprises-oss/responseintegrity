@@ -4,6 +4,7 @@ import {
   buildCapabilityLedger,
   evaluateCapabilityAssessment,
   type CapabilityLedgerAttempt,
+  type CapabilityQuestionDefinition,
   type CapabilityQuestionResult,
   type CapabilityResponseInput,
 } from "@shared/capabilityEngine";
@@ -11,6 +12,14 @@ import {
   projectCapabilityAssessmentForSpecialist,
   projectCapabilityAttemptResultForSpecialist,
 } from "./capabilityPublicProjection";
+
+export interface CapabilityQuestionConfirmationPublic {
+  questionKey: string;
+  selectedOptionKeys: string[];
+  correct: boolean;
+  feedback: string;
+  confirmedAt: unknown;
+}
 
 export function buildPublicCapabilityAssessment(plan: CapabilityAttemptPlan) {
   return projectCapabilityAssessmentForSpecialist({
@@ -20,6 +29,45 @@ export function buildPublicCapabilityAssessment(plan: CapabilityAttemptPlan) {
     attemptNumber: plan.attemptNumber,
     maxAttempts: plan.config.maxAttempts,
   });
+}
+
+function parseJsonArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((entry) => String(entry));
+  if (typeof value === "string") {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map((entry) => String(entry)) : [];
+  }
+  return [];
+}
+
+function projectStoredAttempt(row: any) {
+  return {
+    attemptId: row.id,
+    completedAt: row.completed_at,
+    bankVersion: Number(row.bank_version),
+    attemptNumber: Number(row.attempt_number),
+    formId: String(row.form_id),
+    assessmentKey: String(row.assessment_key),
+    evidenceKind: row.evidence_kind,
+    totalQuestions: Number(row.total_questions),
+    correctQuestions: Number(row.correct_questions),
+    percent: Number(row.percent),
+    passed: Boolean(row.passed),
+    hasCriticalFail: Boolean(row.has_critical_fail),
+  };
+}
+
+function resolveQuestionFeedback(
+  question: CapabilityQuestionDefinition,
+  selectedOptionKeys: string[],
+) {
+  if (question.kind === "single_choice" && selectedOptionKeys.length === 1) {
+    const optionFeedback = question.optionFeedback?.[selectedOptionKeys[0]];
+    if (typeof optionFeedback === "string" && optionFeedback.trim()) {
+      return optionFeedback.trim();
+    }
+  }
+  return question.explanation;
 }
 
 export async function assertCapabilityTutorAssignmentOwnership(
@@ -44,6 +92,85 @@ export async function assertCapabilityTutorAssignmentOwnership(
   }
 }
 
+async function loadQuestionConfirmations(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  assessmentKey: string;
+  bankVersion: number;
+  attemptNumber: number;
+  formId: string;
+}) {
+  const result = await pool.query(
+    `SELECT question_key,
+            selected_option_keys,
+            correct,
+            feedback,
+            confirmed_at
+       FROM specialist_capability_question_confirmations
+      WHERE tutor_assignment_id = $1
+        AND tutor_id = $2
+        AND assessment_key = $3
+        AND bank_version = $4
+        AND attempt_number = $5
+        AND form_id = $6
+      ORDER BY confirmed_at ASC`,
+    [
+      input.tutorAssignmentId,
+      input.tutorId,
+      input.assessmentKey,
+      input.bankVersion,
+      input.attemptNumber,
+      input.formId,
+    ],
+  );
+
+  return result.rows.map((row) => ({
+    questionKey: String(row.question_key),
+    selectedOptionKeys: parseJsonArray(row.selected_option_keys),
+    correct: Boolean(row.correct),
+    feedback: String(row.feedback),
+    confirmedAt: row.confirmed_at,
+  })) satisfies CapabilityQuestionConfirmationPublic[];
+}
+
+async function findCompletedAttemptForForm(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  assessmentKey: string;
+  bankVersion: number;
+  formId: string;
+}) {
+  const result = await pool.query(
+    `SELECT id,
+            assessment_key,
+            bank_version,
+            attempt_number,
+            form_id,
+            evidence_kind,
+            total_questions,
+            correct_questions,
+            percent,
+            passed,
+            has_critical_fail,
+            completed_at
+       FROM specialist_capability_assessment_attempts
+      WHERE tutor_assignment_id = $1
+        AND tutor_id = $2
+        AND assessment_key = $3
+        AND bank_version = $4
+        AND form_id = $5
+      LIMIT 1`,
+    [
+      input.tutorAssignmentId,
+      input.tutorId,
+      input.assessmentKey,
+      input.bankVersion,
+      input.formId,
+    ],
+  );
+  return result.rows[0] || null;
+}
+
 export async function prepareCapabilityAssessmentForm(input: {
   tutorAssignmentId: string;
   tutorId: string;
@@ -54,18 +181,71 @@ export async function prepareCapabilityAssessmentForm(input: {
     tutorAssignmentId: input.tutorAssignmentId,
     assessmentKey: input.assessmentKey,
   });
-  return buildPublicCapabilityAssessment(plan);
+  const confirmations = await loadQuestionConfirmations({
+    tutorAssignmentId: input.tutorAssignmentId,
+    tutorId: input.tutorId,
+    assessmentKey: input.assessmentKey,
+    bankVersion: plan.form.bankVersion,
+    attemptNumber: plan.attemptNumber,
+    formId: plan.form.formId,
+  });
+
+  return {
+    ...buildPublicCapabilityAssessment(plan),
+    confirmations,
+  };
 }
 
-export async function persistCapabilityAssessmentAttempt(input: {
+export async function confirmCapabilityQuestion(input: {
   tutorAssignmentId: string;
   tutorId: string;
   assessmentKey: string;
   formId: string;
   bankVersion: number;
-  responses: CapabilityResponseInput[];
+  questionKey: string;
+  selectedOptionKeys: string[];
 }) {
   await assertCapabilityTutorAssignmentOwnership(input.tutorAssignmentId, input.tutorId);
+
+  const completedAttempt = await findCompletedAttemptForForm(input);
+  if (completedAttempt) {
+    const existing = await pool.query(
+      `SELECT question_key,
+              selected_option_keys,
+              correct,
+              feedback,
+              confirmed_at
+         FROM specialist_capability_question_confirmations
+        WHERE tutor_assignment_id = $1
+          AND tutor_id = $2
+          AND assessment_key = $3
+          AND bank_version = $4
+          AND form_id = $5
+          AND question_key = $6
+        LIMIT 1`,
+      [
+        input.tutorAssignmentId,
+        input.tutorId,
+        input.assessmentKey,
+        input.bankVersion,
+        input.formId,
+        input.questionKey,
+      ],
+    );
+    const row = existing.rows[0];
+    return {
+      confirmation: row
+        ? {
+            questionKey: String(row.question_key),
+            selectedOptionKeys: parseJsonArray(row.selected_option_keys),
+            correct: Boolean(row.correct),
+            feedback: String(row.feedback),
+            confirmedAt: row.confirmed_at,
+          }
+        : null,
+      attemptResult: projectStoredAttempt(completedAttempt),
+    };
+  }
 
   const plan = await buildCapabilityAttemptPlan({
     tutorAssignmentId: input.tutorAssignmentId,
@@ -80,7 +260,161 @@ export async function persistCapabilityAssessmentAttempt(input: {
     throw error;
   }
 
-  const result = evaluateCapabilityAssessment(plan.form.definition, input.responses);
+  const question = plan.form.definition.questions.find(
+    (entry) => entry.key === input.questionKey,
+  );
+  if (!question) {
+    const error = new Error("Capability question does not belong to this form.") as Error & {
+      status?: number;
+    };
+    error.status = 400;
+    throw error;
+  }
+
+  const oneQuestionResult = evaluateCapabilityAssessment(
+    { ...plan.form.definition, questions: [question] },
+    [
+      {
+        questionKey: question.key,
+        selectedOptionKeys: input.selectedOptionKeys,
+      },
+    ],
+  ).questionResults[0];
+
+  const feedback = resolveQuestionFeedback(question, input.selectedOptionKeys);
+
+  await pool.query(
+    `INSERT INTO specialist_capability_question_confirmations (
+       tutor_assignment_id,
+       tutor_id,
+       assessment_key,
+       bank_version,
+       attempt_number,
+       form_id,
+       question_key,
+       selected_option_keys,
+       correct,
+       critical_fail,
+       feedback
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11)
+     ON CONFLICT (
+       tutor_assignment_id,
+       assessment_key,
+       bank_version,
+       attempt_number,
+       form_id,
+       question_key
+     ) DO NOTHING`,
+    [
+      input.tutorAssignmentId,
+      input.tutorId,
+      input.assessmentKey,
+      plan.form.bankVersion,
+      plan.attemptNumber,
+      plan.form.formId,
+      question.key,
+      JSON.stringify(input.selectedOptionKeys),
+      oneQuestionResult.correct,
+      oneQuestionResult.criticalFail,
+      feedback,
+    ],
+  );
+
+  const confirmations = await loadQuestionConfirmations({
+    tutorAssignmentId: input.tutorAssignmentId,
+    tutorId: input.tutorId,
+    assessmentKey: input.assessmentKey,
+    bankVersion: plan.form.bankVersion,
+    attemptNumber: plan.attemptNumber,
+    formId: plan.form.formId,
+  });
+
+  const confirmation = confirmations.find(
+    (entry) => entry.questionKey === input.questionKey,
+  );
+  if (!confirmation) {
+    throw new Error("Capability question confirmation could not be persisted.");
+  }
+
+  const confirmedByQuestion = new Map(
+    confirmations.map((entry) => [entry.questionKey, entry] as const),
+  );
+  const allConfirmed = plan.form.definition.questions.every((entry) =>
+    confirmedByQuestion.has(entry.key),
+  );
+
+  const attemptResult = allConfirmed
+    ? await persistCapabilityAssessmentAttempt({
+        tutorAssignmentId: input.tutorAssignmentId,
+        tutorId: input.tutorId,
+        assessmentKey: input.assessmentKey,
+        formId: input.formId,
+        bankVersion: input.bankVersion,
+      })
+    : null;
+
+  return { confirmation, attemptResult };
+}
+
+export async function persistCapabilityAssessmentAttempt(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  assessmentKey: string;
+  formId: string;
+  bankVersion: number;
+}) {
+  await assertCapabilityTutorAssignmentOwnership(input.tutorAssignmentId, input.tutorId);
+
+  const existingAttempt = await findCompletedAttemptForForm(input);
+  if (existingAttempt) return projectStoredAttempt(existingAttempt);
+
+  const plan = await buildCapabilityAttemptPlan({
+    tutorAssignmentId: input.tutorAssignmentId,
+    assessmentKey: input.assessmentKey,
+  });
+
+  if (plan.form.formId !== input.formId || plan.form.bankVersion !== input.bankVersion) {
+    const error = new Error(
+      "Capability assessment form is stale or does not match the active attempt.",
+    ) as Error & { status?: number };
+    error.status = 409;
+    throw error;
+  }
+
+  const confirmations = await loadQuestionConfirmations({
+    tutorAssignmentId: input.tutorAssignmentId,
+    tutorId: input.tutorId,
+    assessmentKey: input.assessmentKey,
+    bankVersion: plan.form.bankVersion,
+    attemptNumber: plan.attemptNumber,
+    formId: plan.form.formId,
+  });
+  const confirmationByQuestion = new Map(
+    confirmations.map((entry) => [entry.questionKey, entry] as const),
+  );
+
+  if (
+    confirmations.length !== plan.form.definition.questions.length ||
+    !plan.form.definition.questions.every((question) =>
+      confirmationByQuestion.has(question.key),
+    )
+  ) {
+    const error = new Error(
+      "Every Capability question must be confirmed before the attempt can be finalized.",
+    ) as Error & { status?: number };
+    error.status = 409;
+    throw error;
+  }
+
+  const responses: CapabilityResponseInput[] = plan.form.definition.questions.map(
+    (question) => ({
+      questionKey: question.key,
+      selectedOptionKeys:
+        confirmationByQuestion.get(question.key)?.selectedOptionKeys || [],
+    }),
+  );
+
+  const result = evaluateCapabilityAssessment(plan.form.definition, responses);
 
   try {
     const insertResult = await pool.query(
@@ -127,7 +461,7 @@ export async function persistCapabilityAssessmentAttempt(input: {
         result.hasCriticalFail,
         JSON.stringify(result.criticalFailQuestionKeys),
         result.passed,
-        JSON.stringify(input.responses),
+        JSON.stringify(responses),
         JSON.stringify(result.questionResults),
       ],
     );
@@ -142,14 +476,58 @@ export async function persistCapabilityAssessmentAttempt(input: {
     });
   } catch (error) {
     if ((error as { code?: string })?.code === "23505") {
-      const conflict = new Error(
-        "This capability assessment attempt has already been submitted.",
-      ) as Error & { status?: number };
-      conflict.status = 409;
-      throw conflict;
+      const stored = await findCompletedAttemptForForm(input);
+      if (stored) return projectStoredAttempt(stored);
     }
     throw error;
   }
+}
+
+export async function submitCapabilityExperienceFeedback(input: {
+  attemptId: string;
+  tutorId: string;
+  rating: number;
+  feedback?: string | null;
+}) {
+  const normalizedFeedback = String(input.feedback || "").trim();
+  const updated = await pool.query(
+    `UPDATE specialist_capability_assessment_attempts
+        SET experience_rating = $1,
+            experience_feedback = $2,
+            experience_feedback_submitted_at = now()
+      WHERE id = $3
+        AND tutor_id = $4
+        AND experience_feedback_submitted_at IS NULL
+      RETURNING id,
+                experience_rating,
+                experience_feedback,
+                experience_feedback_submitted_at`,
+    [input.rating, normalizedFeedback || null, input.attemptId, input.tutorId],
+  );
+
+  if (updated.rowCount) return updated.rows[0];
+
+  const existing = await pool.query(
+    `SELECT id,
+            experience_rating,
+            experience_feedback,
+            experience_feedback_submitted_at
+       FROM specialist_capability_assessment_attempts
+      WHERE id = $1
+        AND tutor_id = $2
+      LIMIT 1`,
+    [input.attemptId, input.tutorId],
+  );
+
+  if (!existing.rowCount) {
+    const error = new Error("Capability attempt not found.") as Error & {
+      status?: number;
+    };
+    error.status = 404;
+    throw error;
+  }
+
+  return existing.rows[0];
 }
 
 export async function getCapabilityAssessmentHistory(input: {
