@@ -2,10 +2,12 @@ import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { isAuthenticated } from "../supabaseAuth";
 import {
+  confirmCapabilityQuestion,
   getCapabilityAssessmentHistory,
   getSpecialistCapabilityLedger,
   persistCapabilityAssessmentAttempt,
   prepareCapabilityAssessmentForm,
+  submitCapabilityExperienceFeedback,
 } from "../capabilityEngine";
 import {
   assertCapabilityAssessmentAvailable,
@@ -22,6 +24,19 @@ const capabilityAttemptSchema = z.object({
   formId: z.string().trim().min(1),
   bankVersion: z.number().int().positive(),
   responses: z.array(capabilityResponseSchema).min(1),
+});
+
+const capabilityQuestionConfirmationSchema = z.object({
+  tutorAssignmentId: z.string().trim().min(1),
+  formId: z.string().trim().min(1),
+  bankVersion: z.number().int().positive(),
+  questionKey: z.string().trim().min(1),
+  selectedOptionKeys: z.array(z.string().trim().min(1)).min(1),
+});
+
+const capabilityExperienceFeedbackSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  feedback: z.string().trim().max(2000).optional().nullable(),
 });
 
 function requireSpecialistUser(req: Request, res: Response) {
@@ -109,6 +124,34 @@ export function registerCapabilityEngineRoutes(app: Express) {
   );
 
   app.post(
+    "/api/tutor/capability-assessments/:assessmentKey/question-confirmation",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const dbUser = requireSpecialistUser(req, res);
+        if (!dbUser) return;
+
+        const payload = capabilityQuestionConfirmationSchema.parse(req.body);
+        const assessmentKey = String(req.params.assessmentKey || "").trim();
+
+        const result = await confirmCapabilityQuestion({
+          tutorAssignmentId: payload.tutorAssignmentId,
+          tutorId: String(dbUser.id),
+          assessmentKey,
+          formId: payload.formId,
+          bankVersion: payload.bankVersion,
+          questionKey: payload.questionKey,
+          selectedOptionKeys: payload.selectedOptionKeys,
+        });
+
+        return res.status(201).json(result);
+      } catch (error) {
+        return respondError(res, error, "Failed to confirm Capability answer.");
+      }
+    },
+  );
+
+  app.post(
     "/api/tutor/capability-assessments/:assessmentKey/attempt",
     isAuthenticated,
     async (req: Request, res: Response) => {
@@ -131,15 +174,34 @@ export function registerCapabilityEngineRoutes(app: Express) {
           assessmentKey,
           formId: payload.formId,
           bankVersion: payload.bankVersion,
-          responses: payload.responses.map((response) => ({
-            questionKey: response.questionKey!,
-            selectedOptionKeys: response.selectedOptionKeys!,
-          })),
         });
 
         return res.status(201).json(result);
       } catch (error) {
         return respondError(res, error, "Failed to save capability assessment attempt.");
+      }
+    },
+  );
+
+  app.post(
+    "/api/tutor/capability-attempts/:attemptId/feedback",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const dbUser = requireSpecialistUser(req, res);
+        if (!dbUser) return;
+
+        const payload = capabilityExperienceFeedbackSchema.parse(req.body);
+        const feedback = await submitCapabilityExperienceFeedback({
+          attemptId: String(req.params.attemptId || "").trim(),
+          tutorId: String(dbUser.id),
+          rating: payload.rating,
+          feedback: payload.feedback,
+        });
+
+        return res.status(201).json(feedback);
+      } catch (error) {
+        return respondError(res, error, "Failed to save Capability Check feedback.");
       }
     },
   );
