@@ -1167,6 +1167,41 @@ export async function setupAuth(app: Express) {
   });
 }
 
+// Lightweight verified identity for stateless Capability interactions.
+// This validates the bearer JWT but deliberately skips the public.users lookup.
+// Authorization remains bound to the encrypted Capability interaction token that
+// was issued only after the full Specialist/assignment checks completed.
+export const isAuthenticatedClaimsOnly: RequestHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  if (isEmergencyDbMode()) {
+    return isAuthenticated(req, res, next);
+  }
+
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Authentication required." });
+    }
+
+    const token = authHeader.substring(7);
+    const { data: claimsData, error } = await supabase.auth.getClaims(token);
+    const userId = String((claimsData as any)?.claims?.sub || "").trim();
+
+    if (error || !userId) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+
+    (req as any).authUserId = userId;
+    return next();
+  } catch (error) {
+    console.error("[AUTH] claims-only verification failed", error);
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+};
+
 // Middleware to check if user is authenticated
 export const isAuthenticated: RequestHandler = async (
   req: Request,
