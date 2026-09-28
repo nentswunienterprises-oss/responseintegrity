@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   ArrowLeft,
   Lock,
@@ -12,7 +13,6 @@ import {
   Cog,
   Gauge,
   ChevronRight,
-  AlertTriangle,
 } from "lucide-react";
 
 const modules = [
@@ -173,11 +173,15 @@ export default function ResponseConditioningSystem() {
     },
   });
 
-  const capabilityByDeepDive = new Map(
-    (capabilityPlanQuery.data?.assessments || []).flatMap((assessment) =>
-      assessment.coveredDeepDiveKeys.map((deepDiveKey) => [deepDiveKey, assessment] as const),
-    ),
-  );
+  const capabilityAssessments = capabilityPlanQuery.data?.assessments || [];
+  const completedCapabilityChecks = capabilityAssessments.filter(
+    (assessment) => assessment.status === "complete",
+  ).length;
+  const totalCapabilityChecks = capabilityAssessments.length || 11;
+  const capabilityProgressPercent =
+    totalCapabilityChecks > 0
+      ? Math.round((completedCapabilityChecks / totalCapabilityChecks) * 100)
+      : 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -251,59 +255,44 @@ export default function ResponseConditioningSystem() {
                   </div>
 
                   <div className="space-y-2">
-                    {module.items.map((item) => {
-                      const capabilityKey = "capabilityKey" in item ? item.capabilityKey : undefined;
-                      const capability = capabilityKey
-                        ? capabilityByDeepDive.get(capabilityKey)
-                        : undefined;
-
-                      return (
-                        <div
-                          key={item.label}
-                          className="flex flex-col gap-2 border-b border-dashed border-border/60 pb-3"
-                        >
-                          <Link
-                            to={item.href}
-                            className="flex items-center justify-between text-sm text-foreground hover:text-primary transition-colors"
-                          >
-                            <span>{item.label}</span>
-                            <ChevronRight className="w-4 h-4" />
-                          </Link>
-
-                          {capability ? (
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-xs text-muted-foreground">
-                                {capability.status === "complete"
-                                  ? "Capability Check complete"
-                                  : capability.status === "available"
-                                    ? "Capability Check ready"
-                                    : capability.status === "locked"
-                                      ? capability.reason === "retry_cooldown" && capability.unlockAt
-                                        ? `Retry opens ${new Date(capability.unlockAt).toLocaleString()}`
-                                        : "Capability Check locked"
-                                      : "Capability Check not available yet"}
-                              </span>
-
-                              {capability.status === "available" ? (
-                                <Button size="sm" variant="outline" asChild>
-                                  <Link to={`/operational/specialist/capability/${capability.assessmentKey}`}>
-                                    Take Check
-                                  </Link>
-                                </Button>
-                              ) : capability.status === "complete" ? (
-                                <Badge variant="outline">Complete</Badge>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </div>
-                      );
-                    })}
+                    {module.items.map((item) => (
+                      <Link
+                        key={item.label}
+                        to={item.href}
+                        className="flex items-center justify-between text-sm text-foreground border-b border-dashed border-border/60 pb-2 hover:text-primary transition-colors"
+                      >
+                        <span>{item.label}</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </Link>
+                    ))}
                   </div>
                 </div>
               </Card>
             );
           })}
         </div>
+
+        <Card className="border border-primary/15 bg-card shadow-sm">
+          <div className="p-6 space-y-4">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Training Progress
+                </p>
+                <h2 className="mt-1 text-xl font-bold">Capability Checks</h2>
+              </div>
+              <p className="text-2xl font-semibold tabular-nums">
+                {completedCapabilityChecks}/{totalCapabilityChecks}
+              </p>
+            </div>
+
+            <Progress value={capabilityProgressPercent} className="h-2" />
+
+            <p className="text-sm text-muted-foreground">
+              {completedCapabilityChecks} of {totalCapabilityChecks} Deep Dive Capability Checks completed.
+            </p>
+          </div>
+        </Card>
       </div>
     </div>
   );
