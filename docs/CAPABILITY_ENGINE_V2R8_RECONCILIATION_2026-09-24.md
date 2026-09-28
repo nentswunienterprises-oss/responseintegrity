@@ -1,4 +1,4 @@
-# Capability Engine V2R8 Reconciliation — 2026-09-24
+# Capability Engine V2R8 Reconciliation - 2026-09-24
 
 Status: implementation reconciliation in Proof; private bank activation not yet performed.
 
@@ -6,14 +6,14 @@ Status: implementation reconciliation in Proof; private bank activation not yet 
 
 Founder-approved manual V2R8 mastery banks:
 
-1. Clarity — 45/45
-2. Structured Execution — 45/45
-3. Controlled Discomfort — 45/45
-4. Time Pressure Stability — 45/45
-5. Topic Conditioning — 45/45
-6. Intro Session Structure — 45/45
-7. Logging System — 45/45
-8. Session Flow Control — 45/45
+1. Clarity - 45/45
+2. Structured Execution - 45/45
+3. Controlled Discomfort - 45/45
+4. Time Pressure Stability - 45/45
+5. Topic Conditioning - 45/45
+6. Intro Session Structure - 45/45
+7. Logging System - 45/45
+8. Session Flow Control - 45/45
 
 Total: **360 Founder-approved items across 8 complete mastery banks**.
 
