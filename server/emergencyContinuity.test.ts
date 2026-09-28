@@ -686,6 +686,7 @@ test("emergency Step 1 acceptance writes evidence atomically and advances exactl
         acceptedAt,
         formSnapshotJson: { idType: "passport" },
         acceptedClausesJson: ["platform_rules"],
+        documentVersion: "2",
         documentChecksum: "checksum-1",
         typedFullName: "Testie Tester",
       }],
@@ -693,6 +694,7 @@ test("emergency Step 1 acceptance writes evidence atomically and advances exactl
 
     assert.equal(application.onboardingAcceptanceMap["1"].acceptedAt, acceptedAt);
     assert.equal(application.onboardingAcceptanceMap["1"].formSnapshotJson.idType, "passport");
+    assert.equal(application.onboardingCurrentAcceptanceMap["1"].documentVersion, "2");
     assert.equal(application.documentsStatus["1"], "approved");
     assert.equal(application.documentSubmissionStep, 2);
   });
