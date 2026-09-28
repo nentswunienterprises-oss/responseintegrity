@@ -37,3 +37,16 @@ test("database mutation requires apply and imports banks inactive without rotati
   assert.doesNotMatch(source, /SET active = false/);
   assert.doesNotMatch(source, /SET active = true/);
 });
+
+
+test("private bank validation rejects authoring-only review text from learner-facing copy", () => {
+  assert.match(source, /AUTHORING_LEAK_PATTERNS/);
+  assert.match(source, /assertNoAuthoringLeak/);
+  assert.match(source, /completion-status counter/);
+  assert.match(source, /authoring workflow language/);
+  assert.match(source, /review-state language/);
+  assert.match(source, /reviewer voice/);
+  assert.match(source, /authoring heading/);
+  assert.match(source, /item\.explanation/);
+  assert.match(source, /option-feedback/);
+});
