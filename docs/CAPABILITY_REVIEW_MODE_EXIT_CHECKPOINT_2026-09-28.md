@@ -86,17 +86,17 @@ Testing is therefore also an editorial approval pass. The goal is not merely tha
 
 This checkpoint remains **OPEN** until all of the following are true:
 
-- [ ] Clarity wrong-option feedback is fully authored.
-- [ ] Structured Execution wrong-option feedback is fully authored.
-- [ ] Controlled Discomfort wrong-option feedback is fully authored.
-- [ ] Time Pressure Stability wrong-option feedback is fully authored.
-- [ ] Intro Session Structure wrong-option feedback is fully authored.
-- [ ] Logging System wrong-option feedback is fully authored.
-- [ ] Session Flow Control wrong-option feedback is fully authored.
+- [x] Clarity wrong-option feedback is fully authored.
+- [x] Structured Execution wrong-option feedback is fully authored.
+- [x] Controlled Discomfort wrong-option feedback is fully authored.
+- [x] Time Pressure Stability wrong-option feedback is fully authored.
+- [x] Intro Session Structure wrong-option feedback is fully authored.
+- [x] Logging System wrong-option feedback is fully authored.
+- [x] Session Flow Control wrong-option feedback is fully authored.
 - [x] Topic Conditioning v9 already has complete option-specific wrong-answer feedback.
-- [ ] Automated coverage confirms there are **zero active single-choice items missing feedback for any wrong option**.
-- [ ] No wrong-answer path falls back to the Truth.
-- [ ] Bank validation rejects missing wrong-option feedback.
+- [x] Automated coverage confirms there are **zero active single-choice items missing feedback for any wrong option**.
+- [x] No wrong-answer path falls back to the Truth.
+- [x] Bank validation rejects missing wrong-option feedback.
 - [ ] Known Founder corrections raised during Review Mode have all been applied.
 - [ ] Founder explicitly exits Review Mode / accepts the reviewed state.
 
