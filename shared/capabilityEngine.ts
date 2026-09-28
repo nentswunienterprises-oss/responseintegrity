@@ -12,6 +12,7 @@ export interface CapabilityQuestionDefinition {
   correctOptionKeys: string[];
   criticalFailOptionKeys?: string[];
   explanation: string;
+  optionFeedback?: Record<string, string>;
 }
 
 export interface CapabilityAssessmentDefinition {
