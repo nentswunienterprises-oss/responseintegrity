@@ -28,6 +28,10 @@ const definition: CapabilityAssessmentDefinition = {
     correctOptionKeys: ["b"],
     criticalFailOptionKeys: index === 0 ? ["a"] : [],
     explanation: "Private-style explanation fixture.",
+    optionFeedback: {
+      a: "Private wrong-option feedback fixture.",
+      b: "Private correct-option feedback fixture.",
+    },
     criticalBoundaryKeys: index === 0 ? ["clarity.synthetic_internal_boundary"] : [],
   })),
 };
@@ -56,6 +60,9 @@ test("Specialist assessment projection exposes prompts/options but no scoring or
   assert.doesNotMatch(serialized, /"criticalBoundaryKeys"\s*:/);
   assert.doesNotMatch(serialized, /synthetic_internal_boundary/);
   assert.doesNotMatch(serialized, /"explanation"\s*:/);
+  assert.doesNotMatch(serialized, /"optionFeedback"\s*:/);
+  assert.doesNotMatch(serialized, /Private wrong-option feedback fixture/);
+  assert.doesNotMatch(serialized, /Private correct-option feedback fixture/);
   assert.doesNotMatch(serialized, /"competencyKey"\s*:/);
 });
 
