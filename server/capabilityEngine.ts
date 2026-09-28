@@ -160,13 +160,21 @@ function projectStoredAttempt(row: any) {
 function resolveQuestionFeedback(
   question: CapabilityQuestionDefinition,
   selectedOptionKeys: string[],
+  correct: boolean,
 ) {
+  // Correct answers always use the explanation approved during bank authoring.
+  // Option-specific feedback exists only to teach why a selected wrong answer fails.
+  if (correct) {
+    return cleanCapabilityDisplayCopy(question.explanation);
+  }
+
   if (question.kind === "single_choice" && selectedOptionKeys.length === 1) {
     const optionFeedback = question.optionFeedback?.[selectedOptionKeys[0]];
     if (typeof optionFeedback === "string" && optionFeedback.trim()) {
       return cleanCapabilityDisplayCopy(optionFeedback.trim());
     }
   }
+
   return cleanCapabilityDisplayCopy(question.explanation);
 }
 
@@ -401,7 +409,11 @@ export async function confirmCapabilityQuestion(input: {
     ],
   ).questionResults[0];
 
-  const feedback = resolveQuestionFeedback(question, input.selectedOptionKeys);
+  const feedback = resolveQuestionFeedback(
+    question,
+    input.selectedOptionKeys,
+    oneQuestionResult.correct,
+  );
 
   await pool.query(
     `INSERT INTO specialist_capability_question_confirmations (
