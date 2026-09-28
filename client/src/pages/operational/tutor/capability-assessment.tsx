@@ -906,9 +906,28 @@ export default function SpecialistCapabilityAssessment() {
           </Button>
 
           {currentConfirmation ? (
-            <Button onClick={() => setAnswerFeedbackOpen(true)}>
-              View feedback
-            </Button>
+            answerFeedbackOpen ? (
+              <span aria-hidden="true" />
+            ) : currentIndex < form.questions.length - 1 ? (
+              <Button
+                onClick={() =>
+                  setCurrentIndex((index) =>
+                    Math.min(form.questions.length - 1, index + 1),
+                  )
+                }
+              >
+                Continue <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : pendingResult ? (
+              <Button onClick={() => setResult(pendingResult)}>
+                View result <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button disabled>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Finalizing
+              </Button>
+            )
           ) : (
             <Button
               disabled={!responseComplete || confirmQuestion.isPending}
