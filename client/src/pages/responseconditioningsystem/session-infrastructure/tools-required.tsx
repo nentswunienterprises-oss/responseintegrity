@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { ArrowLeft, Laptop, Smartphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -351,6 +352,7 @@ export default function ResponseConditioningToolsRequired() {
             observes concrete behaviour, and records it on the Response Integrity platform.
           </p>
         </Card>
+        <DeepDiveCapabilityCheck assessmentKey="tools_required_mastery_v1" />
       </div>
     </div>
   );
