@@ -40,7 +40,7 @@ const TIME_SET_EXECUTION: Record<
     studentAction:
       "Begin under the timer and keep the known method visible. Speed matters, but structure must not disappear.",
     specialistAction:
-      "Run the timed attempt using the runner-owned duration from the active TPS Timer Contract, withhold help, observe start, structure, pace, and completion, then log the response.",
+      "Run the timed attempt using the timing shown for that student and topic, withhold help, observe start, structure, pace, and completion, then log the response.",
     preserve:
       "Method-first execution under an active timer. The target is not frantic completion; the target is controlled structure while time exists.",
     doNot: [
@@ -250,7 +250,7 @@ export default function ResponseConditioningTimePressureStability() {
               Before the session, prepare one fresh equivalent reserve problem for each timed set. These reserve problems are contingency inventory only - not extra reps and not a completion target.
             </p>
             <p className="text-sm text-muted-foreground">
-              If an objective timer/runtime/device failure destroys the intended condition, preserve that failed attempt as non-decision-eligible lineage and leave the canonical evidence slot unresolved. A fresh pre-prepared equivalent reserve may then fill that slot under the exact same Timer Contract and set constraints.
+              If the timer, device, or session technology fails and the timed attempt can no longer be trusted, leave that attempt unresolved. A fresh pre-prepared equivalent reserve problem may then be used under the same timing and set conditions.
             </p>
             <p className="text-sm font-medium">
               Never reuse the exposed problem or create a replacement because the student timed out, panicked, used the wrong method, worked incompletely, or performed weakly. Those are real TPS observations.
