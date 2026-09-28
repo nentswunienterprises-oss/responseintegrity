@@ -423,7 +423,7 @@ function ResponseSnapshotPanel({
                             <p className="font-semibold">Correction history</p>
                             {selectedCandidate.correctionHistory.map((item) => (
                               <p key={item.correctionId} className="mt-1 text-muted-foreground">
-                                #{item.sequence}: {item.previousRawOption} → {item.correctedRawOption} — {item.reason}
+                                #{item.sequence}: {item.previousRawOption} → {item.correctedRawOption} - {item.reason}
                               </p>
                             ))}
                           </div>
