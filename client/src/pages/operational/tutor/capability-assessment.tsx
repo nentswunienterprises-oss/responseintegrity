@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Loader2,
   RotateCcw,
   XCircle,
 } from "lucide-react";
@@ -19,6 +20,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Pod, TutorAssignment } from "@shared/schema";
 
 type CapabilityQuestionKind = "single_choice" | "multi_select" | "sequence";
@@ -133,6 +142,7 @@ export default function SpecialistCapabilityAssessment() {
   const [experienceFeedback, setExperienceFeedback] = useState("");
   const [experienceFeedbackSubmitted, setExperienceFeedbackSubmitted] = useState(false);
   const [experienceFeedbackDismissed, setExperienceFeedbackDismissed] = useState(false);
+  const [answerFeedbackOpen, setAnswerFeedbackOpen] = useState(false);
   const [reviewSessionKey] = useState(() =>
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()
@@ -849,31 +859,6 @@ export default function SpecialistCapabilityAssessment() {
               </div>
             )}
 
-            {currentConfirmation ? (
-              <div
-                className={`rounded-xl border p-5 ${
-                  currentConfirmation.correct
-                    ? "border-emerald-500/50 bg-emerald-500/10"
-                    : "border-red-500/50 bg-red-500/10"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  {currentConfirmation.correct ? (
-                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-                  ) : (
-                    <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
-                  )}
-                  <div className="space-y-2">
-                    <p className="font-semibold">
-                      {currentConfirmation.correct ? "Correct" : "Not quite"}
-                    </p>
-                    <p className="text-sm leading-relaxed">
-                      {cleanCapabilityCopy(currentConfirmation.feedback)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : null}
           </CardContent>
         </Card>
 
@@ -891,7 +876,7 @@ export default function SpecialistCapabilityAssessment() {
         <div className="flex items-center justify-between gap-3">
           <Button
             variant="outline"
-            disabled={currentIndex === 0}
+            disabled={currentIndex === 0 || confirmQuestion.isPending}
             onClick={() =>
               setCurrentIndex((index) => Math.max(0, index - 1))
             }
@@ -900,34 +885,144 @@ export default function SpecialistCapabilityAssessment() {
           </Button>
 
           {currentConfirmation ? (
-            currentIndex < form.questions.length - 1 ? (
-              <Button
-                onClick={() =>
-                  setCurrentIndex((index) =>
-                    Math.min(form.questions.length - 1, index + 1),
-                  )
-                }
-              >
-                Continue <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-            ) : pendingResult ? (
-              <Button onClick={() => setResult(pendingResult)}>
-                View result <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-            ) : (
-              <Button disabled>
-                Finalizing...
-              </Button>
-            )
+            <Button onClick={() => setAnswerFeedbackOpen(true)}>
+              View feedback
+            </Button>
           ) : (
             <Button
               disabled={!responseComplete || confirmQuestion.isPending}
-              onClick={() => confirmQuestion.mutate()}
+              onClick={() => {
+                setAnswerFeedbackOpen(true);
+                confirmQuestion.mutate();
+              }}
             >
-              {confirmQuestion.isPending ? "Confirming..." : "Confirm answer"}
+              Confirm answer
             </Button>
           )}
         </div>
+
+        <Dialog
+          open={answerFeedbackOpen}
+          onOpenChange={(open) => {
+            if (!open && (confirmQuestion.isPending || currentConfirmation)) return;
+            setAnswerFeedbackOpen(open);
+          }}
+        >
+          <DialogContent
+            className={`max-w-xl overflow-hidden border-2 p-0 [&>button]:hidden ${
+              currentConfirmation
+                ? currentConfirmation.correct
+                  ? "border-emerald-500/60"
+                  : "border-red-500/60"
+                : "border-border"
+            }`}
+            onInteractOutside={(event) => event.preventDefault()}
+            onEscapeKeyDown={(event) => event.preventDefault()}
+          >
+            {confirmQuestion.isPending && !currentConfirmation ? (
+              <div className="flex min-h-[260px] flex-col items-center justify-center gap-4 px-8 py-10 text-center">
+                <Loader2 className="h-9 w-9 animate-spin text-primary" />
+                <div className="space-y-1">
+                  <DialogTitle>Checking your answer</DialogTitle>
+                  <DialogDescription>
+                    Your answer is being confirmed.
+                  </DialogDescription>
+                </div>
+              </div>
+            ) : confirmQuestion.error && !currentConfirmation ? (
+              <div className="space-y-6 p-7">
+                <DialogHeader>
+                  <DialogTitle>Answer could not be confirmed</DialogTitle>
+                  <DialogDescription>
+                    {confirmQuestion.error instanceof Error
+                      ? confirmQuestion.error.message
+                      : "Please try again."}
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      confirmQuestion.reset();
+                      setAnswerFeedbackOpen(false);
+                    }}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      confirmQuestion.reset();
+                      confirmQuestion.mutate();
+                    }}
+                  >
+                    Try again
+                  </Button>
+                </DialogFooter>
+              </div>
+            ) : currentConfirmation ? (
+              <div
+                className={`p-7 sm:p-8 ${
+                  currentConfirmation.correct
+                    ? "bg-emerald-500/10"
+                    : "bg-red-500/10"
+                }`}
+              >
+                <div className="flex flex-col items-center text-center">
+                  <div
+                    className={`mb-4 flex h-14 w-14 items-center justify-center rounded-full ${
+                      currentConfirmation.correct
+                        ? "bg-emerald-500/15"
+                        : "bg-red-500/15"
+                    }`}
+                  >
+                    {currentConfirmation.correct ? (
+                      <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                    ) : (
+                      <XCircle className="h-8 w-8 text-red-600" />
+                    )}
+                  </div>
+                  <DialogTitle className="text-2xl">
+                    {currentConfirmation.correct ? "Correct" : "Not quite"}
+                  </DialogTitle>
+                  <DialogDescription className="mt-4 max-w-lg text-base leading-relaxed text-foreground">
+                    {cleanCapabilityCopy(currentConfirmation.feedback)}
+                  </DialogDescription>
+                </div>
+
+                <DialogFooter className="mt-7 sm:justify-center">
+                  {currentIndex < form.questions.length - 1 ? (
+                    <Button
+                      className="min-w-32"
+                      onClick={() => {
+                        setAnswerFeedbackOpen(false);
+                        setCurrentIndex((index) =>
+                          Math.min(form.questions.length - 1, index + 1),
+                        );
+                      }}
+                    >
+                      Continue <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  ) : pendingResult ? (
+                    <Button
+                      className="min-w-32"
+                      onClick={() => {
+                        setAnswerFeedbackOpen(false);
+                        setResult(pendingResult);
+                      }}
+                    >
+                      View result <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <Button className="min-w-32" disabled>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Finalizing
+                    </Button>
+                  )}
+                </DialogFooter>
+              </div>
+            ) : null}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
