@@ -6,10 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { ExecutivePortalGuard } from "@/lib/portalGuard";
 import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
+import { API_URL } from "@/lib/config";
 import { CheckCircle2, Clock, XCircle, User, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { TutorApplication } from "@shared/schema";
+import { resolveStoredDocumentUrl } from "@shared/storedDocumentUrl";
 import { format } from "date-fns";
 
 const DOCUMENT_STEPS = 6;
@@ -335,7 +337,7 @@ function ApplicationDetails({ application }: { application: TutorApplication }) 
               </div>
               {doc.uploadUrl ? (
                 <a
-                  href={String(doc.uploadUrl)}
+                  href={resolveStoredDocumentUrl(doc.uploadUrl, API_URL)}
                   target="_blank"
                   rel="noreferrer"
                   className="text-sm font-medium text-primary underline underline-offset-2"
