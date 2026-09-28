@@ -950,7 +950,7 @@ export default function SpecialistCapabilityAssessment() {
               const isPositive = currentConfirmation.correct;
               const isNeutral = showingTruth;
               const pingTitle = currentConfirmation.correct
-                ? "Yes."
+                ? "Yes"
                 : showingTruth
                   ? "Truth"
                   : "Not quite";
