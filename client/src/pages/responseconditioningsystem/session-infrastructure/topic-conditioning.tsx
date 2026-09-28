@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";\nimport { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
 import { ArrowLeft, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -118,6 +118,29 @@ export default function ResponseConditioningTopicConditioning() {
           </ul>
           <p className="font-semibold">If not, the topic is not conditioned yet.</p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="A student is stable in algebra but freezes when fractions become unfamiliar. What should RI assume?"
+          options={[
+            {
+              key: "a",
+              label: "Their strong algebra state should carry across to fractions.",
+              feedback: "A state earned in one topic does not automatically transfer to another topic.",
+            },
+            {
+              key: "b",
+              label: "Fractions needs its own topic-specific evidence and state.",
+              feedback: "Topic Conditioning keeps phase and stability specific to the active school topic.",
+            },
+            {
+              key: "c",
+              label: "Both topics should be reset to the same phase for consistency.",
+              feedback: "The system does not flatten different topic histories into one shared state.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Each topic carries its own phase, stability and evidence history. Strength in algebra does not authorize a stronger state in fractions."
+        />
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">The core structure</h2>
@@ -271,6 +294,29 @@ export default function ResponseConditioningTopicConditioning() {
           </p>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="A topic is at Clarity High after a strong session. What should happen next?"
+          options={[
+            {
+              key: "a",
+              label: "Move immediately into Structured Execution.",
+              feedback: "High is not the phase-progression state.",
+            },
+            {
+              key: "b",
+              label: "Run the ordinary Clarity drill again and let qualifying evidence determine whether High Maintenance is earned.",
+              feedback: "High remains in the same phase until later qualifying evidence establishes the next state.",
+            },
+            {
+              key: "c",
+              label: "Run a separate High Maintenance drill because that is the next named drill.",
+              feedback: "High Maintenance is a stability state, not the name of the drill used while the topic is still at High.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="At High, the next action remains the ordinary same-phase drill. High Maintenance is earned from later qualifying evidence; the Specialist does not manually progress the topic."
+        />
+
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">How the intro session uses Topic Conditioning</h2>
           <p className="text-muted-foreground">The introductory session is not a general assessment.</p>
@@ -384,6 +430,29 @@ export default function ResponseConditioningTopicConditioning() {
           <p className="font-semibold">They are the repetition units through which Topic Conditioning happens.</p>
           <p className="font-semibold">That is a completely different model.</p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="A student gets one question wrong. What should decide the active RI phase?"
+          options={[
+            {
+              key: "a",
+              label: "The wrong answer itself means Clarity.",
+              feedback: "Mathematical correctness alone does not identify the response layer that broke.",
+            },
+            {
+              key: "b",
+              label: "The earliest unsupported response layer shown by the evidence.",
+              feedback: "RI looks for where the student's response actually becomes unsupported, not merely whether the final answer is wrong.",
+            },
+            {
+              key: "c",
+              label: "Whichever phase the Specialist thinks will improve the mark fastest.",
+              feedback: "Phase authority comes from evidence and RI-OS, not Specialist preference.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Topic Conditioning follows the evidence chain: observe the student's behavior, locate the earliest unsupported layer, then let RI-OS derive the state and next action."
+        />
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What the Specialist is doing during Topic Conditioning</h2>
