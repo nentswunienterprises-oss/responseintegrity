@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { ArrowLeft, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -203,6 +204,7 @@ export default function ResponseConditioningLoggingSystem() {
           <h2 className="text-2xl font-bold">Specialist Standard</h2>
           <p className="font-semibold">Observe accurately. Preserve the condition. Record intervention honestly. Keep missing evidence missing. Let evidence determine the decision.</p>
         </Card>
+        <DeepDiveCapabilityCheck assessmentKey="logging_system_mastery_v1" />
       </div>
     </div>
   );
