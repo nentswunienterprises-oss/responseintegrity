@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { ArrowLeft, Route } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -125,6 +126,7 @@ export default function ResponseConditioningSessionFlowControl() {
             Do not improvise a fourth session context between the defined ones, and do not use one context's rules to solve another context's problem.
           </p>
         </Card>
+        <DeepDiveCapabilityCheck assessmentKey="session_flow_control_mastery_v1" />
       </div>
     </div>
   );
