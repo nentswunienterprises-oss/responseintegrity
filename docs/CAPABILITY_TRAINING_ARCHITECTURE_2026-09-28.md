@@ -1,6 +1,6 @@
 # Capability Training Architecture - 28 September 2026
 
-Status: **FOUNDER-APPROVED PRODUCT LAW; IMPLEMENTATION OPEN**
+Status: **FOUNDER-APPROVED PRODUCT LAW; FEATURE-BRANCH IMPLEMENTATION COMPLETE; REVIEW/MAIN ACCEPTANCE OPEN**
 
 ## Purpose
 
@@ -132,22 +132,39 @@ Mastery
 
 The Capability Engine's three attempts mean **one initial attempt plus two retests**, not three required passes.
 
-## 7. Current implementation delta
+## 7. Implementation status
 
-This document records product law, not completion.
+The approved architecture is implemented on `fix/preview-training-session-authority` and in the isolated Capability Proof project.
 
-Implementation must still reconcile:
+Implemented:
 
-- current one-pass Capability sequencing language;
-- Mastery result copy so 15/15 clean pass is explicit rather than nominal 96%;
-- unseen-first / disjoint retry rotation;
-- separate Transformation Retrieval authoring and runtime;
-- separate Transformation Transfer authoring and runtime;
-- Sandbox unlock authority;
-- interactive formative Deep Dive UX;
-- affected tests and source-of-truth documents.
+- Mastery is a clean 15/15 pass with no critical fail;
+- maximum three total Mastery attempts;
+- Mastery retries prefer unseen bank items and fall back to the full bank only when the remaining unseen pool cannot preserve required coverage;
+- five Transformation Masteries gate a 24-hour-spaced Delayed Retrieval assessment;
+- Retrieval gates a separate Interleaved Transfer assessment;
+- both cumulative Transformation gates use 25 questions and require 24/25+ with no critical fail;
+- Capability, not legacy Battle Testing, owns the Training -> Sandbox transition;
+- Sandbox unlock does not mark Training complete and opens Session Infrastructure learning in the protected operating environment;
+- all five Transformation Deep Dives now include formative teaching interactions that do not consume Capability attempts;
+- the Specialist Capability Path UI exposes Mastery -> Retention -> Application -> Sandbox without surfacing unnecessary internal machinery;
+- current source-of-truth documents and integration tests have been reconciled to the new authority.
 
-The latest COO Rulebook proposal's **maximum two retest attempts** is compatible with this model because it produces three total attempts. Its proposed **mandatory 48-hour cooling-off period** is not decided by this architecture and remains a separate policy question.
+Proof content:
+
+- `transformation_phases_retrieval_v1` bank v2 is separately authored with 25 items in Proof Review Mode;
+- `transformation_state_transfer_v1` bank v2 is separately authored with 25 interleaved scenario items in Proof Review Mode;
+- both banks have complete wrong-option-specific feedback and critical-boundary coverage;
+- active Mastery configs in Proof use a 100% threshold and no new cooling-off interval.
+
+Review and promotion remain open:
+
+- Retrieval and Transfer v2 are deliberately still in Review Mode and do not count toward lifecycle promotion until Founder review exits;
+- existing Deep Dive banks already in Review Mode remain governed by their review checkpoint;
+- this feature branch has not been merged to `main`;
+- the proposed mandatory 48-hour cooling-off period remains unresolved and is not implemented.
+
+Capability Engine CI on the implemented branch proves focused Capability tests, the Training frontend bundle, and the Preview API bundle.
 
 ## Authority
 
