@@ -170,8 +170,9 @@ function resolveQuestionFeedback(
   selectedOptionKeys: string[],
   correct: boolean,
 ) {
-  // Correct answers always use the explanation approved during bank authoring.
-  // Option-specific feedback exists only to teach why a selected wrong answer fails.
+  // Correct answers use the approved Truth.
+  // Wrong answers must not fall back to the Truth, otherwise the two-stage
+  // "Not quite" -> "Truth" interaction repeats the same teaching copy twice.
   if (correct) {
     return cleanCapabilityDisplayCopy(question.explanation);
   }
@@ -179,11 +180,13 @@ function resolveQuestionFeedback(
   if (question.kind === "single_choice" && selectedOptionKeys.length === 1) {
     const optionFeedback = question.optionFeedback?.[selectedOptionKeys[0]];
     if (typeof optionFeedback === "string" && optionFeedback.trim()) {
-      return cleanCapabilityDisplayCopy(optionFeedback.trim());
+      return cleanCapabilityDisplayCopy(optionFeedback.trim())
+        .replace(/^Not quite[.!]?\s*/i, "")
+        .trim();
     }
   }
 
-  return cleanCapabilityDisplayCopy(question.explanation);
+  return "That answer does not match the condition being tested. Continue to see the Truth.";
 }
 
 export async function assertCapabilityTutorAssignmentOwnership(
