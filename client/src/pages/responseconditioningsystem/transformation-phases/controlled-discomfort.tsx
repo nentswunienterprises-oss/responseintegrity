@@ -241,6 +241,17 @@ export default function ResponseConditioningControlledDiscomfort() {
           </p>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="What makes a problem suitable for difficulty-response training?"
+          options={[
+            { key: "a", label: "It is challenging enough to create uncertainty but still accessible with the learner's existing mathematical capability.", feedback: "The difficulty should expose response under uncertainty without making the mathematics itself impossible." },
+            { key: "b", label: "It is beyond the learner's current mathematical knowledge so failure is guaranteed.", feedback: "Impossible mathematics cannot cleanly show whether the learner can stay functional with a solvable challenge." },
+            { key: "c", label: "It is very easy so the learner can feel calm first.", feedback: "An easy task removes the uncertainty this phase is meant to train." },
+          ]}
+          correctOptionKey="a"
+          truth="The intended difficulty is controlled: enough uncertainty to challenge the response, but still accessible enough that the learner has a real path forward."
+        />
+
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
           <p className="text-muted-foreground">
@@ -392,6 +403,17 @@ export default function ResponseConditioningControlledDiscomfort() {
             Observe before you interpret. Record the first response, the first-step control, the tolerance, and the rescue dependence that actually appeared.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="The learner repeatedly asks to be rescued during a properly prepared no-rescue rep. What does that mean about the rep?"
+          options={[
+            { key: "a", label: "The rep is invalid because the learner did not cope well.", feedback: "The rescue-seeking response is exactly the kind of behavior the condition is meant to reveal." },
+            { key: "b", label: "The rep can still be valid evidence if the Specialist preserved the allowed support boundary.", feedback: "The learner can perform weakly while the Specialist executes the condition correctly." },
+            { key: "c", label: "The Specialist should provide the solution so the rep can end successfully.", feedback: "Full rescue would change the condition and hide the dependence that appeared." },
+          ]}
+          correctOptionKey="b"
+          truth="Learner struggle does not make a correctly run difficulty rep invalid. If the Specialist preserves the condition, rescue-seeking, hesitation and breakdown remain truthful evidence."
+        />
 
         <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
           <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
