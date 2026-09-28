@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";\nimport { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -199,6 +199,29 @@ export default function ResponseConditioningStructuredExecution() {
           </ul>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="A student gets the right answer but skips the required method structure. What is the strongest RI reading?"
+          options={[
+            {
+              key: "a",
+              label: "Structured Execution is proven because the answer is correct.",
+              feedback: "A correct answer can still hide an unstable or missing execution structure.",
+            },
+            {
+              key: "b",
+              label: "The result is mathematically correct, but the required execution structure has not been evidenced.",
+              feedback: "This phase is about repeatable method execution, not answer-only success.",
+            },
+            {
+              key: "c",
+              label: "Return automatically to Clarity.",
+              feedback: "Skipping structure is evidence inside Structured Execution; it does not automatically prove a Clarity breakdown.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Structured Execution asks whether the student can hold the known method in order. Answer correctness alone cannot substitute for visible, repeatable execution structure."
+        />
+
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Structured Execution Training Recipe</h2>
           <p className="text-muted-foreground">
@@ -338,6 +361,29 @@ export default function ResponseConditioningStructuredExecution() {
           </div>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="During an independent-execution rep, the student asks, 'What comes next?' What should the Specialist do?"
+          options={[
+            {
+              key: "a",
+              label: "Give the next step so the rep can keep moving.",
+              feedback: "That would turn the no-help condition into supported execution.",
+            },
+            {
+              key: "b",
+              label: "Preserve the no-help condition, observe the request and let the response become evidence.",
+              feedback: "The rep exists to reveal whether execution can continue without being carried.",
+            },
+            {
+              key: "c",
+              label: "End the drill immediately and mark the whole phase failed.",
+              feedback: "A weak response is useful evidence; it does not mean the Specialist execution failed.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Do not rescue the execution chain into stronger-looking evidence. Preserve the condition, observe what the student can actually do, and record the support dependence that appears."
+        />
+
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What You Observe</h2>
           <p className="text-muted-foreground">
@@ -369,6 +415,29 @@ export default function ResponseConditioningStructuredExecution() {
             reducing variation until it no longer tests transfer, or logging independence that was actually assisted.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="The student executes the known form well, then loses the method when the problem form changes. What should happen?"
+          options={[
+            {
+              key: "a",
+              label: "Reduce the variation until the student succeeds.",
+              feedback: "Removing the changed form would remove the thing the set is testing.",
+            },
+            {
+              key: "b",
+              label: "Keep the variation valid and record the breakdown as Structured Execution evidence.",
+              feedback: "Variation Control tests whether the method survives a changed form.",
+            },
+            {
+              key: "c",
+              label: "Progress to Controlled Discomfort because variation itself is difficulty.",
+              feedback: "Changed form inside Structured Execution is not automatically Controlled Discomfort.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Variation Control belongs inside Structured Execution. The Specialist preserves the changed form, observes whether the method transfers, and lets the evidence determine the next state."
+        />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression Logic</h2>
