@@ -130,7 +130,7 @@ export default function SpecialistCapabilityAssessment() {
 
   const formQuery = useQuery<CapabilityForm>({
     queryKey: ["capability-assessment-form", assessmentKey, tutorAssignmentId],
-    enabled: Boolean(assessmentKey && tutorAssignmentId && !result),
+    enabled: Boolean(assessmentKey && tutorAssignmentId && !result && !pendingResult),
     retry: false,
     staleTime: 0,
     queryFn: async () => {
@@ -216,9 +216,6 @@ export default function SpecialistCapabilityAssessment() {
       if (attemptResult) {
         setPendingResult(attemptResult);
         await Promise.all([
-          queryClient.invalidateQueries({
-            queryKey: ["capability-assessment-form", assessmentKey, tutorAssignmentId],
-          }),
           queryClient.invalidateQueries({
             queryKey: ["capability-assessment-history", assessmentKey, tutorAssignmentId],
           }),
