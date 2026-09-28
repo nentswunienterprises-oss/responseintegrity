@@ -28,6 +28,37 @@ const itemSchema = z.object({
   optionFeedback: z.record(z.string().trim().min(1)).default({}),
 });
 
+const AUTHORING_LEAK_PATTERNS = [
+  {
+    label: "completion-status counter",
+    pattern: /\b\d{1,2}\/45\s+(?:authored|approved|locked)\b/i,
+  },
+  {
+    label: "authoring workflow language",
+    pattern: /\b(?:authoring|authored pass|awaiting (?:your )?sign-?off|final pass closes the bank)\b/i,
+  },
+  {
+    label: "review-state language",
+    pattern: /\b(?:approved\.?\s+locked\.?|item\s+\d+\s+is\s+locked|pass\s+\d+\s+locked)\b/i,
+  },
+  {
+    label: "reviewer voice",
+    pattern: /\b(?:I would replace the original|I agree that wording|I['’]m also carrying your authoring standard|we just approved)\b/i,
+  },
+  {
+    label: "authoring heading",
+    pattern: /##\s+[^.]{0,120}\b(?:Mastery|Pass)\b/i,
+  },
+] as const;
+
+function assertNoAuthoringLeak(context: string, value: string) {
+  const hit = AUTHORING_LEAK_PATTERNS.find(({ pattern }) => pattern.test(value));
+  if (!hit) return;
+  throw new Error(
+    `Capability bank ${context} contains authoring-only review text (${hit.label}). Keep approval notes, pass counters, sign-off language, and bank-authoring commentary out of learner-facing copy.`,
+  );
+}
+
 const assessmentSchema = z.object({
   assessmentKey: z.string().trim().min(1),
   bankVersion: z.number().int().positive(),
@@ -179,6 +210,29 @@ function validationShape(assessment: ParsedAssessment) {
 }
 
 function validateAssessment(assessment: ParsedAssessment) {
+  for (const item of assessment.items) {
+    assertNoAuthoringLeak(
+      `${assessment.assessmentKey}/${item.key}/prompt`,
+      item.prompt,
+    );
+    for (const option of item.options) {
+      assertNoAuthoringLeak(
+        `${assessment.assessmentKey}/${item.key}/option:${option.key}`,
+        option.label,
+      );
+    }
+    assertNoAuthoringLeak(
+      `${assessment.assessmentKey}/${item.key}/explanation`,
+      item.explanation,
+    );
+    for (const [optionKey, feedback] of Object.entries(item.optionFeedback || {})) {
+      assertNoAuthoringLeak(
+        `${assessment.assessmentKey}/${item.key}/option-feedback:${optionKey}`,
+        feedback,
+      );
+    }
+  }
+
   const blueprintCoverage = validateCapabilityAssessmentAgainstBlueprint(validationShape(assessment));
   const criticalBoundaryRequirements = buildCapabilityCriticalBoundaryRequirements(assessment.assessmentKey);
 
