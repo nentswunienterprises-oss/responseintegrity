@@ -166,11 +166,11 @@ export default function ResponseConditioningLoggingSystem() {
           </p>
           <ul className="space-y-2 pl-5 list-disc text-muted-foreground">
             <li>Structured Execution passive timing runs without a countdown or pacing cue.</li>
-            <li>TPS uses the immutable Timer Contract for that student and topic.</li>
-            <li>Objective technical timer failures remain durable non-decision-eligible lineage and leave the canonical evidence slot unresolved.</li>
-            <li>A technical replacement is not a second chance. It may fill that unresolved slot only with a fresh equivalent reserve problem prepared before the session under the same condition.</li>
+            <li>TPS uses the timing already set for that student and topic.</li>
+            <li>If the timer fails and the attempt can no longer be trusted, that attempt cannot be used to judge the student's response and remains unresolved.</li>
+            <li>A replacement is not a second chance. It may be used only when a genuine technical failure ruined the original attempt, and only with a fresh equivalent reserve problem prepared before the session under the same condition.</li>
             <li>Do not reuse the exposed problem or improvise a new one mid-session. Timeout, panic, wrong method, incomplete work, or weak performance is real student evidence and never unlocks replacement.</li>
-            <li>Only valid timed-attempt lineage may authorize TPS evidence.</li>
+            <li>Only a timed attempt completed under the intended conditions can count as TPS evidence.</li>
           </ul>
         </Card>
 
