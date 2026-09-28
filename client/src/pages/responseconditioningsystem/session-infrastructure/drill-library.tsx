@@ -26,7 +26,7 @@ const drillTypes = [
     title: "Training drills",
     use: "Active Training",
     authority:
-      "The live drill registry defines the phase sets, rep opportunities, purpose, and constraints. The Specialist executes the prescribed sequence and records the response.",
+      "Each phase has required sets, rep opportunities, purposes, and conditions. The Specialist runs that sequence as assigned and records what the student actually does.",
     boundary:
       "Required exposure is not the same thing as evidence authority. Completing the drill does not force a stronger state.",
   },
@@ -92,9 +92,9 @@ export default function ResponseConditioningDrillLibrary() {
         </div>
 
         <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">Live Training Drill Registry</h2>
+          <h2 className="text-2xl font-bold">Required Training Drills</h2>
           <p className="text-muted-foreground">
-            The Training sets below are rendered from the same live registry used by the product so this Deep Dive cannot quietly invent a different phase recipe.
+            The Training sets below are the required sets for each phase.
           </p>
           <div className="space-y-4">
             {trainingSchemas.map(({ phase, schema }) => (
