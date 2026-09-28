@@ -11,7 +11,7 @@ import { resolveCapabilityFormSecret } from "./capabilityFormGeneration";
 
 const INTERACTION_CONTEXT = "response-integrity:capability-interaction:v1";
 const RECEIPT_CONTEXT = "response-integrity:capability-receipt:v1";
-const INTERACTION_TTL_MS = 12 * 60 * 60 * 1000;
+const INTERACTION_TTL_MS = 2 * 60 * 60 * 1000;
 
 export type CapabilityInteractionPayload = {
   version: 1;
