@@ -511,11 +511,13 @@ export default function SpecialistCapabilityAssessment() {
             </Card>
           ) : null}
 
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={() => navigate("/responseconditioningsystem")}>
-              Back to Deep Dives
-            </Button>
-          </div>
+          {(experienceFeedbackSubmitted || experienceFeedbackDismissed) ? (
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => navigate("/responseconditioningsystem")}>
+                Back to Deep Dives
+              </Button>
+            </div>
+          ) : null}
         </div>
       </div>
     );
