@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";\nimport { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -199,6 +199,29 @@ export default function ResponseConditioningControlledDiscomfort() {
           </ul>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="The student becomes visibly uncomfortable as the problem gets harder. What is the Specialist's job?"
+          options={[
+            {
+              key: "a",
+              label: "Remove the difficulty so the student can regain confidence.",
+              feedback: "Removing the difficulty removes the condition this phase is meant to train.",
+            },
+            {
+              key: "b",
+              label: "Keep the difficulty challenging but accessible and observe whether the student can produce a controlled response.",
+              feedback: "Controlled Discomfort preserves difficulty without making the task impossible.",
+            },
+            {
+              key: "c",
+              label: "Add a timer so the student learns to cope faster.",
+              feedback: "Time pressure belongs later. This phase first establishes stability under difficulty itself.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Controlled Discomfort uses accessible difficulty on purpose. The Specialist does not remove discomfort or add a later-phase constraint; they preserve the condition and observe the response."
+        />
+
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Controlled Discomfort Training Recipe</h2>
           <p className="text-muted-foreground">
@@ -331,6 +354,29 @@ export default function ResponseConditioningControlledDiscomfort() {
           </div>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="In a no-rescue rep, the student repeatedly asks for reassurance. What should happen?"
+          options={[
+            {
+              key: "a",
+              label: "Quietly coach the next step so the student does not shut down.",
+              feedback: "Hidden coaching is still rescue and contaminates the no-rescue evidence.",
+            },
+            {
+              key: "b",
+              label: "Hold the allowed support boundary and observe whether the student can continue without being carried.",
+              feedback: "Rescue-seeking is part of what the rep is designed to reveal.",
+            },
+            {
+              key: "c",
+              label: "Mark the rep invalid simply because the student asked for help.",
+              feedback: "The student's weak response is evidence if the Specialist preserved the condition.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="The no-rescue condition reveals dependence and recovery. Asking for help does not invalidate the rep; supplying prohibited rescue would."
+        />
+
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What You Observe</h2>
           <p className="text-muted-foreground">
@@ -358,6 +404,29 @@ export default function ResponseConditioningControlledDiscomfort() {
             Failed Specialist execution is different: making the problem easier mid-rep, giving full rescue, hiding coaching inside reassurance, skipping repeated exposure, or logging composure that was manufactured.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="A student handles one difficult exposure calmly. Is Controlled Discomfort now stable?"
+          options={[
+            {
+              key: "a",
+              label: "Yes. One successful hard problem proves tolerance.",
+              feedback: "One strong response can be isolated. Stability requires repetition.",
+            },
+            {
+              key: "b",
+              label: "Not yet. Repeat exposure at the same difficulty must show whether the response holds.",
+              feedback: "Repeat Exposure separates one-time survival from a stable response under difficulty.",
+            },
+            {
+              key: "c",
+              label: "Yes, and the next rep should introduce time pressure.",
+              feedback: "Timers are not introduced until the evidence authorizes the next phase.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Controlled Discomfort is not proven by one strong moment. The same difficulty must be encountered again so RI can see whether the controlled response repeats."
+        />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression Logic</h2>
