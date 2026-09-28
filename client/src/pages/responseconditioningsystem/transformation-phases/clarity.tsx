@@ -218,6 +218,17 @@ export default function ResponseConditioningClarity() {
           </p>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="You are preparing a recognition-focused rep. Which question set best protects the purpose of the rep?"
+          options={[
+            { key: "a", label: "Problems where the target method can be recognized without needing the learner to complete a long solve.", feedback: "The material should let recognition be observed cleanly before execution becomes the task." },
+            { key: "b", label: "The hardest unfamiliar problems available, so uncertainty is guaranteed.", feedback: "Difficulty is not the main variable here. Excess challenge can introduce a different breakdown." },
+            { key: "c", label: "Problems the learner has memorized so every answer will be correct.", feedback: "Over-familiar material can hide whether the learner is actually recognizing the structure." },
+          ]}
+          correctOptionKey="a"
+          truth="Preparation should preserve the response layer being trained. Recognition work needs material that exposes the learner's mental map without accidentally turning the rep into difficulty training or answer recall."
+        />
+
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
           <p className="text-muted-foreground">
@@ -346,6 +357,17 @@ export default function ResponseConditioningClarity() {
             explanation you imagine sits behind it.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="The learner cannot identify the method during a correctly run independent rep. Did the Specialist fail the rep?"
+          options={[
+            { key: "a", label: "Yes. A valid rep should end with a correct response.", feedback: "The Specialist's job is to preserve the condition and capture what the learner can actually do." },
+            { key: "b", label: "No. The learner's breakdown is valid evidence if the condition was preserved.", feedback: "Weak learner performance can be exactly the evidence RI needed to locate the unsupported layer." },
+            { key: "c", label: "Only if the learner looked frustrated.", feedback: "Visible frustration does not decide whether the rep was executed correctly." },
+          ]}
+          correctOptionKey="b"
+          truth="A correctly executed rep can produce weak learner evidence. Specialist execution and learner performance are separate: preserve the condition, observe honestly, and submit what happened."
+        />
 
         <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
           <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
