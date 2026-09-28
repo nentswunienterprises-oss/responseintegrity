@@ -25,6 +25,7 @@ const itemSchema = z.object({
   criticalFailOptionKeys: z.array(z.string().trim().min(1)).default([]),
   criticalBoundaryKeys: z.array(z.string().trim().min(1)).default([]),
   explanation: z.string().trim().min(1),
+  optionFeedback: z.record(z.string().trim().min(1)).default({}),
 });
 
 const assessmentSchema = z.object({
@@ -134,8 +135,9 @@ async function importAssessment(client: DatabaseClient, assessment: ParsedAssess
            critical_fail_option_keys,
            critical_boundary_keys,
            explanation,
+           option_feedback,
            active
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12, true)`,
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13::jsonb, true)`,
         [
           assessment.assessmentKey,
           assessment.bankVersion,
@@ -149,6 +151,7 @@ async function importAssessment(client: DatabaseClient, assessment: ParsedAssess
           JSON.stringify(item.criticalFailOptionKeys),
           JSON.stringify(item.criticalBoundaryKeys),
           item.explanation,
+          JSON.stringify(item.optionFeedback || {}),
         ],
     );
   }
