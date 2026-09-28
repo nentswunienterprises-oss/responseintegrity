@@ -245,7 +245,7 @@ export default function ResponseConditioningToolsRequired() {
               />
             </div>
             <p className="text-sm text-muted-foreground">
-              Canonical setup reference. Modelling faces the Specialist's work; Observation returns
+              Setup reference. Modelling faces the Specialist's work; Observation returns
               the phone upright in selfie mode while the Specialist observes and logs on the laptop.
             </p>
           </div>
