@@ -18,6 +18,7 @@ on:
   push:
     branches:
       - "proof/capability-engine-v2r8-reconciliation"
+      - "fix/preview-training-session-authority"
     paths:
       - "shared/capability*.ts"
       - "server/capability*.ts"
@@ -44,5 +45,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Capability Engine focused tests
         run: npm run test:capability
+      - name: Training frontend bundle
+        run: npx vite build
       - name: Capability API bundle
         run: npm run build:vercel-api
