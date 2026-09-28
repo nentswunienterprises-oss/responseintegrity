@@ -43,7 +43,7 @@ test("reconcileTutorTrainingMode keeps applicant when documentation is incomplet
   );
 });
 
-test("reconcileTutorTrainingMode keeps a preparation-complete Specialist in Sandbox until the Mock gate passes", () => {
+test("reconcileTutorTrainingMode does not let legacy Battle Testing open Sandbox", () => {
   const moduleProgress: TutorBattleTestModuleProgress[] = [
     {
       moduleKey: "transformation_phases",
@@ -71,7 +71,7 @@ test("reconcileTutorTrainingMode keeps a preparation-complete Specialist in Sand
       currentState: "locked",
       docsComplete: true,
     }),
-    "sandbox"
+    "training"
   );
 });
 
