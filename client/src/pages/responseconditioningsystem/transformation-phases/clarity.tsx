@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -379,6 +380,7 @@ export default function ResponseConditioningClarity() {
           </ul>
           <p className="font-semibold">If you understand it, the next step is demonstration, not another explanation.</p>
         </Card>
+        <DeepDiveCapabilityCheck assessmentKey="clarity_mastery_v1" />
       </div>
     </div>
   );
