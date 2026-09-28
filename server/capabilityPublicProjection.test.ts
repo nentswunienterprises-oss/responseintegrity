@@ -10,17 +10,17 @@ import {
 const definition: CapabilityAssessmentDefinition = {
   key: "synthetic_mastery",
   deepDiveKey: "clarity",
-  title: "Synthetic Mastery Check",
+  title: "**Synthetic Mastery** Check",
   evidenceKind: "mastery",
   passThresholdPercent: 96,
   questions: Array.from({ length: 15 }, (_, index) => ({
     key: `synthetic_q${index + 1}`,
     competencyKey: "clarity.phase_purpose",
     deepDiveKey: "clarity",
-    prompt: `Synthetic prompt ${index + 1}`,
+    prompt: `**Synthetic prompt** ${index + 1}`,
     kind: "single_choice" as const,
     options: [
-      { key: "a", label: "Option A" },
+      { key: "a", label: "**Option A**" },
       { key: "b", label: "Option B" },
       { key: "c", label: "Option C" },
       { key: "d", label: "Option D" },
@@ -54,6 +54,10 @@ test("Specialist assessment projection exposes prompts/options but no scoring or
   const serialized = JSON.stringify(projected);
 
   assert.equal(projected.questions.length, definition.questions.length);
+  assert.equal(projected.title, "Synthetic Mastery Check");
+  assert.equal(projected.questions[0]?.prompt, "Synthetic prompt 1");
+  assert.equal(projected.questions[0]?.options[0]?.label, "Option A");
+  assert.doesNotMatch(serialized, /\*\*/);
   assert.match(serialized, /Synthetic Mastery Check/);
   assert.doesNotMatch(serialized, /"correctOptionKeys"\s*:/);
   assert.doesNotMatch(serialized, /"criticalFailOptionKeys"\s*:/);
