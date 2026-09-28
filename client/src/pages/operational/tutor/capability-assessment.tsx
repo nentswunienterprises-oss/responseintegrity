@@ -98,9 +98,19 @@ function friendlyLoadError(error: unknown) {
     return "This capability check is not available in the active private assessment bank yet.";
   }
   if (message.startsWith("409:")) {
-    return message.includes("Maximum")
-      ? "No further attempts are currently available for this capability check."
-      : "The next attempt is not available yet. Review the previous attempt and return when the retry window opens.";
+    if (message.includes("preceding Specialist Training evidence")) {
+      return "This Capability Check is still locked behind the preceding Training evidence.";
+    }
+    if (message.includes("spacing interval")) {
+      return "The Retention Check is still inside its required spacing interval.";
+    }
+    if (message.includes("attempt allowance") || message.includes("Maximum")) {
+      return "No further attempts are currently available for this Capability Check.";
+    }
+    if (message.includes("already complete")) {
+      return "This Capability evidence is already complete.";
+    }
+    return "The next attempt is not available yet.";
   }
   return "The capability check could not be loaded. Your existing training progress has not been changed.";
 }
@@ -698,7 +708,7 @@ export default function SpecialistCapabilityAssessment() {
             </AlertDescription>
           </Alert>
           <p className="text-sm text-muted-foreground">
-            This Capability Check is part of Training. Passing it demonstrates Deep Dive understanding; it does not by itself grant Sandbox, Trial, or Certified Live status.
+            Capability Checks record one layer of Training evidence at a time. Sandbox opens only after the complete Transformation gate is satisfied.
           </p>
           <Button
             variant="outline"
@@ -730,6 +740,11 @@ export default function SpecialistCapabilityAssessment() {
             <p>{humanizeEvidenceKind(form.evidenceKind)}</p>
             <p>
               Attempt {form.attemptNumber} of {form.maxAttempts}
+            </p>
+            <p>
+              {form.evidenceKind === "mastery"
+                ? "Clean pass: 15/15"
+                : "Pass: 24/25+"}
             </p>
           </div>
         </div>
