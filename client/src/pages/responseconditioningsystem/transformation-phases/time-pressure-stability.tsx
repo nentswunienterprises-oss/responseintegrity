@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -395,6 +396,7 @@ export default function ResponseConditioningTimePressureStability() {
             <li>Why RI-OS, not the Specialist, owns the final stability or transfer decision.</li>
           </ul>
         </Card>
+        <DeepDiveCapabilityCheck assessmentKey="time_pressure_stability_mastery_v1" />
       </div>
     </div>
   );
