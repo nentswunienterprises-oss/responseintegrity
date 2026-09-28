@@ -7,6 +7,7 @@ import {
   getSpecialistCapabilityLedger,
   persistCapabilityAssessmentAttempt,
   prepareCapabilityAssessmentForm,
+  resetCapabilityReviewSession,
   submitCapabilityExperienceFeedback,
 } from "../capabilityEngine";
 import {
@@ -37,6 +38,10 @@ const capabilityQuestionConfirmationSchema = z.object({
 const capabilityExperienceFeedbackSchema = z.object({
   rating: z.number().int().min(1).max(5),
   feedback: z.string().trim().max(2000).optional().nullable(),
+});
+
+const capabilityReviewResetSchema = z.object({
+  tutorAssignmentId: z.string().trim().min(1),
 });
 
 function requireSpecialistUser(req: Request, res: Response) {
@@ -86,6 +91,30 @@ export function registerCapabilityEngineRoutes(app: Express) {
         return res.json({ assessments });
       } catch (error) {
         return respondError(res, error, "Failed to load capability assessment plan.");
+      }
+    },
+  );
+
+  app.post(
+    "/api/tutor/capability-assessments/:assessmentKey/review-reset",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const dbUser = requireSpecialistUser(req, res);
+        if (!dbUser) return;
+
+        const payload = capabilityReviewResetSchema.parse(req.body);
+        const assessmentKey = String(req.params.assessmentKey || "").trim();
+
+        const state = await resetCapabilityReviewSession({
+          tutorAssignmentId: payload.tutorAssignmentId,
+          tutorId: String(dbUser.id),
+          assessmentKey,
+        });
+
+        return res.json(state);
+      } catch (error) {
+        return respondError(res, error, "Failed to reset Capability review session.");
       }
     },
   );
