@@ -58,11 +58,15 @@ export function resolveCapabilityFormSecret(
     supabaseHost = "";
   }
 
-  const isProofPreview =
-    env.VERCEL_ENV === "preview" &&
+  const isProofProject =
     supabaseHost === `${PROOF_CAPABILITY_PROJECT_REF}.supabase.co`;
+  const isProofPreview = env.VERCEL_ENV === "preview" && isProofProject;
+  const isLocalProofDevelopment =
+    env.NODE_ENV === "development" &&
+    !env.VERCEL_ENV &&
+    isProofProject;
 
-  if (isProofPreview) {
+  if (isProofPreview || isLocalProofDevelopment) {
     const sessionSecret = String(env.SESSION_SECRET || "").trim();
     if (sessionSecret) {
       return {
