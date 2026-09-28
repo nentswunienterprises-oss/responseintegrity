@@ -971,7 +971,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
                       className="rounded-lg bg-muted/30 p-3"
                     >
                       <p className="text-sm font-semibold">
-                        {phaseEvidence.phase} — cleared
+                        {phaseEvidence.phase} - cleared
                       </p>
                       <div className="mt-3 grid gap-2 md:grid-cols-2">
                         {phaseEvidence.dimensions.map((dimension) => (
