@@ -19,7 +19,7 @@ const contexts = [
     title: "Active Training",
     purpose: "Condition the phase-defining capability for the topic under the phase's prescribed sequence and constraints.",
     specialist:
-      "Prepare the required problems, run the live registry-defined Training sets, preserve the support/pressure/variation/difficulty conditions, and record the actual behavior and intervention.",
+      "Prepare the required problems, run the required Training sets, preserve the support, pressure, variation, and difficulty conditions, and record the actual behavior and intervention.",
     system:
       "Evaluate evidence eligibility, resolve phase dimensions, update stability, preserve recovery rules, and authorize hold, High, High Maintenance, progression, or targeted re-diagnosis where the evidence warrants it.",
     notFor:
