@@ -573,21 +573,95 @@ export async function setupAuth(app: Express) {
         });
       }
 
-      // Authenticate with Supabase
-      const { data: authData, error: authError } =
+      // Authenticate with Supabase.
+      // Legacy accounts that were created while emergency auth was authoritative
+      // can still have a valid private credential but no auth.users identity.
+      // On a valid legacy credential, roll the identity forward into Supabase Auth
+      // using the same canonical UUID and the password the user just supplied.
+      let { data: authData, error: authError } =
         await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
+      if (
+        authError &&
+        process.env.SUPABASE_SERVICE_ROLE_KEY &&
+        authError.status !== 429 &&
+        authError.code !== "over_request_rate_limit"
+      ) {
+        const legacyFallback = await authenticateEmergencyUser(
+          pool,
+          email,
+          password,
+          req.ip || "unknown",
+        );
+
+        if (!("error" in legacyFallback)) {
+          const legacyUser = await storage.getUser(legacyFallback.authUser.id);
+
+          if (
+            legacyUser &&
+            emergencyExpectedRoleMatches(legacyUser.role, expectedRole)
+          ) {
+            const { data: createdAuth, error: createAuthError } =
+              await serverSupabase.auth.admin.createUser({
+                id: legacyUser.id,
+                email: normalizedEmail,
+                password,
+                email_confirm: true,
+                app_metadata: {
+                  legacy_emergency_migrated: true,
+                },
+                user_metadata: {
+                  name: legacyUser.name || normalizedEmail.split("@")[0],
+                  first_name: (legacyUser as any).firstName || "",
+                  last_name: (legacyUser as any).lastName || "",
+                },
+              });
+
+            if (!createAuthError && createdAuth.user) {
+              if (
+                createdAuth.user.id !== legacyUser.id ||
+                normalizeEmail(createdAuth.user.email || "") !== normalizedEmail
+              ) {
+                console.error("[AUTH] Legacy identity migration returned a non-canonical Auth identity", {
+                  publicUserId: legacyUser.id,
+                  authUserId: createdAuth.user.id,
+                });
+              } else {
+                console.log("[AUTH] Migrated legacy emergency identity into Supabase Auth", {
+                  userId: legacyUser.id,
+                  role: legacyUser.role,
+                });
+
+                const retry = await supabase.auth.signInWithPassword({
+                  email,
+                  password,
+                });
+                authData = retry.data;
+                authError = retry.error;
+              }
+            } else if (createAuthError) {
+              // Never overwrite an existing Supabase Auth password from the
+              // emergency credential. If an Auth identity already exists, normal
+              // Supabase authentication remains authoritative.
+              console.warn("[AUTH] Legacy identity migration was not applied", {
+                userId: legacyUser.id,
+                code: createAuthError.code || null,
+                status: createAuthError.status || null,
+                message: createAuthError.message,
+              });
+            }
+          }
+        }
+      }
+
       if (authError) {
         console.error("Supabase signin error:", authError);
 
-        // Preview continuity: Proof can retain an operational sandbox Specialist
-        // even when its Supabase Auth identity is absent. In Preview only, allow
-        // that existing sandbox Specialist to fall back to the already-provisioned
-        // private emergency credential. This never provisions a credential, never
-        // changes the Specialist ID, and is unavailable in production.
+        // Preview continuity remains available for recognized Proof personas and
+        // Sandbox Specialists if a rolling Auth migration cannot be completed.
         if (process.env.VERCEL_ENV === "preview") {
           const fallback = await authenticateEmergencyUser(
             pool,
