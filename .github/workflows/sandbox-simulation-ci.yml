@@ -23,6 +23,7 @@ on:
   push:
     branches:
       - "proof/sandbox-v1r1-reconciliation"
+      - "fix/preview-training-session-authority"
     paths:
       - "shared/sandbox*.ts"
       - "shared/statefulSandbox*.ts"
