@@ -12,8 +12,8 @@ These identities may authenticate in Vercel Preview through the private Proof cr
 
 Current durable roles should include:
 
-- COO — control-plane testing for pods, approvals, Specialist onboarding, assignments, and executive workflow.
-- Specialist — delivery, Sandbox, Training, Handover, and Trial workflow proof.
+- COO - control-plane testing for pods, approvals, Specialist onboarding, assignments, and executive workflow.
+- Specialist - delivery, Sandbox, Training, Handover, and Trial workflow proof.
 - Additional HR / TD / parent / student personas may be seeded when a proof path needs them.
 
 ## Credentials
