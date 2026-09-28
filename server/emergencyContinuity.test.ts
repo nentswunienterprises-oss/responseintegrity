@@ -664,6 +664,8 @@ test("emergency Step 1 acceptance enforces ownership, approval, current step, an
   assert.match(emergencyMethod, /existing\.status !== "approved"/);
   assert.match(emergencyMethod, /currentStep/);
   assert.match(emergencyMethod, /already been accepted/);
+  assert.match(emergencyMethod, /document_version = \\$4/);
+  assert.match(emergencyMethod, /document_checksum = \\$5/);
   assert.match(emergencyMethod, /FOR UPDATE/);
 });
 
