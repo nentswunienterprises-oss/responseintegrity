@@ -73,7 +73,8 @@ async function loadCapabilityItems(config: PrivateCapabilityAssessmentConfig): P
             correct_option_keys,
             critical_fail_option_keys,
             critical_boundary_keys,
-            explanation
+            explanation,
+            option_feedback
        FROM private.specialist_capability_assessment_items
       WHERE assessment_key = $1
         AND bank_version = $2
@@ -93,6 +94,10 @@ async function loadCapabilityItems(config: PrivateCapabilityAssessmentConfig): P
     criticalFailOptionKeys: parseJsonArray(row.critical_fail_option_keys),
     criticalBoundaryKeys: parseJsonArray(row.critical_boundary_keys),
     explanation: String(row.explanation),
+    optionFeedback:
+      row.option_feedback && typeof row.option_feedback === "object" && !Array.isArray(row.option_feedback)
+        ? (row.option_feedback as Record<string, string>)
+        : {},
   })) satisfies CapabilityBoundaryTaggedQuestion[];
 }
 
