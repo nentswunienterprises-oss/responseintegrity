@@ -69,6 +69,9 @@ type CapabilityAttemptResult = {
   percent: number;
   passed: boolean;
   hasCriticalFail: boolean;
+  sandboxReady?: boolean;
+  operationalMode?: string | null;
+  sandboxUnlocked?: boolean;
 };
 
 type ConfirmationResponse = {
@@ -327,6 +330,7 @@ export default function SpecialistCapabilityAssessment() {
         queryClient.invalidateQueries({
           queryKey: ["capability-mastery-plan", tutorAssignmentId],
         }),
+        queryClient.invalidateQueries({ queryKey: ["/api/tutor/pod"] }),
       ]);
     },
   });
@@ -526,7 +530,13 @@ export default function SpecialistCapabilityAssessment() {
                     Capability evidence recorded
                   </p>
                   <CardTitle>
-                    {result.passed ? "Standard met" : "Not yet at standard"}
+                    {result.passed
+                      ? result.evidenceKind === "mastery"
+                        ? "Mastery evidenced"
+                        : result.evidenceKind === "retrieval"
+                          ? "Retention evidenced"
+                          : "Transfer evidenced"
+                      : "Not yet at standard"}
                   </CardTitle>
                 </div>
               </div>
@@ -562,9 +572,15 @@ export default function SpecialistCapabilityAssessment() {
 
               <p className="text-sm text-muted-foreground">
                 {result.passed
-                  ? "This result is now part of your Training capability record. Passing this check demonstrates Deep Dive understanding; later stages still require their own evidence."
+                  ? result.sandboxUnlocked
+                    ? "Transformation Mastery, Retention and Transfer are now evidenced. Sandbox has been unlocked so Training can continue in the protected operating environment."
+                    : result.evidenceKind === "mastery"
+                      ? "This Deep Dive is mastered. Later gates still test whether you retain and apply the Transformation system without immediate Deep Dive cues."
+                      : result.evidenceKind === "retrieval"
+                        ? "Retention is evidenced. The next gate tests whether you can apply RI across mixed situations."
+                        : "Transfer is evidenced. Sandbox unlocks when the complete Transformation evidence gate is satisfied."
                   : attemptsRemaining > 0
-                    ? `${attemptsRemaining} attempt${attemptsRemaining === 1 ? "" : "s"} remain under the current assessment configuration.`
+                    ? `${attemptsRemaining} attempt${attemptsRemaining === 1 ? "" : "s"} remain. A Mastery retry prefers questions you have not yet seen when the bank can preserve the required coverage.`
                     : "No further attempts are currently available under this assessment configuration."}
               </p>
             </CardContent>
