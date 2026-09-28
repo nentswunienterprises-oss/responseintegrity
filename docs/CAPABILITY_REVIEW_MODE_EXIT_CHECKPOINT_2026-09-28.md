@@ -1,8 +1,9 @@
 # Capability Review Mode Exit Checkpoint
 
 **Branch:** `fix/preview-training-session-authority`  
-**PR:** #108  
-**Status:** OPEN - do not treat this branch/PR as complete while this checkpoint is open.
+**Prior merged PR:** #108  
+**Tracking issue:** #112  
+**Status:** OPEN - do not treat this branch/review work as complete while this checkpoint is open.
 
 ## Objective
 
@@ -79,4 +80,4 @@ This checkpoint remains **OPEN** until all of the following are true:
 
 ## Handoff rule
 
-If work continues in another chat, session, or by another contributor, start here. This document is the durable branch-level definition of done for Capability Review Mode on PR #108.
+If work continues in another chat, session, or by another contributor, start here. This document and GitHub issue #112 are the durable branch-level definition of done for Capability Review Mode. PR #108 is already merged; any follow-on PR from this branch must reference and satisfy this checkpoint before Review Mode is considered complete.
