@@ -610,7 +610,7 @@ test("emergency Step 2 upload requires Step 2 acceptance and never calls Supabas
   const nonEmergencyStart = routesSource.indexOf("// Decode base64 file data", emergencyBranchStart);
   const emergencyBranch = routesSource.slice(emergencyBranchStart, nonEmergencyStart);
 
-  assert.match(routesSource, /You must accept Response Integrity-EQV-002 in app before uploading your certified Matric certificate\./);
+  assert.match(routesSource, /You must accept the current Response Integrity-EQV-002 in app before uploading your certified Matric certificate\./);
   assert.match(emergencyBranch, /private\.emergency_tutor_onboarding_files/);
   assert.match(emergencyBranch, /createEmergencyFileBundle\(/);
   assert.match(emergencyBranch, /documentsStatus\["2"\] = "pending_review"/);
