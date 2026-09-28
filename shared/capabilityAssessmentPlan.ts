@@ -20,10 +20,13 @@ export interface CapabilityAssessmentPlanEntry {
 }
 
 const MASTERY_FORM_SIZE = 15;
-const MASTERY_MINIMUM_POOL_SIZE = 30;
-const CUMULATIVE_FORM_SIZE = 20;
-const CUMULATIVE_MINIMUM_POOL_SIZE = 40;
-const PASS_THRESHOLD_PERCENT = 96;
+const MASTERY_MINIMUM_POOL_SIZE = 45;
+const MASTERY_PASS_THRESHOLD_PERCENT = 100;
+const TRANSFORMATION_CUMULATIVE_FORM_SIZE = 25;
+const TRANSFORMATION_CUMULATIVE_MINIMUM_POOL_SIZE = 25;
+const FUTURE_CUMULATIVE_FORM_SIZE = 20;
+const FUTURE_CUMULATIVE_MINIMUM_POOL_SIZE = 40;
+const CUMULATIVE_PASS_THRESHOLD_PERCENT = 96;
 
 const masteryEntry = (
   deepDiveKey: TutorBattleTestPhaseKey,
@@ -35,7 +38,7 @@ const masteryEntry = (
   coveredDeepDiveKeys: [deepDiveKey],
   formSize: MASTERY_FORM_SIZE,
   minimumItemPoolSize: MASTERY_MINIMUM_POOL_SIZE,
-  passThresholdPercent: PASS_THRESHOLD_PERCENT,
+  passThresholdPercent: MASTERY_PASS_THRESHOLD_PERCENT,
   minimumDelayHours: 0,
   criticalCoverageMode: "all_boundaries",
   purpose: "Verify immediate operating understanding after the Specialist has worked through the Deep Dive.",
@@ -58,9 +61,9 @@ export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] 
       "controlled_discomfort",
       "time_pressure_stability",
     ],
-    formSize: CUMULATIVE_FORM_SIZE,
-    minimumItemPoolSize: CUMULATIVE_MINIMUM_POOL_SIZE,
-    passThresholdPercent: PASS_THRESHOLD_PERCENT,
+    formSize: TRANSFORMATION_CUMULATIVE_FORM_SIZE,
+    minimumItemPoolSize: TRANSFORMATION_CUMULATIVE_MINIMUM_POOL_SIZE,
+    passThresholdPercent: CUMULATIVE_PASS_THRESHOLD_PERCENT,
     minimumDelayHours: 24,
     criticalCoverageMode: "one_per_deep_dive",
     purpose:
@@ -78,9 +81,9 @@ export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] 
       "handover_verification",
       "tools_required",
     ],
-    formSize: CUMULATIVE_FORM_SIZE,
-    minimumItemPoolSize: CUMULATIVE_MINIMUM_POOL_SIZE,
-    passThresholdPercent: PASS_THRESHOLD_PERCENT,
+    formSize: FUTURE_CUMULATIVE_FORM_SIZE,
+    minimumItemPoolSize: FUTURE_CUMULATIVE_MINIMUM_POOL_SIZE,
+    passThresholdPercent: CUMULATIVE_PASS_THRESHOLD_PERCENT,
     minimumDelayHours: 24,
     criticalCoverageMode: "one_per_deep_dive",
     purpose:
@@ -97,10 +100,10 @@ export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] 
       "controlled_discomfort",
       "time_pressure_stability",
     ],
-    formSize: CUMULATIVE_FORM_SIZE,
-    minimumItemPoolSize: CUMULATIVE_MINIMUM_POOL_SIZE,
-    passThresholdPercent: PASS_THRESHOLD_PERCENT,
-    minimumDelayHours: 24,
+    formSize: TRANSFORMATION_CUMULATIVE_FORM_SIZE,
+    minimumItemPoolSize: TRANSFORMATION_CUMULATIVE_MINIMUM_POOL_SIZE,
+    passThresholdPercent: CUMULATIVE_PASS_THRESHOLD_PERCENT,
+    minimumDelayHours: 0,
     criticalCoverageMode: "one_per_deep_dive",
     purpose:
       "Mix phase and topic-state scenarios so the Specialist must identify which capability and boundary applies without being told the Deep Dive in advance.",
@@ -115,9 +118,9 @@ export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] 
       "session_flow_control",
       "drill_library",
     ],
-    formSize: CUMULATIVE_FORM_SIZE,
-    minimumItemPoolSize: CUMULATIVE_MINIMUM_POOL_SIZE,
-    passThresholdPercent: PASS_THRESHOLD_PERCENT,
+    formSize: FUTURE_CUMULATIVE_FORM_SIZE,
+    minimumItemPoolSize: FUTURE_CUMULATIVE_MINIMUM_POOL_SIZE,
+    passThresholdPercent: CUMULATIVE_PASS_THRESHOLD_PERCENT,
     minimumDelayHours: 24,
     criticalCoverageMode: "one_per_deep_dive",
     purpose:
@@ -133,15 +136,46 @@ export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] 
       "logging_system",
       "session_flow_control",
     ],
-    formSize: CUMULATIVE_FORM_SIZE,
-    minimumItemPoolSize: CUMULATIVE_MINIMUM_POOL_SIZE,
-    passThresholdPercent: PASS_THRESHOLD_PERCENT,
+    formSize: FUTURE_CUMULATIVE_FORM_SIZE,
+    minimumItemPoolSize: FUTURE_CUMULATIVE_MINIMUM_POOL_SIZE,
+    passThresholdPercent: CUMULATIVE_PASS_THRESHOLD_PERCENT,
     minimumDelayHours: 24,
     criticalCoverageMode: "one_per_deep_dive",
     purpose:
       "Mix continuity, observability, evidence and session-flow failures so the Specialist must protect valid delivery before resuming or scoring work.",
   },
 ];
+
+
+export const TRANSFORMATION_DEEP_DIVE_KEYS: TutorBattleTestPhaseKey[] = [
+  "topic_conditioning",
+  "clarity",
+  "structured_execution",
+  "controlled_discomfort",
+  "time_pressure_stability",
+];
+
+export const SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS: TutorBattleTestPhaseKey[] = [
+  "intro_session_structure",
+  "logging_system",
+  "session_flow_control",
+  "drill_library",
+  "handover_verification",
+  "tools_required",
+];
+
+export const TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY =
+  "transformation_phases_retrieval_v1";
+export const TRANSFORMATION_TRANSFER_ASSESSMENT_KEY =
+  "transformation_state_transfer_v1";
+
+export const CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1 =
+  CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter(
+    (entry) =>
+      entry.evidenceKind === "mastery" ||
+      entry.assessmentKey === TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY ||
+      entry.assessmentKey === TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
+  );
 
 export function getCapabilityMvpAssessmentPlanEntry(assessmentKey: string) {
   return CAPABILITY_MVP_ASSESSMENT_PLAN_V1.find((entry) => entry.assessmentKey === assessmentKey) || null;
