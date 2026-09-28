@@ -92,7 +92,7 @@ export default function ContributorHome() {
 
         <div className="grid grid-cols-2 gap-2 sm:gap-6">
           <Card className="p-3 sm:p-8 border shadow-sm hover-elevate text-center">
-            <p className="text-2xl sm:text-5xl font-bold text-foreground">{isCapacity ? "—" : stats?.leads || 0}</p>
+            <p className="text-2xl sm:text-5xl font-bold text-foreground">{isCapacity ? " - " : stats?.leads || 0}</p>
             <p className="text-[10px] sm:text-sm text-muted-foreground uppercase tracking-wide font-medium mt-1">
               {isCapacity ? "Applicants" : "Leads"}
             </p>
