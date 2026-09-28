@@ -116,6 +116,7 @@ function cleanCapabilityCopy(value: string) {
     .replace(/\*{2,}/g, "")
     .replace(/__/g, "")
     .replace(/`/g, "")
+    .replace(/\u2014/g, " - ")
     .replace(/\s*---\s*$/g, "")
     .trim();
 }
