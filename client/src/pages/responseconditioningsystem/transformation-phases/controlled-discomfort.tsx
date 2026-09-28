@@ -202,7 +202,7 @@ export default function ResponseConditioningControlledDiscomfort() {
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Controlled Discomfort Training Recipe</h2>
           <p className="text-muted-foreground">
-            This sequence is rendered from the live drill registry so the Deep Dive stays aligned with the runner.
+            This is the required Controlled Discomfort training sequence.
           </p>
           <div className="rounded-lg border bg-background p-4">
             <p className="font-semibold text-lg">
