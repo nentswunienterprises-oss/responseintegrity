@@ -1,12 +1,12 @@
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
-import { isAuthenticated } from "../supabaseAuth";
+import { isAuthenticated, isAuthenticatedClaimsOnly } from "../supabaseAuth";
 import {
-  confirmCapabilityQuestion,
+  confirmCapabilityQuestionStateless,
   getCapabilityAssessmentHistory,
   getSpecialistCapabilityLedger,
-  persistCapabilityAssessmentAttempt,
-  prepareCapabilityAssessmentForm,
+  persistCapabilityInteractiveAttempt,
+  prepareCapabilityInteractiveAssessmentForm,
   resetCapabilityReviewSession,
   submitCapabilityExperienceFeedback,
 } from "../capabilityEngine";
@@ -15,22 +15,15 @@ import {
   getSpecialistCapabilityPlanStatus,
 } from "../capabilitySequencing";
 
-const capabilityResponseSchema = z.object({
-  questionKey: z.string().trim().min(1),
-  selectedOptionKeys: z.array(z.string().trim().min(1)).min(1),
-});
-
 const capabilityAttemptSchema = z.object({
   tutorAssignmentId: z.string().trim().min(1),
-  formId: z.string().trim().min(1),
-  bankVersion: z.number().int().positive(),
-  responses: z.array(capabilityResponseSchema).min(1),
+  interactionToken: z.string().trim().min(1),
+  receipts: z.array(z.string().trim().min(1)).min(1),
 });
 
 const capabilityQuestionConfirmationSchema = z.object({
-  tutorAssignmentId: z.string().trim().min(1),
-  formId: z.string().trim().min(1),
-  bankVersion: z.number().int().positive(),
+  interactionToken: z.string().trim().min(1),
+  priorReceipts: z.array(z.string().trim().min(1)).default([]),
   questionKey: z.string().trim().min(1),
   selectedOptionKeys: z.array(z.string().trim().min(1)).min(1),
 });
@@ -139,7 +132,7 @@ export function registerCapabilityEngineRoutes(app: Express) {
           assessmentKey,
         });
 
-        const form = await prepareCapabilityAssessmentForm({
+        const form = await prepareCapabilityInteractiveAssessmentForm({
           tutorAssignmentId,
           tutorId: String(dbUser.id),
           assessmentKey,
@@ -154,21 +147,22 @@ export function registerCapabilityEngineRoutes(app: Express) {
 
   app.post(
     "/api/tutor/capability-assessments/:assessmentKey/question-confirmation",
-    isAuthenticated,
+    isAuthenticatedClaimsOnly,
     async (req: Request, res: Response) => {
       try {
-        const dbUser = requireSpecialistUser(req, res);
-        if (!dbUser) return;
+        const tutorId = String((req as any).authUserId || "").trim();
+        if (!tutorId) {
+          return res.status(401).json({ message: "Authentication required." });
+        }
 
         const payload = capabilityQuestionConfirmationSchema.parse(req.body);
         const assessmentKey = String(req.params.assessmentKey || "").trim();
 
-        const result = await confirmCapabilityQuestion({
-          tutorAssignmentId: payload.tutorAssignmentId,
-          tutorId: String(dbUser.id),
+        const result = confirmCapabilityQuestionStateless({
+          tutorId,
           assessmentKey,
-          formId: payload.formId,
-          bankVersion: payload.bankVersion,
+          interactionToken: payload.interactionToken,
+          priorReceipts: payload.priorReceipts,
           questionKey: payload.questionKey,
           selectedOptionKeys: payload.selectedOptionKeys,
         });
@@ -197,12 +191,12 @@ export function registerCapabilityEngineRoutes(app: Express) {
           assessmentKey,
         });
 
-        const result = await persistCapabilityAssessmentAttempt({
+        const result = await persistCapabilityInteractiveAttempt({
           tutorAssignmentId: payload.tutorAssignmentId,
           tutorId: String(dbUser.id),
           assessmentKey,
-          formId: payload.formId,
-          bankVersion: payload.bankVersion,
+          interactionToken: payload.interactionToken,
+          receipts: payload.receipts,
         });
 
         return res.status(201).json(result);
