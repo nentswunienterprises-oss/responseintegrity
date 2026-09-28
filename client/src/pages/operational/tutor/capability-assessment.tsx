@@ -106,9 +106,13 @@ function orderedResponseComplete(question: CapabilityQuestion, selected: string[
 
 function cleanCapabilityCopy(value: string) {
   return value
+    .replace(/\*\*\*([^*]+)\*\*\*/g, "$1")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/__([^_]+)__/g, "$1")
     .replace(/`([^`]+)`/g, "$1")
+    .replace(/\*{2,}/g, "")
+    .replace(/__/g, "")
+    .replace(/`/g, "")
     .replace(/\s*---\s*$/g, "")
     .trim();
 }
@@ -633,7 +637,7 @@ export default function SpecialistCapabilityAssessment() {
                 Capability Check
               </p>
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                {form.title.replace(/\s+Check$/, "")}
+                {cleanCapabilityCopy(form.title.replace(/\s+Check$/, ""))}
               </h1>
             </div>
             <p className="text-sm font-medium">
