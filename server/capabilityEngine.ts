@@ -260,16 +260,36 @@ export async function confirmCapabilityQuestion(input: {
     throw error;
   }
 
-  const question = plan.form.definition.questions.find(
-    (entry) => entry.key === input.questionKey,
+  const existingConfirmations = await loadQuestionConfirmations({
+    tutorAssignmentId: input.tutorAssignmentId,
+    tutorId: input.tutorId,
+    assessmentKey: input.assessmentKey,
+    bankVersion: plan.form.bankVersion,
+    attemptNumber: plan.attemptNumber,
+    formId: plan.form.formId,
+  });
+  const alreadyConfirmed = existingConfirmations.find(
+    (entry) => entry.questionKey === input.questionKey,
   );
-  if (!question) {
-    const error = new Error("Capability question does not belong to this form.") as Error & {
-      status?: number;
-    };
-    error.status = 400;
+  if (alreadyConfirmed) {
+    return { confirmation: alreadyConfirmed, attemptResult: null };
+  }
+
+  const firstUnconfirmedQuestion = plan.form.definition.questions.find(
+    (entry) =>
+      !existingConfirmations.some(
+        (confirmation) => confirmation.questionKey === entry.key,
+      ),
+  );
+  if (!firstUnconfirmedQuestion || firstUnconfirmedQuestion.key !== input.questionKey) {
+    const error = new Error(
+      "Capability questions must be confirmed in form order.",
+    ) as Error & { status?: number };
+    error.status = 409;
     throw error;
   }
+
+  const question = firstUnconfirmedQuestion;
 
   const oneQuestionResult = evaluateCapabilityAssessment(
     { ...plan.form.definition, questions: [question] },
