@@ -30,7 +30,8 @@ export async function getSpecialistCapabilityPlanStatus(input: {
       `SELECT assessment_key,
               bank_version,
               max_attempts,
-              retry_cooldown_hours
+              retry_cooldown_hours,
+              review_mode
          FROM private.specialist_capability_assessment_configs
         WHERE active = true
           AND evidence_kind = 'mastery'`,
@@ -50,6 +51,12 @@ export async function getSpecialistCapabilityPlanStatus(input: {
     ),
   ]);
 
+  const reviewModeBanks = new Set(
+    bankResult.rows
+      .filter((row) => Boolean(row.review_mode))
+      .map((row) => `${String(row.assessment_key)}:${Number(row.bank_version)}`),
+  );
+
   const activeBanks: CapabilityMasteryActiveBank[] = bankResult.rows.map((row) => ({
     assessmentKey: String(row.assessment_key),
     bankVersion: Number(row.bank_version),
@@ -57,13 +64,20 @@ export async function getSpecialistCapabilityPlanStatus(input: {
     retryCooldownHours: Number(row.retry_cooldown_hours),
   }));
 
-  const attempts: CapabilityMasteryAttempt[] = attemptResult.rows.map((row) => ({
-    assessmentKey: String(row.assessment_key),
-    bankVersion: Number(row.bank_version),
-    attemptNumber: Number(row.attempt_number),
-    passed: Boolean(row.passed),
-    completedAt: row.completed_at,
-  }));
+  const attempts: CapabilityMasteryAttempt[] = attemptResult.rows
+    .filter(
+      (row) =>
+        !reviewModeBanks.has(
+          `${String(row.assessment_key)}:${Number(row.bank_version)}`,
+        ),
+    )
+    .map((row) => ({
+      assessmentKey: String(row.assessment_key),
+      bankVersion: Number(row.bank_version),
+      attemptNumber: Number(row.attempt_number),
+      passed: Boolean(row.passed),
+      completedAt: row.completed_at,
+    }));
 
   return buildCapabilityMasteryAvailability({
     now: input.now || new Date(),
