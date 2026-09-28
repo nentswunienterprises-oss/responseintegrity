@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -148,6 +149,7 @@ export default function ResponseConditioningDrillLibrary() {
           <h2 className="text-2xl font-bold">Specialist Standard</h2>
           <p className="font-semibold">Use the authorized drill source. Preserve the condition. Record the real response. Let evidence decide what happens next.</p>
         </Card>
+        <DeepDiveCapabilityCheck assessmentKey="drill_library_mastery_v1" />
       </div>
     </div>
   );
