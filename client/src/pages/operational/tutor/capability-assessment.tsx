@@ -946,7 +946,8 @@ export default function SpecialistCapabilityAssessment() {
             {(() => {
               const showingTruth =
                 !currentConfirmation.correct && answerFeedbackStage === "truth";
-              const isPositive = currentConfirmation.correct || showingTruth;
+              const isPositive = currentConfirmation.correct;
+              const isNeutral = showingTruth;
               const pingTitle = currentConfirmation.correct
                 ? "Correct"
                 : showingTruth
@@ -977,33 +978,39 @@ export default function SpecialistCapabilityAssessment() {
                 <div
                   role="status"
                   aria-live="polite"
-                  className={`pointer-events-auto w-full max-w-lg animate-in fade-in zoom-in-95 rounded-2xl border-2 bg-background shadow-2xl duration-150 ${
-                    isPositive
-                      ? "border-emerald-500/60"
-                      : "border-red-500/60"
+                  className={`pointer-events-auto w-full max-w-lg animate-in fade-in zoom-in-95 rounded-2xl border bg-background shadow-xl duration-150 ${
+                    isNeutral
+                      ? "border-border"
+                      : isPositive
+                        ? "border-emerald-500/60"
+                        : "border-red-500/60"
                   }`}
                 >
                   <div
                     className={`rounded-2xl p-5 sm:p-6 ${
-                      isPositive
-                        ? "bg-emerald-500/10"
-                        : "bg-red-500/10"
+                      isNeutral
+                        ? "bg-background"
+                        : isPositive
+                          ? "bg-emerald-500/10"
+                          : "bg-red-500/10"
                     }`}
                   >
                     <div className="flex items-start gap-4">
-                      <div
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                          isPositive
-                            ? "bg-emerald-500/15"
-                            : "bg-red-500/15"
-                        }`}
-                      >
-                        {isPositive ? (
-                          <CheckCircle2 className="h-6 w-6 text-emerald-600" />
-                        ) : (
-                          <XCircle className="h-6 w-6 text-red-600" />
-                        )}
-                      </div>
+                      {!isNeutral ? (
+                        <div
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                            isPositive
+                              ? "bg-emerald-500/15"
+                              : "bg-red-500/15"
+                          }`}
+                        >
+                          {isPositive ? (
+                            <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                          ) : (
+                            <XCircle className="h-6 w-6 text-red-600" />
+                          )}
+                        </div>
+                      ) : null}
 
                       <div className="min-w-0 flex-1">
                         <p className="text-lg font-semibold">{pingTitle}</p>
