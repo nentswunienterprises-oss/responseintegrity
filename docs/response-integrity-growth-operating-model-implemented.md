@@ -104,8 +104,9 @@ Definitions:
 
 Graduation rule:
 
-Training and Battle Testing may open Sandbox once preparation evidence is complete. They cannot promote Sandbox directly into Trial.
-Sandbox -> Practicals requires the capability engine to resolve Practicals readiness and the assigned TD to record the human readiness decision for Practicals entry.
+The Capability Training gate opens Sandbox only after all five Transformation Deep Dive Masteries, delayed Transformation Retrieval, and interleaved Transformation Transfer are complete. Legacy Battle Testing no longer issues the Training -> Sandbox transition.
+Sandbox access expands the Training environment; it does not mean Training is complete. Session Infrastructure is then learned and evidenced against the protected operating environment.
+Sandbox -> Practicals requires the Sandbox capability engine to resolve Practicals readiness and the assigned TD to record the human readiness decision for Practicals entry.
 Practicals -> Trial remains a governed stage transition.
 Trial -> Certification -> Certified Live requires the Trial evidence gates and an explicit COO decision record.
 
@@ -122,8 +123,8 @@ Target architecture note:
 ### Implemented gate logic behind pathway progression
 
 1. If documentation is incomplete, lifecycle permission is forced to Applicant.
-2. Training Deep Dives establish preparation authority for Sandbox; Battle Testing does not issue Trial.
-3. In Sandbox, the system continuously evaluates Condition, Observation, Evidence, Authority, and Continuity Integrity.
+2. Training -> Sandbox authority requires five Transformation Mastery passes, the delayed Transformation Retrieval pass, and the interleaved Transformation Transfer pass. Mastery is a clean 15/15 with no critical fail, with at most three total attempts per Deep Dive.
+3. Sandbox unlock is not Training completion. Session Infrastructure continues in the protected operating environment, while the system continuously evaluates Condition, Observation, Evidence, Authority, and Continuity Integrity.
 4. Sandbox -> Practicals requires system `practicalsReady`, required breadth/longitudinal proof, no preparation blocker, and explicit TD readiness sign-off.
 5. A TD remediation decision keeps the Specialist in Sandbox and the capability engine continues targeting the earliest unsupported layer.
 6. Practicals -> Trial is a separate governed transition; Sandbox readiness never jumps directly to Trial.
@@ -489,7 +490,7 @@ For each major transition, define required conditions and machine-readable failu
 
 Examples:
 
-- Training -> Sandbox requires: docs complete, required Training Deep Dive authority, and no critical fail lock
+- Training -> Sandbox requires: docs complete, all five Transformation Masteries complete, delayed Transformation Retrieval passed, interleaved Transformation Transfer passed, and no active Capability blocker
 - Sandbox -> Practicals readiness requires: preparation gates clear, every ordered Sandbox capability layer supported, required phase breadth and longitudinal proof present, approved capability policy, and explicit assigned-TD sign-off
 - Practicals -> Trial requires: the governed Practicals completion/transition contract; Sandbox or Battle Testing cannot skip this stage
 - Trial -> Certification requires: exactly two distinct Trial families, nine qualifying sessions per family, required logs and reports, feedback received or declined, positive governed outcome reviews, and no active Trial risk
