@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { API_URL } from "@/lib/config";
+import { resolveStoredDocumentUrl } from "@shared/storedDocumentUrl";
 import { CheckCircle2, ChevronDown, Download, ExternalLink, FileCheck, Loader2, ShieldCheck, XCircle } from "lucide-react";
 
 interface TutorDocumentReviewProps {
@@ -652,7 +653,7 @@ export function TutorDocumentReview({ application, onReview }: TutorDocumentRevi
                     <p>Uploaded {new Date(application.doc2SubmissionUploadedAt).toLocaleString()}</p>
                   ) : null}
                   {application?.doc2SubmissionUrl ? (
-                    <a href={application.doc2SubmissionUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                    <a href={resolveStoredDocumentUrl(application.doc2SubmissionUrl, API_URL)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
                       View certified Matric certificate
                       <ExternalLink className="h-3 w-3" />
                     </a>
@@ -687,7 +688,7 @@ export function TutorDocumentReview({ application, onReview }: TutorDocumentRevi
                     <p>Uploaded {new Date(application.doc6SubmissionUploadedAt).toLocaleString()}</p>
                   ) : null}
                   {application?.doc6SubmissionUrl ? (
-                    <a href={application.doc6SubmissionUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                    <a href={resolveStoredDocumentUrl(application.doc6SubmissionUrl, API_URL)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
                       View certified ID upload
                       <ExternalLink className="h-3 w-3" />
                     </a>
@@ -810,7 +811,7 @@ export function TutorDocumentReview({ application, onReview }: TutorDocumentRevi
                     <p className="text-xs text-muted-foreground">No upload recorded yet.</p>
                   )}
                   {application?.doc2SubmissionUrl ? (
-                    <a href={application.doc2SubmissionUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+                    <a href={resolveStoredDocumentUrl(application.doc2SubmissionUrl, API_URL)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
                       View certified Matric certificate
                       <ExternalLink className="h-3 w-3" />
                     </a>
@@ -833,7 +834,7 @@ export function TutorDocumentReview({ application, onReview }: TutorDocumentRevi
                     <p className="text-xs text-muted-foreground">No upload recorded yet.</p>
                   )}
                   {application?.doc6SubmissionUrl ? (
-                    <a href={application.doc6SubmissionUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+                    <a href={resolveStoredDocumentUrl(application.doc6SubmissionUrl, API_URL)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
                       View certified ID upload
                       <ExternalLink className="h-3 w-3" />
                     </a>
