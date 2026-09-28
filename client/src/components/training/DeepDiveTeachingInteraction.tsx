@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -57,18 +57,11 @@ export function DeepDiveTeachingInteraction({
       {selected ? (
         <div className="space-y-3 rounded-lg border bg-background p-4">
           <div className="flex items-start gap-3">
-            <div
-              className={
-                "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full " +
-                (correct ? "bg-primary/10" : "bg-destructive/10")
-              }
-            >
-              {correct ? (
-                <Check className="h-4 w-4 text-primary" />
-              ) : (
+            {!correct ? (
+              <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-destructive/10">
                 <X className="h-4 w-4 text-destructive" />
-              )}
-            </div>
+              </div>
+            ) : null}
             <div>
               <p className="font-medium">{correct ? "Yes" : "Not quite"}</p>
               <p className="mt-1 text-sm text-muted-foreground">{selected.feedback}</p>
