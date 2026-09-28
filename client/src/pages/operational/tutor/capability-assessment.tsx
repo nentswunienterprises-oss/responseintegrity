@@ -58,6 +58,7 @@ type CapabilityForm = {
   bankVersion: number;
   attemptNumber: number;
   maxAttempts: number;
+  interactionToken: string;
   questions: CapabilityQuestion[];
   confirmations?: CapabilityQuestionConfirmation[];
 };
@@ -78,8 +79,8 @@ type CapabilityAttemptResult = {
 };
 
 type ConfirmationResponse = {
-  confirmation: CapabilityQuestionConfirmation | null;
-  attemptResult: CapabilityAttemptResult | null;
+  confirmation: CapabilityQuestionConfirmation;
+  receipt: string;
 };
 
 type PodData = {
@@ -134,6 +135,7 @@ export default function SpecialistCapabilityAssessment() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [responses, setResponses] = useState<ResponseMap>({});
   const [confirmations, setConfirmations] = useState<ConfirmationMap>({});
+  const [receipts, setReceipts] = useState<string[]>([]);
   const [hydratedFormId, setHydratedFormId] = useState("");
   const [result, setResult] = useState<CapabilityAttemptResult | null>(null);
   const [pendingResult, setPendingResult] = useState<CapabilityAttemptResult | null>(null);
@@ -244,6 +246,39 @@ export default function SpecialistCapabilityAssessment() {
     currentQuestion && orderedResponseComplete(currentQuestion, selected),
   );
 
+  const finalizeAttempt = useMutation({
+    mutationFn: async (receiptsToSubmit: string[]) => {
+      if (!form) {
+        throw new Error("Capability form is not available.");
+      }
+
+      const res = await apiRequest(
+        "POST",
+        `/api/tutor/capability-assessments/${encodeURIComponent(form.key)}/attempt`,
+        {
+          tutorAssignmentId,
+          interactionToken: form.interactionToken,
+          receipts: receiptsToSubmit,
+        },
+      );
+      return (await res.json()) as CapabilityAttemptResult;
+    },
+    onSuccess: async (attemptResult) => {
+      setPendingResult(attemptResult);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["capability-assessment-history", assessmentKey, tutorAssignmentId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["capability-ledger", tutorAssignmentId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["capability-mastery-plan", tutorAssignmentId],
+        }),
+      ]);
+    },
+  });
+
   const confirmQuestion = useMutation({
     mutationFn: async () => {
       if (!form || !currentQuestion || !responseComplete) {
@@ -254,40 +289,29 @@ export default function SpecialistCapabilityAssessment() {
         "POST",
         `/api/tutor/capability-assessments/${encodeURIComponent(form.key)}/question-confirmation`,
         {
-          tutorAssignmentId,
-          formId: form.formId,
-          bankVersion: form.bankVersion,
+          interactionToken: form.interactionToken,
+          priorReceipts: receipts,
           questionKey: currentQuestion.key,
           selectedOptionKeys: selected,
         },
       );
       return (await res.json()) as ConfirmationResponse;
     },
-    onSuccess: async ({ confirmation, attemptResult }) => {
-      if (confirmation) {
-        setConfirmations((current) => ({
-          ...current,
-          [confirmation.questionKey]: confirmation,
-        }));
-        setResponses((current) => ({
-          ...current,
-          [confirmation.questionKey]: confirmation.selectedOptionKeys,
-        }));
-      }
+    onSuccess: ({ confirmation, receipt }) => {
+      setConfirmations((current) => ({
+        ...current,
+        [confirmation.questionKey]: confirmation,
+      }));
+      setResponses((current) => ({
+        ...current,
+        [confirmation.questionKey]: confirmation.selectedOptionKeys,
+      }));
 
-      if (attemptResult) {
-        setPendingResult(attemptResult);
-        await Promise.all([
-          queryClient.invalidateQueries({
-            queryKey: ["capability-assessment-history", assessmentKey, tutorAssignmentId],
-          }),
-          queryClient.invalidateQueries({
-            queryKey: ["capability-ledger", tutorAssignmentId],
-          }),
-          queryClient.invalidateQueries({
-            queryKey: ["capability-mastery-plan", tutorAssignmentId],
-          }),
-        ]);
+      const nextReceipts = [...receipts, receipt];
+      setReceipts(nextReceipts);
+
+      if (form && nextReceipts.length === form.questions.length) {
+        finalizeAttempt.mutate(nextReceipts);
       }
     },
   });
@@ -1011,6 +1035,13 @@ export default function SpecialistCapabilityAssessment() {
                       }}
                     >
                       View result <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  ) : finalizeAttempt.error ? (
+                    <Button
+                      className="min-w-32"
+                      onClick={() => finalizeAttempt.mutate(receipts)}
+                    >
+                      Try finalizing
                     </Button>
                   ) : (
                     <Button className="min-w-32" disabled>
