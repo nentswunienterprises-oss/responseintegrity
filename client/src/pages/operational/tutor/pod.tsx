@@ -564,6 +564,29 @@ export default function TutorPod() {
           trialCase={trialCaseData?.case || null}
         />
 
+        {(trialCaseData?.mode || tutorAlignmentSummary?.operationalMode || (assignment as any).operationalMode || "training") === "training" ? (
+          <Card className="border-primary/15 bg-background shadow-sm">
+            <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <div className="max-w-2xl">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                  Training · Capability Engine
+                </p>
+                <h2 className="mt-1 text-xl font-semibold tracking-[-0.01em]">
+                  Deep Dive Capability Checks
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Complete the active Capability Checks for the approved Deep Dives. Each check uses the private assessment bank and records mastery evidence for Training.
+                </p>
+              </div>
+              <Button asChild className="shrink-0">
+                <Link to="/operational/specialist/capability">
+                  Open Capability Checks
+                </Link>
+              </Button>
+            </div>
+          </Card>
+        ) : null}
+
         <div className="tutor-pod-stats grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <Card className="border-primary/15 bg-background shadow-sm">
             <div className="px-4 py-4 sm:px-5 sm:py-5">
