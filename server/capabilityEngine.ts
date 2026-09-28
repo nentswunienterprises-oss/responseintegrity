@@ -429,6 +429,7 @@ export function confirmCapabilityQuestionStateless(input: {
       selectedOptionKeys: input.selectedOptionKeys,
       correct: oneQuestionResult.correct,
       feedback,
+      truth: cleanCapabilityDisplayCopy(question.explanation),
       confirmedAt: new Date(confirmedAt).toISOString(),
     },
     receipt,
