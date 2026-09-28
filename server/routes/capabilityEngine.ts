@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
-import { isAuthenticated, isAuthenticatedClaimsOnly } from "../supabaseAuth";
+import { isAuthenticated } from "../supabaseAuth";
 import {
   confirmCapabilityQuestionStateless,
   getCapabilityAssessmentHistory,
@@ -147,19 +147,12 @@ export function registerCapabilityEngineRoutes(app: Express) {
 
   app.post(
     "/api/tutor/capability-assessments/:assessmentKey/question-confirmation",
-    isAuthenticatedClaimsOnly,
     async (req: Request, res: Response) => {
       try {
-        const tutorId = String((req as any).authUserId || "").trim();
-        if (!tutorId) {
-          return res.status(401).json({ message: "Authentication required." });
-        }
-
         const payload = capabilityQuestionConfirmationSchema.parse(req.body);
         const assessmentKey = String(req.params.assessmentKey || "").trim();
 
         const result = confirmCapabilityQuestionStateless({
-          tutorId,
           assessmentKey,
           interactionToken: payload.interactionToken,
           priorReceipts: payload.priorReceipts,
