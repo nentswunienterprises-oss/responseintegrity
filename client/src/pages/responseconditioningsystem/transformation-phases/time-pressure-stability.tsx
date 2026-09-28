@@ -241,6 +241,17 @@ export default function ResponseConditioningTimePressureStability() {
           </p>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="Before a stricter timed condition can be used, what must already exist?"
+          options={[
+            { key: "a", label: "Eligible timing evidence for this learner and topic.", feedback: "Later pressure is derived from established timing evidence rather than guessed by the Specialist." },
+            { key: "b", label: "A standard time used for every learner in the grade.", feedback: "A universal time ignores the learner's own established execution evidence." },
+            { key: "c", label: "The Specialist's estimate of how fast the learner should be.", feedback: "Professional intuition cannot replace the timing evidence used to derive the pressure condition." },
+          ]}
+          correctOptionKey="a"
+          truth="Time pressure is evidence-derived. The Specialist prepares from the eligible timing basis already established for the learner and topic rather than inventing a timer."
+        />
+
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
           <p className="text-muted-foreground">
@@ -403,6 +414,17 @@ export default function ResponseConditioningTimePressureStability() {
             Observe before you interpret. Record the start, structure, pace, and completion integrity that actually appeared under the timer.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="The timer works exactly as intended, but the learner freezes and does not finish. What does this produce?"
+          options={[
+            { key: "a", label: "Valid learner evidence under time.", feedback: "A valid timer plus a weak response is still truthful evidence of what happened under pressure." },
+            { key: "b", label: "A technical failure because the rep was incomplete.", feedback: "Technical failure belongs to the timing condition, not to an incomplete learner response under a working timer." },
+            { key: "c", label: "No evidence, so the Specialist should rerun immediately with more time.", feedback: "Changing the timer to obtain a better result would overwrite the weak but valid evidence." },
+          ]}
+          correctOptionKey="a"
+          truth="When the timing condition is valid, timeout, freezing, wrong method and incomplete work are learner evidence. Replacement is reserved for objective failure of the timing condition itself."
+        />
 
         <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
           <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
