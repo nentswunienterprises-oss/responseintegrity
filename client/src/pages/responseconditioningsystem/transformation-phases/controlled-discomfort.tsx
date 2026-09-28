@@ -101,7 +101,7 @@ const constraintLabel = (set: EvidenceSetDefinition) => {
 
 const diagnosisInstructionFor = (set: EvidenceSetDefinition) => {
   if (set.setId === "controlled_discomfort.first_contact") {
-    return "Present the difficult problem, preserve the no-help opening condition exactly as the runner specifies, and observe the first response without rescue.";
+    return "Present the difficult problem, preserve the required no-help opening condition, and observe the first response without rescue.";
   }
 
   return "Sustain the difficult condition, allow only the permitted first-step boundary, and observe whether engagement and recovery hold under pressure.";
