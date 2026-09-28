@@ -7,6 +7,7 @@ export function cleanCapabilityDisplayCopy(value: string) {
     .replace(/\*\*/g, "")
     .replace(/__/g, "")
     .replace(/`/g, "")
+    .replace(/\u2014/g, " - ")
     .replace(/\s*---\s*$/g, "")
     .trim();
 }
