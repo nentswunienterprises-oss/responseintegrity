@@ -247,7 +247,7 @@ export default function ResponseConditioningStructuredExecution() {
               Independent Execution also supplies the passive TPS baseline. Before the session, prepare one fresh equivalent same-form, normal-difficulty reserve problem for that set. It is contingency inventory only for an objective technical timing failure - not an extra rep and not a way to replace weak student performance.
             </p>
             <p className="text-sm font-medium">
-              A technical failure leaves the canonical evidence slot unresolved. Do not reuse the exposed problem or improvise a replacement mid-session.
+              If the timing setup fails and the attempt can no longer be trusted, leave that attempt unresolved. Do not reuse the exposed problem or improvise a replacement mid-session.
             </p>
           </div>
         </Card>
