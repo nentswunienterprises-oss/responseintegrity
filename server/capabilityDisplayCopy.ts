@@ -5,6 +5,7 @@ function stripCapabilityAuthoringLeak(value: string) {
   );
 
   const trailingAuthoringMarkers = [
+    /\s+The live drill [^.]+\.\s*$/i,
     /\s+Topic Conditioning:\s*45\/45 authored\..*$/i,
     /\s+That gives us\s+[^.]*\d+\/45[^.]*\.(?:.*)$/i,
     /\s+That is much tighter\.\s+I would replace the original.*$/i,
