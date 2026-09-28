@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { ArrowLeft, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -154,6 +155,7 @@ export default function ResponseConditioningHandoverVerification() {
           <p className="font-semibold">Preserve history. Hold the inherited phase conditions. Record behavior exactly. Let the evidence model decide.</p>
           <p className="text-sm text-muted-foreground">A reliable Handover should feel continuous to the student while remaining independently defensible to the next Specialist, the institution, and any later audit.</p>
         </Card>
+        <DeepDiveCapabilityCheck assessmentKey="handover_verification_mastery_v1" />
       </div>
     </div>
   );
