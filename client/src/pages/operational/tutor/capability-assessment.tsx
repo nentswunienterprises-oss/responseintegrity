@@ -114,6 +114,7 @@ export default function SpecialistCapabilityAssessment() {
   const [confirmations, setConfirmations] = useState<ConfirmationMap>({});
   const [hydratedFormId, setHydratedFormId] = useState("");
   const [result, setResult] = useState<CapabilityAttemptResult | null>(null);
+  const [pendingResult, setPendingResult] = useState<CapabilityAttemptResult | null>(null);
 
   const [experienceRating, setExperienceRating] = useState<number | null>(null);
   const [experienceFeedback, setExperienceFeedback] = useState("");
@@ -213,7 +214,7 @@ export default function SpecialistCapabilityAssessment() {
       }
 
       if (attemptResult) {
-        setResult(attemptResult);
+        setPendingResult(attemptResult);
         await Promise.all([
           queryClient.invalidateQueries({
             queryKey: ["capability-assessment-form", assessmentKey, tutorAssignmentId],
@@ -857,6 +858,10 @@ export default function SpecialistCapabilityAssessment() {
                 }
               >
                 Continue <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : pendingResult ? (
+              <Button onClick={() => setResult(pendingResult)}>
+                View result <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             ) : (
               <Button disabled>
