@@ -31,6 +31,105 @@ export function buildPublicCapabilityAssessment(plan: CapabilityAttemptPlan) {
   });
 }
 
+function isProofCapabilityReviewEnvironment() {
+  let supabaseHost = "";
+  try {
+    supabaseHost = new URL(String(process.env.SUPABASE_URL || "")).hostname.toLowerCase();
+  } catch {
+    supabaseHost = "";
+  }
+
+  const isProofProject =
+    supabaseHost === "jftlxeacphvbnhbsbpxc.supabase.co";
+  const isNonProductionRuntime =
+    process.env.NODE_ENV === "development" ||
+    process.env.VERCEL_ENV === "preview";
+
+  return isProofProject && isNonProductionRuntime;
+}
+
+export async function resetCapabilityReviewSession(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  assessmentKey: string;
+}) {
+  await assertCapabilityTutorAssignmentOwnership(
+    input.tutorAssignmentId,
+    input.tutorId,
+  );
+
+  const configResult = await pool.query(
+    `SELECT bank_version,
+            review_mode
+       FROM private.specialist_capability_assessment_configs
+      WHERE assessment_key = $1
+        AND active = true
+      LIMIT 1`,
+    [input.assessmentKey],
+  );
+
+  const config = configResult.rows[0];
+  if (!config || !Boolean(config.review_mode)) {
+    return {
+      reviewMode: false,
+      reset: false,
+      bankVersion: config ? Number(config.bank_version) : null,
+    };
+  }
+
+  if (!isProofCapabilityReviewEnvironment()) {
+    const error = new Error(
+      "Capability review reset is only available in the isolated Proof environment.",
+    ) as Error & { status?: number };
+    error.status = 403;
+    throw error;
+  }
+
+  const bankVersion = Number(config.bank_version);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `DELETE FROM specialist_capability_question_confirmations
+        WHERE tutor_assignment_id = $1
+          AND tutor_id = $2
+          AND assessment_key = $3
+          AND bank_version = $4`,
+      [
+        input.tutorAssignmentId,
+        input.tutorId,
+        input.assessmentKey,
+        bankVersion,
+      ],
+    );
+    await client.query(
+      `DELETE FROM specialist_capability_assessment_attempts
+        WHERE tutor_assignment_id = $1
+          AND tutor_id = $2
+          AND assessment_key = $3
+          AND bank_version = $4`,
+      [
+        input.tutorAssignmentId,
+        input.tutorId,
+        input.assessmentKey,
+        bankVersion,
+      ],
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  return {
+    reviewMode: true,
+    reset: true,
+    bankVersion,
+  };
+}
+
 function parseJsonArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.map((entry) => String(entry));
   if (typeof value === "string") {
