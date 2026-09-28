@@ -259,6 +259,19 @@ test("Proof preview derives a stable domain-separated form secret from the sessi
   assert.ok(first.secret.length >= 64);
 });
 
+test("local development derives the same isolated Proof form secret contract", () => {
+  const env = {
+    NODE_ENV: "development",
+    SUPABASE_URL: "https://jftlxeacphvbnhbsbpxc.supabase.co",
+    SESSION_SECRET: "proof-session-secret",
+  };
+  const resolved = resolveCapabilityFormSecret(env);
+
+  assert.equal(resolved.source, "proof_session_derived");
+  assert.notEqual(resolved.secret, env.SESSION_SECRET);
+  assert.ok(resolved.secret.length >= 64);
+});
+
 test("Capability form secret remains fail-closed outside the isolated Proof preview", () => {
   for (const env of [
     {
