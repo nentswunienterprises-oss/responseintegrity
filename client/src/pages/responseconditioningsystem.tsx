@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,22 +25,27 @@ const modules = [
       {
         label: "Topic Conditioning",
         href: "/responseconditioningsystem/transformation-phases/topic-conditioning",
+        capabilityKey: "topic_conditioning",
       },
       {
         label: "Clarity",
         href: "/responseconditioningsystem/clarity",
+        capabilityKey: "clarity",
       },
       {
         label: "Structured Execution",
         href: "/responseconditioningsystem/structured-execution",
+        capabilityKey: "structured_execution",
       },
       {
         label: "Controlled Discomfort",
         href: "/responseconditioningsystem/controlled-discomfort",
+        capabilityKey: "controlled_discomfort",
       },
       {
         label: "Time Pressure Stability",
         href: "/responseconditioningsystem/time-pressure-stability",
+        capabilityKey: "time_pressure_stability",
       },
     ],
   },
@@ -103,32 +110,75 @@ const modules = [
       {
         label: "Intro session structure",
         href: "/responseconditioningsystem/session-infrastructure/intro-session-structure",
+        capabilityKey: "intro_session_structure",
       },
       {
         label: "Session flow control",
         href: "/responseconditioningsystem/session-infrastructure/session-flow-control",
+        capabilityKey: "session_flow_control",
       },
       {
         label: "Drill Library",
         href: "/responseconditioningsystem/session-infrastructure/drill-library",
+        capabilityKey: "drill_library",
       },
       {
         label: "Logging system",
         href: "/responseconditioningsystem/session-infrastructure/logging-system",
+        capabilityKey: "logging_system",
       },
       {
         label: "Handover verification",
         href: "/responseconditioningsystem/session-infrastructure/handover-verification",
+        capabilityKey: "handover_verification",
       },
       {
         label: "Tools required",
         href: "/responseconditioningsystem/session-infrastructure/tools-required",
+        capabilityKey: "tools_required",
       },
     ],
   },
 ];
 
+type MasteryAvailability = {
+  assessmentKey: string;
+  coveredDeepDiveKeys: string[];
+  status: "unavailable" | "locked" | "available" | "complete";
+  reason: "bank_unavailable" | "attempt_limit" | "retry_cooldown" | null;
+  unlockAt: string | null;
+};
+
+type PodData = {
+  assignment?: { id?: string | null } | null;
+};
+
 export default function ResponseConditioningSystem() {
+  const podQuery = useQuery<PodData>({
+    queryKey: ["/api/tutor/pod"],
+    retry: false,
+  });
+  const tutorAssignmentId = String(podQuery.data?.assignment?.id || "");
+
+  const capabilityPlanQuery = useQuery<{ assessments: MasteryAvailability[] }>({
+    queryKey: ["capability-mastery-plan", tutorAssignmentId],
+    enabled: Boolean(tutorAssignmentId),
+    retry: false,
+    queryFn: async () => {
+      const response = await apiRequest(
+        "GET",
+        `/api/tutor/capability-plan?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}`,
+      );
+      return (await response.json()) as { assessments: MasteryAvailability[] };
+    },
+  });
+
+  const capabilityByDeepDive = new Map(
+    (capabilityPlanQuery.data?.assessments || []).flatMap((assessment) =>
+      assessment.coveredDeepDiveKeys.map((deepDiveKey) => [deepDiveKey, assessment] as const),
+    ),
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b border-border/80 bg-background">
@@ -201,16 +251,53 @@ export default function ResponseConditioningSystem() {
                   </div>
 
                   <div className="space-y-2">
-                    {module.items.map((item) => (
-                      <Link
-                        key={item.label}
-                        to={item.href}
-                        className="flex items-center justify-between text-sm text-foreground border-b border-dashed border-border/60 pb-2 hover:text-primary transition-colors"
-                      >
-                        <span>{item.label}</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </Link>
-                    ))}
+                    {module.items.map((item) => {
+                      const capabilityKey = "capabilityKey" in item ? item.capabilityKey : undefined;
+                      const capability = capabilityKey
+                        ? capabilityByDeepDive.get(capabilityKey)
+                        : undefined;
+
+                      return (
+                        <div
+                          key={item.label}
+                          className="flex flex-col gap-2 border-b border-dashed border-border/60 pb-3"
+                        >
+                          <Link
+                            to={item.href}
+                            className="flex items-center justify-between text-sm text-foreground hover:text-primary transition-colors"
+                          >
+                            <span>{item.label}</span>
+                            <ChevronRight className="w-4 h-4" />
+                          </Link>
+
+                          {capability ? (
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-xs text-muted-foreground">
+                                {capability.status === "complete"
+                                  ? "Capability Check complete"
+                                  : capability.status === "available"
+                                    ? "Capability Check ready"
+                                    : capability.status === "locked"
+                                      ? capability.reason === "retry_cooldown" && capability.unlockAt
+                                        ? `Retry opens ${new Date(capability.unlockAt).toLocaleString()}`
+                                        : "Capability Check locked"
+                                      : "Capability Check not available yet"}
+                              </span>
+
+                              {capability.status === "available" ? (
+                                <Button size="sm" variant="outline" asChild>
+                                  <Link to={`/operational/specialist/capability/${capability.assessmentKey}`}>
+                                    Take Check
+                                  </Link>
+                                </Button>
+                              ) : capability.status === "complete" ? (
+                                <Badge variant="outline">Complete</Badge>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </Card>
