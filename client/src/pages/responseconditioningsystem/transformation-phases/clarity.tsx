@@ -177,7 +177,7 @@ export default function ResponseConditioningClarity() {
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Clarity Training Recipe</h2>
           <p className="text-muted-foreground">
-            This sequence is rendered from the live drill registry so the Deep Dive cannot quietly drift away from the runner.
+            This is the required Clarity training sequence.
           </p>
           <div className="rounded-lg border bg-background p-4">
             <p className="font-semibold text-lg">
@@ -333,7 +333,7 @@ export default function ResponseConditioningClarity() {
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Diagnosis Is a Different Recipe</h2>
           <p className="text-muted-foreground">
-            Clarity diagnosis is not the training drill above. The live diagnosis schema uses separate probes to establish an entry
+            Clarity diagnosis is not the training drill above. Diagnosis uses separate probes to establish an entry
             point before normal training.
           </p>
           <div className="space-y-3">
