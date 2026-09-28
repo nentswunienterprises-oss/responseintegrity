@@ -165,11 +165,11 @@ This is the control layer that determines:
 
 The live implementation is primarily distributed across these files:
 
-- `shared/topicConditioningEngine.ts` — legacy transition helper and next-action vocabulary
-- `shared/responseEvidenceModel.ts` — evidence-state resolution and recovery law
-- `shared/trainingEvidenceEvaluator.ts` — live Training evidence authority
-- `shared/evidenceCompleteDiagnosis.ts` / `shared/evidenceCompleteDiagnosisSubmission.ts` — evidence-complete Diagnosis
-- `shared/tpsTimingContract.ts` / `shared/tpsTimingRuntime.ts` / `shared/tpsTrainingReadiness.ts` — individualized TPS timing authority
+- `shared/topicConditioningEngine.ts` - legacy transition helper and next-action vocabulary
+- `shared/responseEvidenceModel.ts` - evidence-state resolution and recovery law
+- `shared/trainingEvidenceEvaluator.ts` - live Training evidence authority
+- `shared/evidenceCompleteDiagnosis.ts` / `shared/evidenceCompleteDiagnosisSubmission.ts` - evidence-complete Diagnosis
+- `shared/tpsTimingContract.ts` / `shared/tpsTimingRuntime.ts` / `shared/tpsTrainingReadiness.ts` - individualized TPS timing authority
 - `shared/responseIntegrityDrillRegistry.ts`
 - `shared/responseIntegrityEvidenceLedger.ts`
 - `shared/battleTesting.ts`
@@ -1598,12 +1598,12 @@ Each state stores:
 
 Implementation:
 
-- `shared/responseIntegrityDrillRegistry.ts` — current Verification schema v3 and retained historical v1/v2 definitions
-- `shared/diagnosisObservationMatrix.ts` — canonical concrete behavior vocabulary
-- `shared/responseEvidenceModel.ts` — shared dimension resolution and recovery law
-- `shared/handoverEvidenceEvaluator.ts` — evidence-native continuity decision
-- `client/src/components/tutor/IntroSessionDrillRunner.tsx` — live Specialist continuity runner and evidence result
-- `server/routes.ts` — authoritative persistence, topic-state update, and targeted re-diagnosis gate
+- `shared/responseIntegrityDrillRegistry.ts` - current Verification schema v3 and retained historical v1/v2 definitions
+- `shared/diagnosisObservationMatrix.ts` - canonical concrete behavior vocabulary
+- `shared/responseEvidenceModel.ts` - shared dimension resolution and recovery law
+- `shared/handoverEvidenceEvaluator.ts` - evidence-native continuity decision
+- `client/src/components/tutor/IntroSessionDrillRunner.tsx` - live Specialist continuity runner and evidence result
+- `server/routes.ts` - authoritative persistence, topic-state update, and targeted re-diagnosis gate
 
 ### Purpose and authority boundary
 
