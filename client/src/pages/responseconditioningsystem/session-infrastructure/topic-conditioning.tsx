@@ -191,6 +191,17 @@ export default function ResponseConditioningTopicConditioning() {
           </p>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="A learner shows a stable response in equations and an unstable response in fractions during the same week. What should RI preserve?"
+          options={[
+            { key: "a", label: "One overall learner state based on the stronger topic.", feedback: "RI does not collapse different topic histories into one learner-wide state." },
+            { key: "b", label: "Separate evidence and state for each topic.", feedback: "Each topic keeps its own phase, stability and evidence history." },
+            { key: "c", label: "One overall learner state based on the weaker topic.", feedback: "The weaker topic cannot lower a different topic whose own evidence is stronger." },
+          ]}
+          correctOptionKey="b"
+          truth="Topic Conditioning preserves separate evidence histories. A learner can be in different phases and stability states across different mathematical topics at the same time."
+        />
+
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">How the OS works inside a topic</h2>
           <p className="text-muted-foreground">Response Integrity-OS does not float above schoolwork. It operates inside it.</p>
@@ -413,6 +424,17 @@ export default function ResponseConditioningTopicConditioning() {
           <p className="font-semibold">Response Integrity is competing on precision of response training.</p>
           <p className="font-semibold">This is why Response Integrity feels different.</p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="A family chooses four sessions per week. What does that decision change?"
+          options={[
+            { key: "a", label: "How often RI delivers sessions, not the learner's evidence-derived state.", feedback: "Cadence is a service commitment. Educational movement still follows evidence." },
+            { key: "b", label: "The learner should progress through states twice as fast.", feedback: "More sessions create more opportunities, but frequency does not authorize state movement." },
+            { key: "c", label: "The Specialist may skip repeated evidence because there are more sessions.", feedback: "A higher cadence does not remove the evidence needed to establish stability." },
+          ]}
+          correctOptionKey="a"
+          truth="Package cadence and educational state are separate truths. Cadence determines delivery frequency; evidence determines what RI trains and when a topic moves."
+        />
 
         <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">What package cadence really means</h2>
