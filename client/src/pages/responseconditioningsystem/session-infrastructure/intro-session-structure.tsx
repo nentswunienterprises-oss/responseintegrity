@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { ArrowLeft, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -453,6 +454,7 @@ export default function ResponseConditioningIntroSessionStructure() {
             from the state that the evidence supports.
           </p>
         </Card>
+        <DeepDiveCapabilityCheck assessmentKey="intro_session_structure_mastery_v1" />
       </div>
     </div>
   );
