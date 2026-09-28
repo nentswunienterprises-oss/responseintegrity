@@ -997,19 +997,9 @@ export default function SpecialistCapabilityAssessment() {
                     }`}
                   >
                     <div className="flex items-start gap-4">
-                      {!isNeutral ? (
-                        <div
-                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                            isPositive
-                              ? "bg-emerald-500/15"
-                              : "bg-red-500/15"
-                          }`}
-                        >
-                          {isPositive ? (
-                            <CheckCircle2 className="h-6 w-6 text-emerald-600" />
-                          ) : (
-                            <XCircle className="h-6 w-6 text-red-600" />
-                          )}
+                      {!isNeutral && !isPositive ? (
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500/15">
+                          <XCircle className="h-6 w-6 text-red-600" />
                         </div>
                       ) : null}
 
