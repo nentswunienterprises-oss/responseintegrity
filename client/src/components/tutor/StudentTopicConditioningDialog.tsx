@@ -2437,7 +2437,7 @@ export default function StudentTopicConditioningDialog({
                                         ? "Accept the assignment before running training sessions."
                                         : packageQuotaBlocked
                                           ? trainingPackageQuotaDecision.code === "PACKAGE_QUOTA_EXHAUSTED"
-                                            ? "Package exhausted — awaiting renewal."
+                                            ? "Package exhausted - awaiting renewal."
                                             : "Package quota is unavailable."
                                           : undefined
                                     }
