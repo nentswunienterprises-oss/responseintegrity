@@ -59,6 +59,33 @@ function assertNoAuthoringLeak(context: string, value: string) {
   );
 }
 
+const LEARNER_COPY_JARGON_PATTERNS = [
+  {
+    label: "implementation field name",
+    pattern: /\b(?:decision-eligible|modelingOnly|supportLevel|same_form|changed_form)\b/i,
+  },
+  {
+    label: "implementation authority name",
+    pattern: /\b(?:Capability Blueprint|Capability Engine|state engine|transition engine)\b/i,
+  },
+  {
+    label: "implementation vocabulary",
+    pattern: /\b(?:schema|registry|contract|canonical|lineage|runtime|implementation|payload|specification|platform|architecture)\b/i,
+  },
+  {
+    label: "runner vocabulary",
+    pattern: /\b(?:drill runner|runner\/preparation direction|runner-owned)\b/i,
+  },
+] as const;
+
+function assertNoLearnerCopyJargon(context: string, value: string) {
+  const hit = LEARNER_COPY_JARGON_PATTERNS.find(({ pattern }) => pattern.test(value));
+  if (!hit) return;
+  throw new Error(
+    `Capability bank ${context} contains implementation language (${hit.label}). Learner-facing checks must teach RI operating truth in plain Specialist language, not product or engineering internals.`,
+  );
+}
+
 const assessmentSchema = z.object({
   assessmentKey: z.string().trim().min(1),
   bankVersion: z.number().int().positive(),
@@ -211,25 +238,24 @@ function validationShape(assessment: ParsedAssessment) {
 
 function validateAssessment(assessment: ParsedAssessment) {
   for (const item of assessment.items) {
-    assertNoAuthoringLeak(
-      `${assessment.assessmentKey}/${item.key}/prompt`,
-      item.prompt,
-    );
+    const promptContext = `${assessment.assessmentKey}/${item.key}/prompt`;
+    assertNoAuthoringLeak(promptContext, item.prompt);
+    assertNoLearnerCopyJargon(promptContext, item.prompt);
+
     for (const option of item.options) {
-      assertNoAuthoringLeak(
-        `${assessment.assessmentKey}/${item.key}/option:${option.key}`,
-        option.label,
-      );
+      const optionContext = `${assessment.assessmentKey}/${item.key}/option:${option.key}`;
+      assertNoAuthoringLeak(optionContext, option.label);
+      assertNoLearnerCopyJargon(optionContext, option.label);
     }
-    assertNoAuthoringLeak(
-      `${assessment.assessmentKey}/${item.key}/explanation`,
-      item.explanation,
-    );
+
+    const explanationContext = `${assessment.assessmentKey}/${item.key}/explanation`;
+    assertNoAuthoringLeak(explanationContext, item.explanation);
+    assertNoLearnerCopyJargon(explanationContext, item.explanation);
+
     for (const [optionKey, feedback] of Object.entries(item.optionFeedback || {})) {
-      assertNoAuthoringLeak(
-        `${assessment.assessmentKey}/${item.key}/option-feedback:${optionKey}`,
-        feedback,
-      );
+      const feedbackContext = `${assessment.assessmentKey}/${item.key}/option-feedback:${optionKey}`;
+      assertNoAuthoringLeak(feedbackContext, feedback);
+      assertNoLearnerCopyJargon(feedbackContext, feedback);
     }
   }
 
