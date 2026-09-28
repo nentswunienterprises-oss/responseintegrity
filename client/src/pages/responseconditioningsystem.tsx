@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
@@ -153,20 +152,6 @@ type MasteryAvailability = {
 type PodData = {
   assignment?: { id?: string | null } | null;
 };
-
-const capabilityDeepDives = [
-  ["Topic Conditioning", "topic_conditioning_mastery_v1"],
-  ["Clarity", "clarity_mastery_v1"],
-  ["Structured Execution", "structured_execution_mastery_v1"],
-  ["Controlled Discomfort", "controlled_discomfort_mastery_v1"],
-  ["Time Pressure Stability", "time_pressure_stability_mastery_v1"],
-  ["Intro Session Structure", "intro_session_structure_mastery_v1"],
-  ["Session Flow Control", "session_flow_control_mastery_v1"],
-  ["Drill Library", "drill_library_mastery_v1"],
-  ["Logging System", "logging_system_mastery_v1"],
-  ["Handover Verification", "handover_verification_mastery_v1"],
-  ["Tools Required", "tools_required_mastery_v1"],
-] as const;
 
 export default function ResponseConditioningSystem() {
   const podQuery = useQuery<PodData>({
@@ -318,26 +303,6 @@ export default function ResponseConditioningSystem() {
               </Card>
             );
           })}
-        <Card className="border border-primary/15 bg-card shadow-sm">
-          <div className="p-6 space-y-5">
-            <div>
-              <Badge className="mb-3">Training</Badge>
-              <h2 className="text-2xl font-bold">Capability Checks</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Each Capability Check belongs to its Deep Dive. You can take it at the end of the Deep Dive, or return here to see which checks are ready.
-              </p>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              {capabilityDeepDives.map(([label, assessmentKey]) => (
-                <div key={assessmentKey} className="rounded-xl border border-primary/15 bg-background p-4">
-                  <p className="font-semibold">{label}</p>
-                  <DeepDiveCapabilityCheck assessmentKey={assessmentKey} compact />
-                </div>
-              ))}
-            </div>
-          </div>
-        </Card>
-
         </div>
       </div>
     </div>
