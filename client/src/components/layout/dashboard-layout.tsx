@@ -84,7 +84,7 @@ function hasTutorTrafficWaitingOnTutor(application: any) {
   if (hasTutorTrafficPendingReview(application)) return false;
 
   const documentsStatus = getTutorTrafficDocumentsStatus(application);
-  const hasDoc2Acceptance = Boolean(application?.onboardingAcceptanceMap?.["2"]);
+  const hasDoc2Acceptance = Boolean((application?.onboardingCurrentAcceptanceMap ?? application?.onboardingAcceptanceMap)?.["2"]);
   const waitingForMatricUpload = hasDoc2Acceptance && String(documentsStatus["2"] || "") === "pending_upload";
   const waitingForIdUpload =
     ["1", "2", "3", "4", "5"].every((step) => String(documentsStatus[step] || "") === "approved") &&
