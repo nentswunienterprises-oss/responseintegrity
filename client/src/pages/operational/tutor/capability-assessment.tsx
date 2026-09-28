@@ -129,6 +129,11 @@ export default function SpecialistCapabilityAssessment() {
   const [experienceFeedback, setExperienceFeedback] = useState("");
   const [experienceFeedbackSubmitted, setExperienceFeedbackSubmitted] = useState(false);
   const [experienceFeedbackDismissed, setExperienceFeedbackDismissed] = useState(false);
+  const [reviewSessionKey] = useState(() =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
 
   const { data: podData, isLoading: podLoading, error: podError } = useQuery<PodData>({
     queryKey: ["/api/tutor/pod"],
@@ -137,9 +142,43 @@ export default function SpecialistCapabilityAssessment() {
 
   const tutorAssignmentId = String(podData?.assignment?.id || "");
 
+  const reviewResetQuery = useQuery<{
+    reviewMode: boolean;
+    reset: boolean;
+    bankVersion: number | null;
+  }>({
+    queryKey: [
+      "capability-review-reset",
+      assessmentKey,
+      tutorAssignmentId,
+      reviewSessionKey,
+    ],
+    enabled: Boolean(assessmentKey && tutorAssignmentId),
+    retry: false,
+    queryFn: async () => {
+      const res = await apiRequest(
+        "POST",
+        `/api/tutor/capability-assessments/${encodeURIComponent(assessmentKey)}/review-reset`,
+        { tutorAssignmentId },
+      );
+      return res.json();
+    },
+  });
+
   const formQuery = useQuery<CapabilityForm>({
-    queryKey: ["capability-assessment-form", assessmentKey, tutorAssignmentId],
-    enabled: Boolean(assessmentKey && tutorAssignmentId && !result && !pendingResult),
+    queryKey: [
+      "capability-assessment-form",
+      assessmentKey,
+      tutorAssignmentId,
+      reviewSessionKey,
+    ],
+    enabled: Boolean(
+      assessmentKey &&
+        tutorAssignmentId &&
+        reviewResetQuery.isSuccess &&
+        !result &&
+        !pendingResult,
+    ),
     retry: false,
     staleTime: 0,
     queryFn: async () => {
@@ -532,7 +571,7 @@ export default function SpecialistCapabilityAssessment() {
     );
   }
 
-  if (formQuery.isLoading) {
+  if (reviewResetQuery.isLoading || formQuery.isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
         Preparing capability check...
@@ -540,14 +579,14 @@ export default function SpecialistCapabilityAssessment() {
     );
   }
 
-  if (formQuery.error || !form || !currentQuestion) {
+  if (reviewResetQuery.error || formQuery.error || !form || !currentQuestion) {
     return (
       <div className="min-h-screen bg-background px-4 py-12">
         <div className="mx-auto max-w-xl space-y-6">
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {friendlyLoadError(formQuery.error)}
+              {friendlyLoadError(reviewResetQuery.error || formQuery.error)}
             </AlertDescription>
           </Alert>
           <p className="text-sm text-muted-foreground">
