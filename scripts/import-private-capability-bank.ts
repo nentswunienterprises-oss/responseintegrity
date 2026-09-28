@@ -238,6 +238,39 @@ function validationShape(assessment: ParsedAssessment) {
 
 function validateAssessment(assessment: ParsedAssessment) {
   for (const item of assessment.items) {
+    if (item.kind === "single_choice") {
+      const correctKeys = new Set(item.correctOptionKeys);
+      const optionKeys = new Set(item.options.map((option) => option.key));
+      const wrongKeys = item.options
+        .map((option) => option.key)
+        .filter((key) => !correctKeys.has(key));
+      const missingFeedback = wrongKeys.filter(
+        (key) => !item.optionFeedback[key]?.trim(),
+      );
+      const unknownFeedback = Object.keys(item.optionFeedback).filter(
+        (key) => !optionKeys.has(key),
+      );
+      const correctFeedback = Object.keys(item.optionFeedback).filter(
+        (key) => correctKeys.has(key),
+      );
+
+      if (missingFeedback.length) {
+        throw new Error(
+          `Capability bank ${assessment.assessmentKey}/${item.key} is missing option-specific feedback for wrong option(s): ${missingFeedback.join(", ")}. Wrong-answer feedback must be distinct from the approved Truth.`,
+        );
+      }
+      if (unknownFeedback.length) {
+        throw new Error(
+          `Capability bank ${assessment.assessmentKey}/${item.key} has feedback for unknown option(s): ${unknownFeedback.join(", ")}.`,
+        );
+      }
+      if (correctFeedback.length) {
+        throw new Error(
+          `Capability bank ${assessment.assessmentKey}/${item.key} stores option-specific feedback for correct option(s): ${correctFeedback.join(", ")}. Correct answers use the approved Truth instead.`,
+        );
+      }
+    }
+
     const promptContext = `${assessment.assessmentKey}/${item.key}/prompt`;
     assertNoAuthoringLeak(promptContext, item.prompt);
     assertNoLearnerCopyJargon(promptContext, item.prompt);
