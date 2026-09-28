@@ -50,3 +50,14 @@ test("private bank validation rejects authoring-only review text from learner-fa
   assert.match(source, /item\.explanation/);
   assert.match(source, /option-feedback/);
 });
+
+
+test("private bank validation rejects implementation jargon from learner-facing copy", () => {
+  assert.match(source, /LEARNER_COPY_JARGON_PATTERNS/);
+  assert.match(source, /assertNoLearnerCopyJargon/);
+  assert.match(source, /implementation field name/);
+  assert.match(source, /implementation authority name/);
+  assert.match(source, /implementation vocabulary/);
+  assert.match(source, /runner vocabulary/);
+  assert.match(source, /plain Specialist language/);
+});
