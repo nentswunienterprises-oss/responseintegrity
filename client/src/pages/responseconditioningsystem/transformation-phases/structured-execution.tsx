@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -395,6 +396,7 @@ export default function ResponseConditioningStructuredExecution() {
             <li>Why RI-OS, not the Specialist, owns the progression decision.</li>
           </ul>
         </Card>
+        <DeepDiveCapabilityCheck assessmentKey="structured_execution_mastery_v1" />
       </div>
     </div>
   );
