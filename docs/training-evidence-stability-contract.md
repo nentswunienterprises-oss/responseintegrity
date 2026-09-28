@@ -568,7 +568,7 @@ Diagnosis-only evidence may establish a baseline but must not be described as tr
 
 Future report claim authorization should reason over evidence occurrences and constraint context rather than broad aggregate bands.
 
-## 16. Migration status — complete
+## 16. Migration status - complete
 
 The evidence-native Training migration is complete for live state authority:
 
