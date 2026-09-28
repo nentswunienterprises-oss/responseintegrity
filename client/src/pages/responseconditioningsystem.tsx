@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   ArrowLeft,
-  Lock,
   Cpu,
   Radar,
   Cog,
@@ -196,10 +195,7 @@ export default function ResponseConditioningSystem() {
             </Button>
 
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <Lock className="w-6 h-6 text-primary" />
-                </div>
+              <div className="flex items-start">
                 <div>
                   <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-2">
                     The Response Conditioning System
