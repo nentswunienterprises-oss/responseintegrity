@@ -25,6 +25,38 @@ The current gap identified on 2026-09-28 is **314 questions requiring carefully 
 
 Clarity item `v2r8_clarity_25` has already been corrected and is therefore not included in the 314.
 
+## Current authoring status
+
+**Authoring pass completed 2026-09-28. Founder Review Mode remains OPEN.**
+
+The 314-question gap has now been authored bank by bank. The active banks currently have complete option-specific feedback coverage:
+
+| Bank | Active version | Questions with option-specific wrong-answer feedback |
+| --- | ---: | ---: |
+| Clarity | v8 | 45 / 45 |
+| Structured Execution | v8 | 45 / 45 |
+| Controlled Discomfort | v8 | 45 / 45 |
+| Time Pressure Stability | v8 | 45 / 45 |
+| Intro Session Structure | v8 | 45 / 45 |
+| Logging System | v8 | 45 / 45 |
+| Session Flow Control | v8 | 45 / 45 |
+| Topic Conditioning | v9 | 45 / 45 |
+
+For the seven banks that contained the 314-question authoring gap, there are now **945 option-specific wrong-answer feedback entries** (three wrong distractors per question), all distinct.
+
+Structural audit after authoring:
+
+- 0 active wrong options missing feedback.
+- 0 active correct options carrying option-specific feedback.
+- 0 newly authored feedback entries identical to the approved Truth.
+- 0 newly authored feedback entries beginning with a stored “Not quite” prefix.
+- 0 newly authored feedback entries containing em dashes.
+- 0 newly authored feedback entries containing the blocked implementation-jargon set.
+- Average newly authored feedback length: 155 characters.
+- Maximum newly authored feedback length: 225 characters.
+
+**This completes authoring, not Review Mode.** The Founder is now reviewing the authored feedback interactively. Any correction raised during Review Mode remains required work under this checkpoint. The checkpoint stays open until those corrections are applied and the Founder explicitly exits Review Mode.
+
 ## Authoring standard
 
 Work **bank by bank**, not as a bulk filler pass.
