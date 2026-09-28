@@ -290,13 +290,13 @@ async function findCompletedAttemptForForm(input: {
 function assertInteractionBinding(
   payload: CapabilityInteractionPayload,
   input: {
-    tutorId: string;
+    tutorId?: string;
     assessmentKey: string;
     tutorAssignmentId?: string;
   },
 ) {
   if (
-    payload.tutorId !== input.tutorId ||
+    (input.tutorId && payload.tutorId !== input.tutorId) ||
     payload.assessmentKey !== input.assessmentKey ||
     (input.tutorAssignmentId &&
       payload.tutorAssignmentId !== input.tutorAssignmentId)
@@ -367,7 +367,6 @@ export async function prepareCapabilityInteractiveAssessmentForm(input: {
 }
 
 export function confirmCapabilityQuestionStateless(input: {
-  tutorId: string;
   assessmentKey: string;
   interactionToken: string;
   priorReceipts: string[];
