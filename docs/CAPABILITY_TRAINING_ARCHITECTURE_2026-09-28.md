@@ -166,6 +166,12 @@ Review and promotion remain open:
 
 Capability Engine CI on the implemented branch proves focused Capability tests, the Training frontend bundle, and the Preview API bundle.
 
+Proof references:
+
+- Capability Engine CI run `36477296492`: green, including 80/80 focused Capability tests, Training frontend bundle, and Preview API bundle.
+- Sandbox Simulation CI run `36477675853`: green, including Sandbox focused tests, live-runner frontend bundle, and Preview API bundle.
+- Review/acceptance checkpoint: GitHub issue #113.
+
 ## Authority
 
 Founder approval: 28 September 2026.
