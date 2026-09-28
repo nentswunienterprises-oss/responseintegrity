@@ -42,7 +42,7 @@ const outcomes = [
   },
   {
     title: "Adjust stability",
-    detail: "The phase remains usable, but conditional evidence persisted through the bounded verification window. Stability may tighten within the same phase; conditional evidence alone cannot mint Low.",
+    detail: "The phase remains usable, but the student's response stayed conditional throughout the verification window. Stability may tighten within the same phase; conditional evidence alone does not justify Low.",
   },
   {
     title: "Targeted re-diagnosis",
@@ -103,7 +103,7 @@ export default function ResponseConditioningHandoverVerification() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What The Specialist Records</h2>
           <p className="text-muted-foreground">
-            Handover uses the same canonical Response Evidence behavior language as Diagnosis. The Specialist selects the concrete behavior that happened; the system owns the evidence class and the decision.
+            Handover uses the same Response Evidence behavior language as Diagnosis. The Specialist selects the concrete behavior that happened; the system determines what that evidence means and what happens next.
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             {evidenceClasses.map((item) => (
