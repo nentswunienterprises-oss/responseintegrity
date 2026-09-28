@@ -97,6 +97,7 @@ This checkpoint remains **OPEN** until all of the following are true:
 - [x] Automated coverage confirms there are **zero active single-choice items missing feedback for any wrong option**.
 - [x] No wrong-answer path falls back to the Truth.
 - [x] Bank validation rejects missing wrong-option feedback.
+- [ ] Full bank-by-bank editorial quality audit has been completed against the Founder clarity / effective-simplicity standard.
 - [ ] Known Founder corrections raised during Review Mode have all been applied.
 - [ ] Founder explicitly exits Review Mode / accepts the reviewed state.
 
