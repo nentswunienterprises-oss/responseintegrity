@@ -1,4 +1,4 @@
-# ARCHIVED — superseded Production Economy assumptions
+# ARCHIVED - superseded Production Economy assumptions
 
 > **Historical record only. Do not implement the economics or reward rules below.**
 > Current authority: [Demand Production Gateway](demand-production-gateway.md) and `shared/servicePackages.ts`.
