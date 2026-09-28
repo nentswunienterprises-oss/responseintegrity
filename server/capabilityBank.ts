@@ -164,7 +164,7 @@ export async function buildCapabilityAttemptPlan(input: {
   }
   if (resolvedSecret.source === "proof_session_derived") {
     console.warn(
-      "[CAPABILITY] Proof preview is using the isolated session-derived Capability form secret; production still requires CAPABILITY_FORM_SECRET.",
+      "[CAPABILITY] Proof is using the isolated session-derived Capability form secret; production still requires CAPABILITY_FORM_SECRET.",
     );
   }
   const seed = createCapabilityFormSeed({
