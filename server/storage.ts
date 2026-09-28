@@ -28,6 +28,8 @@ import { isAllowedOdEmail, normalizeEmail } from "@shared/odAccess";
 import type { TutorTrainingMode } from "@shared/battleTesting";
 import { claimProductionLeadIfUnattributed } from "./productionLinkPersistence";
 import { resolveProductionCloseLineage } from "./productionCloseLineage";
+import { TUTOR_ONBOARDING_DOCUMENTS } from "./tutorOnboardingDocuments";
+import { buildCurrentTutorOnboardingAcceptanceMap } from "@shared/tutorOnboardingAcceptanceVersion";
 
 // Initialize Supabase client with service role key to bypass RLS
 const supabaseUrl = process.env.SUPABASE_URL!;
@@ -289,6 +291,10 @@ async function hydrateTutorApplicationsWithOnboardingState(
       ...application,
       onboardingAcceptances: acceptanceRowsForApplication,
       onboardingAcceptanceMap: latestAcceptanceByStep,
+      onboardingCurrentAcceptanceMap: buildCurrentTutorOnboardingAcceptanceMap(
+        acceptanceRowsForApplication,
+        TUTOR_ONBOARDING_DOCUMENTS,
+      ),
     };
   });
 }
@@ -331,6 +337,10 @@ export function mergeTutorApplicationOnboardingState(application: TutorApplicati
     ...application,
     onboardingAcceptances: acceptanceRows,
     onboardingAcceptanceMap: latestAcceptanceByStep,
+    onboardingCurrentAcceptanceMap: buildCurrentTutorOnboardingAcceptanceMap(
+      acceptanceRows,
+      TUTOR_ONBOARDING_DOCUMENTS,
+    ),
   };
 }
 
@@ -2406,8 +2416,16 @@ export class SupabaseStorage implements IStorage {
             WHERE application_id = $1
               AND user_id = $2
               AND document_step = $3
+              AND document_version = $4
+              AND document_checksum = $5
             LIMIT 1`,
-          [input.applicationId, input.userId, input.documentStep],
+          [
+            input.applicationId,
+            input.userId,
+            input.documentStep,
+            input.documentVersion,
+            input.documentChecksum,
+          ],
         );
         if (duplicateResult.rows[0]) {
           throw new Error(`Step ${input.documentStep} has already been accepted.`);
@@ -2595,6 +2613,24 @@ export class SupabaseStorage implements IStorage {
     }
 
     if (String(documentsStatus[input.documentStep.toString()] || "not_started") === "approved") {
+      throw new Error(`Step ${input.documentStep} has already been accepted.`);
+    }
+
+    const { data: duplicateAcceptance, error: duplicateAcceptanceError } = await supabase
+      .from("tutor_onboarding_acceptances")
+      .select("id")
+      .eq("application_id", input.applicationId)
+      .eq("user_id", input.userId)
+      .eq("document_step", input.documentStep)
+      .eq("document_version", input.documentVersion)
+      .eq("document_checksum", input.documentChecksum)
+      .limit(1)
+      .maybeSingle();
+
+    if (duplicateAcceptanceError) {
+      throw new Error(`Failed to check onboarding acceptance history: ${duplicateAcceptanceError.message}`);
+    }
+    if (duplicateAcceptance) {
       throw new Error(`Step ${input.documentStep} has already been accepted.`);
     }
 
