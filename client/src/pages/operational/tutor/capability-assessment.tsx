@@ -36,6 +36,7 @@ type CapabilityQuestionConfirmation = {
   selectedOptionKeys: string[];
   correct: boolean;
   feedback: string;
+  truth?: string;
   confirmedAt: string;
 };
 
@@ -137,6 +138,7 @@ export default function SpecialistCapabilityAssessment() {
   const [experienceFeedbackSubmitted, setExperienceFeedbackSubmitted] = useState(false);
   const [experienceFeedbackDismissed, setExperienceFeedbackDismissed] = useState(false);
   const [answerFeedbackOpen, setAnswerFeedbackOpen] = useState(false);
+  const [answerFeedbackStage, setAnswerFeedbackStage] = useState<"feedback" | "truth">("feedback");
   const [reviewSessionKey] = useState(() =>
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()
@@ -290,6 +292,7 @@ export default function SpecialistCapabilityAssessment() {
       return (await res.json()) as ConfirmationResponse;
     },
     onSuccess: ({ confirmation, receipt }) => {
+      setAnswerFeedbackStage("feedback");
       setAnswerFeedbackOpen(true);
       setConfirmations((current) => ({
         ...current,
@@ -940,86 +943,111 @@ export default function SpecialistCapabilityAssessment() {
 
         {answerFeedbackOpen && currentConfirmation ? (
           <div className="pointer-events-none fixed inset-x-0 top-1/2 z-50 flex -translate-y-1/2 justify-center px-4">
-            <div
-              role="status"
-              aria-live="polite"
-              className={`pointer-events-auto w-full max-w-lg animate-in fade-in zoom-in-95 rounded-2xl border-2 bg-background shadow-2xl duration-150 ${
-                currentConfirmation.correct
-                  ? "border-emerald-500/60"
-                  : "border-red-500/60"
-              }`}
-            >
-              <div
-                className={`rounded-2xl p-5 sm:p-6 ${
-                  currentConfirmation.correct
-                    ? "bg-emerald-500/10"
-                    : "bg-red-500/10"
-                }`}
-              >
-                <div className="flex items-start gap-4">
+            {(() => {
+              const showingTruth =
+                !currentConfirmation.correct && answerFeedbackStage === "truth";
+              const isPositive = currentConfirmation.correct || showingTruth;
+              const pingTitle = currentConfirmation.correct
+                ? "Correct"
+                : showingTruth
+                  ? "Truth"
+                  : "Not quite";
+              const pingCopy = showingTruth
+                ? currentConfirmation.truth || currentConfirmation.feedback
+                : currentConfirmation.feedback;
+
+              const advanceFromPing = () => {
+                if (currentIndex < form.questions.length - 1) {
+                  setAnswerFeedbackOpen(false);
+                  setAnswerFeedbackStage("feedback");
+                  setCurrentIndex((index) =>
+                    Math.min(form.questions.length - 1, index + 1),
+                  );
+                  return;
+                }
+
+                if (pendingResult) {
+                  setAnswerFeedbackOpen(false);
+                  setAnswerFeedbackStage("feedback");
+                  setResult(pendingResult);
+                }
+              };
+
+              return (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className={`pointer-events-auto w-full max-w-lg animate-in fade-in zoom-in-95 rounded-2xl border-2 bg-background shadow-2xl duration-150 ${
+                    isPositive
+                      ? "border-emerald-500/60"
+                      : "border-red-500/60"
+                  }`}
+                >
                   <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                      currentConfirmation.correct
-                        ? "bg-emerald-500/15"
-                        : "bg-red-500/15"
+                    className={`rounded-2xl p-5 sm:p-6 ${
+                      isPositive
+                        ? "bg-emerald-500/10"
+                        : "bg-red-500/10"
                     }`}
                   >
-                    {currentConfirmation.correct ? (
-                      <CheckCircle2 className="h-6 w-6 text-emerald-600" />
-                    ) : (
-                      <XCircle className="h-6 w-6 text-red-600" />
-                    )}
-                  </div>
+                    <div className="flex items-start gap-4">
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                          isPositive
+                            ? "bg-emerald-500/15"
+                            : "bg-red-500/15"
+                        }`}
+                      >
+                        {isPositive ? (
+                          <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                        ) : (
+                          <XCircle className="h-6 w-6 text-red-600" />
+                        )}
+                      </div>
 
-                  <div className="min-w-0 flex-1">
-                    <p className="text-lg font-semibold">
-                      {currentConfirmation.correct ? "Correct" : "Not quite"}
-                    </p>
-                    <p className="mt-2 text-sm leading-relaxed text-foreground/90">
-                      {cleanCapabilityCopy(currentConfirmation.feedback)}
-                    </p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-lg font-semibold">{pingTitle}</p>
+                        <p className="mt-2 text-sm leading-relaxed text-foreground/90">
+                          {cleanCapabilityCopy(pingCopy)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex justify-end">
+                      {!currentConfirmation.correct &&
+                      answerFeedbackStage === "feedback" ? (
+                        <Button
+                          size="sm"
+                          onClick={() => setAnswerFeedbackStage("truth")}
+                        >
+                          Continue <ChevronRight className="ml-1.5 h-4 w-4" />
+                        </Button>
+                      ) : currentIndex < form.questions.length - 1 ? (
+                        <Button size="sm" onClick={advanceFromPing}>
+                          Continue <ChevronRight className="ml-1.5 h-4 w-4" />
+                        </Button>
+                      ) : pendingResult ? (
+                        <Button size="sm" onClick={advanceFromPing}>
+                          View result <ChevronRight className="ml-1.5 h-4 w-4" />
+                        </Button>
+                      ) : finalizeAttempt.error ? (
+                        <Button
+                          size="sm"
+                          onClick={() => finalizeAttempt.mutate(receipts)}
+                        >
+                          Try finalizing
+                        </Button>
+                      ) : (
+                        <Button size="sm" disabled>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Finalizing
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-
-                <div className="mt-5 flex justify-end">
-                  {currentIndex < form.questions.length - 1 ? (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setAnswerFeedbackOpen(false);
-                        setCurrentIndex((index) =>
-                          Math.min(form.questions.length - 1, index + 1),
-                        );
-                      }}
-                    >
-                      Continue <ChevronRight className="ml-1.5 h-4 w-4" />
-                    </Button>
-                  ) : pendingResult ? (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setAnswerFeedbackOpen(false);
-                        setResult(pendingResult);
-                      }}
-                    >
-                      View result <ChevronRight className="ml-1.5 h-4 w-4" />
-                    </Button>
-                  ) : finalizeAttempt.error ? (
-                    <Button
-                      size="sm"
-                      onClick={() => finalizeAttempt.mutate(receipts)}
-                    >
-                      Try finalizing
-                    </Button>
-                  ) : (
-                    <Button size="sm" disabled>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Finalizing
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
+              );
+            })()}
           </div>
         ) : null}
       </div>
