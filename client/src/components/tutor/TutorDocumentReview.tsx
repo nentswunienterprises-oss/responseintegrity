@@ -519,7 +519,7 @@ export function TutorDocumentReview({ application, onReview }: TutorDocumentRevi
     ...(application?.documentsStatus || application?.documents_status || {}),
   };
 
-  const acceptanceMap = application?.onboardingAcceptanceMap || {};
+  const acceptanceMap = application?.onboardingCurrentAcceptanceMap ?? application?.onboardingAcceptanceMap ?? {};
   const fullName = application?.fullName || application?.full_name || "Unknown Specialist";
   const email = application?.email || "No email";
   const acceptedCount = ["1", "3", "4", "5"].filter((step) => documentsStatus[step] === "approved").length;
