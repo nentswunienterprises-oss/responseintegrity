@@ -1422,7 +1422,7 @@ test("package quota is authoritative for Specialist training launch and submissi
   assert.match(submitSource, /status\(409\)/);
 
   assert.match(dialogSource, /packageQuotaBlocked/);
-  assert.match(dialogSource, /Package exhausted — awaiting renewal/);
+  assert.match(dialogSource, /Package exhausted - awaiting renewal/);
   assert.match(
     dialogSource,
     /disabled=\{!assignmentAccepted \|\| packageQuotaBlocked\}/,
