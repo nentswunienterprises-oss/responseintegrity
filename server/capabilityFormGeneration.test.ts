@@ -17,6 +17,7 @@ const config = {
   formSize: 4,
   maxAttempts: 3,
   retryCooldownHours: 1,
+  reviewMode: false,
   competencyBlueprint: [
     { competencyKey: "fixture.alpha", deepDiveKey: "fixture", count: 2 },
     { competencyKey: "fixture.beta", deepDiveKey: "fixture", count: 2 },
