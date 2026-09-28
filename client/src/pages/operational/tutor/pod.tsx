@@ -575,12 +575,12 @@ export default function TutorPod() {
                   Deep Dive Capability Checks
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Complete the active Capability Checks for the approved Deep Dives. Each check uses the private assessment bank and records mastery evidence for Training.
+                  Capability Checks sit inside the Deep Dives. Open the Response Conditioning System, work through the live Deep Dive, then take its check at the end.
                 </p>
               </div>
               <Button asChild className="shrink-0">
-                <Link to="/operational/specialist/capability">
-                  Open Capability Checks
+                <Link to="/responseconditioningsystem">
+                  Open Deep Dives
                 </Link>
               </Button>
             </div>
