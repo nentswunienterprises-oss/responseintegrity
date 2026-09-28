@@ -36,6 +36,7 @@ async function loadActiveCapabilityConfig(assessmentKey: string): Promise<Privat
             form_size,
             max_attempts,
             retry_cooldown_hours,
+            review_mode,
             competency_blueprint
        FROM private.specialist_capability_assessment_configs
       WHERE assessment_key = $1
@@ -57,6 +58,7 @@ async function loadActiveCapabilityConfig(assessmentKey: string): Promise<Privat
     formSize: Number(row.form_size),
     maxAttempts: Number(row.max_attempts),
     retryCooldownHours: Number(row.retry_cooldown_hours),
+    reviewMode: Boolean(row.review_mode),
     competencyBlueprint: parseJsonArray(row.competency_blueprint),
     criticalBoundaryRequirements: buildCapabilityCriticalBoundaryRequirements(String(row.assessment_key)),
   };
