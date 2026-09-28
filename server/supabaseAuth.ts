@@ -142,14 +142,21 @@ export async function setupAuth(app: Express) {
 
   const sessionMiddleware = getSession();
 
-  // Bearer-authenticated reads already have an independent Supabase identity.
-  // Do not make those reads wait on or fail with the legacy PostgreSQL session store.
+  // Bearer-authenticated requests already have an independent Supabase identity.
+  // Reads and latency-sensitive Capability Engine interactions must not wait on
+  // the legacy PostgreSQL session store in normal Supabase auth mode.
   app.use((req: Request, res: Response, next: NextFunction) => {
     const hasBearerToken =
       typeof req.headers.authorization === "string" &&
       req.headers.authorization.startsWith("Bearer ");
+    const isCapabilityEngineRequest =
+      req.path.startsWith("/api/tutor/capability-");
 
-    if (!isEmergencyDbMode() && req.method === "GET" && hasBearerToken) {
+    if (
+      !isEmergencyDbMode() &&
+      hasBearerToken &&
+      (req.method === "GET" || isCapabilityEngineRequest)
+    ) {
       return next();
     }
 
@@ -186,12 +193,18 @@ export async function setupAuth(app: Express) {
       pools: getDatabasePoolStats(),
     });
 
-    // Bearer GETs normally bypass the session middleware entirely. If one
-    // reaches this boundary anyway, continue without synthesizing an
-    // express-session Session object. A synthetic Session without a Cookie
-    // crashes express-session when the response is finalized.
-    if (!isEmergencyDbMode() && req.method === "GET" && hasBearerToken) {
-      console.warn("[AUTH] Continuing bearer-authenticated GET after session-store error", {
+    // Bearer reads and Capability Engine interactions normally bypass the
+    // session middleware entirely. If one reaches this boundary anyway,
+    // continue without synthesizing an express-session Session object.
+    const isCapabilityEngineRequest =
+      req.path.startsWith("/api/tutor/capability-");
+    if (
+      !isEmergencyDbMode() &&
+      hasBearerToken &&
+      (req.method === "GET" || isCapabilityEngineRequest)
+    ) {
+      console.warn("[AUTH] Continuing bearer-authenticated request after session-store error", {
+        method: req.method,
         path: req.path,
       });
       return next();
@@ -1191,40 +1204,42 @@ export const isAuthenticated: RequestHandler = async (
       }
     }
 
-    // Second, try Bearer token auth (for cross-origin requests from Vercel frontend)
+    // Second, verify explicit Bearer auth. getClaims validates the access token
+    // without requiring a fresh Auth user lookup when local JWT verification is
+    // available, which keeps interactive authenticated requests responsive.
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.substring(7);
-      
-      // Verify the JWT token with Supabase
-      const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(token);
-      
-      if (error) {
-        console.error("Token verification failed:", error.message);
+      const { data: claimsData, error } = await supabase.auth.getClaims(token);
+      const bearerUserId = String((claimsData as any)?.claims?.sub || "").trim();
+
+      if (error || !bearerUserId) {
+        console.error("Token verification failed:", error?.message || "missing subject");
         return res.status(401).json({ message: "Invalid token" });
       }
-      
-      if (supabaseUser) {
-        // Get user from our database
-        console.time("⏱️ storage.getUser (Bearer)");
-        try {
-          const userPromise = storage.getUser(supabaseUser.id);
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("getUser timeout after 5s")), 5000)
-          );
-          const user = await Promise.race([userPromise, timeoutPromise]);
-          console.timeEnd("⏱️ storage.getUser (Bearer)");
-          if (user) {
-            (req as any).dbUser = user;
-            return next();
-          } else {
-            console.error("User not found in database for Supabase user:", supabaseUser.id);
-            return res.status(401).json({ message: "User not found" });
-          }
-        } catch (userError) {
-          console.error("❌ Error fetching user (Bearer):", userError);
-          return res.status(500).json({ message: "Error retrieving user" });
+
+      const startedAt = Date.now();
+      try {
+        const userPromise = storage.getUser(bearerUserId);
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("getUser timeout after 5s")), 5000)
+        );
+        const user = await Promise.race([userPromise, timeoutPromise]);
+        console.log("[AUTH] Bearer profile resolved", {
+          userId: bearerUserId,
+          elapsedMs: Date.now() - startedAt,
+        });
+
+        if (user) {
+          (req as any).dbUser = user;
+          return next();
         }
+
+        console.error("User not found in database for Supabase user:", bearerUserId);
+        return res.status(401).json({ message: "User not found" });
+      } catch (userError) {
+        console.error("❌ Error fetching user (Bearer):", userError);
+        return res.status(500).json({ message: "Error retrieving user" });
       }
     }
 
