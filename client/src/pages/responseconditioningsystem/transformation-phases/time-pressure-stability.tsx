@@ -57,7 +57,7 @@ const TIME_SET_EXECUTION: Record<
     preserve:
       "Repeated timer consistency. The set tests whether the timed response holds, not whether one attempt went well.",
     doNot: [
-      "Do not change the timer between reps unless the runner/prep explicitly tells you to.",
+      "Do not change the timer between reps.",
       "Do not skip repetition after one strong attempt.",
       "Do not hide rushing, panic, or structure loss behind a completed answer.",
     ],
@@ -66,7 +66,7 @@ const TIME_SET_EXECUTION: Record<
     studentAction:
       "Work under the tightest defined time condition while preserving method structure, controlled pace, and completion integrity.",
     specialistAction:
-      "Run Full Constraint at the runner-owned 85% Timer Contract duration, withhold help, observe the full pressure response, and log the evidence.",
+      "Run Full Constraint at 85% of the established baseline time, withhold help, observe the full pressure response, and log the evidence.",
     preserve:
       "Full time constraint. The set tests whether the student can keep structure and completion when the pressure is at the intended maximum.",
     doNot: [
@@ -101,7 +101,7 @@ const constraintLabel = (set: EvidenceSetDefinition) => {
 
 const diagnosisInstructionFor = (set: EvidenceSetDefinition) => {
   if (set.setId === "time_pressure.light_timer") {
-    return "Run the first controlled timed exposure exactly as the runner/prep specifies and observe whether the student starts, preserves structure, controls pace, and completes.";
+    return "Run the first controlled timed exposure using the timing prepared for that student and topic, then observe whether the student starts, preserves structure, controls pace, and completes.";
   }
 
   return "Repeat the same time condition and observe whether the response stabilizes or drifts across timed attempts.";
@@ -202,7 +202,7 @@ export default function ResponseConditioningTimePressureStability() {
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Time Pressure Training Recipe</h2>
           <p className="text-muted-foreground">
-            This sequence is rendered from the live drill registry so the Deep Dive stays aligned with the runner.
+            This sequence is the required Time Pressure Stability training sequence.
           </p>
           <div className="rounded-lg border bg-background p-4">
             <p className="font-semibold text-lg">
@@ -240,8 +240,7 @@ export default function ResponseConditioningTimePressureStability() {
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
             <p className="font-semibold">Timing boundary</p>
             <p className="text-sm text-muted-foreground">
-              The runner uses the immutable TPS Timer Contract for this student and topic. Structure Under Timer and Repeated Timed Execution use 100% of the
-              baseline duration; Full Constraint uses 85%. Do not invent, loosen, or tighten a different timer.
+              Use the established baseline time for this student and topic. Structure Under Timer and Repeated Timed Execution use 100% of that baseline; Full Constraint uses 85%. Do not invent, loosen, or tighten a different timer.
             </p>
           </div>
           <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
