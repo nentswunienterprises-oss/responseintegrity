@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";\nimport { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -174,6 +174,29 @@ export default function ResponseConditioningClarity() {
           </ul>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="During an Identification rep, the student starts solving immediately. What should the Specialist preserve?"
+          options={[
+            {
+              key: "a",
+              label: "Let the solve continue because the student is showing confidence.",
+              feedback: "Identification is meant to reveal recognition before solving begins.",
+            },
+            {
+              key: "b",
+              label: "Return to identifying the type, method and reason without supplying the answer.",
+              feedback: "The rep stays inside recognition. Solving would change what is being observed.",
+            },
+            {
+              key: "c",
+              label: "Give the first step, then let the student finish.",
+              feedback: "Supplying the method contaminates the recognition evidence.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Identification is recognition without solving. The Specialist preserves the condition so RI can see whether the student can identify what they are looking at, the method and the reason independently."
+        />
+
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Clarity Training Recipe</h2>
           <p className="text-muted-foreground">
@@ -284,6 +307,29 @@ export default function ResponseConditioningClarity() {
           </div>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="A student reaches the correct answer after the Specialist gives each next step. What does that prove about Clarity?"
+          options={[
+            {
+              key: "a",
+              label: "Independent Clarity is evidenced because the mathematics is correct.",
+              feedback: "Correct mathematics produced through step-by-step help is not independent Clarity evidence.",
+            },
+            {
+              key: "b",
+              label: "The student completed with support, so the support must remain visible in the evidence.",
+              feedback: "RI separates what the student produced from what the Specialist supplied.",
+            },
+            {
+              key: "c",
+              label: "The rep should automatically count as High because the answer was reached.",
+              feedback: "Stability cannot be upgraded from a response that was manufactured through heavy support.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Clarity evidence is about the student's usable mental map. Specialist support can help teaching, but it must not be disguised as independent evidence."
+        />
+
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What You Observe</h2>
           <p className="text-muted-foreground">
@@ -315,6 +361,29 @@ export default function ResponseConditioningClarity() {
             the evidence invalid.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="The topic is currently Clarity High. Which next move preserves RI authority?"
+          options={[
+            {
+              key: "a",
+              label: "The Specialist promotes the topic to Structured Execution.",
+              feedback: "The Specialist does not own phase progression.",
+            },
+            {
+              key: "b",
+              label: "Run the ordinary Clarity drill again and submit the resulting evidence.",
+              feedback: "High remains in Clarity until later qualifying evidence earns High Maintenance and RI-OS determines progression.",
+            },
+            {
+              key: "c",
+              label: "Skip the next rep because High already means the phase is complete.",
+              feedback: "High still requires repeatability evidence before the phase can progress.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="High is still a Clarity state. Run the same-phase drill, preserve the evidence conditions, submit, and let RI-OS decide what happens next."
+        />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression: Your Job Ends at Submission</h2>
