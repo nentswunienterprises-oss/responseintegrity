@@ -1,4 +1,4 @@
-# Logging System Deep Dive — Evidence-Native Operating Copy
+# Logging System Deep Dive - Evidence-Native Operating Copy
 
 **Canonical reference**  
 The live product and current Response Integrity-OS contracts remain the implementation authority. This file is a Specialist-facing derivative of the live Logging System Deep Dive and must be updated whenever the live runner changes.
