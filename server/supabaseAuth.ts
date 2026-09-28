@@ -140,7 +140,21 @@ export async function setupAuth(app: Express) {
     });
   });
 
-  app.use(getSession());
+  const sessionMiddleware = getSession();
+
+  // Bearer-authenticated reads already have an independent Supabase identity.
+  // Do not make those reads wait on or fail with the legacy PostgreSQL session store.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const hasBearerToken =
+      typeof req.headers.authorization === "string" &&
+      req.headers.authorization.startsWith("Bearer ");
+
+    if (!isEmergencyDbMode() && req.method === "GET" && hasBearerToken) {
+      return next();
+    }
+
+    return sessionMiddleware(req, res, next);
+  });
 
   // connect-pg-simple reports request-time store failures through next(error).
   // Handle that boundary explicitly so Vercel returns structured JSON instead
@@ -172,13 +186,12 @@ export async function setupAuth(app: Express) {
       pools: getDatabasePoolStats(),
     });
 
-    // Non-emergency GETs can still be authenticated independently by the
-    // downstream Supabase bearer-token path. Do not let a legacy Express
-    // session-store outage collapse read-only portal state when a bearer token
-    // is already present. Mutations remain fail-closed.
+    // Bearer GETs normally bypass the session middleware entirely. If one
+    // reaches this boundary anyway, continue without synthesizing an
+    // express-session Session object. A synthetic Session without a Cookie
+    // crashes express-session when the response is finalized.
     if (!isEmergencyDbMode() && req.method === "GET" && hasBearerToken) {
-      (req as any).session = new (session as any).Session(req, {});
-      console.warn("[AUTH] Continuing bearer-authenticated GET without persisted Express session", {
+      console.warn("[AUTH] Continuing bearer-authenticated GET after session-store error", {
         path: req.path,
       });
       return next();
