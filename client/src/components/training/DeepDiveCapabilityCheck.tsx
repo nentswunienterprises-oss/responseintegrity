@@ -27,7 +27,7 @@ function CapabilityState({ assessment }: { assessment: MasteryAvailability }) {
     return (
       <div className="flex items-center gap-2 text-sm font-medium">
         <CheckCircle2 className="h-4 w-4" />
-        Capability Check complete
+        Complete
       </div>
     );
   }
@@ -36,7 +36,7 @@ function CapabilityState({ assessment }: { assessment: MasteryAvailability }) {
     return (
       <div className="flex items-center gap-2 text-sm font-medium">
         <PlayCircle className="h-4 w-4" />
-        Capability Check ready
+        Ready
       </div>
     );
   }
@@ -44,7 +44,7 @@ function CapabilityState({ assessment }: { assessment: MasteryAvailability }) {
   return (
     <div className="flex items-center gap-2 text-sm font-medium">
       <LockKeyhole className="h-4 w-4" />
-      {assessment.status === "locked" ? "Capability Check locked" : "Capability Check not available yet"}
+      {assessment.status === "locked" ? "Locked" : "Not available yet"}
     </div>
   );
 }
@@ -82,7 +82,7 @@ export function DeepDiveCapabilityCheck({
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          Capability Check status could not be loaded. Your Training progress has not changed.
+          Mastery status could not be loaded. Your Training progress has not changed.
         </AlertDescription>
       </Alert>
     );
@@ -101,7 +101,7 @@ export function DeepDiveCapabilityCheck({
         {assessment.status === "available" ? (
           <Button size="sm" asChild>
             <Link to={`/operational/specialist/capability/${assessment.assessmentKey}`}>
-              Take Check
+              Begin
             </Link>
           </Button>
         ) : null}
@@ -113,15 +113,15 @@ export function DeepDiveCapabilityCheck({
     <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
       <div>
         <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">
-          Deep Dive Capability Check
+          Deep Dive Mastery
         </p>
-        <h2 className="mt-1 text-2xl font-bold">{assessment.title}</h2>
+        <h2 className="mt-1 text-2xl font-bold">{assessment.title.replace(/\\s+Mastery Check$/i, "")}</h2>
       </div>
 
       <CapabilityState assessment={assessment} />
 
       <p className="text-sm text-muted-foreground">
-        Complete this check after working through the Deep Dive. It tests operating understanding and scenario judgment from the active private assessment bank.
+        Demonstrate operating understanding and scenario judgment from the active private assessment bank.
       </p>
 
       {assessment.maxAttempts !== null ? (
@@ -133,7 +133,7 @@ export function DeepDiveCapabilityCheck({
       {assessment.status === "available" ? (
         <Button asChild>
           <Link to={`/operational/specialist/capability/${assessment.assessmentKey}`}>
-            Take Capability Check
+            Begin Mastery
           </Link>
         </Button>
       ) : null}
