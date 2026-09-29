@@ -136,7 +136,7 @@ export default function ResponseConditioningTopicConditioning() {
             },
             {
               key: "c",
-              label: "Start both topics from the lower state so the student's programme stays internally consistent.",
+              label: "Start both topics from the lower state so the programme stays consistent.",
               feedback: "Consistency does not mean one shared state. RI preserves different topic histories when the evidence differs.",
             },
           ]}
@@ -202,7 +202,7 @@ export default function ResponseConditioningTopicConditioning() {
             },
             {
               key: "b",
-              label: "Treat the class result and RI evidence as conflicting, and wait for another class test before deciding the topic state.",
+              label: "Treat them as conflicting and wait for another class test before deciding the topic state.",
               feedback: "The sources are not competing measurements of the same thing. The class test gives academic context; RI is observing the response under the condition being trained.",
             },
             {
@@ -334,7 +334,7 @@ export default function ResponseConditioningTopicConditioning() {
             },
             {
               key: "c",
-              label: "Switch to a separate High Maintenance drill, because the next job is to test the maintenance state directly.",
+              label: "Run a separate High Maintenance drill because that is the next state to confirm.",
               feedback: "High Maintenance is an earned stability state, not a separate drill the Specialist can choose in advance.",
             },
           ]}
@@ -494,7 +494,7 @@ export default function ResponseConditioningTopicConditioning() {
             },
             {
               key: "c",
-              label: "Preserve the supported earlier layers and locate the first behavior that actually becomes unsupported.",
+              label: "Preserve the earlier supported layers and locate the first response behavior that actually becomes unsupported.",
               feedback: "Yes. RI follows the response chain rather than assigning the phase from the final answer or from where the error happened chronologically.",
             },
           ]}
