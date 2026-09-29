@@ -262,68 +262,69 @@ export default function ResponseConditioningClarity() {
           </div>
         </Card>
 
-        <Card className="p-6 space-y-5">
+        <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Run the Drill: Set by Set</h2>
           <p className="text-muted-foreground">
-            Each set is a controlled experience. Follow the sequence, preserve the condition, and let every repetition answer its
-            own question about the student's response.
+            Each set is its own learning step. Read the purpose, Specialist action, student action and condition before moving to the next set.
           </p>
-
-          <div className="space-y-5">
-            {trainingSchema.sets.map((set, setIndex) => {
-              const execution = CLARITY_SET_EXECUTION[set.setId];
-              const repPurposes = CLARITY_REP_PURPOSES[set.setId] || [];
-
-              return (
-                <div key={set.setId} className="rounded-xl border p-5 space-y-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Set {setIndex + 1}</p>
-                    <h3 className="text-xl font-bold">{set.setName}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{set.purpose}</p>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-lg bg-muted/40 p-4 space-y-2">
-                      <p className="font-semibold">What the Specialist does</p>
-                      <p className="text-sm text-muted-foreground">{execution.specialistAction}</p>
-                    </div>
-                    <div className="rounded-lg bg-muted/40 p-4 space-y-2">
-                      <p className="font-semibold">What the student does</p>
-                      <p className="text-sm text-muted-foreground">{execution.studentAction}</p>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border-l-4 border-l-primary bg-primary/5 p-4 space-y-2">
-                    <p className="font-semibold">Condition to preserve</p>
-                    <p className="text-sm text-muted-foreground">{execution.preserve}</p>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{constraintLabel(set)}</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="font-semibold">Why every rep exists</p>
-                    {repPurposes.map((purpose, repIndex) => (
-                      <div key={purpose} className="rounded-lg border p-3">
-                        <p className="text-sm">
-                          <span className="font-semibold">Rep {repIndex + 1}: </span>
-                          <span className="text-muted-foreground">{purpose}</span>
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="font-semibold">Do not contaminate this set</p>
-                    <ul className="space-y-1 text-sm text-muted-foreground">
-                      {execution.doNot.map((rule) => (
-                        <li key={rule}>{rule}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </Card>
+
+        {trainingSchema.sets.map((set, setIndex) => {
+          const execution = CLARITY_SET_EXECUTION[set.setId];
+          const repPurposes = CLARITY_REP_PURPOSES[set.setId] || [];
+
+          return (
+            <Card key={set.setId} className="p-6 space-y-5">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                  Set {setIndex + 1} of {trainingSchema.sets.length}
+                </p>
+                <h2 className="mt-1 text-2xl font-bold">{set.setName}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{set.purpose}</p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-lg bg-muted/40 p-4 space-y-2">
+                  <p className="font-semibold">What the Specialist does</p>
+                  <p className="text-sm text-muted-foreground">{execution.specialistAction}</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-4 space-y-2">
+                  <p className="font-semibold">What the student does</p>
+                  <p className="text-sm text-muted-foreground">{execution.studentAction}</p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border-l-4 border-l-primary bg-primary/5 p-4 space-y-2">
+                <p className="font-semibold">Condition to preserve</p>
+                <p className="text-sm text-muted-foreground">{execution.preserve}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {constraintLabel(set)}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-semibold">Why every rep exists</p>
+                {repPurposes.map((purpose, repIndex) => (
+                  <div key={purpose} className="rounded-lg border p-3">
+                    <p className="text-sm">
+                      <span className="font-semibold">Rep {repIndex + 1}: </span>
+                      <span className="text-muted-foreground">{purpose}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-semibold">Do not contaminate this set</p>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {execution.doNot.map((rule) => (
+                    <li key={rule}>{rule}</li>
+                  ))}
+                </ul>
+              </div>
+            </Card>
+          );
+        })}
 
         <DeepDiveTeachingInteraction
           prompt="A student reaches the correct answer after the Specialist gives each next step. What does that prove about Clarity?"
