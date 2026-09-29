@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -136,6 +137,11 @@ export default function ResponseConditioningClarity() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+        <DeepDiveLessonRunner
+          lessonKey="clarity-v1"
+          title="Clarity"
+          completion={<DeepDiveCapabilityCheck assessmentKey="clarity_mastery_v1" />}
+        >
         <Card className="p-6 space-y-5 border-l-4 border-l-primary">
           <h2 className="text-2xl font-bold">The Transformation</h2>
           <p className="text-xl font-semibold">
@@ -472,7 +478,7 @@ export default function ResponseConditioningClarity() {
           </ul>
           <p className="font-semibold">If you understand it, the next step is demonstration, not another explanation.</p>
         </Card>
-        <DeepDiveCapabilityCheck assessmentKey="clarity_mastery_v1" />
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );
