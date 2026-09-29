@@ -417,7 +417,7 @@ export default function ResponseConditioningTimePressureStability() {
           options={[
             {
               key: "a",
-              label: "Run a replacement, because an incomplete attempt cannot establish anything about timed stability.",
+              label: "Run a replacement, because incomplete attempts should not count.",
               feedback: "Non-completion under a valid timer is itself evidence of the response under pressure. Replacement is not for undesirable learner outcomes.",
             },
             {
@@ -458,7 +458,7 @@ export default function ResponseConditioningTimePressureStability() {
             },
             {
               key: "b",
-              label: "Pause the timer while the student regains structure, then resume so the same nominal time limit is preserved.",
+              label: "Pause the timer until structure returns, then resume.",
               feedback: "Pausing removes part of the continuous pressure. The displayed total may look unchanged, but the condition is no longer the same.",
             },
             {
