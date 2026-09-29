@@ -207,26 +207,26 @@ export default function ResponseConditioningControlledDiscomfort() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="The student becomes visibly uncomfortable as the problem gets harder. What is the Specialist's job?"
+          prompt="A student becomes visibly uncomfortable on a challenging but solvable problem and asks to switch to an easier one. What should the Specialist protect?"
           options={[
             {
               key: "a",
-              label: "Remove the difficulty so the student can regain confidence.",
-              feedback: "Removing the difficulty removes the condition this phase is meant to train.",
+              label: "The student's confidence by reducing difficulty before the discomfort becomes a negative experience.",
+              feedback: "That can remove the exact condition being trained. Visible discomfort is not itself evidence that the task is inappropriate.",
             },
             {
               key: "b",
-              label: "Keep the difficulty challenging but accessible and observe whether the student can produce a controlled response.",
-              feedback: "Controlled Discomfort preserves difficulty without making the task impossible.",
+              label: "The assigned accessible difficulty, while observing whether the student can produce a controlled response inside it.",
+              feedback: "Yes. The challenge stays because the phase is training response under difficulty, not comfort in the absence of difficulty.",
             },
             {
               key: "c",
-              label: "Add a timer so the student learns to cope faster.",
-              feedback: "Time pressure belongs later. This phase first establishes stability under difficulty itself.",
+              label: "The student's independence by adding a timer instead of offering help, so the pressure comes from time rather than the Specialist.",
+              feedback: "A timer introduces a later-phase constraint. It does not preserve the current difficulty condition; it changes what is being tested.",
             },
           ]}
           correctOptionKey="b"
-          truth="Controlled Discomfort uses accessible difficulty on purpose. The Specialist does not remove discomfort or add a later-phase constraint; they preserve the condition and observe the response."
+          truth="Controlled Discomfort keeps difficulty present when the task is still appropriate and accessible. The Specialist neither removes the challenge nor adds a later pressure variable just because discomfort appears."
         />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
@@ -248,14 +248,26 @@ export default function ResponseConditioningControlledDiscomfort() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="What makes a problem suitable for difficulty-response training?"
+          prompt="Which problem is best suited to a Controlled Discomfort set?"
           options={[
-            { key: "a", label: "It is challenging enough to create uncertainty but still accessible with the learner's existing mathematical capability.", feedback: "The difficulty should expose response under uncertainty without making the mathematics itself impossible." },
-            { key: "b", label: "It is beyond the learner's current mathematical knowledge so failure is guaranteed.", feedback: "Impossible mathematics cannot cleanly show whether the learner can stay functional with a solvable challenge." },
-            { key: "c", label: "It is very easy so the learner can feel calm first.", feedback: "An easy task removes the uncertainty this phase is meant to train." },
+            {
+              key: "a",
+              label: "A problem using mathematics the student already has, but presented with enough challenge or uncertainty to test their response.",
+              feedback: "Yes. The task must be difficult enough to expose the response while still leaving the student a genuine mathematical path forward.",
+            },
+            {
+              key: "b",
+              label: "A problem containing a new method the student has not learned, because genuine uncertainty creates stronger discomfort evidence.",
+              feedback: "New content makes the mathematics itself unsupported. A breakdown would no longer cleanly show how the student responds to accessible difficulty.",
+            },
+            {
+              key: "c",
+              label: "A familiar easy problem under a strict timer, because urgency can create discomfort without changing the mathematics.",
+              feedback: "That makes time the active pressure variable. Controlled Discomfort is meant to isolate response to difficulty before urgency is added.",
+            },
           ]}
           correctOptionKey="a"
-          truth="The intended difficulty is controlled: enough uncertainty to challenge the response, but still accessible enough that the learner has a real path forward."
+          truth="The difficulty must be controlled: challenging enough to create uncertainty, but still within the student's existing mathematical capability so the response under challenge can be observed cleanly."
         />
 
         <Card className="p-6 space-y-5">
@@ -352,26 +364,26 @@ export default function ResponseConditioningControlledDiscomfort() {
         })}
 
         <DeepDiveTeachingInteraction
-          prompt="In a no-rescue rep, the student repeatedly asks for reassurance. What should happen?"
+          prompt="In a No Rescue rep, the student asks, 'Can you at least tell me how to start?' What is the strongest response?"
           options={[
             {
               key: "a",
-              label: "Quietly coach the next step so the student does not shut down.",
-              feedback: "Hidden coaching is still rescue and contaminates the no-rescue evidence.",
+              label: "Give the full first step and then withdraw, because the rep only prohibits support after the student has started.",
+              feedback: "No Rescue has a defined support boundary. Expanding it whenever the student asks would turn rescue-seeking into a route to extra help.",
             },
             {
               key: "b",
-              label: "Hold the allowed support boundary and observe whether the student can continue without being carried.",
-              feedback: "Rescue-seeking is part of what the rep is designed to reveal.",
+              label: "Use only the support the set explicitly allows, then hold the boundary and observe what the student does next.",
+              feedback: "Yes. The point is not absolute silence; it is preserving the exact support contract so dependence and recovery remain observable.",
             },
             {
               key: "c",
-              label: "Mark the rep invalid simply because the student asked for help.",
-              feedback: "The student's weak response is evidence if the Specialist preserved the condition.",
+              label: "Refuse every form of support, even if the set's defined first-step boundary has not yet been used.",
+              feedback: "Being stricter than the assigned condition also changes the rep. The Specialist must preserve the defined boundary, not invent a harsher one.",
             },
           ]}
           correctOptionKey="b"
-          truth="The no-rescue condition reveals dependence and recovery. Asking for help does not invalidate the rep; supplying prohibited rescue would."
+          truth="No Rescue means no support beyond the set's defined boundary. The Specialist neither expands the support because the student is uncomfortable nor makes the condition harsher than RI assigned."
         />
 
         <Card className="p-6 space-y-5">
@@ -390,14 +402,26 @@ export default function ResponseConditioningControlledDiscomfort() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="The learner repeatedly asks to be rescued during a properly prepared no-rescue rep. What does that mean about the rep?"
+          prompt="The Specialist preserves the difficulty and support boundary, but the student eventually stops and cannot continue. Is the rep invalid?"
           options={[
-            { key: "a", label: "The rep is invalid because the learner did not cope well.", feedback: "The rescue-seeking response is exactly the kind of behavior the condition is meant to reveal." },
-            { key: "b", label: "The rep can still be valid evidence if the Specialist preserved the allowed support boundary.", feedback: "The learner can perform weakly while the Specialist executes the condition correctly." },
-            { key: "c", label: "The Specialist should provide the solution so the rep can end successfully.", feedback: "Full rescue would change the condition and hide the dependence that appeared." },
+            {
+              key: "a",
+              label: "Yes, because a valid difficulty rep must reach completion before it can say anything about stability.",
+              feedback: "Completion is not required for the rep to reveal a breakdown. The student's stopping point can be exactly the evidence the condition was designed to expose.",
+            },
+            {
+              key: "b",
+              label: "Only if the Specialist believes the student could have succeeded with a little more encouragement.",
+              feedback: "Specialist expectation does not decide validity. The question is whether the assigned condition was preserved.",
+            },
+            {
+              key: "c",
+              label: "No. If the condition was preserved, the student's inability to continue is valid evidence of the response under difficulty.",
+              feedback: "Yes. Weak learner performance and correct Specialist execution can coexist.",
+            },
           ]}
-          correctOptionKey="b"
-          truth="Learner struggle does not make a correctly run difficulty rep invalid. If the Specialist preserves the condition, rescue-seeking, hesitation and breakdown remain truthful evidence."
+          correctOptionKey="c"
+          truth="A Controlled Discomfort rep can be valid even when the student breaks down. Rep validity comes from preserving the assigned condition; the learner's response is what the condition is meant to reveal."
         />
 
         <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
@@ -414,26 +438,26 @@ export default function ResponseConditioningControlledDiscomfort() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A student handles one difficult exposure calmly. Is Controlled Discomfort now stable?"
+          prompt="A student handles one difficult exposure calmly. What would most strongly show that Controlled Discomfort is becoming stable?"
           options={[
             {
               key: "a",
-              label: "Yes. One successful hard problem proves tolerance.",
-              feedback: "One strong response can be isolated. Stability requires repetition.",
+              label: "A harder problem next, because stability is best confirmed when the student can tolerate an increased demand.",
+              feedback: "Increasing the difficulty changes the condition. It would show response to a new demand, not repeatability at the current one.",
             },
             {
               key: "b",
-              label: "Not yet. Repeat exposure at the same difficulty must show whether the response holds.",
-              feedback: "Repeat Exposure separates one-time survival from a stable response under difficulty.",
+              label: "Another valid exposure at the same difficulty, showing that the controlled response can be produced again.",
+              feedback: "Yes. Repeatability is established by comparable opportunities, not by escalating after one strong moment.",
             },
             {
               key: "c",
-              label: "Yes, and the next rep should introduce time pressure.",
-              feedback: "Timers are not introduced until the evidence authorizes the next phase.",
+              label: "The same problem repeated immediately, because reproducing the successful response removes uncertainty about whether it was learned.",
+              feedback: "Repeating the identical problem can introduce memory of the specific solution. RI needs another comparable exposure, not simple recall of the same task.",
             },
           ]}
           correctOptionKey="b"
-          truth="Controlled Discomfort is not proven by one strong moment. The same difficulty must be encountered again so RI can see whether the controlled response repeats."
+          truth="One strong difficult rep shows possibility. Stability requires the controlled response to repeat across comparable valid exposures without changing the demand or turning the task into memorised repetition."
         />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
