@@ -309,7 +309,7 @@ export default function ResponseConditioningHowToModel() {
             </p>
           </div>
           <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-            <div className="relative aspect-[5/3] w-full overflow-hidden">
+            <div className="relative aspect-[17/10] w-full overflow-hidden">
               <img
                 src={setupVisualSrc}
                 alt="Response Integrity comparison of live Modelling and Observation setups"
