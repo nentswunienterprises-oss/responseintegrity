@@ -1,4 +1,7 @@
 import { useMemo } from "react";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -146,7 +149,12 @@ export default function ResponseConditioningStructuredExecution() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-        <Card className="p-6 space-y-5 border-l-4 border-l-primary">
+        <DeepDiveLessonRunner
+          lessonKey="structured-execution-v1"
+          title="Structured Execution"
+          completion={<DeepDiveCapabilityCheck assessmentKey="structured_execution_mastery_v1" />}
+        >
+        <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">The Transformation</h2>
           <p className="text-xl font-semibold">
             Structured Execution asks: can the student do the known method without being carried?
@@ -198,10 +206,33 @@ export default function ResponseConditioningStructuredExecution() {
           </ul>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="A student reaches the correct answer but skips two required steps and cannot explain how they moved between them. What does the result show?"
+          options={[
+            {
+              key: "a",
+              label: "Structured Execution is strong enough, because the correct outcome proves the missing steps were mentally understood.",
+              feedback: "The missing structure cannot be inferred from the correct answer. RI needs the execution chain to be observable and repeatable.",
+            },
+            {
+              key: "b",
+              label: "The correct result proves the outcome, not that the student can reliably execute the required sequence.",
+              feedback: "Yes. This phase asks whether the known method can be carried in order, not whether one answer happened to land correctly.",
+            },
+            {
+              key: "c",
+              label: "Return to Clarity, because skipped steps mean the method is no longer understood.",
+              feedback: "Skipped execution does not automatically prove a recognition failure. RI preserves earlier supported layers unless the evidence actually contradicts them.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Structured Execution requires visible, repeatable method use. A correct answer cannot substitute for evidence that the student can carry the known structure independently."
+        />
+
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Structured Execution Training Recipe</h2>
           <p className="text-muted-foreground">
-            This sequence is rendered from the live drill registry so the Deep Dive stays aligned with the runner.
+            This is the required Structured Execution training sequence.
           </p>
           <div className="rounded-lg border bg-background p-4">
             <p className="font-semibold text-lg">
@@ -215,6 +246,29 @@ export default function ResponseConditioningStructuredExecution() {
             Mental model: Require structure -&gt; withhold help -&gt; test variation -&gt; submit evidence -&gt; let RI-OS decide what happens next.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="You are preparing a Required Structure set for a method the student already recognises. Which material is best?"
+          options={[
+            {
+              key: "a",
+              label: "One identical form repeated until the student can complete it without hesitation.",
+              feedback: "That can produce fluency with one surface pattern without showing whether the execution structure itself is reliable.",
+            },
+            {
+              key: "c",
+              label: "A new method from the same topic, because successful execution would prove the student can generalise structure.",
+              feedback: "A new method changes the prerequisite. The Specialist would no longer know whether a breakdown came from recognition or execution.",
+            },
+            {
+              key: "b",
+              label: "Several appropriate problems using the known method, so the sequence can be observed repeatedly.",
+              feedback: "Yes. The material should expose repeatable execution of the known method without silently turning the task into new-method learning.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Structured Execution assumes the method is already known. Preparation should create repeated opportunities to observe whether the student can carry that method reliably under the intended set condition."
+        />
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
@@ -246,96 +300,97 @@ export default function ResponseConditioningStructuredExecution() {
               Independent Execution also supplies the passive TPS baseline. Before the session, prepare one fresh equivalent same-form, normal-difficulty reserve problem for that set. It is contingency inventory only for an objective technical timing failure - not an extra rep and not a way to replace weak student performance.
             </p>
             <p className="text-sm font-medium">
-              A technical failure leaves the canonical evidence slot unresolved. Do not reuse the exposed problem or improvise a replacement mid-session.
+              If the timing setup fails and the attempt can no longer be trusted, leave that attempt unresolved. Do not reuse the exposed problem or improvise a replacement mid-session.
             </p>
           </div>
         </Card>
 
-        <Card className="p-6 space-y-5">
+        <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Run the Drill: Set by Set</h2>
           <p className="text-muted-foreground">
-            Each set is a controlled experience. Follow the sequence, preserve the condition, and let every repetition answer its own
-            question about the student's execution.
+            Each set is its own learning step. Follow the sequence and notice exactly what must stay visible before moving on.
           </p>
-
-          <div className="space-y-5">
-            {trainingSchema.sets.map((set, setIndex) => {
-              const execution = STRUCTURED_SET_EXECUTION[set.setId];
-              const repPurposes = STRUCTURED_REP_PURPOSES[set.setId] || [];
-
-              return (
-                <div key={set.setId} className="rounded-xl border p-5 space-y-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Set {setIndex + 1}</p>
-                    <h3 className="text-xl font-bold">{set.setName}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{set.purpose}</p>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-lg bg-muted/40 p-4 space-y-2">
-                      <p className="font-semibold">What the Specialist does</p>
-                      <p className="text-sm text-muted-foreground">{execution.specialistAction}</p>
-                    </div>
-                    <div className="rounded-lg bg-muted/40 p-4 space-y-2">
-                      <p className="font-semibold">What the student does</p>
-                      <p className="text-sm text-muted-foreground">{execution.studentAction}</p>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border-l-4 border-l-primary bg-primary/5 p-4 space-y-2">
-                    <p className="font-semibold">Condition to preserve</p>
-                    <p className="text-sm text-muted-foreground">{execution.preserve}</p>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{constraintLabel(set)}</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="font-semibold">Why every rep exists</p>
-                    {repPurposes.map((purpose, repIndex) => (
-                      <div key={purpose} className="rounded-lg border p-3">
-                        <p className="text-sm">
-                          <span className="font-semibold">Rep {repIndex + 1}: </span>
-                          <span className="text-muted-foreground">{purpose}</span>
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="font-semibold">Do not contaminate this set</p>
-                    <ul className="space-y-1 text-sm text-muted-foreground">
-                      {execution.doNot.map((rule) => (
-                        <li key={rule}>{rule}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </Card>
 
-        <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">Diagnosis Structure</h2>
-          <p className="text-muted-foreground">
-            Diagnosis uses a shorter Structured Execution check before ongoing training begins. It verifies whether execution is already
-            present or whether the topic needs structured training.
-          </p>
-          <div className="space-y-4">
-            {diagnosisSchema.sets.map((set) => (
-              <div key={set.setId} className="rounded-lg border p-4 space-y-3">
-                <div>
-                  <h3 className="text-lg font-semibold">{set.setName}</h3>
-                  <p className="text-sm text-muted-foreground">{set.reps} reps</p>
-                </div>
-                <p className="text-muted-foreground">{set.purpose}</p>
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Rep instruction:</span> {diagnosisInstructionFor(set)}
+        {trainingSchema.sets.map((set, setIndex) => {
+          const execution = STRUCTURED_SET_EXECUTION[set.setId];
+          const repPurposes = STRUCTURED_REP_PURPOSES[set.setId] || [];
+
+          return (
+            <Card key={set.setId} className="p-6 space-y-5">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                  Set {setIndex + 1} of {trainingSchema.sets.length}
                 </p>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{constraintLabel(set)}</p>
+                <h2 className="mt-1 text-2xl font-bold">{set.setName}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{set.purpose}</p>
               </div>
-            ))}
-          </div>
-        </Card>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-lg bg-muted/40 p-4 space-y-2">
+                  <p className="font-semibold">What the Specialist does</p>
+                  <p className="text-sm text-muted-foreground">{execution.specialistAction}</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-4 space-y-2">
+                  <p className="font-semibold">What the student does</p>
+                  <p className="text-sm text-muted-foreground">{execution.studentAction}</p>
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-primary/5 p-4 space-y-2">
+                <p className="font-semibold">Condition to preserve</p>
+                <p className="text-sm text-muted-foreground">{execution.preserve}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {constraintLabel(set)}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-semibold">Why every rep exists</p>
+                {repPurposes.map((purpose, repIndex) => (
+                  <div key={purpose} className="rounded-lg border p-3">
+                    <p className="text-sm">
+                      <span className="font-semibold">Rep {repIndex + 1}: </span>
+                      <span className="text-muted-foreground">{purpose}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-semibold">Do not contaminate this set</p>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {execution.doNot.map((rule) => (
+                    <li key={rule}>{rule}</li>
+                  ))}
+                </ul>
+              </div>
+            </Card>
+          );
+        })}
+
+        <DeepDiveTeachingInteraction
+          prompt="During a no-help execution rep, the student asks, 'Is this the right next step?' What response preserves the rep?"
+          options={[
+            {
+              key: "a",
+              label: "Confirm yes or no, because that checks the student's idea without telling them what the next step is.",
+              feedback: "A yes or no answer still supplies directional information the learner was supposed to generate and evaluate independently.",
+            },
+            {
+              key: "c",
+              label: "Do not resolve the step; observe the request and let the student's next action stand as evidence.",
+              feedback: "Yes. The condition is designed to show whether execution can continue without Specialist direction.",
+            },
+            {
+              key: "b",
+              label: "Ask, 'What do you think?' so the student remains the one choosing the next step.",
+              feedback: "Reflecting the question back still becomes a prompt that can carry a stalled response. In a no-help rep, the support request itself is evidence.",
+            },
+          ]}
+          correctOptionKey="c"
+          truth="No-help execution must remain no-help when the student becomes uncertain. The request for support is evidence; answering it would change what the rep measures."
+        />
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What You Observe</h2>
@@ -353,6 +408,29 @@ export default function ResponseConditioningStructuredExecution() {
           </p>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="The student stalls. The Specialist silently points to the line where the next step should happen, and the student completes the method. How should that support be treated?"
+          options={[
+            {
+              key: "a",
+              label: "As no support, because the Specialist did not say the next step or correct the mathematics.",
+              feedback: "Support is not limited to words. Pointing can remove the very decision the student was supposed to make independently.",
+            },
+            {
+              key: "b",
+              label: "As minor support that can be ignored if the rest is independent.",
+              feedback: "The size of the cue does not make it disappear. If it materially directs execution, it belongs in the evidence.",
+            },
+            {
+              key: "c",
+              label: "As support, because the gesture supplied direction when execution had stalled.",
+              feedback: "Yes. RI records the functional effect of the Specialist's action, not merely whether help was verbal.",
+            },
+          ]}
+          correctOptionKey="c"
+          truth="Non-verbal direction can contaminate independent execution just as verbal prompting can. The evidence must preserve where the student stopped and what the Specialist supplied."
+        />
+
         <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
           <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
           <p className="text-muted-foreground">
@@ -368,6 +446,29 @@ export default function ResponseConditioningStructuredExecution() {
             reducing variation until it no longer tests transfer, or logging independence that was actually assisted.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="The student executes a familiar form well, then loses the same method when the problem is presented differently. What should the Specialist preserve next?"
+          options={[
+            {
+              key: "a",
+              label: "The changed form, because the breakdown is showing whether the known method transfers across variation.",
+              feedback: "Yes. Variation Control exists to expose whether execution survives a changed presentation.",
+            },
+            {
+              key: "b",
+              label: "Return to the familiar form and rebuild successful execution first.",
+              feedback: "Returning only to the familiar form can hide the transfer weakness that the changed form just revealed.",
+            },
+            {
+              key: "c",
+              label: "A harder unfamiliar problem, because losing the method under change means the student is ready for Controlled Discomfort.",
+              feedback: "Variation is not automatically a difficulty-phase condition. The current evidence still concerns transfer of the known execution structure.",
+            },
+          ]}
+          correctOptionKey="a"
+          truth="Variation Control belongs inside Structured Execution. The Specialist preserves a valid changed form and observes whether the known method survives the change without adding a different phase demand."
+        />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression Logic</h2>
@@ -395,6 +496,7 @@ export default function ResponseConditioningStructuredExecution() {
             <li>Why RI-OS, not the Specialist, owns the progression decision.</li>
           </ul>
         </Card>
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );

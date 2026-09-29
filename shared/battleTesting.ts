@@ -962,7 +962,7 @@ const tutorPhaseDefinitions: BattleTestPhaseDefinition[] = [
         section: "Authority and Stopping",
         prompt: "When does Handover end, and who decides what happens to the inherited state?",
         expectedAnswer:
-          "Handover ends when the Response Evidence Model has enough evidence to hold the inherited state, make a bounded same-phase stability adjustment, or require targeted re-diagnosis. It is evidence-complete rather than fixed-rep complete, and the system—not the Specialist—owns the state decision.",
+          "Handover ends when the Response Evidence Model has enough evidence to hold the inherited state, make a bounded same-phase stability adjustment, or require targeted re-diagnosis. It is evidence-complete rather than fixed-rep complete, and the system - not the Specialist - owns the state decision.",
         failIndicators: ["after three reps", "when the tutor feels sure", "keep drilling until it passes"],
         autoCriticalOnFail: true,
       },

@@ -184,7 +184,7 @@ export default function TutorLanding() {
             <Card className="rounded-[30px] border border-[#E5D3C5] bg-white/86 p-7 shadow-sm sm:p-8">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8A4B35]">Who should apply</p>
               <h2 className="mt-2 text-3xl font-bold tracking-tight text-[#171311]">Strong in maths. Willing to learn the craft.</h2>
-              <p className="mt-3 text-sm leading-7 text-[#4F4742]">This pathway is for people who want to develop the ability to work responsibly with students—not simply explain answers.</p>
+              <p className="mt-3 text-sm leading-7 text-[#4F4742]">This pathway is for people who want to develop the ability to work responsibly with students - not simply explain answers.</p>
               <div className="mt-7 space-y-4">
                 {fitSignals.map((item) => (
                   <div key={item} className="rounded-[22px] border border-[#EEDFD3] bg-[#FFF8F3] p-5">
@@ -238,7 +238,7 @@ export default function TutorLanding() {
             <div className="max-w-3xl">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8A4B35]">Application dates</p>
               <h2 className="mt-1 text-3xl font-bold tracking-tight text-[#171311]">Find your next opportunity to apply.</h2>
-              <p className="mt-3 text-sm leading-7 text-[#4F4742] sm:text-base">Applications open during scheduled intake periods. Check the current status before you begin—the full pathway starts after entry and follows its own evidence-gated 75-day window.</p>
+              <p className="mt-3 text-sm leading-7 text-[#4F4742] sm:text-base">Applications open during scheduled intake periods. Check the current status before you begin - the full pathway starts after entry and follows its own evidence-gated 75-day window.</p>
             </div>
             <div className="mt-7 grid gap-4 lg:grid-cols-2">
               {specialistCycles.map((cycle) => (

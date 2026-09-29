@@ -1,7 +1,10 @@
 # Battle Testing Certification Integrity Specification
 
-Status: Proposed implementation contract  
-Date: 2026-08-31
+Status: **SUPERSEDED FOR TRAINING GRADUATION; retained as historical/manual alignment-audit reference**  
+Original date: 2026-08-31  
+Superseded for Training authority: 2026-09-28
+
+> The three-consecutive-score Battle Testing mechanism below no longer governs Deep Dive completion or Training -> Sandbox progression. Current Training authority is the Capability architecture in `docs/CAPABILITY_TRAINING_ARCHITECTURE_2026-09-28.md`: clean Deep Dive Mastery, delayed Retrieval, then interleaved Transfer. The legacy TD-led Battle Testing machinery may remain available for manual alignment, drift, or health review, but it cannot issue the current Sandbox transition.
 
 ## 1. Decision
 
@@ -103,7 +106,7 @@ Deep-dive health remains:
 - 90 to below 95: Watchlist
 - 95 and above: Locked for the attempt
 
-Deep-dive preparation completion remains three consecutive scores of 96 or above without an active critical fail.
+Historical Battle Testing preparation completion used three consecutive scores of 96 or above without an active critical fail. That streak remains part of the legacy audit record only; it is not current Capability Mastery or Sandbox authority.
 
 ## 7. Critical-fail standard
 

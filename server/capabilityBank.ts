@@ -36,6 +36,7 @@ async function loadActiveCapabilityConfig(assessmentKey: string): Promise<Privat
             form_size,
             max_attempts,
             retry_cooldown_hours,
+            review_mode,
             competency_blueprint
        FROM private.specialist_capability_assessment_configs
       WHERE assessment_key = $1
@@ -57,6 +58,7 @@ async function loadActiveCapabilityConfig(assessmentKey: string): Promise<Privat
     formSize: Number(row.form_size),
     maxAttempts: Number(row.max_attempts),
     retryCooldownHours: Number(row.retry_cooldown_hours),
+    reviewMode: Boolean(row.review_mode),
     competencyBlueprint: parseJsonArray(row.competency_blueprint),
     criticalBoundaryRequirements: buildCapabilityCriticalBoundaryRequirements(String(row.assessment_key)),
   };
@@ -73,7 +75,8 @@ async function loadCapabilityItems(config: PrivateCapabilityAssessmentConfig): P
             correct_option_keys,
             critical_fail_option_keys,
             critical_boundary_keys,
-            explanation
+            explanation,
+            option_feedback
        FROM private.specialist_capability_assessment_items
       WHERE assessment_key = $1
         AND bank_version = $2
@@ -93,6 +96,10 @@ async function loadCapabilityItems(config: PrivateCapabilityAssessmentConfig): P
     criticalFailOptionKeys: parseJsonArray(row.critical_fail_option_keys),
     criticalBoundaryKeys: parseJsonArray(row.critical_boundary_keys),
     explanation: String(row.explanation),
+    optionFeedback:
+      row.option_feedback && typeof row.option_feedback === "object" && !Array.isArray(row.option_feedback)
+        ? (row.option_feedback as Record<string, string>)
+        : {},
   })) satisfies CapabilityBoundaryTaggedQuestion[];
 }
 
@@ -102,22 +109,43 @@ async function getAttemptState(
   bankVersion: number,
 ) {
   const result = await pool.query(
-    `SELECT COUNT(*)::int AS attempt_count,
-            MAX(completed_at) AS latest_completed_at
+    `SELECT attempt_number,
+            form_item_keys,
+            completed_at
        FROM specialist_capability_assessment_attempts
       WHERE tutor_assignment_id = $1
         AND assessment_key = $2
-        AND bank_version = $3`,
+        AND bank_version = $3
+      ORDER BY attempt_number ASC`,
     [tutorAssignmentId, assessmentKey, bankVersion],
   );
 
+  const latest = result.rows.at(-1) || null;
+  const usedItemKeys = Array.from(
+    new Set(
+      result.rows.flatMap((row) =>
+        parseJsonArray<string>(row.form_item_keys).map((value) => String(value)),
+      ),
+    ),
+  );
+
   return {
-    attemptCount: Number(result.rows[0]?.attempt_count || 0),
-    latestCompletedAt: result.rows[0]?.latest_completed_at ? new Date(result.rows[0].latest_completed_at) : null,
+    attemptCount: result.rows.length,
+    latestCompletedAt: latest?.completed_at
+      ? new Date(latest.completed_at)
+      : null,
+    usedItemKeys,
   };
 }
 
-function enforceRetryPolicy(config: PrivateCapabilityAssessmentConfig, state: { attemptCount: number; latestCompletedAt: Date | null }) {
+function enforceRetryPolicy(
+  config: PrivateCapabilityAssessmentConfig,
+  state: {
+    attemptCount: number;
+    latestCompletedAt: Date | null;
+    usedItemKeys: string[];
+  },
+) {
   if (state.attemptCount >= config.maxAttempts) {
     const error = new Error("Maximum capability assessment attempts reached.") as Error & { status?: number };
     error.status = 409;
@@ -164,7 +192,7 @@ export async function buildCapabilityAttemptPlan(input: {
   }
   if (resolvedSecret.source === "proof_session_derived") {
     console.warn(
-      "[CAPABILITY] Proof preview is using the isolated session-derived Capability form secret; production still requires CAPABILITY_FORM_SECRET.",
+      "[CAPABILITY] Proof is using the isolated session-derived Capability form secret; production still requires CAPABILITY_FORM_SECRET.",
     );
   }
   const seed = createCapabilityFormSeed({
@@ -175,6 +203,33 @@ export async function buildCapabilityAttemptPlan(input: {
     attemptNumber,
   });
 
-  const form = generateDeterministicCapabilityForm(config, itemPool, seed);
+  let form: GeneratedCapabilityForm;
+  if (
+    config.evidenceKind === "mastery" &&
+    attemptNumber > 1 &&
+    state.usedItemKeys.length > 0
+  ) {
+    const used = new Set(state.usedItemKeys);
+    const unseenPool = itemPool.filter((item) => !used.has(item.key));
+
+    try {
+      form = generateDeterministicCapabilityForm(config, unseenPool, seed);
+    } catch (error) {
+      console.warn(
+        "[CAPABILITY] Unseen-only retry could not satisfy the approved form coverage; falling back to the full bank.",
+        {
+          assessmentKey: config.assessmentKey,
+          bankVersion: config.bankVersion,
+          attemptNumber,
+          unseenItems: unseenPool.length,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+      form = generateDeterministicCapabilityForm(config, itemPool, seed);
+    }
+  } else {
+    form = generateDeterministicCapabilityForm(config, itemPool, seed);
+  }
+
   return { config, form, attemptNumber };
 }

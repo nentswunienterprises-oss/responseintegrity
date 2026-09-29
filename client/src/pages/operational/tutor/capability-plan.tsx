@@ -14,21 +14,39 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-type MasteryAvailability = {
+type CapabilityAvailability = {
   assessmentKey: string;
   title: string;
-  evidenceKind: "mastery";
+  evidenceKind: "mastery" | "retrieval" | "transfer";
   coveredDeepDiveKeys: string[];
   status: "unavailable" | "locked" | "available" | "complete";
-  reason: "bank_unavailable" | "attempt_limit" | "retry_cooldown" | null;
+  reason:
+    | "bank_unavailable"
+    | "attempt_limit"
+    | "retry_cooldown"
+    | "prerequisite_incomplete"
+    | "spacing_interval"
+    | null;
   unlockAt: string | null;
   bankVersion: number | null;
   attemptCount: number;
   maxAttempts: number | null;
+  passThresholdPercent: number;
+  formSize: number;
+  stage:
+    | "transformation_mastery"
+    | "transformation_retrieval"
+    | "transformation_transfer"
+    | "session_infrastructure_mastery";
 };
 
 type PodData = {
   assignment?: { id?: string | null } | null;
+};
+
+type CapabilityPlanResponse = {
+  assessments: CapabilityAvailability[];
+  sandboxReady: boolean;
 };
 
 function humanize(value: string) {
@@ -37,28 +55,61 @@ function humanize(value: string) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function statePresentation(assessment: MasteryAvailability) {
+function statePresentation(assessment: CapabilityAvailability) {
   if (assessment.status === "complete") {
+    if (assessment.evidenceKind === "retrieval") {
+      return {
+        label: "Retention evidenced",
+        detail: "You retrieved the Transformation system after the required spacing interval.",
+        Icon: ShieldCheck,
+      };
+    }
+    if (assessment.evidenceKind === "transfer") {
+      return {
+        label: "Transfer evidenced",
+        detail: "You applied RI correctly across mixed Transformation situations.",
+        Icon: ShieldCheck,
+      };
+    }
     return {
-      label: "Mastery evidenced",
-      detail: "You have passed the current approved bank for this Deep Dive.",
+      label: "Mastered",
+      detail: "A clean pass has evidenced this Deep Dive.",
       Icon: ShieldCheck,
     };
   }
+
   if (assessment.status === "available") {
     return {
       label: "Ready",
-      detail: "The Founder-approved private bank is active and this mastery check can be taken.",
+      detail:
+        assessment.evidenceKind === "mastery"
+          ? "Take a clean 15-question Mastery Check."
+          : assessment.evidenceKind === "retrieval"
+            ? "The spacing interval is complete. Your Retention Check is ready."
+            : "Retention is evidenced. Your Application Check is ready.",
       Icon: PlayCircle,
     };
   }
+
   if (assessment.status === "unavailable") {
     return {
       label: "Authoring not complete",
-      detail: "This Deep Dive remains in the Capability plan, but its approved private bank is not active yet.",
+      detail:
+        "This gate is part of the approved Training architecture, but its private bank is not active yet.",
       Icon: LockKeyhole,
     };
   }
+
+  if (assessment.reason === "spacing_interval") {
+    return {
+      label: "Waiting for spacing",
+      detail: assessment.unlockAt
+        ? `Retention Check opens ${new Date(assessment.unlockAt).toLocaleString()}.`
+        : "The delayed Retrieval interval is still running.",
+      Icon: Clock3,
+    };
+  }
+
   if (assessment.reason === "retry_cooldown") {
     return {
       label: "Retry locked",
@@ -68,11 +119,97 @@ function statePresentation(assessment: MasteryAvailability) {
       Icon: Clock3,
     };
   }
+
+  if (assessment.reason === "prerequisite_incomplete") {
+    return {
+      label: "Not yet open",
+      detail:
+        assessment.stage === "session_infrastructure_mastery"
+          ? "Session Infrastructure opens after Transformation Mastery, Retention and Transfer unlock Sandbox."
+          : assessment.evidenceKind === "retrieval"
+            ? "Master all five Transformation Deep Dives first."
+            : "Pass the Transformation Retention Check first.",
+      Icon: LockKeyhole,
+    };
+  }
+
   return {
     label: "Review required",
-    detail: "The current bank attempt allowance has been reached.",
+    detail: "The current attempt allowance has been reached.",
     Icon: LockKeyhole,
   };
+}
+
+function actionLabel(assessment: CapabilityAvailability) {
+  if (assessment.evidenceKind === "retrieval") return "Take Retention Check";
+  if (assessment.evidenceKind === "transfer") return "Take Application Check";
+  return "Take Mastery Check";
+}
+
+function CapabilityCard({
+  assessment,
+  index,
+  navigate,
+}: {
+  assessment: CapabilityAvailability;
+  index: number;
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  const presentation = statePresentation(assessment);
+  const StateIcon = presentation.Icon;
+  const deepDive =
+    assessment.coveredDeepDiveKeys.length === 1
+      ? humanize(assessment.coveredDeepDiveKeys[0])
+      : assessment.title;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              {assessment.evidenceKind === "mastery"
+                ? `Deep Dive ${index + 1}`
+                : assessment.evidenceKind === "retrieval"
+                  ? "Transformation Retention"
+                  : "Transformation Application"}
+            </p>
+            <CardTitle className="mt-1 text-lg">{deepDive}</CardTitle>
+          </div>
+          <StateIcon className="h-5 w-5 text-muted-foreground" />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <p className="text-sm font-medium">{presentation.label}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {presentation.detail}
+          </p>
+        </div>
+
+        {assessment.bankVersion !== null && assessment.maxAttempts !== null ? (
+          <p className="text-xs text-muted-foreground">
+            Private bank v{assessment.bankVersion} · Attempts used:{" "}
+            {assessment.attemptCount}/{assessment.maxAttempts}
+            {" · "}
+            {assessment.formSize} questions
+          </p>
+        ) : null}
+
+        {assessment.status === "available" ? (
+          <Button
+            onClick={() =>
+              navigate(
+                `/operational/specialist/capability/${assessment.assessmentKey}`,
+              )
+            }
+          >
+            {actionLabel(assessment)}
+          </Button>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function SpecialistCapabilityPlan() {
@@ -83,7 +220,7 @@ export default function SpecialistCapabilityPlan() {
   });
   const tutorAssignmentId = String(podQuery.data?.assignment?.id || "");
 
-  const planQuery = useQuery<{ assessments: MasteryAvailability[] }>({
+  const planQuery = useQuery<CapabilityPlanResponse>({
     queryKey: ["capability-mastery-plan", tutorAssignmentId],
     enabled: Boolean(tutorAssignmentId),
     retry: false,
@@ -94,7 +231,7 @@ export default function SpecialistCapabilityPlan() {
           tutorAssignmentId,
         )}`,
       );
-      return (await response.json()) as { assessments: MasteryAvailability[] };
+      return (await response.json()) as CapabilityPlanResponse;
     },
   });
 
@@ -125,14 +262,23 @@ export default function SpecialistCapabilityPlan() {
   }
 
   const assessments = planQuery.data?.assessments || [];
-  const completeCount = assessments.filter(
-    (assessment) => assessment.status === "complete",
+  const sandboxReady = Boolean(planQuery.data?.sandboxReady);
+  const transformationMastery = assessments.filter(
+    (entry) => entry.stage === "transformation_mastery",
+  );
+  const transformationGates = assessments.filter(
+    (entry) =>
+      entry.stage === "transformation_retrieval" ||
+      entry.stage === "transformation_transfer",
+  );
+  const sessionInfrastructure = assessments.filter(
+    (entry) => entry.stage === "session_infrastructure_mastery",
+  );
+  const transformationMastered = transformationMastery.filter(
+    (entry) => entry.status === "complete",
   ).length;
-  const availableCount = assessments.filter(
-    (assessment) => assessment.status === "available",
-  ).length;
-  const activeCount = assessments.filter(
-    (assessment) => assessment.bankVersion !== null,
+  const cumulativeComplete = transformationGates.filter(
+    (entry) => entry.status === "complete",
   ).length;
 
   return (
@@ -147,121 +293,123 @@ export default function SpecialistCapabilityPlan() {
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Response Integrity OS
           </Button>
           <p className="text-sm font-medium text-muted-foreground">
-            Training · Capability Engine
+            Training · Capability
           </p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight">
-            Deep Dive Capability Checks
+            Capability Path
           </h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Each active check draws a deterministic 15-question form from the
-            Founder-approved private bank for that Deep Dive. The assessment tests
-            operating understanding and scenario judgment; it does not replace
-            Sandbox observation, Practical execution, Trial, or Certification.
+            Master each Transformation Deep Dive, prove you still retain the
+            system later, then prove you can apply it across mixed situations.
+            That evidence unlocks Sandbox.
           </p>
         </div>
 
         <Alert>
           <CheckCircle2 className="h-4 w-4" />
           <AlertDescription>
-            Authoring is intentionally staged. Completed banks can run now; unfinished
-            banks remain unavailable rather than falling back to older generated content.
+            A Mastery Check is a clean pass: 15/15 with no critical boundary
+            failure. You have up to three total attempts. Retries prefer unseen
+            questions from the approved 45-item bank.
           </AlertDescription>
         </Alert>
 
-        {planQuery.error && (
+        {planQuery.error ? (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               Capability status could not be loaded. No Training progress has changed.
             </AlertDescription>
           </Alert>
-        )}
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-3">
           <Card>
             <CardContent className="p-5">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Mastery banks
+                Transformation Mastery
               </p>
-              <p className="mt-2 text-3xl font-semibold">{assessments.length || 11}</p>
+              <p className="mt-2 text-3xl font-semibold">
+                {transformationMastered}/5
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-5">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Active approved banks
+                Retention + Application
               </p>
-              <p className="mt-2 text-3xl font-semibold">{activeCount}</p>
+              <p className="mt-2 text-3xl font-semibold">
+                {cumulativeComplete}/2
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-5">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Mastery evidenced
+                Sandbox
               </p>
-              <p className="mt-2 text-3xl font-semibold">{completeCount}</p>
+              <p className="mt-2 text-2xl font-semibold">
+                {sandboxReady ? "Unlocked" : "Locked"}
+              </p>
             </CardContent>
           </Card>
         </div>
 
-        <div className="space-y-4">
-          {assessments.map((assessment, index) => {
-            const presentation = statePresentation(assessment);
-            const StateIcon = presentation.Icon;
-            const deepDive = assessment.coveredDeepDiveKeys[0] || assessment.assessmentKey;
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold">1. Master the Transformation system</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Each Deep Dive has a 45-item private bank. Each attempt draws a
+              balanced 15-question form.
+            </p>
+          </div>
+          {transformationMastery.map((assessment, index) => (
+            <CapabilityCard
+              key={assessment.assessmentKey}
+              assessment={assessment}
+              index={index}
+              navigate={navigate}
+            />
+          ))}
+        </section>
 
-            return (
-              <Card key={assessment.assessmentKey}>
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        Deep Dive {index + 1}
-                      </p>
-                      <CardTitle className="mt-1 text-lg">
-                        {humanize(deepDive)}
-                      </CardTitle>
-                    </div>
-                    <StateIcon className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <p className="text-sm font-medium">{presentation.label}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {presentation.detail}
-                    </p>
-                  </div>
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold">2. Prove retention and transfer</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Retention removes the immediate Deep Dive context. Application
+              then mixes situations so you must identify the correct RI response.
+            </p>
+          </div>
+          {transformationGates.map((assessment, index) => (
+            <CapabilityCard
+              key={assessment.assessmentKey}
+              assessment={assessment}
+              index={index}
+              navigate={navigate}
+            />
+          ))}
+        </section>
 
-                  {assessment.maxAttempts !== null && (
-                    <p className="text-xs text-muted-foreground">
-                      Private bank v{assessment.bankVersion} · attempts{" "}
-                      {assessment.attemptCount}/{assessment.maxAttempts}
-                    </p>
-                  )}
-
-                  {assessment.status === "available" && (
-                    <Button
-                      onClick={() =>
-                        navigate(
-                          `/operational/specialist/capability/${assessment.assessmentKey}`,
-                        )
-                      }
-                    >
-                      Take Capability Check
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        {availableCount === 0 && assessments.length > 0 && (
-          <p className="text-sm text-muted-foreground">
-            No additional mastery check is available right now.
-          </p>
-        )}
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold">3. Continue Training inside Sandbox</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sandbox is not Training completion. It gives you a protected
+              operating environment so Session Infrastructure can be learned
+              against the system you will actually use.
+            </p>
+          </div>
+          {sessionInfrastructure.map((assessment, index) => (
+            <CapabilityCard
+              key={assessment.assessmentKey}
+              assessment={assessment}
+              index={index}
+              navigate={navigate}
+            />
+          ))}
+        </section>
       </div>
     </div>
   );

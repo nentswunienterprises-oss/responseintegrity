@@ -1,4 +1,4 @@
-# Sandbox V1R3 — Stateful RI Practice Environment
+# Sandbox V1R3 - Stateful RI Practice Environment
 
 Date: 2026-09-25
 Status: Approved architecture, implementation in progress
@@ -49,8 +49,8 @@ Weights may favor opportunities that expose the earliest unsupported Specialist 
 
 Sandbox persists two separate state tracks:
 
-1. **Canonical simulated student truth** — what the fictional student behavior actually earns under RI.
-2. **Specialist-recorded RI state** — what RI concludes from the evidence the Specialist submitted.
+1. **Canonical simulated student truth** - what the fictional student behavior actually earns under RI.
+2. **Specialist-recorded RI state** - what RI concludes from the evidence the Specialist submitted.
 
 When capture is accurate, the tracks remain aligned.
 
@@ -64,11 +64,11 @@ Sandbox graduation is evidence-native and ordered.
 
 The capability layers are:
 
-1. **Condition Integrity** — preserve the prescribed RI condition without quietly changing the test.
-2. **Observation Integrity** — perceive and record the concrete behavior that actually occurred.
-3. **Evidence Integrity** — preserve evidence eligibility, intervention truth, confounding, and not-observed truth.
-4. **Authority Integrity** — allow the evidence record to preserve the canonical RI authority outcome rather than forcing the expected answer.
-5. **Continuity Integrity** — keep RI truth intact longitudinally through breakdown, recovery, progression, prerequisite contradiction, and changing conditions.
+1. **Condition Integrity** - preserve the prescribed RI condition without quietly changing the test.
+2. **Observation Integrity** - perceive and record the concrete behavior that actually occurred.
+3. **Evidence Integrity** - preserve evidence eligibility, intervention truth, confounding, and not-observed truth.
+4. **Authority Integrity** - allow the evidence record to preserve the canonical RI authority outcome rather than forcing the expected answer.
+5. **Continuity Integrity** - keep RI truth intact longitudinally through breakdown, recovery, progression, prerequisite contradiction, and changing conditions.
 
 Later layers cannot authorize readiness while an earlier layer remains unsupported.
 

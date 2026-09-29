@@ -69,7 +69,7 @@ Training or live access frozen.
 (Modes no more dependent on coo control)
 
 3. MODULE STRUCTURE
-Module 1 — Transformation Phases
+Module 1 - Transformation Phases
 
 Deep dives:
 
@@ -78,7 +78,7 @@ Clarity
 Structured Execution
 Controlled Discomfort
 Time Pressure Stability
-Module 2 — Session Infrastructure
+Module 2 - Session Infrastructure
 
 Deep dives:
 

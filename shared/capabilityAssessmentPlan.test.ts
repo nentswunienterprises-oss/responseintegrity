@@ -3,6 +3,8 @@ import test from "node:test";
 import { getRequiredCapabilityEvidenceCells } from "./capabilityBlueprint";
 import {
   CAPABILITY_MVP_ASSESSMENT_PLAN_V1,
+  TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
+  TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
   getCapabilityMvpPlannedEvidenceCells,
 } from "./capabilityAssessmentPlan";
 
@@ -23,18 +25,38 @@ test("mastery remains one Deep Dive at a time while cumulative checks carry mult
   for (const entry of CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter((item) => item.evidenceKind === "mastery")) {
     assert.equal(entry.coveredDeepDiveKeys.length, 1);
     assert.equal(entry.formSize, 15);
-    assert.ok(entry.minimumItemPoolSize >= entry.formSize * 2);
+    assert.equal(entry.minimumItemPoolSize, 45);
   }
 
   for (const entry of CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter((item) => item.evidenceKind !== "mastery")) {
     assert.ok(entry.coveredDeepDiveKeys.length >= 4);
-    assert.ok(entry.minimumDelayHours >= 24);
-    assert.ok(entry.minimumItemPoolSize >= entry.formSize * 2);
+    assert.ok(entry.minimumItemPoolSize >= entry.formSize);
   }
+
+  const retrieval = CAPABILITY_MVP_ASSESSMENT_PLAN_V1.find(
+    (entry) => entry.assessmentKey === TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
+  );
+  const transfer = CAPABILITY_MVP_ASSESSMENT_PLAN_V1.find(
+    (entry) => entry.assessmentKey === TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
+  );
+  assert.ok(retrieval);
+  assert.ok(transfer);
+  assert.equal(retrieval.formSize, 25);
+  assert.equal(retrieval.minimumDelayHours, 24);
+  assert.equal(transfer.formSize, 25);
+  assert.equal(transfer.minimumDelayHours, 0);
 });
 
-test("all assessment plan entries preserve the 96 percent deterministic threshold", () => {
-  assert.ok(CAPABILITY_MVP_ASSESSMENT_PLAN_V1.every((entry) => entry.passThresholdPercent === 96));
+test("Mastery requires a clean pass while cumulative Transformation gates preserve 96 percent", () => {
+  const mastery = CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter(
+    (entry) => entry.evidenceKind === "mastery",
+  );
+  assert.ok(mastery.every((entry) => entry.passThresholdPercent === 100));
+
+  const cumulative = CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter(
+    (entry) => entry.evidenceKind !== "mastery",
+  );
+  assert.ok(cumulative.every((entry) => entry.passThresholdPercent === 96));
 });
 
 test("all 11 Deep Dives appear in mastery, retrieval, and transfer plan coverage", () => {

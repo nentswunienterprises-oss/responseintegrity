@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { ArrowLeft, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -41,7 +42,7 @@ const outcomes = [
   },
   {
     title: "Adjust stability",
-    detail: "The phase remains usable, but conditional evidence persisted through the bounded verification window. Stability may tighten within the same phase; conditional evidence alone cannot mint Low.",
+    detail: "The phase remains usable, but the student's response stayed conditional throughout the verification window. Stability may tighten within the same phase; conditional evidence alone does not justify Low.",
   },
   {
     title: "Targeted re-diagnosis",
@@ -102,7 +103,7 @@ export default function ResponseConditioningHandoverVerification() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What The Specialist Records</h2>
           <p className="text-muted-foreground">
-            Handover uses the same canonical Response Evidence behavior language as Diagnosis. The Specialist selects the concrete behavior that happened; the system owns the evidence class and the decision.
+            Handover uses the same Response Evidence behavior language as Diagnosis. The Specialist selects the concrete behavior that happened; the system determines what that evidence means and what happens next.
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             {evidenceClasses.map((item) => (
@@ -154,6 +155,7 @@ export default function ResponseConditioningHandoverVerification() {
           <p className="font-semibold">Preserve history. Hold the inherited phase conditions. Record behavior exactly. Let the evidence model decide.</p>
           <p className="text-sm text-muted-foreground">A reliable Handover should feel continuous to the student while remaining independently defensible to the next Specialist, the institution, and any later audit.</p>
         </Card>
+        <DeepDiveCapabilityCheck assessmentKey="handover_verification_mastery_v1" />
       </div>
     </div>
   );

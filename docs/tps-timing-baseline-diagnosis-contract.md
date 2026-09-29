@@ -515,7 +515,7 @@ The live implementation also replaced the proof-only design where required:
 
 PR #45 remains historical proof lineage only. Its old calibration runtime is not live authority.
 
-## 16. Acceptance criteria — implemented and proved
+## 16. Acceptance criteria - implemented and proved
 
 The following criteria are implemented and covered by unit/integration/live proof:
 

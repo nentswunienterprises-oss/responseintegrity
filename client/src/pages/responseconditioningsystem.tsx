@@ -1,16 +1,17 @@
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   ArrowLeft,
-  Lock,
   Cpu,
   Radar,
   Cog,
   Gauge,
   ChevronRight,
-  AlertTriangle,
 } from "lucide-react";
 
 const modules = [
@@ -23,22 +24,27 @@ const modules = [
       {
         label: "Topic Conditioning",
         href: "/responseconditioningsystem/transformation-phases/topic-conditioning",
+        capabilityKey: "topic_conditioning",
       },
       {
         label: "Clarity",
         href: "/responseconditioningsystem/clarity",
+        capabilityKey: "clarity",
       },
       {
         label: "Structured Execution",
         href: "/responseconditioningsystem/structured-execution",
+        capabilityKey: "structured_execution",
       },
       {
         label: "Controlled Discomfort",
         href: "/responseconditioningsystem/controlled-discomfort",
+        capabilityKey: "controlled_discomfort",
       },
       {
         label: "Time Pressure Stability",
         href: "/responseconditioningsystem/time-pressure-stability",
+        capabilityKey: "time_pressure_stability",
       },
     ],
   },
@@ -103,32 +109,79 @@ const modules = [
       {
         label: "Intro session structure",
         href: "/responseconditioningsystem/session-infrastructure/intro-session-structure",
+        capabilityKey: "intro_session_structure",
       },
       {
         label: "Session flow control",
         href: "/responseconditioningsystem/session-infrastructure/session-flow-control",
+        capabilityKey: "session_flow_control",
       },
       {
         label: "Drill Library",
         href: "/responseconditioningsystem/session-infrastructure/drill-library",
+        capabilityKey: "drill_library",
       },
       {
         label: "Logging system",
         href: "/responseconditioningsystem/session-infrastructure/logging-system",
+        capabilityKey: "logging_system",
       },
       {
         label: "Handover verification",
         href: "/responseconditioningsystem/session-infrastructure/handover-verification",
+        capabilityKey: "handover_verification",
       },
       {
         label: "Tools required",
         href: "/responseconditioningsystem/session-infrastructure/tools-required",
+        capabilityKey: "tools_required",
       },
     ],
   },
 ];
 
+type MasteryAvailability = {
+  assessmentKey: string;
+  coveredDeepDiveKeys: string[];
+  status: "unavailable" | "locked" | "available" | "complete";
+  reason: "bank_unavailable" | "attempt_limit" | "retry_cooldown" | null;
+  unlockAt: string | null;
+};
+
+type PodData = {
+  assignment?: { id?: string | null } | null;
+};
+
 export default function ResponseConditioningSystem() {
+  const podQuery = useQuery<PodData>({
+    queryKey: ["/api/tutor/pod"],
+    retry: false,
+  });
+  const tutorAssignmentId = String(podQuery.data?.assignment?.id || "");
+
+  const capabilityPlanQuery = useQuery<{ assessments: MasteryAvailability[] }>({
+    queryKey: ["capability-mastery-plan", tutorAssignmentId],
+    enabled: Boolean(tutorAssignmentId),
+    retry: false,
+    queryFn: async () => {
+      const response = await apiRequest(
+        "GET",
+        `/api/tutor/capability-plan?tutorAssignmentId=${encodeURIComponent(tutorAssignmentId)}`,
+      );
+      return (await response.json()) as { assessments: MasteryAvailability[] };
+    },
+  });
+
+  const capabilityAssessments = capabilityPlanQuery.data?.assessments || [];
+  const completedCapabilityChecks = capabilityAssessments.filter(
+    (assessment) => assessment.status === "complete",
+  ).length;
+  const totalCapabilityChecks = capabilityAssessments.length || 11;
+  const capabilityProgressPercent =
+    totalCapabilityChecks > 0
+      ? Math.round((completedCapabilityChecks / totalCapabilityChecks) * 100)
+      : 0;
+
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b border-border/80 bg-background">
@@ -142,10 +195,7 @@ export default function ResponseConditioningSystem() {
             </Button>
 
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <Lock className="w-6 h-6 text-primary" />
-                </div>
+              <div className="flex items-start">
                 <div>
                   <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-2">
                     The Response Conditioning System
@@ -217,6 +267,28 @@ export default function ResponseConditioningSystem() {
             );
           })}
         </div>
+
+        <Card className="border border-primary/15 bg-card shadow-sm">
+          <div className="p-6 space-y-4">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Training Progress
+                </p>
+                <h2 className="mt-1 text-xl font-bold">Capability Checks</h2>
+              </div>
+              <p className="text-2xl font-semibold tabular-nums">
+                {completedCapabilityChecks}/{totalCapabilityChecks}
+              </p>
+            </div>
+
+            <Progress value={capabilityProgressPercent} className="h-2" />
+
+            <p className="text-sm text-muted-foreground">
+              {completedCapabilityChecks} of {totalCapabilityChecks} Deep Dive Capability Checks completed.
+            </p>
+          </div>
+        </Card>
       </div>
     </div>
   );

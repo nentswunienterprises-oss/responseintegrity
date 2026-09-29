@@ -62,12 +62,13 @@ export default function ExecutiveGateway() {
   });
 
   const accessState = useMemo(() => {
+    if (error && !data) return "unavailable";
     if (!data?.mySeat) return "pending";
     if (data.mySeat.isCurrentUserAppointed) {
       return data.bootstrapMode && role === "ceo" ? "bootstrap" : "appointed";
     }
     return "pending";
-  }, [data, role]);
+  }, [data, error, role]);
 
   const stageStatus = useMemo(() => {
     const seatFilled = Boolean(data?.mySeat?.isFilled);
@@ -138,7 +139,7 @@ export default function ExecutiveGateway() {
         </div>
 
         <div className="container mx-auto max-w-3xl px-3 pb-10 sm:px-4">
-          {accessState === "pending" ? (
+          {accessState === "pending" && data ? (
             <Card className="border-0 shadow-lg">
               <CardHeader>
                 <CardTitle>Awaiting CEO Appointment</CardTitle>
@@ -221,10 +222,11 @@ export default function ExecutiveGateway() {
             </Card>
           ) : null}
 
-          {error && !data?.canManageAppointments ? (
+          {accessState === "unavailable" || (error && !data?.canManageAppointments) ? (
             <Card className="mt-6">
               <CardContent className="py-6 text-center">
                 <p className="text-sm text-red-600">Unable to load your executive gateway right now.</p>
+                <p className="mt-2 text-xs text-muted-foreground">Appointment state is unknown until the gateway loads successfully.</p>
               </CardContent>
             </Card>
           ) : null}

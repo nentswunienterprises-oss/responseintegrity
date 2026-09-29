@@ -1,6 +1,6 @@
 # Response Integrity-OS Live Implementation Source of Truth
 
-Last updated: 2026-09-03
+Last updated: 2026-09-28
 Status: Canonical implementation spec
 
 ## Purpose
@@ -99,7 +99,11 @@ The Specialist development pathway is:
 - Application -> Training -> Sandbox -> Practicals -> Trial -> Certification -> Certified Live
 - standard development window: 75 active days
 - approved documented extension maximum: 90 active days
-- Training Battle Test: 15 questions per Deep Dive, 96%+ required three consecutive times for that Deep Dive
+- Transformation Training authority: each of the five Transformation Deep Dives uses a 45-item private Mastery bank; a 15-question form requires a clean 15/15 pass with no critical fail, with at most three total attempts
+- Mastery retries prefer unseen questions while preserving competency and critical-boundary coverage
+- after all five Transformation Masteries, a separately authored 25-question Delayed Retrieval gate requires 24/25+ with no critical fail after the required spacing interval
+- after Retrieval, a separately authored 25-question Interleaved Transfer gate requires 24/25+ with no critical fail
+- Sandbox opens only after all five Transformation Masteries plus Transformation Retrieval plus Transformation Transfer; Sandbox access is an expansion of Training, not Training completion
 - Sandbox capability evaluation: continuous, system-derived evidence across Condition, Observation, Evidence, Authority, and Continuity Integrity
 - Sandbox exit authority: the system must first resolve Practicals readiness; the assigned TD then records either remediation or an explicit readiness sign-off for Practicals entry
 - Practicals is the governed stage after Sandbox; it is not a shortcut into Trial and it is not opened by Battle Testing
@@ -165,11 +169,11 @@ This is the control layer that determines:
 
 The live implementation is primarily distributed across these files:
 
-- `shared/topicConditioningEngine.ts` — legacy transition helper and next-action vocabulary
-- `shared/responseEvidenceModel.ts` — evidence-state resolution and recovery law
-- `shared/trainingEvidenceEvaluator.ts` — live Training evidence authority
-- `shared/evidenceCompleteDiagnosis.ts` / `shared/evidenceCompleteDiagnosisSubmission.ts` — evidence-complete Diagnosis
-- `shared/tpsTimingContract.ts` / `shared/tpsTimingRuntime.ts` / `shared/tpsTrainingReadiness.ts` — individualized TPS timing authority
+- `shared/topicConditioningEngine.ts` - legacy transition helper and next-action vocabulary
+- `shared/responseEvidenceModel.ts` - evidence-state resolution and recovery law
+- `shared/trainingEvidenceEvaluator.ts` - live Training evidence authority
+- `shared/evidenceCompleteDiagnosis.ts` / `shared/evidenceCompleteDiagnosisSubmission.ts` - evidence-complete Diagnosis
+- `shared/tpsTimingContract.ts` / `shared/tpsTimingRuntime.ts` / `shared/tpsTrainingReadiness.ts` - individualized TPS timing authority
 - `shared/responseIntegrityDrillRegistry.ts`
 - `shared/responseIntegrityEvidenceLedger.ts`
 - `shared/battleTesting.ts`
@@ -1598,12 +1602,12 @@ Each state stores:
 
 Implementation:
 
-- `shared/responseIntegrityDrillRegistry.ts` — current Verification schema v3 and retained historical v1/v2 definitions
-- `shared/diagnosisObservationMatrix.ts` — canonical concrete behavior vocabulary
-- `shared/responseEvidenceModel.ts` — shared dimension resolution and recovery law
-- `shared/handoverEvidenceEvaluator.ts` — evidence-native continuity decision
-- `client/src/components/tutor/IntroSessionDrillRunner.tsx` — live Specialist continuity runner and evidence result
-- `server/routes.ts` — authoritative persistence, topic-state update, and targeted re-diagnosis gate
+- `shared/responseIntegrityDrillRegistry.ts` - current Verification schema v3 and retained historical v1/v2 definitions
+- `shared/diagnosisObservationMatrix.ts` - canonical concrete behavior vocabulary
+- `shared/responseEvidenceModel.ts` - shared dimension resolution and recovery law
+- `shared/handoverEvidenceEvaluator.ts` - evidence-native continuity decision
+- `client/src/components/tutor/IntroSessionDrillRunner.tsx` - live Specialist continuity runner and evidence result
+- `server/routes.ts` - authoritative persistence, topic-state update, and targeted re-diagnosis gate
 
 ### Purpose and authority boundary
 
@@ -2555,6 +2559,8 @@ The outer shell must wrap the engine, not replace it.
 
 ## Specialist And TD Alignment Audit Engine
 
+> **Authority boundary, 28 September 2026:** the Capability Training Engine is now the Training -> Sandbox graduation authority. The Battle Testing subsystem below remains a legacy/manual alignment, drift, and health-audit surface. Its historical streak scoring and TD-led forms must not be used to mark current Capability Mastery complete or to promote a Specialist from Training into Sandbox. Current Training authority is defined in `docs/CAPABILITY_TRAINING_ARCHITECTURE_2026-09-28.md`, `shared/capabilityTrainingSequencing.ts`, and `server/capabilitySequencing.ts`.
+
 Implementation:
 
 - `shared/battleTesting.ts`
@@ -2740,7 +2746,7 @@ The current lifecycle permission keys remain `applicant`, `training`, `sandbox`,
 
 `watchlist` and `suspended` are operational risk states and enforcement states. They do not replace the evidence-gated graduation path.
 
-Training Battle Testing may establish the knowledge/preparation evidence required to enter and remain in Sandbox. It cannot authorize Sandbox exit. During Sandbox, the stateful capability engine continuously derives Specialist capability evidence across Condition Integrity, Observation Integrity, Evidence Integrity, Authority Integrity, and Continuity Integrity. Only when that engine resolves `practicalsReady=true`, required breadth and longitudinal proof are present, and preparation blockers are clear may the assigned TD record the human readiness decision that authorizes Practicals entry; the stage transition remains explicit.
+Training -> Sandbox authority is now issued only by the Capability Training gate: all five Transformation Deep Dives must have current-version clean Mastery evidence, the delayed Transformation Retrieval gate must pass, and the interleaved Transformation Transfer gate must pass. Legacy Battle Testing may continue to provide audit or drift evidence, but it cannot issue the Training -> Sandbox lifecycle transition. Sandbox access does not mean Training is complete; it opens the protected operating environment in which Session Infrastructure can be learned and evidenced in context. During Sandbox, the stateful capability engine continuously derives Specialist capability evidence across Condition Integrity, Observation Integrity, Evidence Integrity, Authority Integrity, and Continuity Integrity. Only when that engine resolves `practicalsReady=true`, required breadth and longitudinal proof are present, and preparation blockers are clear may the assigned TD record the human readiness decision that authorizes Practicals entry; the stage transition remains explicit.
 
 The TD owns routine Sandbox remediation and readiness review because this is operational Specialist development. The COO does not manually evaluate each Sandbox Specialist; COO authority is reserved for policy, documented exceptions/extensions, later Trial governance, and explicit final certification decisions. No Sandbox assessment may skip Practicals by directly issuing `trial`.
 

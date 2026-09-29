@@ -1,4 +1,7 @@
 import { useMemo } from "react";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,7 +42,7 @@ const TIME_SET_EXECUTION: Record<
     studentAction:
       "Begin under the timer and keep the known method visible. Speed matters, but structure must not disappear.",
     specialistAction:
-      "Run the timed attempt using the runner-owned duration from the active TPS Timer Contract, withhold help, observe start, structure, pace, and completion, then log the response.",
+      "Run the timed attempt using the timing shown for that student and topic, withhold help, observe start, structure, pace, and completion, then log the response.",
     preserve:
       "Method-first execution under an active timer. The target is not frantic completion; the target is controlled structure while time exists.",
     doNot: [
@@ -56,7 +59,7 @@ const TIME_SET_EXECUTION: Record<
     preserve:
       "Repeated timer consistency. The set tests whether the timed response holds, not whether one attempt went well.",
     doNot: [
-      "Do not change the timer between reps unless the runner/prep explicitly tells you to.",
+      "Do not change the timer between reps.",
       "Do not skip repetition after one strong attempt.",
       "Do not hide rushing, panic, or structure loss behind a completed answer.",
     ],
@@ -65,7 +68,7 @@ const TIME_SET_EXECUTION: Record<
     studentAction:
       "Work under the tightest defined time condition while preserving method structure, controlled pace, and completion integrity.",
     specialistAction:
-      "Run Full Constraint at the runner-owned 85% Timer Contract duration, withhold help, observe the full pressure response, and log the evidence.",
+      "Run Full Constraint at 85% of the established baseline time, withhold help, observe the full pressure response, and log the evidence.",
     preserve:
       "Full time constraint. The set tests whether the student can keep structure and completion when the pressure is at the intended maximum.",
     doNot: [
@@ -100,7 +103,7 @@ const constraintLabel = (set: EvidenceSetDefinition) => {
 
 const diagnosisInstructionFor = (set: EvidenceSetDefinition) => {
   if (set.setId === "time_pressure.light_timer") {
-    return "Run the first controlled timed exposure exactly as the runner/prep specifies and observe whether the student starts, preserves structure, controls pace, and completes.";
+    return "Run the first controlled timed exposure using the timing prepared for that student and topic, then observe whether the student starts, preserves structure, controls pace, and completes.";
   }
 
   return "Repeat the same time condition and observe whether the response stabilizes or drifts across timed attempts.";
@@ -146,7 +149,12 @@ export default function ResponseConditioningTimePressureStability() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-        <Card className="p-6 space-y-5 border-l-4 border-l-primary">
+        <DeepDiveLessonRunner
+          lessonKey="time-pressure-stability-v1"
+          title="Time Pressure Stability"
+          completion={<DeepDiveCapabilityCheck assessmentKey="time_pressure_stability_mastery_v1" />}
+        >
+        <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">The Transformation</h2>
           <p className="text-xl font-semibold">
             Time Pressure Stability asks: can the student stay structured when urgency is real?
@@ -198,10 +206,33 @@ export default function ResponseConditioningTimePressureStability() {
           </ul>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="A student finishes inside the timer but skips the known method and guesses successfully. What does the timed result prove?"
+          options={[
+            {
+              key: "b",
+              label: "Unstable under time, because urgency displaced the trained method despite the successful outcome.",
+              feedback: "Yes. Time Pressure Stability requires the method to survive urgency; speed and correctness alone are not enough.",
+            },
+            {
+              key: "a",
+              label: "The student is stable under time because the deadline and answer were both achieved.",
+              feedback: "Meeting the deadline cannot substitute for preserving the response structure the timer is meant to stress-test.",
+            },
+            {
+              key: "c",
+              label: "The student is ready for a tighter timer because the successful guess shows unused speed capacity.",
+              feedback: "A tighter constraint is not earned from an attempt that already lost method integrity.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="The timer is an added constraint on an already-trained response. A fast or correct answer does not count as stability when urgency causes the method structure to disappear."
+        />
+
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Time Pressure Training Recipe</h2>
           <p className="text-muted-foreground">
-            This sequence is rendered from the live drill registry so the Deep Dive stays aligned with the runner.
+            This sequence is the required Time Pressure Stability training sequence.
           </p>
           <div className="rounded-lg border bg-background p-4">
             <p className="font-semibold text-lg">
@@ -215,6 +246,29 @@ export default function ResponseConditioningTimePressureStability() {
             Mental model: Add timer -&gt; repeat timer -&gt; tighten constraint -&gt; submit evidence -&gt; let RI-OS decide what happens next.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="A baseline timing attempt is completed quickly, but the Specialist prompted the student twice to keep the method moving. Can that time anchor later pressure?"
+          options={[
+            {
+              key: "a",
+              label: "Yes, because the stopwatch still measured the student's real working speed from start to finish.",
+              feedback: "The clock may be accurate, but the response condition was supported. A supported time cannot stand in for independent eligible timing evidence.",
+            },
+            {
+              key: "b",
+              label: "Yes, if the prompts did not reveal the actual next step and only kept the student focused.",
+              feedback: "Directional support can still change execution speed and continuity. Eligibility depends on preserving the required response condition, not on how subtle the prompt felt.",
+            },
+            {
+              key: "c",
+              label: "No. The later timer needs timing evidence produced under the eligible independence condition.",
+              feedback: "Yes. Pressure must be derived from timing evidence that reflects the response RI intends to stress-test.",
+            },
+          ]}
+          correctOptionKey="c"
+          truth="Timing evidence is only useful as a pressure baseline when the underlying execution condition is eligible. A precise stopwatch reading cannot repair a supported or contaminated response."
+        />
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
@@ -239,8 +293,7 @@ export default function ResponseConditioningTimePressureStability() {
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
             <p className="font-semibold">Timing boundary</p>
             <p className="text-sm text-muted-foreground">
-              The runner uses the immutable TPS Timer Contract for this student and topic. Structure Under Timer and Repeated Timed Execution use 100% of the
-              baseline duration; Full Constraint uses 85%. Do not invent, loosen, or tighten a different timer.
+              Use the established baseline time for this student and topic. Structure Under Timer and Repeated Timed Execution use 100% of that baseline; Full Constraint uses 85%. Do not invent, loosen, or tighten a different timer.
             </p>
           </div>
           <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
@@ -249,7 +302,7 @@ export default function ResponseConditioningTimePressureStability() {
               Before the session, prepare one fresh equivalent reserve problem for each timed set. These reserve problems are contingency inventory only - not extra reps and not a completion target.
             </p>
             <p className="text-sm text-muted-foreground">
-              If an objective timer/runtime/device failure destroys the intended condition, preserve that failed attempt as non-decision-eligible lineage and leave the canonical evidence slot unresolved. A fresh pre-prepared equivalent reserve may then fill that slot under the exact same Timer Contract and set constraints.
+              If the timer, device, or session technology fails and the timed attempt can no longer be trusted, leave that attempt unresolved. A fresh pre-prepared equivalent reserve problem may then be used under the same timing and set conditions.
             </p>
             <p className="text-sm font-medium">
               Never reuse the exposed problem or create a replacement because the student timed out, panicked, used the wrong method, worked incompletely, or performed weakly. Those are real TPS observations.
@@ -257,90 +310,92 @@ export default function ResponseConditioningTimePressureStability() {
           </div>
         </Card>
 
-        <Card className="p-6 space-y-5">
+        <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Run the Drill: Set by Set</h2>
           <p className="text-muted-foreground">
-            Each set is a controlled timer condition. Preserve the timer rule, preserve method integrity, and let every repetition reveal
-            whether the response stays stable under urgency.
+            Each set is its own learning step. Preserve the timer condition and method integrity before moving to the next timed demand.
           </p>
-
-          <div className="space-y-5">
-            {trainingSchema.sets.map((set, setIndex) => {
-              const execution = TIME_SET_EXECUTION[set.setId];
-              const repPurposes = TIME_REP_PURPOSES[set.setId] || [];
-
-              return (
-                <div key={set.setId} className="rounded-xl border p-5 space-y-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Set {setIndex + 1}</p>
-                    <h3 className="text-xl font-bold">{set.setName}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{set.purpose}</p>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-lg bg-muted/40 p-4 space-y-2">
-                      <p className="font-semibold">What the Specialist does</p>
-                      <p className="text-sm text-muted-foreground">{execution.specialistAction}</p>
-                    </div>
-                    <div className="rounded-lg bg-muted/40 p-4 space-y-2">
-                      <p className="font-semibold">What the student does</p>
-                      <p className="text-sm text-muted-foreground">{execution.studentAction}</p>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border-l-4 border-l-primary bg-primary/5 p-4 space-y-2">
-                    <p className="font-semibold">Condition to preserve</p>
-                    <p className="text-sm text-muted-foreground">{execution.preserve}</p>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{constraintLabel(set)}</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="font-semibold">Why every rep exists</p>
-                    {repPurposes.map((purpose, repIndex) => (
-                      <div key={purpose} className="rounded-lg border p-3">
-                        <p className="text-sm">
-                          <span className="font-semibold">Rep {repIndex + 1}: </span>
-                          <span className="text-muted-foreground">{purpose}</span>
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="font-semibold">Do not contaminate this set</p>
-                    <ul className="space-y-1 text-sm text-muted-foreground">
-                      {execution.doNot.map((rule) => (
-                        <li key={rule}>{rule}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </Card>
 
-        <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">Diagnosis Structure</h2>
-          <p className="text-muted-foreground">
-            Diagnosis exposes whether the student can preserve structure when a timer first appears and whether the response stays stable across timed repetition.
-          </p>
-          <div className="space-y-4">
-            {diagnosisSchema.sets.map((set) => (
-              <div key={set.setId} className="rounded-lg border p-4 space-y-3">
-                <div>
-                  <h3 className="text-lg font-semibold">{set.setName}</h3>
-                  <p className="text-sm text-muted-foreground">{set.reps} reps</p>
-                </div>
-                <p className="text-muted-foreground">{set.purpose}</p>
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Rep instruction:</span> {diagnosisInstructionFor(set)}
+        {trainingSchema.sets.map((set, setIndex) => {
+          const execution = TIME_SET_EXECUTION[set.setId];
+          const repPurposes = TIME_REP_PURPOSES[set.setId] || [];
+
+          return (
+            <Card key={set.setId} className="p-6 space-y-5">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                  Set {setIndex + 1} of {trainingSchema.sets.length}
                 </p>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{constraintLabel(set)}</p>
+                <h2 className="mt-1 text-2xl font-bold">{set.setName}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{set.purpose}</p>
               </div>
-            ))}
-          </div>
-        </Card>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-lg bg-muted/40 p-4 space-y-2">
+                  <p className="font-semibold">What the Specialist does</p>
+                  <p className="text-sm text-muted-foreground">{execution.specialistAction}</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-4 space-y-2">
+                  <p className="font-semibold">What the student does</p>
+                  <p className="text-sm text-muted-foreground">{execution.studentAction}</p>
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-primary/5 p-4 space-y-2">
+                <p className="font-semibold">Condition to preserve</p>
+                <p className="text-sm text-muted-foreground">{execution.preserve}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {constraintLabel(set)}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-semibold">Why every rep exists</p>
+                {repPurposes.map((purpose, repIndex) => (
+                  <div key={purpose} className="rounded-lg border p-3">
+                    <p className="text-sm">
+                      <span className="font-semibold">Rep {repIndex + 1}: </span>
+                      <span className="text-muted-foreground">{purpose}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-semibold">Do not contaminate this set</p>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {execution.doNot.map((rule) => (
+                    <li key={rule}>{rule}</li>
+                  ))}
+                </ul>
+              </div>
+            </Card>
+          );
+        })}
+
+        <DeepDiveTeachingInteraction
+          prompt="The timer freezes for several seconds halfway through a rep, then resumes. What should happen to that attempt?"
+          options={[
+            {
+              key: "c",
+              label: "Record the technical failure and run a fresh equivalent replacement under the same intended time condition.",
+              feedback: "Yes. Technical lineage remains visible, and the replacement supplies the missing valid timed evidence.",
+            },
+            {
+              key: "a",
+              label: "Keep it and subtract the estimated frozen time afterward, because the student's method performance was still observable.",
+              feedback: "An estimate cannot recreate the intended continuous time condition. The rep may show useful behavior, but it cannot prove performance under the defined timer.",
+            },
+            {
+              key: "b",
+              label: "Treat it as a student timeout if the final completion exceeds the original limit.",
+              feedback: "The timing condition failed technically. The student cannot be assigned a timing failure from a timer that did not operate correctly.",
+            },
+          ]}
+          correctOptionKey="c"
+          truth="Objective timer failure invalidates the timed condition, not the student's response. Preserve the technical failure and use a fresh equivalent replacement rather than estimating or blaming the student."
+        />
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What You Observe</h2>
@@ -357,6 +412,29 @@ export default function ResponseConditioningTimePressureStability() {
           </p>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="The timer works correctly, but the student freezes and does not finish. What is the correct evidence treatment?"
+          options={[
+            {
+              key: "a",
+              label: "Run a replacement, because incomplete attempts should not count.",
+              feedback: "Non-completion under a valid timer is itself evidence of the response under pressure. Replacement is not for undesirable learner outcomes.",
+            },
+            {
+              key: "b",
+              label: "Keep it. A valid timer makes the freeze learner evidence, not a reason to replace the attempt.",
+              feedback: "Yes. A working timer plus a weak response is still a valid observation of timed stability.",
+            },
+            {
+              key: "c",
+              label: "Mark the attempt as confounded, because freezing is an emotional response rather than mathematical performance.",
+              feedback: "RI is explicitly observing whether the student can remain functional under the condition. Freezing is part of that response, not a reason to erase it.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="When the timer is valid, timeout, freezing, wrong method or incomplete work are learner evidence. Replacement is reserved for objective failure of the timing condition itself."
+        />
+
         <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
           <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
           <p className="text-muted-foreground">
@@ -369,6 +447,29 @@ export default function ResponseConditioningTimePressureStability() {
             Failed Specialist execution is different: changing the timer, helping during the rep, ignoring lost structure because the answer was fast, or logging stable pace when the response was panic-driven.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="RI has assigned the active timer from eligible timing evidence. Mid-rep, the student starts losing structure and asks for more time. What should the Specialist do?"
+          options={[
+            {
+              key: "a",
+              label: "Add a small amount of time so the rep can show whether the student still knows the method once urgency is reduced.",
+              feedback: "That would answer a different question. The active rep is testing whether the known response survives the assigned urgency.",
+            },
+            {
+              key: "b",
+              label: "Pause the timer until structure returns, then resume.",
+              feedback: "Pausing removes part of the continuous pressure. The displayed total may look unchanged, but the condition is no longer the same.",
+            },
+            {
+              key: "c",
+              label: "Preserve the assigned timer and record the structure loss as learner evidence under that condition.",
+              feedback: "Yes. The Specialist protects the timing contract rather than adjusting the condition to produce a cleaner-looking response.",
+            },
+          ]}
+          correctOptionKey="c"
+          truth="The system-derived timer is part of the evidence condition. Once the rep begins, the Specialist does not loosen or pause it to rescue performance; they preserve the condition and record what happens."
+        />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression Logic</h2>
@@ -395,6 +496,7 @@ export default function ResponseConditioningTimePressureStability() {
             <li>Why RI-OS, not the Specialist, owns the final stability or transfer decision.</li>
           </ul>
         </Card>
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );

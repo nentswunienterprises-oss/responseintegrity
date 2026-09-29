@@ -6,21 +6,22 @@ import {
   projectCapabilityAssessmentForSpecialist,
   projectCapabilityAttemptResultForSpecialist,
 } from "./capabilityPublicProjection";
+import { cleanCapabilityDisplayCopy } from "./capabilityDisplayCopy";
 
 const definition: CapabilityAssessmentDefinition = {
   key: "synthetic_mastery",
   deepDiveKey: "clarity",
-  title: "Synthetic Mastery Check",
+  title: "**Synthetic Mastery** Check",
   evidenceKind: "mastery",
   passThresholdPercent: 96,
   questions: Array.from({ length: 15 }, (_, index) => ({
     key: `synthetic_q${index + 1}`,
     competencyKey: "clarity.phase_purpose",
     deepDiveKey: "clarity",
-    prompt: `Synthetic prompt ${index + 1}`,
+    prompt: `**Synthetic prompt** ${index + 1}`,
     kind: "single_choice" as const,
     options: [
-      { key: "a", label: "Option A" },
+      { key: "a", label: "**Option A**" },
       { key: "b", label: "Option B" },
       { key: "c", label: "Option C" },
       { key: "d", label: "Option D" },
@@ -28,6 +29,10 @@ const definition: CapabilityAssessmentDefinition = {
     correctOptionKeys: ["b"],
     criticalFailOptionKeys: index === 0 ? ["a"] : [],
     explanation: "Private-style explanation fixture.",
+    optionFeedback: {
+      a: "Private wrong-option feedback fixture.",
+      b: "Private correct-option feedback fixture.",
+    },
     criticalBoundaryKeys: index === 0 ? ["clarity.synthetic_internal_boundary"] : [],
   })),
 };
@@ -38,6 +43,23 @@ function perfectResponses() {
     selectedOptionKeys: [...question.correctOptionKeys],
   }));
 }
+
+test("capability display copy removes learner-visible markdown asterisk artifacts", () => {
+  assert.equal(
+    cleanCapabilityDisplayCopy(
+      "Variation Control uses: * the same known method, * changed-form variation, * no support, and * normal difficulty.",
+    ),
+    "Variation Control uses: the same known method, changed-form variation, no support, and normal difficulty.",
+  );
+  assert.equal(
+    cleanCapabilityDisplayCopy("Preserve *changed-form variation* without adding difficulty."),
+    "Preserve changed-form variation without adding difficulty.",
+  );
+  assert.equal(
+    cleanCapabilityDisplayCopy("Make structure visible → remove support → test variation."),
+    "Make structure visible, remove support, test variation.",
+  );
+});
 
 test("Specialist assessment projection exposes prompts/options but no scoring or boundary secrets", () => {
   const projected = projectCapabilityAssessmentForSpecialist({
@@ -50,12 +72,19 @@ test("Specialist assessment projection exposes prompts/options but no scoring or
   const serialized = JSON.stringify(projected);
 
   assert.equal(projected.questions.length, definition.questions.length);
+  assert.equal(projected.title, "Synthetic Mastery Check");
+  assert.equal(projected.questions[0]?.prompt, "Synthetic prompt 1");
+  assert.equal(projected.questions[0]?.options[0]?.label, "Option A");
+  assert.doesNotMatch(serialized, /\*\*/);
   assert.match(serialized, /Synthetic Mastery Check/);
   assert.doesNotMatch(serialized, /"correctOptionKeys"\s*:/);
   assert.doesNotMatch(serialized, /"criticalFailOptionKeys"\s*:/);
   assert.doesNotMatch(serialized, /"criticalBoundaryKeys"\s*:/);
   assert.doesNotMatch(serialized, /synthetic_internal_boundary/);
   assert.doesNotMatch(serialized, /"explanation"\s*:/);
+  assert.doesNotMatch(serialized, /"optionFeedback"\s*:/);
+  assert.doesNotMatch(serialized, /Private wrong-option feedback fixture/);
+  assert.doesNotMatch(serialized, /Private correct-option feedback fixture/);
   assert.doesNotMatch(serialized, /"competencyKey"\s*:/);
 });
 

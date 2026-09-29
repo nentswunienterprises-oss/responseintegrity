@@ -1,4 +1,4 @@
-# Demand Production Gateway — operating contract and migration
+# Demand Production Gateway - operating contract and migration
 
 The existing RI platform is the system of record. Parent acquisition and enrollment are the human operating subsystem of Demand Production. No CRM, WhatsApp integration or automated qualification is introduced.
 

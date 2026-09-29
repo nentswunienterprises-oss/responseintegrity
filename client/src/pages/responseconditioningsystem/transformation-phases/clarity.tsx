@@ -1,4 +1,7 @@
 import { useMemo } from "react";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,9 +38,9 @@ const CLARITY_SET_EXECUTION: Record<
 > = {
   "clarity.modeling": {
     studentAction:
-      "Listen to the model, then explain the Vocabulary → Recognition / Method → Ordered Steps → Reason mental map back. The student does not complete the full solve in this set.",
+      "Listen to the model, then explain the Vocabulary, Recognition, Method, Ordered Steps, and Reason mental map back. The student does not complete the full solve in this set.",
     specialistAction:
-      "Model the topic through Vocabulary → Recognition / Method → Ordered Steps → Reason. Make the language, applicable method, step order, and reason explicit, then require the student to explain it back.",
+      "Model the topic through Vocabulary, Recognition, Method, Ordered Steps, and Reason. Make the language, applicable method, step order, and reason explicit, then require the student to explain it back.",
     preserve:
       "This is teaching and preparation, not decision-eligible evidence. Build the map before asking the student to demonstrate it independently.",
     doNot: [
@@ -134,7 +137,12 @@ export default function ResponseConditioningClarity() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-        <Card className="p-6 space-y-5 border-l-4 border-l-primary">
+        <DeepDiveLessonRunner
+          lessonKey="clarity-v1"
+          title="Clarity"
+          completion={<DeepDiveCapabilityCheck assessmentKey="clarity_mastery_v1" />}
+        >
+        <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">The Transformation</h2>
           <p className="text-xl font-semibold">
             Clarity asks: does the student know what they are looking at and what should happen next?
@@ -173,10 +181,33 @@ export default function ResponseConditioningClarity() {
           </ul>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="During an Identification rep, the student immediately begins solving and reaches the correct answer. What should the Specialist do with the rep?"
+          options={[
+            {
+              key: "b",
+              label: "Stop the solve and return to identifying the type, method and reason without supplying them.",
+              feedback: "Yes. Identification isolates the mental map before execution, so the Specialist has to preserve recognition without solving.",
+            },
+            {
+              key: "a",
+              label: "Use the correct solve as stronger evidence, because it demonstrates more than simple recognition.",
+              feedback: "Doing more is not stronger evidence when the extra action removes the condition being tested. The solve hides whether recognition existed before execution.",
+            },
+            {
+              key: "c",
+              label: "Allow only the first few steps, then ask the student to explain the method before finishing.",
+              feedback: "Partial solving still changes the evidence condition. The rep is meant to show recognition before any execution begins.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Identification is a recognition condition, not a shortened solve. The student must identify what they are looking at, the method and the reason before execution begins."
+        />
+
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Clarity Training Recipe</h2>
           <p className="text-muted-foreground">
-            This sequence is rendered from the live drill registry so the Deep Dive cannot quietly drift away from the runner.
+            This is the required Clarity training sequence.
           </p>
           <div className="rounded-lg border bg-background p-4">
             <p className="font-semibold text-lg">
@@ -192,6 +223,29 @@ export default function ResponseConditioningClarity() {
             -&gt; submit evidence -&gt; let RI-OS decide what happens next.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="You are choosing problems for a recognition-focused Clarity set. Which set gives the cleanest evidence?"
+          options={[
+            {
+              key: "a",
+              label: "Several identical-looking examples, so the student can settle into the pattern before being checked.",
+              feedback: "Repeated surface sameness can turn recognition into pattern memory. The set should reveal the mental map, not familiarity with one presentation.",
+            },
+            {
+              key: "b",
+              label: "Very unfamiliar, high-difficulty examples, so guessing and memorisation are less likely.",
+              feedback: "That introduces a difficulty variable. A breakdown could then come from challenge rather than from recognition itself.",
+            },
+            {
+              key: "c",
+              label: "Examples with the same underlying structure but enough surface variation to require recognition.",
+              feedback: "Yes. The student has to recognise the underlying structure without the set becoming a difficulty test.",
+            },
+          ]}
+          correctOptionKey="c"
+          truth="Clarity material should expose the student's mental map cleanly. It should avoid both rote surface repetition and unnecessary difficulty that would introduce a different breakdown."
+        />
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
@@ -220,73 +274,97 @@ export default function ResponseConditioningClarity() {
           </div>
         </Card>
 
-        <Card className="p-6 space-y-5">
+        <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Run the Drill: Set by Set</h2>
           <p className="text-muted-foreground">
-            Each set is a controlled experience. Follow the sequence, preserve the condition, and let every repetition answer its
-            own question about the student's response.
+            Each set is its own learning step. Read the purpose, Specialist action, student action and condition before moving to the next set.
           </p>
-
-          <div className="space-y-5">
-            {trainingSchema.sets.map((set, setIndex) => {
-              const execution = CLARITY_SET_EXECUTION[set.setId];
-              const repPurposes = CLARITY_REP_PURPOSES[set.setId] || [];
-
-              return (
-                <div key={set.setId} className="rounded-xl border p-5 space-y-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Set {setIndex + 1}</p>
-                    <h3 className="text-xl font-bold">{set.setName}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{set.purpose}</p>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-lg bg-muted/40 p-4 space-y-2">
-                      <p className="font-semibold">What the Specialist does</p>
-                      <p className="text-sm text-muted-foreground">{execution.specialistAction}</p>
-                    </div>
-                    <div className="rounded-lg bg-muted/40 p-4 space-y-2">
-                      <p className="font-semibold">What the student does</p>
-                      <p className="text-sm text-muted-foreground">{execution.studentAction}</p>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border-l-4 border-l-primary bg-primary/5 p-4 space-y-2">
-                    <p className="font-semibold">Condition to preserve</p>
-                    <p className="text-sm text-muted-foreground">{execution.preserve}</p>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{constraintLabel(set)}</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="font-semibold">Why every rep exists</p>
-                    {repPurposes.map((purpose, repIndex) => (
-                      <div key={purpose} className="rounded-lg border p-3">
-                        <p className="text-sm">
-                          <span className="font-semibold">Rep {repIndex + 1}: </span>
-                          <span className="text-muted-foreground">{purpose}</span>
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="font-semibold">Do not contaminate this set</p>
-                    <ul className="space-y-1 text-sm text-muted-foreground">
-                      {execution.doNot.map((rule) => (
-                        <li key={rule}>{rule}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </Card>
+
+        {trainingSchema.sets.map((set, setIndex) => {
+          const execution = CLARITY_SET_EXECUTION[set.setId];
+          const repPurposes = CLARITY_REP_PURPOSES[set.setId] || [];
+
+          return (
+            <Card key={set.setId} className="p-6 space-y-5">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                  Set {setIndex + 1} of {trainingSchema.sets.length}
+                </p>
+                <h2 className="mt-1 text-2xl font-bold">{set.setName}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{set.purpose}</p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-lg bg-muted/40 p-4 space-y-2">
+                  <p className="font-semibold">What the Specialist does</p>
+                  <p className="text-sm text-muted-foreground">{execution.specialistAction}</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-4 space-y-2">
+                  <p className="font-semibold">What the student does</p>
+                  <p className="text-sm text-muted-foreground">{execution.studentAction}</p>
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-primary/5 p-4 space-y-2">
+                <p className="font-semibold">Condition to preserve</p>
+                <p className="text-sm text-muted-foreground">{execution.preserve}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {constraintLabel(set)}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-semibold">Why every rep exists</p>
+                {repPurposes.map((purpose, repIndex) => (
+                  <div key={purpose} className="rounded-lg border p-3">
+                    <p className="text-sm">
+                      <span className="font-semibold">Rep {repIndex + 1}: </span>
+                      <span className="text-muted-foreground">{purpose}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-semibold">Do not contaminate this set</p>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {execution.doNot.map((rule) => (
+                    <li key={rule}>{rule}</li>
+                  ))}
+                </ul>
+              </div>
+            </Card>
+          );
+        })}
+
+        <DeepDiveTeachingInteraction
+          prompt="The Specialist asks leading questions at each step. The student supplies every answer and finishes correctly. What evidence was actually produced?"
+          options={[
+            {
+              key: "a",
+              label: "Independent evidence, because the student still produced each step.",
+              feedback: "Producing the words is not the same as generating the path. The leading questions materially carried the response.",
+            },
+            {
+              key: "b",
+              label: "Supported evidence; the Specialist's questions supplied directional structure.",
+              feedback: "Yes. RI records what the student produced and what the Specialist had to supply to make that production possible.",
+            },
+            {
+              key: "c",
+              label: "High stability, because the student needed prompts but never needed the actual method explained.",
+              feedback: "Prompt dependence is still dependence. Stability cannot be strengthened by support that the independent condition was meant to withhold.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Support is defined by what it does to the task, not only by whether the Specialist gives the literal answer. Direction that carries the student must remain visible in the evidence."
+        />
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What You Observe</h2>
           <p className="text-muted-foreground">
-            Clarity is not decided by impression. The observation families below capture concrete behavior that the evidence model interprets.
+            Clarity is not decided by impression. The observation families capture concrete behavior that RI interprets.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {observationSignals.map((signal) => (
@@ -298,6 +376,29 @@ export default function ResponseConditioningClarity() {
             explanation you imagine sits behind it.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="A correctly prepared Identification rep is run without contamination, and the student cannot name the method. What has failed?"
+          options={[
+            {
+              key: "c",
+              label: "The student's recognition at that moment; the rep itself can still be valid evidence.",
+              feedback: "Yes. Specialist execution and learner performance are separate truths.",
+            },
+            {
+              key: "a",
+              label: "The Specialist's execution, because a valid rep should produce the target behavior.",
+              feedback: "A well-run evidence condition does not guarantee a strong learner response. Its job is to reveal what is actually supported.",
+            },
+            {
+              key: "b",
+              label: "The evidence event, because a rep that does not produce a correct response must be repeated before it can count.",
+              feedback: "A genuine breakdown is already useful evidence. Repeating until success would replace observation with outcome-chasing.",
+            },
+          ]}
+          correctOptionKey="c"
+          truth="A weak learner response can come from a correctly executed rep. If the Specialist preserved the condition, the breakdown is valid evidence of what the student could not yet produce independently."
+        />
 
         <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
           <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
@@ -314,6 +415,29 @@ export default function ResponseConditioningClarity() {
             the evidence invalid.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="Clarity is at High and the next session is due. Which action preserves RI's progression authority?"
+          options={[
+            {
+              key: "a",
+              label: "Begin Structured Execution, but treat the first set as provisional in case Clarity was not actually stable.",
+              feedback: "A provisional phase jump still bypasses the confirmation evidence that High Maintenance is meant to establish.",
+            },
+            {
+              key: "b",
+              label: "Run the ordinary Clarity drill again and submit the resulting evidence for RI to evaluate.",
+              feedback: "Yes. High remains inside Clarity until later qualifying evidence earns High Maintenance and the system authorizes movement.",
+            },
+            {
+              key: "c",
+              label: "Run a High Maintenance drill, then decide whether Structured Execution opens.",
+              feedback: "High Maintenance is the state earned from qualifying same-phase evidence, not a separate drill the Specialist chooses.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="High is not manual progression authority. The Specialist runs the same-phase drill, preserves the conditions, submits the evidence, and lets RI determine whether High Maintenance has been earned."
+        />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression: Your Job Ends at Submission</h2>
@@ -332,7 +456,7 @@ export default function ResponseConditioningClarity() {
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Diagnosis Is a Different Recipe</h2>
           <p className="text-muted-foreground">
-            Clarity diagnosis is not the training drill above. The live diagnosis schema uses separate probes to establish an entry
+            Clarity diagnosis is separate from the Clarity training drill. Diagnosis uses separate probes to establish the entry
             point before normal training.
           </p>
           <div className="space-y-3">
@@ -352,7 +476,7 @@ export default function ResponseConditioningClarity() {
           </p>
         </Card>
 
-        <Card className="p-6 space-y-5 border-l-4 border-l-primary">
+        <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Clarity in One Picture</h2>
           <p className="text-xl font-semibold">When you see Clarity, think: Build the map.</p>
           <p className="text-muted-foreground">
@@ -379,6 +503,7 @@ export default function ResponseConditioningClarity() {
           </ul>
           <p className="font-semibold">If you understand it, the next step is demonstration, not another explanation.</p>
         </Card>
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );

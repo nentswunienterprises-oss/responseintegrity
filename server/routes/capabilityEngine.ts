@@ -2,26 +2,40 @@ import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { isAuthenticated } from "../supabaseAuth";
 import {
+  confirmCapabilityQuestionStateless,
   getCapabilityAssessmentHistory,
   getSpecialistCapabilityLedger,
-  persistCapabilityAssessmentAttempt,
-  prepareCapabilityAssessmentForm,
+  persistCapabilityInteractiveAttempt,
+  prepareCapabilityInteractiveAssessmentForm,
+  resetCapabilityReviewSession,
+  submitCapabilityExperienceFeedback,
 } from "../capabilityEngine";
 import {
   assertCapabilityAssessmentAvailable,
-  getSpecialistCapabilityPlanStatus,
+  getSpecialistCapabilityTrainingState,
+  reconcileCapabilitySandboxAuthority,
 } from "../capabilitySequencing";
 
-const capabilityResponseSchema = z.object({
+const capabilityAttemptSchema = z.object({
+  tutorAssignmentId: z.string().trim().min(1),
+  interactionToken: z.string().trim().min(1),
+  receipts: z.array(z.string().trim().min(1)).min(1),
+});
+
+const capabilityQuestionConfirmationSchema = z.object({
+  interactionToken: z.string().trim().min(1),
+  priorReceipts: z.array(z.string().trim().min(1)).default([]),
   questionKey: z.string().trim().min(1),
   selectedOptionKeys: z.array(z.string().trim().min(1)).min(1),
 });
 
-const capabilityAttemptSchema = z.object({
+const capabilityExperienceFeedbackSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  feedback: z.string().trim().max(2000).optional().nullable(),
+});
+
+const capabilityReviewResetSchema = z.object({
   tutorAssignmentId: z.string().trim().min(1),
-  formId: z.string().trim().min(1),
-  bankVersion: z.number().int().positive(),
-  responses: z.array(capabilityResponseSchema).min(1),
 });
 
 function requireSpecialistUser(req: Request, res: Response) {
@@ -64,13 +78,37 @@ export function registerCapabilityEngineRoutes(app: Express) {
           return res.status(400).json({ message: "tutorAssignmentId is required." });
         }
 
-        const assessments = await getSpecialistCapabilityPlanStatus({
+        const state = await getSpecialistCapabilityTrainingState({
           tutorAssignmentId,
           tutorId: String(dbUser.id),
         });
-        return res.json({ assessments });
+        return res.json(state);
       } catch (error) {
         return respondError(res, error, "Failed to load capability assessment plan.");
+      }
+    },
+  );
+
+  app.post(
+    "/api/tutor/capability-assessments/:assessmentKey/review-reset",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const dbUser = requireSpecialistUser(req, res);
+        if (!dbUser) return;
+
+        const payload = capabilityReviewResetSchema.parse(req.body);
+        const assessmentKey = String(req.params.assessmentKey || "").trim();
+
+        const state = await resetCapabilityReviewSession({
+          tutorAssignmentId: payload.tutorAssignmentId,
+          tutorId: String(dbUser.id),
+          assessmentKey,
+        });
+
+        return res.json(state);
+      } catch (error) {
+        return respondError(res, error, "Failed to reset Capability review session.");
       }
     },
   );
@@ -95,7 +133,7 @@ export function registerCapabilityEngineRoutes(app: Express) {
           assessmentKey,
         });
 
-        const form = await prepareCapabilityAssessmentForm({
+        const form = await prepareCapabilityInteractiveAssessmentForm({
           tutorAssignmentId,
           tutorId: String(dbUser.id),
           assessmentKey,
@@ -104,6 +142,28 @@ export function registerCapabilityEngineRoutes(app: Express) {
         return res.json(form);
       } catch (error) {
         return respondError(res, error, "Failed to prepare capability assessment.");
+      }
+    },
+  );
+
+  app.post(
+    "/api/tutor/capability-assessments/:assessmentKey/question-confirmation",
+    async (req: Request, res: Response) => {
+      try {
+        const payload = capabilityQuestionConfirmationSchema.parse(req.body);
+        const assessmentKey = String(req.params.assessmentKey || "").trim();
+
+        const result = confirmCapabilityQuestionStateless({
+          assessmentKey,
+          interactionToken: payload.interactionToken,
+          priorReceipts: payload.priorReceipts,
+          questionKey: payload.questionKey,
+          selectedOptionKeys: payload.selectedOptionKeys,
+        });
+
+        return res.status(201).json(result);
+      } catch (error) {
+        return respondError(res, error, "Failed to confirm Capability answer.");
       }
     },
   );
@@ -125,21 +185,52 @@ export function registerCapabilityEngineRoutes(app: Express) {
           assessmentKey,
         });
 
-        const result = await persistCapabilityAssessmentAttempt({
+        const result = await persistCapabilityInteractiveAttempt({
           tutorAssignmentId: payload.tutorAssignmentId,
           tutorId: String(dbUser.id),
           assessmentKey,
-          formId: payload.formId,
-          bankVersion: payload.bankVersion,
-          responses: payload.responses.map((response) => ({
-            questionKey: response.questionKey!,
-            selectedOptionKeys: response.selectedOptionKeys!,
-          })),
+          interactionToken: payload.interactionToken,
+          receipts: payload.receipts,
         });
 
-        return res.status(201).json(result);
+        const progression = result.passed
+          ? await reconcileCapabilitySandboxAuthority({
+              tutorAssignmentId: payload.tutorAssignmentId,
+              tutorId: String(dbUser.id),
+            })
+          : null;
+
+        return res.status(201).json({
+          ...result,
+          sandboxReady: progression?.sandboxReady ?? false,
+          operationalMode: progression?.mode ?? null,
+          sandboxUnlocked: Boolean(progression?.promoted),
+        });
       } catch (error) {
         return respondError(res, error, "Failed to save capability assessment attempt.");
+      }
+    },
+  );
+
+  app.post(
+    "/api/tutor/capability-attempts/:attemptId/feedback",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const dbUser = requireSpecialistUser(req, res);
+        if (!dbUser) return;
+
+        const payload = capabilityExperienceFeedbackSchema.parse(req.body);
+        const feedback = await submitCapabilityExperienceFeedback({
+          attemptId: String(req.params.attemptId || "").trim(),
+          tutorId: String(dbUser.id),
+          rating: payload.rating,
+          feedback: payload.feedback,
+        });
+
+        return res.status(201).json(feedback);
+      } catch (error) {
+        return respondError(res, error, "Failed to save Capability Check feedback.");
       }
     },
   );

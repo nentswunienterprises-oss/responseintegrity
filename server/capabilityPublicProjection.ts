@@ -1,3 +1,4 @@
+import { cleanCapabilityDisplayCopy } from "./capabilityDisplayCopy";
 import type {
   CapabilityAssessmentDefinition,
   CapabilityAssessmentResult,
@@ -13,7 +14,7 @@ export function projectCapabilityAssessmentForSpecialist(input: {
   return {
     key: input.definition.key,
     deepDiveKey: input.definition.deepDiveKey,
-    title: input.definition.title,
+    title: cleanCapabilityDisplayCopy(input.definition.title),
     evidenceKind: input.definition.evidenceKind,
     passThresholdPercent: input.definition.passThresholdPercent,
     totalQuestions: input.definition.questions.length,
@@ -23,9 +24,12 @@ export function projectCapabilityAssessmentForSpecialist(input: {
     maxAttempts: input.maxAttempts,
     questions: input.definition.questions.map((question) => ({
       key: question.key,
-      prompt: question.prompt,
+      prompt: cleanCapabilityDisplayCopy(question.prompt),
       kind: question.kind,
-      options: question.options.map((option) => ({ ...option })),
+      options: question.options.map((option) => ({
+        ...option,
+        label: cleanCapabilityDisplayCopy(option.label),
+      })),
     })),
   };
 }

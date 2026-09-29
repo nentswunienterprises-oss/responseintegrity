@@ -1,5 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Target } from "lucide-react";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -19,24 +22,24 @@ export default function ResponseConditioningTopicConditioning() {
             Back to Response Conditioning System
           </Button>
 
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Target className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">
-                Response Integrity-OS Deep Dive
-              </p>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mt-1">
-                Topic Conditioning
-              </h1>
-               <p className="text-muted-foreground mt-1">under Transformation Phases</p>
-            </div>
+          <div>
+            <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">
+              Response Integrity-OS Deep Dive
+            </p>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight mt-1">
+              Topic Conditioning
+            </h1>
+            <p className="text-muted-foreground mt-1">under Transformation Phases</p>
           </div>
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+        <DeepDiveLessonRunner
+          lessonKey="topic-conditioning-v1"
+          title="Topic Conditioning"
+          completion={<DeepDiveCapabilityCheck assessmentKey="topic_conditioning_mastery_v1" />}
+        >
         <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Topic Conditioning in Response Integrity</h2>
           <h3 className="text-xl font-semibold">What it is</h3>
@@ -118,6 +121,29 @@ export default function ResponseConditioningTopicConditioning() {
           <p className="font-semibold">If not, the topic is not conditioned yet.</p>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="Algebra is at Structured Execution High Maintenance. Fractions is newly placed at Clarity Medium. What should govern the first Fractions training session?"
+          options={[
+            {
+              key: "a",
+              label: "Use the Algebra state provisionally, then move Fractions back only if the first rep breaks.",
+              feedback: "Borrowing another topic's state treats transfer as proven before Fractions has produced that evidence. The Fractions state already tells you where to begin.",
+            },
+            {
+              key: "b",
+              label: "Begin from Fractions at Clarity Medium and let Fractions evidence determine its movement.",
+              feedback: "Yes. Another topic can show what the student is capable of elsewhere, but it cannot replace the active topic's own evidence history.",
+            },
+            {
+              key: "c",
+              label: "Start both topics from the lower state so the programme stays consistent.",
+              feedback: "Consistency does not mean one shared state. RI preserves different topic histories when the evidence differs.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Topic state is local to the topic. Strength in Algebra can be useful context, but Fractions begins from the phase and stability supported by Fractions evidence."
+        />
+
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">The core structure</h2>
           <p className="text-muted-foreground">Topic Conditioning in Response Integrity works like this:</p>
@@ -165,6 +191,29 @@ export default function ResponseConditioningTopicConditioning() {
             It says: In this specific topic, the student's response breaks here. That is useful.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="A student scores 86% in a familiar class test, but in RI their structure repeatedly breaks when the same method appears in less familiar forms. How should the class-test mark be used?"
+          options={[
+            {
+              key: "a",
+              label: "Treat the mark as evidence that the topic is at least High, because the student has already performed well academically.",
+              feedback: "The mark proves performance in that class-test setting. It does not prove the same response remains stable when familiarity and challenge change.",
+            },
+            {
+              key: "b",
+              label: "Treat them as conflicting and wait for another class test before deciding the topic state.",
+              feedback: "The sources are not competing measurements of the same thing. The class test gives academic context; RI is observing the response under the condition being trained.",
+            },
+            {
+              key: "c",
+              label: "Keep the mark as academic context, while letting direct RI evidence determine the topic's phase and stability.",
+              feedback: "Yes. Academic performance matters, but conditioned-response state comes from what the student actually does inside the RI condition.",
+            },
+          ]}
+          correctOptionKey="c"
+          truth="A strong class-test result can coexist with a response that loses structure when familiarity or challenge changes. RI uses direct response evidence for phase and stability, while school performance remains useful context."
+        />
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">How the OS works inside a topic</h2>
@@ -270,6 +319,29 @@ export default function ResponseConditioningTopicConditioning() {
           </p>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="A topic is at Clarity High after a strong session. Which next move preserves the meaning of High?"
+          options={[
+            {
+              key: "a",
+              label: "Run the ordinary Clarity drill again and let qualifying evidence decide whether High Maintenance is earned.",
+              feedback: "Yes. High is strong evidence inside the phase, but repeatability still has to be demonstrated before the confirmation state is earned.",
+            },
+            {
+              key: "b",
+              label: "Move into Structured Execution, because High already shows the Clarity response is strong enough to progress.",
+              feedback: "High is not the progression state. Moving now would convert a strong moment into confirmed stability before the required repeat evidence exists.",
+            },
+            {
+              key: "c",
+              label: "Run a separate High Maintenance drill because that is the next state to confirm.",
+              feedback: "High Maintenance is an earned stability state, not a separate drill the Specialist can choose in advance.",
+            },
+          ]}
+          correctOptionKey="a"
+          truth="At High, the topic remains in the same phase. The ordinary same-phase drill runs again; later qualifying evidence can earn High Maintenance and authorize progression."
+        />
+
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">How the intro session uses Topic Conditioning</h2>
           <p className="text-muted-foreground">The introductory session is not a general assessment.</p>
@@ -366,6 +438,29 @@ export default function ResponseConditioningTopicConditioning() {
           <p className="font-semibold">This is why Response Integrity feels different.</p>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="A family moves from two sessions per week to four. What changes in the student's development path?"
+          options={[
+            {
+              key: "a",
+              label: "The evidence standard becomes lighter because the system will see the student more often.",
+              feedback: "More opportunities do not reduce what counts as qualifying evidence. Frequency changes how quickly opportunities arrive, not the standard they must meet.",
+            },
+            {
+              key: "b",
+              label: "The same evidence requirements remain, but qualifying opportunities can arrive sooner in calendar time.",
+              feedback: "Yes. Cadence changes delivery frequency, not the educational rule for phase or stability movement.",
+            },
+            {
+              key: "c",
+              label: "The topic should advance after fewer successful reps so the higher package frequency does not slow perceived progress.",
+              feedback: "Package value cannot be protected by weakening the evidence gate. Progression still depends on the same response proof.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Package cadence and educational state are separate. More sessions create more opportunities to produce evidence, but they do not alter the evidence required for movement."
+        />
+
         <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">What package cadence really means</h2>
           <p className="text-muted-foreground">A session package is not a promise of generic teaching hours.</p>
@@ -383,6 +478,29 @@ export default function ResponseConditioningTopicConditioning() {
           <p className="font-semibold">They are the repetition units through which Topic Conditioning happens.</p>
           <p className="font-semibold">That is a completely different model.</p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="A student identifies the problem and method correctly, executes the method in order, then makes one arithmetic slip that changes the final answer. What should RI locate first?"
+          options={[
+            {
+              key: "a",
+              label: "Clarity, because a wrong final answer means the student did not understand the problem well enough.",
+              feedback: "The observed recognition was already supported. Final correctness cannot erase earlier layers that were visibly intact.",
+            },
+            {
+              key: "b",
+              label: "Structured Execution, because any error made during solving belongs to the execution phase.",
+              feedback: "An error occurring during execution is not automatically a structure breakdown. RI still asks what behavior actually became unsupported.",
+            },
+            {
+              key: "c",
+              label: "Preserve supported earlier layers and locate the first response behavior that becomes unsupported.",
+              feedback: "Yes. RI follows the response chain rather than assigning the phase from the final answer or from where the error happened chronologically.",
+            },
+          ]}
+          correctOptionKey="c"
+          truth="Topic Conditioning preserves supported earlier layers and locates the earliest unsupported response behavior. A wrong final answer does not automatically mean Clarity or Structured Execution failed."
+        />
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What the Specialist is doing during Topic Conditioning</h2>
@@ -416,7 +534,7 @@ export default function ResponseConditioningTopicConditioning() {
           </p>
         </Card>
 
-        <Card className="p-6 space-y-4 border-l-4 border-l-primary">
+        <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What the parent is really buying</h2>
           <p className="text-muted-foreground">Parents may think they are buying math tutoring, support with schoolwork, and help with difficult topics.</p>
           <p className="font-semibold">
@@ -441,6 +559,7 @@ export default function ResponseConditioningTopicConditioning() {
             <li>the student's transformation</li>
           </ul>
         </Card>
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );

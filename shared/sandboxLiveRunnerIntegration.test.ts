@@ -42,6 +42,10 @@ const battleTestingSource = readFileSync(
   new URL("../server/battleTesting.ts", import.meta.url),
   "utf8",
 );
+const capabilitySequencingSource = readFileSync(
+  new URL("../server/capabilitySequencing.ts", import.meta.url),
+  "utf8",
+);
 const tdOverviewSource = readFileSync(
   new URL("../client/src/pages/operational/td/overview.tsx", import.meta.url),
   "utf8",
@@ -369,9 +373,21 @@ test("Sandbox readiness never skips Practicals by promoting directly to Trial", 
     deriveModeStart,
     deriveModeEnd,
   );
+  assert.doesNotMatch(
+    deriveModeSource,
+    /if \(transformationComplete(?: && sessionComplete)?\) return "sandbox"/,
+  );
   assert.match(
     deriveModeSource,
-    /if \(transformationComplete && sessionComplete\) return "sandbox"/,
+    /Legacy Battle Testing remains a health\/history surface[\s\S]*return "training"/,
+  );
+  assert.match(
+    capabilitySequencingSource,
+    /isCapabilityTransformationSandboxReady[\s\S]*reconcileCapabilitySandboxAuthority/,
+  );
+  assert.match(
+    capabilitySequencingSource,
+    /operational_mode = 'sandbox'/,
   );
   assert.doesNotMatch(
     deriveModeSource,

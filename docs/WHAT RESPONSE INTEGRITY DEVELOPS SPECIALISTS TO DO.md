@@ -133,7 +133,7 @@ The capability being developed is psychological safety with learning discipline.
 Attention
 Individual Attention At The Learner's Pace
 
-A Response Conditioning Specialist is trained to work with the learner in front of them — not with an imaginary average student.
+A Response Conditioning Specialist is trained to work with the learner in front of them - not with an imaginary average student.
 
 They learn to notice how quickly the learner is processing, where they are hesitating, where they are losing structure, and when they need another repetition before moving forward.
 
@@ -173,15 +173,15 @@ It asks:
 
 Every stage exists for a reason.
 
-Application — evidence that you qualify.
+Application - evidence that you qualify.
 
-Training — evidence that you understand how transformation works.
+Training - evidence that you understand how transformation works.
 
-Sandbox — evidence that you can operate the tools and systems.
+Sandbox - evidence that you can operate the tools and systems.
 
-Trial — evidence that you can execute the process with a real family and achieve the desired experience.
+Trial - evidence that you can execute the process with a real family and achieve the desired experience.
 
-Certified Live — evidence that you can be trusted with real responsibility.
+Certified Live - evidence that you can be trusted with real responsibility.
 
 Your progression is not based on how convincing you are.
 
@@ -202,4 +202,4 @@ Challenge without creating shame.
 
 Follow the process without losing sight of the person.
 
-The specialist is trained to execute the system when the situation becomes difficult — not only when everything is going smoothly.
+The specialist is trained to execute the system when the situation becomes difficult - not only when everything is going smoothly.

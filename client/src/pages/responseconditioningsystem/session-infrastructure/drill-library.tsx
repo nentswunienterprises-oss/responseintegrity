@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,7 @@ const drillTypes = [
     title: "Training drills",
     use: "Active Training",
     authority:
-      "The live drill registry defines the phase sets, rep opportunities, purpose, and constraints. The Specialist executes the prescribed sequence and records the response.",
+      "Each phase has required sets, rep opportunities, purposes, and conditions. The Specialist runs that sequence as assigned and records what the student actually does.",
     boundary:
       "Required exposure is not the same thing as evidence authority. Completing the drill does not force a stronger state.",
   },
@@ -91,9 +92,9 @@ export default function ResponseConditioningDrillLibrary() {
         </div>
 
         <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">Live Training Drill Registry</h2>
+          <h2 className="text-2xl font-bold">Required Training Drills</h2>
           <p className="text-muted-foreground">
-            The Training sets below are rendered from the same live registry used by the product so this Deep Dive cannot quietly invent a different phase recipe.
+            The Training sets below are the required sets for each phase.
           </p>
           <div className="space-y-4">
             {trainingSchemas.map(({ phase, schema }) => (
@@ -117,11 +118,11 @@ export default function ResponseConditioningDrillLibrary() {
           <ul className="space-y-2 pl-5 list-disc text-muted-foreground">
             <li>Prepare problems that satisfy the live set's topic, support, pressure, variation, and difficulty constraints.</li>
             <li>Do not silently change the problem form, difficulty, support boundary, or timer and still treat the evidence as though the original condition held.</li>
-            <li>TPS timing comes from the immutable student/topic Timer Contract. The Specialist does not invent a timer.</li>
+            <li>TPS uses the timing already set for that student and topic. The Specialist does not invent or adjust the timer.</li>
             <li>For timing-sensitive Training, pre-session prep includes fresh equivalent reserve problems matched to the same set conditions. Reserve inventory is contingency only, not additional reps.</li>
-            <li>An objective technical timer/runtime/device failure leaves the evidence slot unresolved. Only then may a fresh pre-prepared equivalent reserve problem fill that slot. The exposed problem is never reused.</li>
+            <li>If the timer, device, or session technology fails and the timed attempt can no longer be trusted, that attempt remains unresolved. Only then may a fresh pre-prepared equivalent reserve problem be used under the same conditions. The exposed problem is never reused.</li>
             <li>Student timeout, panic, wrong method, incomplete work, or weak performance remains real evidence and does not authorize a replacement opportunity.</li>
-            <li>Diagnosis probes are system-selected; Training sets are registry-defined; Handover opportunities are bounded by evidence sufficiency.</li>
+            <li>Diagnosis tells the Specialist what to check next. Training uses the required set for the current phase. Handover continues only until there is enough trustworthy evidence to confirm continuity.</li>
           </ul>
         </Card>
 
@@ -148,6 +149,7 @@ export default function ResponseConditioningDrillLibrary() {
           <h2 className="text-2xl font-bold">Specialist Standard</h2>
           <p className="font-semibold">Use the authorized drill source. Preserve the condition. Record the real response. Let evidence decide what happens next.</p>
         </Card>
+        <DeepDiveCapabilityCheck assessmentKey="drill_library_mastery_v1" />
       </div>
     </div>
   );

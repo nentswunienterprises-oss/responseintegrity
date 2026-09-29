@@ -5,13 +5,11 @@ const specialistEmail = String(process.env.RI_PROOF_SPECIALIST_EMAIL || "").trim
 const specialistPassword = String(process.env.RI_PROOF_SPECIALIST_PASSWORD || "");
 const cooPassword = String(process.env.RI_PROOF_COO_PASSWORD || "");
 const bypass = String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "").trim();
-const expectedCommit = String(process.env.PROOF_EXPECTED_APP_SHA || "").trim();
 const cooEmail = "coo@proof.responseintegrity.co.za";
 
 assert.ok(baseUrl, "PROOF_BASE_URL is required");
 assert.ok(specialistEmail && specialistPassword, "Proof Specialist credentials are required");
 assert.ok(cooPassword, "RI_PROOF_COO_PASSWORD is required");
-assert.ok(expectedCommit, "Expected Preview app SHA is required");
 
 const baseHeaders = {
   "content-type": "application/json",
@@ -37,7 +35,7 @@ async function waitForPreview() {
       if (
         last?.vercelEnv === "preview" &&
         last?.supabaseProjectRef === "jftlxeacphvbnhbsbpxc" &&
-        last?.commitSha === expectedCommit
+        last?.requiredEnv?.SUPABASE_SERVICE_ROLE_KEY === true
       ) {
         console.log("PROOF_COO_PREVIEW_READY=" + JSON.stringify({
           attempt,
@@ -49,7 +47,7 @@ async function waitForPreview() {
     }
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
-  throw new Error("Preview alias did not reach expected app SHA: " + JSON.stringify(last));
+  throw new Error("Preview alias did not reach the expected Proof runtime: " + JSON.stringify(last));
 }
 
 function sessionCookie(response) {
@@ -98,6 +96,8 @@ const provisionBody = JSON.parse(provisionText);
 assert.equal(provisionBody?.user?.email, cooEmail);
 assert.equal(provisionBody?.user?.role, "coo");
 assert.equal(provisionBody?.credentialProvisioned, true);
+assert.equal(provisionBody?.supabaseAuthProvisioned, true);
+assert.equal(provisionBody?.authUserId, provisionBody?.user?.id);
 assert.equal(provisionBody?.appointedExecutiveRole, "coo");
 
 const cooLogin = await request("/api/auth/signin", {

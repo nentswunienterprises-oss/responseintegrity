@@ -140,7 +140,28 @@ export async function setupAuth(app: Express) {
     });
   });
 
-  app.use(getSession());
+  const sessionMiddleware = getSession();
+
+  // Bearer-authenticated requests already have an independent Supabase identity.
+  // Reads and latency-sensitive Capability Engine interactions must not wait on
+  // the legacy PostgreSQL session store in normal Supabase auth mode.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const hasBearerToken =
+      typeof req.headers.authorization === "string" &&
+      req.headers.authorization.startsWith("Bearer ");
+    const isCapabilityEngineRequest =
+      req.path.startsWith("/api/tutor/capability-");
+
+    if (
+      !isEmergencyDbMode() &&
+      hasBearerToken &&
+      (req.method === "GET" || isCapabilityEngineRequest)
+    ) {
+      return next();
+    }
+
+    return sessionMiddleware(req, res, next);
+  });
 
   // connect-pg-simple reports request-time store failures through next(error).
   // Handle that boundary explicitly so Vercel returns structured JSON instead
@@ -172,13 +193,18 @@ export async function setupAuth(app: Express) {
       pools: getDatabasePoolStats(),
     });
 
-    // Non-emergency GETs can still be authenticated independently by the
-    // downstream Supabase bearer-token path. Do not let a legacy Express
-    // session-store outage collapse read-only portal state when a bearer token
-    // is already present. Mutations remain fail-closed.
-    if (!isEmergencyDbMode() && req.method === "GET" && hasBearerToken) {
-      (req as any).session = new (session as any).Session(req, {});
-      console.warn("[AUTH] Continuing bearer-authenticated GET without persisted Express session", {
+    // Bearer reads and Capability Engine interactions normally bypass the
+    // session middleware entirely. If one reaches this boundary anyway,
+    // continue without synthesizing an express-session Session object.
+    const isCapabilityEngineRequest =
+      req.path.startsWith("/api/tutor/capability-");
+    if (
+      !isEmergencyDbMode() &&
+      hasBearerToken &&
+      (req.method === "GET" || isCapabilityEngineRequest)
+    ) {
+      console.warn("[AUTH] Continuing bearer-authenticated request after session-store error", {
+        method: req.method,
         path: req.path,
       });
       return next();
@@ -560,21 +586,95 @@ export async function setupAuth(app: Express) {
         });
       }
 
-      // Authenticate with Supabase
-      const { data: authData, error: authError } =
+      // Authenticate with Supabase.
+      // Legacy accounts that were created while emergency auth was authoritative
+      // can still have a valid private credential but no auth.users identity.
+      // On a valid legacy credential, roll the identity forward into Supabase Auth
+      // using the same canonical UUID and the password the user just supplied.
+      let { data: authData, error: authError } =
         await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
+      if (
+        authError &&
+        process.env.SUPABASE_SERVICE_ROLE_KEY &&
+        authError.status !== 429 &&
+        authError.code !== "over_request_rate_limit"
+      ) {
+        const legacyFallback = await authenticateEmergencyUser(
+          pool,
+          email,
+          password,
+          req.ip || "unknown",
+        );
+
+        if (!("error" in legacyFallback)) {
+          const legacyUser = await storage.getUser(legacyFallback.authUser.id);
+
+          if (
+            legacyUser &&
+            emergencyExpectedRoleMatches(legacyUser.role, expectedRole)
+          ) {
+            const { data: createdAuth, error: createAuthError } =
+              await serverSupabase.auth.admin.createUser({
+                id: legacyUser.id,
+                email: normalizedEmail,
+                password,
+                email_confirm: true,
+                app_metadata: {
+                  legacy_emergency_migrated: true,
+                },
+                user_metadata: {
+                  name: legacyUser.name || normalizedEmail.split("@")[0],
+                  first_name: (legacyUser as any).firstName || "",
+                  last_name: (legacyUser as any).lastName || "",
+                },
+              });
+
+            if (!createAuthError && createdAuth.user) {
+              if (
+                createdAuth.user.id !== legacyUser.id ||
+                normalizeEmail(createdAuth.user.email || "") !== normalizedEmail
+              ) {
+                console.error("[AUTH] Legacy identity migration returned a non-canonical Auth identity", {
+                  publicUserId: legacyUser.id,
+                  authUserId: createdAuth.user.id,
+                });
+              } else {
+                console.log("[AUTH] Migrated legacy emergency identity into Supabase Auth", {
+                  userId: legacyUser.id,
+                  role: legacyUser.role,
+                });
+
+                const retry = await supabase.auth.signInWithPassword({
+                  email,
+                  password,
+                });
+                authData = retry.data;
+                authError = retry.error;
+              }
+            } else if (createAuthError) {
+              // Never overwrite an existing Supabase Auth password from the
+              // emergency credential. If an Auth identity already exists, normal
+              // Supabase authentication remains authoritative.
+              console.warn("[AUTH] Legacy identity migration was not applied", {
+                userId: legacyUser.id,
+                code: createAuthError.code || null,
+                status: createAuthError.status || null,
+                message: createAuthError.message,
+              });
+            }
+          }
+        }
+      }
+
       if (authError) {
         console.error("Supabase signin error:", authError);
 
-        // Preview continuity: Proof can retain an operational sandbox Specialist
-        // even when its Supabase Auth identity is absent. In Preview only, allow
-        // that existing sandbox Specialist to fall back to the already-provisioned
-        // private emergency credential. This never provisions a credential, never
-        // changes the Specialist ID, and is unavailable in production.
+        // Preview continuity remains available for recognized Proof personas and
+        // Sandbox Specialists if a rolling Auth migration cannot be completed.
         if (process.env.VERCEL_ENV === "preview") {
           const fallback = await authenticateEmergencyUser(
             pool,
@@ -1067,6 +1167,41 @@ export async function setupAuth(app: Express) {
   });
 }
 
+// Lightweight verified identity for stateless Capability interactions.
+// This validates the bearer JWT but deliberately skips the public.users lookup.
+// Authorization remains bound to the encrypted Capability interaction token that
+// was issued only after the full Specialist/assignment checks completed.
+export const isAuthenticatedClaimsOnly: RequestHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  if (isEmergencyDbMode()) {
+    return isAuthenticated(req, res, next);
+  }
+
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Authentication required." });
+    }
+
+    const token = authHeader.substring(7);
+    const { data: claimsData, error } = await supabase.auth.getClaims(token);
+    const userId = String((claimsData as any)?.claims?.sub || "").trim();
+
+    if (error || !userId) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+
+    (req as any).authUserId = userId;
+    return next();
+  } catch (error) {
+    console.error("[AUTH] claims-only verification failed", error);
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+};
+
 // Middleware to check if user is authenticated
 export const isAuthenticated: RequestHandler = async (
   req: Request,
@@ -1104,40 +1239,42 @@ export const isAuthenticated: RequestHandler = async (
       }
     }
 
-    // Second, try Bearer token auth (for cross-origin requests from Vercel frontend)
+    // Second, verify explicit Bearer auth. getClaims validates the access token
+    // without requiring a fresh Auth user lookup when local JWT verification is
+    // available, which keeps interactive authenticated requests responsive.
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.substring(7);
-      
-      // Verify the JWT token with Supabase
-      const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(token);
-      
-      if (error) {
-        console.error("Token verification failed:", error.message);
+      const { data: claimsData, error } = await supabase.auth.getClaims(token);
+      const bearerUserId = String((claimsData as any)?.claims?.sub || "").trim();
+
+      if (error || !bearerUserId) {
+        console.error("Token verification failed:", error?.message || "missing subject");
         return res.status(401).json({ message: "Invalid token" });
       }
-      
-      if (supabaseUser) {
-        // Get user from our database
-        console.time("⏱️ storage.getUser (Bearer)");
-        try {
-          const userPromise = storage.getUser(supabaseUser.id);
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("getUser timeout after 5s")), 5000)
-          );
-          const user = await Promise.race([userPromise, timeoutPromise]);
-          console.timeEnd("⏱️ storage.getUser (Bearer)");
-          if (user) {
-            (req as any).dbUser = user;
-            return next();
-          } else {
-            console.error("User not found in database for Supabase user:", supabaseUser.id);
-            return res.status(401).json({ message: "User not found" });
-          }
-        } catch (userError) {
-          console.error("❌ Error fetching user (Bearer):", userError);
-          return res.status(500).json({ message: "Error retrieving user" });
+
+      const startedAt = Date.now();
+      try {
+        const userPromise = storage.getUser(bearerUserId);
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("getUser timeout after 5s")), 5000)
+        );
+        const user = await Promise.race([userPromise, timeoutPromise]);
+        console.log("[AUTH] Bearer profile resolved", {
+          userId: bearerUserId,
+          elapsedMs: Date.now() - startedAt,
+        });
+
+        if (user) {
+          (req as any).dbUser = user;
+          return next();
         }
+
+        console.error("User not found in database for Supabase user:", bearerUserId);
+        return res.status(401).json({ message: "User not found" });
+      } catch (userError) {
+        console.error("❌ Error fetching user (Bearer):", userError);
+        return res.status(500).json({ message: "Error retrieving user" });
       }
     }
 

@@ -1,4 +1,7 @@
 import { useMemo } from "react";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -100,7 +103,7 @@ const constraintLabel = (set: EvidenceSetDefinition) => {
 
 const diagnosisInstructionFor = (set: EvidenceSetDefinition) => {
   if (set.setId === "controlled_discomfort.first_contact") {
-    return "Present the difficult problem, preserve the no-help opening condition exactly as the runner specifies, and observe the first response without rescue.";
+    return "Present the difficult problem, preserve the required no-help opening condition, and observe the first response without rescue.";
   }
 
   return "Sustain the difficult condition, allow only the permitted first-step boundary, and observe whether engagement and recovery hold under pressure.";
@@ -146,7 +149,12 @@ export default function ResponseConditioningControlledDiscomfort() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-        <Card className="p-6 space-y-5 border-l-4 border-l-primary">
+        <DeepDiveLessonRunner
+          lessonKey="controlled-discomfort-v1"
+          title="Controlled Discomfort"
+          completion={<DeepDiveCapabilityCheck assessmentKey="controlled_discomfort_mastery_v1" />}
+        >
+        <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">The Transformation</h2>
           <p className="text-xl font-semibold">
             Controlled Discomfort asks: can the student stay engaged when the work becomes difficult?
@@ -198,10 +206,33 @@ export default function ResponseConditioningControlledDiscomfort() {
           </ul>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="A student becomes visibly uncomfortable on a challenging but solvable problem and asks to switch to an easier one. What should the Specialist protect?"
+          options={[
+            {
+              key: "a",
+              label: "The student's confidence by reducing difficulty before the discomfort becomes a negative experience.",
+              feedback: "That can remove the exact condition being trained. Visible discomfort is not itself evidence that the task is inappropriate.",
+            },
+            {
+              key: "b",
+              label: "The assigned accessible difficulty, while observing whether the student can produce a controlled response inside it.",
+              feedback: "Yes. The challenge stays because the phase is training response under difficulty, not comfort in the absence of difficulty.",
+            },
+            {
+              key: "c",
+              label: "The student's independence by adding a timer instead of offering help, so the pressure comes from time rather than the Specialist.",
+              feedback: "A timer introduces a later-phase constraint. It does not preserve the current difficulty condition; it changes what is being tested.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Controlled Discomfort keeps difficulty present when the task is still appropriate and accessible. The Specialist neither removes the challenge nor adds a later pressure variable just because discomfort appears."
+        />
+
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Controlled Discomfort Training Recipe</h2>
           <p className="text-muted-foreground">
-            This sequence is rendered from the live drill registry so the Deep Dive stays aligned with the runner.
+            This is the required Controlled Discomfort training sequence.
           </p>
           <div className="rounded-lg border bg-background p-4">
             <p className="font-semibold text-lg">
@@ -215,6 +246,29 @@ export default function ResponseConditioningControlledDiscomfort() {
             Mental model: Introduce difficulty -&gt; preserve no-rescue boundaries -&gt; repeat exposure -&gt; submit evidence -&gt; let RI-OS decide what happens next.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="Which problem is best suited to a Controlled Discomfort set?"
+          options={[
+            {
+              key: "a",
+              label: "A problem using mathematics the student already has, but presented with enough challenge or uncertainty to test their response.",
+              feedback: "Yes. The task must be difficult enough to expose the response while still leaving the student a genuine mathematical path forward.",
+            },
+            {
+              key: "b",
+              label: "A problem containing a new method the student has not learned, because genuine uncertainty creates stronger discomfort evidence.",
+              feedback: "New content makes the mathematics itself unsupported. A breakdown would no longer cleanly show how the student responds to accessible difficulty.",
+            },
+            {
+              key: "c",
+              label: "A familiar easy problem under a strict timer, because urgency can create discomfort without changing the mathematics.",
+              feedback: "That makes time the active pressure variable. Controlled Discomfort is meant to isolate response to difficulty before urgency is added.",
+            },
+          ]}
+          correctOptionKey="a"
+          truth="The difficulty must be controlled: challenging enough to create uncertainty, but still within the student's existing mathematical capability so the response under challenge can be observed cleanly."
+        />
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
@@ -245,90 +299,92 @@ export default function ResponseConditioningControlledDiscomfort() {
           </div>
         </Card>
 
-        <Card className="p-6 space-y-5">
+        <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Run the Drill: Set by Set</h2>
           <p className="text-muted-foreground">
-            Each set is a controlled exposure. Preserve the difficulty, preserve the support boundary, and let every repetition reveal
-            whether the student's response survives discomfort.
+            Each set is its own learning step. Preserve the difficulty and support boundary before moving to the next exposure.
           </p>
-
-          <div className="space-y-5">
-            {trainingSchema.sets.map((set, setIndex) => {
-              const execution = CONTROLLED_SET_EXECUTION[set.setId];
-              const repPurposes = CONTROLLED_REP_PURPOSES[set.setId] || [];
-
-              return (
-                <div key={set.setId} className="rounded-xl border p-5 space-y-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Set {setIndex + 1}</p>
-                    <h3 className="text-xl font-bold">{set.setName}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{set.purpose}</p>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-lg bg-muted/40 p-4 space-y-2">
-                      <p className="font-semibold">What the Specialist does</p>
-                      <p className="text-sm text-muted-foreground">{execution.specialistAction}</p>
-                    </div>
-                    <div className="rounded-lg bg-muted/40 p-4 space-y-2">
-                      <p className="font-semibold">What the student does</p>
-                      <p className="text-sm text-muted-foreground">{execution.studentAction}</p>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border-l-4 border-l-primary bg-primary/5 p-4 space-y-2">
-                    <p className="font-semibold">Condition to preserve</p>
-                    <p className="text-sm text-muted-foreground">{execution.preserve}</p>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{constraintLabel(set)}</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="font-semibold">Why every rep exists</p>
-                    {repPurposes.map((purpose, repIndex) => (
-                      <div key={purpose} className="rounded-lg border p-3">
-                        <p className="text-sm">
-                          <span className="font-semibold">Rep {repIndex + 1}: </span>
-                          <span className="text-muted-foreground">{purpose}</span>
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="font-semibold">Do not contaminate this set</p>
-                    <ul className="space-y-1 text-sm text-muted-foreground">
-                      {execution.doNot.map((rule) => (
-                        <li key={rule}>{rule}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </Card>
 
-        <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">Diagnosis Structure</h2>
-          <p className="text-muted-foreground">
-            Diagnosis exposes whether difficulty immediately destabilizes the student or whether the topic is ready for ongoing discomfort training.
-          </p>
-          <div className="space-y-4">
-            {diagnosisSchema.sets.map((set) => (
-              <div key={set.setId} className="rounded-lg border p-4 space-y-3">
-                <div>
-                  <h3 className="text-lg font-semibold">{set.setName}</h3>
-                  <p className="text-sm text-muted-foreground">{set.reps} reps</p>
-                </div>
-                <p className="text-muted-foreground">{set.purpose}</p>
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Rep instruction:</span> {diagnosisInstructionFor(set)}
+        {trainingSchema.sets.map((set, setIndex) => {
+          const execution = CONTROLLED_SET_EXECUTION[set.setId];
+          const repPurposes = CONTROLLED_REP_PURPOSES[set.setId] || [];
+
+          return (
+            <Card key={set.setId} className="p-6 space-y-5">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                  Set {setIndex + 1} of {trainingSchema.sets.length}
                 </p>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{constraintLabel(set)}</p>
+                <h2 className="mt-1 text-2xl font-bold">{set.setName}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{set.purpose}</p>
               </div>
-            ))}
-          </div>
-        </Card>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-lg bg-muted/40 p-4 space-y-2">
+                  <p className="font-semibold">What the Specialist does</p>
+                  <p className="text-sm text-muted-foreground">{execution.specialistAction}</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-4 space-y-2">
+                  <p className="font-semibold">What the student does</p>
+                  <p className="text-sm text-muted-foreground">{execution.studentAction}</p>
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-primary/5 p-4 space-y-2">
+                <p className="font-semibold">Condition to preserve</p>
+                <p className="text-sm text-muted-foreground">{execution.preserve}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {constraintLabel(set)}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-semibold">Why every rep exists</p>
+                {repPurposes.map((purpose, repIndex) => (
+                  <div key={purpose} className="rounded-lg border p-3">
+                    <p className="text-sm">
+                      <span className="font-semibold">Rep {repIndex + 1}: </span>
+                      <span className="text-muted-foreground">{purpose}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-semibold">Do not contaminate this set</p>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {execution.doNot.map((rule) => (
+                    <li key={rule}>{rule}</li>
+                  ))}
+                </ul>
+              </div>
+            </Card>
+          );
+        })}
+
+        <DeepDiveTeachingInteraction
+          prompt="In a No Rescue rep, the student asks, 'Can you at least tell me how to start?' What is the strongest response?"
+          options={[
+            {
+              key: "a",
+              label: "Give the full first step and then withdraw, because the rep only prohibits support after the student has started.",
+              feedback: "No Rescue has a defined support boundary. Expanding it whenever the student asks would turn rescue-seeking into a route to extra help.",
+            },
+            {
+              key: "b",
+              label: "Use only the support the set explicitly allows, then hold the boundary and observe what the student does next.",
+              feedback: "Yes. The point is not absolute silence; it is preserving the exact support contract so dependence and recovery remain observable.",
+            },
+            {
+              key: "c",
+              label: "Refuse every form of support, even if the set's defined first-step boundary has not yet been used.",
+              feedback: "Being stricter than the assigned condition also changes the rep. The Specialist must preserve the defined boundary, not invent a harsher one.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="No Rescue means no support beyond the set's defined boundary. The Specialist neither expands the support because the student is uncomfortable nor makes the condition harsher than RI assigned."
+        />
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What You Observe</h2>
@@ -345,6 +401,29 @@ export default function ResponseConditioningControlledDiscomfort() {
           </p>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="The Specialist preserves the difficulty and support boundary, but the student eventually stops and cannot continue. Is the rep invalid?"
+          options={[
+            {
+              key: "a",
+              label: "Yes, because a valid difficulty rep must reach completion before it can say anything about stability.",
+              feedback: "Completion is not required for the rep to reveal a breakdown. The student's stopping point can be exactly the evidence the condition was designed to expose.",
+            },
+            {
+              key: "b",
+              label: "Only if the Specialist thinks a little more encouragement would have worked.",
+              feedback: "Specialist expectation does not decide validity. The question is whether the assigned condition was preserved.",
+            },
+            {
+              key: "c",
+              label: "No. Rep validity comes from preserving the condition, not from whether the student completes it.",
+              feedback: "Yes. Weak learner performance and correct Specialist execution can coexist.",
+            },
+          ]}
+          correctOptionKey="c"
+          truth="A Controlled Discomfort rep can be valid even when the student breaks down. Rep validity comes from preserving the assigned condition; the learner's response is what the condition is meant to reveal."
+        />
+
         <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
           <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
           <p className="text-muted-foreground">
@@ -357,6 +436,29 @@ export default function ResponseConditioningControlledDiscomfort() {
             Failed Specialist execution is different: making the problem easier mid-rep, giving full rescue, hiding coaching inside reassurance, skipping repeated exposure, or logging composure that was manufactured.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="A student handles one difficult exposure calmly. What would most strongly show that Controlled Discomfort is becoming stable?"
+          options={[
+            {
+              key: "b",
+              label: "Another valid exposure at the same difficulty, showing that the controlled response can be produced again.",
+              feedback: "Yes. Repeatability is established by comparable opportunities, not by escalating after one strong moment.",
+            },
+            {
+              key: "a",
+              label: "A harder problem next, to confirm the response can tolerate more demand.",
+              feedback: "Increasing the difficulty changes the condition. It would show response to a new demand, not repeatability at the current one.",
+            },
+            {
+              key: "c",
+              label: "The same problem repeated immediately, because reproducing the successful response removes uncertainty about whether it was learned.",
+              feedback: "Repeating the identical problem can introduce memory of the specific solution. RI needs another comparable exposure, not simple recall of the same task.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="One strong difficult rep shows possibility. Stability requires the controlled response to repeat across comparable valid exposures without changing the demand or turning the task into memorised repetition."
+        />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression Logic</h2>
@@ -383,6 +485,7 @@ export default function ResponseConditioningControlledDiscomfort() {
             <li>Why RI-OS, not the Specialist, owns the progression decision.</li>
           </ul>
         </Card>
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );

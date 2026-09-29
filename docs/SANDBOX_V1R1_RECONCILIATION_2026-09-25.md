@@ -1,4 +1,4 @@
-# Sandbox V1R1 Reconciliation — 2026-09-25
+# Sandbox V1R1 Reconciliation - 2026-09-25
 
 ## Purpose
 

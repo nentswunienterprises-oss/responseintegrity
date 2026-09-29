@@ -1,4 +1,4 @@
-# ARCHIVED — superseded Production Economy assumptions
+# ARCHIVED - superseded Production Economy assumptions
 
 > **Historical record only. Do not implement the economics or reward rules below.**
 > Current authority: [Demand Production Gateway](demand-production-gateway.md) and `shared/servicePackages.ts`.
@@ -11,7 +11,7 @@ The following original text is retained only for provenance. Its production/rewa
 
 ---
 
-# Response Integrity — Pod Economy Architecture
+# Response Integrity - Pod Economy Architecture
 
 ## 1. Purpose
 
@@ -21,8 +21,8 @@ It is designed to operate as a **self-reinforcing production ecosystem**, not as
 
 The system has two fundamental production lines:
 
-1. **Demand Production** — produces validated student subscriptions.
-2. **Capacity Production** — produces certified, deployable Response Conditioning Specialists.
+1. **Demand Production** - produces validated student subscriptions.
+2. **Capacity Production** - produces certified, deployable Response Conditioning Specialists.
 
 When demand and capacity arrive at the required conditions simultaneously, the system forms a Pod.
 
@@ -241,7 +241,7 @@ Its objective is:
 
 ---
 
-## Station 1 — Opportunity
+## Station 1 - Opportunity
 
 A potential learner becomes visible to the system.
 
@@ -265,7 +265,7 @@ Every externally generated opportunity should have a traceable origin whenever a
 
 ---
 
-## Station 2 — Capture
+## Station 2 - Capture
 
 The opportunity enters the Response Integrity system through a Production Link.
 
@@ -282,7 +282,7 @@ The opportunity now has production lineage.
 
 ---
 
-## Station 3 — Qualification
+## Station 3 - Qualification
 
 The system determines whether the opportunity is suitable for progression.
 
@@ -301,7 +301,7 @@ It simply cannot progress until the required conditions are satisfied.
 
 ---
 
-## Station 4 — Trial
+## Station 4 - Trial
 
 The learner and family experience Response Integrity through a controlled trial.
 
@@ -323,7 +323,7 @@ It is a **validation station**.
 
 ---
 
-## Station 5 — Subscription
+## Station 5 - Subscription
 
 The parent commits to the service.
 
@@ -361,7 +361,7 @@ Responsibility is progressively earned through evidence.
 
 # 7. Specialist Development Gates
 
-## Stage 1 — Application
+## Stage 1 - Application
 
 **Evidence of qualification**
 
@@ -381,7 +381,7 @@ Training
 
 ---
 
-## Stage 2 — Training
+## Stage 2 - Training
 
 **Evidence of understanding**
 
@@ -410,7 +410,7 @@ Sandbox
 
 ---
 
-## Stage 3 — Sandbox
+## Stage 3 - Sandbox
 
 **Evidence of system competence**
 
@@ -441,7 +441,7 @@ Trial
 
 ---
 
-## Stage 4 — Trial
+## Stage 4 - Trial
 
 **Evidence of real-world execution**
 
@@ -836,7 +836,7 @@ The same person may participate in both systems in different circumstances, but 
 
 ---
 
-# 19. Academy Economics — MVP
+# 19. Academy Economics - MVP
 
 The Academy exists to produce capacity.
 
@@ -1365,43 +1365,43 @@ The entire Response Integrity universe can be reduced to:
 
 # 33. The Core Laws
 
-### Law 1 — Production Before Reward
+### Law 1 - Production Before Reward
 
 No verified production means no Production Reward.
 
-### Law 2 — Evidence Before Responsibility
+### Law 2 - Evidence Before Responsibility
 
 No evidence means no progression to the next responsibility level.
 
-### Law 3 — Trial Before Paid Responsibility
+### Law 3 - Trial Before Paid Responsibility
 
 A specialist must demonstrate real-world execution before being trusted with paid clients.
 
-### Law 4 — Subscription Before Demand Reward
+### Law 4 - Subscription Before Demand Reward
 
 A contributor's R100 Production Reward is triggered only by a verified subscription following a trial.
 
-### Law 5 — Lineage Must Persist
+### Law 5 - Lineage Must Persist
 
 Every opportunity must retain its origin and contributor trail.
 
-### Law 6 — One Canonical Lifecycle
+### Law 6 - One Canonical Lifecycle
 
 Campaign analytics must follow the platform's existing canonical progression rather than creating parallel progression logic.
 
-### Law 7 — Demand and Capacity Must Synchronize
+### Law 7 - Demand and Capacity Must Synchronize
 
 A Pod requires both sufficient demand and sufficient certified capacity.
 
-### Law 8 — Realized Production Funds Growth
+### Law 8 - Realized Production Funds Growth
 
 The MVP Production Economy distributes rewards from realized platform production rather than relying on upfront cash injection.
 
-### Law 9 — Organic Growth Belongs to the Platform
+### Law 9 - Organic Growth Belongs to the Platform
 
 Unattributed organic conversions do not generate Production Rewards.
 
-### Law 10 — Every Cycle Must Leave the System Stronger
+### Law 10 - Every Cycle Must Leave the System Stronger
 
 Every Pod should produce evidence, learning, trust, relationships, referrals and capability that improve the next production cycle.
 

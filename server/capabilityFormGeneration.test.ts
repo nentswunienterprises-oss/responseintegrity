@@ -17,6 +17,7 @@ const config = {
   formSize: 4,
   maxAttempts: 3,
   retryCooldownHours: 1,
+  reviewMode: false,
   competencyBlueprint: [
     { competencyKey: "fixture.alpha", deepDiveKey: "fixture", count: 2 },
     { competencyKey: "fixture.beta", deepDiveKey: "fixture", count: 2 },
@@ -257,6 +258,19 @@ test("Proof preview derives a stable domain-separated form secret from the sessi
   assert.equal(first.secret, second.secret);
   assert.notEqual(first.secret, env.SESSION_SECRET);
   assert.ok(first.secret.length >= 64);
+});
+
+test("local development derives the same isolated Proof form secret contract", () => {
+  const env = {
+    NODE_ENV: "development",
+    SUPABASE_URL: "https://jftlxeacphvbnhbsbpxc.supabase.co",
+    SESSION_SECRET: "proof-session-secret",
+  };
+  const resolved = resolveCapabilityFormSecret(env);
+
+  assert.equal(resolved.source, "proof_session_derived");
+  assert.notEqual(resolved.secret, env.SESSION_SECRET);
+  assert.ok(resolved.secret.length >= 64);
 });
 
 test("Capability form secret remains fail-closed outside the isolated Proof preview", () => {
