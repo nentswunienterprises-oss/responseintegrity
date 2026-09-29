@@ -207,26 +207,26 @@ export default function ResponseConditioningTimePressureStability() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A student finishes very quickly under the timer but abandons the method structure. How should RI read that?"
+          prompt="A student finishes inside the timer but skips the known method and guesses successfully. What does the timed result prove?"
           options={[
             {
               key: "a",
-              label: "Strong Time Pressure Stability because speed improved.",
-              feedback: "Speed without preserved structure is not the target.",
+              label: "The student is stable under time because the deadline and answer were both achieved.",
+              feedback: "Meeting the deadline cannot substitute for preserving the response structure the timer is meant to stress-test.",
             },
             {
               key: "b",
-              label: "The timed response is unstable because urgency displaced the method.",
-              feedback: "Time Pressure Stability requires structure and completion integrity under time, not speed alone.",
+              label: "The timed response is unstable because urgency displaced the trained method, even though the outcome was successful.",
+              feedback: "Yes. Time Pressure Stability requires the method to survive urgency; speed and correctness alone are not enough.",
             },
             {
               key: "c",
-              label: "The student should receive a tighter timer next.",
-              feedback: "A tighter constraint is not earned from a response that already lost structure.",
+              label: "The student is ready for a tighter timer because the successful guess shows unused speed capacity.",
+              feedback: "A tighter constraint is not earned from an attempt that already lost method integrity.",
             },
           ]}
           correctOptionKey="b"
-          truth="The timer is an added constraint on an already-known method. A fast answer that loses structure is evidence of breakdown under time, not successful stability."
+          truth="The timer is an added constraint on an already-trained response. A fast or correct answer does not count as stability when urgency causes the method structure to disappear."
         />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
@@ -248,14 +248,26 @@ export default function ResponseConditioningTimePressureStability() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="Before a stricter timed condition can be used, what must already exist?"
+          prompt="A baseline timing attempt is completed quickly, but the Specialist prompted the student twice to keep the method moving. Can that time anchor later pressure?"
           options={[
-            { key: "a", label: "Eligible timing evidence for this learner and topic.", feedback: "Later pressure is derived from established timing evidence rather than guessed by the Specialist." },
-            { key: "b", label: "A standard time used for every learner in the grade.", feedback: "A universal time ignores the learner's own established execution evidence." },
-            { key: "c", label: "The Specialist's estimate of how fast the learner should be.", feedback: "Professional intuition cannot replace the timing evidence used to derive the pressure condition." },
+            {
+              key: "a",
+              label: "Yes, because the stopwatch still measured the student's real working speed from start to finish.",
+              feedback: "The clock may be accurate, but the response condition was supported. A supported time cannot stand in for independent eligible timing evidence.",
+            },
+            {
+              key: "b",
+              label: "Yes, if the prompts did not reveal the actual next step and only kept the student focused.",
+              feedback: "Directional support can still change execution speed and continuity. Eligibility depends on preserving the required response condition, not on how subtle the prompt felt.",
+            },
+            {
+              key: "c",
+              label: "No. The later timer needs timing evidence produced under the eligible independence condition.",
+              feedback: "Yes. Pressure must be derived from timing evidence that reflects the response RI intends to stress-test.",
+            },
           ]}
-          correctOptionKey="a"
-          truth="Time pressure is evidence-derived. The Specialist prepares from the eligible timing basis already established for the learner and topic rather than inventing a timer."
+          correctOptionKey="c"
+          truth="Timing evidence is only useful as a pressure baseline when the underlying execution condition is eligible. A precise stopwatch reading cannot repair a supported or contaminated response."
         />
 
         <Card className="p-6 space-y-5">
@@ -363,26 +375,26 @@ export default function ResponseConditioningTimePressureStability() {
         })}
 
         <DeepDiveTeachingInteraction
-          prompt="The timer fails halfway through a rep. What should happen to that rep?"
+          prompt="The timer freezes for several seconds halfway through a rep, then resumes. What should happen to that attempt?"
           options={[
             {
               key: "a",
-              label: "Estimate the remaining time and keep the rep as normal evidence.",
-              feedback: "Estimated timing cannot replace the actual timed condition.",
+              label: "Keep it and subtract the estimated frozen time afterward, because the student's method performance was still observable.",
+              feedback: "An estimate cannot recreate the intended continuous time condition. The rep may show useful behavior, but it cannot prove performance under the defined timer.",
             },
             {
               key: "b",
-              label: "Preserve the technical-failure lineage and run a valid replacement rep.",
-              feedback: "A technical failure must not be converted into false timed evidence.",
+              label: "Treat it as a student timeout if the final completion exceeds the original limit.",
+              feedback: "The timing condition failed technically. The student cannot be assigned a timing failure from a timer that did not operate correctly.",
             },
             {
               key: "c",
-              label: "Treat the unfinished rep as a student failure.",
-              feedback: "The failure came from the timing condition, not from the student's response.",
+              label: "Record the technical failure and run a fresh equivalent replacement under the same intended time condition.",
+              feedback: "Yes. Technical lineage remains visible, and the replacement supplies the missing valid timed evidence.",
             },
           ]}
-          correctOptionKey="b"
-          truth="Technical timer failure and student performance are separate truths. The failed timing condition remains recorded, and a valid replacement rep supplies the evidence."
+          correctOptionKey="c"
+          truth="Objective timer failure invalidates the timed condition, not the student's response. Preserve the technical failure and use a fresh equivalent replacement rather than estimating or blaming the student."
         />
 
         <Card className="p-6 space-y-5">
@@ -401,14 +413,26 @@ export default function ResponseConditioningTimePressureStability() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="The timer works exactly as intended, but the learner freezes and does not finish. What does this produce?"
+          prompt="The timer works correctly, but the student freezes and does not finish. What is the correct evidence treatment?"
           options={[
-            { key: "a", label: "Valid learner evidence under time.", feedback: "A valid timer plus a weak response is still truthful evidence of what happened under pressure." },
-            { key: "b", label: "A technical failure because the rep was incomplete.", feedback: "Technical failure belongs to the timing condition, not to an incomplete learner response under a working timer." },
-            { key: "c", label: "No evidence, so the Specialist should rerun immediately with more time.", feedback: "Changing the timer to obtain a better result would overwrite the weak but valid evidence." },
+            {
+              key: "a",
+              label: "Run a replacement, because an incomplete attempt cannot establish anything about timed stability.",
+              feedback: "Non-completion under a valid timer is itself evidence of the response under pressure. Replacement is not for undesirable learner outcomes.",
+            },
+            {
+              key: "b",
+              label: "Keep the attempt as valid learner evidence of what happened under the defined time condition.",
+              feedback: "Yes. A working timer plus a weak response is still a valid observation of timed stability.",
+            },
+            {
+              key: "c",
+              label: "Mark the attempt as confounded, because freezing is an emotional response rather than mathematical performance.",
+              feedback: "RI is explicitly observing whether the student can remain functional under the condition. Freezing is part of that response, not a reason to erase it.",
+            },
           ]}
-          correctOptionKey="a"
-          truth="When the timing condition is valid, timeout, freezing, wrong method and incomplete work are learner evidence. Replacement is reserved for objective failure of the timing condition itself."
+          correctOptionKey="b"
+          truth="When the timer is valid, timeout, freezing, wrong method or incomplete work are learner evidence. Replacement is reserved for objective failure of the timing condition itself."
         />
 
         <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
@@ -425,26 +449,26 @@ export default function ResponseConditioningTimePressureStability() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="Who decides the Full Constraint timer?"
+          prompt="RI has assigned the active timer from eligible timing evidence. Mid-rep, the student starts losing structure and asks for more time. What should the Specialist do?"
           options={[
             {
               key: "a",
-              label: "The Specialist chooses a time that feels challenging.",
-              feedback: "Personal timer rules would make pressure inconsistent and unauditable.",
+              label: "Add a small amount of time so the rep can show whether the student still knows the method once urgency is reduced.",
+              feedback: "That would answer a different question. The active rep is testing whether the known response survives the assigned urgency.",
             },
             {
               key: "b",
-              label: "The system derives it from the student's established eligible timing baseline.",
-              feedback: "The pressure condition is evidence-derived rather than improvised.",
+              label: "Pause the timer while the student regains structure, then resume so the same nominal time limit is preserved.",
+              feedback: "Pausing removes part of the continuous pressure. The displayed total may look unchanged, but the condition is no longer the same.",
             },
             {
               key: "c",
-              label: "Every student receives the same fixed time for the topic.",
-              feedback: "TPS timing is based on the student's own eligible baseline, not a universal arbitrary duration.",
+              label: "Preserve the assigned timer and record the structure loss as learner evidence under that condition.",
+              feedback: "Yes. The Specialist protects the timing contract rather than adjusting the condition to produce a cleaner-looking response.",
             },
           ]}
-          correctOptionKey="b"
-          truth="Time pressure is derived from eligible timing evidence. Full Constraint uses the defined relationship to the established baseline; the Specialist does not invent the timer."
+          correctOptionKey="c"
+          truth="The system-derived timer is part of the evidence condition. Once the rep begins, the Specialist does not loosen or pause it to rescue performance; they preserve the condition and record what happens."
         />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
