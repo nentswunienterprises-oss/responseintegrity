@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,15 +14,21 @@ export function DeepDiveTeachingInteraction({
   options,
   correctOptionKey,
   truth,
+  onAnswered,
 }: {
   prompt: string;
   options: DeepDiveTeachingOption[];
   correctOptionKey: string;
   truth: string;
+  onAnswered?: () => void;
 }) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const selected = options.find((option) => option.key === selectedKey) || null;
   const correct = selectedKey === correctOptionKey;
+
+  useEffect(() => {
+    if (selectedKey) onAnswered?.();
+  }, [onAnswered, selectedKey]);
 
   return (
     <Card className="p-6 space-y-5 border-primary/20 bg-primary/[0.025]">
