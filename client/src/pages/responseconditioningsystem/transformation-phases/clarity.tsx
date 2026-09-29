@@ -239,7 +239,7 @@ export default function ResponseConditioningClarity() {
             },
             {
               key: "c",
-              label: "Examples that share the target structure but vary enough in surface detail to require genuine recognition.",
+              label: "Examples with the same underlying structure but enough surface variation to require recognition.",
               feedback: "Yes. The student has to recognise the underlying structure without the set becoming a difficulty test.",
             },
           ]}
@@ -348,7 +348,7 @@ export default function ResponseConditioningClarity() {
             },
             {
               key: "b",
-              label: "Supported evidence, because the Specialist supplied directional structure even without stating the answers.",
+              label: "Supported evidence; the Specialist's questions supplied directional structure.",
               feedback: "Yes. RI records what the student produced and what the Specialist had to supply to make that production possible.",
             },
             {
