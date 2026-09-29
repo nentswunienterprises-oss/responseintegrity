@@ -257,7 +257,7 @@ export default function ResponseConditioningStructuredExecution() {
             },
             {
               key: "b",
-              label: "Problems using the known method in forms appropriate to the current set, with enough repetition to observe the sequence more than once.",
+              label: "Several appropriate problems using the known method, so the sequence can be observed repeatedly.",
               feedback: "Yes. The material should expose repeatable execution of the known method without silently turning the task into new-method learning.",
             },
             {
@@ -384,7 +384,7 @@ export default function ResponseConditioningStructuredExecution() {
             },
             {
               key: "c",
-              label: "Do not resolve the step for them; observe the request and let the student's next action become evidence.",
+              label: "Do not resolve the step; observe the support request and let the student's next action become evidence.",
               feedback: "Yes. The condition is designed to show whether execution can continue without Specialist direction.",
             },
           ]}
@@ -423,7 +423,7 @@ export default function ResponseConditioningStructuredExecution() {
             },
             {
               key: "c",
-              label: "As support, because the gesture supplied direction at the point where independent execution had stalled.",
+              label: "As support, because the gesture supplied direction when execution had stalled.",
               feedback: "Yes. RI records the functional effect of the Specialist's action, not merely whether help was verbal.",
             },
           ]}
