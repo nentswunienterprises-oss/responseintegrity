@@ -333,7 +333,7 @@ export default function ResponseConditioningToolsRequired() {
           </div>
         </Card>
 
-        <Card className="p-6 border-l-4 border-l-primary space-y-4">
+ <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What Response Integrity is optimizing for</h2>
           <p className="text-muted-foreground">
             The purpose is not to look technical. The purpose is to preserve the correct live condition with

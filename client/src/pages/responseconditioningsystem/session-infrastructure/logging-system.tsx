@@ -170,7 +170,7 @@ export default function ResponseConditioningLoggingSystem() {
           </ul>
         </Card>
 
-        <Card className="p-6 space-y-4 border-l-4 border-l-destructive">
+ <Card className="p-6 space-y-4 ">
           <h2 className="text-2xl font-bold">Source Integrity</h2>
           <p className="text-muted-foreground">
             Submitted evidence becomes part of the institutional record. A false observation can create a false capability claim, false state movement, false continuity decision, or misleading downstream report.

@@ -396,7 +396,7 @@ export default function ResponseConditioningClarity() {
           truth="A weak learner response can come from a correctly executed rep. If the Specialist preserved the condition, the breakdown is valid evidence of what the student could not yet produce independently."
         />
 
-        <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
+ <Card className="p-6 space-y-5 ">
           <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
           <p className="text-muted-foreground">
             A student can hesitate, identify the wrong method, give a weak reason, fail to begin, or produce inconsistent responses

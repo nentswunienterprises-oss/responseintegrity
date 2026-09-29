@@ -78,7 +78,7 @@ export default function ResponseConditioningSignsOfProgress() {
                 <p className="font-semibold">"This is a quadratic... I see x²"</p>
               </div>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">What It Means</p>
               <p className="font-semibold mt-1">Clarity is stabilizing</p>
             </div>
@@ -104,7 +104,7 @@ export default function ResponseConditioningSignsOfProgress() {
                 <p className="font-semibold">short pause, then first step</p>
               </div>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">What It Means</p>
               <p className="font-semibold mt-1">Execution is becoming automatic</p>
             </div>
@@ -130,7 +130,7 @@ export default function ResponseConditioningSignsOfProgress() {
                 <p className="font-semibold">structured attempt</p>
               </div>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">What It Means</p>
               <p className="font-semibold mt-1">The student trusts the method</p>
             </div>
@@ -156,7 +156,7 @@ export default function ResponseConditioningSignsOfProgress() {
                 <p className="font-semibold">keeps working</p>
               </div>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">What It Means</p>
               <p className="font-semibold mt-1">Discomfort tolerance is increasing</p>
             </div>
@@ -182,7 +182,7 @@ export default function ResponseConditioningSignsOfProgress() {
                 <p className="font-semibold">"coefficient... factor... equation..."</p>
               </div>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">What It Means</p>
               <p className="font-semibold mt-1">Thinking is becoming precise</p>
             </div>
@@ -208,7 +208,7 @@ export default function ResponseConditioningSignsOfProgress() {
                 <p className="font-semibold">corrects independently</p>
               </div>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">What It Means</p>
               <p className="font-semibold mt-1">Independence is forming</p>
             </div>
@@ -234,7 +234,7 @@ export default function ResponseConditioningSignsOfProgress() {
                 <p className="font-semibold">pause, then continue</p>
               </div>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">What It Means</p>
               <p className="font-semibold mt-1">Response is being regulated</p>
             </div>
@@ -260,7 +260,7 @@ export default function ResponseConditioningSignsOfProgress() {
                 <p className="font-semibold">controlled execution</p>
               </div>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">What It Means</p>
               <p className="font-semibold mt-1">Conditioning is working</p>
             </div>
@@ -270,15 +270,15 @@ export default function ResponseConditioningSignsOfProgress() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What Progress Does NOT Look Like</h2>
           <div className="space-y-4">
-            <div className="border-l-4 border-red-500/50 pl-4 space-y-1">
+ <div className="space-y-1">
               <p className="font-semibold">&#10060; Only getting answers right</p>
               <p className="text-muted-foreground">Can happen without stability</p>
             </div>
-            <div className="border-l-4 border-red-500/50 pl-4 space-y-1">
+ <div className="space-y-1">
               <p className="font-semibold">&#10060; Moving faster</p>
               <p className="text-muted-foreground">Can be rushing</p>
             </div>
-            <div className="border-l-4 border-red-500/50 pl-4 space-y-1">
+ <div className="space-y-1">
               <p className="font-semibold">&#10060; Being more confident</p>
               <p className="text-muted-foreground">Can be temporary</p>
             </div>
@@ -311,7 +311,7 @@ export default function ResponseConditioningSignsOfProgress() {
               <li>"You corrected that yourself."</li>
             </ul>
           </div>
-          <div className="border-l-4 border-primary pl-4">
+ <div className="">
             <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">This Reinforces</p>
             <p className="font-semibold mt-1">process awareness</p>
           </div>

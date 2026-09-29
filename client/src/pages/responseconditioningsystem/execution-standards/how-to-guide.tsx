@@ -70,7 +70,7 @@ export default function ResponseConditioningHowToGuide() {
           <p className="text-muted-foreground">Every time the student makes an error:</p>
 
           {/* Step 1 */}
-          <div className="space-y-3 border-l-4 border-l-primary pl-4">
+ <div className="space-y-3 ">
             <p className="text-lg font-semibold">1. Observe</p>
             <p className="text-muted-foreground">Do not interrupt immediately.</p>
             <p className="text-muted-foreground">Watch:</p>
@@ -82,7 +82,7 @@ export default function ResponseConditioningHowToGuide() {
           </div>
 
           {/* Step 2 */}
-          <div className="space-y-3 border-l-4 border-l-primary pl-4">
+ <div className="space-y-3 ">
             <p className="text-lg font-semibold">2. Diagnose the Layer</p>
             <p className="text-muted-foreground">You must identify:</p>
             <ul className="space-y-1 pl-4 text-muted-foreground">
@@ -99,7 +99,7 @@ export default function ResponseConditioningHowToGuide() {
           </div>
 
           {/* Step 3 */}
-          <div className="space-y-3 border-l-4 border-l-primary pl-4">
+ <div className="space-y-3 ">
             <p className="text-lg font-semibold">3. Intervene Minimally</p>
             <p className="text-muted-foreground">You do not explain everything.</p>
             <p className="text-muted-foreground">You target the exact point of failure.</p>
@@ -117,7 +117,7 @@ export default function ResponseConditioningHowToGuide() {
           </div>
 
           {/* Step 4 */}
-          <div className="space-y-3 border-l-4 border-l-primary pl-4">
+ <div className="space-y-3 ">
             <p className="text-lg font-semibold">4. Return Control</p>
             <p className="text-muted-foreground">After correction:</p>
             <p className="text-muted-foreground">the student continues.</p>

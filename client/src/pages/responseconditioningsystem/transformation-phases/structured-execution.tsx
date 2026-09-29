@@ -427,7 +427,7 @@ export default function ResponseConditioningStructuredExecution() {
           truth="Non-verbal direction can contaminate independent execution just as verbal prompting can. The evidence must preserve where the student stopped and what the Specialist supplied."
         />
 
-        <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
+ <Card className="p-6 space-y-5 ">
           <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
           <p className="text-muted-foreground">
             A student can delay, skip steps, guess, lose repeatability, or fail to adapt to variation inside a correctly executed drill.

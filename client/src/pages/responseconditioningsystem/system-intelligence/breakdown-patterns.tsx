@@ -52,7 +52,7 @@ export default function ResponseConditioningBreakdownPatterns() {
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Two Types of Breakdowns</h2>
 
-          <div className="border-l-4 border-primary pl-4 space-y-2">
+ <div className="space-y-2">
             <h3 className="text-xl font-bold">1. Cognitive Breakdowns (3-Layer Lens)</h3>
             <p className="text-muted-foreground">Problem with:</p>
             <ul className="space-y-1 pl-4 text-muted-foreground">
@@ -62,7 +62,7 @@ export default function ResponseConditioningBreakdownPatterns() {
             </ul>
           </div>
 
-          <div className="border-l-4 border-yellow-500/60 pl-4 space-y-2">
+ <div className="space-y-2">
             <h3 className="text-xl font-bold">2. Response Breakdowns (Under Pressure)</h3>
             <p className="text-muted-foreground">Problem with:</p>
             <ul className="space-y-1 pl-4 text-muted-foreground">
@@ -100,7 +100,7 @@ export default function ResponseConditioningBreakdownPatterns() {
                 <li>hesitation</li>
               </ul>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Action</p>
               <p className="font-semibold mt-1">Correct the term directly</p>
               <p className="font-semibold">and return to precise language.</p>
@@ -129,7 +129,7 @@ export default function ResponseConditioningBreakdownPatterns() {
                 <li>errors even on known work</li>
               </ul>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Action</p>
               <p className="font-semibold mt-1">Return to steps.</p>
               <p className="font-semibold">Enforce sequence.</p>
@@ -157,7 +157,7 @@ export default function ResponseConditioningBreakdownPatterns() {
                 <li>collapse in unfamiliar problems</li>
               </ul>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Action</p>
               <p className="font-semibold mt-1">Anchor to the governing rule</p>
               <p className="font-semibold">and have the student say it clearly.</p>
@@ -255,15 +255,15 @@ export default function ResponseConditioningBreakdownPatterns() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What NOT to Do</h2>
           <div className="space-y-3">
-            <div className="border-l-4 border-red-500/50 pl-4 space-y-1">
+ <div className="space-y-1">
               <p className="font-semibold">&#10060; "Careless mistake"</p>
               <p className="text-muted-foreground">This diagnosis misses the actual failure point.</p>
             </div>
-            <div className="border-l-4 border-red-500/50 pl-4 space-y-1">
+ <div className="space-y-1">
               <p className="font-semibold">&#10060; Re-explain everything</p>
               <p className="text-muted-foreground">Misses the actual failure point.</p>
             </div>
-            <div className="border-l-4 border-red-500/50 pl-4 space-y-1">
+ <div className="space-y-1">
               <p className="font-semibold">&#10060; Ignore repetition</p>
               <p className="text-muted-foreground">Pattern continues.</p>
             </div>

@@ -75,7 +75,7 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
         <Card className="p-6 space-y-6">
           <h2 className="text-2xl font-bold">What You Must Control</h2>
 
-          <div className="space-y-3 border-l-4 border-l-primary pl-4">
+ <div className="space-y-3 ">
             <p className="text-lg font-semibold">1. Your Urge to Rescue</p>
             <div>
               <p className="font-semibold mb-1">What It Feels Like</p>
@@ -95,7 +95,7 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
             </div>
           </div>
 
-          <div className="space-y-3 border-l-4 border-l-primary pl-4">
+ <div className="space-y-3 ">
             <p className="text-lg font-semibold">2. Your Reaction to Frustration</p>
             <div>
               <p className="font-semibold mb-1">What It Looks Like</p>
@@ -128,7 +128,7 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
             </div>
           </div>
 
-          <div className="space-y-3 border-l-4 border-l-primary pl-4">
+ <div className="space-y-3 ">
             <p className="text-lg font-semibold">3. Your Need to Fix Quickly</p>
             <div>
               <p className="font-semibold mb-1">What It Feels Like</p>
@@ -147,7 +147,7 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
             </div>
           </div>
 
-          <div className="space-y-3 border-l-4 border-l-primary pl-4">
+ <div className="space-y-3 ">
             <p className="text-lg font-semibold">4. Your Discomfort with Silence</p>
             <div>
               <p className="font-semibold mb-1">What It Feels Like</p>

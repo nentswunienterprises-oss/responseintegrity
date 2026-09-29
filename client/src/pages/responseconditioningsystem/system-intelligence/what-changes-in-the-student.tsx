@@ -109,7 +109,7 @@ export default function ResponseConditioningWhatChangesInTheStudent() {
                 </ul>
               </div>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">What This Means</p>
               <p className="font-semibold mt-1">The student can see what they are working with</p>
             </div>
@@ -135,7 +135,7 @@ export default function ResponseConditioningWhatChangesInTheStudent() {
                 </ul>
               </div>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">What This Means</p>
               <p className="font-semibold mt-1">The student is no longer blocked by uncertainty</p>
             </div>
@@ -162,7 +162,7 @@ export default function ResponseConditioningWhatChangesInTheStudent() {
                 </ul>
               </div>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">What This Means</p>
               <p className="font-semibold mt-1">The student trusts the process</p>
             </div>
@@ -189,7 +189,7 @@ export default function ResponseConditioningWhatChangesInTheStudent() {
                 </ul>
               </div>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">What This Means</p>
               <p className="font-semibold mt-1">The student can stay inside difficulty</p>
             </div>
@@ -216,7 +216,7 @@ export default function ResponseConditioningWhatChangesInTheStudent() {
                 </ul>
               </div>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">What This Means</p>
               <p className="font-semibold mt-1">The student owns the process</p>
             </div>
@@ -243,7 +243,7 @@ export default function ResponseConditioningWhatChangesInTheStudent() {
                 </ul>
               </div>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">What This Means</p>
               <p className="font-semibold mt-1">The student is regulating their response</p>
             </div>
@@ -270,7 +270,7 @@ export default function ResponseConditioningWhatChangesInTheStudent() {
                 </ul>
               </div>
             </div>
-            <div className="border-l-4 border-primary pl-4">
+ <div className="">
               <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">What This Means</p>
               <p className="font-semibold mt-1">The student can correct without collapse</p>
             </div>
@@ -281,7 +281,7 @@ export default function ResponseConditioningWhatChangesInTheStudent() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What You Should Notice Over Time</h2>
           <div className="space-y-4">
-            <div className="border-l-4 border-muted pl-4 space-y-1">
+ <div className="space-y-1">
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Early Stage</p>
               <ul className="space-y-1 pl-4 text-muted-foreground">
                 <li>confusion</li>
@@ -289,7 +289,7 @@ export default function ResponseConditioningWhatChangesInTheStudent() {
                 <li>emotional reactions</li>
               </ul>
             </div>
-            <div className="border-l-4 border-yellow-500/50 pl-4 space-y-1">
+ <div className="space-y-1">
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Middle Stage</p>
               <ul className="space-y-1 pl-4 text-muted-foreground">
                 <li>partial structure</li>
@@ -297,7 +297,7 @@ export default function ResponseConditioningWhatChangesInTheStudent() {
                 <li>guided execution</li>
               </ul>
             </div>
-            <div className="border-l-4 border-primary pl-4 space-y-1">
+ <div className="space-y-1">
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Later Stage</p>
               <ul className="space-y-1 pl-4 font-semibold">
                 <li>consistent structure</li>

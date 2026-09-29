@@ -431,7 +431,7 @@ export default function ResponseConditioningTimePressureStability() {
           truth="When the timer is valid, timeout, freezing, wrong method or incomplete work are learner evidence. Replacement is reserved for objective failure of the timing condition itself."
         />
 
-        <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
+ <Card className="p-6 space-y-5 ">
           <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
           <p className="text-muted-foreground">
             A student can freeze, rush, lose structure, work unevenly, or fail to complete inside a correctly executed timed drill. That is evidence.

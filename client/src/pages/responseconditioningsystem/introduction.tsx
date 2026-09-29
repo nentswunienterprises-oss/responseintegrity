@@ -203,7 +203,7 @@ export default function ResponseConditioningIntroduction() {
           </p>
         </Card>
 
-        <Card className="p-6 space-y-6 border-l-4 border-l-primary">
+ <Card className="p-6 space-y-6 ">
           <div className="space-y-3">
             <h2 className="text-2xl font-bold">The Four-Phase Conditioning Progression</h2>
             <p className="text-muted-foreground">

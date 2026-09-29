@@ -420,7 +420,7 @@ export default function ResponseConditioningControlledDiscomfort() {
           truth="A Controlled Discomfort rep can be valid even when the student breaks down. Rep validity comes from preserving the assigned condition; the learner's response is what the condition is meant to reveal."
         />
 
-        <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
+ <Card className="p-6 space-y-5 ">
           <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
           <p className="text-muted-foreground">
             A student can freeze, hesitate, ask for rescue, rush randomly, or collapse under difficulty inside a correctly executed drill. That is evidence.

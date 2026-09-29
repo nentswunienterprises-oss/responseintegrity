@@ -141,7 +141,7 @@ export default function ResponseConditioningDrillLibrary() {
           </p>
         </Card>
 
-        <Card className="p-6 border-l-4 border-l-primary space-y-3">
+ <Card className="p-6 space-y-3">
           <h2 className="text-2xl font-bold">Specialist Standard</h2>
           <p className="font-semibold">Use the authorized drill source. Preserve the condition. Record the real response. Let evidence decide what happens next.</p>
         </Card>

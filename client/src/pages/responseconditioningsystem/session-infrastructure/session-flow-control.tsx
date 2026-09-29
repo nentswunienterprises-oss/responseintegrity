@@ -115,7 +115,7 @@ export default function ResponseConditioningSessionFlowControl() {
           </ul>
         </Card>
 
-        <Card className="p-6 space-y-4 border-l-4 border-l-primary">
+ <Card className="p-6 space-y-4 ">
           <h2 className="text-2xl font-bold">Simple Specialist Mental Model</h2>
           <p className="font-semibold">Context → authorized condition → concrete behavior → evidence → system route.</p>
           <p className="text-sm text-muted-foreground">
