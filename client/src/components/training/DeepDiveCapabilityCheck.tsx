@@ -115,7 +115,7 @@ export function DeepDiveCapabilityCheck({
         <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">
           Deep Dive Mastery
         </p>
-        <h2 className="mt-1 text-2xl font-bold">{assessment.title.replace(/\\s+Mastery Check$/i, "")}</h2>
+        <h2 className="mt-1 text-2xl font-bold">{assessment.title.replace(/\s+Mastery Check$/i, "")}</h2>
       </div>
 
       <CapabilityState assessment={assessment} />
