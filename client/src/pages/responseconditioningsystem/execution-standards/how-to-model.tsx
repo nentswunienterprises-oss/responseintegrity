@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/card";
 import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 
 const setupVisualSrc = "/images/responseconditioning/tools-required/modelling-vs-observation-locked.png";
+const modellingSpecialistPovSrc = "/images/responseconditioning/tools-required/modelling-specialist-pov.webp";
+const observationSpecialistPovSrc = "/images/responseconditioning/tools-required/observation-specialist-pov.webp";
 
 export default function ResponseConditioningHowToModel() {
   const navigate = useNavigate();
@@ -38,7 +40,7 @@ export default function ResponseConditioningHowToModel() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
         <DeepDiveLessonRunner
-          lessonKey="how-to-model-piecewise-v1"
+          lessonKey="how-to-model-piecewise-v2"
           title="How to Model"
           completion={null}
         >
@@ -68,6 +70,23 @@ export default function ResponseConditioningHowToModel() {
                 className="absolute inset-y-0 left-0 h-full w-auto max-w-none"
               />
             </div>
+          </div>
+        </Card>
+
+        {/* Modelling Specialist POV */}
+        <Card className="p-6 space-y-5">
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold">Specialist POV: Modelling</h2>
+            <p className="text-muted-foreground">
+              Use this with the setup view above. The first shows camera position; this shows the Specialist's actual working perspective while demonstrating in the Clarity Modelling set.
+            </p>
+          </div>
+          <div className="mx-auto w-full max-w-xl overflow-hidden rounded-none border bg-card shadow-sm">
+            <img
+              src={modellingSpecialistPovSrc}
+              alt="Response Integrity Modelling Specialist POV showing the work surface as the main live-call view"
+              className="h-auto w-full object-contain"
+            />
           </div>
         </Card>
 
@@ -240,6 +259,23 @@ export default function ResponseConditioningHowToModel() {
                 className="absolute inset-y-0 right-0 h-full w-auto max-w-none"
               />
             </div>
+          </div>
+        </Card>
+
+        {/* Observation Specialist POV */}
+        <Card className="p-6 space-y-5">
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold">Specialist POV: Observation</h2>
+            <p className="text-muted-foreground">
+              Use this with the Observation setup above. The phone preserves the live student view while the laptop carries the drill and observation work, keeping execution and evidence capture separate.
+            </p>
+          </div>
+          <div className="mx-auto w-full max-w-xl overflow-hidden rounded-none border bg-card shadow-sm">
+            <img
+              src={observationSpecialistPovSrc}
+              alt="Response Integrity Observation Specialist POV showing the student on the phone and drill observation work on the laptop"
+              className="h-auto w-full object-contain"
+            />
           </div>
         </Card>
 
