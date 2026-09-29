@@ -411,7 +411,7 @@ export default function ResponseConditioningControlledDiscomfort() {
             },
             {
               key: "b",
-              label: "Only if the Specialist believes the student could have succeeded with a little more encouragement.",
+              label: "Only if the Specialist thinks a little more encouragement would have worked.",
               feedback: "Specialist expectation does not decide validity. The question is whether the assigned condition was preserved.",
             },
             {
@@ -447,7 +447,7 @@ export default function ResponseConditioningControlledDiscomfort() {
             },
             {
               key: "a",
-              label: "A harder problem next, because stability is best confirmed when the student can tolerate an increased demand.",
+              label: "A harder problem next, to confirm the response can tolerate more demand.",
               feedback: "Increasing the difficulty changes the condition. It would show response to a new demand, not repeatability at the current one.",
             },
             {
