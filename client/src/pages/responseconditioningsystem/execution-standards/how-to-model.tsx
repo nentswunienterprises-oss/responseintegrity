@@ -60,7 +60,7 @@ export default function ResponseConditioningHowToModel() {
               Modelling is a visible demonstration condition. In the Clarity Modelling set, the camera and mini ring light face the work so the student can see the method being executed while the Specialist writes and explains.
             </p>
           </div>
-          <div className="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border bg-card shadow-sm">
+          <div className="mx-auto w-full max-w-xl overflow-hidden rounded-none border bg-card shadow-sm">
             <div className="relative aspect-[16/25] overflow-hidden">
               <img
                 src={setupVisualSrc}
@@ -232,7 +232,7 @@ export default function ResponseConditioningHowToModel() {
               Showing the work and observing the student's work are different operating conditions. Do not carry demonstration behaviour into an observation condition.
             </p>
           </div>
-          <div className="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border bg-card shadow-sm">
+          <div className="mx-auto w-full max-w-xl overflow-hidden rounded-none border bg-card shadow-sm">
             <div className="relative aspect-[16/25] overflow-hidden">
               <img
                 src={setupVisualSrc}
