@@ -216,7 +216,7 @@ export default function ResponseConditioningStructuredExecution() {
             },
             {
               key: "b",
-              label: "The result shows outcome accuracy without demonstrated Structured Execution; a correct answer alone does not prove the method can be carried in sequence.",
+              label: "The correct result proves the outcome, not that the student can reliably execute the required sequence.",
               feedback: "Yes. This phase asks whether the known method can be carried in order, not whether one answer happened to land correctly.",
             },
             {
