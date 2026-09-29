@@ -142,7 +142,7 @@ export default function ResponseConditioningClarity() {
           title="Clarity"
           completion={<DeepDiveCapabilityCheck assessmentKey="clarity_mastery_v1" />}
         >
-        <Card className="p-6 space-y-5 border-l-4 border-l-primary">
+        <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">The Transformation</h2>
           <p className="text-xl font-semibold">
             Clarity asks: does the student know what they are looking at and what should happen next?
