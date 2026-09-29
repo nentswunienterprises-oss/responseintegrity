@@ -210,7 +210,6 @@ export default function SpecialistCapabilityAssessment() {
   const [experienceRating, setExperienceRating] = useState<number | null>(null);
   const [experienceFeedback, setExperienceFeedback] = useState("");
   const [experienceFeedbackSubmitted, setExperienceFeedbackSubmitted] = useState(false);
-  const [experienceFeedbackDismissed, setExperienceFeedbackDismissed] = useState(false);
   const [answerFeedbackOpen, setAnswerFeedbackOpen] = useState(false);
   const [answerFeedbackStage, setAnswerFeedbackStage] = useState<"feedback" | "truth">("feedback");
   const [reviewSessionKey] = useState(() =>
@@ -599,7 +598,7 @@ export default function SpecialistCapabilityAssessment() {
             </CardContent>
           </Card>
 
-          {!experienceFeedbackSubmitted && !experienceFeedbackDismissed ? (
+          {!experienceFeedbackSubmitted ? (
             <Card>
               <CardHeader>
                 <CardTitle>Assessment reflection</CardTitle>
@@ -663,12 +662,6 @@ export default function SpecialistCapabilityAssessment() {
                       ? "Sending..."
                       : "Submit reflection"}
                   </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => setExperienceFeedbackDismissed(true)}
-                  >
-                    Skip
-                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -680,7 +673,7 @@ export default function SpecialistCapabilityAssessment() {
             </Card>
           ) : null}
 
-          {(experienceFeedbackSubmitted || experienceFeedbackDismissed) ? (
+          {experienceFeedbackSubmitted ? (
             <div className="flex flex-wrap gap-3">
               <Button onClick={() => navigate("/responseconditioningsystem")}>
                 Back to Deep Dives
