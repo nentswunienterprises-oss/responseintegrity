@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 
 const responseQuestions = [
   "Do they begin or immediately stop?",
@@ -129,7 +130,12 @@ export default function ResponseConditioningIntroduction() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+        <DeepDiveLessonRunner
+          lessonKey="response-conditioning-introduction-v1"
+          title="Introduction to the Response Conditioning Methodology"
+          completion={null}
+        >
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Response Failures</h2>
           <p className="text-muted-foreground">
@@ -387,6 +393,7 @@ export default function ResponseConditioningIntroduction() {
           </p>
           <p className="font-bold text-lg">That is the foundation of Response Conditioning.</p>
         </Card>
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );
