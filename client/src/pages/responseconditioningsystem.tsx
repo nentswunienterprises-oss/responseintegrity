@@ -51,7 +51,7 @@ const modules = [
   {
     id: "2",
     title: "Execution Standards",
-    subtitle: "How tutors must operate",
+    subtitle: "How specialists must operate",
     icon: Cog,
     items: [
       {
