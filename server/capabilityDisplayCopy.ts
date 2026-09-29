@@ -66,6 +66,7 @@ export function cleanCapabilityDisplayCopy(value: string) {
     .replace(/\*([^*\r\n]+)\*/g, "$1")
     .replace(/__/g, "")
     .replace(/`/g, "")
+    .replace(/\s*(?:\u2192|\u2190|\u2194|\u21D2|\u27F6|->)\s*/g, ", ")
     .replace(/\u2014/g, " - ")
     .replace(/\s*---\s*$/g, "")
     .trim();
