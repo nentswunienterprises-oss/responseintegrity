@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 
 const setupVisualSrc = "/images/responseconditioning/tools-required/modelling-vs-observation-locked.png";
 
@@ -35,7 +36,11 @@ export default function ResponseConditioningHowToModel() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-
+        <DeepDiveLessonRunner
+          lessonKey="how-to-model-piecewise-v1"
+          title="How to Model"
+          completion={null}
+        >
         {/* What Modeling Is */}
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What Modeling Is</h2>
@@ -55,7 +60,7 @@ export default function ResponseConditioningHowToModel() {
             </p>
           </div>
           <div className="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border bg-card shadow-sm">
-            <div className="relative aspect-[2/3] overflow-hidden">
+            <div className="relative aspect-[16/25] overflow-hidden">
               <img
                 src={setupVisualSrc}
                 alt="Response Integrity live Modelling setup with camera and light facing the Specialist's work"
@@ -227,7 +232,7 @@ export default function ResponseConditioningHowToModel() {
             </p>
           </div>
           <div className="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border bg-card shadow-sm">
-            <div className="relative aspect-[2/3] overflow-hidden">
+            <div className="relative aspect-[16/25] overflow-hidden">
               <img
                 src={setupVisualSrc}
                 alt="Response Integrity live Observation setup with the phone upright in selfie mode while the Specialist observes"
@@ -326,7 +331,7 @@ export default function ResponseConditioningHowToModel() {
           <p className="text-muted-foreground">It relies on:</p>
           <p className="font-bold text-lg">clear, repeatable structure</p>
         </Card>
-
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );
