@@ -765,7 +765,7 @@ export default function SpecialistCapabilityAssessment() {
               {confirmedCount}/{form.totalQuestions}
             </p>
           </div>
-          <Progress value={progressPercent} className="rounded-md bg-[var(--ri-dark-surface)]" />
+          <Progress value={progressPercent} className="rounded-none bg-[var(--ri-dark-surface)]" />
         </div>
 
         <Card>
