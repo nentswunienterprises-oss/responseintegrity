@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { ArrowLeft, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -39,6 +40,11 @@ export default function ResponseConditioningTopicConditioning() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+        <DeepDiveLessonRunner
+          lessonKey="topic-conditioning-v1"
+          title="Topic Conditioning"
+          completion={<DeepDiveCapabilityCheck assessmentKey="topic_conditioning_mastery_v1" />}
+        >
         <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Topic Conditioning in Response Integrity</h2>
           <h3 className="text-xl font-semibold">What it is</h3>
@@ -534,7 +540,7 @@ export default function ResponseConditioningTopicConditioning() {
             <li>the student's transformation</li>
           </ul>
         </Card>
-        <DeepDiveCapabilityCheck assessmentKey="topic_conditioning_mastery_v1" />
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );
