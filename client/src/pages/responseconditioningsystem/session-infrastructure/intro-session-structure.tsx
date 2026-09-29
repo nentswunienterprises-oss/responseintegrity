@@ -1,6 +1,3 @@
-import { useNavigate } from "react-router-dom";
-import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
-import { ArrowLeft, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -96,9 +93,6 @@ export default function ResponseConditioningIntroSessionStructure() {
           </Button>
 
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <ClipboardCheck className="w-6 h-6 text-primary" />
-            </div>
             <div>
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">
                 Response Integrity-OS Deep Dive

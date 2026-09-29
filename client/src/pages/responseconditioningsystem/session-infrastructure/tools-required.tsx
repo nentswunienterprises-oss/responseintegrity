@@ -1,6 +1,3 @@
-import { useNavigate } from "react-router-dom";
-import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
-import { ArrowLeft, Laptop, Smartphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -120,9 +117,6 @@ export default function ResponseConditioningToolsRequired() {
           </Button>
 
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Smartphone className="w-6 h-6 text-primary" />
-            </div>
             <div>
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">
                 Response Integrity-OS Deep Dive
@@ -166,7 +160,7 @@ export default function ResponseConditioningToolsRequired() {
             {requiredWorkspace.map((item) => (
               <div key={item.title} className="rounded-xl border bg-muted/20 p-4">
                 <div className="flex items-center gap-2">
-                  <Laptop className="w-4 h-4 text-primary" />
+                  
                   <p className="font-semibold">{item.title}</p>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">{item.body}</p>
@@ -254,9 +248,6 @@ export default function ResponseConditioningToolsRequired() {
             {deliveryModes.map((mode) => (
               <div key={mode.title} className="rounded-2xl border bg-card p-5 space-y-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Smartphone className="w-5 h-5 text-primary" />
-                  </div>
                   <div>
                     <p className="text-sm uppercase tracking-wide text-muted-foreground">{mode.title}</p>
                     <h3 className="text-xl font-semibold">{mode.camera}</h3>

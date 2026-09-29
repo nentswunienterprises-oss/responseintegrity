@@ -1,5 +1,3 @@
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
@@ -132,7 +130,7 @@ export default function ResponseConditioningIntroduction() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
         <DeepDiveLessonRunner
-          lessonKey="response-conditioning-introduction-v1"
+          lessonKey="response-conditioning-introduction-piecewise-v2"
           title="Introduction to the Response Conditioning Methodology"
           completion={null}
         >
