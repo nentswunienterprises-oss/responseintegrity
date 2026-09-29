@@ -185,14 +185,14 @@ export default function ResponseConditioningClarity() {
           prompt="During an Identification rep, the student immediately begins solving and reaches the correct answer. What should the Specialist do with the rep?"
           options={[
             {
-              key: "a",
-              label: "Use the correct solve as stronger evidence, because it demonstrates more than simple recognition.",
-              feedback: "Doing more is not stronger evidence when the extra action removes the condition being tested. The solve hides whether recognition existed before execution.",
-            },
-            {
               key: "b",
               label: "Stop the solve and return to identifying the type, method and reason without supplying them.",
               feedback: "Yes. Identification isolates the mental map before execution, so the Specialist has to preserve recognition without solving.",
+            },
+            {
+              key: "a",
+              label: "Use the correct solve as stronger evidence, because it demonstrates more than simple recognition.",
+              feedback: "Doing more is not stronger evidence when the extra action removes the condition being tested. The solve hides whether recognition existed before execution.",
             },
             {
               key: "c",
@@ -381,6 +381,11 @@ export default function ResponseConditioningClarity() {
           prompt="A correctly prepared Identification rep is run without contamination, and the student cannot name the method. What has failed?"
           options={[
             {
+              key: "c",
+              label: "The student's recognition at that moment; the rep itself can still be valid evidence.",
+              feedback: "Yes. Specialist execution and learner performance are separate truths.",
+            },
+            {
               key: "a",
               label: "The Specialist's execution, because a correctly run rep should end with the student demonstrating the target behavior.",
               feedback: "A well-run evidence condition does not guarantee a strong learner response. Its job is to reveal what is actually supported.",
@@ -389,11 +394,6 @@ export default function ResponseConditioningClarity() {
               key: "b",
               label: "The evidence event, because a rep that does not produce a correct response must be repeated before it can count.",
               feedback: "A genuine breakdown is already useful evidence. Repeating until success would replace observation with outcome-chasing.",
-            },
-            {
-              key: "c",
-              label: "The student's recognition at that moment; the rep itself can still be valid evidence.",
-              feedback: "Yes. Specialist execution and learner performance are separate truths.",
             },
           ]}
           correctOptionKey="c"
