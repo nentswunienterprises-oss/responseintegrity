@@ -216,7 +216,7 @@ export default function ResponseConditioningTimePressureStability() {
             },
             {
               key: "b",
-              label: "The timed response is unstable because urgency displaced the trained method, even though the outcome was successful.",
+              label: "Unstable under time, because urgency displaced the trained method despite the successful outcome.",
               feedback: "Yes. Time Pressure Stability requires the method to survive urgency; speed and correctness alone are not enough.",
             },
             {
