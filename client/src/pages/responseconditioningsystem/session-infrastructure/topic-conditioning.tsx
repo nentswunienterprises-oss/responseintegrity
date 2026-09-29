@@ -324,7 +324,7 @@ export default function ResponseConditioningTopicConditioning() {
           options={[
             {
               key: "a",
-              label: "Run the ordinary Clarity drill again and let the next qualifying evidence determine whether High Maintenance is earned.",
+              label: "Run the ordinary Clarity drill again and let qualifying evidence decide whether High Maintenance is earned.",
               feedback: "Yes. High is strong evidence inside the phase, but repeatability still has to be demonstrated before the confirmation state is earned.",
             },
             {
@@ -494,7 +494,7 @@ export default function ResponseConditioningTopicConditioning() {
             },
             {
               key: "c",
-              label: "The exact earliest unsupported behavior, while preserving the earlier layers that were directly supported.",
+              label: "Preserve the supported earlier layers and locate the first behavior that actually becomes unsupported.",
               feedback: "Yes. RI follows the response chain rather than assigning the phase from the final answer or from where the error happened chronologically.",
             },
           ]}
