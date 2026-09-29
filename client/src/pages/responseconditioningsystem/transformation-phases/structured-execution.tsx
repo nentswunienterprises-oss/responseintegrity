@@ -221,7 +221,7 @@ export default function ResponseConditioningStructuredExecution() {
             },
             {
               key: "c",
-              label: "The topic should return to Clarity, because any skipped step means the student no longer understands the method.",
+              label: "Return to Clarity, because skipped steps mean the method is no longer understood.",
               feedback: "Skipped execution does not automatically prove a recognition failure. RI preserves earlier supported layers unless the evidence actually contradicts them.",
             },
           ]}
@@ -384,7 +384,7 @@ export default function ResponseConditioningStructuredExecution() {
             },
             {
               key: "c",
-              label: "Do not resolve the step; observe the support request and let the student's next action become evidence.",
+              label: "Do not resolve the step; observe the request and let the student's next action stand as evidence.",
               feedback: "Yes. The condition is designed to show whether execution can continue without Specialist direction.",
             },
           ]}
@@ -418,7 +418,7 @@ export default function ResponseConditioningStructuredExecution() {
             },
             {
               key: "b",
-              label: "As minor support that can be ignored if the student completes the rest without help.",
+              label: "As minor support that can be ignored if the rest is independent.",
               feedback: "The size of the cue does not make it disappear. If it materially directs execution, it belongs in the evidence.",
             },
             {
@@ -457,7 +457,7 @@ export default function ResponseConditioningStructuredExecution() {
             },
             {
               key: "b",
-              label: "The familiar form, because rebuilding successful execution should come before exposing the student to variation again.",
+              label: "Return to the familiar form and rebuild successful execution first.",
               feedback: "Returning only to the familiar form can hide the transfer weakness that the changed form just revealed.",
             },
             {
