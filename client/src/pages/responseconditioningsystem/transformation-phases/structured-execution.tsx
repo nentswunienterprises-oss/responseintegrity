@@ -154,7 +154,7 @@ export default function ResponseConditioningStructuredExecution() {
           title="Structured Execution"
           completion={<DeepDiveCapabilityCheck assessmentKey="structured_execution_mastery_v1" />}
         >
-        <Card className="p-6 space-y-5 border-l-4 border-l-primary">
+        <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">The Transformation</h2>
           <p className="text-xl font-semibold">
             Structured Execution asks: can the student do the known method without being carried?
@@ -325,7 +325,7 @@ export default function ResponseConditioningStructuredExecution() {
                 </div>
               </div>
 
-              <div className="rounded-lg border-l-4 border-l-primary bg-primary/5 p-4 space-y-2">
+              <div className="rounded-lg bg-primary/5 p-4 space-y-2">
                 <p className="font-semibold">Condition to preserve</p>
                 <p className="text-sm text-muted-foreground">{execution.preserve}</p>
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
