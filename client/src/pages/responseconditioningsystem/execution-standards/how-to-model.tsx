@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
@@ -248,27 +249,27 @@ export default function ResponseConditioningHowToModel() {
 
           <div className="space-y-4">
             <div>
-              <p className="font-semibold">&#10060; "Do you understand?"</p>
+              <p className="flex items-center gap-2 font-semibold"><X className="h-4 w-4 shrink-0 text-destructive" />"Do you understand?"</p>
               <p className="text-muted-foreground">Irrelevant. They haven't executed yet.</p>
             </div>
 
             <div>
-              <p className="font-semibold">&#10060; Explaining Without Structure</p>
+              <p className="flex items-center gap-2 font-semibold"><X className="h-4 w-4 shrink-0 text-destructive" />Explaining Without Structure</p>
               <p className="text-muted-foreground">Talking without clear steps.</p>
             </div>
 
             <div>
-              <p className="font-semibold">&#10060; Skipping Vocabulary</p>
+              <p className="flex items-center gap-2 font-semibold"><X className="h-4 w-4 shrink-0 text-destructive" />Skipping Vocabulary</p>
               <p className="text-muted-foreground">Using informal language: "that thing," "this part."</p>
             </div>
 
             <div>
-              <p className="font-semibold">&#10060; Mixing Layers</p>
+              <p className="flex items-center gap-2 font-semibold"><X className="h-4 w-4 shrink-0 text-destructive" />Mixing Layers</p>
               <p className="text-muted-foreground">Explaining method before naming terms.</p>
             </div>
 
             <div>
-              <p className="font-semibold">&#10060; Over-Simplifying</p>
+              <p className="flex items-center gap-2 font-semibold"><X className="h-4 w-4 shrink-0 text-destructive" />Over-Simplifying</p>
               <p className="text-muted-foreground">Removing structure to make it "easier."</p>
               <p className="text-muted-foreground">This creates fragility later.</p>
             </div>
