@@ -441,14 +441,14 @@ export default function ResponseConditioningControlledDiscomfort() {
           prompt="A student handles one difficult exposure calmly. What would most strongly show that Controlled Discomfort is becoming stable?"
           options={[
             {
-              key: "a",
-              label: "A harder problem next, because stability is best confirmed when the student can tolerate an increased demand.",
-              feedback: "Increasing the difficulty changes the condition. It would show response to a new demand, not repeatability at the current one.",
-            },
-            {
               key: "b",
               label: "Another valid exposure at the same difficulty, showing that the controlled response can be produced again.",
               feedback: "Yes. Repeatability is established by comparable opportunities, not by escalating after one strong moment.",
+            },
+            {
+              key: "a",
+              label: "A harder problem next, because stability is best confirmed when the student can tolerate an increased demand.",
+              feedback: "Increasing the difficulty changes the condition. It would show response to a new demand, not repeatability at the current one.",
             },
             {
               key: "c",
