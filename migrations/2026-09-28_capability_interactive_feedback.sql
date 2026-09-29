@@ -7,19 +7,9 @@ ALTER TABLE public.specialist_capability_assessment_attempts
   ADD COLUMN IF NOT EXISTS experience_feedback text,
   ADD COLUMN IF NOT EXISTS experience_feedback_submitted_at timestamptz;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-      FROM pg_constraint
-     WHERE conrelid = 'public.specialist_capability_assessment_attempts'::regclass
-       AND conname = 'specialist_capability_attempts_experience_rating_check'
-  ) THEN
-    ALTER TABLE public.specialist_capability_assessment_attempts
-      ADD CONSTRAINT specialist_capability_attempts_experience_rating_check
-      CHECK (experience_rating IS NULL OR experience_rating BETWEEN 1 AND 5);
-  END IF;
-END $$;
+ALTER TABLE public.specialist_capability_assessment_attempts
+  ADD CONSTRAINT specialist_capability_attempts_experience_rating_check
+  CHECK (experience_rating IS NULL OR experience_rating BETWEEN 1 AND 5);
 
 CREATE TABLE IF NOT EXISTS public.specialist_capability_question_confirmations (
   id varchar PRIMARY KEY DEFAULT (gen_random_uuid())::text,
