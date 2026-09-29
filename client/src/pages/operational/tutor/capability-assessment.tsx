@@ -593,7 +593,7 @@ export default function SpecialistCapabilityAssessment() {
                         ? "Retention is evidenced. The next gate tests whether you can apply RI across mixed situations."
                         : "Transfer is evidenced. Sandbox unlocks when the complete Transformation evidence gate is satisfied."
                   : attemptsRemaining > 0
-                    ? `${attemptsRemaining} attempt${attemptsRemaining === 1 ? "" : "s"} remain. A Mastery retry prefers questions you have not yet seen when the bank can preserve the required coverage.`
+                    ? `${attemptsRemaining} attempt${attemptsRemaining === 1 ? "" : "s"} remain.`
                     : "No further attempts are currently available under this assessment configuration."}
               </p>
             </CardContent>
@@ -602,16 +602,16 @@ export default function SpecialistCapabilityAssessment() {
           {!experienceFeedbackSubmitted && !experienceFeedbackDismissed ? (
             <Card>
               <CardHeader>
-                <CardTitle>How was this Capability Check?</CardTitle>
+                <CardTitle>Assessment feedback</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Your feedback helps improve the Training experience. It does not affect your result.
+                  Flag anything unclear, ambiguous, or difficult to interpret. Feedback is used to improve assessment delivery. It does not change the RI standard or your result.
                 </p>
               </CardHeader>
               <CardContent className="space-y-5">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Not useful</span>
-                    <span>Very useful</span>
+                    <span>Unclear</span>
+                    <span>Clear</span>
                   </div>
                   <div className="grid grid-cols-5 gap-2">
                     {[1, 2, 3, 4, 5].map((rating) => (
@@ -629,7 +629,7 @@ export default function SpecialistCapabilityAssessment() {
 
                 <div className="space-y-2">
                   <p className="text-sm font-medium">
-                    What should be clearer or better?
+                    What, if anything, was unclear or ambiguous?
                   </p>
                   <Textarea
                     value={experienceFeedback}
@@ -661,7 +661,7 @@ export default function SpecialistCapabilityAssessment() {
                   >
                     {submitExperienceFeedback.isPending
                       ? "Sending..."
-                      : "Send feedback"}
+                      : "Submit feedback"}
                   </Button>
                   <Button
                     variant="ghost"
@@ -675,7 +675,7 @@ export default function SpecialistCapabilityAssessment() {
           ) : experienceFeedbackSubmitted ? (
             <Card className="border-primary/20">
               <CardContent className="p-5 text-sm">
-                Thanks. Your feedback has been recorded.
+                Feedback recorded.
               </CardContent>
             </Card>
           ) : null}
