@@ -416,7 +416,7 @@ export default function ResponseConditioningControlledDiscomfort() {
             },
             {
               key: "c",
-              label: "No. If the condition was preserved, the student's inability to continue is valid evidence of the response under difficulty.",
+              label: "No. If the condition was preserved, stopping is valid evidence of the response under difficulty.",
               feedback: "Yes. Weak learner performance and correct Specialist execution can coexist.",
             },
           ]}
