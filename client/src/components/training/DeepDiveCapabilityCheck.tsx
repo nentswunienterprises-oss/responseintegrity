@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { AlertCircle, CheckCircle2, LockKeyhole, PlayCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, PlayCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -42,8 +42,7 @@ function CapabilityState({ assessment }: { assessment: MasteryAvailability }) {
   }
 
   return (
-    <div className="flex items-center gap-2 text-sm font-medium">
-      <LockKeyhole className="h-4 w-4" />
+    <div className="text-sm font-medium">
       {assessment.status === "locked" ? "Locked" : "Not available yet"}
     </div>
   );
