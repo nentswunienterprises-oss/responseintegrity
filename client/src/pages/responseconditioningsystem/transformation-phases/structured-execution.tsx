@@ -256,14 +256,14 @@ export default function ResponseConditioningStructuredExecution() {
               feedback: "That can produce fluency with one surface pattern without showing whether the execution structure itself is reliable.",
             },
             {
-              key: "b",
-              label: "Several appropriate problems using the known method, so the sequence can be observed repeatedly.",
-              feedback: "Yes. The material should expose repeatable execution of the known method without silently turning the task into new-method learning.",
-            },
-            {
               key: "c",
               label: "A new method from the same topic, because successful execution would prove the student can generalise structure.",
               feedback: "A new method changes the prerequisite. The Specialist would no longer know whether a breakdown came from recognition or execution.",
+            },
+            {
+              key: "b",
+              label: "Several appropriate problems using the known method, so the sequence can be observed repeatedly.",
+              feedback: "Yes. The material should expose repeatable execution of the known method without silently turning the task into new-method learning.",
             },
           ]}
           correctOptionKey="b"
@@ -378,14 +378,14 @@ export default function ResponseConditioningStructuredExecution() {
               feedback: "A yes or no answer still supplies directional information the learner was supposed to generate and evaluate independently.",
             },
             {
-              key: "b",
-              label: "Ask, 'What do you think?' so the student remains the one choosing the next step.",
-              feedback: "Reflecting the question back still becomes a prompt that can carry a stalled response. In a no-help rep, the support request itself is evidence.",
-            },
-            {
               key: "c",
               label: "Do not resolve the step; observe the request and let the student's next action stand as evidence.",
               feedback: "Yes. The condition is designed to show whether execution can continue without Specialist direction.",
+            },
+            {
+              key: "b",
+              label: "Ask, 'What do you think?' so the student remains the one choosing the next step.",
+              feedback: "Reflecting the question back still becomes a prompt that can carry a stalled response. In a no-help rep, the support request itself is evidence.",
             },
           ]}
           correctOptionKey="c"
