@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -61,7 +62,12 @@ export function DeepDiveTeachingInteraction({
 
       {selected ? (
         <div className="space-y-3 rounded-lg border bg-background p-4">
-          <div>
+          <div className="flex items-start gap-3">
+            {!correct ? (
+              <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-destructive/10">
+                <X className="h-4 w-4 text-destructive" />
+              </div>
+            ) : null}
             <div>
               {!correct ? <p className="font-medium">Not quite</p> : null}
               <p className={correct ? "text-sm text-muted-foreground" : "mt-1 text-sm text-muted-foreground"}>
