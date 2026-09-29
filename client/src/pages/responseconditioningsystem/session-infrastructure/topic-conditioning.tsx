@@ -122,26 +122,26 @@ export default function ResponseConditioningTopicConditioning() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A student is stable in algebra but freezes when fractions become unfamiliar. What should RI assume?"
+          prompt="Algebra is at Structured Execution High Maintenance. Fractions is newly placed at Clarity Medium. What should govern the first Fractions training session?"
           options={[
             {
               key: "a",
-              label: "Their strong algebra state should carry across to fractions.",
-              feedback: "A state earned in one topic does not automatically transfer to another topic.",
+              label: "Use the Algebra state provisionally, then move Fractions back only if the first rep breaks.",
+              feedback: "Borrowing another topic's state treats transfer as proven before Fractions has produced that evidence. The Fractions state already tells you where to begin.",
             },
             {
               key: "b",
-              label: "Fractions needs its own topic-specific evidence and state.",
-              feedback: "Topic Conditioning keeps phase and stability specific to the active school topic.",
+              label: "Begin from Fractions at Clarity Medium and let Fractions evidence determine its movement.",
+              feedback: "Yes. Another topic can show what the student is capable of elsewhere, but it cannot replace the active topic's own evidence history.",
             },
             {
               key: "c",
-              label: "Both topics should be reset to the same phase for consistency.",
-              feedback: "The system does not flatten different topic histories into one shared state.",
+              label: "Start both topics from the lower state so the student's programme stays internally consistent.",
+              feedback: "Consistency does not mean one shared state. RI preserves different topic histories when the evidence differs.",
             },
           ]}
           correctOptionKey="b"
-          truth="Each topic carries its own phase, stability and evidence history. Strength in algebra does not authorize a stronger state in fractions."
+          truth="Topic state is local to the topic. Strength in Algebra can be useful context, but Fractions begins from the phase and stability supported by Fractions evidence."
         />
 
         <Card className="p-6 space-y-4">
@@ -193,14 +193,26 @@ export default function ResponseConditioningTopicConditioning() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A learner shows a stable response in equations and an unstable response in fractions during the same week. What should RI preserve?"
+          prompt="A student scores 86% in a familiar class test, but in RI their structure repeatedly breaks when the same method appears in less familiar forms. How should the class-test mark be used?"
           options={[
-            { key: "a", label: "One overall learner state based on the stronger topic.", feedback: "RI does not collapse different topic histories into one learner-wide state." },
-            { key: "b", label: "Separate evidence and state for each topic.", feedback: "Each topic keeps its own phase, stability and evidence history." },
-            { key: "c", label: "One overall learner state based on the weaker topic.", feedback: "The weaker topic cannot lower a different topic whose own evidence is stronger." },
+            {
+              key: "a",
+              label: "Treat the mark as evidence that the topic is at least High, because the student has already performed well academically.",
+              feedback: "The mark proves performance in that class-test setting. It does not prove the same response remains stable when familiarity and challenge change.",
+            },
+            {
+              key: "b",
+              label: "Treat the class result and RI evidence as conflicting, and wait for another class test before deciding the topic state.",
+              feedback: "The sources are not competing measurements of the same thing. The class test gives academic context; RI is observing the response under the condition being trained.",
+            },
+            {
+              key: "c",
+              label: "Keep the mark as academic context, while letting direct RI evidence determine the topic's phase and stability.",
+              feedback: "Yes. Academic performance matters, but conditioned-response state comes from what the student actually does inside the RI condition.",
+            },
           ]}
-          correctOptionKey="b"
-          truth="Topic Conditioning preserves separate evidence histories. A learner can be in different phases and stability states across different mathematical topics at the same time."
+          correctOptionKey="c"
+          truth="A strong class-test result can coexist with a response that loses structure when familiarity or challenge changes. RI uses direct response evidence for phase and stability, while school performance remains useful context."
         />
 
         <Card className="p-6 space-y-4">
@@ -308,26 +320,26 @@ export default function ResponseConditioningTopicConditioning() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A topic is at Clarity High after a strong session. What should happen next?"
+          prompt="A topic is at Clarity High after a strong session. Which next move preserves the meaning of High?"
           options={[
             {
               key: "a",
-              label: "Move immediately into Structured Execution.",
-              feedback: "High is not the phase-progression state.",
+              label: "Run the ordinary Clarity drill again and let the next qualifying evidence determine whether High Maintenance is earned.",
+              feedback: "Yes. High is strong evidence inside the phase, but repeatability still has to be demonstrated before the confirmation state is earned.",
             },
             {
               key: "b",
-              label: "Run the ordinary Clarity drill again and let qualifying evidence determine whether High Maintenance is earned.",
-              feedback: "High remains in the same phase until later qualifying evidence establishes the next state.",
+              label: "Move into Structured Execution, because High already shows the Clarity response is strong enough to progress.",
+              feedback: "High is not the progression state. Moving now would convert a strong moment into confirmed stability before the required repeat evidence exists.",
             },
             {
               key: "c",
-              label: "Run a separate High Maintenance drill because that is the next named drill.",
-              feedback: "High Maintenance is a stability state, not the name of the drill used while the topic is still at High.",
+              label: "Switch to a separate High Maintenance drill, because the next job is to test the maintenance state directly.",
+              feedback: "High Maintenance is an earned stability state, not a separate drill the Specialist can choose in advance.",
             },
           ]}
-          correctOptionKey="b"
-          truth="At High, the next action remains the ordinary same-phase drill. High Maintenance is earned from later qualifying evidence; the Specialist does not manually progress the topic."
+          correctOptionKey="a"
+          truth="At High, the topic remains in the same phase. The ordinary same-phase drill runs again; later qualifying evidence can earn High Maintenance and authorize progression."
         />
 
         <Card className="p-6 space-y-4">
@@ -427,14 +439,26 @@ export default function ResponseConditioningTopicConditioning() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A family chooses four sessions per week. What does that decision change?"
+          prompt="A family moves from two sessions per week to four. What changes in the student's development path?"
           options={[
-            { key: "a", label: "How often RI delivers sessions, not the learner's evidence-derived state.", feedback: "Cadence is a service commitment. Educational movement still follows evidence." },
-            { key: "b", label: "The learner should progress through states twice as fast.", feedback: "More sessions create more opportunities, but frequency does not authorize state movement." },
-            { key: "c", label: "The Specialist may skip repeated evidence because there are more sessions.", feedback: "A higher cadence does not remove the evidence needed to establish stability." },
+            {
+              key: "a",
+              label: "The evidence standard becomes lighter because the system will see the student more often.",
+              feedback: "More opportunities do not reduce what counts as qualifying evidence. Frequency changes how quickly opportunities arrive, not the standard they must meet.",
+            },
+            {
+              key: "b",
+              label: "The same evidence requirements remain, but qualifying opportunities can arrive sooner in calendar time.",
+              feedback: "Yes. Cadence changes delivery frequency, not the educational rule for phase or stability movement.",
+            },
+            {
+              key: "c",
+              label: "The topic should advance after fewer successful reps so the higher package frequency does not slow perceived progress.",
+              feedback: "Package value cannot be protected by weakening the evidence gate. Progression still depends on the same response proof.",
+            },
           ]}
-          correctOptionKey="a"
-          truth="Package cadence and educational state are separate truths. Cadence determines delivery frequency; evidence determines what RI trains and when a topic moves."
+          correctOptionKey="b"
+          truth="Package cadence and educational state are separate. More sessions create more opportunities to produce evidence, but they do not alter the evidence required for movement."
         />
 
         <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
@@ -456,26 +480,26 @@ export default function ResponseConditioningTopicConditioning() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A student gets one question wrong. What should decide the active RI phase?"
+          prompt="A student identifies the problem and method correctly, executes the method in order, then makes one arithmetic slip that changes the final answer. What should RI locate first?"
           options={[
             {
               key: "a",
-              label: "The wrong answer itself means Clarity.",
-              feedback: "Mathematical correctness alone does not identify the response layer that broke.",
+              label: "Clarity, because a wrong final answer means the student did not understand the problem well enough.",
+              feedback: "The observed recognition was already supported. Final correctness cannot erase earlier layers that were visibly intact.",
             },
             {
               key: "b",
-              label: "The earliest unsupported response layer shown by the evidence.",
-              feedback: "RI looks for where the student's response actually becomes unsupported, not merely whether the final answer is wrong.",
+              label: "Structured Execution, because any error made during solving belongs to the execution phase.",
+              feedback: "An error occurring during execution is not automatically a structure breakdown. RI still asks what behavior actually became unsupported.",
             },
             {
               key: "c",
-              label: "Whichever phase the Specialist thinks will improve the mark fastest.",
-              feedback: "Phase authority comes from evidence and RI-OS, not Specialist preference.",
+              label: "The exact earliest unsupported behavior, while preserving the earlier layers that were directly supported.",
+              feedback: "Yes. RI follows the response chain rather than assigning the phase from the final answer or from where the error happened chronologically.",
             },
           ]}
-          correctOptionKey="b"
-          truth="Topic Conditioning follows the evidence chain: observe the student's behavior, locate the earliest unsupported layer, then let RI-OS derive the state and next action."
+          correctOptionKey="c"
+          truth="Topic Conditioning preserves supported earlier layers and locates the earliest unsupported response behavior. A wrong final answer does not automatically mean Clarity or Structured Execution failed."
         />
 
         <Card className="p-6 space-y-4">
