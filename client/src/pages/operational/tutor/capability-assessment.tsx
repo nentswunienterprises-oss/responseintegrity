@@ -602,16 +602,16 @@ export default function SpecialistCapabilityAssessment() {
           {!experienceFeedbackSubmitted && !experienceFeedbackDismissed ? (
             <Card>
               <CardHeader>
-                <CardTitle>Assessment feedback</CardTitle>
+                <CardTitle>Assessment reflection</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Flag anything unclear, ambiguous, or difficult to interpret. Feedback is used to improve assessment delivery. It does not change the RI standard or your result.
+                  Reflect on how the assessment shaped your operating understanding. Share what strengthened your judgment, what prompted useful thinking, or what could make the learning experience more effective. This does not change the RI standard or your result.
                 </p>
               </CardHeader>
               <CardContent className="space-y-5">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Unclear</span>
-                    <span>Clear</span>
+                    <span>Limited learning value</span>
+                    <span>Strong learning value</span>
                   </div>
                   <div className="grid grid-cols-5 gap-2">
                     {[1, 2, 3, 4, 5].map((rating) => (
@@ -629,7 +629,7 @@ export default function SpecialistCapabilityAssessment() {
 
                 <div className="space-y-2">
                   <p className="text-sm font-medium">
-                    What, if anything, was unclear or ambiguous?
+                    What did this assessment reinforce, challenge, or help you see more clearly?
                   </p>
                   <Textarea
                     value={experienceFeedback}
@@ -661,7 +661,7 @@ export default function SpecialistCapabilityAssessment() {
                   >
                     {submitExperienceFeedback.isPending
                       ? "Sending..."
-                      : "Submit feedback"}
+                      : "Submit reflection"}
                   </Button>
                   <Button
                     variant="ghost"
@@ -675,7 +675,7 @@ export default function SpecialistCapabilityAssessment() {
           ) : experienceFeedbackSubmitted ? (
             <Card className="border-primary/20">
               <CardContent className="p-5 text-sm">
-                Feedback recorded.
+                Reflection recorded.
               </CardContent>
             </Card>
           ) : null}
