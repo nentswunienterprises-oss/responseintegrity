@@ -352,7 +352,7 @@ export default function ResponseConditioningClarity() {
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What You Observe</h2>
           <p className="text-muted-foreground">
-            Clarity is not decided by impression. The observation families below capture concrete behavior that the evidence model interprets.
+            Clarity is not decided by impression. The observation families capture concrete behavior that RI interprets.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {observationSignals.map((signal) => (
@@ -432,7 +432,7 @@ export default function ResponseConditioningClarity() {
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Diagnosis Is a Different Recipe</h2>
           <p className="text-muted-foreground">
-            Clarity diagnosis is not the training drill above. Diagnosis uses separate probes to establish an entry
+            Clarity diagnosis is separate from the Clarity training drill. Diagnosis uses separate probes to establish the entry
             point before normal training.
           </p>
           <div className="space-y-3">
