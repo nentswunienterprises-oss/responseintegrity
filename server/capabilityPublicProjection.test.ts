@@ -6,6 +6,7 @@ import {
   projectCapabilityAssessmentForSpecialist,
   projectCapabilityAttemptResultForSpecialist,
 } from "./capabilityPublicProjection";
+import { cleanCapabilityDisplayCopy } from "./capabilityDisplayCopy";
 
 const definition: CapabilityAssessmentDefinition = {
   key: "synthetic_mastery",
@@ -42,6 +43,19 @@ function perfectResponses() {
     selectedOptionKeys: [...question.correctOptionKeys],
   }));
 }
+
+test("capability display copy removes learner-visible markdown asterisk artifacts", () => {
+  assert.equal(
+    cleanCapabilityDisplayCopy(
+      "Variation Control uses: * the same known method, * changed-form variation, * no support, and * normal difficulty.",
+    ),
+    "Variation Control uses: the same known method, changed-form variation, no support, and normal difficulty.",
+  );
+  assert.equal(
+    cleanCapabilityDisplayCopy("Preserve *changed-form variation* without adding difficulty."),
+    "Preserve changed-form variation without adding difficulty.",
+  );
+});
 
 test("Specialist assessment projection exposes prompts/options but no scoring or boundary secrets", () => {
   const projected = projectCapabilityAssessmentForSpecialist({
