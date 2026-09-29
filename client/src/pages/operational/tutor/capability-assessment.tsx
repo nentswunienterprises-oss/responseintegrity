@@ -604,7 +604,7 @@ export default function SpecialistCapabilityAssessment() {
               <CardHeader>
                 <CardTitle>Assessment reflection</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Reflect on how the assessment shaped your operating understanding. Share what strengthened your judgment, what prompted useful thinking, or what could make the learning experience more effective. This does not change the RI standard or your result.
+                  Reflect on how the assessment shaped your operating understanding. Share what strengthened your judgment, what prompted useful thinking, or what stood out to you in the experience. This does not change the RI standard or your result.
                 </p>
               </CardHeader>
               <CardContent className="space-y-5">
