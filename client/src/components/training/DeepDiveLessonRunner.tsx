@@ -134,31 +134,16 @@ export function DeepDiveLessonRunner({
       </div>
 
       {complete ? (
-        <div className="space-y-6">
-          <Card className="p-6 space-y-3 border-primary/30 bg-primary/5">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-primary" />
-              <p className="font-semibold">Deep Dive complete</p>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              You have worked through {title}. The next step is demonstration,
-              not more scrolling.
-            </p>
-          </Card>
-
-          {completion}
-
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setComplete(false);
-              moveTo(Math.max(steps.length - 1, 0));
-            }}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Review the final lesson step
-          </Button>
-        </div>
+        <Card className="p-6 space-y-3 border-primary/30 bg-primary/5">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-primary" />
+            <p className="font-semibold">Deep Dive complete</p>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            You have worked through {title}. The next step is demonstration,
+            not more scrolling.
+          </p>
+        </Card>
       ) : (
         <>
           <div key={stepIndex}>{renderedStep}</div>
@@ -187,6 +172,23 @@ export function DeepDiveLessonRunner({
           </div>
         </>
       )}
+
+      <div hidden={!complete} aria-hidden={!complete}>
+        {completion}
+      </div>
+
+      {complete ? (
+        <Button
+          variant="ghost"
+          onClick={() => {
+            setComplete(false);
+            moveTo(Math.max(steps.length - 1, 0));
+          }}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Review the final lesson step
+        </Button>
+      ) : null}
     </div>
   );
 }
