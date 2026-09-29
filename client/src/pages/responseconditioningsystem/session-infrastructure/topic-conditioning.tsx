@@ -510,7 +510,7 @@ export default function ResponseConditioningTopicConditioning() {
           </p>
         </Card>
 
-        <Card className="p-6 space-y-4 border-l-4 border-l-primary">
+        <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What the parent is really buying</h2>
           <p className="text-muted-foreground">Parents may think they are buying math tutoring, support with schoolwork, and help with difficult topics.</p>
           <p className="font-semibold">
