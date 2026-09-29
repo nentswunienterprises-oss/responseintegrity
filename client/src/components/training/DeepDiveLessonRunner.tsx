@@ -1,3 +1,14 @@
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -142,7 +153,7 @@ export function DeepDiveLessonRunner({
               disabled={stepIndex === 0}
               onClick={() => moveTo(Math.max(stepIndex - 1, 0))}
             >
-              <ArrowLeft className="mr-2 h-4 w-4" />
+              
               Back
             </Button>
 
@@ -173,7 +184,7 @@ export function DeepDiveLessonRunner({
             moveTo(Math.max(steps.length - 1, 0));
           }}
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          
           Review the final lesson step
         </Button>
       ) : null}

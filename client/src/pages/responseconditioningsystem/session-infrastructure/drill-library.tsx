@@ -1,3 +1,6 @@
+import { useMemo } from "react";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getDrillSchemaDefinition } from "@shared/responseIntegrityDrillRegistry";
@@ -48,7 +51,7 @@ export default function ResponseConditioningDrillLibrary() {
       <div className="border-b bg-card">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
           <Button variant="ghost" className="mb-4 -ml-2" onClick={() => navigate("/responseconditioningsystem")}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            
             Back to Response Conditioning System
           </Button>
 

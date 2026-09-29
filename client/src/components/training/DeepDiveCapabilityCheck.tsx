@@ -1,3 +1,5 @@
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { apiRequest } from "@/lib/queryClient";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -76,7 +78,7 @@ export function DeepDiveCapabilityCheck({
   if (planQuery.error) {
     return compact ? null : (
       <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
+        
         <AlertDescription>
           Mastery status could not be loaded. Your Training progress has not changed.
         </AlertDescription>

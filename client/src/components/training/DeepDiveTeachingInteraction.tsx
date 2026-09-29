@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -62,9 +63,6 @@ export function DeepDiveTeachingInteraction({
         <div className="space-y-3 rounded-lg border bg-background p-4">
           <div className="flex items-start gap-3">
             {!correct ? (
-              <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-destructive/10">
-                <X className="h-4 w-4 text-destructive" />
-              </div>
             ) : null}
             <div>
               {!correct ? <p className="font-medium">Not quite</p> : null}
