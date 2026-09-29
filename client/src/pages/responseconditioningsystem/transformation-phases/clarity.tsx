@@ -452,7 +452,7 @@ export default function ResponseConditioningClarity() {
           </p>
         </Card>
 
-        <Card className="p-6 space-y-5 border-l-4 border-l-primary">
+        <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Clarity in One Picture</h2>
           <p className="text-xl font-semibold">When you see Clarity, think: Build the map.</p>
           <p className="text-muted-foreground">
