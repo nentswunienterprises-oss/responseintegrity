@@ -313,7 +313,7 @@ export default function ResponseConditioningHowToModel() {
               <img
                 src={setupVisualSrc}
                 alt="Response Integrity comparison of live Modelling and Observation setups"
-                className="absolute inset-0 h-full w-full object-cover object-top"
+                className="absolute inset-0 h-full w-full object-cover object-[center_10%]"
               />
             </div>
           </div>
