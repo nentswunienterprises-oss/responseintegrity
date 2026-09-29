@@ -343,7 +343,7 @@ export default function ResponseConditioningClarity() {
           options={[
             {
               key: "a",
-              label: "Independent evidence, because the student still said and wrote every step themselves.",
+              label: "Independent evidence, because the student still produced each step.",
               feedback: "Producing the words is not the same as generating the path. The leading questions materially carried the response.",
             },
             {
@@ -387,7 +387,7 @@ export default function ResponseConditioningClarity() {
             },
             {
               key: "a",
-              label: "The Specialist's execution, because a correctly run rep should end with the student demonstrating the target behavior.",
+              label: "The Specialist's execution, because a valid rep should produce the target behavior.",
               feedback: "A well-run evidence condition does not guarantee a strong learner response. Its job is to reveal what is actually supported.",
             },
             {
@@ -431,7 +431,7 @@ export default function ResponseConditioningClarity() {
             },
             {
               key: "c",
-              label: "Run a dedicated High Maintenance drill before deciding whether Structured Execution should open.",
+              label: "Run a High Maintenance drill, then decide whether Structured Execution opens.",
               feedback: "High Maintenance is the state earned from qualifying same-phase evidence, not a separate drill the Specialist chooses.",
             },
           ]}
