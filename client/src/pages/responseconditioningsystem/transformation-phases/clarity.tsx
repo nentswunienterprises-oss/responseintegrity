@@ -38,9 +38,9 @@ const CLARITY_SET_EXECUTION: Record<
 > = {
   "clarity.modeling": {
     studentAction:
-      "Listen to the model, then explain the Vocabulary → Recognition / Method → Ordered Steps → Reason mental map back. The student does not complete the full solve in this set.",
+      "Listen to the model, then explain the Vocabulary, Recognition, Method, Ordered Steps, and Reason mental map back. The student does not complete the full solve in this set.",
     specialistAction:
-      "Model the topic through Vocabulary → Recognition / Method → Ordered Steps → Reason. Make the language, applicable method, step order, and reason explicit, then require the student to explain it back.",
+      "Model the topic through Vocabulary, Recognition, Method, Ordered Steps, and Reason. Make the language, applicable method, step order, and reason explicit, then require the student to explain it back.",
     preserve:
       "This is teaching and preparation, not decision-eligible evidence. Build the map before asking the student to demonstrate it independently.",
     doNot: [
@@ -294,7 +294,7 @@ export default function ResponseConditioningClarity() {
                 </div>
               </div>
 
-              <div className="rounded-lg border-l-4 border-l-primary bg-primary/5 p-4 space-y-2">
+              <div className="rounded-lg bg-primary/5 p-4 space-y-2">
                 <p className="font-semibold">Condition to preserve</p>
                 <p className="text-sm text-muted-foreground">{execution.preserve}</p>
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
