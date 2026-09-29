@@ -110,6 +110,19 @@ Teaching interactions are formative. They:
 
 The Capability Check remains the formal evidence gate after the active learning experience.
 
+The Deep Dive delivery shell is now piece-by-piece rather than one long document scroll:
+
+- one coherent learning unit is shown at a time;
+- the Specialist advances deliberately with Continue;
+- formative "Check your thinking" steps interrupt reading at regular points;
+- a formative check must be answered before the next lesson step unlocks;
+- immediate feedback remains teaching-only and creates no Mastery evidence;
+- progress is visible throughout the lesson;
+- the formal Capability Check is shown only after the Deep Dive lesson sequence is completed;
+- larger drill recipes are split so each set is learned as its own lesson step rather than buried inside one long card.
+
+The lesson runner remembers local reading progress for convenience, but that local progress is not Capability evidence and carries no lifecycle authority.
+
 Specialist-facing UX should stay simple. Internal machinery such as deterministic seeds, bank depth, competency quotas and critical-boundary coverage should not become unnecessary learner-facing cognitive load.
 
 ## 6. Historical relationship
@@ -146,8 +159,9 @@ Implemented:
 - both cumulative Transformation gates use 25 questions and require 24/25+ with no critical fail;
 - Capability, not legacy Battle Testing, owns the Training -> Sandbox transition;
 - Sandbox unlock does not mark Training complete and opens Session Infrastructure learning in the protected operating environment;
-- all five Transformation Deep Dives now include formative teaching interactions that do not consume Capability attempts;
+- all five Transformation Deep Dives now run through a piece-by-piece lesson runner with formative teaching interactions that do not consume Capability attempts;
 - the Specialist Capability Path UI exposes Mastery -> Retention -> Application -> Sandbox without surfacing unnecessary internal machinery;
+- long-scroll delivery has been removed from the five Transformation Deep Dives: only the active lesson step is rendered, formative checks gate Continue, drill sets are separated into individual learning steps, and the Capability Check appears after lesson completion;
 - current source-of-truth documents and integration tests have been reconciled to the new authority.
 
 Proof content:
@@ -164,11 +178,11 @@ Review and promotion remain open:
 - this feature branch has not been merged to `main`;
 - the proposed mandatory 48-hour cooling-off period remains unresolved and is not implemented.
 
-Capability Engine CI on the implemented branch proves focused Capability tests, the Training frontend bundle, and the Preview API bundle.
+Capability Engine CI on the implemented branch proves focused Capability tests, the piece-by-piece Training frontend bundle, and the Preview API bundle.
 
 Proof references:
 
-- Capability Engine CI run `36477296492`: green, including 80/80 focused Capability tests, Training frontend bundle, and Preview API bundle.
+- Capability Engine CI run `36513947780`: green after the piece-by-piece Deep Dive runner implementation, including focused Capability tests, Training frontend bundle, and Preview API bundle.
 - Sandbox Simulation CI run `36477675853`: green, including Sandbox focused tests, live-runner frontend bundle, and Preview API bundle.
 - Review/acceptance checkpoint: GitHub issue #113.
 
