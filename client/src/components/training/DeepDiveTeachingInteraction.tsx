@@ -61,9 +61,7 @@ export function DeepDiveTeachingInteraction({
 
       {selected ? (
         <div className="space-y-3 rounded-lg border bg-background p-4">
-          <div className="flex items-start gap-3">
-            {!correct ? (
-            ) : null}
+          <div>
             <div>
               {!correct ? <p className="font-medium">Not quite</p> : null}
               <p className={correct ? "text-sm text-muted-foreground" : "mt-1 text-sm text-muted-foreground"}>
