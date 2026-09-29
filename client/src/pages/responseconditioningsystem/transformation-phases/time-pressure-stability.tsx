@@ -422,7 +422,7 @@ export default function ResponseConditioningTimePressureStability() {
             },
             {
               key: "b",
-              label: "Keep the attempt as valid learner evidence of what happened under the defined time condition.",
+              label: "Keep it. A valid timer makes the freeze learner evidence, not a reason to replace the attempt.",
               feedback: "Yes. A working timer plus a weak response is still a valid observation of timed stability.",
             },
             {
