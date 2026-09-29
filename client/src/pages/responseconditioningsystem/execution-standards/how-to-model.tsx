@@ -2,6 +2,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
+const setupVisualSrc = "/images/responseconditioning/tools-required/modelling-vs-observation-locked.png";
+
 export default function ResponseConditioningHowToModel() {
   const navigate = useNavigate();
 
@@ -44,6 +46,25 @@ export default function ResponseConditioningHowToModel() {
           <p className="font-medium text-lg">replication</p>
         </Card>
 
+        {/* Live Modelling Setup */}
+        <Card className="p-6 space-y-5">
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold">What Modelling Looks Like Live</h2>
+            <p className="text-muted-foreground">
+              Modelling is a visible demonstration condition. In the Clarity Modelling set, the camera and mini ring light face the work so the student can see the method being executed while the Specialist writes and explains.
+            </p>
+          </div>
+          <div className="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border bg-card shadow-sm">
+            <div className="relative aspect-[2/3] overflow-hidden">
+              <img
+                src={setupVisualSrc}
+                alt="Response Integrity live Modelling setup with camera and light facing the Specialist's work"
+                className="absolute inset-y-0 left-0 h-full w-auto max-w-none"
+              />
+            </div>
+          </div>
+        </Card>
+
         {/* What You Are Creating */}
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What You Are Creating</h2>
@@ -67,7 +88,7 @@ export default function ResponseConditioningHowToModel() {
         </Card>
 
         {/* Layer 1: Vocabulary */}
-        <Card className="p-6 space-y-4 border-l-4 border-l-primary">
+        <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">1. Vocabulary (Name What Exists)</h2>
           <p className="text-muted-foreground">You identify and name everything.</p>
 
@@ -94,7 +115,7 @@ export default function ResponseConditioningHowToModel() {
         </Card>
 
         {/* Layer 2: Method */}
-        <Card className="p-6 space-y-4 border-l-4 border-l-primary">
+        <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">2. Method (Show the Steps)</h2>
           <p className="text-muted-foreground">You execute the full sequence.</p>
 
@@ -122,7 +143,7 @@ export default function ResponseConditioningHowToModel() {
         </Card>
 
         {/* Layer 3: Reason */}
-        <Card className="p-6 space-y-4 border-l-4 border-l-primary">
+        <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">3. Reason (Explain Why It Works)</h2>
           <p className="text-muted-foreground">You anchor each step to a law.</p>
 
@@ -194,6 +215,28 @@ export default function ResponseConditioningHowToModel() {
           </div>
         </Card>
 
+        {/* Observation Boundary */}
+        <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold">Know When Modelling Ends</h2>
+            <p className="text-muted-foreground">
+              The Modelling camera position is not the standing delivery mode for RI-OS. In the phases after Clarity, the phone moves upright into Observation mode. The student executes while the Specialist observes the response and records what actually happens on the laptop.
+            </p>
+            <p className="font-medium">
+              Showing the work and observing the student's work are different operating conditions. Do not carry demonstration behaviour into an observation condition.
+            </p>
+          </div>
+          <div className="mx-auto w-full max-w-xl overflow-hidden rounded-2xl border bg-card shadow-sm">
+            <div className="relative aspect-[2/3] overflow-hidden">
+              <img
+                src={setupVisualSrc}
+                alt="Response Integrity live Observation setup with the phone upright in selfie mode while the Specialist observes"
+                className="absolute inset-y-0 right-0 h-full w-auto max-w-none"
+              />
+            </div>
+          </div>
+        </Card>
+
         {/* What Not to Do */}
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What Not to Do</h2>
@@ -246,6 +289,26 @@ export default function ResponseConditioningHowToModel() {
           <p className="text-muted-foreground">Modeling is not teaching for understanding.</p>
           <p className="text-muted-foreground">It is:</p>
           <p className="font-medium">building a system the student can execute under pressure</p>
+        </Card>
+
+        {/* Modelling vs Observation */}
+        <Card className="p-6 space-y-5">
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold">Modelling and Observation Are Different Modes</h2>
+            <p className="text-muted-foreground">
+              The same delivery setup serves two different purposes. Modelling makes the Specialist's execution visible. Observation keeps the student executing while the Specialist watches, records, and intervenes only when the active drill condition requires it.
+            </p>
+            <p className="font-medium">
+              Camera position is part of the operating condition, not a cosmetic preference.
+            </p>
+          </div>
+          <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+            <img
+              src={setupVisualSrc}
+              alt="Response Integrity comparison of live Modelling and Observation setups"
+              className="h-auto w-full object-contain"
+            />
+          </div>
         </Card>
 
         {/* Final Rule */}
