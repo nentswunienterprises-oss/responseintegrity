@@ -210,14 +210,14 @@ export default function ResponseConditioningTimePressureStability() {
           prompt="A student finishes inside the timer but skips the known method and guesses successfully. What does the timed result prove?"
           options={[
             {
-              key: "a",
-              label: "The student is stable under time because the deadline and answer were both achieved.",
-              feedback: "Meeting the deadline cannot substitute for preserving the response structure the timer is meant to stress-test.",
-            },
-            {
               key: "b",
               label: "Unstable under time, because urgency displaced the trained method despite the successful outcome.",
               feedback: "Yes. Time Pressure Stability requires the method to survive urgency; speed and correctness alone are not enough.",
+            },
+            {
+              key: "a",
+              label: "The student is stable under time because the deadline and answer were both achieved.",
+              feedback: "Meeting the deadline cannot substitute for preserving the response structure the timer is meant to stress-test.",
             },
             {
               key: "c",
@@ -378,6 +378,11 @@ export default function ResponseConditioningTimePressureStability() {
           prompt="The timer freezes for several seconds halfway through a rep, then resumes. What should happen to that attempt?"
           options={[
             {
+              key: "c",
+              label: "Record the technical failure and run a fresh equivalent replacement under the same intended time condition.",
+              feedback: "Yes. Technical lineage remains visible, and the replacement supplies the missing valid timed evidence.",
+            },
+            {
               key: "a",
               label: "Keep it and subtract the estimated frozen time afterward, because the student's method performance was still observable.",
               feedback: "An estimate cannot recreate the intended continuous time condition. The rep may show useful behavior, but it cannot prove performance under the defined timer.",
@@ -386,11 +391,6 @@ export default function ResponseConditioningTimePressureStability() {
               key: "b",
               label: "Treat it as a student timeout if the final completion exceeds the original limit.",
               feedback: "The timing condition failed technically. The student cannot be assigned a timing failure from a timer that did not operate correctly.",
-            },
-            {
-              key: "c",
-              label: "Record the technical failure and run a fresh equivalent replacement under the same intended time condition.",
-              feedback: "Yes. Technical lineage remains visible, and the replacement supplies the missing valid timed evidence.",
             },
           ]}
           correctOptionKey="c"
