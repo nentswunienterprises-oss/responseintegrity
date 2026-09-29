@@ -69,8 +69,10 @@ export function DeepDiveTeachingInteraction({
               </div>
             ) : null}
             <div>
-              <p className="font-medium">{correct ? "Yes" : "Not quite"}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{selected.feedback}</p>
+              {!correct ? <p className="font-medium">Not quite</p> : null}
+              <p className={correct ? "text-sm text-muted-foreground" : "mt-1 text-sm text-muted-foreground"}>
+                {selected.feedback}
+              </p>
             </div>
           </div>
 
