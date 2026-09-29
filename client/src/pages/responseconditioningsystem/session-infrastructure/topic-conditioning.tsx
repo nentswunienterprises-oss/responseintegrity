@@ -494,7 +494,7 @@ export default function ResponseConditioningTopicConditioning() {
             },
             {
               key: "c",
-              label: "Preserve the earlier supported layers and locate the first response behavior that actually becomes unsupported.",
+              label: "Preserve supported earlier layers and locate the first response behavior that becomes unsupported.",
               feedback: "Yes. RI follows the response chain rather than assigning the phase from the final answer or from where the error happened chronologically.",
             },
           ]}
