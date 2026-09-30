@@ -387,7 +387,7 @@ export default function TutorPod() {
   if (authLoading || isLoading) {
     return (
       <DashboardLayout>
-        <div className="space-y-6">
+        <div className="ri-world-page ri-pod-world space-y-6">
           <Skeleton className="h-12 w-64" />
           <Skeleton className="h-6 w-96" />
           <div className="grid md:grid-cols-3 gap-6">
@@ -531,8 +531,8 @@ export default function TutorPod() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        <div className="rounded-2xl border border-primary/15 bg-background p-5 shadow-sm sm:p-7">
+      <div className="ri-world-page ri-pod-world space-y-8">
+        <div className="ri-world-hero rounded-2xl border border-primary/15 bg-background p-5 shadow-sm sm:p-7">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Pod</p>
