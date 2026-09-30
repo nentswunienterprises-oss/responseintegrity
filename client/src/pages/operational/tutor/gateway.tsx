@@ -186,7 +186,7 @@ export default function TutorGateway() {
           <div className="w-10 md:hidden" aria-hidden="true" />
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:static sm:transform-none w-full sm:w-auto flex justify-center">
             <span style={{ transform: "scale(1.08)", transformOrigin: "center" }}>
-              <ResponseIntegrityLogo size="md" variant="integrity" />
+              <ResponseIntegrityLogo size="md" variant="integrity" inkColor="hsl(var(--foreground))" />
             </span>
           </div>
 
