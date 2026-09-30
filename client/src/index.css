@@ -471,18 +471,6 @@ body:has(.ri-world-page) {
   box-shadow: 0 1px 0 rgba(255, 240, 240, 0.04) inset, 0 24px 70px rgba(0, 0, 0, 0.30);
 }
 
-.ri-world-page .ri-world-hero::after {
-  content: "";
-  position: absolute;
-  width: 260px;
-  height: 260px;
-  right: -100px;
-  top: -135px;
-  border-radius: 9999px;
-  background: radial-gradient(circle, rgba(230, 57, 70, 0.24), rgba(230, 57, 70, 0));
-  pointer-events: none;
-}
-
 .ri-world-page .ri-focus-card {
   border-color: rgba(230, 57, 70, 0.30);
   background:
