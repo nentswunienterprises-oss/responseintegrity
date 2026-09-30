@@ -531,7 +531,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 {useIntegrityBrand ? (
                   <>
                     <span className="text-[#E63946]">Response</span>{" "}
-                    <span className="text-[#1A1A1A]">Integrity</span>
+                    <span className="text-foreground">Integrity</span>
                   </>
                 ) : (
                   "Response Integrity"
@@ -548,7 +548,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   {useIntegrityBrand ? (
                     <>
                       <span className="text-[#E63946]">Response</span>{" "}
-                      <span className="text-[#1A1A1A]">Integrity</span>
+                      <span className="text-foreground">Integrity</span>
                     </>
                   ) : (
                     "Response Integrity"
