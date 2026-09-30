@@ -276,7 +276,6 @@ export default function OperationalSignup() {
             <AuthForm
               mode={mode}
               defaultRole={selectedRole}
-              onEmergencySignupSuccess={() => setMode("login")}
             />
           </Card>
 
