@@ -162,7 +162,7 @@ personal financial matters
 
 15. ENTIRE AGREEMENT
 15.1 This Agreement forms part of the Response Integrity contractor framework, alongside:
-Response Integrity-TCF-001 (Specialist Consent Form)
+Response Integrity-SCF-001 (Specialist Consent Form)
 Response Integrity-EQV-002 (Entry Qualification Verification)
 Response Integrity Terms of Use
 15.2 In case of conflict, Response Integrity's operational interpretation prevails.
