@@ -172,12 +172,12 @@ function usesDirectDrillLaunch(operationalMode?: string | null) {
 }
 
 const SANDBOX_CARD_THEMES = [
-  { accent: "#E63946", background: "#241B1D", border: "#6E3038" },
-  { accent: "#F06A75", background: "#231C1E", border: "#60343A" },
-  { accent: "#FFF0F0", background: "#211B1C", border: "#584044" },
-  { accent: "#E63946", background: "#1F1A1B", border: "#7A343D" },
-  { accent: "#F3B8BD", background: "#261E20", border: "#5E4045" },
-  { accent: "#FFF5ED", background: "#211C1D", border: "#614047" },
+  { accent: "#D95D39", background: "#FFF1EC", border: "#F0B5A5" },
+  { accent: "#B7791F", background: "#FFF8E7", border: "#E8C982" },
+  { accent: "#2F855A", background: "#ECFDF3", border: "#A7D8B8" },
+  { accent: "#2B6CB0", background: "#EDF6FF", border: "#A9C9EA" },
+  { accent: "#805AD5", background: "#F4F0FF", border: "#CBBBF0" },
+  { accent: "#B83280", background: "#FFF0F7", border: "#E8B1CF" },
 ];
 
 function getSandboxCardTheme(student: any) {
