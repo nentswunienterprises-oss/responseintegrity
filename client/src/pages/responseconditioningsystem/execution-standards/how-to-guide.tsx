@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 
 export default function ResponseConditioningHowToGuide() {
   const navigate = useNavigate();
@@ -14,7 +15,6 @@ export default function ResponseConditioningHowToGuide() {
             className="mb-4 -ml-2"
             onClick={() => navigate("/responseconditioningsystem")}
           >
-            
             Back to Response Conditioning System
           </Button>
 
@@ -24,7 +24,7 @@ export default function ResponseConditioningHowToGuide() {
                 Response Integrity-OS Deep Dive
               </p>
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight mt-1">
-                How to Guide
+                How to Intervene
               </h1>
               <p className="text-muted-foreground mt-1">under Execution Standards</p>
             </div>
@@ -33,318 +33,304 @@ export default function ResponseConditioningHowToGuide() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+        <DeepDiveLessonRunner
+          lessonKey="how-to-intervene-piecewise-v1"
+          title="How to Intervene"
+          completion={null}
+        >
+          <Card className="p-6 space-y-4 border-primary/25 bg-primary/5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-primary">The shift</p>
+            <h2 className="text-2xl font-bold">Guide Is Not a Phase</h2>
+            <p className="text-muted-foreground">
+              Guide is not a universal third step that follows every student attempt.
+            </p>
+            <p className="text-muted-foreground">
+              In the earlier Model, Apply, Guide loop, guiding was the correction move after application. RI-OS now has four phases with explicit support conditions, so guidance can only happen when the active set permits it.
+            </p>
+            <p className="font-semibold">
+              The Specialist does not decide how much to help. The active RI condition decides how much support is allowed.
+            </p>
+          </Card>
 
-        {/* What Guiding Is */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What Guiding Is</h2>
-          <p className="text-muted-foreground">Guiding is when:</p>
-          <p className="font-medium">the student is executing, and you control the correction</p>
-          <p className="text-muted-foreground">You are not explaining.</p>
-          <p className="text-muted-foreground">You are not taking over.</p>
-          <p className="text-muted-foreground">You are:</p>
-          <p className="font-medium">maintaining structure while the student does the work</p>
-        </Card>
+          <Card className="p-6 space-y-5">
+            <h2 className="text-2xl font-bold">Guidance and Correction Are Different</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-md border border-primary/15 bg-muted/20 p-4 space-y-2">
+                <p className="font-semibold">Guidance</p>
+                <p className="text-sm text-muted-foreground">
+                  Direction supplied while the current opportunity is still live.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Because it changes what the student had to produce alone, it must stay inside the set's support boundary.
+                </p>
+              </div>
+              <div className="rounded-md border border-primary/15 bg-muted/20 p-4 space-y-2">
+                <p className="font-semibold">Correction</p>
+                <p className="text-sm text-muted-foreground">
+                  What the Specialist does after the opportunity has already revealed the response.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Correction can reset the structure for learning without rewriting what the student independently demonstrated in that rep.
+                </p>
+              </div>
+            </div>
+          </Card>
 
-        {/* The Purpose */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The Purpose</h2>
-          <p className="text-muted-foreground">Guiding exists to:</p>
-          <ul className="space-y-2 pl-4">
-            <li className="font-medium">correct errors</li>
-            <li className="font-medium">reinforce the method</li>
-            <li className="font-medium">return control to the student</li>
-          </ul>
-        </Card>
+          <Card className="p-6 space-y-5">
+            <h2 className="text-2xl font-bold">The Four Support Contracts</h2>
+            <p className="text-muted-foreground">
+              RI does not use one vague rule called "minimal help." The active set carries an explicit support contract.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-md border p-4">
+                <p className="font-semibold">Modeled</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  The Specialist demonstrates. This is teaching and preparation, not independent student evidence.
+                </p>
+              </div>
+              <div className="rounded-md border p-4">
+                <p className="font-semibold">Minimal</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Small support may be used, but it cannot carry the method or manufacture the response being tested.
+                </p>
+              </div>
+              <div className="rounded-md border p-4">
+                <p className="font-semibold">First-step only</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  The permitted intervention stops at the opening step. The Specialist does not carry the remaining execution.
+                </p>
+              </div>
+              <div className="rounded-md border p-4">
+                <p className="font-semibold">None</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Present the task and observe. A request for help, hesitation, or breakdown is evidence rather than permission to rescue.
+                </p>
+              </div>
+            </div>
+          </Card>
 
-        {/* The Core Rule */}
-        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">The Core Rule</h2>
-          <p className="text-xl font-bold text-primary">Guide. Don't replace.</p>
-          <p className="text-muted-foreground">If you are doing the thinking for them:</p>
-          <p className="font-semibold">you are not guiding.</p>
-        </Card>
+          <Card className="p-6 space-y-5">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-primary">Phase 1</p>
+              <h2 className="text-2xl font-bold mt-1">Clarity</h2>
+            </div>
+            <p className="text-muted-foreground">
+              Clarity is where the original Model, Apply, Guide rhythm is most visible, but even here the support boundary changes by set.
+            </p>
+            <div className="space-y-3">
+              <div className="rounded-md border p-4">
+                <p className="font-semibold">Modeling: modeled support</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Build the Topic Reference and mental map through Vocabulary, Recognition / Method, Ordered Steps, and Reason. The student explains the map back. This set is preparation, not independent evidence.
+                </p>
+              </div>
+              <div className="rounded-md border p-4">
+                <p className="font-semibold">Identification: no support</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  The student names the terms, identifies the type, states the method or steps, and explains why without solving. Do not supply the answer, method, or steps during the observation.
+                </p>
+              </div>
+              <div className="rounded-md border p-4">
+                <p className="font-semibold">Light Apply: minimal support</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  The student solves while RI tests whether the mental map survives action. Keep support minimal. Do not turn Light Apply into step-by-step execution carried by the Specialist.
+                </p>
+              </div>
+            </div>
+          </Card>
 
-        {/* The Process */}
-        <Card className="p-6 space-y-6">
-          <h2 className="text-2xl font-bold">The Process</h2>
-          <p className="text-muted-foreground">Every time the student makes an error:</p>
+          <Card className="p-6 space-y-5">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-primary">Phase 2</p>
+              <h2 className="text-2xl font-bold mt-1">Structured Execution</h2>
+            </div>
+            <p className="text-muted-foreground">
+              Structured Execution is where guidance must recede because the phase is testing whether the known structure can be executed independently and repeatedly.
+            </p>
+            <div className="space-y-3">
+              <div className="rounded-md border p-4">
+                <p className="font-semibold">Required Structure: minimal support</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Require the student to state the step order before solving. The Specialist may protect the structure, but must not supply the next step before the student attempts it.
+                </p>
+              </div>
+              <div className="rounded-md border p-4">
+                <p className="font-semibold">Independent Execution: no support</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Withhold help. If the student stalls or asks for the next step, that dependence is part of the response being measured.
+                </p>
+              </div>
+              <div className="rounded-md border p-4">
+                <p className="font-semibold">Variation Control: no support</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Present the changed form without pointing out what changed. The student must transfer the same method without Specialist-led noticing.
+                </p>
+              </div>
+            </div>
+          </Card>
 
-          {/* Step 1 */}
- <div className="space-y-3 ">
-            <p className="text-lg font-semibold">1. Observe</p>
-            <p className="text-muted-foreground">Do not interrupt immediately.</p>
-            <p className="text-muted-foreground">Watch:</p>
-            <ul className="space-y-1 pl-4 text-muted-foreground">
-              <li>where they hesitate</li>
-              <li>what they skip</li>
-              <li>what they misidentify</li>
+          <Card className="p-6 space-y-5">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-primary">Phase 3</p>
+              <h2 className="text-2xl font-bold mt-1">Controlled Discomfort</h2>
+            </div>
+            <p className="text-muted-foreground">
+              Controlled Discomfort is where guidance becomes a deliberately bounded pressure tool. The student must face meaningful difficulty without being carried out of it.
+            </p>
+            <div className="space-y-3">
+              <div className="rounded-md border p-4">
+                <p className="font-semibold">Controlled Entry: minimal support</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Introduce a challenging but solvable problem, preserve the difficult condition, and require a controlled first response. Support may be minimal, never full rescue.
+                </p>
+              </div>
+              <div className="rounded-md border border-primary/25 bg-primary/5 p-4">
+                <p className="font-semibold">No Rescue: first-step only</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  This is the specific home of the "guide only to the first step" rule. Use only the support the set permits, then withdraw and observe whether the student continues without being carried.
+                </p>
+              </div>
+              <div className="rounded-md border p-4">
+                <p className="font-semibold">Repeat Exposure: no support</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Hold the difficulty and withhold rescue. The point is to see whether the controlled response now repeats under the same demand.
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 space-y-5">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-primary">Phase 4</p>
+              <h2 className="text-2xl font-bold mt-1">Time Pressure Stability</h2>
+            </div>
+            <p className="text-muted-foreground">
+              Timed training is a no-help condition. The timer is testing whether already-built structure survives urgency.
+            </p>
+            <ul className="space-y-2 pl-5 list-disc text-muted-foreground">
+              <li>Structure Under Timer: no support.</li>
+              <li>Repeated Timed Execution: no support.</li>
+              <li>Full Constraint: no support.</li>
             </ul>
-          </div>
-
-          {/* Step 2 */}
- <div className="space-y-3 ">
-            <p className="text-lg font-semibold">2. Diagnose the Layer</p>
-            <p className="text-muted-foreground">You must identify:</p>
-            <ul className="space-y-1 pl-4 text-muted-foreground">
-              <li>Vocabulary problem?</li>
-              <li>Method problem?</li>
-              <li>Reason problem?</li>
-            </ul>
-            <div className="bg-muted rounded p-3 mt-3">
-              <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-              <p className="text-muted-foreground">Every error belongs to a layer.</p>
-              <p className="text-muted-foreground">If you don't identify the layer:</p>
-              <p className="text-muted-foreground">you will correct incorrectly.</p>
-            </div>
-          </div>
-
-          {/* Step 3 */}
- <div className="space-y-3 ">
-            <p className="text-lg font-semibold">3. Intervene Minimally</p>
-            <p className="text-muted-foreground">You do not explain everything.</p>
-            <p className="text-muted-foreground">You target the exact point of failure.</p>
-            <div>
-              <p className="font-semibold mb-2">What You Say</p>
-              <p className="text-muted-foreground">"What is this called?"</p>
-              <p className="text-muted-foreground">"What's the next step?"</p>
-              <p className="text-muted-foreground">"Why does this work?"</p>
-            </div>
-            <div>
-              <p className="font-semibold mb-2">What You Are Doing</p>
-              <p className="text-muted-foreground">You are:</p>
-              <p className="font-medium">forcing the student to think inside structure</p>
-            </div>
-          </div>
-
-          {/* Step 4 */}
- <div className="space-y-3 ">
-            <p className="text-lg font-semibold">4. Return Control</p>
-            <p className="text-muted-foreground">After correction:</p>
-            <p className="text-muted-foreground">the student continues.</p>
-            <p className="text-muted-foreground">Not you.</p>
-            <div className="bg-muted rounded p-3 mt-3">
-              <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-              <p className="text-muted-foreground">Correction is temporary.</p>
-              <p className="text-muted-foreground">Execution must return to the student.</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Guiding Tools */}
-        <Card className="p-6 space-y-6">
-          <h2 className="text-2xl font-bold">Guiding Tools (Use These Only)</h2>
-
-          <div className="space-y-2">
-            <p className="text-lg font-semibold">1. Questioning</p>
-            <p className="text-muted-foreground">Short. Direct.</p>
-            <p className="text-muted-foreground">"What do you know?"</p>
-            <p className="text-muted-foreground">"What type of problem is this?"</p>
-            <p className="text-muted-foreground">"What's step one?"</p>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-lg font-semibold">2. Prompting the Method</p>
-            <p className="text-muted-foreground">"Follow the steps."</p>
-            <p className="text-muted-foreground">"What comes next?"</p>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-lg font-semibold">3. Layer Correction</p>
-            <p className="text-muted-foreground">"That's the coefficient."</p>
-            <p className="text-muted-foreground">"Set it equal to zero."</p>
-            <p className="text-muted-foreground">"What law are we using?"</p>
-          </div>
-        </Card>
-
-        {/* What Not to Do */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What Not to Do</h2>
-
-          <div className="space-y-4">
-            <div>
-              <p className="font-semibold flex items-center gap-2">
-                Take Over
+            <div className="rounded-md border border-primary/25 bg-primary/5 p-4 space-y-2">
+              <p className="font-semibold">Do not coach through the timer.</p>
+              <p className="text-sm text-muted-foreground">
+                If structure breaks, preserve the assigned timer, record what happened, and correct after the rep. Pausing or loosening the timer changes the condition itself.
               </p>
-              <p className="text-muted-foreground">Writing for the student. Solving for them.</p>
             </div>
+          </Card>
 
-            <div>
-              <p className="font-semibold flex items-center gap-2">
-                Over-Explain
-              </p>
-              <p className="text-muted-foreground">Giving long explanations mid-execution.</p>
+          <Card className="p-6 space-y-5">
+            <h2 className="text-2xl font-bold">When the Student Stalls</h2>
+            <p className="text-muted-foreground">
+              A stall is not automatically an instruction to help. First identify the active support contract.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <p className="font-semibold">1. Preserve the condition</p>
+                <p className="text-sm text-muted-foreground">
+                  Do not change difficulty, supply structure, relax a timer, or answer a support request unless the set explicitly permits that intervention.
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold">2. Observe what the stall reveals</p>
+                <p className="text-sm text-muted-foreground">
+                  Hesitation, rescue-seeking, a missing first step, lost structure, or a freeze may be the exact response RI needs to see.
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold">3. Record the truth</p>
+                <p className="text-sm text-muted-foreground">
+                  Do not strengthen the response in the log because the student later recovered after support.
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold">4. Correct at the right time</p>
+                <p className="text-sm text-muted-foreground">
+                  Once the evidence opportunity is complete, correct the broken point and prepare the next assigned exposure without rewriting the previous one.
+                </p>
+              </div>
             </div>
+          </Card>
 
-            <div>
-              <p className="font-semibold flex items-center gap-2">
-                Rescue
-              </p>
-              <p className="text-muted-foreground">Jumping in when they hesitate.</p>
+          <Card className="p-6 space-y-5">
+            <h2 className="text-2xl font-bold">Intervention Changes Evidence</h2>
+            <p className="text-muted-foreground">
+              RI records what the Specialist supplied because support can change what an opportunity is allowed to prove.
+            </p>
+            <div className="space-y-3">
+              <div className="rounded-md border p-4">
+                <p className="font-semibold">Neutral clarification</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Clarify wording without supplying mathematical content, the method, or a step.
+                </p>
+              </div>
+              <div className="rounded-md border p-4">
+                <p className="font-semibold">First-step confirmation</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  If the Specialist confirms or supplies the opening step, that opportunity can no longer prove the student produced that first-step control independently.
+                </p>
+              </div>
+              <div className="rounded-md border p-4">
+                <p className="font-semibold">Method or step prompt</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Prompting the method or a later step can invalidate the independence-sensitive part of the response that the prompt supplied.
+                </p>
+              </div>
+              <div className="rounded-md border p-4">
+                <p className="font-semibold">Teaching or full rescue</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Once the Specialist teaches, corrects, or carries the live response, the current-phase capability cannot be treated as independently demonstrated in that opportunity.
+                </p>
+              </div>
             </div>
+          </Card>
 
-            <div>
-              <p className="font-semibold flex items-center gap-2">
-                Accept Vague Answers
-              </p>
-              <p className="text-muted-foreground">Allowing: "this thing," "I think it's…"</p>
+          <Card className="p-6 space-y-5">
+            <h2 className="text-2xl font-bold">Do Not Quietly Re-Model a Later Phase</h2>
+            <p className="text-muted-foreground">
+              If a student in Structured Execution, Controlled Discomfort, or Time Pressure Stability appears to need the mental map taught again, do not silently turn that rep into Clarity.
+            </p>
+            <p className="text-muted-foreground">
+              Preserve the assigned condition and let the breakdown become evidence. RI can then determine whether the inherited prerequisite is still trustworthy and whether targeted re-diagnosis is required.
+            </p>
+            <p className="font-semibold">
+              Re-teaching is not a hidden rescue path around phase truth.
+            </p>
+          </Card>
+
+          <Card className="p-6 space-y-5">
+            <h2 className="text-2xl font-bold">The Three-Layer Lens Still Matters</h2>
+            <p className="text-muted-foreground">
+              Vocabulary, Method, and Reason remain the core concept map, especially for Clarity and for understanding what needs correction.
+            </p>
+            <p className="text-muted-foreground">
+              But not every later-phase breakdown is a Three-Layer failure. A student can know the method and still break in independent execution, under difficulty, or under time.
+            </p>
+            <p className="font-semibold">
+              Diagnose the actual response layer before deciding what should happen next.
+            </p>
+          </Card>
+
+          <Card className="p-6 space-y-5 border-primary/25 bg-primary/5">
+            <h2 className="text-2xl font-bold">The Evolved RI Loop</h2>
+            <div className="space-y-2 font-medium">
+              <p>Establish the map.</p>
+              <p>Expose the student under the assigned condition.</p>
+              <p>Observe the response without changing the condition.</p>
+              <p>Intervene only inside the support boundary.</p>
+              <p>Record what actually happened.</p>
+              <p>Correct outside the evidence window when required.</p>
+              <p>Expose again under the next assigned condition.</p>
             </div>
-
-            <div>
-              <p className="font-semibold flex items-center gap-2">
-                Skip Diagnosis
-              </p>
-              <p className="text-muted-foreground">Correcting without knowing the layer.</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* The Silence Rule */}
-        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">The Silence Rule</h2>
-          <p className="text-muted-foreground">When the student is stuck:</p>
-          <p className="text-xl font-bold text-primary">Wait.</p>
-          <p className="text-lg font-semibold">10-15 seconds.</p>
-
-          <div>
-            <p className="font-semibold mb-2">Why</p>
-            <ul className="space-y-1 pl-4 text-muted-foreground">
-              <li>thinking needs space</li>
-              <li>discomfort must exist</li>
-              <li>response patterns appear</li>
-            </ul>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">If you speak too early:</p>
-            <p className="text-muted-foreground">you interrupt the process</p>
-          </div>
-        </Card>
-
-        {/* The First-Step Rule */}
-        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">The First-Step Rule</h2>
-          <p className="text-muted-foreground">When guiding:</p>
-          <p className="font-medium">You only guide to: the next step</p>
-          <p className="text-muted-foreground">Not the full solution.</p>
-
-          <div className="space-y-3 mt-4">
-            <div>
-              <p className="font-semibold mb-1">Wrong:</p>
-              <p className="text-muted-foreground">"Factor it, then set it equal to zero, then solve…"</p>
-            </div>
-
-            <div>
-              <p className="font-semibold mb-1">Correct:</p>
-              <p className="text-muted-foreground">"What's the first step?"</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* The Loop */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The Loop</h2>
-          <p className="text-muted-foreground">Guiding is not one-time.</p>
-          <p className="text-muted-foreground">It is a loop:</p>
-          <div className="space-y-2 pl-4 font-medium">
-            <p>Student executes</p>
-            <p>Student makes an error</p>
-            <p>You diagnose</p>
-            <p>You guide</p>
-            <p>Student continues</p>
-          </div>
-          <p className="text-muted-foreground">Repeated until stable.</p>
-        </Card>
-
-        {/* What You Are Building */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What You Are Building</h2>
-
-          <div className="space-y-3">
-            <div>
-              <p className="font-semibold mb-1">1. Independence</p>
-              <p className="text-muted-foreground">Student stops relying on you.</p>
-            </div>
-
-            <div>
-              <p className="font-semibold mb-1">2. Error Awareness</p>
-              <p className="text-muted-foreground">They start seeing their own mistakes.</p>
-            </div>
-
-            <div>
-              <p className="font-semibold mb-1">3. Process Discipline</p>
-              <p className="text-muted-foreground">They follow structure without prompting.</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* What Mastery Looks Like */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What Mastery Looks Like</h2>
-          <p className="text-muted-foreground">You will see:</p>
-          <ul className="space-y-2 pl-4 text-muted-foreground">
-            <li>fewer interruptions</li>
-            <li>cleaner steps</li>
-            <li>correct language</li>
-            <li>faster recovery from mistakes</li>
-          </ul>
-          <p className="text-muted-foreground">The student begins to:</p>
-          <p className="font-medium">self-correct</p>
-        </Card>
-
-        {/* The Hidden Danger */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The Hidden Danger</h2>
-          <p className="text-muted-foreground">If you guide poorly:</p>
-          <p className="text-muted-foreground">you create:</p>
-          <ul className="space-y-2 pl-4 text-muted-foreground">
-            <li>dependency</li>
-            <li>hesitation</li>
-            <li>passive learners</li>
-          </ul>
-        </Card>
-
-        {/* The Correct Feeling */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The Correct Feeling</h2>
-          <p className="text-muted-foreground">Guiding should feel:</p>
-          <div className="space-y-2">
-            <ul className="space-y-1 pl-4 text-muted-foreground">
-              <li>controlled</li>
-              <li>minimal</li>
-              <li>precise</li>
-            </ul>
-          </div>
-          <p className="text-muted-foreground">Not:</p>
-          <ul className="space-y-1 pl-4 text-muted-foreground">
-            <li>talkative</li>
-            <li>reactive</li>
-            <li>emotional</li>
-          </ul>
-        </Card>
-
-        {/* Final Principle */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Final Principle</h2>
-          <p className="text-muted-foreground">You are not there to help the student get the answer.</p>
-          <p className="text-muted-foreground">You are there to:</p>
-          <p className="font-bold text-lg">train how they reach the answer</p>
-        </Card>
-
-        {/* Final Rule */}
-        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">Final Rule</h2>
-          <p className="text-muted-foreground">If the student is not:</p>
-          <ul className="space-y-1 pl-4 text-muted-foreground">
-            <li>thinking</li>
-            <li>speaking</li>
-            <li>executing</li>
-          </ul>
-          <p className="text-muted-foreground">Then:</p>
-          <p className="font-semibold">you are doing too much</p>
-          <p className="text-muted-foreground">And when you do too much:</p>
-          <p className="font-bold text-lg">they learn less</p>
-        </Card>
-
+            <p className="text-muted-foreground">
+              In Clarity, this can still feel like Model, Apply, Guide. Across RI-OS as a whole, the governing principle is more precise:
+            </p>
+            <p className="text-lg font-bold">
+              Guidance is condition-owned, not Specialist-discretionary.
+            </p>
+          </Card>
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );
