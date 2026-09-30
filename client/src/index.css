@@ -1080,6 +1080,33 @@ html[data-ri-theme="dark"] .ri-specialist-surface .shadcn-card {
     0 18px 54px rgba(0, 0, 0, 0.30);
 }
 
+/* Dark gateway onboarding surfaces live outside the document dialog.
+   Keep these rules global so they remain active while the reader is closed. */
+html[data-ri-theme="dark"] body:has(.ri-specialist-world) .ri-specialist-onboarding-callout,
+html[data-ri-theme="dark"] body:has(.ri-specialist-world) .ri-specialist-onboarding-checklist {
+  --background: 0 0% 9%;
+  --foreground: 23.33 100% 96.47%;
+  --muted: 350 8% 13%;
+  --muted-foreground: 350 12% 70%;
+  --border: 350 12% 21%;
+  color-scheme: dark;
+  background: #171717 !important;
+  background-image: none !important;
+  border-color: rgba(255, 240, 240, 0.10) !important;
+  color: var(--ri-cream) !important;
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="dark"] body:has(.ri-specialist-world) .ri-specialist-onboarding-callout .text-\[\#6B5B52\],
+html[data-ri-theme="dark"] body:has(.ri-specialist-world) .ri-specialist-onboarding-checklist .text-muted-foreground {
+  color: #B9ABAD !important;
+}
+
+html[data-ri-theme="dark"] body:has(.ri-specialist-world) .ri-specialist-onboarding-checklist label,
+html[data-ri-theme="dark"] body:has(.ri-specialist-world) .ri-specialist-onboarding-checklist span {
+  color: var(--ri-cream);
+}
+
 /* Warm Dark: only alignment background sections go dark.
    Information cards remain cream on top of those dark surfaces. */
 html[data-ri-theme="warm-dark"] .ri-pod-world .ri-alignment-shell {
