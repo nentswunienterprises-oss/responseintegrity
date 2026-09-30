@@ -221,6 +221,14 @@ function withDeepDiveDeterrent(page: ReactNode) {
   );
 }
 
+function withSpecialistTheme(page: ReactNode) {
+  return (
+    <div className="ri-world-page ri-specialist-world ri-specialist-surface min-h-screen">
+      {page}
+    </div>
+  );
+}
+
 function RedirectWithSearch({ to }: { to: string }) {
   const location = useLocation();
   return <Navigate to={`${to}${location.search}${location.hash}`} replace />;
@@ -232,7 +240,7 @@ function Router() {
       {/* General Routes */}
       {/* Intro Session Drill Runner */}
       <Route path="/tutor/intro-session/:studentId" element={<TutorGatewayGuard><IntroSessionRoute /></TutorGatewayGuard>} />
-      <Route path="/specialist/intro-session/:studentId" element={<TutorGatewayGuard><IntroSessionRoute /></TutorGatewayGuard>} />
+      <Route path="/specialist/intro-session/:studentId" element={<TutorGatewayGuard>{withSpecialistTheme(<IntroSessionRoute />)}</TutorGatewayGuard>} />
       <Route path="/" element={<PortalLanding />} />
       <Route path="/portal-landing" element={<Navigate to="/" replace />} />
       <Route path="/landing" element={<Landing />} />
@@ -466,13 +474,13 @@ function Router() {
       <Route path="/operational/signup" element={<OperationalSignup />} />
 
       {/* Tutor Routes */}
-      <Route path="/operational/specialist/gateway" element={<TutorGatewayGuard><TutorGateway /></TutorGatewayGuard>} />
+      <Route path="/operational/specialist/gateway" element={<TutorGatewayGuard>{withSpecialistTheme(<TutorGateway />)}</TutorGatewayGuard>} />
       <Route path="/operational/specialist/dashboard" element={<TutorGatewayGuard><Navigate to="/specialist/pod" replace /></TutorGatewayGuard>} />
       <Route path="/operational/specialist/my-pod" element={<TutorGatewayGuard><Navigate to="/specialist/pod" replace /></TutorGatewayGuard>} />
-      <Route path="/operational/specialist/response-integrity-os" element={<TutorGatewayGuard><ResponseIntegrityOS /></TutorGatewayGuard>} />
+      <Route path="/operational/specialist/response-integrity-os" element={<TutorGatewayGuard>{withSpecialistTheme(<ResponseIntegrityOS />)}</TutorGatewayGuard>} />
       <Route path="/operational/specialist/capability" element={<TutorGatewayGuard><Navigate to="/responseconditioningsystem" replace /></TutorGatewayGuard>} />
-      <Route path="/operational/specialist/capability/:assessmentKey" element={<TutorGatewayGuard><SpecialistCapabilityAssessment /></TutorGatewayGuard>} />
-      <Route path="/operational/specialist/sandbox" element={<TutorGatewayGuard><SpecialistSandboxSimulation /></TutorGatewayGuard>} />
+      <Route path="/operational/specialist/capability/:assessmentKey" element={<TutorGatewayGuard>{withSpecialistTheme(<SpecialistCapabilityAssessment />)}</TutorGatewayGuard>} />
+      <Route path="/operational/specialist/sandbox" element={<TutorGatewayGuard>{withSpecialistTheme(<SpecialistSandboxSimulation />)}</TutorGatewayGuard>} />
       <Route path="/operational/specialist/tt-os" element={<Navigate to="/operational/specialist/response-integrity-os" replace />} />
       <Route path="/operational/specialist/growth" element={<TutorGatewayGuard><Navigate to="/specialist/growth" replace /></TutorGatewayGuard>} />
       <Route path="/operational/specialist/academic-tracker" element={<TutorGatewayGuard><Navigate to="/specialist/academics" replace /></TutorGatewayGuard>} />
