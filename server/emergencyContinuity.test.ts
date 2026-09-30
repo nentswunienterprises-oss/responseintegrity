@@ -308,7 +308,7 @@ test("Proof DB auth is selected by the local Proof database target", () => {
 
 test("non-tutor emergency signup is rejected", () => {
   const authSource = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
-  assert.match(authSource, /if \(role !== "tutor"\) \{[\s\S]*?status\(503\)/);
+  assert.match(authSource, /if \(isEmergencyDbMode\(\) && role !== "tutor"\) \{[\s\S]*?status\(503\)/);
 });
 
 test("direct Specialist DB-session signup cannot invoke Supabase Auth", () => {
