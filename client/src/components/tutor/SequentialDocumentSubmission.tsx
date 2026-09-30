@@ -2135,21 +2135,6 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
                 grid-column: span 1;
               }
             }
-            html[data-ri-theme="dark"] .ri-specialist-onboarding-callout,
-            html[data-ri-theme="dark"] .ri-specialist-onboarding-checklist {
-              background: #171717 !important;
-              border-color: rgba(255, 240, 240, 0.10) !important;
-              color: #FFF5ED !important;
-            }
-
-            html[data-ri-theme="dark"] .ri-specialist-onboarding-callout .text-\[\#6B5B52\] {
-              color: #B9ABAD !important;
-            }
-
-            html[data-ri-theme="dark"] .ri-specialist-onboarding-checklist .text-muted-foreground {
-              color: #B9ABAD !important;
-            }
-
           `}</style>
           <div className="ri-specialist-reader-shell flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[#FFF5ED] text-[#1A1A1A]">
             <DialogHeader className="ri-specialist-reader-chrome shrink-0 border-b border-[#E7D5C8] bg-white px-4 py-4 text-left sm:px-6 sm:py-5">
