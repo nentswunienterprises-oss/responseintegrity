@@ -389,3 +389,170 @@
     min-height: -webkit-fill-available;
   }
 }
+
+
+/* RESPONSE INTEGRITY WORLD — scoped dark product atmosphere */
+body:has(.ri-world-page),
+.ri-world-page {
+  --button-outline: rgba(255, 245, 237, 0.14);
+  --badge-outline: rgba(255, 240, 240, 0.18);
+  --elevate-1: rgba(255, 245, 237, 0.045);
+  --elevate-2: rgba(230, 57, 70, 0.10);
+
+  --background: 0 0% 6.7%;
+  --foreground: 23.33 100% 96.47%;
+  --border: 350 15% 24%;
+  --card: 0 0% 10.2%;
+  --card-foreground: 23.33 100% 96.47%;
+  --card-border: 350 15% 24%;
+  --sidebar: 0 0% 8.2%;
+  --sidebar-foreground: 23.33 100% 96.47%;
+  --sidebar-border: 350 15% 22%;
+  --sidebar-primary: 355.38 79.08% 56.27%;
+  --sidebar-primary-foreground: 23.33 100% 96.47%;
+  --sidebar-accent: 350 24% 17%;
+  --sidebar-accent-foreground: 23.33 100% 96.47%;
+  --sidebar-ring: 355.38 79.08% 56.27%;
+  --popover: 0 0% 10.2%;
+  --popover-foreground: 23.33 100% 96.47%;
+  --popover-border: 350 15% 24%;
+  --primary: 355.38 79.08% 56.27%;
+  --primary-foreground: 23.33 100% 96.47%;
+  --secondary: 350 18% 17%;
+  --secondary-foreground: 0 100% 96.86%;
+  --muted: 350 10% 15%;
+  --muted-foreground: 350 16% 72%;
+  --accent: 350 28% 19%;
+  --accent-foreground: 23.33 100% 96.47%;
+  --destructive: 355.38 79.08% 56.27%;
+  --destructive-foreground: 23.33 100% 96.47%;
+  --input: 350 14% 22%;
+  --ring: 355.38 79.08% 56.27%;
+
+  --ri-world-bg: #111111;
+  --ri-world-card: #1A1A1A;
+  --ri-world-card-raised: #211B1C;
+  --ri-world-panel: #261E20;
+  --ri-world-border: #4B3438;
+  --ri-world-copy: #FFF5ED;
+  --ri-world-muted: #C8B5B8;
+  --ri-world-blush: #FFF0F0;
+  --ri-world-red: #E63946;
+
+  color-scheme: dark;
+}
+
+body:has(.ri-world-page) {
+  background-color: var(--ri-world-bg);
+  background-image:
+    radial-gradient(circle at 82% 4%, rgba(230, 57, 70, 0.14), transparent 30%),
+    radial-gradient(circle at 16% 18%, rgba(255, 240, 240, 0.045), transparent 24%);
+  background-attachment: fixed;
+}
+
+.ri-world-page {
+  position: relative;
+  color: hsl(var(--foreground));
+}
+
+.ri-world-page .shadcn-card {
+  background: linear-gradient(180deg, rgba(33, 27, 28, 0.98), rgba(26, 26, 26, 0.98));
+  border-color: rgba(230, 57, 70, 0.16);
+  box-shadow: 0 1px 0 rgba(255, 240, 240, 0.025) inset, 0 18px 55px rgba(0, 0, 0, 0.22);
+}
+
+.ri-world-page .ri-world-hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(230, 57, 70, 0.11), transparent 44%),
+    linear-gradient(180deg, rgba(37, 29, 31, 0.99), rgba(24, 24, 24, 0.99));
+  border-color: rgba(230, 57, 70, 0.30);
+  box-shadow: 0 1px 0 rgba(255, 240, 240, 0.04) inset, 0 24px 70px rgba(0, 0, 0, 0.30);
+}
+
+.ri-world-page .ri-world-hero::after {
+  content: "";
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  right: -100px;
+  top: -135px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(230, 57, 70, 0.24), rgba(230, 57, 70, 0));
+  pointer-events: none;
+}
+
+.ri-world-page .ri-focus-card {
+  border-color: rgba(230, 57, 70, 0.30);
+  background:
+    linear-gradient(135deg, rgba(230, 57, 70, 0.085), transparent 52%),
+    linear-gradient(180deg, rgba(34, 27, 28, 0.99), rgba(25, 25, 25, 0.99));
+}
+
+.ri-world-page .ri-metric-card {
+  border-color: rgba(255, 240, 240, 0.10);
+  background: linear-gradient(180deg, rgba(36, 30, 31, 0.97), rgba(25, 25, 25, 0.99));
+}
+
+.ri-world-page .ri-module-card:hover,
+.ri-world-page .ri-metric-card:hover {
+  border-color: rgba(230, 57, 70, 0.44);
+  box-shadow: 0 0 0 1px rgba(230, 57, 70, 0.07), 0 20px 60px rgba(0, 0, 0, 0.30);
+}
+
+.ri-os-world {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 78% 0%, rgba(230, 57, 70, 0.11), transparent 32%),
+    linear-gradient(180deg, rgba(17, 17, 17, 0.98), #111111 38%, #111111 100%);
+}
+
+.ri-os-world .ri-lesson-chrome {
+  border-color: rgba(230, 57, 70, 0.14);
+  background: rgba(17, 17, 17, 0.91);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.24);
+}
+
+.ri-os-world .ri-lesson-step > .shadcn-card,
+.ri-os-world .ri-teaching-interaction,
+.ri-os-world .ri-completion-card {
+  border-color: rgba(230, 57, 70, 0.20);
+}
+
+.ri-os-world .ri-teaching-interaction {
+  background:
+    linear-gradient(135deg, rgba(230, 57, 70, 0.08), transparent 50%),
+    linear-gradient(180deg, rgba(34, 27, 28, 0.99), rgba(25, 25, 25, 0.99));
+}
+
+.ri-os-world .ri-feedback-panel {
+  background: rgba(255, 240, 240, 0.035);
+  border-color: rgba(255, 240, 240, 0.10);
+}
+
+.ri-os-world .ri-lesson-nav {
+  border-color: rgba(255, 240, 240, 0.09);
+}
+
+.ri-pod-world .tutor-pod-student-card {
+  background:
+    linear-gradient(145deg, rgba(230, 57, 70, 0.035), transparent 42%),
+    linear-gradient(180deg, rgba(32, 27, 28, 0.99), rgba(24, 24, 24, 0.99));
+  border-color: rgba(255, 240, 240, 0.12);
+  color: hsl(var(--foreground));
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.24);
+}
+
+.ri-pod-world .tutor-pod-student-card:hover {
+  border-color: rgba(230, 57, 70, 0.32);
+  box-shadow: 0 22px 65px rgba(0, 0, 0, 0.31);
+}
+
+.ri-pod-world .tutor-pod-student-card .pointer-events-none > span {
+  border-color: rgba(230, 57, 70, 0.55);
+}
+
+body:has(.ri-world-page) header {
+  border-color: rgba(230, 57, 70, 0.13);
+}
