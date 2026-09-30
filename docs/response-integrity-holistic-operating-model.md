@@ -360,7 +360,7 @@ They are introduced when the learner’s current phase and drill design call for
 
 Topic Conditioning is the core academic engine.
 
-The system turns a real school topic into the arena where Response Integrity trains the student’s response.
+The system turns a real school topic into the area where Response Integrity trains the student’s response.
 
 ### What the system is asking
 
