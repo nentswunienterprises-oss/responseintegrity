@@ -1163,7 +1163,7 @@ function buildAcceptedCopyHtml(params: {
     .agreement-body .tt-inline-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .agreement-body .tt-inline-detail-grid > div { padding: 10px 12px; border: 1px solid #ddd3c5; border-radius: 12px; background: #f8f2e8; }
     .agreement-body .tt-inline-detail-grid .tt-inline-detail-span { grid-column: span 2; }
-    .agreement-body .tt-inline-detail-grid span { display: block; margin-bottom: 4px; font: 700 10px/1.4 Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ri-reader-label, #9f1d2b); }
+    .agreement-body .tt-inline-detail-grid span { display: block; margin-bottom: 4px; font: 700 10px/1.4 Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ri-reader-label, #E63946); }
     .agreement-body .tt-inline-detail-grid strong { font: 600 13px/1.5 Arial, sans-serif; color: var(--ri-reader-heading, #102a43); }
     .footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #ddd3c5; font: 400 11px/1.5 Arial, sans-serif; color: #7b8794; }
     .signature { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -1971,7 +1971,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
               font-family: Arial, sans-serif;
               font-size: 1rem;
               font-weight: 700;
-              color: var(--ri-reader-section, #7c2d12);
+              color: var(--ri-reader-section, #E63946);
             }
 
             .agreement-reader .tt-agreement-section-body p {
@@ -2039,7 +2039,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
               font-weight: 700;
               letter-spacing: 0.12em;
               text-transform: uppercase;
-              color: var(--ri-reader-label, #9f1d2b);
+              color: var(--ri-reader-label, #E63946);
             }
 
             .agreement-reader .tt-inline-detail-grid strong {
@@ -2048,13 +2048,20 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
               color: var(--ri-reader-strong, #1a1a1a);
             }
 
+            /* Document section headers and document labels are brand signals.
+               Keep RI red unchanged across Light, Warm Dark, and Dark. */
+            .ri-specialist-document-reader {
+              --ri-reader-section: #E63946;
+              --ri-reader-label: #E63946;
+            }
+
             html[data-ri-theme="dark"] .ri-specialist-document-reader {
               --ri-reader-heading: #FFF5ED;
               --ri-reader-text: #D7C9CB;
               --ri-reader-border: rgba(255, 240, 240, 0.10);
-              --ri-reader-section: #F08B94;
+              --ri-reader-section: #E63946;
               --ri-reader-detail-bg: #1A1A1A;
-              --ri-reader-label: #F05260;
+              --ri-reader-label: #E63946;
               --ri-reader-strong: #FFF5ED;
               background: #121212 !important;
               border-color: rgba(255, 240, 240, 0.10) !important;
