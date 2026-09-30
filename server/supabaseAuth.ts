@@ -298,9 +298,30 @@ export async function setupAuth(app: Express) {
             trackingCampaign: tracking_campaign,
           });
           console.log("[EMERGENCY SIGNUP] created tutor", { userId: user.id });
-          return res.status(201).json({
-            user: { id: user.id, email: user.email, role: user.role },
-            message: "Account created. Please log in to continue.",
+
+          // Proof identity is trusted immediately for authentication purposes.
+          // Business-state gates (application, onboarding, training, certification)
+          // remain separate and continue to control what the Specialist can access.
+          (req.session as any).userId = user.id;
+          (req.session as any).email = user.email;
+          delete (req.session as any).accessToken;
+          req.session.touch();
+
+          const redirectUrl = getDefaultDashboardRoute("tutor");
+
+          return req.session.save((err) => {
+            if (err) {
+              console.error("[EMERGENCY SIGNUP] session save error", err);
+              return res.status(500).json({ message: "Account created, but the sign-in session could not be established." });
+            }
+
+            res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+            return res.status(201).json({
+              user: { id: user.id, email: user.email, role: user.role },
+              dbUser: user,
+              redirectUrl,
+              message: "Signup successful",
+            });
           });
         } catch (error) {
           if ((error as { code?: string })?.code === "DUPLICATE_EMAIL") {
