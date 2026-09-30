@@ -62,7 +62,7 @@ export default function ResponseConditioningTopicConditioning() {
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">The simplest way to understand it</h2>
-          <p className="text-muted-foreground">A topic is the arena.</p>
+          <p className="text-muted-foreground">A topic is the area.</p>
           <p className="font-medium">Examples:</p>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
             <li>Fractions</li>
@@ -80,7 +80,7 @@ export default function ResponseConditioningTopicConditioning() {
             <li>Time Pressure Stability</li>
           </ul>
           <p className="font-semibold">
-            So Topic Conditioning means: A school topic becomes the arena where Response Integrity-OS trains the student's response.
+            So Topic Conditioning means: A school topic becomes the area where Response Integrity-OS trains the student's response.
           </p>
         </Card>
 
