@@ -646,3 +646,9 @@ body:has(.ri-world-page) header {
   border-top: 1px solid rgba(255, 245, 237, 0.08);
   pointer-events: none;
 }
+
+
+/* RI Pod outer cards use square corners */
+.ri-pod-world .shadcn-card {
+  border-radius: 0;
+}
