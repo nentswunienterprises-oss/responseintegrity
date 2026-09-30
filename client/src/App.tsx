@@ -214,7 +214,11 @@ function RecoveryCodeRedirect() {
 }
 
 function withDeepDiveDeterrent(page: ReactNode) {
-  return <DeepDiveDeterrent>{page}</DeepDiveDeterrent>;
+  return (
+    <DeepDiveDeterrent>
+      <div className="ri-world-page ri-os-world min-h-screen">{page}</div>
+    </DeepDiveDeterrent>
+  );
 }
 
 function RedirectWithSearch({ to }: { to: string }) {
