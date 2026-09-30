@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 import {
+  TD_BATTLE_TEST_PHASE,
   TUTOR_BATTLE_TEST_PHASES,
   getBattleTestScoringGuide,
   materializeBattleTestPhaseVariant,
@@ -456,6 +457,11 @@ export const TD_BATTLE_TEST_PHASE_EXACT: BattleTestPhaseDefinition = TD_SOURCE_F
       description: TD_SOURCE_FILE.description,
       questions: [],
     };
+
+export const TD_BATTLE_TEST_PHASE_SAFE: BattleTestPhaseDefinition =
+  TD_BATTLE_TEST_PHASE_EXACT.questions.length
+    ? TD_BATTLE_TEST_PHASE_EXACT
+    : TD_BATTLE_TEST_PHASE;
 
 export function getTutorBattleTestPhaseDefinitionsExact(
   phaseKeys: string[],

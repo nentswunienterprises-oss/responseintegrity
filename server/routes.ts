@@ -130,7 +130,7 @@ import {
   upsertTutorPortableCertificationSnapshot,
 } from "./battleTesting";
 import {
-  TD_BATTLE_TEST_PHASE_EXACT,
+  TD_BATTLE_TEST_PHASE_SAFE,
   TUTOR_BATTLE_TEST_PHASES_EXACT,
   TUTOR_BATTLE_TEST_PHASES_SAFE,
   getTutorBattleTestPhaseDefinitionsExact,
@@ -18661,7 +18661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     isAuthenticated,
     requireRole(["coo", "td"]),
     async (_req: Request, res: Response) => {
-      res.json([TD_BATTLE_TEST_PHASE_EXACT]);
+      res.json([TD_BATTLE_TEST_PHASE_SAFE]);
     }
   );
 
@@ -19485,8 +19485,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           subjectType: "td",
           subjectUserId: payload.tdId,
           createdByUserId: dbUser.id,
-          templateKey: TD_BATTLE_TEST_PHASE_EXACT.key,
-          phases: [TD_BATTLE_TEST_PHASE_EXACT],
+          templateKey: TD_BATTLE_TEST_PHASE_SAFE.key,
+          phases: [TD_BATTLE_TEST_PHASE_SAFE],
           responses: payload.responses as BattleTestResponseInput[],
         });
 

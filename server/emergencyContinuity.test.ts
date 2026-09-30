@@ -1165,3 +1165,24 @@ test("COO Specialist document review records the authenticated dbUser as reviewe
   assert.match(review, /const reviewerId = \(req as any\)\.dbUser\.id/);
   assert.doesNotMatch(review, /const reviewerId = \(req\.session as any\)\.userId/);
 });
+
+
+test("TD battle-test bank falls back to the built-in integrity bank when the authored source file is absent", () => {
+  const source = readFileSync(resolve(process.cwd(), "server/battleTestingBanks.ts"), "utf8");
+
+  assert.match(source, /TD_BATTLE_TEST_PHASE,/);
+  assert.match(source, /export const TD_BATTLE_TEST_PHASE_SAFE:[\s\S]*TD_BATTLE_TEST_PHASE_EXACT\.questions\.length[\s\S]*TD_BATTLE_TEST_PHASE_EXACT[\s\S]*TD_BATTLE_TEST_PHASE/);
+});
+
+test("TD audit routes use the safe TD bank for both loading and submission", () => {
+  const source = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const bankStart = source.indexOf('"/api/battle-tests/banks/td"');
+  const submitStart = source.indexOf('"/api/coo/pods/:podId/td-battle-tests"');
+  const bankSlice = source.slice(bankStart, bankStart + 700);
+  const submitSlice = source.slice(submitStart, submitStart + 2200);
+
+  assert.match(bankSlice, /res\.json\(\[TD_BATTLE_TEST_PHASE_SAFE\]\)/);
+  assert.match(submitSlice, /templateKey:\s*TD_BATTLE_TEST_PHASE_SAFE\.key/);
+  assert.match(submitSlice, /phases:\s*\[TD_BATTLE_TEST_PHASE_SAFE\]/);
+  assert.doesNotMatch(bankSlice + submitSlice, /TD_BATTLE_TEST_PHASE_EXACT/);
+});
