@@ -20,7 +20,7 @@ export function SpecialistGatewayMenu() {
   const { theme, setTheme } = useRITheme();
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
