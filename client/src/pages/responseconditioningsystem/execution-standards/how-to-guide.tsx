@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Eye, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -15,14 +14,11 @@ export default function ResponseConditioningHowToGuide() {
             className="mb-4 -ml-2"
             onClick={() => navigate("/responseconditioningsystem")}
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            
             Back to Response Conditioning System
           </Button>
 
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Eye className="w-6 h-6 text-primary" />
-            </div>
             <div>
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">
                 Response Integrity-OS Deep Dive
@@ -74,7 +70,7 @@ export default function ResponseConditioningHowToGuide() {
           <p className="text-muted-foreground">Every time the student makes an error:</p>
 
           {/* Step 1 */}
-          <div className="space-y-3 border-l-4 border-l-primary pl-4">
+ <div className="space-y-3 ">
             <p className="text-lg font-semibold">1. Observe</p>
             <p className="text-muted-foreground">Do not interrupt immediately.</p>
             <p className="text-muted-foreground">Watch:</p>
@@ -86,7 +82,7 @@ export default function ResponseConditioningHowToGuide() {
           </div>
 
           {/* Step 2 */}
-          <div className="space-y-3 border-l-4 border-l-primary pl-4">
+ <div className="space-y-3 ">
             <p className="text-lg font-semibold">2. Diagnose the Layer</p>
             <p className="text-muted-foreground">You must identify:</p>
             <ul className="space-y-1 pl-4 text-muted-foreground">
@@ -103,7 +99,7 @@ export default function ResponseConditioningHowToGuide() {
           </div>
 
           {/* Step 3 */}
-          <div className="space-y-3 border-l-4 border-l-primary pl-4">
+ <div className="space-y-3 ">
             <p className="text-lg font-semibold">3. Intervene Minimally</p>
             <p className="text-muted-foreground">You do not explain everything.</p>
             <p className="text-muted-foreground">You target the exact point of failure.</p>
@@ -121,7 +117,7 @@ export default function ResponseConditioningHowToGuide() {
           </div>
 
           {/* Step 4 */}
-          <div className="space-y-3 border-l-4 border-l-primary pl-4">
+ <div className="space-y-3 ">
             <p className="text-lg font-semibold">4. Return Control</p>
             <p className="text-muted-foreground">After correction:</p>
             <p className="text-muted-foreground">the student continues.</p>
@@ -167,9 +163,6 @@ export default function ResponseConditioningHowToGuide() {
           <div className="space-y-4">
             <div>
               <p className="font-semibold flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
-                  <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-                </span>
                 Take Over
               </p>
               <p className="text-muted-foreground">Writing for the student. Solving for them.</p>
@@ -177,9 +170,6 @@ export default function ResponseConditioningHowToGuide() {
 
             <div>
               <p className="font-semibold flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
-                  <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-                </span>
                 Over-Explain
               </p>
               <p className="text-muted-foreground">Giving long explanations mid-execution.</p>
@@ -187,9 +177,6 @@ export default function ResponseConditioningHowToGuide() {
 
             <div>
               <p className="font-semibold flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
-                  <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-                </span>
                 Rescue
               </p>
               <p className="text-muted-foreground">Jumping in when they hesitate.</p>
@@ -197,9 +184,6 @@ export default function ResponseConditioningHowToGuide() {
 
             <div>
               <p className="font-semibold flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
-                  <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-                </span>
                 Accept Vague Answers
               </p>
               <p className="text-muted-foreground">Allowing: "this thing," "I think it's…"</p>
@@ -207,9 +191,6 @@ export default function ResponseConditioningHowToGuide() {
 
             <div>
               <p className="font-semibold flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
-                  <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-                </span>
                 Skip Diagnosis
               </p>
               <p className="text-muted-foreground">Correcting without knowing the layer.</p>

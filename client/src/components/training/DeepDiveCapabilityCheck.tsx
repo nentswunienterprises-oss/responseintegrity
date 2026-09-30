@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { AlertCircle, CheckCircle2, LockKeyhole, PlayCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -26,7 +25,7 @@ function CapabilityState({ assessment }: { assessment: MasteryAvailability }) {
   if (assessment.status === "complete") {
     return (
       <div className="flex items-center gap-2 text-sm font-medium">
-        <CheckCircle2 className="h-4 w-4" />
+        
         Complete
       </div>
     );
@@ -35,15 +34,14 @@ function CapabilityState({ assessment }: { assessment: MasteryAvailability }) {
   if (assessment.status === "available") {
     return (
       <div className="flex items-center gap-2 text-sm font-medium">
-        <PlayCircle className="h-4 w-4" />
+        
         Ready
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2 text-sm font-medium">
-      <LockKeyhole className="h-4 w-4" />
+    <div className="text-sm font-medium">
       {assessment.status === "locked" ? "Locked" : "Not available yet"}
     </div>
   );
@@ -80,7 +78,7 @@ export function DeepDiveCapabilityCheck({
   if (planQuery.error) {
     return compact ? null : (
       <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
+        
         <AlertDescription>
           Mastery status could not be loaded. Your Training progress has not changed.
         </AlertDescription>

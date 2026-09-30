@@ -5,21 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import {
-  ArrowLeft,
-  Cpu,
-  Radar,
-  Cog,
-  Gauge,
-  ChevronRight,
-} from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 
 const modules = [
   {
     id: "1",
     title: "Transformation Phases",
     subtitle: "What happens to the student",
-    icon: Gauge,
     items: [
       {
         label: "Topic Conditioning",
@@ -51,8 +43,7 @@ const modules = [
   {
     id: "2",
     title: "Execution Standards",
-    subtitle: "How tutors must operate",
-    icon: Cog,
+    subtitle: "How specialists must operate",
     items: [
       {
         label: "How to model",
@@ -80,7 +71,6 @@ const modules = [
     id: "3",
     title: "System Intelligence",
     subtitle: "How to interpret student behavior",
-    icon: Radar,
     items: [
       {
         label: "What changes in the student",
@@ -104,7 +94,6 @@ const modules = [
     id: "4",
     title: "Session Infrastructure",
     subtitle: "How the system is executed and tracked",
-    icon: Cpu,
     items: [
       {
         label: "Intro session structure",
@@ -231,8 +220,6 @@ export default function ResponseConditioningSystem() {
 
         <div className="grid md:grid-cols-2 gap-5">
           {modules.map((module) => {
-            const Icon = module.icon;
-
             return (
               <Card
                 key={module.id}
@@ -244,9 +231,6 @@ export default function ResponseConditioningSystem() {
                       <Badge className="mb-3">Module {module.id}</Badge>
                       <h3 className="text-xl font-bold leading-tight">{module.title}</h3>
                       <p className="text-sm text-muted-foreground mt-2">{module.subtitle}</p>
-                    </div>
-                    <div className="w-10 h-10 rounded-md border bg-primary/5 border-primary/20 flex items-center justify-center flex-shrink-0">
-                      <Icon className="w-5 h-5 text-primary" />
                     </div>
                   </div>
 

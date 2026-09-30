@@ -9,7 +9,6 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
-import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -136,7 +135,7 @@ export function DeepDiveLessonRunner({
       {complete ? (
         <Card className="p-6 space-y-3 border-primary/30 bg-primary/5">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-primary" />
+            
             <p className="font-semibold">Deep Dive complete</p>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -154,7 +153,7 @@ export function DeepDiveLessonRunner({
               disabled={stepIndex === 0}
               onClick={() => moveTo(Math.max(stepIndex - 1, 0))}
             >
-              <ArrowLeft className="mr-2 h-4 w-4" />
+              
               Back
             </Button>
 
@@ -166,7 +165,7 @@ export function DeepDiveLessonRunner({
               ) : null}
               <Button disabled={!canContinue} onClick={continueLesson}>
                 {stepIndex === steps.length - 1 ? "Finish Deep Dive" : "Continue"}
-                <ArrowRight className="ml-2 h-4 w-4" />
+                
               </Button>
             </div>
           </div>
@@ -185,7 +184,7 @@ export function DeepDiveLessonRunner({
             moveTo(Math.max(steps.length - 1, 0));
           }}
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          
           Review the final lesson step
         </Button>
       ) : null}

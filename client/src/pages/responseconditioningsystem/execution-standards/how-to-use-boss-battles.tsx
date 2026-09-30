@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -15,14 +14,11 @@ export default function ResponseConditioningHowToUseBossBattles() {
             className="mb-4 -ml-2"
             onClick={() => navigate("/responseconditioningsystem")}
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            
             Back to Response Conditioning System
           </Button>
 
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Zap className="w-6 h-6 text-primary" />
-            </div>
             <div>
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">
                 Response Integrity-OS Deep Dive
@@ -218,9 +214,6 @@ export default function ResponseConditioningHowToUseBossBattles() {
           <div className="space-y-4">
             <div>
               <p className="font-semibold flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
-                  <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-                </span>
                 Introduce Too Early
               </p>
               <p className="text-muted-foreground">Student is not ready, and chaos follows.</p>
@@ -228,9 +221,6 @@ export default function ResponseConditioningHowToUseBossBattles() {
 
             <div>
               <p className="font-semibold flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
-                  <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-                </span>
                 Over-Guide
               </p>
               <p className="text-muted-foreground">Too many hints leave no room for thinking.</p>
@@ -238,9 +228,6 @@ export default function ResponseConditioningHowToUseBossBattles() {
 
             <div>
               <p className="font-semibold flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
-                  <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-                </span>
                 Rescue
               </p>
               <p className="text-muted-foreground">Jumping in quickly prevents conditioning.</p>
@@ -248,9 +235,6 @@ export default function ResponseConditioningHowToUseBossBattles() {
 
             <div>
               <p className="font-semibold flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
-                  <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-                </span>
                 Label It as "Hard"
               </p>
               <p className="text-muted-foreground">Creates anticipation and anxiety</p>
@@ -258,9 +242,6 @@ export default function ResponseConditioningHowToUseBossBattles() {
 
             <div>
               <p className="font-semibold flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
-                  <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-                </span>
                 Skip Debrief
               </p>
               <p className="text-muted-foreground">Misses the learning moment</p>

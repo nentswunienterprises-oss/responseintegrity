@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
-import { ArrowLeft, Route } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -53,14 +52,11 @@ export default function ResponseConditioningSessionFlowControl() {
       <div className="border-b bg-card">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
           <Button variant="ghost" className="mb-4 -ml-2" onClick={() => navigate("/responseconditioningsystem")}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            
             Back to Response Conditioning System
           </Button>
 
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Route className="w-6 h-6 text-primary" />
-            </div>
             <div>
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Response Integrity-OS Deep Dive</p>
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight mt-1">Session Flow Control</h1>
@@ -119,7 +115,7 @@ export default function ResponseConditioningSessionFlowControl() {
           </ul>
         </Card>
 
-        <Card className="p-6 space-y-4 border-l-4 border-l-primary">
+ <Card className="p-6 space-y-4 ">
           <h2 className="text-2xl font-bold">Simple Specialist Mental Model</h2>
           <p className="font-semibold">Context → authorized condition → concrete behavior → evidence → system route.</p>
           <p className="text-sm text-muted-foreground">

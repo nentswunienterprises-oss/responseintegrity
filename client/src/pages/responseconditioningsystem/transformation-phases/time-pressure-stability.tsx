@@ -3,7 +3,6 @@ import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilit
 import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
 import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -125,14 +124,11 @@ export default function ResponseConditioningTimePressureStability() {
             className="mb-4 -ml-2"
             onClick={() => navigate("/responseconditioningsystem")}
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            
             Back to Response Conditioning System
           </Button>
 
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Lock className="w-6 h-6 text-primary" />
-            </div>
             <div>
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">
                 Response Integrity-OS Deep Dive
@@ -435,7 +431,7 @@ export default function ResponseConditioningTimePressureStability() {
           truth="When the timer is valid, timeout, freezing, wrong method or incomplete work are learner evidence. Replacement is reserved for objective failure of the timing condition itself."
         />
 
-        <Card className="p-6 space-y-5 border-l-4 border-l-destructive">
+ <Card className="p-6 space-y-5 ">
           <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
           <p className="text-muted-foreground">
             A student can freeze, rush, lose structure, work unevenly, or fail to complete inside a correctly executed timed drill. That is evidence.

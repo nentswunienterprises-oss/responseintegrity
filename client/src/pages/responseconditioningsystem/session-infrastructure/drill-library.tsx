@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getDrillSchemaDefinition } from "@shared/responseIntegrityDrillRegistry";
@@ -52,14 +51,11 @@ export default function ResponseConditioningDrillLibrary() {
       <div className="border-b bg-card">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
           <Button variant="ghost" className="mb-4 -ml-2" onClick={() => navigate("/responseconditioningsystem")}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            
             Back to Response Conditioning System
           </Button>
 
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <BookOpen className="w-6 h-6 text-primary" />
-            </div>
             <div>
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Response Integrity-OS Deep Dive</p>
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight mt-1">Drill Library</h1>
@@ -145,7 +141,7 @@ export default function ResponseConditioningDrillLibrary() {
           </p>
         </Card>
 
-        <Card className="p-6 border-l-4 border-l-primary space-y-3">
+ <Card className="p-6 space-y-3">
           <h2 className="text-2xl font-bold">Specialist Standard</h2>
           <p className="font-semibold">Use the authorized drill source. Preserve the condition. Record the real response. Let evidence decide what happens next.</p>
         </Card>
