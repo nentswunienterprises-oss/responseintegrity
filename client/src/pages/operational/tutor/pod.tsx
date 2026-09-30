@@ -774,13 +774,13 @@ export default function TutorPod() {
         </Card>
 
         <div className="grid gap-4 md:grid-cols-2 md:gap-6">
-          <Card className="ri-metric-card border-primary/15 bg-background shadow-sm">
+          <Card className="ri-pod-section-shell ri-metric-card border-primary/15 bg-background shadow-sm">
             <div className="space-y-4 p-5 sm:p-6">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Pod Team</p>
                 <h2 className="mt-1 text-xl font-semibold tracking-[-0.01em]">Territory Director and Pod</h2>
               </div>
-              <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-3">
+              <div className="ri-pod-info-card rounded-xl border border-primary/15 bg-muted/20 px-4 py-3">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Team Capacity</p>
                 <p className="mt-2 text-sm text-foreground">Pod Members ({podMemberCount}/{podCapacity})</p>
               </div>
@@ -796,13 +796,13 @@ export default function TutorPod() {
             </div>
           </Card>
 
-          <Card className="ri-metric-card border-primary/15 bg-background shadow-sm">
+          <Card className="ri-pod-section-shell ri-metric-card border-primary/15 bg-background shadow-sm">
             <div className="space-y-4 p-5 sm:p-6">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Protocol</p>
                 <h2 className="mt-1 text-xl font-semibold tracking-[-0.01em]">Transformation Process</h2>
               </div>
-              <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-3">
+              <div className="ri-pod-info-card rounded-xl border border-primary/15 bg-muted/20 px-4 py-3">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Response Integrity-OS Protocol</p>
                 <p className="mt-2 text-sm text-foreground">3-Layer Lens + Boss Battles + Timed Execution = Conditioned Response.</p>
               </div>
@@ -815,14 +815,14 @@ export default function TutorPod() {
           </Card>
         </div>
 
-        <Card className="ri-metric-card border-primary/15 bg-background shadow-sm">
+        <Card className="ri-pod-section-shell ri-metric-card border-primary/15 bg-background shadow-sm">
           <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
             <div>
               <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Today</p>
               <h2 className="mt-1 text-xl font-semibold tracking-[-0.01em]">Today's Sessions</h2>
               <p className="mt-1 text-sm text-muted-foreground">The live operating window for today’s delivery load.</p>
             </div>
-            <div className="rounded-xl border border-primary/15 bg-muted/20 px-3 py-2 text-right">
+            <div className="ri-pod-info-card rounded-xl border border-primary/15 bg-muted/20 px-3 py-2 text-right">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Scheduled</p>
               <p className="mt-1 text-xl font-semibold tabular-nums text-foreground">{todaySessions.length}</p>
             </div>
@@ -839,7 +839,7 @@ export default function TutorPod() {
               ) : null}
               <div className="space-y-3">
                 {todaySessions.map((session) => (
-                  <div key={session.id} className="rounded-xl border border-border/70 bg-background px-4 py-3">
+                  <div key={session.id} className="ri-pod-info-card rounded-xl border border-border/70 bg-background px-4 py-3">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-medium text-foreground">
@@ -875,7 +875,7 @@ export default function TutorPod() {
             <div className="border-t border-border/60 px-5 py-5 sm:px-6 sm:py-6">
               <div className="space-y-3">
                 {todaySessions.map((session) => (
-                  <div key={session.id} className="flex flex-col gap-2 rounded-xl border border-primary/15 bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div key={session.id} className="ri-pod-info-card flex flex-col gap-2 rounded-xl border border-primary/15 bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-sm font-medium text-foreground">
                         {session.student?.name || "Unlinked student"} - {formatSessionType(session.type)}
