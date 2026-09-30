@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { createHash, createCipheriv, createDecipheriv, randomBytes, randomUUID } from "crypto";
 import type { Pool } from "pg";
+import { isProofDbAuthMode } from "./emergencyMode";
 
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_FAILURES = 5;
@@ -274,13 +275,16 @@ export async function authenticateEmergencyUser(
 
   const authUser = result.rows[0];
   const isBanned = authUser?.banned_until && new Date(authUser.banned_until).getTime() > now;
+  const proofDbAuthMode = isProofDbAuthMode();
+  const confirmationSatisfied =
+    Boolean(authUser?.email_confirmed_at) || proofDbAuthMode;
   const authUserUnavailable = Boolean(
     authUser &&
       (!authUser.encrypted_password ||
         authUser.deleted_at ||
         authUser.is_anonymous ||
         isBanned ||
-        !authUser.email_confirmed_at),
+        !confirmationSatisfied),
   );
   const authUserMatches = Boolean(
     authUser &&
@@ -288,7 +292,7 @@ export async function authenticateEmergencyUser(
       !authUser.deleted_at &&
       !authUser.is_anonymous &&
       !isBanned &&
-      authUser.email_confirmed_at &&
+      confirmationSatisfied &&
       await verifyEmergencyCredential(authUser.encrypted_password, password),
   );
 
