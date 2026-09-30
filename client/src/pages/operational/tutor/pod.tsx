@@ -459,15 +459,15 @@ export default function TutorPod() {
                 </div>
 
                 <div className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-3">
-                  <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
+                  <div className="ri-alignment-inner-block rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
                     <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Roster</p>
                     <p className="mt-2 text-sm font-medium text-foreground">Students appear here after pod assignment.</p>
                   </div>
-                  <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
+                  <div className="ri-alignment-inner-block rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
                     <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Systems</p>
                     <p className="mt-2 text-sm font-medium text-foreground">Identity sheets, conditioning, and reports unlock here.</p>
                   </div>
-                  <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
+                  <div className="ri-alignment-inner-block rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
                     <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Pod</p>
                     <p className="mt-2 text-sm font-medium text-foreground">Your territory director and pod context live here.</p>
                   </div>
@@ -629,19 +629,19 @@ export default function TutorPod() {
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
+              <div className="ri-alignment-inner-block rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Operational Mode</p>
                 <p className="mt-2 text-sm font-medium text-foreground">
                   {formatTutorMode(tutorAlignmentSummary?.operationalMode)}
                 </p>
               </div>
-              <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
+              <div className="ri-alignment-inner-block rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Last Audit</p>
                 <p className="mt-2 text-sm font-medium text-foreground">
                   {formatTutorAuditTimestamp(tutorAlignmentSummary?.alignmentSummary?.lastAuditAt)}
                 </p>
               </div>
-              <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
+              <div className="ri-alignment-inner-block rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Status</p>
                 <p className="mt-2 text-sm font-medium text-foreground">
                   {formatTutorAlignmentStatus(tutorAlignmentSummary?.alignmentSummary?.actionRequired)}
@@ -658,12 +658,12 @@ export default function TutorPod() {
               </div>
             )}
 
-            <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
+            <div className="ri-alignment-inner-block rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Audit Modules</p>
               {tutorAlignmentSummary?.alignmentSummary?.phaseScores?.length ? (
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {tutorAlignmentSummary.alignmentSummary.phaseScores.map((phase) => (
-                    <div key={phase.phaseKey} className="rounded-xl border border-primary/15 bg-background px-3 py-2 text-sm text-foreground">
+                    <div key={phase.phaseKey} className="ri-alignment-module-row rounded-xl border border-primary/15 bg-background px-3 py-2 text-sm text-foreground">
                       <span className="font-medium">{phase.title}</span>
                       <span className="ml-2 text-muted-foreground">{Math.round(phase.percent)}%</span>
                     </div>
@@ -694,7 +694,7 @@ export default function TutorPod() {
                 {!tutorAlignmentSummary?.alignmentSummary?.moduleProgress?.length &&
                 !tutorAlignmentSummary?.alignmentSummary?.nextBattleTests?.length &&
                 !tutorAlignmentSummary?.alignmentSummary?.deepDiveProgress?.length ? (
-                  <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
+                  <div className="ri-alignment-inner-block rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
                     <p className="text-sm font-medium text-foreground">No detailed standing data available yet.</p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       Your summary standing is shown above. Detailed module, battle test, and deep dive progress will appear here once audit data is available.
@@ -703,7 +703,7 @@ export default function TutorPod() {
                 ) : null}
 
                 {tutorAlignmentSummary?.alignmentSummary?.moduleProgress?.length ? (
-                  <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
+                  <div className="ri-alignment-inner-block rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
                     <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Module Progress</p>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
                       {tutorAlignmentSummary.alignmentSummary.moduleProgress.map((module) => (
@@ -719,7 +719,7 @@ export default function TutorPod() {
                 ) : null}
 
                 {tutorAlignmentSummary?.alignmentSummary?.nextBattleTests?.length ? (
-                  <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
+                  <div className="ri-alignment-inner-block rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
                     <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Next Battle Test</p>
                     <div className="mt-3 space-y-2">
                       {tutorAlignmentSummary.alignmentSummary.nextBattleTests.map((entry) => (
@@ -733,7 +733,7 @@ export default function TutorPod() {
                 ) : null}
 
                 {tutorAlignmentSummary?.alignmentSummary?.deepDiveProgress?.length ? (
-                  <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
+                  <div className="ri-alignment-inner-block rounded-xl border border-primary/15 bg-muted/20 px-4 py-4">
                     <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Deep Dive Progress</p>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
                       {tutorAlignmentSummary.alignmentSummary.deepDiveProgress.map((entry) => (
