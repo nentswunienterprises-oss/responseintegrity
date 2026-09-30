@@ -12,7 +12,7 @@ const faqs = [
         <p>
           It is a performance-conditioning system for students in Grades 6-9.
           <br />
-          Math is the arena.
+          Math is the area.
           <br />
           Response under pressure is the skill.
         </p>
