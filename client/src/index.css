@@ -391,6 +391,25 @@
 }
 
 
+/* Keep browser autofill from recoloring the Specialist email/password fields. */
+.ri-auth-form input[type="email"]:-webkit-autofill,
+.ri-auth-form input[type="email"]:-webkit-autofill:hover,
+.ri-auth-form input[type="email"]:-webkit-autofill:focus,
+.ri-auth-form input[type="password"]:-webkit-autofill,
+.ri-auth-form input[type="password"]:-webkit-autofill:hover,
+.ri-auth-form input[type="password"]:-webkit-autofill:focus {
+  -webkit-text-fill-color: #1A1A1A !important;
+  caret-color: #1A1A1A;
+  -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+  box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+}
+
+.ri-auth-form input[type="email"]:autofill,
+.ri-auth-form input[type="password"]:autofill {
+  color: #1A1A1A !important;
+  background: #FFFFFF !important;
+}
+
 /* RESPONSE INTEGRITY WORLD — scoped dark product atmosphere */
 body:has(.ri-world-page),
 .ri-world-page {
