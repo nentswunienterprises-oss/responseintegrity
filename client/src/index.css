@@ -1005,31 +1005,6 @@ html[data-ri-theme="dark"] .ri-specialist-surface .shadcn-card:hover {
   box-shadow: none !important;
 }
 
-/* Warm Dark: Specialist Alignment uses dark inner working blocks inside
-   the cream outer card so hierarchy comes from contrast, not shadow. */
-html[data-ri-theme="warm-dark"] .ri-pod-world .ri-alignment-inner-block {
-  --background: 0 0% 10.2%;
-  --foreground: 23.33 100% 96.47%;
-  --border: 350 12% 22%;
-  --muted: 350 8% 14%;
-  --muted-foreground: 350 12% 72%;
-  color-scheme: dark;
-  background: #151515 !important;
-  border-color: rgba(255, 240, 240, 0.10) !important;
-  color: var(--ri-cream);
-  box-shadow: none !important;
-}
-
-html[data-ri-theme="warm-dark"] .ri-pod-world .ri-alignment-module-row {
-  --background: 0 0% 11.5%;
-  --foreground: 23.33 100% 96.47%;
-  --muted-foreground: 350 12% 72%;
-  background: #1D1D1D !important;
-  border-color: rgba(255, 240, 240, 0.10) !important;
-  color: var(--ri-cream);
-  box-shadow: none !important;
-}
-
 /* LOCKED RI MODES — specialist app-wide material treatment */
 /* Light deliberately stays on the original RI Light treatment from the first
    appearance-mode release. Later Specialist-wide material/control overrides
@@ -1099,6 +1074,47 @@ html[data-ri-theme="dark"] .ri-specialist-surface .shadcn-card {
   box-shadow:
     0 1px 0 rgba(255, 245, 237, 0.02) inset,
     0 18px 54px rgba(0, 0, 0, 0.30);
+}
+
+/* Warm Dark: only alignment background sections go dark.
+   Information cards remain cream on top of those dark surfaces. */
+html[data-ri-theme="warm-dark"] .ri-pod-world .ri-alignment-shell {
+  --background: 0 0% 8.2% !important;
+  --foreground: 23.33 100% 96.47% !important;
+  --muted: 350 8% 14% !important;
+  --muted-foreground: 350 12% 72% !important;
+  color-scheme: dark;
+  background: #151515 !important;
+  background-image: none !important;
+  border-color: rgba(255, 240, 240, 0.10) !important;
+  color: var(--ri-cream);
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="warm-dark"] .ri-pod-world .ri-alignment-section {
+  --background: 0 0% 10.2% !important;
+  --foreground: 23.33 100% 96.47% !important;
+  --muted: 350 8% 14% !important;
+  --muted-foreground: 350 12% 72% !important;
+  color-scheme: dark;
+  background: #1A1A1A !important;
+  background-image: none !important;
+  border-color: rgba(255, 240, 240, 0.10) !important;
+  color: var(--ri-cream);
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="warm-dark"] .ri-pod-world .ri-alignment-info-card {
+  --background: 23.33 100% 96.47% !important;
+  --foreground: 0 0% 10.2% !important;
+  --muted: 0 100% 96.86% !important;
+  --muted-foreground: 0 0% 35.29% !important;
+  color-scheme: light;
+  background: var(--ri-cream) !important;
+  background-image: none !important;
+  border-color: rgba(230, 57, 70, 0.15) !important;
+  color: var(--ri-charcoal);
+  box-shadow: none !important;
 }
 
 /* Bring common specialist sub-surfaces into the same restrained geometry. */
