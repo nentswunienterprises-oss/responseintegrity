@@ -45,7 +45,7 @@ Its product logic is:
 - reports are derived from topic movement, not Specialist-written impressions
 - operational integrity matters as much as instructional quality
 
-Math is the arena.
+Math is the area.
 Response is the skill.
 Stable execution under difficulty is the product target.
 
