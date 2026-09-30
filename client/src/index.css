@@ -556,3 +556,106 @@ body:has(.ri-world-page) {
 body:has(.ri-world-page) header {
   border-color: rgba(230, 57, 70, 0.13);
 }
+
+
+/* RI WORLD V1.1 — cream is a material, not only copy */
+.ri-os-world .shadcn-card,
+.ri-pod-world .ri-metric-card,
+.ri-pod-world .ri-focus-card {
+  --background: 23.33 100% 96.47%;
+  --foreground: 0 0% 10.2%;
+  --border: 350 26% 82%;
+  --card: 23.33 100% 96.47%;
+  --card-foreground: 0 0% 10.2%;
+  --card-border: 350 26% 82%;
+  --popover: 23.33 100% 96.47%;
+  --popover-foreground: 0 0% 10.2%;
+  --popover-border: 350 26% 82%;
+  --secondary: 0 100% 96.86%;
+  --secondary-foreground: 0 0% 10.2%;
+  --muted: 0 100% 96.86%;
+  --muted-foreground: 0 0% 35.29%;
+  --accent: 0 100% 96.86%;
+  --accent-foreground: 0 0% 10.2%;
+  --input: 350 24% 82%;
+  --button-outline: rgba(26, 26, 26, 0.14);
+  --badge-outline: rgba(230, 57, 70, 0.20);
+  color-scheme: light;
+  color: var(--ri-charcoal);
+}
+
+.ri-os-world .shadcn-card {
+  background:
+    linear-gradient(145deg, rgba(255, 240, 240, 0.34), transparent 42%),
+    linear-gradient(180deg, #FFF8F2 0%, var(--ri-cream) 100%);
+  border-color: rgba(230, 57, 70, 0.20);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.78) inset,
+    0 18px 52px rgba(0, 0, 0, 0.22);
+}
+
+.ri-os-world .ri-module-card:hover {
+  border-color: rgba(230, 57, 70, 0.52);
+  box-shadow:
+    0 0 0 1px rgba(230, 57, 70, 0.08),
+    0 22px 64px rgba(0, 0, 0, 0.28);
+}
+
+.ri-os-world .ri-teaching-interaction {
+  background:
+    linear-gradient(145deg, rgba(230, 57, 70, 0.055), transparent 48%),
+    linear-gradient(180deg, #FFF2F2 0%, var(--ri-blush) 100%);
+  border-color: rgba(230, 57, 70, 0.32);
+}
+
+.ri-os-world .ri-feedback-panel {
+  background: rgba(255, 245, 237, 0.82);
+  border-color: rgba(230, 57, 70, 0.18);
+}
+
+.ri-os-world .ri-completion-card {
+  background:
+    linear-gradient(145deg, rgba(230, 57, 70, 0.05), transparent 46%),
+    linear-gradient(180deg, #FFF8F2 0%, var(--ri-cream) 100%);
+  border-color: rgba(230, 57, 70, 0.32);
+}
+
+.ri-pod-world .ri-metric-card {
+  background:
+    linear-gradient(145deg, rgba(255, 240, 240, 0.34), transparent 44%),
+    linear-gradient(180deg, #FFF8F2 0%, var(--ri-cream) 100%);
+  border-color: rgba(230, 57, 70, 0.18);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.82) inset,
+    0 18px 52px rgba(0, 0, 0, 0.22);
+}
+
+.ri-pod-world .ri-focus-card {
+  background:
+    linear-gradient(135deg, rgba(230, 57, 70, 0.06), transparent 50%),
+    linear-gradient(180deg, #FFF2F2 0%, var(--ri-blush) 100%);
+  border-color: rgba(230, 57, 70, 0.34);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.78) inset,
+    0 20px 58px rgba(0, 0, 0, 0.24);
+}
+
+.ri-pod-world .ri-metric-card:hover {
+  border-color: rgba(230, 57, 70, 0.40);
+  box-shadow:
+    0 0 0 1px rgba(230, 57, 70, 0.06),
+    0 22px 62px rgba(0, 0, 0, 0.28);
+}
+
+/* Keep the operating shell dark while cream panels read like physical training sheets. */
+.ri-world-page .ri-world-hero {
+  border-color: rgba(255, 245, 237, 0.18);
+}
+
+.ri-world-page .ri-world-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-top: 1px solid rgba(255, 245, 237, 0.08);
+  pointer-events: none;
+}
