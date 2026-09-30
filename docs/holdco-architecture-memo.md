@@ -59,7 +59,7 @@ That doctrine includes:
 - drift detection
 - watchlist and suspension logic
 
-Mathematics was the first arena.
+Mathematics was the first area.
 
 It does not need to be the last.
 
