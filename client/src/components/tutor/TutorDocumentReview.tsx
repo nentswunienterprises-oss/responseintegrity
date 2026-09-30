@@ -31,7 +31,7 @@ type DocumentStatus =
   | "rejected";
 
 const AGREEMENT_STEPS = [
-  { step: 1, code: "Response Integrity-TCF-001", title: "Specialist Consent Form" },
+  { step: 1, code: "Response Integrity-SCF-001", title: "Specialist Consent Form" },
   { step: 2, code: "Response Integrity-EQV-002", title: "Entry Qualification Verification" },
   { step: 3, code: "Response Integrity-ICA-003", title: "Specialist Independent Contractor Agreement" },
   { step: 4, code: "Response Integrity-SCP-004", title: "Specialist Safeguarding and Conduct Policy" },
@@ -130,7 +130,7 @@ function TutorAgreementSubsection({ title, children }: { title: string; children
 
 function buildTutorAgreementBody(code: string, formData: Record<string, string>) {
   switch (code) {
-    case "Response Integrity-TCF-001":
+    case "Response Integrity-SCF-001":
       return (
         <>
           <TutorAgreementSection title="Contractor Details">
