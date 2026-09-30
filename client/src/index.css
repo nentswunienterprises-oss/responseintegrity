@@ -789,6 +789,7 @@ html[data-ri-theme="dark"] .ri-world-page .ri-world-hero {
 }
 
 html[data-ri-theme="dark"] .ri-os-world .shadcn-card,
+html[data-ri-theme="dark"] .ri-pod-world .shadcn-card,
 html[data-ri-theme="dark"] .ri-pod-world .ri-metric-card,
 html[data-ri-theme="dark"] .ri-pod-world .ri-focus-card {
   --background: 0 0% 8.5%;
@@ -811,9 +812,7 @@ html[data-ri-theme="dark"] .ri-pod-world .ri-focus-card {
   --badge-outline: rgba(255, 240, 240, 0.18);
   color-scheme: dark;
   color: var(--ri-cream);
-  background:
-    linear-gradient(145deg, rgba(230, 57, 70, 0.025), transparent 44%),
-    linear-gradient(180deg, #1B1819 0%, #151515 100%);
+  background: linear-gradient(180deg, #1A1A1A 0%, #151515 100%);
   border-color: rgba(255, 240, 240, 0.10);
   box-shadow:
     0 1px 0 rgba(255, 245, 237, 0.02) inset,
@@ -822,9 +821,7 @@ html[data-ri-theme="dark"] .ri-pod-world .ri-focus-card {
 
 html[data-ri-theme="dark"] .ri-pod-world .ri-focus-card,
 html[data-ri-theme="dark"] .ri-os-world .ri-teaching-interaction {
-  background:
-    linear-gradient(145deg, rgba(230, 57, 70, 0.065), transparent 50%),
-    linear-gradient(180deg, #21191B 0%, #171516 100%);
+  background: linear-gradient(180deg, #1C1C1C 0%, #171717 100%);
   border-color: rgba(230, 57, 70, 0.26);
 }
 
@@ -839,9 +836,7 @@ html[data-ri-theme="dark"] .ri-os-world .ri-completion-card {
 }
 
 html[data-ri-theme="dark"] .ri-pod-world .tutor-pod-student-card {
-  background:
-    linear-gradient(145deg, rgba(230, 57, 70, 0.025), transparent 42%),
-    linear-gradient(180deg, #191718 0%, #131313 100%);
+  background: linear-gradient(180deg, #191919 0%, #131313 100%);
   border-color: rgba(255, 240, 240, 0.10);
 }
 
@@ -849,4 +844,12 @@ html[data-ri-theme="dark"] .ri-lesson-chrome {
   background: rgba(14, 14, 14, 0.94);
   border-color: rgba(255, 240, 240, 0.08);
   box-shadow: 0 12px 34px rgba(0, 0, 0, 0.32);
+}
+
+
+/* Dark mode cards stay neutral; RI red remains a signal, not a surface wash. */
+html[data-ri-theme="dark"] .ri-pod-world .shadcn-card,
+html[data-ri-theme="dark"] .ri-os-world .shadcn-card,
+html[data-ri-theme="dark"] .ri-pod-world .tutor-pod-student-card {
+  background-image: none;
 }
