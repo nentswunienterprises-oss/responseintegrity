@@ -10,6 +10,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import {
   Home,
@@ -25,6 +30,7 @@ import {
   Shield,
   BookOpen,
   Lightbulb,
+  Palette,
 } from "lucide-react";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,6 +45,7 @@ import { API_URL } from "@/lib/config";
 import { getAuthMode } from "@/lib/authMode";
 import { useToast } from "@/hooks/use-toast";
 import type { NotificationItem } from "@/components/notifications/NotificationInbox";
+import { useRITheme } from "@/lib/riTheme";
 
 interface NavItem {
   label: string;
@@ -97,6 +104,7 @@ function hasTutorTrafficWaitingOnTutor(application: any) {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, isAuthenticated } = useAuth();
   const location = useLocation();
+  const { theme: riTheme, setTheme: setRITheme } = useRITheme();
   const [emergencyDbMode, setEmergencyDbMode] = useState(false);
   
   // Log Dispute Modal state
@@ -633,6 +641,31 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   )}
                 </div>
                 <DropdownMenuSeparator />
+                {isTutor(effectiveUser) && (
+                  <>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="gap-2 font-medium">
+                        <Palette className="w-4 h-4" />
+                        Appearance
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="min-w-[10rem]">
+                        <DropdownMenuRadioGroup
+                          value={riTheme}
+                          onValueChange={(value) => {
+                            if (value === "light" || value === "warm-dark" || value === "dark") {
+                              setRITheme(value);
+                            }
+                          }}
+                        >
+                          <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="warm-dark">Warm Dark</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem
                   onClick={() => setShowDisputeModal(true)}
                   className="gap-2 font-medium"
