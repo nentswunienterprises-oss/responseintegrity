@@ -31,7 +31,7 @@ export function DeepDiveTeachingInteraction({
   }, [onAnswered, selectedKey]);
 
   return (
-    <Card className="p-6 space-y-5 border-primary/20 bg-primary/[0.025]">
+    <Card className="ri-teaching-interaction p-6 space-y-5 border-primary/20 bg-primary/[0.025]">
       <div>
         <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
           Check your thinking
@@ -61,7 +61,7 @@ export function DeepDiveTeachingInteraction({
       </div>
 
       {selected ? (
-        <div className="space-y-3 rounded-lg border bg-background p-4">
+        <div className="ri-feedback-panel space-y-3 rounded-lg border bg-background p-4">
           <div className="flex items-start gap-3">
             {!correct ? (
               <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-destructive/10">

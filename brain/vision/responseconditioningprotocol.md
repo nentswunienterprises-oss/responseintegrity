@@ -12,7 +12,7 @@ Response Integrity exists to train that response.
 
 ## Core operating truths
 
-- Mathematics is the arena. Response is the skill.
+- Mathematics is the area. Response is the skill.
 - A student is not one global state. Stability must be mapped by topic.
 - Stable response is built through cadence, not emergency bookings.
 - Confidence is not trained directly. It follows repeated stable execution.

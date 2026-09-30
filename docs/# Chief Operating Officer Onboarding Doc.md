@@ -12,7 +12,7 @@ Response Integrity is not a generic tutoring company. It is an education and per
 
 Our core belief is that many students do not only struggle because they lack knowledge. Many students struggle because their response breaks under pressure, confusion, unfamiliar questions, time limits, or emotional stress. Response Integrity exists to train the student’s response so that, when difficulty rises, the student does not collapse, panic, freeze, or give up.
 
-We use mathematics as the training arena, but the deeper product is stable academic response.
+We use mathematics as the training area, but the deeper product is stable academic response.
 
 In the current live model, Response Integrity serves Grades 6-9 families through the monthly subscription offer, while the tutor side runs a validation track using matric-completed or young-adult candidates.
 The future high-school leadership track and broader school-partnership expansion remain planned, but they are not the current live public story.

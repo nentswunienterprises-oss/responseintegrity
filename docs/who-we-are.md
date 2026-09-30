@@ -108,6 +108,6 @@ This system is not designed around urgency culture.
 
 It is designed around conditioning culture.
 
-Mathematics is the training arena.
+Mathematics is the training area.
 
 But the deeper goal is helping students become more stable, intentional, and reliable when difficulty appears.

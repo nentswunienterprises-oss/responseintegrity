@@ -45,7 +45,7 @@ Its product logic is:
 - reports are derived from topic movement, not Specialist-written impressions
 - operational integrity matters as much as instructional quality
 
-Math is the arena.
+Math is the area.
 Response is the skill.
 Stable execution under difficulty is the product target.
 
@@ -987,6 +987,52 @@ The current live runner config uses:
 - followed by the live observation drill sets
 
 If any older document says otherwise, trust the live runner and this file.
+
+### Guidance and intervention authority
+
+`Model -> Apply -> Guide` is historical shorthand for the Clarity / concept-entry teaching rhythm. It is not a universal three-step loop across RI-OS and `Guide` is not a phase.
+
+The live rule is:
+
+**The active set owns the support boundary. The Specialist does not increase support because the student hesitates, asks for help, or produces a weak response.**
+
+Guidance and correction are separate:
+
+- **guidance** = direction supplied while the current evidence opportunity is still live;
+- **correction** = teaching, reset, or repair after the opportunity has already revealed the response.
+
+Support contracts used by live training are:
+
+- `modeled` - Specialist demonstration is expected; the opportunity is instructional preparation and does not prove independent student capability;
+- `minimal` - limited support is permitted, but the Specialist may not carry the response or manufacture the dimension being observed;
+- `first_step_only` - support may reach the defined first-step boundary and no further;
+- `none` - present the task and observe; hesitation, rescue-seeking, or breakdown remains learner evidence rather than permission to help.
+
+Current training support map:
+
+| Phase | Set | Support contract |
+|---|---|---|
+| Clarity | Modeling | `modeled` |
+| Clarity | Identification | `none` |
+| Clarity | Light Apply | `minimal` |
+| Structured Execution | Required Structure | `minimal` |
+| Structured Execution | Independent Execution | `none` |
+| Structured Execution | Variation Control | `none` |
+| Controlled Discomfort | Controlled Entry | `minimal` |
+| Controlled Discomfort | No Rescue | `first_step_only` |
+| Controlled Discomfort | Repeat Exposure | `none` |
+| Time Pressure Stability | Structure Under Timer | `none` |
+| Time Pressure Stability | Repeated Timed Execution | `none` |
+| Time Pressure Stability | Full Constraint | `none` |
+
+Consequences:
+
+- the old general rule "guide to the first step" is not OS-wide; it belongs where the active set explicitly permits first-step support;
+- a no-help opportunity remains no-help even when the student stalls;
+- timed opportunities are not coached through;
+- a later-phase breakdown is not silently converted into Clarity modeling; preserve the assigned condition and let evidence / targeted re-diagnosis determine whether an inherited prerequisite has become untrustworthy;
+- support is recorded because supplied structure can confound only the dimensions it materially changed rather than erasing the whole opportunity;
+- post-opportunity correction may target the broken point, but it must not retroactively strengthen the evidence from the completed opportunity.
 
 ## Live Training Drill Library
 

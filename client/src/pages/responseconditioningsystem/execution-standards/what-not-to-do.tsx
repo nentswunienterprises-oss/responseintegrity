@@ -78,7 +78,7 @@ export default function ResponseConditioningWhatNotToDo() {
             <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
               <li>Clarity: do not let the student solve during recognition reps.</li>
               <li>Structured Execution: do not interrupt the cold start too early.</li>
-              <li>Controlled Discomfort: no full rescue; one-step confirmation is the maximum allowed help.</li>
+              <li>Controlled Discomfort: obey the active set - Controlled Entry allows minimal support, No Rescue allows first-step-only support, and Repeat Exposure allows no support.</li>
               <li>Time Pressure Stability: keep the timer active and do not rescue structure under time.</li>
             </ul>
           </div>

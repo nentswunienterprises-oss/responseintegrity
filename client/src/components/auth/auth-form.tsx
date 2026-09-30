@@ -17,10 +17,9 @@ interface AuthFormProps {
   mode: "signup" | "login";
   defaultRole?: Role;
   affiliateCode?: string;
-  onEmergencySignupSuccess?: () => void;
 }
 
-export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "", onEmergencySignupSuccess }: AuthFormProps) {
+export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: AuthFormProps) {
   // Read all tracking parameters from URL (silent tracking)
   const urlParams = new URLSearchParams(window.location.search);
   const urlProductionCode = urlParams.get('production') || '';
@@ -144,8 +143,10 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "", onE
       // No validation needed - empty code will be sent as null to backend
 
       if (mode === "signup") {
-        const emergencyDbMode = (await getAuthMode()).emergencyDbMode;
-        if (emergencyDbMode && role !== "tutor") {
+        const authMode = await getAuthMode();
+        const directSpecialistSession =
+          role === "tutor" && (authMode.emergencyDbMode || authMode.proofDbAuthMode);
+        if (authMode.emergencyDbMode && role !== "tutor") {
           throw new Error("New account creation is temporarily available for specialists only.");
         }
 
@@ -180,35 +181,42 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "", onE
           throw new Error(data.message || "Signup failed");
         }
         
-        if (emergencyDbMode) {
+        if (directSpecialistSession) {
+          if (data.dbUser) {
+            queryClient.setQueryData(["/api/auth/user"], data.dbUser);
+            if (data.dbUser.id) {
+              setCurrentUserId(data.dbUser.id);
+            }
+          }
+
+          redirectUrl = data.redirectUrl || getDefaultDashboardRoute(role);
+
           toast({
-            title: "Account created",
-            description: "Your specialist account has been created. Please log in to continue.",
+            title: "Welcome!",
+            description: "Your specialist account is ready and you are signed in.",
           });
-          onEmergencySignupSuccess?.();
+        } else {
+          redirectUrl = data.redirectUrl || getDefaultDashboardRoute(role);
+
+          toast({
+            title: "Welcome!",
+            description: "Your account has been created successfully. You may log in now.",
+          });
+          
+          // Wait for session to fully propagate before redirecting
+          // Increased from 100ms to 500ms to ensure cookies are properly set
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Normal Supabase signup keeps the production email-verification contract.
           setLoading(false);
           return;
         }
-
-        redirectUrl = data.redirectUrl || getDefaultDashboardRoute(role);
-
-        toast({
-          title: "Welcome!",
-          description: "Your account has been created successfully. You may log in now.",
-        });
-        
-        // Wait for session to fully propagate before redirecting
-        // Increased from 100ms to 500ms to ensure cookies are properly set
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Force page reload to ensure fresh session is loaded
-        // Do not auto-login after signup; require email verification
-        setLoading(false);
-        return;
       }
 
       if (mode === "login") {
-        const emergencyDbMode = (await getAuthMode()).emergencyDbMode;
+        const authMode = await getAuthMode();
+        const directSpecialistSession =
+          role === "tutor" && (authMode.emergencyDbMode || authMode.proofDbAuthMode);
         // Call backend signin endpoint with role validation
         const response = await fetch(`${API_URL}/api/auth/signin`, {
           method: "POST",
@@ -230,7 +238,7 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "", onE
           }
         }
 
-        if (!emergencyDbMode) {
+        if (!directSpecialistSession) {
           const { data: loginData, error: supabaseError } = await supabase.auth.signInWithPassword({ email, password });
           if (supabaseError) {
             console.warn("Supabase client signin failed:", supabaseError.message);

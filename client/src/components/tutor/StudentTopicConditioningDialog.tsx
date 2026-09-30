@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getQueryFn } from "@/lib/queryClient";
-import { Target, AlertCircle, Info, ChevronDown, MoreHorizontal, X } from "lucide-react";
+import { Target, AlertCircle, Info, ChevronDown, MoreHorizontal } from "lucide-react";
 import { useStudentWorkflowState } from "@/hooks/useStudentWorkflowState";
 // Removed TutorSessionLogForm import (manual session logging is deprecated)
 import {
@@ -988,8 +988,6 @@ export default function StudentTopicConditioningDialog({
   mapOnly = false,
   apiBasePath = "/api/tutor",
   parentTopics,
-  parentTopicSymptoms,
-  parentTopicRecommendations,
   topicConditioning,
   persistedTopicStates,
 }: StudentTopicConditioningDialogProps) {
@@ -1386,47 +1384,6 @@ export default function StudentTopicConditioningDialog({
     const fromParent = splitTopics(parentTopics).map((t) => sanitizeTopic(t)).filter((t): t is string => !!t);
     return Array.from(new Set([...fromCards, ...fromParent]));
   }, [topics, parentTopics]);
-  const [dismissedParentTopics, setDismissedParentTopics] = useState<Set<string>>(new Set());
-  const dismissedParentTopicKeys = useMemo(
-    () => new Set(Array.from(dismissedParentTopics).map((topic) => normalizeTopicKey(topic)).filter(Boolean)),
-    [dismissedParentTopics],
-  );
-  const activeParentTopicKeys = useMemo(
-    () => new Set(topics.map((topic) => normalizeTopicKey(topic.topic)).filter(Boolean)),
-    [topics],
-  );
-  const parentTopicIntelligence = useMemo(() => {
-    const parentTopicNames = splitTopics(parentTopics).map((topic) => sanitizeTopic(topic)).filter((topic): topic is string => !!topic);
-    return parentTopicNames.map((topic) => {
-      const symptoms =
-        parentTopicSymptoms && Array.isArray(parentTopicSymptoms[topic])
-          ? parentTopicSymptoms[topic].map((symptom) => String(symptom).trim()).filter(Boolean)
-          : [];
-      const recommendation =
-        parentTopicRecommendations && typeof parentTopicRecommendations[topic] === "object"
-          ? parentTopicRecommendations[topic]
-          : null;
-      return {
-        topic,
-        symptoms,
-        phase: recommendation?.phase ? normalizePhase(recommendation.phase) : null,
-        rationale: String(recommendation?.rationale || "").trim(),
-      };
-    });
-  }, [parentTopics, parentTopicSymptoms, parentTopicRecommendations]);
-  const displayedParentTopicIntelligence = useMemo(
-    () => parentTopicIntelligence.filter((entry) => !dismissedParentTopicKeys.has(normalizeTopicKey(entry.topic))),
-    [dismissedParentTopicKeys, parentTopicIntelligence],
-  );
-
-  const handleDismissParentTopic = (topic: string) => {
-    setDismissedParentTopics((previous) => {
-      const next = new Set(previous);
-      next.add(topic);
-      return next;
-    });
-  };
-
   const prioritizedTopics = useMemo(
     () => [...topics].sort((a, b) => topicPriorityScore(b) - topicPriorityScore(a) || a.topic.localeCompare(b.topic)),
     [topics],
@@ -1763,62 +1720,6 @@ export default function StudentTopicConditioningDialog({
               <p className="text-xs text-muted-foreground">
                 Select a topic to review observed state and next-session preparation. Activated topics stay Unknown until a scored drill/session is logged.
               </p>
-
-              {displayedParentTopicIntelligence.length > 0 ? (
-                <div className="rounded-xl border border-primary/15 bg-muted/20 p-3 sm:p-4 space-y-3">
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Parent Reported Topics</p>
-                    <p className="text-xs text-muted-foreground">Activate these topics next.</p>
-                  </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    {displayedParentTopicIntelligence.map((entry) => {
-                      const isActivated = activeParentTopicKeys.has(normalizeTopicKey(entry.topic));
-                      return (
-                        <div key={`parent-intake-${entry.topic}`} className="rounded-xl border border-border/60 bg-background/80 p-3 space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-sm font-medium text-foreground">{entry.topic}</p>
-                            {isActivated ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                                onClick={() => handleDismissParentTopic(entry.topic)}
-                              >
-                                <X className="w-4 h-4" aria-hidden="true" />
-                                <span className="sr-only">Dismiss {entry.topic}</span>
-                              </Button>
-                            ) : null}
-                          </div>
-                          {entry.phase ? (
-                            <p className="text-xs text-muted-foreground">
-                              Recommended entry phase: <span className="font-medium text-foreground">{entry.phase}</span>
-                            </p>
-                          ) : null}
-                          {entry.rationale ? (
-                            <p className="text-xs text-muted-foreground">{entry.rationale}</p>
-                          ) : null}
-                          {entry.symptoms.length > 0 ? (
-                            <div className="flex flex-wrap gap-1.5">
-                              {entry.symptoms.map((symptom) => (
-                                <Badge
-                                  key={`${entry.topic}-${symptom}`}
-                                  variant="outline"
-                                  className="max-w-full whitespace-normal break-words text-left leading-snug text-[10px] border-primary/20 bg-background/70 text-foreground"
-                                >
-                                  {symptom}
-                                </Badge>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">No topic-specific symptoms captured.</p>
-                          )}
-                        </div>
-                                );
-                              })}
-                  </div>
-                </div>
-              ) : null}
 
               {topics.length === 0 ? (
                 <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">

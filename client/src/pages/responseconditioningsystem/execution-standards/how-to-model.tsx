@@ -40,7 +40,7 @@ export default function ResponseConditioningHowToModel() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
         <DeepDiveLessonRunner
-          lessonKey="how-to-model-piecewise-v2"
+          lessonKey="how-to-model-piecewise-v3"
           title="How to Model"
           completion={null}
         >
@@ -99,8 +99,51 @@ export default function ResponseConditioningHowToModel() {
             <li className="font-medium">a pattern</li>
             <li className="font-medium">a system the student can follow</li>
           </ul>
+          <p className="text-muted-foreground">
+            In the live Clarity runner, that reference is made explicit as the student's <span className="font-medium text-foreground">Topic Reference</span> for the active topic.
+          </p>
           <p className="text-muted-foreground">If the student cannot copy your process:</p>
           <p className="font-semibold text-destructive">your model failed</p>
+        </Card>
+
+        {/* Topic Reference */}
+        <Card className="p-6 space-y-5 border-primary/25">
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-primary">Live Runner</p>
+            <h2 className="text-2xl font-bold">Create the Topic Reference</h2>
+            <p className="text-muted-foreground">
+              The first time you open Clarity Set 1: Modeling for a student and topic, the runner requires a Topic Reference. Capture the mental map once, then model from the same reference.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-md border border-primary/15 bg-muted/20 p-4">
+              <p className="font-semibold">Vocabulary</p>
+              <p className="mt-1 text-sm text-muted-foreground">The important terms the student must be able to name precisely.</p>
+            </div>
+            <div className="rounded-md border border-primary/15 bg-muted/20 p-4">
+              <p className="font-semibold">Recognition / Method</p>
+              <p className="mt-1 text-sm text-muted-foreground">How to recognize the problem type and which method applies.</p>
+            </div>
+            <div className="rounded-md border border-primary/15 bg-muted/20 p-4">
+              <p className="font-semibold">Ordered Steps</p>
+              <p className="mt-1 text-sm text-muted-foreground">The exact execution sequence in the order it must happen.</p>
+            </div>
+            <div className="rounded-md border border-primary/15 bg-muted/20 p-4">
+              <p className="font-semibold">Reason</p>
+              <p className="mt-1 text-sm text-muted-foreground">Why the method and steps are valid.</p>
+            </div>
+          </div>
+
+          <div className="space-y-2 rounded-md border border-primary/15 bg-primary/5 p-4">
+            <p className="font-semibold">What happens after you save it</p>
+            <p className="text-sm text-muted-foreground">
+              It stays attached to that student-topic and remains available from the Topic Reference toggle during Clarity and every later training phase.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              It is instructional context only. Saving it does not change phase, stability, evidence authority, or state movement.
+            </p>
+          </div>
         </Card>
 
         {/* The Structure */}
@@ -267,7 +310,7 @@ export default function ResponseConditioningHowToModel() {
           <div className="space-y-2">
             <h2 className="text-2xl font-bold">Specialist POV: Observation</h2>
             <p className="text-muted-foreground">
-              Use this with the Observation setup above. The phone preserves the live student view while the laptop carries the drill and observation work, keeping execution and evidence capture separate.
+              The phone preserves the live student view while the laptop carries the drill and observation work, keeping execution and evidence capture separate.
             </p>
           </div>
           <div className="mx-auto w-full max-w-xl overflow-hidden rounded-none border bg-card shadow-sm">

@@ -1,23 +1,13 @@
 import { ReactNode, useState, useEffect, useMemo, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Home,
   Users,
   FolderKanban,
   FileCheck,
   Bell,
-  LogOut,
   TrendingUp,
   Calendar,
   MessageSquare,
@@ -27,9 +17,9 @@ import {
   Lightbulb,
 } from "lucide-react";
 import { MobileBottomNav } from "./mobile-bottom-nav";
+import { AccountMenu } from "./account-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { isTutor, isTD, isCOO, isAffiliate, isOD, isParent, getRoleName, getRoleNameShort } from "@/lib/roles";
-import { logout } from "@/lib/auth";
 import { LogDisputeModal } from "@/components/LogDisputeModal";
 import { ROLE_NAVIGATION } from "@shared/portals";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -449,39 +439,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const navItems = getRoleNavigation();
 
-  const getUserFullName = (u: User | undefined): string => {
-    if (!u) return "User";
-    if (u.name && u.name.trim()) return u.name;
-    if (u.firstName && u.lastName) return `${u.firstName} ${u.lastName}`;
-    if (u.firstName) return u.firstName;
-    if (u.email) return u.email.split("@")[0];
-    return "User";
-  };
-
-  const getUserFirstName = (u: User | undefined): string => {
-    const fullName = getUserFullName(u);
-    return fullName.split(" ")[0] || "User";
-  };
-
-  const getInitials = (u: User | undefined): string => {
-    if (!u) return "U";
-    if (u.firstName && u.lastName) {
-      return `${u.firstName[0]}${u.lastName[0]}`.toUpperCase();
-    }
-    if (u.name && u.name.trim()) {
-      return u.name
-        .split(" ")
-        .map((n: string) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
-    }
-    if (u.email) {
-      return u.email[0].toUpperCase();
-    }
-    return "U";
-  };
-
   const getRoleLabel = (u: User | undefined): string => {
     if (!u?.role) return "";
     return getRoleName(u.role);
@@ -503,9 +460,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const useIntegrityBrand =
     !!effectiveUser && (isAffiliate(effectiveUser) || isOD(effectiveUser));
+  const useSpecialistTheme = !!effectiveUser && isTutor(effectiveUser);
+  const useSpecialistSurface =
+    useSpecialistTheme && location.pathname !== "/specialist/pod";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen bg-background${useSpecialistTheme ? " ri-world-page ri-specialist-world" : ""}`}>
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="h-16 px-4 flex items-center justify-between gap-4">
@@ -531,7 +491,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 {useIntegrityBrand ? (
                   <>
                     <span className="text-[#E63946]">Response</span>{" "}
-                    <span className="text-[#1A1A1A]">Integrity</span>
+                    <span className="text-foreground">Integrity</span>
                   </>
                 ) : (
                   "Response Integrity"
@@ -548,7 +508,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   {useIntegrityBrand ? (
                     <>
                       <span className="text-[#E63946]">Response</span>{" "}
-                      <span className="text-[#1A1A1A]">Integrity</span>
+                      <span className="text-foreground">Integrity</span>
                     </>
                   ) : (
                     "Response Integrity"
@@ -588,75 +548,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
           {/* User Menu */}
           <div className="flex items-center gap-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="gap-2 hover-elevate"
-                  data-testid="button-user-menu"
-                >
-                  <Avatar className="w-9 h-9 border-2 border-primary/20">
-                    <AvatarImage src={effectiveUser?.profileImageUrl || undefined} alt={getUserFullName(effectiveUser)} />
-                    <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
-                      {getInitials(effectiveUser)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="hidden sm:inline text-sm font-semibold" data-testid="text-user-first-name">{getUserFirstName(effectiveUser)}</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
-                <DropdownMenuLabel>
-                  <div className="flex items-center gap-3 py-2">
-                    <Avatar className="w-12 h-12 border-2 border-primary/20">
-                      <AvatarImage src={effectiveUser?.profileImageUrl || undefined} alt={getUserFullName(effectiveUser)} />
-                      <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                        {getInitials(effectiveUser)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-semibold leading-none" data-testid="text-user-full-name">{getUserFullName(effectiveUser)}</p>
-                      <p className="text-xs leading-none text-muted-foreground">{effectiveUser?.email}</p>
-                    </div>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <div className="px-2 py-2 flex items-center justify-between">
-                  <Badge className="bg-primary/10 text-primary border-primary/20 text-xs">
-                    {effectiveUser?.role ? getRoleName(effectiveUser.role) : "Unknown"}
-                  </Badge>
-                  {isTutor(effectiveUser) && (
-                    <DropdownMenuItem asChild className="p-0">
-                      <Link to="/specialist/profile" className="text-xs font-semibold text-primary hover:text-primary/80 cursor-pointer">
-                        View Profile
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => setShowDisputeModal(true)}
-                  className="gap-2 font-medium"
-                >
-                  <Shield className="w-4 h-4" />
-                  Log Issue
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => logout(effectiveUser)}
-                  className="text-destructive gap-2 font-medium"
-                  data-testid="button-logout"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Log Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <AccountMenu
+              user={effectiveUser as User | undefined}
+              showIssueAction
+              onLogIssue={() => setShowDisputeModal(true)}
+            />
           </div>
         </div>
       </header>
 
       {/* Main Content - Add bottom padding on mobile for bottom nav */}
-      <main className="max-w-7xl mx-auto px-3 py-4 sm:px-4 md:px-6 md:py-8 pb-20 md:pb-8">{children}</main>
+      <main className={`max-w-7xl mx-auto px-3 py-4 sm:px-4 md:px-6 md:py-8 pb-20 md:pb-8${useSpecialistSurface ? " ri-specialist-surface" : ""}`}>{children}</main>
       
       {/* Mobile Bottom Tab Navigator */}
       <MobileBottomNav navItems={navItems} unreadCount={navUnreadCount} />

@@ -132,9 +132,9 @@ function trimRationaleSignals(rawValue) {
 }
 
 function scoreTone(score) {
-  if (score >= 6) return "text-red-700 border-red-200 bg-red-50";
-  if (score >= 3) return "text-amber-700 border-amber-200 bg-amber-50";
-  return "text-slate-600 border-slate-200 bg-slate-50";
+  if (score >= 6) return "text-primary border-primary/35 bg-primary/10";
+  if (score >= 3) return "text-[var(--ri-world-blush)] border-primary/20 bg-primary/[0.06]";
+  return "text-muted-foreground border-border bg-muted/30";
 }
 
 function formatRelativeTime(date) {
@@ -172,12 +172,12 @@ function usesDirectDrillLaunch(operationalMode?: string | null) {
 }
 
 const SANDBOX_CARD_THEMES = [
-  { accent: "#D95D39", background: "#FFF1EC", border: "#F0B5A5" },
-  { accent: "#B7791F", background: "#FFF8E7", border: "#E8C982" },
-  { accent: "#2F855A", background: "#ECFDF3", border: "#A7D8B8" },
-  { accent: "#2B6CB0", background: "#EDF6FF", border: "#A9C9EA" },
-  { accent: "#805AD5", background: "#F4F0FF", border: "#CBBBF0" },
-  { accent: "#B83280", background: "#FFF0F7", border: "#E8B1CF" },
+  { accent: "#D95D39" },
+  { accent: "#B7791F" },
+  { accent: "#2F855A" },
+  { accent: "#2B6CB0" },
+  { accent: "#805AD5" },
+  { accent: "#B83280" },
 ];
 
 function getSandboxCardTheme(student: any) {
@@ -735,23 +735,19 @@ export function StudentCard({
   return (
     <div
       data-student-id={String(student.id)}
-      className="relative rounded-2xl border border-black/25 bg-background p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6 tutor-pod-student-card"
-      style={sandboxCardTheme ? { borderColor: sandboxCardTheme.border } : undefined}
+      className="relative rounded-2xl border border-primary/15 bg-background p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6 tutor-pod-student-card"
     >
       <div className="pointer-events-none absolute inset-0">
-        <span className="absolute left-3 top-3 h-3 w-3 border-l border-t border-black/55" />
-        <span className="absolute right-3 top-3 h-3 w-3 border-r border-t border-black/55" />
-        <span className="absolute bottom-3 left-3 h-3 w-3 border-b border-l border-black/55" />
-        <span className="absolute bottom-3 right-3 h-3 w-3 border-b border-r border-black/55" />
+        <span className="absolute left-3 top-3 h-3 w-3 border-l border-t border-primary/55" />
+        <span className="absolute right-3 top-3 h-3 w-3 border-r border-t border-primary/55" />
+        <span className="absolute bottom-3 left-3 h-3 w-3 border-b border-l border-primary/55" />
+        <span className="absolute bottom-3 right-3 h-3 w-3 border-b border-r border-primary/55" />
       </div>
       {sandboxCardTheme && (
-        <div
-          className="mb-4 flex items-center justify-between gap-3 rounded-xl border px-3 py-2"
-          style={{ backgroundColor: sandboxCardTheme.background, borderColor: sandboxCardTheme.border }}
-        >
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/10 px-3 py-2">
           <div className="flex items-center gap-2">
             <span
-              className="h-3 w-3 rounded-full ring-2 ring-white/80"
+              className="h-3 w-3 rounded-full ring-2 ring-primary/20"
               style={{ backgroundColor: sandboxCardTheme.accent }}
             />
             <span className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: sandboxCardTheme.accent }}>
@@ -950,7 +946,7 @@ export function StudentCard({
               Review Assignment
             </Button>
             {respondToAssignment.isError && (
-              <p className="text-xs text-red-600 text-center">
+              <p className="text-xs text-primary text-center">
                 {respondToAssignment.error instanceof Error
                   ? respondToAssignment.error.message
                   : "Failed to submit assignment decision"}
@@ -1080,7 +1076,7 @@ export function StudentCard({
                 <span className="inline-flex items-center gap-2">
                   <span>Communication</span>
                   {communicationUnreadCount > 0 ? (
-                    <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                    <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-white">
                       {communicationUnreadCount}
                     </span>
                   ) : null}
@@ -1194,9 +1190,9 @@ function HandoverVerificationSection({
     <div className="pt-4 border-t border-border/60 space-y-3">
       <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Tutor Handover Verification</p>
 
-      <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 space-y-2">
-        <p className="text-sm font-semibold text-blue-950">Inherited training state is active for {studentName}.</p>
-        <p className="text-xs text-blue-900">
+      <div className="rounded-xl border border-primary/25 bg-primary/[0.07] px-4 py-3 space-y-2">
+        <p className="text-sm font-semibold text-foreground">Inherited training state is active for {studentName}.</p>
+        <p className="text-xs text-muted-foreground">
           This student is not being re-onboarded. Use the continuity check to verify the carry-over topic-state before resuming standard training actions.
         </p>
       </div>
@@ -1234,16 +1230,16 @@ function HandoverVerificationSection({
           <p className="text-xs text-muted-foreground">Status: {sessionStatus || "pending"}</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <p className="text-sm font-medium text-amber-900">Waiting for parent schedule proposal.</p>
-          <p className="mt-1 text-xs text-amber-800">
+        <div className="rounded-xl border border-primary/25 bg-primary/[0.07] px-4 py-3">
+          <p className="text-sm font-medium text-foreground">Waiting for parent schedule proposal.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
             Once the parent proposes a time, confirm or adjust it here just like an intro booking.
           </p>
         </div>
       )}
 
       {latestSummary ? (
-        <div className={`rounded-xl border px-4 py-3 space-y-2 ${reDiagnosisRequired ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}>
+        <div className={`rounded-xl border px-4 py-3 space-y-2 ${reDiagnosisRequired ? "border-primary/35 bg-primary/10" : "border-[rgba(255,240,240,0.14)] bg-[rgba(255,240,240,0.035)]"}`}>
           <p className="text-[11px] font-semibold text-foreground">Latest Handover Result</p>
           <p className="text-sm font-medium text-foreground">{latestSummary.verificationOutcomeLabel || "Verification submitted"}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1326,7 +1322,7 @@ function HandoverVerificationSection({
       )}
 
       {completionError ? (
-        <p className="text-xs text-red-600 text-center">{completionError}</p>
+        <p className="text-xs text-primary text-center">{completionError}</p>
       ) : null}
     </div>
   );
@@ -1590,7 +1586,7 @@ function IntroDiagnosticTopicSection({
                   placeholder="e.g. Linear equations"
                 />
               )}
-              {activationError ? <p className="text-xs text-red-500 mt-1">{activationError}</p> : null}
+              {activationError ? <p className="text-xs text-primary mt-1">{activationError}</p> : null}
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
@@ -1646,7 +1642,7 @@ function IntroDiagnosticTopicSection({
         Intro Diagnostic Topic: <span className="font-semibold text-foreground">{activatedTopic}</span>
       </p>
       {!directDrillLaunch && (!introSession?.id || !["confirmed", "ready", "live", "scheduled"].includes(String(introSession?.status || ""))) ? (
-        <p className="text-xs text-amber-700 text-center">
+        <p className="text-xs text-primary text-center">
           Confirm the intro lesson before entering the drill runner.
         </p>
       ) : null}
@@ -1685,7 +1681,7 @@ function IntroDiagnosticTopicSection({
                 placeholder="e.g. Linear equations"
               />
             )}
-            {activationError ? <p className="text-xs text-red-500 mt-1">{activationError}</p> : null}
+            {activationError ? <p className="text-xs text-primary mt-1">{activationError}</p> : null}
             <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
               <Button onClick={handleActivate}>Save Topic</Button>

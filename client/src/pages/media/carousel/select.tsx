@@ -6,7 +6,7 @@ import { ChevronLeft } from "lucide-react";
 // Response Integrity Content Pillars
 const PILLARS = [
   { id: "response-training", label: "Response Training", description: "How we condition execution under pressure" },
-  { id: "pressure-environment", label: "Pressure Environment", description: "The arena where response breaks down" },
+  { id: "pressure-environment", label: "Pressure Environment", description: "The area where response breaks down" },
   { id: "calm-execution", label: "Calm Execution", description: "The behavioral outcome we train" },
   { id: "structure", label: "Structure", description: "The system that removes panic" },
 ] as const;

@@ -18,7 +18,7 @@ export function useAuth() {
   // Wait for Supabase to initialize and check for existing session
   useEffect(() => {
     getAuthMode().then((authMode) => {
-      if (authMode.emergencyDbMode) {
+      if (authMode.dbSessionAuthMode) {
         setSupabaseReady(true);
         return;
       }

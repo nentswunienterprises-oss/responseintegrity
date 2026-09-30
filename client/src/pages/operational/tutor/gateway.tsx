@@ -13,6 +13,7 @@ import { ApplicationForm } from "@/components/tutor/application-form";
 import { SequentialDocumentSubmission } from "@/components/tutor/SequentialDocumentSubmission";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PushOptInCard } from "@/components/push/PushOptInCard";
+import { SpecialistGatewayMenu } from "@/components/layout/specialist-gateway-menu";
 
 interface ApplicationStatus {
   status: "not_applied" | "pending" | "approved" | "rejected" | "verification" | "confirmed";
@@ -178,32 +179,26 @@ export default function TutorGateway() {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#FFF5ED" }}>
+    <div className="min-h-screen ri-world-page ri-specialist-world ri-specialist-surface bg-background text-foreground">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md" style={{ backgroundColor: "rgba(255, 245, 237, 0.95)" }}>
+      <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/95 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-12 h-16 sm:h-20 relative flex items-center justify-between">
           <div className="w-10 md:hidden" aria-hidden="true" />
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:static sm:transform-none w-full sm:w-auto flex justify-center">
             <span style={{ transform: "scale(1.08)", transformOrigin: "center" }}>
-              <ResponseIntegrityLogo size="md" variant="integrity" />
+              <ResponseIntegrityLogo size="md" variant="integrity" inkColor="hsl(var(--foreground))" />
             </span>
           </div>
 
           <div className="hidden md:block">
-            <span className="text-xl lg:text-3xl font-bold tracking-tight" style={{ color: "#1A1A1A" }}>
+            <span className="text-xl lg:text-3xl font-bold tracking-tight text-foreground">
               System Entry
             </span>
           </div>
 
-          <Button
-            variant="ghost"
-            className="hidden md:inline-flex text-sm sm:text-base font-medium hover:bg-transparent items-center gap-1 sm:gap-2 px-2 sm:px-4"
-            style={{ color: "#1A1A1A" }}
-            onClick={() => window.history.back()}
-          >
-            <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            Back
-          </Button>
+          <div className="flex min-w-10 justify-end">
+            <SpecialistGatewayMenu />
+          </div>
         </div>
       </header>
 
@@ -218,12 +213,11 @@ export default function TutorGateway() {
             <div key={item.label} className="flex items-center flex-1 min-w-0">
               <div className="flex flex-col items-center">
                 <div
-                  className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 transition"
-                  style={{
-                    backgroundColor: item.status ? "#E63946" : "transparent",
-                    borderColor: item.status ? "#E63946" : "#D1D5DB",
-                    color: item.status ? "white" : "#9CA3AF"
-                  }}
+                  className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 transition ${
+                    item.status
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-transparent text-muted-foreground"
+                  }`}
                 >
                   {item.status ? (
                     <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -231,12 +225,13 @@ export default function TutorGateway() {
                     <Circle className="w-3 h-3 sm:w-4 sm:h-4" />
                   )}
                 </div>
-                <span className="text-[10px] sm:text-xs mt-1 sm:mt-2 font-medium text-center" style={{ color: "#1A1A1A" }}>{item.label}</span>
+                <span className="text-[10px] sm:text-xs mt-1 sm:mt-2 font-medium text-center text-foreground">{item.label}</span>
               </div>
               {idx < arr.length - 1 && (
                 <div
-                  className="flex-1 h-0.5 mx-1 sm:mx-2 transition min-w-[12px]"
-                  style={{ backgroundColor: item.status ? "#E63946" : "#E5E5E5" }}
+                  className={`flex-1 h-0.5 mx-1 sm:mx-2 transition min-w-[12px] ${
+                    item.status ? "bg-primary" : "bg-border"
+                  }`}
                 />
               )}
             </div>
@@ -247,32 +242,32 @@ export default function TutorGateway() {
       <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 max-w-2xl">
         {/* Application Prompt */}
         {step === "application" && (
-          <Card className="border-0 shadow-lg" style={{ backgroundColor: "white" }}>
+          <Card className="border shadow-lg">
             <CardHeader className="px-4 sm:px-6">
-              <CardTitle className="text-lg sm:text-xl" style={{ color: "#1A1A1A" }}>Founding Team Application</CardTitle>
-              <CardDescription className="text-sm" style={{ color: "#5A5A5A" }}>
+              <CardTitle className="text-lg sm:text-xl">Founding Team Application</CardTitle>
+              <CardDescription className="text-sm">
                 Response Integrity - Join Our Founding Cohort
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 px-4 sm:px-6">
               {/* Introduction */}
-              <div className="rounded-xl p-4 sm:p-5 space-y-2 sm:space-y-3" style={{ backgroundColor: "#FFF0F0" }}>
-                <p className="text-xs sm:text-sm" style={{ color: "#5A5A5A" }}>
+              <div className="rounded-md bg-muted/40 p-4 sm:p-5 space-y-2 sm:space-y-3">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   This application is for the Response Integrity Founding Specialist Cohort.
                 </p>
-                <p className="text-xs sm:text-sm" style={{ color: "#5A5A5A" }}>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   We are selecting a small group of individuals who will be trained to guide how students respond when math becomes difficult.
                 </p>
-                <p className="text-xs sm:text-sm font-semibold" style={{ color: "#1A1A1A" }}>
+                <p className="text-xs sm:text-sm font-semibold text-foreground">
                    This is a structured role.
                 </p>
-                <p className="text-xs sm:text-sm" style={{ color: "#5A5A5A" }}>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Selection is based on discipline, clarity of thinking, and alignment with how we operate.
                 </p>
-                <p className="text-xs sm:text-sm" style={{ color: "#5A5A5A" }}>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Complete this carefully.
                 </p>
-                <p className="text-xs sm:text-sm font-semibold" style={{ color: "#1A1A1A" }}>
+                <p className="text-xs sm:text-sm font-semibold text-foreground">
                   Careful applications stand out here.
                 </p>
               </div>
@@ -281,13 +276,12 @@ export default function TutorGateway() {
                 onClick={() => setShowApplicationForm(true)}
                 className="w-full rounded-full font-semibold text-sm sm:text-base"
                 size="lg"
-                style={{ backgroundColor: "#E63946", color: "white" }}
               >
                 <FileText className="w-4 h-4 mr-2" />
                 Start Application
               </Button>
 
-              <p className="text-[10px] sm:text-xs text-center" style={{ color: "#5A5A5A" }}>
+              <p className="text-[10px] sm:text-xs text-center text-muted-foreground">
                 Limited positions available. All applications are reviewed individually.
               </p>
             </CardContent>
@@ -318,10 +312,10 @@ export default function TutorGateway() {
 
         {/* Submitted / Status View */}
         {step === "submitted" && applicationStatus && (
-          <Card className="text-center border-0 shadow-lg" style={{ backgroundColor: "white" }}>
+          <Card className="text-center border shadow-lg">
             <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="flex items-center justify-center gap-2 text-sm sm:text-lg" style={{ color: "#1A1A1A" }}>
-                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" style={{ color: "#E63946" }} />
+              <CardTitle className="flex items-center justify-center gap-2 text-sm sm:text-lg">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 text-primary" />
                 <span className="text-center">
                   {applicationStatus.status === "pending" && "Application Under Review"}
                   {applicationStatus.status === "approved" && "You've Been Accepted!"}
@@ -426,7 +420,6 @@ export default function TutorGateway() {
                     <Button
                       size="lg"
                       className="rounded-full"
-                      style={{ backgroundColor: "#E63946" }}
                       onClick={completeOnboarding}
                       disabled={isContinuing}
                     >
@@ -464,7 +457,6 @@ export default function TutorGateway() {
                   <Button 
                     onClick={() => window.location.reload()}
                     className="rounded-full"
-                    style={{ backgroundColor: "#E63946" }}
                   >
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Retry

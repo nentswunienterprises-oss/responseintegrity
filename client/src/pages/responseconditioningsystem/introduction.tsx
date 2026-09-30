@@ -160,7 +160,7 @@ export default function ResponseConditioningIntroduction() {
         </Card>
 
         <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">Mathematics Is the Arena. Response Is the Skill.</h2>
+          <h2 className="text-2xl font-bold">Mathematics Is the Area. Response Is the Skill.</h2>
           <p className="text-muted-foreground">
             Mathematics gives us a uniquely useful environment for observing human response. A mathematical
             problem can create uncertainty, expose hesitation, require independent initiation, reveal whether

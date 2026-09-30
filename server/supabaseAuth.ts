@@ -18,13 +18,14 @@ import {
 } from "@shared/productionLinks";
 import { getDefaultDashboardRoute } from "@shared/portals";
 import { getAllowedOdEmailList, isAllowedOdEmail, normalizeEmail } from "@shared/odAccess";
-import { isEmergencyDbMode } from "./emergencyMode";
+import { isEmergencyDbMode, isProofDbAuthMode } from "./emergencyMode";
 import {
   authenticateEmergencyUser,
   createEmergencyTutorAccount,
   emergencyExpectedRoleMatches,
   isPreviewProofPersonaEmail,
   isPreviewSyntheticSandboxPersonaEmail,
+  setEmergencyCredentialForExistingUser,
 } from "./emergencyAuth";
 import {
   describeRuntimeDatabaseTarget,
@@ -117,13 +118,15 @@ export async function setupAuth(app: Express) {
   // the selected auth mode when the session store itself is unhealthy.
   app.get("/api/auth/mode", (_req: Request, res: Response) => {
     const emergencyDbMode = isEmergencyDbMode();
-    const isPreview = process.env.VERCEL_ENV === "preview";
+    const proofDbAuthMode = isProofDbAuthMode();
+    const isDiagnosticRuntime =
+      process.env.VERCEL_ENV === "preview" || process.env.NODE_ENV === "development";
     const databaseTarget =
-      isPreview && process.env.DATABASE_URL
+      isDiagnosticRuntime && process.env.DATABASE_URL
         ? describeRuntimeDatabaseTarget(process.env.DATABASE_URL)
         : undefined;
     const supabaseTarget =
-      isPreview && process.env.SUPABASE_URL
+      isDiagnosticRuntime && process.env.SUPABASE_URL
         ? describeSupabaseApiTarget(process.env.SUPABASE_URL)
         : undefined;
     const runtimeTargetsAligned =
@@ -133,7 +136,13 @@ export async function setupAuth(app: Express) {
 
     res.json({
       emergencyDbMode,
-      authMode: emergencyDbMode ? "db-session" : "supabase",
+      proofDbAuthMode,
+      dbSessionAuthMode: emergencyDbMode || proofDbAuthMode,
+      authMode: emergencyDbMode
+        ? "db-session"
+        : proofDbAuthMode
+          ? "proof-db-session"
+          : "supabase",
       ...(databaseTarget ? { databaseTarget } : {}),
       ...(supabaseTarget ? { supabaseTarget } : {}),
       ...(runtimeTargetsAligned !== undefined ? { runtimeTargetsAligned } : {}),
@@ -274,8 +283,11 @@ export async function setupAuth(app: Express) {
           .json({ message: "Email and password are required" });
       }
 
-      if (isEmergencyDbMode()) {
-        if (role !== "tutor") {
+      const proofTutorDbAuth = role === "tutor" && isProofDbAuthMode();
+      const directTutorDbAuth = isEmergencyDbMode() || proofTutorDbAuth;
+
+      if (directTutorDbAuth) {
+        if (isEmergencyDbMode() && role !== "tutor") {
           return res.status(503).json({ message: "New account creation is temporarily available for specialists only." });
         }
         if (password.length < 6) {
@@ -284,7 +296,7 @@ export async function setupAuth(app: Express) {
         if (!first_name.trim() || !last_name.trim()) {
           return res.status(400).json({ message: "First name and last name are required" });
         }
-        if (productionLink) {
+        if (isEmergencyDbMode() && productionLink) {
           return res.status(503).json({ message: "Specialist Production Link signup is temporarily unavailable." });
         }
 
@@ -294,19 +306,41 @@ export async function setupAuth(app: Express) {
             password,
             firstName: first_name.trim(),
             lastName: last_name.trim(),
+            productionLinkCode: proofTutorDbAuth
+              ? productionLink?.production_link_code || null
+              : null,
             trackingSource: tracking_source,
             trackingCampaign: tracking_campaign,
           });
-          console.log("[EMERGENCY SIGNUP] created tutor", { userId: user.id });
-          return res.status(201).json({
-            user: { id: user.id, email: user.email, role: user.role },
-            message: "Account created. Please log in to continue.",
+          const authLabel = proofTutorDbAuth ? "PROOF SIGNUP" : "EMERGENCY SIGNUP";
+          console.log(`[${authLabel}] created specialist`, { userId: user.id });
+
+          (req.session as any).userId = user.id;
+          (req.session as any).email = user.email;
+          delete (req.session as any).accessToken;
+          req.session.touch();
+
+          const redirectUrl = getDefaultDashboardRoute("tutor");
+
+          return req.session.save((err) => {
+            if (err) {
+              console.error(`[${authLabel}] session save error`, err);
+              return res.status(500).json({ message: "Account created, but the sign-in session could not be established." });
+            }
+
+            res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+            return res.status(201).json({
+              user: { id: user.id, email: user.email, role: user.role },
+              dbUser: user,
+              redirectUrl,
+              message: "Signup successful",
+            });
           });
         } catch (error) {
           if ((error as { code?: string })?.code === "DUPLICATE_EMAIL") {
             return res.status(409).json({ message: "An account with this email already exists." });
           }
-          console.error("[EMERGENCY SIGNUP] failed", error instanceof Error ? error.message : "unknown error");
+          console.error(proofTutorDbAuth ? "[PROOF SIGNUP] failed" : "[EMERGENCY SIGNUP] failed", error instanceof Error ? error.message : "unknown error");
           return res.status(500).json({ message: "Failed to create account" });
         }
       }
@@ -529,10 +563,14 @@ export async function setupAuth(app: Express) {
           .json({ message: "Email and password are required" });
       }
 
-      if (isEmergencyDbMode()) {
+      const proofTutorDbAuth =
+        expectedRole === "tutor" && isProofDbAuthMode();
+      const directTutorDbAuth = isEmergencyDbMode() || proofTutorDbAuth;
+
+      if (directTutorDbAuth) {
         const result = await authenticateEmergencyUser(pool, email, password, req.ip || "unknown");
         if ("error" in result) {
-          console.warn("[AUTH] Emergency login rejected", {
+          console.warn(proofTutorDbAuth ? "[AUTH] Proof DB login not resolved directly" : "[AUTH] Emergency login rejected", {
             outcome: result.error,
             internalReason: result.reason,
           });
@@ -541,49 +579,58 @@ export async function setupAuth(app: Express) {
               message: "Too many login attempts. Please wait a few minutes and try again.",
             });
           }
-          return res.status(401).json({ message: "Email or password is incorrect" });
-        }
 
-        const user = await storage.getUser(result.authUser.id);
-        if (!user) {
-          console.error("[AUTH] Auth user has no public.users record", { authUserId: result.authUser.id });
-          return res.status(401).json({ message: "Invalid credentials" });
-        }
-        if (!emergencyExpectedRoleMatches(user.role, expectedRole)) {
-          return res.status(403).json({
-            message: `This account is not registered as a ${expectedRole}. Your account is registered as a ${user.role}.`,
-          });
-        }
-
-        (req.session as any).userId = user.id;
-        (req.session as any).email = user.email;
-        delete (req.session as any).accessToken;
-        const redirectUrl = user.role === "parent"
-          ? "/client/parent/gateway"
-          : getDefaultDashboardRoute((user.role as any) || "tutor");
-
-        return req.session.save((err) => {
-          if (err) {
-            console.error("[AUTH] Emergency session save error", err);
-            return res.status(500).json({ message: "Session error" });
+          // Existing Proof identities created before DB-session auth may not have
+          // a private credential yet. Let only those fall through to the legacy
+          // Supabase recovery path below.
+          if (
+            !proofTutorDbAuth ||
+            (result.reason !== "credential_not_provisioned" &&
+              result.reason !== "account_not_found")
+          ) {
+            return res.status(401).json({ message: "Email or password is incorrect" });
           }
-          console.log("[EMERGENCY LOGIN] credential source", {
-            userId: user.id,
-            source: result.authUser.email_confirmed_at ? "supabase-auth" : "emergency",
+        } else {
+          const user = await storage.getUser(result.authUser.id);
+          if (!user) {
+            console.error("[AUTH] Auth user has no public.users record", { authUserId: result.authUser.id });
+            return res.status(401).json({ message: "Invalid credentials" });
+          }
+          if (!emergencyExpectedRoleMatches(user.role, expectedRole)) {
+            return res.status(403).json({
+              message: `This account is not registered as a ${expectedRole}. Your account is registered as a ${user.role}.`,
+            });
+          }
+
+          (req.session as any).userId = user.id;
+          (req.session as any).email = user.email;
+          delete (req.session as any).accessToken;
+          const redirectUrl = user.role === "parent"
+            ? "/client/parent/gateway"
+            : getDefaultDashboardRoute((user.role as any) || "tutor");
+
+          return req.session.save((err) => {
+            if (err) {
+              console.error(proofTutorDbAuth ? "[AUTH] Proof session save error" : "[AUTH] Emergency session save error", err);
+              return res.status(500).json({ message: "Session error" });
+            }
+            console.log(proofTutorDbAuth ? "[PROOF LOGIN] DB credential accepted" : "[EMERGENCY LOGIN] credential accepted", {
+              userId: user.id,
+            });
+            res.json({
+              user: {
+                id: result.authUser.id,
+                email: result.authUser.email,
+                email_confirmed_at: result.authUser.email_confirmed_at,
+                app_metadata: result.authUser.raw_app_meta_data || {},
+                user_metadata: result.authUser.raw_user_meta_data || {},
+              },
+              dbUser: user,
+              redirectUrl,
+              message: "Login successful",
+            });
           });
-          res.json({
-            user: {
-              id: result.authUser.id,
-              email: result.authUser.email,
-              email_confirmed_at: result.authUser.email_confirmed_at,
-              app_metadata: result.authUser.raw_app_meta_data || {},
-              user_metadata: result.authUser.raw_user_meta_data || {},
-            },
-            dbUser: user,
-            redirectUrl,
-            message: "Login successful",
-          });
-        });
+        }
       }
 
       // Authenticate with Supabase.
@@ -596,6 +643,49 @@ export async function setupAuth(app: Express) {
           email,
           password,
         });
+
+      if (
+        proofTutorDbAuth &&
+        authError?.code === "email_not_confirmed" &&
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      ) {
+        const existingProofUser = await storage.getUserByEmail(normalizedEmail);
+
+        if (
+          existingProofUser?.role === "tutor" &&
+          emergencyExpectedRoleMatches(existingProofUser.role, expectedRole)
+        ) {
+          const { error: confirmError } =
+            await serverSupabase.auth.admin.updateUserById(existingProofUser.id, {
+              email_confirm: true,
+            } as any);
+
+          if (!confirmError) {
+            const retry = await supabase.auth.signInWithPassword({
+              email,
+              password,
+            });
+            authData = retry.data;
+            authError = retry.error;
+
+            if (!authError && authData.user) {
+              await setEmergencyCredentialForExistingUser(
+                pool,
+                existingProofUser.id,
+                password,
+              );
+              console.log("[AUTH] Proof legacy account confirmed once and moved to DB-session auth", {
+                userId: existingProofUser.id,
+              });
+            }
+          } else {
+            console.warn("[AUTH] Proof legacy confirmation recovery failed", {
+              userId: existingProofUser.id,
+              message: confirmError.message,
+            });
+          }
+        }
+      }
 
       if (
         authError &&

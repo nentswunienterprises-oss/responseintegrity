@@ -227,9 +227,9 @@ function ModuleOne({ expandedSections, toggleSection, onComplete, isComplete }: 
           <div className="flex items-start gap-2 sm:gap-3">
             <Brain className="w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0 mt-1" />
             <div className="min-w-0">
-              <CardTitle className="text-lg sm:text-2xl leading-tight">Module 1: The 3-Layer Lens Teaching Model</CardTitle>
+              <CardTitle className="text-lg sm:text-2xl leading-tight">Module 1: The 3-Layer Lens and Clarity Teaching Rhythm</CardTitle>
               <CardDescription className="text-white/95 text-sm sm:text-lg mt-1 sm:mt-2">
-                "Model. Apply. Guide." - The student doesn't just learn the skill, they own it.
+                Model, Apply, Guide belongs mainly to Clarity and concept-entry work. Later phases use stricter support boundaries.
               </CardDescription>
             </div>
           </div>
@@ -264,13 +264,13 @@ function ModuleOne({ expandedSections, toggleSection, onComplete, isComplete }: 
             </div>
             
             <p className="mt-4 sm:mt-6 text-center font-semibold text-sm sm:text-lg">
-              The 3-Layer Lens is how Response Integrity tutors teach, test, and diagnose mastery.
+              The 3-Layer Lens is the concept map. The active RI set decides how much support the Specialist may use while testing or training it.
             </p>
           </div>
 
           <SectionCard
             id="module1-flow"
-            title="How the 3-Layer Lens Powers a Session"
+            title="How the 3-Layer Lens Powers Clarity"
             expanded={expandedSections["module1-flow"] || false}
             onToggle={() => toggleSection("module1-flow")}
             gradient="from-primary to-primary/80"
@@ -295,7 +295,7 @@ function ModuleOne({ expandedSections, toggleSection, onComplete, isComplete }: 
                   <h4 className="font-bold text-sm sm:text-lg mb-1 sm:mb-2">Step 2: APPLY - "Let them FIRE."</h4>
                   <ul className="space-y-1 sm:space-y-2 text-muted-foreground list-disc pl-4 sm:pl-5 text-xs sm:text-base">
                     <li>Student does a similar problem right after</li>
-                    <li>Tutor supports - but doesn't lead</li>
+                    <li>Support stays inside the active Clarity set's boundary</li>
                     <li>Let them struggle strategically</li>
                     <li className="italic font-semibold">"They don't attempt the skill - they experience it."</li>
                   </ul>
@@ -305,12 +305,12 @@ function ModuleOne({ expandedSections, toggleSection, onComplete, isComplete }: 
               <div className="flex items-start gap-2 sm:gap-4">
                 <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-primary/60 text-white flex items-center justify-center font-bold flex-shrink-0 text-sm sm:text-base">3</div>
                 <div className="min-w-0 flex-1">
-                  <h4 className="font-bold text-sm sm:text-lg mb-1 sm:mb-2">Step 3: GUIDE - "Now we AIM."</h4>
+                  <h4 className="font-bold text-sm sm:text-lg mb-1 sm:mb-2">Step 3: GUIDE / CORRECT - "Now we AIM."</h4>
                   <ul className="space-y-1 sm:space-y-2 text-muted-foreground list-disc pl-4 sm:pl-5 text-xs sm:text-base">
-                    <li>The tutor corrects, refines, and clarifies</li>
-                    <li>Points out which layer needs reinforcement</li>
-                    <li className="italic">"You knew the terms (Vocab), and you remembered the steps (Method), but you didn't explain why we flipped the fraction (Reason). Let's fix that."</li>
-                    <li className="italic font-semibold">"They start to see how they learn, not just what they learned."</li>
+                    <li>During a live opportunity, guidance must stay inside the active set's support boundary</li>
+                    <li>After the opportunity, correct the exact broken point without rewriting what the student demonstrated</li>
+                    <li>Use the 3-Layer Lens when the gap is Vocabulary, Method, or Reason</li>
+                    <li className="italic font-semibold">This Clarity rhythm is not a universal support rule for later phases.</li>
                   </ul>
                 </div>
               </div>
@@ -552,7 +552,7 @@ function ModuleTwo({ expandedSections, toggleSection, onComplete, isComplete }: 
 
           <SectionCard
             id="module2-process"
-            title="5. The Response Integrity Teaching Process = Ready, Fire, Aim"
+            title="5. Clarity Teaching Rhythm = Ready, Fire, Aim"
             expanded={expandedSections["module2-process"] || false}
             onToggle={() => toggleSection("module2-process")}
             gradient="from-primary to-primary/80"
@@ -1117,7 +1117,7 @@ function ModuleFour({ expandedSections, toggleSection, onComplete, isComplete }:
                 <ul className="space-y-2 ml-4">
                   <li>Model the process</li>
                   <li>Let them Apply the method</li>
-                  <li>Guide and correct gently</li>
+                  <li>Guide only within the active support condition, then correct after the opportunity when needed</li>
                   <li>Reinforce with a win</li>
                   <li>Embrace 3-layer lens</li>
                 </ul>
@@ -1434,21 +1434,21 @@ function ModuleFive({ expandedSections, toggleSection, onComplete, isComplete }:
               </div>
 
               <div className="bg-accent p-4 rounded-lg border border-primary/10 mt-4">
-                <p className="font-bold mb-3">2. Use the "Model-Apply-Guide" Loop In Clarity And Concept-Entry Work</p>
+                <p className="font-bold mb-3">2. Use Model-Apply-Guide Only In Clarity And Concept-Entry Work</p>
                 <ol className="space-y-2 text-sm ml-4">
                   <li><strong>Step 1 (Model it):</strong> You solve an example out loud when the learner needs Clarity or concept entry</li>
                   <li><strong>Step 2 (Apply it):</strong> They try a similar problem and begin taking ownership of the method</li>
-                  <li><strong>Step 3 (Guide them):</strong> Correct the gap without carrying the response</li>
+                  <li><strong>Step 3 (Guide / correct):</strong> During the opportunity, stay inside the set's support boundary. After it, correct the gap without rewriting the evidence.</li>
                 </ol>
                 <div className="bg-primary/20 p-3 rounded mt-3 text-sm">
                   <p className="font-semibold mb-2">T/N: it's important to implement written step-by-step methods.</p>
                   <p>Students need clear steps, but steps are trained for execution, not memorized as a substitute for reasoning. Confidence follows when they can repeat the method under the right phase conditions.</p>
                 </div>
-                <p className="mt-3 text-sm">We call this the <strong>Ready, Fire, Aim</strong> approach (from T Harv's book, Secrets of The Millionaire Mind):</p>
+                <p className="mt-3 text-sm">In Clarity and concept-entry work, this can still be understood as <strong>Ready, Fire, Aim</strong>:</p>
                 <ol className="ml-4 mt-2 space-y-1 text-sm">
                   <li>1. Model it for the student - get them "Ready", show them how to use the method</li>
                   <li>2. Make the student Apply the method - let the student "Fire" - do it, attempt it</li>
-                  <li>3. Lead the student to use their mistakes to Guide them - Help them "Aim" and lock in accuracy</li>
+                  <li>3. Use the revealed gap to guide or correct within the active support boundary - then return execution to the student</li>
                 </ol>
               </div>
 
@@ -1508,7 +1508,7 @@ function ModuleFive({ expandedSections, toggleSection, onComplete, isComplete }:
                 <ul className="space-y-1 text-sm">
                   <li>Modeled example clearly, narrating steps</li>
                   <li>Let student attempt similar problem(s)</li>
-                  <li>Guided corrections using 3-Layer lens</li>
+                  <li>Used guidance only where the active set allowed it; corrected after the opportunity where required</li>
                   <li>Asked 2-3 engagement check-ins ("Why did I do that?" or "What's next?")</li>
                   <li>Highlighted success verbally: "That method is yours now."</li>
                 </ul>
@@ -1713,7 +1713,7 @@ function ModuleFive({ expandedSections, toggleSection, onComplete, isComplete }:
                   </tr>
                   <tr className="border-b border-white/10">
                     <td className="p-2">"Model → Apply → Guide"</td>
-                    <td className="p-2">Response Integrity's tutoring loop system</td>
+                    <td className="p-2">Clarity / concept-entry teaching rhythm, not a universal RI-OS support rule</td>
                   </tr>
                   <tr className="border-b border-white/10">
                     <td className="p-2">"Growth over perfection"</td>

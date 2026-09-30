@@ -12,7 +12,7 @@ They execute the Response Integrity protocol.
 
 ## Core doctrine
 
-- Mathematics is the arena. Response is the skill.
+- Mathematics is the area. Response is the skill.
 - The student is mapped by topic, not by one global label.
 - The session follows the phase, not the tutor's instinct.
 - Model -> Apply -> Guide is most visible in Clarity work, not every phase of the operating system.

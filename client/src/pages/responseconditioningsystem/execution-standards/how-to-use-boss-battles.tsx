@@ -103,8 +103,10 @@ export default function ResponseConditioningHowToUseBossBattles() {
           <p className="text-lg font-bold text-primary mb-3">Do Not Rescue</p>
 
           <p className="text-muted-foreground">When the student reacts:</p>
-          <p className="font-medium">You do nothing.</p>
-          <p className="text-lg font-semibold">For 10-15 seconds.</p>
+          <p className="font-medium">Preserve the active set's support boundary.</p>
+          <p className="text-muted-foreground">
+            Where the assigned drill calls for a 10-15 second hold, keep that hold. Do not turn it into a universal rule for every Boss Battle set.
+          </p>
 
           <div className="space-y-3 mt-4">
             <div>
@@ -124,26 +126,37 @@ export default function ResponseConditioningHowToUseBossBattles() {
           </div>
         </Card>
 
-        {/* What You Do After the Pause */}
+        {/* What You Do After the Hold */}
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What You Do After the Pause</h2>
-          <p className="text-muted-foreground">You guide.</p>
-          <p className="text-muted-foreground">But only to:</p>
-          <p className="font-medium">the first step</p>
+          <h2 className="text-2xl font-bold">What You Do After the Hold</h2>
+          <p className="text-muted-foreground">
+            Do not automatically guide. Check the active set first.
+          </p>
 
-          <div>
-            <p className="font-semibold mb-3">What You Say</p>
-            <p className="text-muted-foreground">"What do you know?"</p>
-            <p className="text-muted-foreground">"What type of problem is this?"</p>
-            <p className="text-muted-foreground">"Start with what you recognize."</p>
+          <div className="space-y-3">
+            <div className="rounded-md border p-4">
+              <p className="font-semibold">Controlled Entry</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Minimal support is allowed. Preserve the difficulty and do not carry execution.
+              </p>
+            </div>
+            <div className="rounded-md border border-primary/25 bg-primary/5 p-4">
+              <p className="font-semibold">No Rescue</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                First-step-only support is allowed. This is where the "guide only to the first step" rule belongs.
+              </p>
+            </div>
+            <div className="rounded-md border p-4">
+              <p className="font-semibold">Repeat Exposure</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                No support. The repeated difficult exposure must reveal whether the controlled response now holds without rescue.
+              </p>
+            </div>
           </div>
 
-          <div>
-            <p className="font-semibold mb-3">What You Are NOT Doing</p>
-            <p className="text-muted-foreground">solving the problem</p>
-            <p className="text-muted-foreground">explaining everything</p>
-            <p className="text-muted-foreground">removing difficulty</p>
-          </div>
+          <p className="font-semibold">
+            Boss Battle difficulty does not give the Specialist permission to choose a support level.
+          </p>
         </Card>
 
         {/* The Flow */}
@@ -168,14 +181,14 @@ export default function ResponseConditioningHowToUseBossBattles() {
           </div>
 
           <div className="space-y-2">
-            <p className="font-semibold">Step 4: Guide to First Step</p>
-            <p className="text-muted-foreground">Minimal intervention.</p>
+            <p className="font-semibold">Step 4: Apply the Set's Support Contract</p>
+            <p className="text-muted-foreground">Minimal, first-step only, or none. Use exactly what the active set permits.</p>
           </div>
 
           <div className="space-y-2">
             <p className="font-semibold">Step 5: Continue Execution</p>
-            <p className="text-muted-foreground">Student works through the problem.</p>
-            <p className="text-muted-foreground">You guide only when necessary.</p>
+            <p className="text-muted-foreground">The student works through the problem under the preserved condition.</p>
+            <p className="text-muted-foreground">Do not add extra guidance because the moment feels difficult.</p>
           </div>
 
           <div className="space-y-2">

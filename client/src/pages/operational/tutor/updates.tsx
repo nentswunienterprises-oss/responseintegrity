@@ -5,7 +5,7 @@ export default function TutorUpdates() {
     <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
       <NotificationInbox
         title="Updates"
-        description="Action-required items and informational notifications for tutors."
+        description="Action-required items and informational notifications for Specialists."
         emptyMessage="No notifications yet. You'll see action-required and informational updates here."
       />
     </div>
