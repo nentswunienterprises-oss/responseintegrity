@@ -1185,18 +1185,35 @@ function HandoverVerificationSection({
   const latestSummary = latestVerification?.summary || null;
   const reDiagnosisRequired = !!latestSummary?.reDiagnosisRequired;
   const canMarkComplete = sessionConfirmed && !!latestSummary && !reDiagnosisRequired;
+  const [detailsCollapsed, setDetailsCollapsed] = useState(true);
 
   return (
     <div className="pt-4 border-t border-border/60 space-y-3">
       <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Tutor Handover Verification</p>
 
-      <div className="rounded-xl border border-primary/25 bg-primary/[0.07] px-4 py-3 space-y-2">
-        <p className="text-sm font-semibold text-foreground">Inherited training state is active for {studentName}.</p>
-        <p className="text-xs text-muted-foreground">
-          This student is not being re-onboarded. Use the continuity check to verify the carry-over topic-state before resuming standard training actions.
-        </p>
+      <div className="rounded-xl border border-primary/25 bg-primary/[0.07] px-4 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-foreground">Inherited training state is active for {studentName}.</p>
+            <p className="text-xs text-muted-foreground">
+              This student is not being re-onboarded. Use the continuity check to verify the carry-over topic-state before resuming standard training actions.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDetailsCollapsed((value) => !value)}
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border/60 bg-background/60 px-2.5 py-1 text-xs font-medium text-foreground transition hover:bg-muted"
+            aria-expanded={!detailsCollapsed}
+            aria-label={detailsCollapsed ? "Show handover verification details" : "Hide handover verification details"}
+          >
+            {detailsCollapsed ? "Show details" : "Hide details"}
+            {detailsCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
 
+      {!detailsCollapsed ? (
+        <div className="space-y-3">
       <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 space-y-2">
         <p className="text-[11px] font-medium text-foreground">Carry-Over State</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1323,6 +1340,8 @@ function HandoverVerificationSection({
 
       {completionError ? (
         <p className="text-xs text-primary text-center">{completionError}</p>
+      ) : null}
+        </div>
       ) : null}
     </div>
   );
