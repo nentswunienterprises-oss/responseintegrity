@@ -1,9 +1,11 @@
 export function ResponseIntegrityLogo({
   size = "xl",
   variant = "hub",
+  inkColor = "var(--ri-charcoal)",
 }: {
   size?: "sm" | "md" | "lg" | "xl";
   variant?: "hub" | "integrity";
+  inkColor?: string;
 }) {
   // Responsive font sizes using clamp
   const sizeMap = {
@@ -44,7 +46,7 @@ export function ResponseIntegrityLogo({
               style={{
                 fontSize: text,
                 fontWeight: 600,
-                color: "var(--ri-charcoal)",
+                color: inkColor,
                 letterSpacing: "0.02em",
                 textTransform: "uppercase",
                 whiteSpace: "nowrap",
@@ -68,7 +70,7 @@ export function ResponseIntegrityLogo({
               style={{
                 fontSize: text,
                 fontWeight: 600,
-                color: "var(--ri-charcoal)",
+                color: inkColor,
                 letterSpacing: "0.02em",
                 textTransform: "uppercase",
                 whiteSpace: "nowrap",
@@ -97,7 +99,7 @@ export function ResponseIntegrityLogo({
               style={{
                 fontSize: integritySublineText,
                 fontWeight: 700,
-                color: "var(--ri-charcoal)",
+                color: inkColor,
                 letterSpacing: "0.05em",
                 textTransform: "uppercase",
                 whiteSpace: "nowrap",
