@@ -298,7 +298,7 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="ri-auth-form space-y-4">
         {mode === "signup" && (
           <>
             <div className="space-y-2">
