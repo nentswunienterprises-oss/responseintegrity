@@ -4,7 +4,7 @@ import { getAuthMode } from "./authMode";
 
 export async function authorizedGetJson(path: string): Promise<any> {
   const authMode = await getAuthMode();
-  const { data: { session } } = authMode.emergencyDbMode
+  const { data: { session } } = authMode.dbSessionAuthMode
     ? { data: { session: null } }
     : await supabase.auth.getSession();
   const headers: HeadersInit = {};
