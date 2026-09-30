@@ -48,7 +48,7 @@ Supporting line:
 ## Doctrine guardrails
 
 - Response Integrity is not a tutoring company.
-- Mathematics is the arena. Response is the skill.
+- Mathematics is the area. Response is the skill.
 - Confidence is not chased. It follows repeated stable execution.
 - Model -> Apply -> Guide is mainly a Clarity tool, not the law of every session.
 - Boss Battles and timed work are phase-specific, not universal.
