@@ -66,7 +66,7 @@ export async function logout(user) {
     // Call backend logout endpoint
     await apiRequest("POST", "/api/auth/logout");
     const authMode = await getAuthMode();
-    if (!authMode.emergencyDbMode) {
+    if (!authMode.dbSessionAuthMode) {
       await supabase.auth.signOut();
     }
     // Clear ALL React Query cache (memory + localStorage) to prevent stale user data
