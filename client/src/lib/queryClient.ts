@@ -76,7 +76,7 @@ export async function apiRequest(
 ): Promise<Response> {
   const fullUrl = API_URL + url;
   const authMode = await getAuthMode();
-  const { data: { session } } = authMode.emergencyDbMode
+  const { data: { session } } = authMode.dbSessionAuthMode
     ? { data: { session: null } }
     : await supabase.auth.getSession();
   const headers: HeadersInit = data ? { "Content-Type": "application/json" } : {};
@@ -107,7 +107,7 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     // Get the Supabase session to include auth token
     const authMode = await getAuthMode();
-    const { data: { session } } = authMode.emergencyDbMode
+    const { data: { session } } = authMode.dbSessionAuthMode
       ? { data: { session: null } }
       : await supabase.auth.getSession();
     
