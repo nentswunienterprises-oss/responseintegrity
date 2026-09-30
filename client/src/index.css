@@ -753,6 +753,56 @@ html[data-ri-theme="light"] .ri-lesson-chrome {
   box-shadow: 0 12px 30px rgba(77, 45, 45, 0.08);
 }
 
+/* LOCKED RI LIGHT — flat cream, low-contrast borders, almost no material lift.
+   This matches the earlier Specialist Light reference: surfaces sit in the same
+   cream field instead of looking like separate pink/white sheets. */
+html[data-ri-theme="light"] body:has(.ri-world-page) {
+  background: var(--ri-cream) !important;
+  background-image: none !important;
+}
+
+html[data-ri-theme="light"] .ri-world-page,
+html[data-ri-theme="light"] .ri-os-world {
+  background: var(--ri-cream) !important;
+  background-image: none !important;
+}
+
+html[data-ri-theme="light"] .ri-world-page .ri-world-hero,
+html[data-ri-theme="light"] .ri-world-page .shadcn-card,
+html[data-ri-theme="light"] .ri-pod-world .ri-metric-card,
+html[data-ri-theme="light"] .ri-pod-world .ri-focus-card,
+html[data-ri-theme="light"] .ri-pod-world .tutor-pod-student-card,
+html[data-ri-theme="light"] .ri-os-world .shadcn-card,
+html[data-ri-theme="light"] .ri-os-world .ri-teaching-interaction,
+html[data-ri-theme="light"] .ri-os-world .ri-completion-card {
+  color-scheme: light;
+  color: var(--ri-charcoal);
+  background: var(--ri-cream) !important;
+  background-image: none !important;
+  border-color: rgba(230, 57, 70, 0.13) !important;
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="light"] .ri-world-page .ri-world-hero {
+  border-radius: 1rem;
+}
+
+html[data-ri-theme="light"] .ri-pod-world .shadcn-card,
+html[data-ri-theme="light"] .ri-os-world .shadcn-card {
+  border-radius: 0.75rem;
+}
+
+html[data-ri-theme="light"] .ri-world-page .ri-world-hero::before,
+html[data-ri-theme="light"] .ri-world-page .ri-world-hero::after {
+  display: none;
+}
+
+html[data-ri-theme="light"] .ri-lesson-chrome {
+  background: rgba(255, 245, 237, 0.96);
+  border-color: rgba(230, 57, 70, 0.10);
+  box-shadow: none;
+}
+
 /* True Dark: cream remains as copy and micro-accent, not as a large surface. */
 html[data-ri-theme="dark"] body:has(.ri-world-page),
 html[data-ri-theme="dark"] .ri-world-page {
