@@ -391,23 +391,27 @@
 }
 
 
-/* Keep browser autofill from recoloring the Specialist email/password fields. */
-.ri-auth-form input[type="email"]:-webkit-autofill,
-.ri-auth-form input[type="email"]:-webkit-autofill:hover,
-.ri-auth-form input[type="email"]:-webkit-autofill:focus,
-.ri-auth-form input[type="password"]:-webkit-autofill,
-.ri-auth-form input[type="password"]:-webkit-autofill:hover,
-.ri-auth-form input[type="password"]:-webkit-autofill:focus {
+/* Keep browser autofill from recoloring credential fields for every role.
+   Email/password inputs stay white with dark text, matching the original login treatment. */
+input[type="email"]:-webkit-autofill,
+input[type="email"]:-webkit-autofill:hover,
+input[type="email"]:-webkit-autofill:focus,
+input[type="password"]:-webkit-autofill,
+input[type="password"]:-webkit-autofill:hover,
+input[type="password"]:-webkit-autofill:focus {
   -webkit-text-fill-color: #1A1A1A !important;
-  caret-color: #1A1A1A;
+  caret-color: #1A1A1A !important;
+  background-color: #FFFFFF !important;
   -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
   box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+  color-scheme: light;
 }
 
-.ri-auth-form input[type="email"]:autofill,
-.ri-auth-form input[type="password"]:autofill {
+input[type="email"]:autofill,
+input[type="password"]:autofill {
   color: #1A1A1A !important;
   background: #FFFFFF !important;
+  -webkit-text-fill-color: #1A1A1A !important;
 }
 
 /* RESPONSE INTEGRITY WORLD — scoped dark product atmosphere */
