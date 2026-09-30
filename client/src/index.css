@@ -933,6 +933,78 @@ html[data-ri-theme="dark"] .ri-lesson-chrome {
 }
 
 
+/* LOCKED RI DEPTH — all modes stay restrained.
+   Warm Dark gets hierarchy from cream-on-dark contrast, not floating shadows.
+   Dark gets hierarchy from tonal separation and borders, not elevation. */
+html[data-ri-theme="warm-dark"] .ri-world-page .ri-world-hero,
+html[data-ri-theme="warm-dark"] .ri-world-page .shadcn-card,
+html[data-ri-theme="warm-dark"] .ri-pod-world .tutor-pod-student-card,
+html[data-ri-theme="warm-dark"] .ri-lesson-chrome {
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="warm-dark"] .ri-world-page .ri-module-card:hover,
+html[data-ri-theme="warm-dark"] .ri-world-page .ri-metric-card:hover,
+html[data-ri-theme="warm-dark"] .ri-pod-world .tutor-pod-student-card:hover,
+html[data-ri-theme="warm-dark"] .ri-specialist-surface .shadcn-card:hover {
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="dark"] body:has(.ri-world-page) {
+  background: #0E0E0E !important;
+  background-image: none !important;
+}
+
+html[data-ri-theme="dark"] .ri-world-page,
+html[data-ri-theme="dark"] .ri-os-world {
+  background: #0E0E0E !important;
+  background-image: none !important;
+}
+
+html[data-ri-theme="dark"] .ri-world-page .ri-world-hero {
+  background: #121212 !important;
+  border-color: rgba(255, 245, 237, 0.11) !important;
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="dark"] .ri-world-page .shadcn-card,
+html[data-ri-theme="dark"] .ri-pod-world .ri-metric-card,
+html[data-ri-theme="dark"] .ri-pod-world .tutor-pod-student-card,
+html[data-ri-theme="dark"] .ri-os-world .shadcn-card {
+  background: #151515 !important;
+  background-image: none !important;
+  border-color: rgba(255, 240, 240, 0.09) !important;
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="dark"] .ri-pod-world .ri-focus-card,
+html[data-ri-theme="dark"] .ri-os-world .ri-teaching-interaction {
+  background: #171717 !important;
+  background-image: none !important;
+  border-color: rgba(230, 57, 70, 0.22) !important;
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="dark"] .ri-os-world .ri-completion-card {
+  background: #151515 !important;
+  background-image: none !important;
+  border-color: rgba(230, 57, 70, 0.20) !important;
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="dark"] .ri-lesson-chrome {
+  background: rgba(14, 14, 14, 0.96) !important;
+  border-color: rgba(255, 240, 240, 0.08) !important;
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="dark"] .ri-world-page .ri-module-card:hover,
+html[data-ri-theme="dark"] .ri-world-page .ri-metric-card:hover,
+html[data-ri-theme="dark"] .ri-pod-world .tutor-pod-student-card:hover,
+html[data-ri-theme="dark"] .ri-specialist-surface .shadcn-card:hover {
+  box-shadow: none !important;
+}
+
 /* LOCKED RI MODES — specialist app-wide material treatment */
 /* Light deliberately stays on the original RI Light treatment from the first
    appearance-mode release. Later Specialist-wide material/control overrides
