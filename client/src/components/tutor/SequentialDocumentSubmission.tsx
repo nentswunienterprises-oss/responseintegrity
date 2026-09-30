@@ -1861,8 +1861,8 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
                 </Button>
               </div>
               {selectedFile ? (
-                <p className="mt-3 text-sm text-[#6B5B52]">
-                  Selected file: <span className="font-medium text-[#1A1A1A]">{selectedFile.name}</span>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Selected file: <span className="font-medium text-foreground">{selectedFile.name}</span>
                 </p>
               ) : null}
               {currentStatus === "pending_review" ? <p className="mt-3 text-sm text-muted-foreground">Your upload is with COO for review now.</p> : null}
@@ -2074,6 +2074,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
               color: #FFF5ED !important;
             }
 
+            html[data-ri-theme="dark"] .ri-specialist-reader-muted,
             html[data-ri-theme="dark"] .ri-specialist-reader-chrome [data-radix-dialog-description] {
               color: #B9ABAD !important;
             }
@@ -2153,14 +2154,14 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
           <div className="ri-specialist-reader-shell flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[#FFF5ED] text-[#1A1A1A]">
             <DialogHeader className="ri-specialist-reader-chrome shrink-0 border-b border-[#E7D5C8] bg-white px-4 py-4 text-left sm:px-6 sm:py-5">
               <DialogTitle className="pr-8 text-xl sm:text-2xl">{currentDocument.title}</DialogTitle>
-              <DialogDescription className="text-[#6B5B52]">{currentDocument.code} • version {normalizeDisplayedVersion(currentDocument.version)}</DialogDescription>
+              <DialogDescription className="ri-specialist-reader-muted text-[#6B5B52]">{currentDocument.code} • version {normalizeDisplayedVersion(currentDocument.version)}</DialogDescription>
             </DialogHeader>
             <div ref={readerRef} onScroll={handleReaderScroll} className="ri-specialist-reader-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#FFF5ED] px-3 py-4 touch-pan-y sm:px-6 sm:py-6">
               <div className="ri-specialist-reader-paper mx-auto max-w-4xl rounded-2xl border border-[#E7D5C8] bg-white px-4 py-6 text-[#1A1A1A] shadow-[0_18px_50px_rgba(230,57,70,0.08)] sm:px-10 sm:py-10">
                 <div className="border-b border-[#E7D5C8] pb-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E63946]">Response Integrity Onboarding Document</p>
                   <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[#1A1A1A] sm:text-3xl">{currentDocument.title}</h1>
-                  <p className="mt-2 text-xs text-[#6B5B52] sm:text-sm">
+                  <p className="ri-specialist-reader-muted mt-2 text-xs text-[#6B5B52] sm:text-sm">
                     {currentDocument.code} • Version {normalizeDisplayedVersion(currentDocument.version)}
                   </p>
                 </div>
@@ -2168,7 +2169,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
                   <div className="ri-specialist-reader-fields mt-6 rounded-2xl border border-[#E7D5C8] bg-[#FFF5ED] p-4 sm:p-5">
                     <div className="mb-4 space-y-1">
                       <p className="text-sm font-semibold text-[#1A1A1A]">Document fields</p>
-                      <p className="text-sm text-[#6B5B52]">Complete the Specialist details that belong to this document here. Response Integrity account fields are prefilled automatically.</p>
+                      <p className="ri-specialist-reader-muted text-sm text-[#6B5B52]">Complete the Specialist details that belong to this document here. Response Integrity account fields are prefilled automatically.</p>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       {currentFormFields.map((field) => (
@@ -2216,7 +2217,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
                             );
                           })()}
                           {fieldResolutions[field.key]?.helperText ? (
-                            <p className="text-xs text-[#8A7A70]">{fieldResolutions[field.key]?.helperText}</p>
+                            <p className="ri-specialist-reader-muted text-xs text-[#8A7A70]">{fieldResolutions[field.key]?.helperText}</p>
                           ) : null}
                         </div>
                       ))}
@@ -2232,7 +2233,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
               <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm">Read progress: {readerPercent}%</p>
-                  <p className="text-xs text-[#6B5B52]">Reach the end of the document to unlock the acceptance workspace.</p>
+                  <p className="ri-specialist-reader-muted text-xs text-[#6B5B52]">Reach the end of the document to unlock the acceptance workspace.</p>
                 </div>
                 <Button type="button" className="w-full bg-[#E63946] text-white hover:bg-[#cf2e3c] sm:w-auto" disabled={readerPercent < 99} onClick={() => { setHasCompletedReading(true); setReaderOpen(false); }}>
                   <CheckCircle2 className="mr-2 h-4 w-4" />
