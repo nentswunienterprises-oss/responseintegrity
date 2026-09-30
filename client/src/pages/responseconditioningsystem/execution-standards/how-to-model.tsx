@@ -5,8 +5,8 @@ import { Card } from "@/components/ui/card";
 import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 
 const setupVisualSrc = "/images/responseconditioning/tools-required/modelling-vs-observation-locked.png";
-const modellingSpecialistPovSrc = "/images/responseconditioning/tools-required/modelling-specialist-pov.webp";
-const observationSpecialistPovSrc = "/images/responseconditioning/tools-required/observation-specialist-pov.webp";
+const modellingSpecialistPovSrc = "/images/responseconditioning/tools-required/modelling-specialist-pov.png";
+const observationSpecialistPovSrc = "/images/responseconditioning/tools-required/observation-specialist-pov.png";
 
 export default function ResponseConditioningHowToModel() {
   const navigate = useNavigate();
