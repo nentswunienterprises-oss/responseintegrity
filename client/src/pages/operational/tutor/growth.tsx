@@ -9,11 +9,30 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Calendar, Plus, ClipboardList } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar, Plus, ClipboardList, LockKeyhole, WalletCards } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import type { Reflection } from "@shared/schema";
 import { format, startOfWeek } from "date-fns";
+
+function formatZar(value: number) {
+  return new Intl.NumberFormat("en-ZA", {
+    style: "currency",
+    currency: "ZAR",
+    maximumFractionDigits: 0,
+  }).format(Number.isFinite(value) ? value : 0);
+}
+
+function formatSpecialistMode(value: string) {
+  if (value === "certified_live") return "Certified Live";
+  if (value === "sandbox") return "Sandbox";
+  if (value === "trial") return "Trial";
+  if (value === "watchlist") return "Watchlist";
+  if (value === "suspended") return "Suspended";
+  if (value === "applicant") return "Applicant";
+  return "Training";
+}
 
 export default function TutorGrowth() {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
@@ -41,7 +60,7 @@ export default function TutorGrowth() {
 
   const {
     data: podAssignment,
-  } = useQuery({
+  } = useQuery<any>({
     queryKey: ["/api/tutor/pod"],
     enabled: isAuthenticated && !authLoading,
   });
@@ -155,6 +174,46 @@ export default function TutorGrowth() {
     });
   };
 
+  const operationalMode = String(
+    podAssignment?.assignment?.operationalMode ??
+      podAssignment?.assignment?.operational_mode ??
+      "training",
+  )
+    .trim()
+    .toLowerCase();
+
+  const isSandboxMode = operationalMode === "sandbox";
+  const isCertifiedLive = operationalMode === "certified_live";
+  const canViewEarnings = isSandboxMode || isCertifiedLive;
+
+  const earningsRows = ((podAssignment?.students || []) as any[])
+    .map((student) => {
+      const quota = student?.parentInfo?.monthlyQuota || student?.monthlyQuota || null;
+      if (!quota) return null;
+
+      return {
+        id: String(student?.id || student?.name || Math.random()),
+        studentName: String(student?.name || "Student"),
+        earned: Number(quota?.specialist_earned_amount ?? quota?.specialistEarnedAmount ?? 0),
+        payable: Number(quota?.specialist_payable_amount ?? quota?.specialistPayableAmount ?? 0),
+        payoutStatus: String(quota?.payout_status ?? quota?.payoutStatus ?? "accruing"),
+        sessionsUsed: Number(quota?.sessions_used ?? quota?.sessionsUsed ?? 0),
+        sessionQuota: Number(quota?.session_quota ?? quota?.sessionQuota ?? 0),
+      };
+    })
+    .filter(Boolean) as Array<{
+      id: string;
+      studentName: string;
+      earned: number;
+      payable: number;
+      payoutStatus: string;
+      sessionsUsed: number;
+      sessionQuota: number;
+    }>;
+
+  const earnedTotal = earningsRows.reduce((sum, row) => sum + row.earned, 0);
+  const payableTotal = earningsRows.reduce((sum, row) => sum + row.payable, 0);
+
   if (authLoading || isLoading) {
     return (
       <DashboardLayout>
@@ -171,9 +230,17 @@ export default function TutorGrowth() {
     <DashboardLayout>
       <div className="space-y-6">
         <div className="space-y-2">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Growth & Reflections</h1>
-          <p className="text-muted-foreground">Track your journey and celebrate every step forward</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Growth</h1>
+          <p className="text-muted-foreground">Review your reflections and your progression into paid live delivery.</p>
         </div>
+
+        <Tabs defaultValue="reflections" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="reflections">Reflections</TabsTrigger>
+            <TabsTrigger value="earnings">Earnings</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="reflections" className="space-y-6">
 
         {/* Stats */}
         <Card className="border p-4 sm:p-6">
@@ -396,6 +463,105 @@ export default function TutorGrowth() {
             </DialogContent>
           </Dialog>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="earnings" className="space-y-6">
+            {!canViewEarnings ? (
+              <Card className="border p-6 sm:p-8">
+                <div className="mx-auto max-w-2xl py-8 text-center">
+                  <div className="mx-auto mb-5 flex h-11 w-11 items-center justify-center rounded-md border border-primary/20 bg-primary/5">
+                    <LockKeyhole className="h-5 w-5 text-primary" />
+                  </div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
+                    Certified Live
+                  </p>
+                  <h2 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">
+                    Earnings unlock at Certified Live
+                  </h2>
+                  <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+                    This feature is available only for Certified Live Specialists. Your current mode is{" "}
+                    <span className="font-medium text-foreground">{formatSpecialistMode(operationalMode)}</span>.
+                    Training and Trial remain unpaid stages of the Specialist pathway.
+                  </p>
+                </div>
+              </Card>
+            ) : (
+              <>
+                <Card className="border p-5 sm:p-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <WalletCards className="h-5 w-5 text-primary" />
+                        <h2 className="text-lg font-semibold">Earnings</h2>
+                      </div>
+                      <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                        {isSandboxMode
+                          ? "Sandbox preview only. Sandbox activity does not create payable Specialist earnings."
+                          : "Earnings reflect evidence-backed qualifying delivery. Payout is released according to package-completion rules."}
+                      </p>
+                    </div>
+                    {isSandboxMode ? (
+                      <span className="w-fit rounded-md border border-primary/20 bg-primary/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
+                        Sandbox preview
+                      </span>
+                    ) : null}
+                  </div>
+                </Card>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Card className="border p-5 sm:p-6">
+                    <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground sm:text-xs">Earned</p>
+                    <p className="mt-2 text-2xl font-bold tabular-nums sm:text-3xl">{formatZar(earnedTotal)}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">Evidence-backed qualifying delivery recorded so far.</p>
+                  </Card>
+                  <Card className="border p-5 sm:p-6">
+                    <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground sm:text-xs">Payable</p>
+                    <p className="mt-2 text-2xl font-bold tabular-nums sm:text-3xl">{formatZar(payableTotal)}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">Amount currently released by package-completion rules.</p>
+                  </Card>
+                </div>
+
+                <Card className="border">
+                  <div className="border-b p-5 sm:p-6">
+                    <h3 className="text-base font-semibold">Earnings by student</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">Package progress and Specialist earning state.</p>
+                  </div>
+
+                  {earningsRows.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-muted-foreground">
+                      No package earning records are available yet.
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {earningsRows.map((row) => (
+                        <div key={row.id} className="grid gap-4 p-5 sm:grid-cols-[1.4fr_1fr_1fr_1fr] sm:items-center sm:p-6">
+                          <div>
+                            <p className="font-medium">{row.studentName}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Package progress {row.sessionsUsed}/{row.sessionQuota || "—"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Earned</p>
+                            <p className="mt-1 font-semibold tabular-nums">{formatZar(row.earned)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Payable</p>
+                            <p className="mt-1 font-semibold tabular-nums">{formatZar(row.payable)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Status</p>
+                            <p className="mt-1 text-sm font-medium capitalize">{row.payoutStatus.replace(/_/g, " ")}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              </>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
