@@ -80,7 +80,7 @@ interface DocumentRenderRules {
 }
 
 const DOCUMENT_RENDER_RULES: Record<string, DocumentRenderRules> = {
-  "Response Integrity-TCF-001": {
+  "Response Integrity-SCF-001": {
     nonListColonLines: [/^Document Reference:/i],
     numberedListIntroLines: [],
     plainListIntroLines: [/^[A-Z][A-Za-z0-9'().,\s/-]+:$/],
@@ -626,7 +626,7 @@ function TutorAgreementSubsection({ title, children }: { title: string; children
 
 function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formData: Record<string, string>) {
   switch (document.code) {
-    case "Response Integrity-TCF-001":
+    case "Response Integrity-SCF-001":
       return (
         <>
           <TutorAgreementSection title="Contractor Details">
@@ -907,7 +907,7 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
             <p>This Agreement is governed by the laws of South Africa. Disputes must first go to mediation before legal action.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Entire Agreement">
-            <p>This Agreement forms part of the contractor framework governing work on the platform, alongside Response Integrity-TCF-001, Response Integrity-EQV-002, and the Response Integrity Terms of Use. In case of conflict, the Company&apos;s operational interpretation prevails.</p>
+            <p>This Agreement forms part of the contractor framework governing work on the platform, alongside Response Integrity-SCF-001, Response Integrity-EQV-002, and the Response Integrity Terms of Use. In case of conflict, the Company&apos;s operational interpretation prevails.</p>
           </TutorAgreementSection>
           <TutorAgreementSection title="Acceptance">
             <p>By accepting this Agreement in the Response Integrity platform, the Contractor confirms:</p>
