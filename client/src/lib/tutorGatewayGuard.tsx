@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { SpecialistAccessLoadingScreen } from "@/components/layout/specialist-access-loading-screen";
 
 type TutorGatewaySession = {
   applicationStatus?: {
@@ -23,11 +24,7 @@ export function TutorGatewayGuard({ children }: { children: ReactNode }) {
   });
 
   if (authLoading || (isGatewayRoute && isAuthenticated && gatewayLoading)) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-        Loading specialist access...
-      </div>
-    );
+    return <SpecialistAccessLoadingScreen />;
   }
 
   if (!isAuthenticated) {

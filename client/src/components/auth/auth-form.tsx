@@ -270,9 +270,16 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
       
       navigate(redirectUrl, { replace: true });
     } catch (err: any) {
+      const errorMessage = String(err?.message || "");
+      const isNetworkFailure =
+        err instanceof TypeError &&
+        /failed to fetch|networkerror|load failed/i.test(errorMessage);
+
       toast({
-        title: "Error",
-        description: err?.message || "We're experiencing a technical issue. Please try again after a few hours.",
+        title: isNetworkFailure ? "Technical issue" : "Error",
+        description: isNetworkFailure
+          ? "We're experiencing a technical issue. Please try again later."
+          : errorMessage || "We're experiencing a technical issue. Please try again later.",
         variant: "destructive",
       });
     } finally {
