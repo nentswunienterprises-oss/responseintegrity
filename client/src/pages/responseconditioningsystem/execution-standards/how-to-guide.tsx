@@ -39,13 +39,13 @@ export default function ResponseConditioningHowToGuide() {
           completion={null}
         >
           <Card className="p-6 space-y-4 border-primary/25 bg-primary/5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-primary">The shift</p>
-            <h2 className="text-2xl font-bold">Guide Is Not a Phase</h2>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-primary">Core rule</p>
+            <h2 className="text-2xl font-bold">The Set Decides the Support</h2>
             <p className="text-muted-foreground">
-              Guide is not a universal third step that follows every student attempt.
+              Every RI training set has a defined support condition. That condition tells you whether you may model, guide minimally, confirm only the first step, or give no support.
             </p>
             <p className="text-muted-foreground">
-              In the earlier Model, Apply, Guide loop, guiding was the correction move after application. RI-OS now has four phases with explicit support conditions, so guidance can only happen when the active set permits it.
+              Do not increase help because the student hesitates, asks for reassurance, or produces a weak response. Preserve the assigned condition so the response stays trustworthy.
             </p>
             <p className="font-semibold">
               The Specialist does not decide how much to help. The active RI condition decides how much support is allowed.
@@ -313,7 +313,7 @@ export default function ResponseConditioningHowToGuide() {
           </Card>
 
           <Card className="p-6 space-y-5 border-primary/25 bg-primary/5">
-            <h2 className="text-2xl font-bold">The Evolved RI Loop</h2>
+            <h2 className="text-2xl font-bold">The RI Intervention Loop</h2>
             <div className="space-y-2 font-medium">
               <p>Establish the map.</p>
               <p>Expose the student under the assigned condition.</p>
@@ -324,7 +324,7 @@ export default function ResponseConditioningHowToGuide() {
               <p>Expose again under the next assigned condition.</p>
             </div>
             <p className="text-muted-foreground">
-              In Clarity, this can still feel like Model, Apply, Guide. Across RI-OS as a whole, the governing principle is more precise:
+              In Clarity, Model, Apply, Guide is the teaching rhythm. Across RI-OS as a whole, the governing principle is:
             </p>
             <p className="text-lg font-bold">
               Guidance is condition-owned, not Specialist-discretionary.
