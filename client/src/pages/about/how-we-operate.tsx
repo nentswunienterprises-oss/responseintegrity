@@ -297,7 +297,7 @@ export default function HowWeOperate() {
               <li>long-term academic resilience,</li>
               <li>and reliable performance under pressure.</li>
             </ul>
-            <p>Mathematics is the training arena.</p>
+            <p>Mathematics is the training area.</p>
             <p>But the deeper objective is helping students develop stronger cognitive and emotional stability when difficulty appears.</p>
           </CardContent>
         </Card>
