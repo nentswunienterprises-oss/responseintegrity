@@ -102,7 +102,7 @@ It trains:
 - Independence under uncertainty
 - Calm action under time pressure
 
-Mathematics is the arena.
+Mathematics is the area.
 
 The response is the skill.
 
@@ -352,7 +352,7 @@ A student becoming more stable under difficulty is real progress.
 ## What We Should Say More Often
 
 - We train response, not just understanding.
-- Math is the arena. Response is the skill.
+- Math is the area. Response is the skill.
 - Pressure preparation begins before pressure appears.
 - Confidence is not chased. It follows repeated stable execution.
 - Every topic has its own response state.
