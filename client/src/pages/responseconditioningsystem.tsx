@@ -266,7 +266,7 @@ export default function ResponseConditioningSystem() {
               </p>
             </div>
 
-            <Progress value={capabilityProgressPercent} className="h-2" />
+            <Progress value={capabilityProgressPercent} className="h-2 bg-[var(--ri-charcoal)]" />
 
             <p className="text-sm text-muted-foreground">
               {completedCapabilityChecks} of {totalCapabilityChecks} Deep Dive Capability Checks completed.
