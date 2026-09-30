@@ -1005,6 +1005,31 @@ html[data-ri-theme="dark"] .ri-specialist-surface .shadcn-card:hover {
   box-shadow: none !important;
 }
 
+/* Warm Dark: Specialist Alignment uses dark inner working blocks inside
+   the cream outer card so hierarchy comes from contrast, not shadow. */
+html[data-ri-theme="warm-dark"] .ri-pod-world .ri-alignment-inner-block {
+  --background: 0 0% 10.2%;
+  --foreground: 23.33 100% 96.47%;
+  --border: 350 12% 22%;
+  --muted: 350 8% 14%;
+  --muted-foreground: 350 12% 72%;
+  color-scheme: dark;
+  background: #151515 !important;
+  border-color: rgba(255, 240, 240, 0.10) !important;
+  color: var(--ri-cream);
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="warm-dark"] .ri-pod-world .ri-alignment-module-row {
+  --background: 0 0% 11.5%;
+  --foreground: 23.33 100% 96.47%;
+  --muted-foreground: 350 12% 72%;
+  background: #1D1D1D !important;
+  border-color: rgba(255, 240, 240, 0.10) !important;
+  color: var(--ri-cream);
+  box-shadow: none !important;
+}
+
 /* LOCKED RI MODES — specialist app-wide material treatment */
 /* Light deliberately stays on the original RI Light treatment from the first
    appearance-mode release. Later Specialist-wide material/control overrides
