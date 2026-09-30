@@ -124,7 +124,7 @@ export default function WhoWeAre() {
             </ul>
             <p>This system is not designed around urgency culture. It is designed around conditioning culture.</p>
 
-            <p>Mathematics is the training arena. But the deeper goal is helping students become more stable, intentional, and reliable when difficulty appears.</p>
+            <p>Mathematics is the training area. But the deeper goal is helping students become more stable, intentional, and reliable when difficulty appears.</p>
           </CardContent>
         </Card>
       </section>
