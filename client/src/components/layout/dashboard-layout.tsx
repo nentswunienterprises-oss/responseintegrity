@@ -511,9 +511,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const useIntegrityBrand =
     !!effectiveUser && (isAffiliate(effectiveUser) || isOD(effectiveUser));
+  const useSpecialistTheme = !!effectiveUser && isTutor(effectiveUser);
+  const useSpecialistSurface =
+    useSpecialistTheme && location.pathname !== "/specialist/pod";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen bg-background${useSpecialistTheme ? " ri-world-page ri-specialist-world" : ""}`}>
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="h-16 px-4 flex items-center justify-between gap-4">
@@ -689,7 +692,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </header>
 
       {/* Main Content - Add bottom padding on mobile for bottom nav */}
-      <main className="max-w-7xl mx-auto px-3 py-4 sm:px-4 md:px-6 md:py-8 pb-20 md:pb-8">{children}</main>
+      <main className={`max-w-7xl mx-auto px-3 py-4 sm:px-4 md:px-6 md:py-8 pb-20 md:pb-8${useSpecialistSurface ? " ri-specialist-surface" : ""}`}>{children}</main>
       
       {/* Mobile Bottom Tab Navigator */}
       <MobileBottomNav navItems={navItems} unreadCount={navUnreadCount} />
