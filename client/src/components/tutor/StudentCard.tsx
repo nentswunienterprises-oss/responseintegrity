@@ -132,9 +132,9 @@ function trimRationaleSignals(rawValue) {
 }
 
 function scoreTone(score) {
-  if (score >= 6) return "text-red-700 border-red-200 bg-red-50";
-  if (score >= 3) return "text-amber-700 border-amber-200 bg-amber-50";
-  return "text-slate-600 border-slate-200 bg-slate-50";
+  if (score >= 6) return "text-primary border-primary/35 bg-primary/10";
+  if (score >= 3) return "text-[var(--ri-world-blush)] border-primary/20 bg-primary/[0.06]";
+  return "text-muted-foreground border-border bg-muted/30";
 }
 
 function formatRelativeTime(date) {
@@ -172,12 +172,12 @@ function usesDirectDrillLaunch(operationalMode?: string | null) {
 }
 
 const SANDBOX_CARD_THEMES = [
-  { accent: "#D95D39", background: "#FFF1EC", border: "#F0B5A5" },
-  { accent: "#B7791F", background: "#FFF8E7", border: "#E8C982" },
-  { accent: "#2F855A", background: "#ECFDF3", border: "#A7D8B8" },
-  { accent: "#2B6CB0", background: "#EDF6FF", border: "#A9C9EA" },
-  { accent: "#805AD5", background: "#F4F0FF", border: "#CBBBF0" },
-  { accent: "#B83280", background: "#FFF0F7", border: "#E8B1CF" },
+  { accent: "#E63946", background: "#241B1D", border: "#6E3038" },
+  { accent: "#F06A75", background: "#231C1E", border: "#60343A" },
+  { accent: "#FFF0F0", background: "#211B1C", border: "#584044" },
+  { accent: "#E63946", background: "#1F1A1B", border: "#7A343D" },
+  { accent: "#F3B8BD", background: "#261E20", border: "#5E4045" },
+  { accent: "#FFF5ED", background: "#211C1D", border: "#614047" },
 ];
 
 function getSandboxCardTheme(student: any) {
@@ -735,14 +735,14 @@ export function StudentCard({
   return (
     <div
       data-student-id={String(student.id)}
-      className="relative rounded-2xl border border-black/25 bg-background p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6 tutor-pod-student-card"
+      className="relative rounded-2xl border border-primary/15 bg-background p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6 tutor-pod-student-card"
       style={sandboxCardTheme ? { borderColor: sandboxCardTheme.border } : undefined}
     >
       <div className="pointer-events-none absolute inset-0">
-        <span className="absolute left-3 top-3 h-3 w-3 border-l border-t border-black/55" />
-        <span className="absolute right-3 top-3 h-3 w-3 border-r border-t border-black/55" />
-        <span className="absolute bottom-3 left-3 h-3 w-3 border-b border-l border-black/55" />
-        <span className="absolute bottom-3 right-3 h-3 w-3 border-b border-r border-black/55" />
+        <span className="absolute left-3 top-3 h-3 w-3 border-l border-t border-primary/55" />
+        <span className="absolute right-3 top-3 h-3 w-3 border-r border-t border-primary/55" />
+        <span className="absolute bottom-3 left-3 h-3 w-3 border-b border-l border-primary/55" />
+        <span className="absolute bottom-3 right-3 h-3 w-3 border-b border-r border-primary/55" />
       </div>
       {sandboxCardTheme && (
         <div
@@ -751,7 +751,7 @@ export function StudentCard({
         >
           <div className="flex items-center gap-2">
             <span
-              className="h-3 w-3 rounded-full ring-2 ring-white/80"
+              className="h-3 w-3 rounded-full ring-2 ring-[var(--ri-world-blush)]/20"
               style={{ backgroundColor: sandboxCardTheme.accent }}
             />
             <span className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: sandboxCardTheme.accent }}>
@@ -1194,9 +1194,9 @@ function HandoverVerificationSection({
     <div className="pt-4 border-t border-border/60 space-y-3">
       <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Tutor Handover Verification</p>
 
-      <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 space-y-2">
-        <p className="text-sm font-semibold text-blue-950">Inherited training state is active for {studentName}.</p>
-        <p className="text-xs text-blue-900">
+      <div className="rounded-xl border border-primary/25 bg-primary/[0.07] px-4 py-3 space-y-2">
+        <p className="text-sm font-semibold text-foreground">Inherited training state is active for {studentName}.</p>
+        <p className="text-xs text-muted-foreground">
           This student is not being re-onboarded. Use the continuity check to verify the carry-over topic-state before resuming standard training actions.
         </p>
       </div>
