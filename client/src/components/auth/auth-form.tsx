@@ -143,8 +143,10 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
       // No validation needed - empty code will be sent as null to backend
 
       if (mode === "signup") {
-        const emergencyDbMode = (await getAuthMode()).emergencyDbMode;
-        if (emergencyDbMode && role !== "tutor") {
+        const authMode = await getAuthMode();
+        const directSpecialistSession =
+          role === "tutor" && (authMode.emergencyDbMode || authMode.proofDbAuthMode);
+        if (authMode.emergencyDbMode && role !== "tutor") {
           throw new Error("New account creation is temporarily available for specialists only.");
         }
 
@@ -179,7 +181,7 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
           throw new Error(data.message || "Signup failed");
         }
         
-        if (emergencyDbMode) {
+        if (directSpecialistSession) {
           if (data.dbUser) {
             queryClient.setQueryData(["/api/auth/user"], data.dbUser);
             if (data.dbUser.id) {
@@ -212,7 +214,9 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
       }
 
       if (mode === "login") {
-        const emergencyDbMode = (await getAuthMode()).emergencyDbMode;
+        const authMode = await getAuthMode();
+        const directSpecialistSession =
+          role === "tutor" && (authMode.emergencyDbMode || authMode.proofDbAuthMode);
         // Call backend signin endpoint with role validation
         const response = await fetch(`${API_URL}/api/auth/signin`, {
           method: "POST",
@@ -234,7 +238,7 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
           }
         }
 
-        if (!emergencyDbMode) {
+        if (!directSpecialistSession) {
           const { data: loginData, error: supabaseError } = await supabase.auth.signInWithPassword({ email, password });
           if (supabaseError) {
             console.warn("Supabase client signin failed:", supabaseError.message);
