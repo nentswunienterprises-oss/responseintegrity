@@ -96,7 +96,7 @@ export default function Landing() {
             </h1>
             
             <p className="text-base sm:text-lg md:text-xl leading-relaxed" style={{ color: "#5A5A5A" }}>
-              At Response Integrity, math is the training arena.
+              At Response Integrity, math is the training area.
               Our tutors work with <span className="font-semibold" style={{ color: "#1A1A1A" }}>Grade 6–9 students</span> to 
               build calm, repeatable execution when work gets hard.
             </p>
