@@ -18,7 +18,7 @@ import {
 } from "@shared/productionLinks";
 import { getDefaultDashboardRoute } from "@shared/portals";
 import { getAllowedOdEmailList, isAllowedOdEmail, normalizeEmail } from "@shared/odAccess";
-import { isEmergencyDbMode } from "./emergencyMode";
+import { isEmergencyDbMode, isProofDbAuthMode } from "./emergencyMode";
 import {
   authenticateEmergencyUser,
   createEmergencyTutorAccount,
@@ -117,13 +117,15 @@ export async function setupAuth(app: Express) {
   // the selected auth mode when the session store itself is unhealthy.
   app.get("/api/auth/mode", (_req: Request, res: Response) => {
     const emergencyDbMode = isEmergencyDbMode();
-    const isPreview = process.env.VERCEL_ENV === "preview";
+    const proofDbAuthMode = isProofDbAuthMode();
+    const isDiagnosticRuntime =
+      process.env.VERCEL_ENV === "preview" || process.env.NODE_ENV === "development";
     const databaseTarget =
-      isPreview && process.env.DATABASE_URL
+      isDiagnosticRuntime && process.env.DATABASE_URL
         ? describeRuntimeDatabaseTarget(process.env.DATABASE_URL)
         : undefined;
     const supabaseTarget =
-      isPreview && process.env.SUPABASE_URL
+      isDiagnosticRuntime && process.env.SUPABASE_URL
         ? describeSupabaseApiTarget(process.env.SUPABASE_URL)
         : undefined;
     const runtimeTargetsAligned =
@@ -133,7 +135,13 @@ export async function setupAuth(app: Express) {
 
     res.json({
       emergencyDbMode,
-      authMode: emergencyDbMode ? "db-session" : "supabase",
+      proofDbAuthMode,
+      dbSessionAuthMode: emergencyDbMode || proofDbAuthMode,
+      authMode: emergencyDbMode
+        ? "db-session"
+        : proofDbAuthMode
+          ? "proof-db-session"
+          : "supabase",
       ...(databaseTarget ? { databaseTarget } : {}),
       ...(supabaseTarget ? { supabaseTarget } : {}),
       ...(runtimeTargetsAligned !== undefined ? { runtimeTargetsAligned } : {}),
