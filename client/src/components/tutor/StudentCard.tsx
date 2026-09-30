@@ -751,7 +751,7 @@ export function StudentCard({
         >
           <div className="flex items-center gap-2">
             <span
-              className="h-3 w-3 rounded-full ring-2 ring-[var(--ri-world-blush)]/20"
+              className="h-3 w-3 rounded-full ring-2 ring-primary/20"
               style={{ backgroundColor: sandboxCardTheme.accent }}
             />
             <span className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: sandboxCardTheme.accent }}>
@@ -950,7 +950,7 @@ export function StudentCard({
               Review Assignment
             </Button>
             {respondToAssignment.isError && (
-              <p className="text-xs text-red-600 text-center">
+              <p className="text-xs text-primary text-center">
                 {respondToAssignment.error instanceof Error
                   ? respondToAssignment.error.message
                   : "Failed to submit assignment decision"}
@@ -1080,7 +1080,7 @@ export function StudentCard({
                 <span className="inline-flex items-center gap-2">
                   <span>Communication</span>
                   {communicationUnreadCount > 0 ? (
-                    <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                    <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-white">
                       {communicationUnreadCount}
                     </span>
                   ) : null}
@@ -1234,16 +1234,16 @@ function HandoverVerificationSection({
           <p className="text-xs text-muted-foreground">Status: {sessionStatus || "pending"}</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <p className="text-sm font-medium text-amber-900">Waiting for parent schedule proposal.</p>
-          <p className="mt-1 text-xs text-amber-800">
+        <div className="rounded-xl border border-primary/25 bg-primary/[0.07] px-4 py-3">
+          <p className="text-sm font-medium text-foreground">Waiting for parent schedule proposal.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
             Once the parent proposes a time, confirm or adjust it here just like an intro booking.
           </p>
         </div>
       )}
 
       {latestSummary ? (
-        <div className={`rounded-xl border px-4 py-3 space-y-2 ${reDiagnosisRequired ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}>
+        <div className={`rounded-xl border px-4 py-3 space-y-2 ${reDiagnosisRequired ? "border-primary/35 bg-primary/10" : "border-[rgba(255,240,240,0.14)] bg-[rgba(255,240,240,0.035)]"}`}>
           <p className="text-[11px] font-semibold text-foreground">Latest Handover Result</p>
           <p className="text-sm font-medium text-foreground">{latestSummary.verificationOutcomeLabel || "Verification submitted"}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1326,7 +1326,7 @@ function HandoverVerificationSection({
       )}
 
       {completionError ? (
-        <p className="text-xs text-red-600 text-center">{completionError}</p>
+        <p className="text-xs text-primary text-center">{completionError}</p>
       ) : null}
     </div>
   );
@@ -1590,7 +1590,7 @@ function IntroDiagnosticTopicSection({
                   placeholder="e.g. Linear equations"
                 />
               )}
-              {activationError ? <p className="text-xs text-red-500 mt-1">{activationError}</p> : null}
+              {activationError ? <p className="text-xs text-primary mt-1">{activationError}</p> : null}
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
@@ -1646,7 +1646,7 @@ function IntroDiagnosticTopicSection({
         Intro Diagnostic Topic: <span className="font-semibold text-foreground">{activatedTopic}</span>
       </p>
       {!directDrillLaunch && (!introSession?.id || !["confirmed", "ready", "live", "scheduled"].includes(String(introSession?.status || ""))) ? (
-        <p className="text-xs text-amber-700 text-center">
+        <p className="text-xs text-primary text-center">
           Confirm the intro lesson before entering the drill runner.
         </p>
       ) : null}
@@ -1685,7 +1685,7 @@ function IntroDiagnosticTopicSection({
                 placeholder="e.g. Linear equations"
               />
             )}
-            {activationError ? <p className="text-xs text-red-500 mt-1">{activationError}</p> : null}
+            {activationError ? <p className="text-xs text-primary mt-1">{activationError}</p> : null}
             <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
               <Button onClick={handleActivate}>Save Topic</Button>
