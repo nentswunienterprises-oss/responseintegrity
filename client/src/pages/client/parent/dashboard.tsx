@@ -1102,7 +1102,7 @@ export default function ParentDashboard() {
 
             <div>
               <h3 className="font-semibold text-base mb-2">The simplest way to understand it</h3>
-              <p className="font-medium mb-2">A topic is the training arena.</p>
+              <p className="font-medium mb-2">A topic is the training area.</p>
               <p className="mb-2">Examples:</p>
               <ul className="space-y-1 ml-4 mb-3">
                 <li className="flex gap-2"><span className="text-muted-foreground">•</span> <span>Fractions</span></li>
@@ -1119,7 +1119,7 @@ export default function ParentDashboard() {
                 <li className="flex gap-2"><span className="text-muted-foreground">•</span> <span>Controlled Discomfort</span></li>
                 <li className="flex gap-2"><span className="text-muted-foreground">•</span> <span>Time Pressure Stability</span></li>
               </ul>
-              <p className="mt-3">So Topic Conditioning means: A school topic becomes the arena where Response Integrity-OS trains the student's response.</p>
+              <p className="mt-3">So Topic Conditioning means: A school topic becomes the area where Response Integrity-OS trains the student's response.</p>
             </div>
 
             <div>
