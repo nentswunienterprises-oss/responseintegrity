@@ -278,8 +278,8 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
       toast({
         title: isNetworkFailure ? "Technical issue" : "Error",
         description: isNetworkFailure
-          ? "We're experiencing a technical issue. Please try again."
-          : errorMessage || "We're experiencing a technical issue. Please try again.",
+          ? "We're experiencing a technical issue. Please try again later."
+          : errorMessage || "We're experiencing a technical issue. Please try again later.",
         variant: "destructive",
       });
     } finally {
