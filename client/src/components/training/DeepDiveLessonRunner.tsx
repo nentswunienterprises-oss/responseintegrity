@@ -115,7 +115,7 @@ export function DeepDiveLessonRunner({
 
   return (
     <div ref={topRef} className="mx-auto max-w-3xl space-y-6 scroll-mt-4">
-      <div className="sticky top-0 z-20 -mx-4 border-b bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+      <div className="ri-lesson-chrome sticky top-0 z-20 -mx-4 border-b bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/85">
         <div className="mx-auto max-w-3xl space-y-2">
           <div className="flex items-center justify-between gap-4 text-sm">
             <p className="font-medium">{title}</p>
@@ -133,7 +133,7 @@ export function DeepDiveLessonRunner({
       </div>
 
       {complete ? (
-        <Card className="p-6 space-y-3 border-primary/30 bg-primary/5">
+        <Card className="ri-completion-card p-6 space-y-3 border-primary/30 bg-primary/5">
           <div className="flex items-center gap-2">
             
             <p className="font-semibold">Deep Dive complete</p>
@@ -145,9 +145,9 @@ export function DeepDiveLessonRunner({
         </Card>
       ) : (
         <>
-          <div key={stepIndex}>{renderedStep}</div>
+          <div key={stepIndex} className="ri-lesson-step">{renderedStep}</div>
 
-          <div className="flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="ri-lesson-nav flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
             <Button
               variant="ghost"
               disabled={stepIndex === 0}
