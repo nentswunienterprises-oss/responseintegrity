@@ -648,7 +648,7 @@ body:has(.ri-world-page) header {
 }
 
 
-/* RI Pod outer cards use square corners */
+/* RI Pod outer cards use restrained corners */
 .ri-pod-world .shadcn-card {
-  border-radius: 0;
+  border-radius: 0.375rem;
 }
