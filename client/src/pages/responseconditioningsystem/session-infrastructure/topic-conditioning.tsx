@@ -120,29 +120,6 @@ export default function ResponseConditioningTopicConditioning() {
           <p className="font-semibold">If not, the topic is not conditioned yet.</p>
         </Card>
 
-        <DeepDiveTeachingInteraction
-          prompt="Algebra is at Structured Execution High Maintenance. Fractions is newly placed at Clarity Medium. What should govern the first Fractions training session?"
-          options={[
-            {
-              key: "a",
-              label: "Use the Algebra state provisionally, then move Fractions back only if the first rep breaks.",
-              feedback: "Borrowing another topic's state treats transfer as proven before Fractions has produced that evidence. The Fractions state already tells you where to begin.",
-            },
-            {
-              key: "b",
-              label: "Begin from Fractions at Clarity Medium and let Fractions evidence determine its movement.",
-              feedback: "Yes. Another topic can show what the student is capable of elsewhere, but it cannot replace the active topic's own evidence history.",
-            },
-            {
-              key: "c",
-              label: "Start both topics from the lower state so the programme stays consistent.",
-              feedback: "Consistency does not mean one shared state. RI preserves different topic histories when the evidence differs.",
-            },
-          ]}
-          correctOptionKey="b"
-          truth="Topic state is local to the topic. Strength in Algebra can be useful context, but Fractions begins from the phase and stability supported by Fractions evidence."
-        />
-
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">The core structure</h2>
           <p className="text-muted-foreground">Topic Conditioning in Response Integrity works like this:</p>
@@ -299,6 +276,29 @@ export default function ResponseConditioningTopicConditioning() {
           <p className="font-semibold">They are: conditioned in some arenas, unconditioned in others.</p>
           <p className="text-muted-foreground">That is a much more accurate way to see performance.</p>
         </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="Algebra is at Structured Execution High Maintenance. Fractions is newly placed at Clarity Medium. What should govern the first Fractions training session?"
+          options={[
+            {
+              key: "a",
+              label: "Use the Algebra state provisionally, then move Fractions back only if the first rep breaks.",
+              feedback: "Borrowing another topic's state treats transfer as proven before Fractions has produced that evidence. The Fractions state already tells you where to begin.",
+            },
+            {
+              key: "b",
+              label: "Begin from Fractions at Clarity Medium and let Fractions evidence determine its movement.",
+              feedback: "Yes. Another topic can show what the student is capable of elsewhere, but it cannot replace the active topic's own evidence history.",
+            },
+            {
+              key: "c",
+              label: "Start both topics from the lower state so the programme stays consistent.",
+              feedback: "Consistency does not mean one shared state. RI preserves different topic histories when the evidence differs.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Topic state is local to the topic. Strength in Algebra can be useful context, but Fractions begins from the phase and stability supported by Fractions evidence."
+        />
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">How a topic is chosen</h2>
