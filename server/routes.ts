@@ -22024,7 +22024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const { id } = req.params;
         const docStep = Number(req.params.docStep);
         const { approved, rejectionReason, completedDocumentUrl } = req.body;
-        const reviewerId = (req.session as any).userId;
+        const reviewerId = (req as any).dbUser.id;
 
         if (docStep !== 2 && docStep !== 6) {
           return res.status(400).json({ message: "Only step 2 Matric certificate uploads and step 6 certified ID uploads require COO review." });

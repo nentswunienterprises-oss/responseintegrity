@@ -14,7 +14,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { API_URL } from "@/lib/config";
+import { apiRequest } from "@/lib/queryClient";
 import { CheckCircle2, ChevronDown, Download, ExternalLink, FileCheck, Loader2, ShieldCheck, XCircle } from "lucide-react";
 
 interface TutorDocumentReviewProps {
@@ -535,17 +535,12 @@ export function TutorDocumentReview({ application, onReview }: TutorDocumentRevi
 
   const reviewMutation = useMutation({
     mutationFn: async ({ step, approved, rejectionReason: reason }: { step: 2 | 6; approved: boolean; rejectionReason?: string }) => {
-      const response = await fetch(`${API_URL}/api/coo/tutor/${application.id}/document/${step}/review`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ approved, rejectionReason: reason }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload?.message || "Failed to review onboarding upload");
-      }
-      return payload;
+      const response = await apiRequest(
+        "POST",
+        `/api/coo/tutor/${application.id}/document/${step}/review`,
+        { approved, rejectionReason: reason },
+      );
+      return await response.json().catch(() => ({}));
     },
     onSuccess: (payload) => {
       queryClient.invalidateQueries({ queryKey: ["/api/coo/tutor-applications"] });

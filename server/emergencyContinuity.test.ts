@@ -1134,3 +1134,34 @@ test("proposal surfaces ignore partial evidence-native diagnosis artifacts", () 
     /!state\.finalized && state\.decision\?\.complete[\s\S]*?postHistory\(id, state\.probeHistory\)/,
   );
 });
+
+
+test("Preview proof keeps Supabase identities isolated per browser tab", () => {
+  const source = readFileSync(resolve(process.cwd(), "client/src/lib/supabaseClient.ts"), "utf8");
+  assert.match(source, /hostname\.endsWith\("\.vercel\.app"\)/);
+  assert.match(source, /window\.sessionStorage/);
+  assert.match(source, /window\.localStorage/);
+  assert.match(source, /storage:\s*authStorage/);
+});
+
+test("COO Specialist document review sends the active tab bearer identity", () => {
+  const source = readFileSync(resolve(process.cwd(), "client/src/components/tutor/TutorDocumentReview.tsx"), "utf8");
+  const reviewStart = source.indexOf("const reviewMutation = useMutation");
+  const reviewEnd = source.indexOf("const openRejectDialog", reviewStart);
+  const review = source.slice(reviewStart, reviewEnd);
+
+  assert.match(review, /apiRequest\(/);
+  assert.match(review, /\/api\/coo\/tutor\/\$\{application\.id\}\/document\/\$\{step\}\/review/);
+  assert.doesNotMatch(review, /fetch\(/);
+});
+
+test("COO Specialist document review records the authenticated dbUser as reviewer", () => {
+  const source = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
+  const reviewStart = source.indexOf('"/api/coo/tutor/:id/document/:docStep/review"');
+  const reviewEnd = source.indexOf("// Get tutor's own applications", reviewStart);
+  const review = source.slice(reviewStart, reviewEnd);
+
+  assert.match(review, /requireRole\(\["coo"\]\)/);
+  assert.match(review, /const reviewerId = \(req as any\)\.dbUser\.id/);
+  assert.doesNotMatch(review, /const reviewerId = \(req\.session as any\)\.userId/);
+});

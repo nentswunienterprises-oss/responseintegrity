@@ -9,11 +9,20 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase environment variables in Vite build");
 }
 
+const authStorage =
+  typeof window !== "undefined"
+    ? window.location.hostname.endsWith(".vercel.app")
+      ? window.sessionStorage
+      : window.localStorage
+    : undefined;
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     detectSessionInUrl: true,
-    storage: window?.localStorage ?? undefined,
+    // Preview proof commonly exercises COO and Specialist in parallel tabs.
+    // Keep those identities tab-isolated without changing production persistence.
+    storage: authStorage,
     autoRefreshToken: true,
     flowType: 'pkce',
   }
@@ -21,12 +30,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Keep any existing Supabase session intact across reloads so auth state
 // does not get invalidated by the browser on startup.
-if (typeof window !== 'undefined') {
+if (authStorage) {
   try {
     const key = `sb-${supabaseUrl?.split('/').pop()}-auth-token`;
-    const raw = window.localStorage.getItem(key);
+    const raw = authStorage.getItem(key);
     if (!raw) {
-      window.localStorage.removeItem(key);
+      authStorage.removeItem(key);
     }
   } catch (e) {
     console.error("Error checking Supabase auth storage:", e);
