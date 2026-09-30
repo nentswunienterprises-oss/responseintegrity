@@ -175,7 +175,7 @@ export default function ResponseConditioningSystem() {
     <div className="min-h-screen bg-background">
       <div className="border-b border-border/80 bg-background">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-          <div className="rounded-3xl border border-primary/15 bg-background p-6 shadow-sm">
+          <div className="ri-world-hero rounded-3xl border border-primary/15 bg-background p-6 shadow-sm">
             <Button variant="ghost" className="mb-6 -ml-2" asChild>
               <Link to="/specialist/pod">
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -200,7 +200,7 @@ export default function ResponseConditioningSystem() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-12 space-y-8">
-        <Card className="group border border-primary/15 bg-card shadow-sm hover:border-primary/40 transition-colors">
+        <Card className="ri-module-card group border border-primary/15 bg-card shadow-sm hover:border-primary/40 transition-colors">
           <Link
             to="/responseconditioningsystem/introduction"
             className="flex flex-col gap-5 p-6 sm:flex-row sm:items-start sm:justify-between"
@@ -223,7 +223,7 @@ export default function ResponseConditioningSystem() {
             return (
               <Card
                 key={module.id}
-                className="group border border-primary/15 bg-card shadow-sm hover:border-primary/40 transition-colors"
+                className="ri-module-card group border border-primary/15 bg-card shadow-sm hover:border-primary/40 transition-colors"
               >
                 <div className="p-6 h-full flex flex-col gap-5">
                   <div className="flex items-start justify-between gap-4">
@@ -252,7 +252,7 @@ export default function ResponseConditioningSystem() {
           })}
         </div>
 
-        <Card className="border border-primary/15 bg-card shadow-sm">
+        <Card className="ri-focus-card border border-primary/15 bg-card shadow-sm">
           <div className="p-6 space-y-4">
             <div className="flex items-end justify-between gap-4">
               <div>
