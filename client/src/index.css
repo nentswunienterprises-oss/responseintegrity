@@ -783,13 +783,30 @@ html[data-ri-theme="light"] .ri-os-world .ri-completion-card {
   box-shadow: none !important;
 }
 
-html[data-ri-theme="light"] .ri-world-page .ri-world-hero {
-  border-radius: 1rem;
+html[data-ri-theme="light"] .ri-world-page .ri-world-hero,
+html[data-ri-theme="light"] .ri-pod-world .shadcn-card,
+html[data-ri-theme="light"] .ri-os-world .shadcn-card,
+html[data-ri-theme="light"] .ri-specialist-surface .rounded-xl,
+html[data-ri-theme="light"] .ri-specialist-surface .rounded-2xl,
+html[data-ri-theme="light"] .ri-specialist-surface .rounded-3xl,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-button,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-input,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-textarea,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-select-trigger,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-tabs-list,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-dialog-content,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-menu-content,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-popover-content,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-alert {
+  border-radius: 0.375rem;
 }
 
-html[data-ri-theme="light"] .ri-pod-world .shadcn-card,
-html[data-ri-theme="light"] .ri-os-world .shadcn-card {
-  border-radius: 0.75rem;
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-badge,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-tabs-trigger,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-menu-item,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-menu-subtrigger,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-select-item {
+  border-radius: 0.25rem;
 }
 
 html[data-ri-theme="light"] .ri-world-page .ri-world-hero::before,
