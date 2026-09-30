@@ -299,6 +299,22 @@ test("emergency tutor signup cannot invoke Supabase HTTP", () => {
   assert.match(emergencyBranch, /createEmergencyTutorAccount\(/);
 });
 
+test("emergency tutor signup establishes the Proof session immediately", () => {
+  const authSource = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
+  const signupStart = authSource.indexOf('app.post("/api/auth/signup"');
+  const emergencyBranch = authSource.slice(
+    authSource.indexOf("if (isEmergencyDbMode()) {", signupStart),
+    authSource.indexOf("// Create user in Supabase Auth with metadata", signupStart),
+  );
+
+  assert.match(emergencyBranch, /req\.session as any\)\.userId = user\.id/);
+  assert.match(emergencyBranch, /req\.session as any\)\.email = user\.email/);
+  assert.match(emergencyBranch, /req\.session\.save/);
+  assert.match(emergencyBranch, /redirectUrl/);
+  assert.match(emergencyBranch, /Signup successful/);
+  assert.doesNotMatch(emergencyBranch, /Please log in to continue/);
+});
+
 test("client emergency signup and login do not invoke Supabase Auth", () => {
   const authFormSource = readFileSync(
     resolve(process.cwd(), "client/src/components/auth/auth-form.tsx"),
@@ -314,6 +330,10 @@ test("client emergency signup and login do not invoke Supabase Auth", () => {
   );
   assert.doesNotMatch(emergencySignupBlock, /supabase\.auth/);
   assert.match(authFormSource, /if \(!emergencyDbMode\) \{[\s\S]*?supabase\.auth\.signInWithPassword/);
+  assert.match(signupBranch, /if \(emergencyDbMode\) \{[\s\S]*?queryClient\.setQueryData\(\["\/api\/auth\/user"\]/);
+  assert.match(signupBranch, /redirectUrl = data\.redirectUrl \|\| getDefaultDashboardRoute\(role\)/);
+  assert.doesNotMatch(authFormSource, /onEmergencySignupSuccess/);
+  assert.doesNotMatch(signupBranch, /Please log in to continue/);
 });
 
 test("emergency tutor application submission cannot invoke Supabase HTTP", () => {
