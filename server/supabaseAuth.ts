@@ -314,6 +314,9 @@ export async function setupAuth(app: Express) {
       // Create user in Supabase Auth with metadata
       // NOTE: NOT passing metadata here due to trigger issues
       // We'll create the user record manually after auth succeeds
+      const isPreviewSpecialistSignup =
+        process.env.VERCEL_ENV === "preview" &&
+        role === "tutor";
       const isPreviewSmokeIdentity =
         process.env.VERCEL_ENV === "preview" &&
         normalizedEmail.endsWith("@smoke.responseintegrity.co.za");
@@ -321,7 +324,28 @@ export async function setupAuth(app: Express) {
       let authData: any;
       let authError: any = null;
 
-      if (isPreviewSmokeIdentity) {
+      if (isPreviewSpecialistSignup) {
+        // Preview proof must not depend on shared SMTP capacity. Create a real
+        // password identity and confirm it server-side so Specialist testing can
+        // proceed even when Supabase's built-in email sender is rate-limited.
+        const previewSpecialistResult = await serverSupabase.auth.admin.createUser({
+          email: normalizedEmail,
+          password,
+          email_confirm: true,
+        });
+        authData = {
+          user: previewSpecialistResult.data.user,
+          session: null,
+        };
+        authError = previewSpecialistResult.error;
+
+        if (!authError && authData.user) {
+          console.log("[PREVIEW AUTH] created confirmed Specialist proof identity", {
+            email: normalizedEmail,
+            userId: authData.user.id,
+          });
+        }
+      } else if (isPreviewSmokeIdentity) {
         const smokeUserId = randomUUID();
         await pool.query(
           `INSERT INTO auth.users
@@ -390,7 +414,7 @@ export async function setupAuth(app: Express) {
       if (insertError) {
         console.error("❌ Error creating user record:", insertError);
         // Try to delete the auth user since we couldn't create the user record
-        await supabase.auth.admin.deleteUser(authData.user.id).catch(err => {
+        await serverSupabase.auth.admin.deleteUser(authData.user.id).catch(err => {
           console.error("Could not delete failed auth user:", err);
         });
         return res.status(500).json({ message: "Failed to create user profile" });
@@ -421,7 +445,7 @@ export async function setupAuth(app: Express) {
           );
         } catch (error) {
           console.error("[SIGNUP] Failed to persist specialist Production Link attribution:", error);
-          await supabase.auth.admin.deleteUser(user.id).catch((cleanupError) => {
+          await serverSupabase.auth.admin.deleteUser(user.id).catch((cleanupError) => {
             console.error("Could not delete account after attribution failure:", cleanupError);
           });
           return res.status(500).json({ message: "Failed to persist Production Link attribution" });
@@ -743,6 +767,15 @@ export async function setupAuth(app: Express) {
               });
             }
           }
+        }
+
+        const isEmailNotConfirmed =
+          authError.code === "email_not_confirmed" ||
+          /email not confirmed/i.test(authError.message || "");
+        if (isEmailNotConfirmed) {
+          return res.status(403).json({
+            message: "Email confirmation is required before you can log in.",
+          });
         }
 
         const isRateLimited =

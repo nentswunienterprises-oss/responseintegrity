@@ -30,3 +30,27 @@ test("Preview synthetic sandbox persona fallback remains Preview-only and creden
   assert.match(fallback, /emergencyExpectedRoleMatches\(fallbackUser\.role, expectedRole\)/);
   assert.doesNotMatch(fallback, /process\.env\.VERCEL_ENV === "production"/);
 });
+
+
+test("Preview Specialist signup bypasses email delivery with a confirmed password identity", () => {
+  const source = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
+  const signupStart = source.indexOf('app.post("/api/auth/signup"');
+  const signinStart = source.indexOf('app.post("/api/auth/signin"', signupStart);
+  const signup = source.slice(signupStart, signinStart);
+
+  assert.match(signup, /const isPreviewSpecialistSignup =[\s\S]*?process\.env\.VERCEL_ENV === "preview"[\s\S]*?role === "tutor"/);
+  assert.match(signup, /if \(isPreviewSpecialistSignup\) \{[\s\S]*?serverSupabase\.auth\.admin\.createUser\(\{/);
+  assert.match(signup, /serverSupabase\.auth\.admin\.createUser\(\{[\s\S]*?password,[\s\S]*?email_confirm:\s*true/);
+  assert.match(signup, /\} else if \(isPreviewSmokeIdentity\) \{/);
+  assert.match(signup, /\} else \{[\s\S]*?supabase\.auth\.signUp\(\{/);
+});
+
+test("signin surfaces unconfirmed email instead of reporting a bad password", () => {
+  const source = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
+  const signinStart = source.indexOf('app.post("/api/auth/signin"');
+  const signin = source.slice(signinStart);
+
+  assert.match(signin, /authError\.code === "email_not_confirmed"/);
+  assert.match(signin, /Email confirmation is required before you can log in\./);
+  assert.match(signin, /authError\.code === "over_request_rate_limit"/);
+});
