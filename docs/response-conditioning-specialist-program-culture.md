@@ -171,7 +171,7 @@ What they receive:
 - orientation to the Response Conditioning identity
 - clarity on the standard that must be earned
 
-### Phase 2: The Training Arena
+### Phase 2: The Training Area
 The entrant becomes a Training candidate.
 
 Here they begin learning the doctrine:
