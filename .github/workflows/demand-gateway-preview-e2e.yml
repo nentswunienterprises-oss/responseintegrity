@@ -149,7 +149,11 @@ jobs:
           }));
           if (!response.ok) process.exit(1);
           const body = JSON.parse(text);
-          if (body?.emergencyDbMode !== false || body?.authMode !== "supabase") {
+          if (
+            body?.emergencyDbMode !== false ||
+            body?.proofDbAuthMode !== true ||
+            body?.authMode !== "proof-db-session"
+          ) {
             console.error("Unexpected auth mode", JSON.stringify(body));
             process.exit(1);
           }
