@@ -28,10 +28,10 @@ const DOC_ROOT = resolve(process.cwd(), "onboarding");
 export const TUTOR_ONBOARDING_DOCUMENTS: TutorOnboardingDocumentDefinition[] = [
   {
     step: 1,
-    code: "Response Integrity-TCF-001",
+    code: "Response Integrity-SCF-001",
     title: "Specialist Consent Form",
-    fileName: "TT-TCF-001.txt",
-    version: "2",
+    fileName: "RI-SCF-001.txt",
+    version: "3",
     requiresAcceptance: true,
     requiresUpload: false,
     mandatoryClauses: [
@@ -76,7 +76,7 @@ export const TUTOR_ONBOARDING_DOCUMENTS: TutorOnboardingDocumentDefinition[] = [
     code: "Response Integrity-ICA-003",
     title: "Specialist Independent Contractor Agreement",
     fileName: "TT-ICA-003.md",
-    version: "2",
+    version: "3",
     requiresAcceptance: true,
     requiresUpload: false,
     mandatoryClauses: [
