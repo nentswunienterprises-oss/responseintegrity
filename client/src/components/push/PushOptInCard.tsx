@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { BellRing } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -14,28 +14,24 @@ export function PushOptInCard({
   description: string;
 }) {
   const push = useWebPushSubscription(enabled);
-  const dismissKey = useMemo(() => "push-opt-in-card-hidden", []);
-  const [hidden, setHidden] = useState(false);
-
-  useEffect(() => {
+  const dismissKey = "push-opt-in-card-hidden";
+  const [hidden, setHidden] = useState(() => {
+    if (typeof window === "undefined") return false;
     try {
-      setHidden(window.localStorage.getItem(dismissKey) === "true");
+      return window.localStorage.getItem(dismissKey) === "true";
     } catch {
-      setHidden(false);
+      return false;
     }
-  }, [dismissKey]);
+  });
 
-  useEffect(() => {
+  const dismiss = () => {
     try {
-      if (hidden) {
-        window.localStorage.setItem(dismissKey, "true");
-      } else {
-        window.localStorage.removeItem(dismissKey);
-      }
+      window.localStorage.setItem(dismissKey, "true");
     } catch {
-      // ignore localStorage failures
+      // Keep the dismissal for this mounted session even if storage is unavailable.
     }
-  }, [dismissKey, hidden]);
+    setHidden(true);
+  };
 
   if (!enabled || !push.supported || !push.resolved || push.subscribed || hidden) {
     return null;
@@ -74,7 +70,7 @@ export function PushOptInCard({
         <Button
           variant="ghost"
           className="mt-4 text-sm"
-          onClick={() => setHidden(true)}
+          onClick={dismiss}
         >
           No thanks.
         </Button>
