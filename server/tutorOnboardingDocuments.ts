@@ -31,7 +31,7 @@ export const TUTOR_ONBOARDING_DOCUMENTS: TutorOnboardingDocumentDefinition[] = [
     code: "Response Integrity-SCF-001",
     title: "Specialist Consent Form",
     fileName: "RI-SCF-001.txt",
-    version: "3",
+    version: "2",
     requiresAcceptance: true,
     requiresUpload: false,
     mandatoryClauses: [
@@ -76,7 +76,7 @@ export const TUTOR_ONBOARDING_DOCUMENTS: TutorOnboardingDocumentDefinition[] = [
     code: "Response Integrity-ICA-003",
     title: "Specialist Independent Contractor Agreement",
     fileName: "TT-ICA-003.md",
-    version: "3",
+    version: "2",
     requiresAcceptance: true,
     requiresUpload: false,
     mandatoryClauses: [
