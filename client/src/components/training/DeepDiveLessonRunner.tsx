@@ -139,8 +139,8 @@ export function DeepDiveLessonRunner({
             <p className="font-semibold">Deep Dive complete</p>
           </div>
           <p className="text-sm text-muted-foreground">
-            You have worked through {title}. The next step is demonstration,
-            not more scrolling.
+            You have worked through {title}.
+            {completion ? " The next step is demonstration, not more scrolling." : null}
           </p>
         </Card>
       ) : (
