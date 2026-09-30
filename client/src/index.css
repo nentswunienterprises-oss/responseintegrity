@@ -652,3 +652,10 @@ body:has(.ri-world-page) header {
 .ri-pod-world .shadcn-card {
   border-radius: 0.375rem;
 }
+
+
+/* RI restrained card geometry */
+.ri-world-page .ri-world-hero,
+.ri-os-world .shadcn-card {
+  border-radius: 0.375rem;
+}
