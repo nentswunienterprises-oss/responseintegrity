@@ -744,7 +744,7 @@ export function StudentCard({
         <span className="absolute bottom-3 right-3 h-3 w-3 border-b border-r border-primary/55" />
       </div>
       {sandboxCardTheme && (
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/10 px-3 py-2">
+        <div className="ri-student-info-card mb-4 flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/10 px-3 py-2">
           <div className="flex items-center gap-2">
             <span
               className="h-3 w-3 rounded-full ring-2 ring-primary/20"
@@ -771,7 +771,7 @@ export function StudentCard({
                 <Badge variant="outline" className="tutor-pod-student-card-header-badge text-[10px] uppercase tracking-[0.08em] border-primary/20 text-muted-foreground">
                   {workflowLabel}
                 </Badge>
-                <div className="rounded-xl border border-primary/20 bg-muted/20 px-3 py-1 text-right tutor-pod-student-card-header-progress">
+                <div className="ri-student-info-card rounded-xl border border-primary/20 bg-muted/20 px-3 py-1 text-right tutor-pod-student-card-header-progress">
                   <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{progressLabel} </span>
                   <span className="ml-1 text-lg font-semibold tabular-nums text-foreground">{sessionProgress}/{progressTotal}</span>
                 </div>
@@ -782,7 +782,7 @@ export function StudentCard({
               {studentSchool ? ` · ${studentSchool}` : ""}
             </div>
             {student.parentInfo && (
-              <div className="mt-3 rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-sm">
+              <div className="ri-student-info-card mt-3 rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-sm">
                 <p className="text-muted-foreground">Parent: <span className="font-medium text-foreground">{student.parentInfo.parent_full_name}</span></p>
                 <p className="mt-1 text-xs text-muted-foreground break-all">{student.parentInfo.parent_email}</p>
                 <div className="mt-3">
@@ -813,7 +813,7 @@ export function StudentCard({
 
       <div className="space-y-4 pt-5">
         {isSandboxStudent ? (
-          <div className="rounded-xl border border-dashed border-primary/20 bg-background p-3">
+          <div className="ri-student-info-card rounded-xl border border-dashed border-primary/20 bg-background p-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Compass className="h-4 w-4 text-primary" />
@@ -853,7 +853,7 @@ export function StudentCard({
 
         {workflow?.proposalAccepted && (
           <div className="space-y-3">
-            <div className="rounded-xl border border-primary/20 bg-muted/20 px-4 py-3">
+            <div className="ri-student-info-card rounded-xl border border-primary/20 bg-muted/20 px-4 py-3">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Program Progress</p>
               <p className="mt-2 text-2xl font-semibold text-foreground tabular-nums">{sessionProgress} of {progressTotal}</p>
             </div>
@@ -880,7 +880,7 @@ export function StudentCard({
             {topicsInConditioning.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {topicsInConditioning.map((topic) => (
-                  <div key={topic.topic} className="rounded-xl border border-primary/20 bg-muted/20 px-4 py-3">
+                  <div key={topic.topic} className="ri-student-info-card rounded-xl border border-primary/20 bg-muted/20 px-4 py-3">
                     <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{topic.topic}</p>
                     <div className="mt-2 flex flex-wrap items-start gap-2">
                       <span className="min-w-0 text-sm font-medium leading-5 text-foreground">{topic.phase}</span>
