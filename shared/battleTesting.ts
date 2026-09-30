@@ -866,13 +866,13 @@ const tutorPhaseDefinitions: BattleTestPhaseDefinition[] = [
         key: "logging_q2",
         section: "Core Understanding",
         prompt: "What must a log entry capture to be useful?",
-        expectedAnswer: "The phase, the arena, the student's response clarity, and whether execution held under pressure.",
+        expectedAnswer: "The phase, the area, the student's response clarity, and whether execution held under pressure.",
         failIndicators: ["just that they did it", "how they felt"],
       },
       {
         key: "logging_q3",
         section: "Application",
-        prompt: "A tutor logs 'student improved' without phase or arena detail. What is wrong?",
+        prompt: "A tutor logs 'student improved' without phase or area detail. What is wrong?",
         expectedAnswer: "The log is useless. It cannot drive decisions because it has no specificity.",
         failIndicators: ["that's fine", "they'll remember"],
       },
@@ -910,20 +910,20 @@ const tutorPhaseDefinitions: BattleTestPhaseDefinition[] = [
   {
     key: "drill_library",
     title: "Drill Library",
-    description: "Can the tutor select and execute drills that target the exact arena and phase?",
+    description: "Can the tutor select and execute drills that target the exact area and phase?",
     questions: [
       {
         key: "drill_library_q1",
         section: "Core Understanding",
         prompt: "What is the purpose of the drill library in Response Integrity?",
-        expectedAnswer: "To provide targeted, repeatable practice that isolates the exact skill or arena needed at each phase.",
+        expectedAnswer: "To provide targeted, repeatable practice that isolates the exact skill or area needed at each phase.",
         failIndicators: ["to give students lots of problems", "to keep them busy"],
       },
       {
         key: "drill_library_q2",
         section: "Core Understanding",
         prompt: "What makes a drill valid for a phase?",
-        expectedAnswer: "It targets the exact arena and skill that phase is training, with minimal confounds.",
+        expectedAnswer: "It targets the exact area and skill that phase is training, with minimal confounds.",
         failIndicators: ["any problem from that topic", "problems students find easy"],
       },
       {
