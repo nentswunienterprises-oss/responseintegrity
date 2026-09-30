@@ -904,22 +904,9 @@ html[data-ri-theme="warm-dark"] .ri-specialist-surface .shadcn-card:hover {
   border-color: rgba(230, 57, 70, 0.34);
 }
 
-/* Light: cream-led shell with the same restrained RI material language. */
-html[data-ri-theme="light"] .ri-specialist-surface .shadcn-card {
-  --background: 23.33 100% 98.4%;
-  --foreground: 0 0% 10.2%;
-  --card: 23.33 100% 98.4%;
-  --card-foreground: 0 0% 10.2%;
-  --muted: 0 100% 96.86%;
-  --muted-foreground: 0 0% 35.29%;
-  --accent: 0 100% 96.86%;
-  --accent-foreground: 0 0% 10.2%;
-  color-scheme: light;
-  color: var(--ri-charcoal);
-  background: linear-gradient(180deg, #FFFAF6 0%, var(--ri-cream) 100%);
-  border-color: rgba(230, 57, 70, 0.15);
-  box-shadow: 0 14px 44px rgba(77, 45, 45, 0.08);
-}
+/* Light intentionally inherits the original RI light-world card treatment above.
+   Do not restyle Specialist cards here: the faint blush wash, cream material,
+   low-contrast red border, and restrained shadow are the locked Light reference. */
 
 /* Dark: neutral charcoal surfaces with no ambient red wash. */
 html[data-ri-theme="dark"] .ri-specialist-surface .shadcn-card {
