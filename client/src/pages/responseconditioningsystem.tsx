@@ -212,7 +212,7 @@ export default function ResponseConditioningSystem() {
               </h2>
               <p className="text-sm text-muted-foreground">
                 Start here before Transformation Phases. This explains what a response is,
-                why mathematics is the arena, and how specialists preserve trustworthy evidence.
+                why mathematics is the area, and how specialists preserve trustworthy evidence.
               </p>
             </div>
           </Link>
