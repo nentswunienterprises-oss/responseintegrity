@@ -13,6 +13,7 @@ import { ApplicationForm } from "@/components/tutor/application-form";
 import { SequentialDocumentSubmission } from "@/components/tutor/SequentialDocumentSubmission";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PushOptInCard } from "@/components/push/PushOptInCard";
+import { AccountMenu } from "@/components/layout/account-menu";
 
 interface ApplicationStatus {
   status: "not_applied" | "pending" | "approved" | "rejected" | "verification" | "confirmed";
@@ -36,7 +37,7 @@ export default function TutorGateway() {
 
   // Fetch current user data
   // Use shared auth hook which waits for Supabase session restore
-  const { isLoading: userLoading, isAuthenticated } = useAuth();
+  const { user, isLoading: userLoading, isAuthenticated } = useAuth();
 
   // Fetch aggregated gateway session
   const { data: gatewaySession, isLoading: gatewayLoading, error: gatewayError } = useQuery<any>({
@@ -178,7 +179,7 @@ export default function TutorGateway() {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#FFF5ED" }}>
+    <div className="min-h-screen ri-world-page ri-specialist-world" style={{ backgroundColor: "#FFF5ED" }}>
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md" style={{ backgroundColor: "rgba(255, 245, 237, 0.95)" }}>
         <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-12 h-16 sm:h-20 relative flex items-center justify-between">
@@ -195,15 +196,9 @@ export default function TutorGateway() {
             </span>
           </div>
 
-          <Button
-            variant="ghost"
-            className="hidden md:inline-flex text-sm sm:text-base font-medium hover:bg-transparent items-center gap-1 sm:gap-2 px-2 sm:px-4"
-            style={{ color: "#1A1A1A" }}
-            onClick={() => window.history.back()}
-          >
-            <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            Back
-          </Button>
+          <div className="flex min-w-10 justify-end">
+            <AccountMenu user={user} />
+          </div>
         </div>
       </header>
 
