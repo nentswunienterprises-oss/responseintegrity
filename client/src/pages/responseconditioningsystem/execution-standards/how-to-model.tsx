@@ -267,7 +267,7 @@ export default function ResponseConditioningHowToModel() {
           <div className="space-y-2">
             <h2 className="text-2xl font-bold">Specialist POV: Observation</h2>
             <p className="text-muted-foreground">
-              Use this with the Observation setup above. The phone preserves the live student view while the laptop carries the drill and observation work, keeping execution and evidence capture separate.
+              The phone preserves the live student view while the laptop carries the drill and observation work, keeping execution and evidence capture separate.
             </p>
           </div>
           <div className="mx-auto w-full max-w-xl overflow-hidden rounded-none border bg-card shadow-sm">
