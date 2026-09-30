@@ -50,8 +50,8 @@ const modules = [
         href: "/responseconditioningsystem/execution-standards/how-to-model",
       },
       {
-        label: "How to guide",
-        href: "/responseconditioningsystem/execution-standards/how-to-guide",
+        label: "How to intervene",
+        href: "/responseconditioningsystem/execution-standards/how-to-intervene",
       },
       {
         label: "How to use Boss Battles",
