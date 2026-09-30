@@ -25,6 +25,7 @@ import {
   emergencyExpectedRoleMatches,
   isPreviewProofPersonaEmail,
   isPreviewSyntheticSandboxPersonaEmail,
+  setEmergencyCredentialForExistingUser,
 } from "./emergencyAuth";
 import {
   describeRuntimeDatabaseTarget,
@@ -642,6 +643,49 @@ export async function setupAuth(app: Express) {
           email,
           password,
         });
+
+      if (
+        proofTutorDbAuth &&
+        authError?.code === "email_not_confirmed" &&
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      ) {
+        const existingProofUser = await storage.getUserByEmail(normalizedEmail);
+
+        if (
+          existingProofUser?.role === "tutor" &&
+          emergencyExpectedRoleMatches(existingProofUser.role, expectedRole)
+        ) {
+          const { error: confirmError } =
+            await serverSupabase.auth.admin.updateUserById(existingProofUser.id, {
+              email_confirm: true,
+            } as any);
+
+          if (!confirmError) {
+            const retry = await supabase.auth.signInWithPassword({
+              email,
+              password,
+            });
+            authData = retry.data;
+            authError = retry.error;
+
+            if (!authError && authData.user) {
+              await setEmergencyCredentialForExistingUser(
+                pool,
+                existingProofUser.id,
+                password,
+              );
+              console.log("[AUTH] Proof legacy account confirmed once and moved to DB-session auth", {
+                userId: existingProofUser.id,
+              });
+            }
+          } else {
+            console.warn("[AUTH] Proof legacy confirmation recovery failed", {
+              userId: existingProofUser.id,
+              message: confirmError.message,
+            });
+          }
+        }
+      }
 
       if (
         authError &&
