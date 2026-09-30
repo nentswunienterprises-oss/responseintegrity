@@ -183,7 +183,7 @@ export default function ResponseConditioningTopicConditioning() {
             },
             {
               key: "c",
-              label: "Keep the mark as academic context, while letting direct RI evidence of how the student responds under different conditions determine the topic's phase and stability.",
+              label: "Keep the mark as academic context, while letting direct RI evidence of how the student responds determine the topic's phase and stability.",
               feedback: "Yes. Academic performance matters, but conditioned-response state comes from what the student actually does inside the RI condition.",
             },
           ]}
