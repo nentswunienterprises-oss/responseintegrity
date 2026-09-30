@@ -17,8 +17,12 @@ function databaseProjectRef(rawUrl?: string) {
   try {
     const parsed = new URL(String(rawUrl || ""));
     const username = decodeURIComponent(parsed.username || "");
-    const match = username.match(/^postgres\.([a-z0-9]+)$/i);
-    return match?.[1] || null;
+    const usernameMatch = username.match(/^postgres\.([a-z0-9]+)$/i);
+    if (usernameMatch?.[1]) return usernameMatch[1];
+
+    const hostname = parsed.hostname.toLowerCase();
+    const hostMatch = hostname.match(/^db\.([a-z0-9]+)\.supabase\.co$/i);
+    return hostMatch?.[1] || null;
   } catch {
     return null;
   }
@@ -31,13 +35,13 @@ export function isProofDbAuthMode(
     env.NODE_ENV === "development" || env.VERCEL_ENV === "preview";
   if (!isNonProductionRuntime) return false;
 
-  const supabaseRef = supabaseProjectRef(env.SUPABASE_URL);
-  if (!supabaseRef || !PROOF_PROJECT_REFS.has(supabaseRef)) return false;
-
   const databaseRef = databaseProjectRef(env.DATABASE_URL);
-  if (databaseRef && databaseRef !== supabaseRef) return false;
+  if (databaseRef) {
+    return PROOF_PROJECT_REFS.has(databaseRef);
+  }
 
-  return true;
+  const supabaseRef = supabaseProjectRef(env.SUPABASE_URL);
+  return !!supabaseRef && PROOF_PROJECT_REFS.has(supabaseRef);
 }
 
 export function isEmergencyDbMode() {
