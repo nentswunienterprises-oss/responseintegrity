@@ -562,10 +562,14 @@ export async function setupAuth(app: Express) {
           .json({ message: "Email and password are required" });
       }
 
-      if (isEmergencyDbMode()) {
+      const proofTutorDbAuth =
+        expectedRole === "tutor" && isProofDbAuthMode();
+      const directTutorDbAuth = isEmergencyDbMode() || proofTutorDbAuth;
+
+      if (directTutorDbAuth) {
         const result = await authenticateEmergencyUser(pool, email, password, req.ip || "unknown");
         if ("error" in result) {
-          console.warn("[AUTH] Emergency login rejected", {
+          console.warn(proofTutorDbAuth ? "[AUTH] Proof DB login not resolved directly" : "[AUTH] Emergency login rejected", {
             outcome: result.error,
             internalReason: result.reason,
           });
@@ -574,49 +578,58 @@ export async function setupAuth(app: Express) {
               message: "Too many login attempts. Please wait a few minutes and try again.",
             });
           }
-          return res.status(401).json({ message: "Email or password is incorrect" });
-        }
 
-        const user = await storage.getUser(result.authUser.id);
-        if (!user) {
-          console.error("[AUTH] Auth user has no public.users record", { authUserId: result.authUser.id });
-          return res.status(401).json({ message: "Invalid credentials" });
-        }
-        if (!emergencyExpectedRoleMatches(user.role, expectedRole)) {
-          return res.status(403).json({
-            message: `This account is not registered as a ${expectedRole}. Your account is registered as a ${user.role}.`,
-          });
-        }
-
-        (req.session as any).userId = user.id;
-        (req.session as any).email = user.email;
-        delete (req.session as any).accessToken;
-        const redirectUrl = user.role === "parent"
-          ? "/client/parent/gateway"
-          : getDefaultDashboardRoute((user.role as any) || "tutor");
-
-        return req.session.save((err) => {
-          if (err) {
-            console.error("[AUTH] Emergency session save error", err);
-            return res.status(500).json({ message: "Session error" });
+          // Existing Proof identities created before DB-session auth may not have
+          // a private credential yet. Let only those fall through to the legacy
+          // Supabase recovery path below.
+          if (
+            !proofTutorDbAuth ||
+            (result.reason !== "credential_not_provisioned" &&
+              result.reason !== "account_not_found")
+          ) {
+            return res.status(401).json({ message: "Email or password is incorrect" });
           }
-          console.log("[EMERGENCY LOGIN] credential source", {
-            userId: user.id,
-            source: result.authUser.email_confirmed_at ? "supabase-auth" : "emergency",
+        } else {
+          const user = await storage.getUser(result.authUser.id);
+          if (!user) {
+            console.error("[AUTH] Auth user has no public.users record", { authUserId: result.authUser.id });
+            return res.status(401).json({ message: "Invalid credentials" });
+          }
+          if (!emergencyExpectedRoleMatches(user.role, expectedRole)) {
+            return res.status(403).json({
+              message: `This account is not registered as a ${expectedRole}. Your account is registered as a ${user.role}.`,
+            });
+          }
+
+          (req.session as any).userId = user.id;
+          (req.session as any).email = user.email;
+          delete (req.session as any).accessToken;
+          const redirectUrl = user.role === "parent"
+            ? "/client/parent/gateway"
+            : getDefaultDashboardRoute((user.role as any) || "tutor");
+
+          return req.session.save((err) => {
+            if (err) {
+              console.error(proofTutorDbAuth ? "[AUTH] Proof session save error" : "[AUTH] Emergency session save error", err);
+              return res.status(500).json({ message: "Session error" });
+            }
+            console.log(proofTutorDbAuth ? "[PROOF LOGIN] DB credential accepted" : "[EMERGENCY LOGIN] credential accepted", {
+              userId: user.id,
+            });
+            res.json({
+              user: {
+                id: result.authUser.id,
+                email: result.authUser.email,
+                email_confirmed_at: result.authUser.email_confirmed_at,
+                app_metadata: result.authUser.raw_app_meta_data || {},
+                user_metadata: result.authUser.raw_user_meta_data || {},
+              },
+              dbUser: user,
+              redirectUrl,
+              message: "Login successful",
+            });
           });
-          res.json({
-            user: {
-              id: result.authUser.id,
-              email: result.authUser.email,
-              email_confirmed_at: result.authUser.email_confirmed_at,
-              app_metadata: result.authUser.raw_app_meta_data || {},
-              user_metadata: result.authUser.raw_user_meta_data || {},
-            },
-            dbUser: user,
-            redirectUrl,
-            message: "Login successful",
-          });
-        });
+        }
       }
 
       // Authenticate with Supabase.
