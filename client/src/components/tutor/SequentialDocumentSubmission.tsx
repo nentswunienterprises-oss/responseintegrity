@@ -1136,35 +1136,35 @@ function buildAcceptedCopyHtml(params: {
     .summary { margin-top: 18px; padding: 14px 16px; border: 1px solid #d8cfc2; background: #f8f2e8; }
     .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; margin-top: 10px; }
     .summary-label { font: 600 11px/1.4 Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #7b8794; }
-    .summary-value { margin-top: 3px; font: 400 14px/1.5 Arial, sans-serif; color: #102a43; }
+    .summary-value { margin-top: 3px; font: 400 14px/1.5 Arial, sans-serif; color: var(--ri-reader-heading, #102a43); }
     .section { margin-top: 22px; }
     .section-title { margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid #d8cfc2; font: 700 14px/1.4 Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #7b341e; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 9px 10px; border: 1px solid #ddd3c5; vertical-align: top; }
-    th { width: 34%; background: #f6efe4; text-align: left; font: 600 12px/1.5 Arial, sans-serif; color: #243b53; }
+    th { width: 34%; background: #f6efe4; text-align: left; font: 600 12px/1.5 Arial, sans-serif; color: var(--ri-reader-text, #243b53); }
     td { font: 400 13px/1.6 Arial, sans-serif; }
     h1, h2, h3, p, li, th, td, .summary-value, .signature-box, .footer { overflow-wrap: anywhere; word-break: break-word; }
     .clauses { margin: 0; padding-left: 18px; font: 400 13px/1.7 Arial, sans-serif; }
     .agreement-body { margin-top: 12px; }
-    .agreement-body h1, .agreement-body h2 { font-family: Arial, sans-serif; color: #102a43; }
+    .agreement-body h1, .agreement-body h2 { font-family: Arial, sans-serif; color: var(--ri-reader-heading, #102a43); }
     .agreement-body h1 { font-size: 11px; margin: 12px 0 6px; text-transform: uppercase; letter-spacing: 0.02em; }
     .agreement-body h2 { font-size: 11px; margin: 12px 0 6px; }
     .agreement-body p { margin: 0 0 10px; font: 400 13px/1.7 Arial, sans-serif; }
     .agreement-body ul { margin: 0 0 10px 18px; padding: 0; }
     .agreement-body li { margin-bottom: 5px; font: 400 13px/1.6 Arial, sans-serif; }
-    .agreement-body .tt-agreement-section + .tt-agreement-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #e7d5c8; }
+    .agreement-body .tt-agreement-section + .tt-agreement-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--ri-reader-border, #e7d5c8); }
     .agreement-body .tt-agreement-section h2 { margin: 0 0 10px; font: 700 14px/1.4 Arial, sans-serif; color: #7b341e; }
-    .agreement-body .tt-agreement-section-body p { margin: 0 0 10px; font: 400 13px/1.7 Arial, sans-serif; color: #243b53; }
+    .agreement-body .tt-agreement-section-body p { margin: 0 0 10px; font: 400 13px/1.7 Arial, sans-serif; color: var(--ri-reader-text, #243b53); }
     .agreement-body .tt-agreement-subsection + .tt-agreement-subsection { margin-top: 14px; }
-    .agreement-body .tt-agreement-subsection h3 { margin: 0 0 8px; font: 700 13px/1.4 Arial, sans-serif; color: #102a43; }
+    .agreement-body .tt-agreement-subsection h3 { margin: 0 0 8px; font: 700 13px/1.4 Arial, sans-serif; color: var(--ri-reader-heading, #102a43); }
     .agreement-body .tt-agreement-list { margin: 0 0 10px 18px; padding: 0; }
-    .agreement-body .tt-agreement-list li { margin-bottom: 5px; font: 400 13px/1.6 Arial, sans-serif; color: #243b53; }
+    .agreement-body .tt-agreement-list li { margin-bottom: 5px; font: 400 13px/1.6 Arial, sans-serif; color: var(--ri-reader-text, #243b53); }
     .agreement-body .tt-agreement-list-check { list-style-type: "• "; }
     .agreement-body .tt-inline-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .agreement-body .tt-inline-detail-grid > div { padding: 10px 12px; border: 1px solid #ddd3c5; border-radius: 12px; background: #f8f2e8; }
     .agreement-body .tt-inline-detail-grid .tt-inline-detail-span { grid-column: span 2; }
-    .agreement-body .tt-inline-detail-grid span { display: block; margin-bottom: 4px; font: 700 10px/1.4 Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #9f1d2b; }
-    .agreement-body .tt-inline-detail-grid strong { font: 600 13px/1.5 Arial, sans-serif; color: #102a43; }
+    .agreement-body .tt-inline-detail-grid span { display: block; margin-bottom: 4px; font: 700 10px/1.4 Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ri-reader-label, #9f1d2b); }
+    .agreement-body .tt-inline-detail-grid strong { font: 600 13px/1.5 Arial, sans-serif; color: var(--ri-reader-heading, #102a43); }
     .footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #ddd3c5; font: 400 11px/1.5 Arial, sans-serif; color: #7b8794; }
     .signature { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
     .signature-box { padding-top: 10px; border-top: 1px solid #9fb3c8; font: 400 12px/1.5 Arial, sans-serif; }
@@ -1746,7 +1746,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
 
         <CardContent className="space-y-6">
           {isPendingCooReview ? (
-            <div className="rounded-2xl border border-[#E7D5C8] bg-[#FFF5ED] p-4 text-[#1A1A1A] sm:p-5">
+            <div className="ri-specialist-onboarding-callout rounded-2xl border border-[#E7D5C8] bg-[#FFF5ED] p-4 text-[#1A1A1A] sm:p-5">
               <div className="space-y-2">
                 <p className="text-sm font-medium">This step is with COO for review</p>
                 <p className="text-sm text-[#6B5B52]">
@@ -1759,7 +1759,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
           ) : null}
 
           {isAcceptanceStep && !isPendingCooReview ? (
-            <div className="rounded-2xl border border-[#E7D5C8] bg-[#FFF5ED] p-4 text-[#1A1A1A] sm:p-5">
+            <div className="ri-specialist-onboarding-callout rounded-2xl border border-[#E7D5C8] bg-[#FFF5ED] p-4 text-[#1A1A1A] sm:p-5">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-1">
                   <p className="text-sm font-medium">Read the full document first</p>
@@ -1796,7 +1796,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
                 <p className="text-sm text-muted-foreground">
                   Review the document fields inside the reader, then return here only to confirm assent and complete acceptance.
                 </p>
-                <div className="space-y-3 rounded-xl bg-slate-50 p-4">
+                <div className="ri-specialist-onboarding-checklist space-y-3 rounded-xl border border-transparent bg-slate-50 p-4">
                   <label className="flex items-start gap-3 text-sm"><Checkbox checked={generalRead} disabled={!hasCompletedReading || acceptanceAlreadyRecorded} onCheckedChange={(value) => setGeneralRead(Boolean(value))} /><span>I have read and understood this document.</span></label>
                   <label className="flex items-start gap-3 text-sm"><Checkbox checked={generalBound} disabled={!hasCompletedReading || acceptanceAlreadyRecorded} onCheckedChange={(value) => setGeneralBound(Boolean(value))} /><span>I agree to be legally bound by these terms and understand Response Integrity will store an audit record of this acceptance.</span></label>
                   {currentDocument.mandatoryClauses.map((clause) => (
@@ -1913,12 +1913,12 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
       </Card>
 
       <Dialog open={readerOpen} onOpenChange={setReaderOpen}>
-        <DialogContent className="left-1/2 top-1/2 h-[92dvh] w-[calc(100vw-1rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[#E7D5C8] p-0 shadow-2xl sm:h-[88dvh] sm:w-[calc(100vw-3rem)]">
+        <DialogContent className="ri-specialist-document-reader left-1/2 top-1/2 h-[92dvh] w-[calc(100vw-1rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[#E7D5C8] p-0 shadow-2xl sm:h-[88dvh] sm:w-[calc(100vw-3rem)]">
           <style>{`
             .agreement-reader h1,
             .agreement-reader h2 {
               font-family: Arial, sans-serif;
-              color: #102a43;
+              color: var(--ri-reader-heading, #102a43);
             }
 
             .agreement-reader h1 {
@@ -1941,7 +1941,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
               font-family: Arial, sans-serif;
               font-size: 0.95rem;
               line-height: 1.8;
-              color: #243b53;
+              color: var(--ri-reader-text, #243b53);
             }
 
             .agreement-reader ul {
@@ -1957,13 +1957,13 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
               font-family: Arial, sans-serif;
               font-size: 0.95rem;
               line-height: 1.7;
-              color: #243b53;
+              color: var(--ri-reader-text, #243b53);
             }
 
             .agreement-reader .tt-agreement-section + .tt-agreement-section {
               margin-top: 1.6rem;
               padding-top: 1.6rem;
-              border-top: 1px solid #e7d5c8;
+              border-top: 1px solid var(--ri-reader-border, #e7d5c8);
             }
 
             .agreement-reader .tt-agreement-section h2 {
@@ -1971,7 +1971,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
               font-family: Arial, sans-serif;
               font-size: 1rem;
               font-weight: 700;
-              color: #7c2d12;
+              color: var(--ri-reader-section, #7c2d12);
             }
 
             .agreement-reader .tt-agreement-section-body p {
@@ -1979,7 +1979,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
               font-family: Arial, sans-serif;
               font-size: 0.95rem;
               line-height: 1.8;
-              color: #243b53;
+              color: var(--ri-reader-text, #243b53);
             }
 
             .agreement-reader .tt-agreement-subsection + .tt-agreement-subsection {
@@ -1991,7 +1991,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
               font-family: Arial, sans-serif;
               font-size: 0.95rem;
               font-weight: 700;
-              color: #102a43;
+              color: var(--ri-reader-heading, #102a43);
             }
 
             .agreement-reader .tt-agreement-list {
@@ -2010,7 +2010,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
               font-family: Arial, sans-serif;
               font-size: 0.95rem;
               line-height: 1.75;
-              color: #243b53;
+              color: var(--ri-reader-text, #243b53);
             }
 
             .agreement-reader .tt-inline-detail-grid {
@@ -2022,9 +2022,9 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
 
             .agreement-reader .tt-inline-detail-grid > div {
               padding: 0.85rem 1rem;
-              border: 1px solid #e7d5c8;
+              border: 1px solid var(--ri-reader-border, #e7d5c8);
               border-radius: 0.9rem;
-              background: #fff8f4;
+              background: var(--ri-reader-detail-bg, #fff8f4);
             }
 
             .agreement-reader .tt-inline-detail-grid .tt-inline-detail-span {
@@ -2039,13 +2039,90 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
               font-weight: 700;
               letter-spacing: 0.12em;
               text-transform: uppercase;
-              color: #9f1d2b;
+              color: var(--ri-reader-label, #9f1d2b);
             }
 
             .agreement-reader .tt-inline-detail-grid strong {
               font-family: Arial, sans-serif;
               font-size: 0.95rem;
-              color: #1a1a1a;
+              color: var(--ri-reader-strong, #1a1a1a);
+            }
+
+            html[data-ri-theme="dark"] .ri-specialist-document-reader {
+              --ri-reader-heading: #FFF5ED;
+              --ri-reader-text: #D7C9CB;
+              --ri-reader-border: rgba(255, 240, 240, 0.10);
+              --ri-reader-section: #F08B94;
+              --ri-reader-detail-bg: #1A1A1A;
+              --ri-reader-label: #F05260;
+              --ri-reader-strong: #FFF5ED;
+              background: #121212 !important;
+              border-color: rgba(255, 240, 240, 0.10) !important;
+              color: #FFF5ED !important;
+              box-shadow: none !important;
+            }
+
+            html[data-ri-theme="dark"] .ri-specialist-reader-shell,
+            html[data-ri-theme="dark"] .ri-specialist-reader-scroll {
+              background: #0E0E0E !important;
+              color: #FFF5ED !important;
+            }
+
+            html[data-ri-theme="dark"] .ri-specialist-reader-chrome {
+              background: #151515 !important;
+              border-color: rgba(255, 240, 240, 0.10) !important;
+              color: #FFF5ED !important;
+            }
+
+            html[data-ri-theme="dark"] .ri-specialist-reader-chrome [data-radix-dialog-description] {
+              color: #B9ABAD !important;
+            }
+
+            html[data-ri-theme="dark"] .ri-specialist-reader-paper {
+              background: #151515 !important;
+              border-color: rgba(255, 240, 240, 0.10) !important;
+              color: #FFF5ED !important;
+              box-shadow: none !important;
+            }
+
+            html[data-ri-theme="dark"] .ri-specialist-reader-paper > div:first-child {
+              border-color: rgba(255, 240, 240, 0.10) !important;
+            }
+
+            html[data-ri-theme="dark"] .ri-specialist-reader-paper h1 {
+              color: #FFF5ED !important;
+            }
+
+            html[data-ri-theme="dark"] .ri-specialist-reader-paper .text-\[\#6B5B52\] {
+              color: #B9ABAD !important;
+            }
+
+            html[data-ri-theme="dark"] .ri-specialist-reader-fields {
+              background: #1A1A1A !important;
+              border-color: rgba(255, 240, 240, 0.10) !important;
+              color: #FFF5ED !important;
+            }
+
+            html[data-ri-theme="dark"] .ri-specialist-reader-fields .text-\[\#1A1A1A\] {
+              color: #FFF5ED !important;
+            }
+
+            html[data-ri-theme="dark"] .ri-specialist-reader-fields .text-\[\#6B5B52\],
+            html[data-ri-theme="dark"] .ri-specialist-reader-fields .text-\[\#8A7A70\] {
+              color: #B9ABAD !important;
+            }
+
+            html[data-ri-theme="dark"] .ri-specialist-reader-control {
+              background: #111111 !important;
+              border-color: rgba(255, 240, 240, 0.12) !important;
+              color: #FFF5ED !important;
+              -webkit-text-fill-color: #FFF5ED !important;
+            }
+
+            html[data-ri-theme="dark"] .ri-specialist-reader-control:disabled {
+              background: #171717 !important;
+              color: #918486 !important;
+              -webkit-text-fill-color: #918486 !important;
             }
 
             @media (max-width: 640px) {
@@ -2057,14 +2134,29 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
                 grid-column: span 1;
               }
             }
+            html[data-ri-theme="dark"] .ri-specialist-onboarding-callout,
+            html[data-ri-theme="dark"] .ri-specialist-onboarding-checklist {
+              background: #171717 !important;
+              border-color: rgba(255, 240, 240, 0.10) !important;
+              color: #FFF5ED !important;
+            }
+
+            html[data-ri-theme="dark"] .ri-specialist-onboarding-callout .text-\[\#6B5B52\] {
+              color: #B9ABAD !important;
+            }
+
+            html[data-ri-theme="dark"] .ri-specialist-onboarding-checklist .text-muted-foreground {
+              color: #B9ABAD !important;
+            }
+
           `}</style>
-          <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[#FFF5ED] text-[#1A1A1A]">
-            <DialogHeader className="shrink-0 border-b border-[#E7D5C8] bg-white px-4 py-4 text-left sm:px-6 sm:py-5">
+          <div className="ri-specialist-reader-shell flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[#FFF5ED] text-[#1A1A1A]">
+            <DialogHeader className="ri-specialist-reader-chrome shrink-0 border-b border-[#E7D5C8] bg-white px-4 py-4 text-left sm:px-6 sm:py-5">
               <DialogTitle className="pr-8 text-xl sm:text-2xl">{currentDocument.title}</DialogTitle>
               <DialogDescription className="text-[#6B5B52]">{currentDocument.code} • version {normalizeDisplayedVersion(currentDocument.version)}</DialogDescription>
             </DialogHeader>
-            <div ref={readerRef} onScroll={handleReaderScroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#FFF5ED] px-3 py-4 touch-pan-y sm:px-6 sm:py-6">
-              <div className="mx-auto max-w-4xl rounded-2xl border border-[#E7D5C8] bg-white px-4 py-6 text-[#1A1A1A] shadow-[0_18px_50px_rgba(230,57,70,0.08)] sm:px-10 sm:py-10">
+            <div ref={readerRef} onScroll={handleReaderScroll} className="ri-specialist-reader-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#FFF5ED] px-3 py-4 touch-pan-y sm:px-6 sm:py-6">
+              <div className="ri-specialist-reader-paper mx-auto max-w-4xl rounded-2xl border border-[#E7D5C8] bg-white px-4 py-6 text-[#1A1A1A] shadow-[0_18px_50px_rgba(230,57,70,0.08)] sm:px-10 sm:py-10">
                 <div className="border-b border-[#E7D5C8] pb-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E63946]">Response Integrity Onboarding Document</p>
                   <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[#1A1A1A] sm:text-3xl">{currentDocument.title}</h1>
@@ -2073,7 +2165,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
                   </p>
                 </div>
                 {currentFormFields.length > 0 ? (
-                  <div className="mt-6 rounded-2xl border border-[#E7D5C8] bg-[#FFF5ED] p-4 sm:p-5">
+                  <div className="ri-specialist-reader-fields mt-6 rounded-2xl border border-[#E7D5C8] bg-[#FFF5ED] p-4 sm:p-5">
                     <div className="mb-4 space-y-1">
                       <p className="text-sm font-semibold text-[#1A1A1A]">Document fields</p>
                       <p className="text-sm text-[#6B5B52]">Complete the Specialist details that belong to this document here. Response Integrity account fields are prefilled automatically.</p>
@@ -2091,7 +2183,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
                           <select
                             value={fieldValue}
                             onChange={(event) => setFormData((value) => ({ ...value, idType: normalizeSpecialistIdentificationType(event.target.value) }))}
-                            className="flex h-10 w-full rounded-md border border-[#E7D5C8] bg-white px-3 py-2 text-sm"
+                            className="ri-specialist-reader-control flex h-10 w-full rounded-md border border-[#E7D5C8] bg-white px-3 py-2 text-sm"
                           >
                             <option value="">Select identification type</option>
                             <option value="sa_id">South African ID</option>
@@ -2119,7 +2211,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
                               setFormData((value) => ({ ...value, [field.key]: event.target.value }));
                             }}
                             placeholder={field.placeholder}
-                            className={isDisabled ? "border-[#E7D5C8] bg-[#F7EFE7] text-[#8A7A70]" : "border-[#E7D5C8] bg-white"}
+                            className={`ri-specialist-reader-control ${isDisabled ? "border-[#E7D5C8] bg-[#F7EFE7] text-[#8A7A70]" : "border-[#E7D5C8] bg-white"}`}
                           />
                             );
                           })()}
@@ -2136,7 +2228,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
                 </div>
               </div>
             </div>
-            <div className="shrink-0 border-t border-[#E7D5C8] bg-white px-4 py-4 sm:px-6">
+            <div className="ri-specialist-reader-chrome shrink-0 border-t border-[#E7D5C8] bg-white px-4 py-4 sm:px-6">
               <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm">Read progress: {readerPercent}%</p>
