@@ -282,8 +282,11 @@ export async function setupAuth(app: Express) {
           .json({ message: "Email and password are required" });
       }
 
-      if (isEmergencyDbMode()) {
-        if (role !== "tutor") {
+      const proofTutorDbAuth = role === "tutor" && isProofDbAuthMode();
+      const directTutorDbAuth = isEmergencyDbMode() || proofTutorDbAuth;
+
+      if (directTutorDbAuth) {
+        if (isEmergencyDbMode() && role !== "tutor") {
           return res.status(503).json({ message: "New account creation is temporarily available for specialists only." });
         }
         if (password.length < 6) {
@@ -292,7 +295,7 @@ export async function setupAuth(app: Express) {
         if (!first_name.trim() || !last_name.trim()) {
           return res.status(400).json({ message: "First name and last name are required" });
         }
-        if (productionLink) {
+        if (isEmergencyDbMode() && productionLink) {
           return res.status(503).json({ message: "Specialist Production Link signup is temporarily unavailable." });
         }
 
@@ -302,14 +305,15 @@ export async function setupAuth(app: Express) {
             password,
             firstName: first_name.trim(),
             lastName: last_name.trim(),
+            productionLinkCode: proofTutorDbAuth
+              ? productionLink?.production_link_code || null
+              : null,
             trackingSource: tracking_source,
             trackingCampaign: tracking_campaign,
           });
-          console.log("[EMERGENCY SIGNUP] created tutor", { userId: user.id });
+          const authLabel = proofTutorDbAuth ? "PROOF SIGNUP" : "EMERGENCY SIGNUP";
+          console.log(`[${authLabel}] created specialist`, { userId: user.id });
 
-          // Proof identity is trusted immediately for authentication purposes.
-          // Business-state gates (application, onboarding, training, certification)
-          // remain separate and continue to control what the Specialist can access.
           (req.session as any).userId = user.id;
           (req.session as any).email = user.email;
           delete (req.session as any).accessToken;
@@ -319,7 +323,7 @@ export async function setupAuth(app: Express) {
 
           return req.session.save((err) => {
             if (err) {
-              console.error("[EMERGENCY SIGNUP] session save error", err);
+              console.error(`[${authLabel}] session save error`, err);
               return res.status(500).json({ message: "Account created, but the sign-in session could not be established." });
             }
 
@@ -335,7 +339,7 @@ export async function setupAuth(app: Express) {
           if ((error as { code?: string })?.code === "DUPLICATE_EMAIL") {
             return res.status(409).json({ message: "An account with this email already exists." });
           }
-          console.error("[EMERGENCY SIGNUP] failed", error instanceof Error ? error.message : "unknown error");
+          console.error(proofTutorDbAuth ? "[PROOF SIGNUP] failed" : "[EMERGENCY SIGNUP] failed", error instanceof Error ? error.message : "unknown error");
           return res.status(500).json({ message: "Failed to create account" });
         }
       }
