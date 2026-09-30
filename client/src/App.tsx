@@ -332,6 +332,10 @@ function Router() {
         element={withDeepDiveDeterrent(<ResponseConditioningHowToGuide />)}
       />
       <Route
+        path="/responseconditioningsystem/execution-standards/how-to-intervene"
+        element={withDeepDiveDeterrent(<ResponseConditioningHowToGuide />)}
+      />
+      <Route
         path="/responseconditioningsystem/how-to-use-boss-battles"
         element={withDeepDiveDeterrent(<ResponseConditioningHowToUseBossBattles />)}
       />
