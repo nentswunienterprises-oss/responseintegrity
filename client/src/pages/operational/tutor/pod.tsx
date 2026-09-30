@@ -407,8 +407,8 @@ export default function TutorPod() {
     const expectingPodAssignment = applications && applications.some((app: any) => app.status === "confirmed");
     return (
       <DashboardLayout>
-        <div className="space-y-8">
-          <div className="rounded-2xl border border-primary/15 bg-background p-5 shadow-sm sm:p-7">
+        <div className="ri-world-page ri-pod-world space-y-8">
+          <div className="ri-world-hero rounded-2xl border border-primary/15 bg-background p-5 shadow-sm sm:p-7">
             <div className="space-y-2">
               <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Pod</p>
               <h1 className="text-3xl font-semibold tracking-[-0.01em] md:text-4xl">
@@ -427,7 +427,7 @@ export default function TutorPod() {
           />
 
           {expectingPodAssignment ? (
-            <Card className="border-primary/15 bg-background shadow-sm">
+            <Card className="ri-metric-card border-primary/15 bg-background shadow-sm">
               <div className="space-y-5 p-8 text-center sm:p-12">
                 <div className="mx-auto max-w-2xl space-y-3">
                   <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Syncing Assignment</p>
@@ -442,7 +442,7 @@ export default function TutorPod() {
               </div>
             </Card>
           ) : (
-            <Card className="border-primary/15 bg-background shadow-sm">
+            <Card className="ri-metric-card border-primary/15 bg-background shadow-sm">
               <div className="space-y-5 p-8 text-center sm:p-12">
                 <div className="mx-auto max-w-2xl space-y-3">
                   <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
@@ -565,7 +565,7 @@ export default function TutorPod() {
         />
 
         {(trialCaseData?.mode || tutorAlignmentSummary?.operationalMode || (assignment as any).operationalMode || "training") === "training" ? (
-          <Card className="border-primary/15 bg-background shadow-sm">
+          <Card className="ri-focus-card border-primary/15 bg-background shadow-sm">
             <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
               <div className="max-w-2xl">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
@@ -588,7 +588,7 @@ export default function TutorPod() {
         ) : null}
 
         <div className="tutor-pod-stats grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          <Card className="border-primary/15 bg-background shadow-sm">
+          <Card className="ri-metric-card border-primary/15 bg-background shadow-sm">
             <div className="px-4 py-4 sm:px-5 sm:py-5">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Sessions Done</p>
               <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl" data-testid="text-sessions-done">
@@ -597,7 +597,7 @@ export default function TutorPod() {
             </div>
           </Card>
 
-          <Card className="border-primary/15 bg-background shadow-sm">
+          <Card className="ri-metric-card border-primary/15 bg-background shadow-sm">
             <div className="px-4 py-4 sm:px-5 sm:py-5">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Remaining</p>
               <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl" data-testid="text-remaining">
@@ -606,7 +606,7 @@ export default function TutorPod() {
             </div>
           </Card>
 
-          <Card className="border-primary/15 bg-background shadow-sm">
+          <Card className="ri-metric-card border-primary/15 bg-background shadow-sm">
             <div className="px-4 py-4 sm:px-5 sm:py-5">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Students Impacted</p>
               <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl" data-testid="text-students-impacted">
@@ -616,7 +616,7 @@ export default function TutorPod() {
           </Card>
         </div>
 
-        <Card className="border-primary/15 bg-background shadow-sm">
+        <Card className="ri-metric-card border-primary/15 bg-background shadow-sm">
           <div className="space-y-4 p-5 sm:p-6">
             <div className="flex flex-col gap-3">
               <div>
@@ -650,9 +650,9 @@ export default function TutorPod() {
             </div>
 
             {tutorAlignmentSummary?.alignmentSummary?.certificationRecoveryNote && (
-              <div className="rounded-xl border border-orange-200 bg-orange-50/50 px-4 py-4 dark:border-orange-800 dark:bg-orange-950/20">
-                <p className="text-[10px] uppercase tracking-[0.08em] text-orange-600 dark:text-orange-400">Recovery Required</p>
-                <p className="mt-2 text-sm font-medium text-orange-900 dark:text-orange-100">
+              <div className="rounded-xl border border-primary/35 bg-primary/10 px-4 py-4">
+                <p className="text-[10px] uppercase tracking-[0.08em] text-primary">Recovery Required</p>
+                <p className="mt-2 text-sm font-medium text-foreground">
                   {tutorAlignmentSummary.alignmentSummary.certificationRecoveryNote}
                 </p>
               </div>
@@ -774,7 +774,7 @@ export default function TutorPod() {
         </Card>
 
         <div className="grid gap-4 md:grid-cols-2 md:gap-6">
-          <Card className="border-primary/15 bg-background shadow-sm">
+          <Card className="ri-metric-card border-primary/15 bg-background shadow-sm">
             <div className="space-y-4 p-5 sm:p-6">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Pod Team</p>
@@ -796,7 +796,7 @@ export default function TutorPod() {
             </div>
           </Card>
 
-          <Card className="border-primary/15 bg-background shadow-sm">
+          <Card className="ri-metric-card border-primary/15 bg-background shadow-sm">
             <div className="space-y-4 p-5 sm:p-6">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Protocol</p>
@@ -815,7 +815,7 @@ export default function TutorPod() {
           </Card>
         </div>
 
-        <Card className="border-primary/15 bg-background shadow-sm">
+        <Card className="ri-metric-card border-primary/15 bg-background shadow-sm">
           <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
             <div>
               <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Today</p>
