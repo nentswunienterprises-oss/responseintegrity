@@ -867,7 +867,12 @@ html[data-ri-theme="dark"] .ri-lesson-chrome {
 
 
 /* LOCKED RI MODES — specialist app-wide material treatment */
-.ri-specialist-surface .shadcn-card {
+/* Light deliberately stays on the original RI Light treatment from the first
+   appearance-mode release. Later Specialist-wide material/control overrides
+   apply only to Warm Dark and Dark so Light keeps its earlier softness,
+   spacing, radii, borders, and native control treatment. */
+
+html:not([data-ri-theme="light"]) .ri-specialist-surface .shadcn-card {
   border-radius: 0.375rem;
 }
 
@@ -933,8 +938,8 @@ html[data-ri-theme="dark"] .ri-specialist-surface .shadcn-card {
 }
 
 /* Bring common specialist sub-surfaces into the same restrained geometry. */
-.ri-specialist-surface .rounded-2xl,
-.ri-specialist-surface .rounded-3xl {
+html:not([data-ri-theme="light"]) .ri-specialist-surface .rounded-2xl,
+html:not([data-ri-theme="light"]) .ri-specialist-surface .rounded-3xl {
   border-radius: 0.375rem;
 }
 
@@ -943,27 +948,27 @@ html[data-ri-theme="dark"] .ri-specialist-surface .shadcn-card {
 /* These rules do not alter Light / Warm Dark / Dark palettes. They only give
    specialist controls the same restrained geometry and material behavior. */
 
-body:has(.ri-specialist-world) .ri-ui-button,
-body:has(.ri-specialist-world) .ri-ui-input,
-body:has(.ri-specialist-world) .ri-ui-textarea,
-body:has(.ri-specialist-world) .ri-ui-select-trigger,
-body:has(.ri-specialist-world) .ri-ui-tabs-list,
-body:has(.ri-specialist-world) .ri-ui-dialog-content,
-body:has(.ri-specialist-world) .ri-ui-menu-content,
-body:has(.ri-specialist-world) .ri-ui-popover-content,
-body:has(.ri-specialist-world) .ri-ui-alert {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-button,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-input,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-textarea,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-select-trigger,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-tabs-list,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-dialog-content,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-menu-content,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-popover-content,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-alert {
   border-radius: 0.375rem;
 }
 
-body:has(.ri-specialist-world) .ri-ui-badge,
-body:has(.ri-specialist-world) .ri-ui-tabs-trigger,
-body:has(.ri-specialist-world) .ri-ui-menu-item,
-body:has(.ri-specialist-world) .ri-ui-menu-subtrigger,
-body:has(.ri-specialist-world) .ri-ui-select-item {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-badge,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-tabs-trigger,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-menu-item,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-menu-subtrigger,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-select-item {
   border-radius: 0.25rem;
 }
 
-body:has(.ri-specialist-world) .ri-ui-button {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-button {
   box-shadow: none;
   transition:
     background-color 140ms ease,
@@ -972,97 +977,97 @@ body:has(.ri-specialist-world) .ri-ui-button {
     opacity 140ms ease;
 }
 
-body:has(.ri-specialist-world) .ri-ui-button:focus-visible,
-body:has(.ri-specialist-world) .ri-ui-input:focus-visible,
-body:has(.ri-specialist-world) .ri-ui-textarea:focus-visible,
-body:has(.ri-specialist-world) .ri-ui-select-trigger:focus {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-button:focus-visible,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-input:focus-visible,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-textarea:focus-visible,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-select-trigger:focus {
   box-shadow: 0 0 0 1px hsl(var(--ring));
 }
 
-body:has(.ri-specialist-world) .ri-ui-input,
-body:has(.ri-specialist-world) .ri-ui-textarea,
-body:has(.ri-specialist-world) .ri-ui-select-trigger {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-input,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-textarea,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-select-trigger {
   border-color: hsl(var(--input));
   box-shadow: none;
 }
 
-body:has(.ri-specialist-world) .ri-ui-input:hover,
-body:has(.ri-specialist-world) .ri-ui-textarea:hover,
-body:has(.ri-specialist-world) .ri-ui-select-trigger:hover {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-input:hover,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-textarea:hover,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-select-trigger:hover {
   border-color: hsl(var(--primary) / 0.32);
 }
 
-body:has(.ri-specialist-world) .ri-ui-tabs-list {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-tabs-list {
   gap: 0.125rem;
   border: 1px solid hsl(var(--border));
   background: hsl(var(--muted) / 0.55);
   padding: 0.125rem;
 }
 
-body:has(.ri-specialist-world) .ri-ui-tabs-trigger {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-tabs-trigger {
   box-shadow: none !important;
 }
 
-body:has(.ri-specialist-world) .ri-ui-tabs-trigger[data-state="active"] {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-tabs-trigger[data-state="active"] {
   background: hsl(var(--background)) !important;
   box-shadow: none !important;
 }
 
-body:has(.ri-specialist-world) .ri-ui-badge {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-badge {
   box-shadow: none;
   letter-spacing: 0.02em;
 }
 
-body:has(.ri-specialist-world) .ri-ui-dialog-content,
-body:has(.ri-specialist-world) .ri-ui-menu-content,
-body:has(.ri-specialist-world) .ri-ui-popover-content,
-body:has(.ri-specialist-world) .ri-ui-select-content {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-dialog-content,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-menu-content,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-popover-content,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-select-content {
   border-color: hsl(var(--border));
   background: hsl(var(--popover));
   color: hsl(var(--popover-foreground));
   box-shadow: 0 18px 52px rgba(0, 0, 0, 0.28);
 }
 
-body:has(.ri-specialist-world) .ri-ui-dialog-overlay {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-dialog-overlay {
   background: rgba(0, 0, 0, 0.72);
   backdrop-filter: blur(2px);
 }
 
-body:has(.ri-specialist-world) .ri-ui-menu-item:focus,
-body:has(.ri-specialist-world) .ri-ui-menu-subtrigger:focus,
-body:has(.ri-specialist-world) .ri-ui-menu-subtrigger[data-state="open"],
-body:has(.ri-specialist-world) .ri-ui-select-item:focus {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-menu-item:focus,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-menu-subtrigger:focus,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-menu-subtrigger[data-state="open"],
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-select-item:focus {
   background: hsl(var(--accent));
   color: hsl(var(--accent-foreground));
 }
 
-body:has(.ri-specialist-world) .ri-ui-alert {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-alert {
   box-shadow: none;
 }
 
-body:has(.ri-specialist-world) .ri-ui-table-wrap {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-table-wrap {
   border: 1px solid hsl(var(--border));
   border-radius: 0.375rem;
 }
 
-body:has(.ri-specialist-world) .ri-ui-table thead {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-table thead {
   background: hsl(var(--muted) / 0.45);
 }
 
-body:has(.ri-specialist-world) .ri-ui-table tbody tr:hover {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-table tbody tr:hover {
   background: hsl(var(--accent) / 0.65);
 }
 
-body:has(.ri-specialist-world) .ri-ui-checkbox {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-checkbox {
   border-radius: 0.1875rem;
 }
 
-body:has(.ri-specialist-world) .ri-ui-switch {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-switch {
   border: 1px solid hsl(var(--border));
 }
 
 /* Keep functional pills circular; restrained geometry applies to containers,
    not avatars, switches, progress dots, or status indicators. */
-.ri-specialist-surface .rounded-xl {
+html:not([data-ri-theme="light"]) .ri-specialist-surface .rounded-xl {
   border-radius: 0.375rem;
 }
