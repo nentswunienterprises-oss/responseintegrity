@@ -28,6 +28,7 @@ import {
   buildPayfastCheckoutSignature,
   withPayfastSignature,
 } from "./payfast";
+import { isProofDbAuthMode } from "./emergencyMode";
 
 test("emergency topic activation stays on direct PostgreSQL and never falls through to Supabase", () => {
   const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
@@ -284,38 +285,61 @@ test("emergency signin rejects an expectedRole mismatch", () => {
   assert.equal(emergencyExpectedRoleMatches("tutor", "tutor"), true);
 });
 
+test("Proof DB auth is selected by the local Proof database target", () => {
+  assert.equal(isProofDbAuthMode({
+    NODE_ENV: "development",
+    DATABASE_URL: "postgresql://postgres.jftlxeacphvbnhbsbpxc:secret@aws-1-eu-west-1.pooler.supabase.com:6543/postgres",
+    SUPABASE_URL: "https://yzcnavucvwgmulcxgxvw.supabase.co",
+  }), true);
+
+  assert.equal(isProofDbAuthMode({
+    NODE_ENV: "development",
+    DATABASE_URL: "postgresql://postgres.yzcnavucvwgmulcxgxvw:secret@aws-1-eu-west-1.pooler.supabase.com:6543/postgres",
+    SUPABASE_URL: "https://jftlxeacphvbnhbsbpxc.supabase.co",
+  }), false);
+
+  assert.equal(isProofDbAuthMode({
+    NODE_ENV: "production",
+    VERCEL_ENV: "production",
+    DATABASE_URL: "postgresql://postgres.jftlxeacphvbnhbsbpxc:secret@aws-1-eu-west-1.pooler.supabase.com:6543/postgres",
+    SUPABASE_URL: "https://jftlxeacphvbnhbsbpxc.supabase.co",
+  }), false);
+});
+
 test("non-tutor emergency signup is rejected", () => {
   const authSource = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
   assert.match(authSource, /if \(role !== "tutor"\) \{[\s\S]*?status\(503\)/);
 });
 
-test("emergency tutor signup cannot invoke Supabase HTTP", () => {
-  const authSource = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
-  const emergencyBranch = authSource.slice(
-    authSource.indexOf("if (isEmergencyDbMode()) {", authSource.indexOf('app.post("/api/auth/signup"')),
-    authSource.indexOf("// Create user in Supabase Auth with metadata"),
-  );
-  assert.doesNotMatch(emergencyBranch, /supabase\.(auth|from)|fetch\(/);
-  assert.match(emergencyBranch, /createEmergencyTutorAccount\(/);
-});
-
-test("emergency tutor signup establishes the Proof session immediately", () => {
+test("direct Specialist DB-session signup cannot invoke Supabase Auth", () => {
   const authSource = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
   const signupStart = authSource.indexOf('app.post("/api/auth/signup"');
-  const emergencyBranch = authSource.slice(
-    authSource.indexOf("if (isEmergencyDbMode()) {", signupStart),
+  const directBranch = authSource.slice(
+    authSource.indexOf("const proofTutorDbAuth", signupStart),
+    authSource.indexOf("// Create user in Supabase Auth with metadata", signupStart),
+  );
+  assert.doesNotMatch(directBranch, /supabase\.(auth|from)|fetch\(/);
+  assert.match(directBranch, /createEmergencyTutorAccount\(/);
+  assert.match(directBranch, /proofTutorDbAuth/);
+});
+
+test("direct Specialist DB-session signup establishes the session immediately", () => {
+  const authSource = readFileSync(resolve(process.cwd(), "server/supabaseAuth.ts"), "utf8");
+  const signupStart = authSource.indexOf('app.post("/api/auth/signup"');
+  const directBranch = authSource.slice(
+    authSource.indexOf("const proofTutorDbAuth", signupStart),
     authSource.indexOf("// Create user in Supabase Auth with metadata", signupStart),
   );
 
-  assert.match(emergencyBranch, /req\.session as any\)\.userId = user\.id/);
-  assert.match(emergencyBranch, /req\.session as any\)\.email = user\.email/);
-  assert.match(emergencyBranch, /req\.session\.save/);
-  assert.match(emergencyBranch, /redirectUrl/);
-  assert.match(emergencyBranch, /Signup successful/);
-  assert.doesNotMatch(emergencyBranch, /Please log in to continue/);
+  assert.match(directBranch, /req\.session as any\)\.userId = user\.id/);
+  assert.match(directBranch, /req\.session as any\)\.email = user\.email/);
+  assert.match(directBranch, /req\.session\.save/);
+  assert.match(directBranch, /redirectUrl/);
+  assert.match(directBranch, /Signup successful/);
+  assert.doesNotMatch(directBranch, /Please log in to continue/);
 });
 
-test("client emergency signup and login do not invoke Supabase Auth", () => {
+test("client Proof Specialist signup and login stay on server-session auth", () => {
   const authFormSource = readFileSync(
     resolve(process.cwd(), "client/src/components/auth/auth-form.tsx"),
     "utf8",
@@ -324,13 +348,15 @@ test("client emergency signup and login do not invoke Supabase Auth", () => {
     authFormSource.indexOf('if (mode === "signup")'),
     authFormSource.indexOf('if (mode === "login")'),
   );
-  const emergencySignupBlock = signupBranch.slice(
-    signupBranch.indexOf("if (emergencyDbMode)"),
-    signupBranch.indexOf("const response = await fetch"),
+  const loginBranch = authFormSource.slice(
+    authFormSource.indexOf('if (mode === "login")'),
+    authFormSource.indexOf("// Ensure redirectUrl is defined"),
   );
-  assert.doesNotMatch(emergencySignupBlock, /supabase\.auth/);
-  assert.match(authFormSource, /if \(!emergencyDbMode\) \{[\s\S]*?supabase\.auth\.signInWithPassword/);
-  assert.match(signupBranch, /if \(emergencyDbMode\) \{[\s\S]*?queryClient\.setQueryData\(\["\/api\/auth\/user"\]/);
+
+  assert.match(signupBranch, /directSpecialistSession/);
+  assert.match(signupBranch, /authMode\.proofDbAuthMode/);
+  assert.match(signupBranch, /queryClient\.setQueryData\(\["\/api\/auth\/user"\]/);
+  assert.match(loginBranch, /if \(!directSpecialistSession\) \{[\s\S]*?supabase\.auth\.signInWithPassword/);
   assert.match(signupBranch, /redirectUrl = data\.redirectUrl \|\| getDefaultDashboardRoute\(role\)/);
   assert.doesNotMatch(authFormSource, /onEmergencySignupSuccess/);
   assert.doesNotMatch(signupBranch, /Please log in to continue/);
