@@ -247,7 +247,7 @@ test("TPS Handover reuses inherited baseline-derived Timer Contract authority", 
   );
   assert.match(
     liveRunnerSource,
-    /activeTpsPressureLevel === "light_timer"[\s\S]*"time_pressure\.structure_under_timer"/,
+    /isHandoverContinuityVerification && activeTpsPressureLevel === "light_timer"[\s\S]*"time_pressure\.handover_continuity"/,
   );
   assert.match(
     liveRunnerSource,
