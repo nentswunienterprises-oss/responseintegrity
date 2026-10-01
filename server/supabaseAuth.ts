@@ -35,13 +35,16 @@ import {
   sessionPool,
 } from "./db";
 
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+const supabasePublishableKey =
+  process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+if (!process.env.SUPABASE_URL || !supabasePublishableKey) {
   throw new Error("Missing Supabase environment variables");
 }
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY,
+  supabasePublishableKey,
 );
 
 export function getSession() {

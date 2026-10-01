@@ -31,10 +31,15 @@ import { resolveProductionCloseLineage } from "./productionCloseLineage";
 import { TUTOR_ONBOARDING_DOCUMENTS } from "./tutorOnboardingDocuments";
 import { buildCurrentTutorOnboardingAcceptanceMap } from "@shared/tutorOnboardingAcceptanceVersion";
 
-// Initialize Supabase client with service role key to bypass RLS
+// Prefer the modern secret key for privileged server access.
+// During key migration, a modern publishable key is preferable to a disabled
+// legacy service_role credential for non-RLS server operations.
 const supabaseUrl = process.env.SUPABASE_URL!;
-// Use service role key if available (bypasses RLS), fall back to anon key
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY!;
+const supabaseKey =
+  process.env.SUPABASE_SECRET_KEY ||
+  process.env.SUPABASE_PUBLISHABLE_KEY ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_ANON_KEY!;
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Create affiliate code (used by routes.ts)
@@ -3296,18 +3301,25 @@ export class SupabaseStorage implements IStorage {
       };
     }
 
-    const { data } = await supabase
-      .from("affiliate_codes")
-      .select("affiliate_id, created_by, owner_user_id, owner_type, owner_name, code, type, person_name, entity_name, pipeline_type, campaign_name, status")
-      .eq("code", code)
-      .maybeSingle();
+    const result = await pool.query(
+      `SELECT affiliate_id, created_by, owner_user_id, owner_type, owner_name, code, type,
+              person_name, entity_name, pipeline_type, campaign_name, status
+         FROM public.affiliate_codes
+        WHERE code = $1
+        LIMIT 1`,
+      [code],
+    );
+    const data = result.rows[0];
     if (!data) return null;
     // Compose affiliate_name: prefer person_name, fallback to entity_name, fallback to null
     let affiliate_name = data.person_name || data.entity_name || null;
     let ownershipStatus = data.owner_user_id || data.owner_type || data.owner_name ? "explicit" : "legacy_contributor";
     if (!data.owner_user_id && !data.owner_type && data.affiliate_id) {
-      const { data: owner } = await supabase.from("users").select("role").eq("id", data.affiliate_id).maybeSingle();
-      if (owner?.role !== "affiliate") ownershipStatus = "unresolved_legacy";
+      const ownerResult = await pool.query(
+        `SELECT role FROM public.users WHERE id = $1 LIMIT 1`,
+        [data.affiliate_id],
+      );
+      if (ownerResult.rows[0]?.role !== "affiliate") ownershipStatus = "unresolved_legacy";
     }
     return {
       affiliate_id: data.affiliate_id,
