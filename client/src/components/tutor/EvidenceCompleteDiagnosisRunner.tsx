@@ -1379,6 +1379,17 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 </div>
               </div>
 
+              <div className="mt-4 rounded-xl border border-primary/15 bg-background/70 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  Probe
+                </p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  {currentProbe.label}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {currentProbe.evidenceQuestion}
+                </p>
+              </div>
 
               {timingBoundaryRequired && (
                 <div className="mt-4 rounded-xl border p-4">
