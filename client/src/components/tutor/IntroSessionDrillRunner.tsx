@@ -1294,13 +1294,15 @@ function IntroSessionDrillRunnerCore({
       ? configuredTpsPressureLevel
       : null;
   const activeTpsTimingSetId: TpsTimedTrainingSetId | null =
-    activeTpsPressureLevel === "light_timer"
-      ? "time_pressure.structure_under_timer"
-      : activeTpsPressureLevel === "repeated_timer"
-        ? "time_pressure.repeated_timed_execution"
-        : activeTpsPressureLevel === "full_constraint"
-          ? "time_pressure.full_constraint"
-          : null;
+    isHandoverContinuityVerification && activeTpsPressureLevel === "light_timer"
+      ? "time_pressure.handover_continuity"
+      : activeTpsPressureLevel === "light_timer"
+        ? "time_pressure.structure_under_timer"
+        : activeTpsPressureLevel === "repeated_timer"
+          ? "time_pressure.repeated_timed_execution"
+          : activeTpsPressureLevel === "full_constraint"
+            ? "time_pressure.full_constraint"
+            : null;
   const activeRepRequiresTpsTiming =
     (isTrainingEvidenceCapture || isHandoverContinuityVerification) &&
     displayPhase === "Time Pressure Stability" &&
