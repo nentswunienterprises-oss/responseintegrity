@@ -45,6 +45,25 @@ Outcome selection is deterministic and replayable from a private seed, but const
 
 Weights may favor opportunities that expose the earliest unsupported Specialist capability, but they may never select an implausible student response merely to manufacture a test.
 
+## Simulation coverage across RI operating modes
+
+Sandbox simulation is not Training-only.
+
+The same hidden simulated student truth boundary applies wherever the Specialist is expected to observe a student response:
+
+- **Diagnosis:** the evidence-native Diagnosis runner remains the runner of record. In Sandbox, the selected probe receives a deterministic private simulated student response. The Specialist observes that response, closes the response boundary, and records evidence through the same Diagnosis contract used outside Sandbox.
+- **Training:** the stateful Sandbox runner projects private simulated student behaviour rep by rep through the live Training contract.
+- **Handover:** the live Handover verification runner remains the continuity authority. In Sandbox, each continuity opportunity receives a deterministic private simulated response under the inherited phase condition before the Specialist records evidence.
+- **Targeted re-diagnosis:** simulated Diagnosis behaviour continues after a Handover or Training contradiction rather than falling back to a form-only exercise.
+
+The Specialist never receives the canonical observation record. Only the simulated behaviour needed to perform the live operating task is projected. Hidden canonical truth is used to evaluate observation/evidence fidelity and remains non-authoritative to any real student.
+
+The execution boundary is consistent across simulated Diagnosis/Handover opportunities:
+
+`Ready -> Observe simulated student response -> Student Finished -> Record -> Confirm`
+
+A simulated response is selected deterministically from the private versioned diagnosis outcome bank so refresh/retry does not manufacture a new student merely because the UI was reopened.
+
 ## Two state tracks
 
 Sandbox persists two separate state tracks:
