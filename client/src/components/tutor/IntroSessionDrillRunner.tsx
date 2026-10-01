@@ -4526,25 +4526,26 @@ function IntroSessionDrillRunnerRoute() {
 
   if (
     operationalMode === "sandbox" &&
-    studentId &&
-    runtimeMode?.assignmentId &&
+    (!studentId || !runtimeMode?.assignmentId)
+  ) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6 text-center text-sm text-destructive">
+        Sandbox is active, but the live runner is missing its assignment or student identity.
+      </div>
+    );
+  }
+
+  if (
+    operationalMode === "sandbox" &&
     requestedMode !== "handover"
   ) {
     return (
       <SpecialistSandboxSimulation
         studentIdOverride={String(studentId)}
-        tutorAssignmentIdOverride={runtimeMode.assignmentId}
+        tutorAssignmentIdOverride={runtimeMode!.assignmentId!}
         operationalModeOverride={operationalMode}
         embedded
       />
-    );
-  }
-
-  if (operationalMode === "sandbox") {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-6 text-center text-sm text-destructive">
-        Sandbox is active, but the live runner is missing its assignment or student identity.
-      </div>
     );
   }
 
