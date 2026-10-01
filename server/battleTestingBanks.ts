@@ -154,6 +154,7 @@ const AUTO_CRITICAL_REASON_BY_PHASE: Record<string, Record<string, string>> = {
     "Scenario 4": "Treats speed with collapsed structure as Full Constraint success.",
   },
   handover_verification: {
+    Q2: "Drops the inherited TPS Timer Contract or replaces it with Specialist-selected timing authority.",
     Q9: "Assigns inherited-state movement to the replacement Specialist rather than verification evidence.",
     "Scenario 1": "Erases inherited topic-state and replaces continuity verification with personal re-placement.",
     "Scenario 2": "Manually changes phase from one rep before the authorised verification result.",
