@@ -25,6 +25,7 @@ import type { TopicReference, TopicReferenceContent } from "@shared/topicReferen
 import { useStudentWorkflowState } from "@/hooks/useStudentWorkflowState";
 import { supabase } from "@/lib/supabaseClient";
 import { API_URL } from "@/lib/config";
+import { getAuthMode } from "@/lib/authMode";
 import SpecialistSandboxSimulation from "@/pages/operational/tutor/sandbox-simulation";
 import { instructionPromptDisplayText, instructionPromptLabelFor } from "@/lib/instructionPromptLabel";
 import {
@@ -4232,10 +4233,13 @@ function IntroSessionDrillRunnerRoute() {
   } = useQuery<{ assignmentId: string | null; operationalMode: string }>({
     queryKey: ["/api/tutor/runtime-mode", "live-runner", studentId],
     queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const authMode = await getAuthMode();
       const headers: HeadersInit = {};
-      if (session?.access_token) {
-        headers.Authorization = `Bearer ${session.access_token}`;
+      if (!authMode.dbSessionAuthMode) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          headers.Authorization = `Bearer ${session.access_token}`;
+        }
       }
       const response = await fetch(`${API_URL}/api/tutor/runtime-mode`, {
         headers,
