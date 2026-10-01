@@ -1431,6 +1431,26 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
     () => buildCurrentTutorOnboardingAcceptanceMap(acceptanceHistory, data?.documents || []),
     [acceptanceHistory, data?.documents],
   );
+
+  // Accepted-copy access is historical, not a current-version gate.
+  // Keep the latest stored acceptance for each step available even when the
+  // live document code/version/checksum later changes.
+  const acceptedCopyMap = useMemo(
+    () =>
+      acceptanceHistory
+        .slice()
+        .sort((left: any, right: any) => {
+          const leftAt = new Date(left?.acceptedAt || left?.accepted_at || 0).getTime();
+          const rightAt = new Date(right?.acceptedAt || right?.accepted_at || 0).getTime();
+          return rightAt - leftAt;
+        })
+        .reduce<Record<string, any>>((result, acceptance: any) => {
+          const step = String(acceptance?.documentStep || acceptance?.document_step || "");
+          if (step && !result[step]) result[step] = acceptance;
+          return result;
+        }, {}),
+    [acceptanceHistory],
+  );
   const doc1Acceptance = acceptanceMap["1"];
   const currentStep = getCurrentStep(documentsStatus);
   const currentDocument = data?.documents?.find((entry) => entry.step === currentStep);
@@ -1728,7 +1748,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
   const renderAcceptedDocumentsArchive = () => {
     const acceptedDefinitions =
       data?.documents?.filter(
-        (document) => document.requiresAcceptance && acceptanceMap[String(document.step)],
+        (document) => document.requiresAcceptance && acceptedCopyMap[String(document.step)],
       ) || [];
 
     if (acceptedDefinitions.length === 0) return null;
@@ -1743,14 +1763,14 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
         </div>
         <div className="space-y-3">
           {acceptedDefinitions.map((document) => {
-            const acceptance = acceptanceMap[String(document.step)];
+            const acceptance = acceptedCopyMap[String(document.step)];
             const acceptedAt = acceptance?.acceptedAt || acceptance?.accepted_at;
             return (
               <div key={document.step} className="flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="font-medium">{document.title}</p>
+                  <p className="font-medium">{acceptance?.documentTitle || acceptance?.document_title || document.title}</p>
                   <p className="text-sm text-muted-foreground">
-                    {document.code} • Version {normalizeDisplayedVersion(acceptance?.documentVersion || acceptance?.document_version || document.version)}
+                    {acceptance?.documentCode || acceptance?.document_code || document.code} • Version {normalizeDisplayedVersion(acceptance?.documentVersion || acceptance?.document_version || document.version)}
                   </p>
                   {acceptedAt ? (
                     <p className="text-xs text-muted-foreground">Accepted {new Date(acceptedAt).toLocaleString()}</p>
