@@ -362,6 +362,51 @@ test("client Proof Specialist signup and login stay on server-session auth", () 
   assert.doesNotMatch(signupBranch, /Please log in to continue/);
 });
 
+
+test("client auth switches cannot retain protected query data from the previous Specialist", () => {
+  const authFormSource = readFileSync(
+    resolve(process.cwd(), "client/src/components/auth/auth-form.tsx"),
+    "utf8",
+  );
+  const useAuthSource = readFileSync(
+    resolve(process.cwd(), "client/src/hooks/useAuth.ts"),
+    "utf8",
+  );
+
+  const submitStart = authFormSource.indexOf("const handleSubmit");
+  const loginStart = authFormSource.indexOf('if (mode === "login")', submitStart);
+  const loginEnd = authFormSource.indexOf("// Ensure redirectUrl is defined", loginStart);
+  const preLogin = authFormSource.slice(submitStart, loginStart);
+  const loginBranch = authFormSource.slice(loginStart, loginEnd);
+
+  assert.doesNotMatch(
+    preLogin,
+    /clearAllCache\(\)/,
+    "Do not clear while the previous auth session can still repopulate protected queries.",
+  );
+  assert.ok(
+    loginBranch.indexOf("supabase.auth.signInWithPassword") <
+      loginBranch.indexOf("clearAllCache()"),
+    "Supabase identity must switch before the previous account cache is purged.",
+  );
+  assert.ok(
+    loginBranch.indexOf("clearAllCache()") <
+      loginBranch.indexOf('queryClient.setQueryData(["/api/auth/user"]'),
+    "Protected cache must be purged before the new DB user is exposed to the app.",
+  );
+
+  const initStart = useAuthSource.indexOf("const initializeAuthIdentity");
+  const initEnd = useAuthSource.indexOf("// Setup multi-tab sync", initStart);
+  const initSource = useAuthSource.slice(initStart, initEnd);
+
+  assert.match(initSource, /storedUserId !== sessionUserId/);
+  assert.match(initSource, /clearAllCache\(\)/);
+  assert.ok(
+    initSource.indexOf("clearAllCache()") <
+      initSource.lastIndexOf("setSupabaseReady(true)"),
+    "Persisted protected queries must be reconciled before auth readiness opens them.",
+  );
+});
 test("emergency tutor application submission cannot invoke Supabase HTTP", () => {
   const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
   const applicationRouteStart = routesSource.indexOf('"/api/tutor/application"');
