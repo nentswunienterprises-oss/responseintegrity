@@ -505,6 +505,86 @@ export const loadTpsPassiveAttemptById = async (
   return data ? rowToPassiveAttempt(data as Record<string, any>) : null;
 };
 
+
+export const loadLatestTpsPassiveAttemptForSlot = async ({
+  studentId,
+  topic,
+  source,
+  sourceContextId,
+  sourceItemId,
+  slotNumber,
+}: {
+  studentId: string;
+  topic: string;
+  source: TpsPassiveAttemptSubmissionV1["source"];
+  sourceContextId: string;
+  sourceItemId: string;
+  slotNumber: number;
+}): Promise<PersistedTpsPassiveAttempt | null> => {
+  const normalizedStudentId = clean(studentId);
+  const normalizedTopic = clean(topic);
+  const normalizedContextId = clean(sourceContextId);
+  const normalizedItemId = clean(sourceItemId);
+  const normalizedSlotNumber = Number(slotNumber);
+
+  if (
+    !normalizedStudentId ||
+    !normalizedTopic ||
+    !normalizedContextId ||
+    !normalizedItemId ||
+    !Number.isInteger(normalizedSlotNumber) ||
+    normalizedSlotNumber <= 0
+  ) {
+    return null;
+  }
+
+  if (isEmergencyDbMode()) {
+    const result = await pool.query(
+      `SELECT *
+         FROM public.${BASELINE_ATTEMPT_TABLE}
+        WHERE student_id = $1
+          AND topic_key = $2
+          AND source = $3
+          AND source_context_id = $4
+          AND source_item_id = $5
+          AND slot_number = $6
+        ORDER BY attempt_number DESC, created_at DESC
+        LIMIT 1`,
+      [
+        normalizedStudentId,
+        topicKey(normalizedTopic),
+        source,
+        normalizedContextId,
+        normalizedItemId,
+        normalizedSlotNumber,
+      ],
+    );
+    return result.rows[0] ? rowToPassiveAttempt(result.rows[0]) : null;
+  }
+
+  const { data, error } = await supabase
+    .from(BASELINE_ATTEMPT_TABLE)
+    .select("*")
+    .eq("student_id", normalizedStudentId)
+    .eq("topic_key", topicKey(normalizedTopic))
+    .eq("source", source)
+    .eq("source_context_id", normalizedContextId)
+    .eq("source_item_id", normalizedItemId)
+    .eq("slot_number", normalizedSlotNumber)
+    .order("attempt_number", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Failed to load passive baseline timing slot: ${error.message}`,
+    );
+  }
+
+  return data ? rowToPassiveAttempt(data as Record<string, any>) : null;
+};
+
 export const persistTpsPassiveAttempt = async ({
   studentId,
   topic,
@@ -576,6 +656,31 @@ export const persistTpsPassiveAttempt = async ({
       );
     }
     return existing;
+  }
+
+  const existingSlotAttempt = await loadLatestTpsPassiveAttemptForSlot({
+    studentId: normalizedStudentId,
+    topic: normalizedTopic,
+    source: attempt.source,
+    sourceContextId: attempt.sourceContextId,
+    sourceItemId: attempt.sourceItemId,
+    slotNumber: attempt.slotNumber,
+  });
+
+  if (
+    existingSlotAttempt &&
+    existingSlotAttempt.attemptId !== attempt.attemptId &&
+    existingSlotAttempt.attemptNumber >= attempt.attemptNumber
+  ) {
+    throw Object.assign(
+      new Error(
+        "This passive timing opportunity already has immutable timing evidence. Resume the recorded opportunity instead of restarting the clock.",
+      ),
+      {
+        statusCode: 409,
+        code: "TPS_PASSIVE_ATTEMPT_SLOT_ALREADY_RECORDED",
+      },
+    );
   }
 
   if (attempt.replacementForAttemptId) {
