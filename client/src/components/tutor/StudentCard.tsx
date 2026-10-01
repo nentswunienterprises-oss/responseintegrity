@@ -24,6 +24,10 @@ import {
   normalizeResponseSymptoms,
   recommendStartingPhaseFromSymptoms,
 } from "@shared/responseSymptomMapping";
+import {
+  DIAGNOSIS_OBSERVATION_MATRIX,
+  type DiagnosisDimensionId,
+} from "@shared/diagnosisObservationMatrix";
 
 function splitReportedTopics(rawValue) {
   const ignoredContexts = new Set([
@@ -1184,6 +1188,12 @@ function HandoverVerificationSection({
   const latestVerification = session?.latestHandoverVerification || null;
   const latestSummary = latestVerification?.summary || null;
   const reDiagnosisRequired = !!latestSummary?.reDiagnosisRequired;
+  const handoverDimensions = Array.isArray(latestSummary?.dimensions) ? latestSummary.dimensions : [];
+  const breakdownDimensions = handoverDimensions.filter((dimension: any) => dimension?.state === "BREAKDOWN");
+  const unresolvedDimensions = handoverDimensions.filter((dimension: any) => dimension?.state === "UNRESOLVED");
+  const decisionEvidenceDimensions = reDiagnosisRequired
+    ? (breakdownDimensions.length > 0 ? breakdownDimensions : unresolvedDimensions)
+    : [];
   const canMarkComplete = sessionConfirmed && !!latestSummary && !reDiagnosisRequired;
   const [detailsCollapsed, setDetailsCollapsed] = useState(true);
 
@@ -1272,9 +1282,64 @@ function HandoverVerificationSection({
               </div>
             </div>
           )}
+          {reDiagnosisRequired && decisionEvidenceDimensions.length > 0 ? (
+            <div className="rounded-lg border border-primary/20 bg-background/70 px-3 py-3 space-y-3">
+              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                Evidence that triggered this result
+              </p>
+              <div className="space-y-3">
+                {decisionEvidenceDimensions.map((dimension: any) => {
+                  const canonical = DIAGNOSIS_OBSERVATION_MATRIX[
+                    dimension.dimensionId as DiagnosisDimensionId
+                  ];
+                  const evidence = Array.isArray(dimension?.evidence) ? dimension.evidence : [];
+                  const triggerEvidence = dimension?.state === "BREAKDOWN"
+                    ? evidence.filter((item: any) => item?.evidenceClass === "breakdown")
+                    : evidence.filter((item: any) =>
+                        item?.evidenceClass === "not_observed" || item?.evidenceClass === "confounded"
+                      );
+                  const visibleEvidence = triggerEvidence.length > 0
+                    ? triggerEvidence
+                    : evidence.slice(-1);
+
+                  return (
+                    <div key={dimension.dimensionId} className="space-y-1.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-xs font-semibold text-foreground">
+                          {canonical?.label || dimension.dimensionId}
+                        </p>
+                        <span className="shrink-0 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                          {dimension.state === "BREAKDOWN" ? "Breakdown confirmed" : "Unresolved"}
+                        </span>
+                      </div>
+                      {visibleEvidence.length > 0 ? (
+                        <div className="space-y-1">
+                          {visibleEvidence.map((item: any, index: number) => (
+                            <p
+                              key={`${dimension.dimensionId}-${item?.repNumber || index + 1}-${item?.fieldKey || "evidence"}`}
+                              className="text-xs leading-5 text-muted-foreground"
+                            >
+                              <span className="font-medium text-foreground">
+                                Opportunity {item?.repNumber || index + 1}:
+                              </span>{" "}
+                              {item?.rawOption || "No clean decision-eligible behavior was recorded."}
+                            </p>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs leading-5 text-muted-foreground">
+                          No clean decision-eligible behavior was recorded for this dimension.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
           {latestSummary.evidenceReason ? (
             <p className="text-xs leading-5 text-muted-foreground">
-              <span className="font-medium text-foreground">Evidence:</span> {latestSummary.evidenceReason}
+              <span className="font-medium text-foreground">Why this result:</span> {latestSummary.evidenceReason}
             </p>
           ) : null}
           <p className="text-xs text-muted-foreground">{latestSummary.nextAction || "No next action recorded."}</p>
