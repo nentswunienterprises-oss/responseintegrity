@@ -1725,12 +1725,82 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
     }
   };
 
+  const renderAcceptedDocumentsArchive = () => {
+    const acceptedDefinitions =
+      data?.documents?.filter(
+        (document) => document.requiresAcceptance && acceptanceMap[String(document.step)],
+      ) || [];
+
+    if (acceptedDefinitions.length === 0) return null;
+
+    return (
+      <div className="rounded-2xl border p-4">
+        <div className="mb-4">
+          <p className="font-medium">Accepted documents</p>
+          <p className="text-sm text-muted-foreground">
+            Download or print the stored accepted copy for any agreement you have completed.
+          </p>
+        </div>
+        <div className="space-y-3">
+          {acceptedDefinitions.map((document) => {
+            const acceptance = acceptanceMap[String(document.step)];
+            const acceptedAt = acceptance?.acceptedAt || acceptance?.accepted_at;
+            return (
+              <div key={document.step} className="flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="font-medium">{document.title}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {document.code} • Version {normalizeDisplayedVersion(acceptance?.documentVersion || acceptance?.document_version || document.version)}
+                  </p>
+                  {acceptedAt ? (
+                    <p className="text-xs text-muted-foreground">Accepted {new Date(acceptedAt).toLocaleString()}</p>
+                  ) : null}
+                </div>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full whitespace-normal text-left sm:w-auto sm:whitespace-nowrap sm:text-center"
+                    onClick={() => downloadAcceptedCopyFor(document, acceptance)}
+                  >
+                    <Download className="mr-2 h-4 w-4 shrink-0" />
+                    Download accepted copy
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full whitespace-normal text-left sm:w-auto sm:whitespace-nowrap sm:text-center"
+                    onClick={() => printAcceptedCopyFor(document, acceptance)}
+                  >
+                    <FileCheck className="mr-2 h-4 w-4 shrink-0" />
+                    Print / Save PDF
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   if (isLoading || !currentDocument) {
     return <Card><CardContent className="py-10 text-sm text-muted-foreground">Loading onboarding documents...</CardContent></Card>;
   }
 
   if (allApproved) {
-    return <Card className="border-green-200 bg-green-50"><CardContent className="py-8 text-sm text-green-800">All onboarding steps are complete. Response Integrity is matching you to a pod.</CardContent></Card>;
+    return (
+      <div className="space-y-4">
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="py-8 text-sm text-green-800">
+            All onboarding steps are complete. Response Integrity is matching you to a pod.
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 sm:p-6">{renderAcceptedDocumentsArchive()}</CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -1877,45 +1947,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
             </div>
           ) : null}
 
-          {data?.documents?.some((document) => document.requiresAcceptance && acceptanceMap[String(document.step)]) ? (
-            <div className="rounded-2xl border p-4">
-              <div className="mb-4">
-                <p className="font-medium">Previously accepted documents</p>
-                <p className="text-sm text-muted-foreground">Download or print a clean accepted copy for any agreement you have already completed.</p>
-              </div>
-              <div className="space-y-3">
-                {data.documents
-                  .filter((document) => document.requiresAcceptance && acceptanceMap[String(document.step)])
-                  .map((document) => {
-                    const acceptance = acceptanceMap[String(document.step)];
-                    const acceptedAt = acceptance?.acceptedAt || acceptance?.accepted_at;
-                    return (
-                      <div key={document.step} className="flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="min-w-0">
-                          <p className="font-medium">{document.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {document.code} • Version {normalizeDisplayedVersion(acceptance?.documentVersion || acceptance?.document_version || document.version)}
-                          </p>
-                          {acceptedAt ? (
-                            <p className="text-xs text-muted-foreground">Accepted {new Date(acceptedAt).toLocaleString()}</p>
-                          ) : null}
-                        </div>
-                        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                          <Button type="button" variant="outline" className="w-full whitespace-normal text-left sm:w-auto sm:whitespace-nowrap sm:text-center" onClick={() => downloadAcceptedCopyFor(document, acceptance)}>
-                            <Download className="mr-2 h-4 w-4 shrink-0" />
-                            Download accepted copy
-                          </Button>
-                          <Button type="button" variant="outline" className="w-full whitespace-normal text-left sm:w-auto sm:whitespace-nowrap sm:text-center" onClick={() => printAcceptedCopyFor(document, acceptance)}>
-                            <FileCheck className="mr-2 h-4 w-4 shrink-0" />
-                            Print / Save PDF
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          ) : null}
+          {renderAcceptedDocumentsArchive()}
         </CardContent>
       </Card>
 
