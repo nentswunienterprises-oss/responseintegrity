@@ -463,6 +463,25 @@ const SANDBOX_HANDOVER_SIMULATION_PROBE_BY_PHASE: Record<TopicPhase, DiagnosisPr
   "Time Pressure Stability": "time.consistency",
 };
 
+
+function projectSandboxLiveBehavior(input: {
+  scope: SandboxLiveEvidenceSimulationScope;
+  probeId: DiagnosisProbeId;
+  behavior: string;
+}) {
+  if (input.scope !== "handover" || input.probeId !== "time.consistency") {
+    return input.behavior;
+  }
+
+  return input.behavior
+    .replace(/On the repeated timed opportunity, the student again /i, "Under the timed continuity condition, the student ")
+    .replace(/repeated timed opportunity/gi, "timed continuity opportunity")
+    .replace(/repeated timed response/gi, "timed continuity response")
+    .replace(/The repeat is/gi, "The timed continuity response is")
+    .replace(/the repeat is/gi, "the timed continuity response is")
+    .replace(/breaks again/gi, "breaks");
+}
+
 export type SandboxLiveEvidenceSimulationScope = "diagnosis" | "handover";
 
 export async function prepareSandboxLiveEvidenceSimulation(input: {
@@ -542,7 +561,11 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
     probeId,
     sequenceNumber: input.sequenceNumber,
     formId,
-    studentBehavior: selected.studentBehavior,
+    studentBehavior: projectSandboxLiveBehavior({
+      scope: input.scope,
+      probeId,
+      behavior: selected.studentBehavior,
+    }),
     simulatedElapsedSeconds: selected.simulatedElapsedSeconds,
     studentStateAuthoritative: false as const,
     evidenceScope: "sandbox" as const,
