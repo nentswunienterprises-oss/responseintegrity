@@ -135,8 +135,9 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
     let redirectUrl: string | undefined;
 
     try {
-      // Clear any cached user data from previous sessions to prevent role mixing
-      clearAllCache();
+      // Do not clear the cache before the new auth identity is authoritative.
+      // Protected queries can immediately refetch under the still-active previous
+      // session and repopulate another user's data during the login transition.
       
       // Affiliate code is now optional - organic signups allowed
       // Code can come from URL (silent) or be entered manually
@@ -182,6 +183,9 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
         }
         
         if (directSpecialistSession) {
+          // The direct server session is authoritative at this point. Purge any
+          // prior-account queries before exposing the new authenticated user.
+          clearAllCache();
           if (data.dbUser) {
             queryClient.setQueryData(["/api/auth/user"], data.dbUser);
             if (data.dbUser.id) {
@@ -231,13 +235,6 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
           throw new Error(data.message || "Login failed");
         }
 
-        if (data.dbUser) {
-          queryClient.setQueryData(["/api/auth/user"], data.dbUser);
-          if (data.dbUser.id) {
-            setCurrentUserId(data.dbUser.id);
-          }
-        }
-
         if (!directSpecialistSession) {
           const { data: loginData, error: supabaseError } = await supabase.auth.signInWithPassword({ email, password });
           if (supabaseError) {
@@ -255,6 +252,18 @@ export function AuthForm({ mode, defaultRole = "parent", affiliateCode = "" }: A
             }
           }
         }
+
+        // The backend session and, where applicable, the Supabase client session
+        // now point at the new account. Clear again at this boundary so requests
+        // that refetched under the previous session cannot survive the switch.
+        clearAllCache();
+        if (data.dbUser) {
+          queryClient.setQueryData(["/api/auth/user"], data.dbUser);
+          if (data.dbUser.id) {
+            setCurrentUserId(data.dbUser.id);
+          }
+        }
+
         redirectUrl = data.redirectUrl || getDefaultDashboardRoute(role);
         toast({
           title: "Welcome back!",
