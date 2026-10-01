@@ -277,10 +277,12 @@ export default function EvidenceCompleteDiagnosisRunner() {
     contextId,
     probeId,
     slotNumber,
+    legacySlotNumber,
   }: {
     contextId: string;
     probeId: string;
     slotNumber: number;
+    legacySlotNumber?: number;
   }): Promise<TpsPassiveAttemptSubmissionV1 | null> => {
     const headers = await authHeaders();
     const params = new URLSearchParams({
@@ -290,6 +292,13 @@ export default function EvidenceCompleteDiagnosisRunner() {
       sourceItemId: probeId,
       slotNumber: String(slotNumber),
     });
+    if (
+      Number.isInteger(legacySlotNumber) &&
+      Number(legacySlotNumber) > 0 &&
+      Number(legacySlotNumber) !== slotNumber
+    ) {
+      params.set("legacySlotNumber", String(legacySlotNumber));
+    }
     const response = await fetch(
       `${API_URL}/api/tutor/students/${studentId}/tps-passive-attempt?${params.toString()}`,
       {
@@ -336,12 +345,18 @@ export default function EvidenceCompleteDiagnosisRunner() {
         const nextProbe = state.nextProbe || null;
         const nextOpportunityNumber =
           state.opportunityNumber || state.probeHistory.length + 1;
+        const nextProbeOccurrenceNumber = nextProbe
+          ? state.probeHistory.filter(
+              (item) => item.probeId === nextProbe.id,
+            ).length + 1
+          : null;
         const recoveredPassiveAttempt =
           state.timingAuthority?.mode === "passive_baseline" && nextProbe
             ? await loadPassiveAttemptForSlot({
                 contextId: id,
                 probeId: nextProbe.id,
                 slotNumber: nextOpportunityNumber,
+                legacySlotNumber: nextProbeOccurrenceNumber || undefined,
               })
             : null;
 
