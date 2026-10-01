@@ -1368,11 +1368,14 @@ export default function EvidenceCompleteDiagnosisRunner() {
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    Opportunity {opportunityNumber} · Evidence layer {activeLayerIndex + 1} of {groupedDimensions.length}
+                    Opportunity {opportunityNumber}
                   </p>
                   <h2 className="mt-1 text-2xl font-semibold">
-                    {activeLayer.phase}
+                    {currentProbe.label}
                   </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Evidence layer {activeLayerIndex + 1} of {groupedDimensions.length} · {activeLayer.phase}
+                  </p>
                 </div>
                 <div className="rounded-lg border px-3 py-2 text-xs text-muted-foreground">
                   {recordedBehaviorCount} / {currentProbe.dimensions.length} recorded
@@ -1381,10 +1384,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
 
               <div className="mt-4 rounded-xl border border-primary/15 bg-background/70 px-4 py-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Probe
-                </p>
-                <p className="mt-1 text-sm font-semibold text-foreground">
-                  {currentProbe.label}
+                  Evidence question
                 </p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   {currentProbe.evidenceQuestion}
