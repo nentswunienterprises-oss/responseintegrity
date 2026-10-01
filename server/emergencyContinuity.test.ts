@@ -1364,6 +1364,42 @@ test("diagnosis semantics separate the booked session container from the activit
   );
 });
 
+test("handover re-diagnosis repairs stale student ownership only from current accepted assignment and handover session authority", () => {
+  const diagnosisSource = readFileSync(
+    resolve(process.cwd(), "server/evidenceCompleteDiagnosisRoutes.ts"),
+    "utf8",
+  );
+
+  assert.match(
+    diagnosisSource,
+    /async function acceptedEnrollmentAssignmentBelongsToTutor/,
+  );
+  assert.match(
+    diagnosisSource,
+    /SELECT assigned_tutor_id, status[\s\S]*FROM public\.parent_enrollments/,
+  );
+  assert.match(
+    diagnosisSource,
+    /async function repairStudentTutorLinkFromHandoverAuthority/,
+  );
+  assert.match(
+    diagnosisSource,
+    /requestedKind: "handover"/,
+  );
+  assert.match(
+    diagnosisSource,
+    /handoverSession\.type !== "handover"/,
+  );
+  assert.match(
+    diagnosisSource,
+    /storage\.updateStudent\(input\.studentId,[\s\S]*tutorId: input\.tutorId/,
+  );
+  assert.match(
+    diagnosisSource,
+    /requestedKind === "handover"[\s\S]*repairStudentTutorLinkFromHandoverAuthority/,
+  );
+});
+
 test("completed active-training re-diagnosis retires its scheduled lesson", () => {
   const diagnosisSource = readFileSync(
     resolve(process.cwd(), "server/evidenceCompleteDiagnosisRoutes.ts"),
