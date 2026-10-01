@@ -178,6 +178,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
       : requestedSessionContext === "training"
         ? "training"
         : "intro";
+  const isTargetedHandoverRediagnosis = sessionContextKind === "handover";
 
   const storageKey = useMemo(
     () => buildStorageKey(studentId, topic, scheduledSessionId),
@@ -814,7 +815,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
       <main className="min-h-screen bg-background px-4 py-12">
         <div className="mx-auto max-w-3xl rounded-2xl border bg-card p-8">
           <p className="text-sm text-muted-foreground">
-            Opening response diagnosis...
+            {isTargetedHandoverRediagnosis
+              ? "Opening targeted re-diagnosis..."
+              : "Opening response diagnosis..."}
           </p>
         </div>
       </main>
@@ -825,7 +828,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
     return (
       <main className="min-h-screen bg-background px-4 py-12">
         <div className="mx-auto max-w-3xl space-y-4 rounded-2xl border bg-card p-8">
-          <h1 className="text-2xl font-semibold">Response Diagnosis</h1>
+          <h1 className="text-2xl font-semibold">
+            {isTargetedHandoverRediagnosis ? "Targeted Re-Diagnosis" : "Response Diagnosis"}
+          </h1>
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
             {error}
           </div>
@@ -887,7 +892,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Evidence-native response diagnosis
+                {isTargetedHandoverRediagnosis
+                  ? "Evidence-native targeted re-diagnosis"
+                  : "Evidence-native response diagnosis"}
               </p>
               <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">
                 {topic}
@@ -918,7 +925,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
         {complete && decision ? (
           <section className="rounded-2xl border bg-card p-6 sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Diagnosis complete
+              {isTargetedHandoverRediagnosis ? "Targeted re-diagnosis complete" : "Diagnosis complete"}
             </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-3">
               <ResultCell
