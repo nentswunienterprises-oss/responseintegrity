@@ -899,14 +899,11 @@ function buildVerificationPrepSpec(
     return {
       title: "Handover Prep",
       objective: `Verify whether the inherited ${phase} topic-state is still trustworthy. ${phasePurpose}`,
-      problemPlan: `Prepare a small bank of clean ${phase} continuity problems. The system evaluates evidence after each opportunity and stops as soon as there is enough evidence to hold the inherited state, adjust stability, or require targeted re-diagnosis. Extra prepared problems are reserve only, not a completion target.`,
+      problemPlan: `Prepare a small reserve bank of clean ${phase} continuity problems. Present one at a time. The system stops as soon as there is enough evidence to hold the inherited state, adjust stability, or require targeted re-diagnosis. Anything extra stays reserve only.`,
       tutorRules: [
-        ...verificationRules,
-        ...phaseRules,
-        "Do not reteach from scratch.",
-        "Do not progress the student during verification.",
+        "Do not reteach or progress the student during verification.",
         "Stop as soon as the system has enough continuity evidence.",
-        "Do not add extra opportunities to chase a preferred result.",
+        "Do not add opportunities to chase a preferred result.",
       ],
       derivedFrom: `Derived from the inherited ${phase} conditions and the ${diagnosisBlock.setName} evidence dimensions, but Handover has no fixed rep-completion requirement. Training reference: ${trainingReference}.`,
       checklist: [
@@ -3572,13 +3569,13 @@ function IntroSessionDrillRunnerCore({
             <p className="text-sm font-semibold text-foreground">
               {verificationPrepSpec.title}
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {isAdaptiveDiagnosisMode
-                ? "Diagnosis prep is verification-readiness prep, not training prep."
-                : handoverReDiagnosisMode
-                  ? "Targeted re-diagnosis prep is for resolving one flagged inherited topic, not for normal training."
-                  : "Handover prep is continuity-check prep, not intro prep and not training prep."}
-            </p>
+            {(isAdaptiveDiagnosisMode || handoverReDiagnosisMode) && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {isAdaptiveDiagnosisMode
+                  ? "Diagnosis prep is verification-readiness prep, not training prep."
+                  : "Targeted re-diagnosis prep is for resolving one flagged inherited topic, not for normal training."}
+              </p>
+            )}
           </div>
           <div className="rounded-lg border border-primary/15 bg-background/80 p-3 space-y-2 text-sm text-muted-foreground">
             <p>
@@ -3649,7 +3646,9 @@ function IntroSessionDrillRunnerCore({
               })}
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">{verificationPrepSpec.derivedFrom}</p>
+          {!isHandoverContinuityVerification && (
+            <p className="text-xs text-muted-foreground">{verificationPrepSpec.derivedFrom}</p>
+          )}
           <div className="flex justify-end">
             <button
               type="button"
@@ -3890,17 +3889,23 @@ function IntroSessionDrillRunnerCore({
             <span>Confirm</span>
           </div>
           <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Set {currentSet + 1} of {drillStructure?.length ?? 0} · {set?.setName}
+            {sandboxHandoverEnabled
+              ? `Continuity check · ${set?.setName || ""}`
+              : `Set ${currentSet + 1} of ${drillStructure?.length ?? 0} · ${set?.setName || ""}`}
           </div>
           <div className="mt-1 flex items-end gap-3">
             <div className="text-4xl font-black tracking-tight text-foreground sm:text-5xl">
               {sandboxHandoverEnabled ? "OPPORTUNITY" : "REP"} {currentRep + 1}
             </div>
-            <div className="pb-1 text-sm font-semibold text-muted-foreground">
-              of {set?.reps ?? 0}
-            </div>
+            {!sandboxHandoverEnabled && (
+              <div className="pb-1 text-sm font-semibold text-muted-foreground">
+                of {set?.reps ?? 0}
+              </div>
+            )}
           </div>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">{set?.purpose}</p>
+          {!sandboxHandoverEnabled && (
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">{set?.purpose}</p>
+          )}
           <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">
               {instructionPromptLabelFor(set?.repInstruction || "")}
@@ -3979,11 +3984,13 @@ function IntroSessionDrillRunnerCore({
               </p>
             </div>
           )}
-          <p className="mt-4 text-xs leading-5 text-muted-foreground">
-            {activeTechnicalReplacement
-              ? "The failed attempt remains in durable lineage. The reserve opportunity fills the unanswered evidence slot; it does not erase or improve the failed attempt."
-              : "Use the problem prepared before the session. Once the rep starts, keep attention on the student's response rather than on form administration."}
-          </p>
+          {(!sandboxHandoverEnabled || activeTechnicalReplacement) && (
+            <p className="mt-4 text-xs leading-5 text-muted-foreground">
+              {activeTechnicalReplacement
+                ? "The failed attempt remains in durable lineage. The reserve opportunity fills the unanswered evidence slot; it does not erase or improve the failed attempt."
+                : "Use the problem prepared before the session. Once the rep starts, keep attention on the student's response rather than on form administration."}
+            </p>
+          )}
           <div className="mt-5 flex justify-end">
             <button
               type="button"
@@ -4127,8 +4134,10 @@ function IntroSessionDrillRunnerCore({
         </div>
       )}
 
-      {/* Shared live-delivery rep context */}
+      {/* Shared live-delivery rep context. Handover uses its dedicated
+          Opportunity runner so the same instructions are not repeated as a Rep card. */}
       {set &&
+        !isHandoverContinuityVerification &&
         !(isTrainingEvidenceCapture && !set.isModelingSet && !repStarted) && (
           <LiveRepContextCard
             setIndex={currentSet + 1}
