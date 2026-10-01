@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 
 const handoverRules = [
   "Start from the inherited topic, phase, stability, evidence history, next action, and active constraints.",
+  "If the inherited phase is Time Pressure Stability, preserve the same student/topic Timer Contract. Do not invent, loosen, tighten, pause, or replace the timer. Missing timing authority must be re-established before TPS continuity evidence can count.",
   "Verify continuity only. Do not teach forward, progress the student, or restart Intro inside Handover.",
   "Record the concrete behavior that actually occurred. Do not choose a preferred state.",
   "If a behavior was not meaningfully observable, record it as not observed. If support or another condition changed the observation, record it as confounded.",
