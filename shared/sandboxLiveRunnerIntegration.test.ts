@@ -181,6 +181,29 @@ test("Sandbox Handover stays on the live Handover runner and reveals simulated b
     sandboxRediagnosisSource,
     /"Time Pressure Stability": "time\.consistency"/,
   );
+  assert.match(
+    liveRunnerSource,
+    /Continuity check · \$\{set\?\.setName \|\| ""\}/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /!isHandoverContinuityVerification[\s\S]*<LiveRepContextCard/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /!sandboxHandoverEnabled && \([\s\S]*of \{set\?\.reps \?\? 0\}/,
+  );
+  const handoverPrepStart = liveRunnerSource.indexOf('if (mode === "handover")');
+  const handoverPrepEnd = liveRunnerSource.indexOf(
+    'title: "Targeted Re-Diagnosis Prep"',
+    handoverPrepStart,
+  );
+  const handoverPrepSource = liveRunnerSource.slice(handoverPrepStart, handoverPrepEnd);
+  assert.doesNotMatch(handoverPrepSource, /\.\.\.verificationRules|\.\.\.phaseRules/);
+  assert.doesNotMatch(
+    liveRunnerSource,
+    /Handover prep is continuity-check prep, not intro prep and not training prep\./,
+  );
 });
 
 test("generic Sandbox evidence simulation is deterministic for retries and never grants Handover condition integrity without intervention evidence", () => {
