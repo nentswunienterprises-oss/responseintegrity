@@ -17,6 +17,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { API_URL } from "@/lib/config";
 import { resolveStoredDocumentUrl } from "@shared/storedDocumentUrl";
 import { CheckCircle2, ChevronDown, Download, ExternalLink, FileCheck, Loader2, ShieldCheck, XCircle } from "lucide-react";
+import { hydrateDocumentContent, renderAgreementHtmlStrict } from "@/components/tutor/SequentialDocumentSubmission";
 
 interface TutorDocumentReviewProps {
   application: any;
@@ -288,6 +289,11 @@ function buildAcceptedAgreementHtml(item: { code: string; title: string }, accep
   const acceptedName = acceptance?.typedFullName || acceptance?.typed_full_name || "Unknown";
   const documentVersion = normalizeDisplayedVersion(acceptance?.documentVersion || acceptance?.document_version || "1");
   const documentChecksum = acceptance?.documentChecksum || acceptance?.document_checksum || "";
+  const acceptedDocumentCode = String(acceptance?.documentCode || acceptance?.document_code || item.code || "").trim();
+  const acceptedDocumentTitle = String(acceptance?.documentTitle || acceptance?.document_title || item.title || "").trim();
+  const acceptedDocumentSnapshot = String(acceptance?.documentSnapshot || acceptance?.document_snapshot || "").trim();
+  const acceptedDocumentRenderCode =
+    acceptedDocumentCode === "Response Integrity-TCF-001" ? "Response Integrity-SCF-001" : acceptedDocumentCode;
   const formSnapshot = acceptance?.formSnapshotJson || acceptance?.form_snapshot_json || {};
   const idType = normalizeIdTypeChoice(formSnapshot.idType);
   const acceptedClauses = acceptance?.acceptedClausesJson || acceptance?.accepted_clauses_json || [];
@@ -305,28 +311,35 @@ function buildAcceptedAgreementHtml(item: { code: string; title: string }, accep
   const clauseItems = Array.isArray(acceptedClauses)
     ? acceptedClauses.map((value: string) => `<li>${escapeHtml(String(value))}</li>`).join("")
     : "";
-  const agreementBody = renderToStaticMarkup(
-    <div className="agreement-body-inner">
-      {buildTutorAgreementBody(item.code, {
-        legalName: normalizeValue(acceptedName || formSnapshot.legalName),
-        phoneNumber: normalizeValue(formSnapshot.phoneNumber),
-        dateOfBirth: normalizeValue(formSnapshot.dateOfBirth),
-        emailAddress: normalizeValue(formSnapshot.emailAddress),
-        idType,
-        idNumber: normalizeValue(formSnapshot.idNumber),
-        schoolName: normalizeValue(formSnapshot.schoolName),
-        currentStatus: normalizeValue(formSnapshot.currentStatus),
-        matricYear: normalizeValue(formSnapshot.matricYear),
-        examNumber: normalizeValue(formSnapshot.examNumber),
-      })}
-    </div>
-  );
+  const acceptedFormData = {
+    legalName: normalizeValue(acceptedName || formSnapshot.legalName),
+    phoneNumber: normalizeValue(formSnapshot.phoneNumber),
+    dateOfBirth: normalizeValue(formSnapshot.dateOfBirth),
+    emailAddress: normalizeValue(formSnapshot.emailAddress),
+    idType,
+    idNumber: normalizeValue(formSnapshot.idNumber),
+    schoolName: normalizeValue(formSnapshot.schoolName),
+    currentStatus: normalizeValue(formSnapshot.currentStatus),
+    matricYear: normalizeValue(formSnapshot.matricYear),
+    examNumber: normalizeValue(formSnapshot.examNumber),
+  };
+
+  const agreementBody = acceptedDocumentSnapshot
+    ? `<div class="agreement-body">${renderAgreementHtmlStrict(
+        hydrateDocumentContent(acceptedDocumentSnapshot, acceptedFormData),
+        acceptedDocumentRenderCode,
+      )}</div>`
+    : renderToStaticMarkup(
+        <div className="agreement-body-inner">
+          {buildTutorAgreementBody(item.code, acceptedFormData)}
+        </div>
+      );
 
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>${escapeHtml(item.code)} Accepted Copy</title>
+  <title>${escapeHtml(acceptedDocumentCode || item.code)} Accepted Copy</title>
   <style>
     @page { size: A4; margin: 18mm 16mm; }
     body { margin: 0; background: #efe7d8; color: #1f2933; font-family: Georgia, "Times New Roman", serif; }
@@ -361,8 +374,8 @@ function buildAcceptedAgreementHtml(item: { code: string; title: string }, accep
 <body>
   <main class="page">
     <div class="eyebrow">Response Integrity Accepted Agreement Copy</div>
-    <h1>${escapeHtml(item.title)}</h1>
-    <p class="subhead">${escapeHtml(item.code)} | Version ${escapeHtml(String(documentVersion))}</p>
+    <h1>${escapeHtml(acceptedDocumentTitle || item.title)}</h1>
+    <p class="subhead">${escapeHtml(acceptedDocumentCode || item.code)} | Version ${escapeHtml(String(documentVersion))}</p>
     <section class="section">
       <h2 class="section-title">Acceptance Record</h2>
       <p>Accepted by: ${escapeHtml(String(acceptedName))}</p>
@@ -393,7 +406,7 @@ function formatDocStatus(value: string) {
 
 function getReviewStepLabel(step: string) {
   const labels: Record<string, string> = {
-    "1": "TCF",
+    "1": "SCF",
     "2": "EQV",
     "3": "ICA",
     "4": "SCP",
@@ -583,7 +596,7 @@ export function TutorDocumentReview({ application, onReview }: TutorDocumentRevi
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${item.code}-accepted-copy.html`;
+    link.download = `${acceptance?.documentCode || acceptance?.document_code || item.code}-accepted-copy.html`;
     link.click();
     URL.revokeObjectURL(url);
   };
