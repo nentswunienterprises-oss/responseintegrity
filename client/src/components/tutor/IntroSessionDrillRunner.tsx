@@ -32,6 +32,7 @@ import {
   LIVE_PHASE_CONTEXT,
   LiveObservationField,
   LivePhaseContext,
+  LiveSandboxStudentResponse,
   LiveRepContextCard,
   LiveRepStage,
   LiveSupportPanel,
@@ -956,7 +957,11 @@ function observationLevelForField(field: ObservationField, optionIndex: number, 
   return observationLevelFromOptionIndex(optionIndex, field.options.length);
 }
 
-function IntroSessionDrillRunnerCore() {
+function IntroSessionDrillRunnerCore({
+  sandboxAssignmentId,
+}: {
+  sandboxAssignmentId?: string | null;
+} = {}) {
   const { studentId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -985,6 +990,15 @@ function IntroSessionDrillRunnerCore() {
     reference: TopicReference;
   } | null>(null);
   const [repStarted, setRepStarted] = useState(false);
+  const [handoverExecutionFinished, setHandoverExecutionFinished] =
+    useState(false);
+  const [sandboxHandoverSimulation, setSandboxHandoverSimulation] = useState<null | {
+    formId: string;
+    probeId: string;
+    sequenceNumber: number;
+    studentBehavior: string;
+    simulatedElapsedSeconds: number;
+  }>(null);
   const [activePassiveAttempt, setActivePassiveAttempt] =
     useState<TpsActivePassiveAttempt | null>(null);
   const [passiveReplacementState, setPassiveReplacementState] = useState<
@@ -1416,6 +1430,11 @@ function IntroSessionDrillRunnerCore() {
         )
       : 0;
   const isHandoverContinuityVerification = isHandoverMode && !handoverReDiagnosisMode;
+  const sandboxHandoverEnabled =
+    Boolean(sandboxAssignmentId) && isHandoverContinuityVerification;
+  const sandboxHandoverContextId =
+    scheduledSessionId ||
+    `handover:${String(studentId || "unknown")}:${introTopic}:${phase}`;
   const isFirstRep = currentRep === 0;
   const isFirstSet = currentSet === 0;
   const isTopicReferenceCaptureStep =
@@ -1435,6 +1454,82 @@ function IntroSessionDrillRunnerCore() {
       : scheduledSession?.type === "handover"
         ? "Handover"
         : "Unknown";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      if (
+        !sandboxHandoverEnabled ||
+        !sandboxAssignmentId ||
+        !studentId ||
+        !prepReady
+      ) {
+        if (!cancelled) setSandboxHandoverSimulation(null);
+        return;
+      }
+
+      try {
+        const authMode = await getAuthMode();
+        const headers: HeadersInit = {};
+        if (!authMode.dbSessionAuthMode) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            headers.Authorization = `Bearer ${session.access_token}`;
+          }
+        }
+        const params = new URLSearchParams({
+          tutorAssignmentId: sandboxAssignmentId,
+          studentId: String(studentId),
+          scope: "handover",
+          sourceContextId: sandboxHandoverContextId,
+          startingPhase: displayPhase,
+          sequenceNumber: String(currentRep + 1),
+        });
+        const response = await fetch(
+          `${API_URL}/api/tutor/sandbox-live-evidence?${params.toString()}`,
+          {
+            headers,
+            credentials: "include",
+            cache: "no-store",
+          },
+        );
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(
+            body?.message ||
+              "Sandbox Handover student behavior could not be prepared.",
+          );
+        }
+        if (!cancelled) {
+          setSandboxHandoverSimulation(body);
+          setHandoverExecutionFinished(false);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSandboxHandoverSimulation(null);
+          setSubmitError(
+            error instanceof Error
+              ? error.message
+              : "Sandbox Handover student behavior could not be prepared.",
+          );
+        }
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    sandboxHandoverEnabled,
+    sandboxAssignmentId,
+    studentId,
+    prepReady,
+    sandboxHandoverContextId,
+    displayPhase,
+    currentRep,
+  ]);
 
   useEffect(() => {
     if (!drillStructure) return;
@@ -1514,6 +1609,12 @@ function IntroSessionDrillRunnerCore() {
   };
 
   const beginTrainingRep = () => {
+    if (sandboxHandoverEnabled && !sandboxHandoverSimulation) {
+      setSubmitError(
+        "Wait for the simulated Sandbox student response to load before beginning this Handover opportunity.",
+      );
+      return;
+    }
     if (
       modeToUse === "training" &&
       (topicDataLoading || drillSessionAccessLoading)
@@ -1599,6 +1700,7 @@ function IntroSessionDrillRunnerCore() {
       });
     }
     setSubmitError(null);
+    setHandoverExecutionFinished(false);
     setRepStarted(true);
   };
 
@@ -2570,6 +2672,83 @@ function IntroSessionDrillRunnerCore() {
     }
   };
 
+  const recordSandboxHandoverObservation = async () => {
+    if (
+      !sandboxHandoverEnabled ||
+      !sandboxAssignmentId ||
+      !sandboxHandoverSimulation ||
+      !set ||
+      !activeRegistrySet ||
+      !studentId
+    ) {
+      return;
+    }
+
+    const submittedObservations = getLiveObservationBlockForRep(
+      set,
+      currentRep,
+    ).map((block) => {
+      const field = activeRegistrySet.fields.find(
+        (candidate) => candidate.fieldKey === block.key,
+      );
+      const dimensionId = String(field?.dimensionId || "");
+      const selectedLabel = String(
+        observations[`set${currentSet}_rep${currentRep}_${block.key}`] || "",
+      );
+      const behaviorId =
+        DIAGNOSIS_OBSERVATION_MATRIX[
+          dimensionId as DiagnosisDimensionId
+        ]?.options.find((option) => option.label === selectedLabel)?.id || "";
+      return { dimensionId, behaviorId };
+    });
+
+    if (
+      submittedObservations.some(
+        (item) => !item.dimensionId || !item.behaviorId,
+      )
+    ) {
+      throw new Error(
+        "Sandbox Handover evidence could not be mapped to canonical behavior.",
+      );
+    }
+
+    const authMode = await getAuthMode();
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    if (!authMode.dbSessionAuthMode) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+    }
+
+    const response = await fetch(
+      `${API_URL}/api/tutor/sandbox-live-evidence`,
+      {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          tutorAssignmentId: sandboxAssignmentId,
+          studentId: String(studentId),
+          scope: "handover",
+          sourceContextId: sandboxHandoverContextId,
+          startingPhase: displayPhase,
+          sequenceNumber: currentRep + 1,
+          formId: sandboxHandoverSimulation.formId,
+          supportEvent: "none",
+          observations: submittedObservations,
+        }),
+      },
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        body?.message ||
+          "Sandbox Handover observation evidence could not be recorded.",
+      );
+    }
+  };
+
   const handleNext = async () => {
     if (!drillStructure) {
       setSubmitError("Drill structure is loading. Please wait.");
@@ -2625,6 +2804,26 @@ function IntroSessionDrillRunnerCore() {
       return;
     }
 
+    if (sandboxHandoverEnabled && !handoverExecutionFinished) {
+      setSubmitError(
+        "Click Student Finished before recording Handover observations.",
+      );
+      return;
+    }
+
+    if (sandboxHandoverEnabled) {
+      try {
+        await recordSandboxHandoverObservation();
+      } catch (sandboxError) {
+        setSubmitError(
+          sandboxError instanceof Error
+            ? sandboxError.message
+            : "Sandbox Handover evidence could not be recorded.",
+        );
+        return;
+      }
+    }
+
     if (isHandoverContinuityVerification) {
       const serializedSet = serializeSetForSubmission(set, currentSet);
       const evaluation = evaluateHandoverVerificationEvidence({
@@ -2644,6 +2843,8 @@ function IntroSessionDrillRunnerCore() {
         }
         setAdaptiveDiagnosisMessage(`Continuity evidence is not yet sufficient after opportunity ${completedOpportunities}. Record one more clean opportunity under the same inherited ${displayPhase} conditions. Do not teach forward or chase a preferred result.`);
         setCurrentRep((rep) => rep + 1);
+        setRepStarted(false);
+        setHandoverExecutionFinished(false);
         return;
       }
       setAdaptiveDiagnosisMessage(null);
@@ -3986,7 +4187,36 @@ function IntroSessionDrillRunnerCore() {
           </div>
         )}
 
-      <form className={`space-y-4 ${isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted ? "hidden" : ""}`}>
+      {sandboxHandoverEnabled &&
+        repStarted &&
+        !handoverExecutionFinished &&
+        sandboxHandoverSimulation && (
+          <div className="mb-4 space-y-4">
+            <LiveRepStage stage="observe" sandbox />
+            <LiveSandboxStudentResponse>
+              {sandboxHandoverSimulation.studentBehavior}
+            </LiveSandboxStudentResponse>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                onClick={() => {
+                  setHandoverExecutionFinished(true);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              >
+                Student Finished
+              </button>
+            </div>
+          </div>
+        )}
+
+      <form className={`space-y-4 ${
+        (isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted) ||
+        (sandboxHandoverEnabled && (!repStarted || !handoverExecutionFinished))
+          ? "hidden"
+          : ""
+      }`}>
         {getLiveObservationBlockForRep(set, currentRep).length === 0 && (
           <div className="p-3 rounded-md border border-primary/20 bg-primary/5 text-sm">
             No observations are captured for this step. Continue when pre-drill teaching is complete.
@@ -4225,6 +4455,10 @@ function IntroSessionDrillRunnerCore() {
 
 function IntroSessionDrillRunnerRoute() {
   const { studentId } = useParams();
+  const [routeSearchParams] = useSearchParams();
+  const requestedMode = String(routeSearchParams.get("mode") || "diagnosis")
+    .trim()
+    .toLowerCase();
   const {
     data: runtimeMode,
     isLoading: runtimeModeLoading,
@@ -4277,7 +4511,12 @@ function IntroSessionDrillRunnerRoute() {
     .trim()
     .toLowerCase();
 
-  if (operationalMode === "sandbox" && studentId && runtimeMode?.assignmentId) {
+  if (
+    operationalMode === "sandbox" &&
+    studentId &&
+    runtimeMode?.assignmentId &&
+    requestedMode !== "handover"
+  ) {
     return (
       <SpecialistSandboxSimulation
         studentIdOverride={String(studentId)}
@@ -4296,7 +4535,13 @@ function IntroSessionDrillRunnerRoute() {
     );
   }
 
-  return <IntroSessionDrillRunnerCore />;
+  return (
+    <IntroSessionDrillRunnerCore
+      sandboxAssignmentId={
+        operationalMode === "sandbox" ? runtimeMode?.assignmentId || null : null
+      }
+    />
+  );
 }
 
 export default IntroSessionDrillRunnerRoute;
