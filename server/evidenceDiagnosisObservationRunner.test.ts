@@ -26,3 +26,38 @@ test("diagnosis opportunity presents behavioral observations one at a time", () 
     /activeObservationIndex === currentProbe\.dimensions\.length - 1[\s\S]*"Review Opportunity"/,
   );
 });
+
+
+test("diagnosis keeps live execution separate from observation administration", () => {
+  assert.match(
+    runnerSource,
+    /const \[executionFinished, setExecutionFinished\] = useState\(false\)/,
+  );
+  assert.match(
+    runnerSource,
+    /\) : !executionFinished \? \([\s\S]*Say \/ do this now[\s\S]*Student Finished/,
+  );
+  assert.match(
+    runnerSource,
+    /executionFinished[\s\S]*Record only what this completed opportunity actually exposed/,
+  );
+  assert.match(
+    runnerSource,
+    /disabled=\{activeObservationIndex === 0\}[\s\S]*Previous observation/,
+  );
+  assert.doesNotMatch(
+    runnerSource,
+    /activeObservationIndex === 0 \? "Back to ready"/,
+  );
+});
+
+test("diagnosis ready and live surfaces use the shared prescribed probe protocol", () => {
+  assert.match(runnerSource, /DIAGNOSIS_PROBE_EXECUTION_PROTOCOLS/);
+  assert.match(runnerSource, /Before Begin/);
+  assert.match(runnerSource, /After Begin, follow only this protocol/);
+  assert.match(runnerSource, /executionProtocol\.liveSteps\.map/);
+  assert.match(
+    runnerSource,
+    /The observation runner stays closed while the student is responding/,
+  );
+});
