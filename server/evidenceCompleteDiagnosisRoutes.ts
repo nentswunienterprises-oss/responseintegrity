@@ -1045,8 +1045,11 @@ const responseForReplay = (
   timingAuthorityContractId?: string | null,
 ) => {
   const nextProbeId = replay.decision.nextProbeId;
-  const occurrenceNumber = nextProbeId
+  const probeOccurrenceNumber = nextProbeId
     ? replay.state.probeHistory.filter((row) => row.probeId === nextProbeId).length + 1
+    : null;
+  const opportunityNumber = nextProbeId
+    ? replay.state.probeHistory.length + 1
     : null;
   const currentProbeTimingMode = nextProbeId
     ? isDiagnosisTimedProbe(nextProbeId)
@@ -1065,10 +1068,11 @@ const responseForReplay = (
     probeHistory: replay.state.probeHistory,
     decision: replay.decision,
     nextProbe: replay.nextProbe,
-    opportunityNumber: occurrenceNumber,
+    opportunityNumber,
+    probeOccurrenceNumber,
     opportunityPurpose:
-      nextProbeId && occurrenceNumber
-        ? getDiagnosisProbeOpportunityPurpose(nextProbeId, occurrenceNumber)
+      nextProbeId && probeOccurrenceNumber
+        ? getDiagnosisProbeOpportunityPurpose(nextProbeId, probeOccurrenceNumber)
         : null,
     timingAuthority: {
       mode: currentProbeTimingMode,
