@@ -104,6 +104,7 @@ export function registerTpsTimingRoutes(app: Express) {
         const sourceContextId = clean(req.query.sourceContextId);
         const sourceItemId = clean(req.query.sourceItemId);
         const slotNumber = Number(req.query.slotNumber || 0);
+        const legacySlotNumber = Number(req.query.legacySlotNumber || 0);
 
         if (
           !studentId ||
@@ -123,7 +124,7 @@ export function registerTpsTimingRoutes(app: Express) {
         const student = await requireOwnedStudent(studentId, specialist.id, res);
         if (!student) return;
 
-        const attempt = await loadLatestTpsPassiveAttemptForSlot({
+        let attempt = await loadLatestTpsPassiveAttemptForSlot({
           studentId,
           topic,
           source: source as TpsPassiveAttemptSubmissionV1["source"],
@@ -131,6 +132,23 @@ export function registerTpsTimingRoutes(app: Express) {
           sourceItemId,
           slotNumber,
         });
+
+        if (
+          !attempt &&
+          source === "diagnosis" &&
+          Number.isInteger(legacySlotNumber) &&
+          legacySlotNumber > 0 &&
+          legacySlotNumber !== slotNumber
+        ) {
+          attempt = await loadLatestTpsPassiveAttemptForSlot({
+            studentId,
+            topic,
+            source: "diagnosis",
+            sourceContextId,
+            sourceItemId,
+            slotNumber: legacySlotNumber,
+          });
+        }
 
         return res.json({
           attempt: attempt
