@@ -10,6 +10,10 @@ const sandboxRunnerSource = readFileSync(
   new URL("../client/src/pages/operational/tutor/sandbox-simulation.tsx", import.meta.url),
   "utf8",
 );
+const introSessionRouteSource = readFileSync(
+  new URL("../client/src/components/tutor/IntroSessionRoute.tsx", import.meta.url),
+  "utf8",
+);
 const studentCardSource = readFileSync(
   new URL("../client/src/components/tutor/StudentCard.tsx", import.meta.url),
   "utf8",
@@ -86,6 +90,24 @@ test("Sandbox mode uses the existing live-runner route rather than a separate ru
   assert.doesNotMatch(
     studentCardSource,
     /case "stateful-sandbox"[\s\S]{0,500}\/operational\/specialist\/sandbox\?studentId=/,
+  );
+});
+
+test("Sandbox diagnosis routes through the stateful Sandbox authority instead of the live evidence-complete endpoint", () => {
+  assert.match(introSessionRouteSource, /\/api\/tutor\/runtime-mode/);
+  assert.match(introSessionRouteSource, /refetchOnMount: "always"/);
+  assert.match(introSessionRouteSource, /cache: "no-store"/);
+  assert.match(
+    introSessionRouteSource,
+    /operationalMode === "sandbox" && studentId && runtimeMode\?\.assignmentId/,
+  );
+  assert.match(
+    introSessionRouteSource,
+    /<SpecialistSandboxSimulation[\s\S]*studentIdOverride=\{String\(studentId\)\}[\s\S]*tutorAssignmentIdOverride=\{runtimeMode\.assignmentId\}[\s\S]*operationalModeOverride=\{operationalMode\}[\s\S]*embedded/,
+  );
+  assert.match(
+    introSessionRouteSource,
+    /mode === "diagnosis"[\s\S]*<RuntimeAwareEvidenceDiagnosis \/>/,
   );
 });
 
