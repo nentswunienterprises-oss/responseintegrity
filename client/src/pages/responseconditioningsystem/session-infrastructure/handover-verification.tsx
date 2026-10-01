@@ -86,9 +86,10 @@ export default function ResponseConditioningHandoverVerification() {
           <ol className="space-y-2 pl-5 list-decimal text-muted-foreground">
             <li>Review the inherited topic, phase, stability, recent evidence, next action, and constraints.</li>
             <li>Prepare a small reserve bank of phase-appropriate continuity problems. The reserve is not a completion target.</li>
-            <li>Present one clean continuity opportunity under the inherited phase conditions.</li>
-            <li>Record the concrete behavior for each phase-defining dimension.</li>
-            <li>Let the system decide whether evidence is sufficient or another clean comparable opportunity is required.</li>
+            <li>Present one clean continuity opportunity under the inherited phase conditions and watch the complete response.</li>
+            <li>Click Student Finished at the actual end of execution before evidence administration begins.</li>
+            <li>Record the phase-defining observations one at a time. Complete the current observation before the next one opens.</li>
+            <li>Review the completed opportunity, then let the system decide whether evidence is sufficient or another clean comparable opportunity is required.</li>
             <li>Stop as soon as the system resolves to hold, bounded stability adjustment, or targeted re-diagnosis.</li>
           </ol>
           <p className="font-semibold">There is no “complete three reps” rule. Handover is evidence-complete, not rep-complete.</p>
