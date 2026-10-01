@@ -1099,6 +1099,11 @@ function buildAcceptedCopyHtml(params: {
   const acceptedName = acceptance?.typedFullName || acceptance?.typed_full_name || typedFullName || "Not available";
   const documentHash = acceptance?.documentChecksum || acceptance?.document_checksum || document.contentHash || "Not available";
   const documentVersion = normalizeDisplayedVersion(acceptance?.documentVersion || acceptance?.document_version || document.version);
+  const acceptedDocumentCode = String(acceptance?.documentCode || acceptance?.document_code || document.code || "").trim();
+  const acceptedDocumentTitle = String(acceptance?.documentTitle || acceptance?.document_title || document.title || "").trim();
+  const acceptedDocumentSnapshot = String(acceptance?.documentSnapshot || acceptance?.document_snapshot || "").trim();
+  const acceptedDocumentRenderCode =
+    acceptedDocumentCode === "Response Integrity-TCF-001" ? "Response Integrity-SCF-001" : acceptedDocumentCode;
   const clauseKeys = acceptance?.acceptedClausesJson || acceptance?.accepted_clauses_json || [];
   const tutorDetailsRows = fields
     .map((field) => {
@@ -1112,18 +1117,20 @@ function buildAcceptedCopyHtml(params: {
     .filter((clause) => clauseKeys.includes(clause.key))
     .map((clause) => `<li>${escapeHtml(clause.label)}</li>`)
     .join("");
-  const acceptedAgreementBody = renderToStaticMarkup(
-    <div className="agreement-body">
-      {buildTutorAgreementBody(document, { ...formData, legalName: acceptedName })}
-    </div>
-  );
+  const acceptedAgreementBody = acceptedDocumentSnapshot
+    ? `<div class="agreement-body">${renderAgreementHtmlStrict(acceptedDocumentSnapshot, acceptedDocumentRenderCode)}</div>`
+    : renderToStaticMarkup(
+        <div className="agreement-body">
+          {buildTutorAgreementBody(document, { ...formData, legalName: acceptedName })}
+        </div>
+      );
 
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${escapeHtml(document.code)} Accepted Copy</title>
+  <title>${escapeHtml(acceptedDocumentCode || document.code)} Accepted Copy</title>
   <style>
     @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
     * { box-sizing: border-box; }
@@ -1185,8 +1192,8 @@ function buildAcceptedCopyHtml(params: {
 <body>
   <main class="page">
     <div class="eyebrow">Response Integrity Accepted Agreement Copy</div>
-    <h1>${escapeHtml(document.title)}</h1>
-    <p class="subhead">${escapeHtml(document.code)} | Version ${escapeHtml(documentVersion)} | Accepted in-app against the Specialist's authenticated Response Integrity account</p>
+    <h1>${escapeHtml(acceptedDocumentTitle || document.title)}</h1>
+    <p class="subhead">${escapeHtml(acceptedDocumentCode || document.code)} | Version ${escapeHtml(documentVersion)} | Accepted in-app against the Specialist's authenticated Response Integrity account</p>
 
     <section class="summary">
       <div class="summary-label">Acceptance record</div>
@@ -1678,7 +1685,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${currentDocument.code}-accepted-copy.html`;
+    link.download = `${currentAcceptance?.documentCode || currentAcceptance?.document_code || currentDocument.code}-accepted-copy.html`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -1697,7 +1704,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
     const url = URL.createObjectURL(blob);
     const link = window.document.createElement("a");
     link.href = url;
-    link.download = `${docDefinition.code}-accepted-copy.html`;
+    link.download = `${acceptance?.documentCode || acceptance?.document_code || docDefinition.code}-accepted-copy.html`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -1712,7 +1719,7 @@ export function SequentialDocumentSubmission({ applicationId, applicationStatus 
       formData: storedFormData,
       fields: DOCUMENT_FORM_FIELDS[docDefinition.step] || [],
     });
-    const opened = openAcceptedCopyPrintWindow(html, `${docDefinition.code}-accepted-copy`);
+    const opened = openAcceptedCopyPrintWindow(html, `${acceptance?.documentCode || acceptance?.document_code || docDefinition.code}-accepted-copy`);
     if (!opened) {
       toast({ title: "Popup blocked", description: "Allow popups to print or save the accepted copy as PDF.", variant: "destructive" });
     }
