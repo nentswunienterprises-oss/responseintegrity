@@ -26,6 +26,15 @@ import type {
   SandboxCapabilityOccurrence,
 } from "@shared/sandboxEnvironment";
 import type { TopicPhase, TopicStability } from "@shared/topicConditioningEngine";
+import {
+  deriveTpsTimerContractV1,
+  type TpsBaselineSnapshot,
+} from "@shared/tpsTimingContract";
+import {
+  loadLatestTpsTimerContract,
+  persistTpsTimerContract,
+  type PersistedTpsTimerContract,
+} from "./tpsTimingAuthority";
 import { getSandboxEnvironmentHistory } from "./sandboxEnvironment";
 
 const BANK_KEY = "sandbox_stateful_environment";
@@ -464,6 +473,78 @@ const SANDBOX_HANDOVER_SIMULATION_PROBE_BY_PHASE: Record<TopicPhase, DiagnosisPr
 };
 
 
+async function ensureSandboxTpsTimerContract(input: {
+  trajectory: TrajectoryRow;
+  truth: TrajectoryTruthRow;
+  tutorId: string;
+  studentId: string;
+  topic: string;
+}): Promise<PersistedTpsTimerContract> {
+  const topic = String(input.topic || "").trim();
+  if (!topic) {
+    throw httpError(
+      400,
+      "Sandbox Time Pressure Stability simulation requires a topic for timing authority.",
+    );
+  }
+
+  const epochKey = `sandbox:${input.trajectory.id}:structured_execution:v1`;
+  const existing = await loadLatestTpsTimerContract({
+    studentId: input.studentId,
+    topic,
+  });
+  if (existing?.baselineSourceEpochKey === epochKey) {
+    return existing;
+  }
+
+  // Sandbox students carry persistent fictional state. Their inherited TPS state
+  // must therefore carry the fictional baseline lineage that would have made that
+  // state possible. Keep the three samples deterministic for the trajectory so a
+  // refresh cannot manufacture a different Timer Contract.
+  const seedHex = digest(
+    [
+      "sandbox-tps-baseline-v1",
+      input.truth.trajectory_seed,
+      input.trajectory.id,
+      input.studentId,
+      topic.toLowerCase(),
+    ].join(":"),
+  ).slice(0, 8);
+  const seedNumber = Number.parseInt(seedHex, 16);
+  const baselineSeconds = 44 + (Number.isFinite(seedNumber) ? seedNumber % 9 : 0);
+  const sampleSeconds: [number, number, number] = [
+    Math.max(1, baselineSeconds - 2),
+    baselineSeconds,
+    baselineSeconds + 2,
+  ];
+
+  const snapshot: TpsBaselineSnapshot = {
+    source: "training",
+    sourceEpochKey: epochKey,
+    baselineGroupId: `sandbox:${input.trajectory.id}:independent_execution`,
+    studentId: input.studentId,
+    topic,
+    recordIds: [
+      `sandbox:${input.trajectory.id}:se-baseline:1`,
+      `sandbox:${input.trajectory.id}:se-baseline:2`,
+      `sandbox:${input.trajectory.id}:se-baseline:3`,
+    ],
+    elapsedMs: [
+      sampleSeconds[0] * 1000,
+      sampleSeconds[1] * 1000,
+      sampleSeconds[2] * 1000,
+    ],
+    baselineSeconds,
+    completedAt: new Date().toISOString(),
+  };
+
+  return persistTpsTimerContract({
+    contract: deriveTpsTimerContractV1(snapshot),
+    tutorId: input.tutorId,
+  });
+}
+
+
 function projectSandboxLiveBehavior(input: {
   scope: SandboxLiveEvidenceSimulationScope;
   probeId: DiagnosisProbeId;
@@ -490,12 +571,25 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
   studentId: string;
   scope: SandboxLiveEvidenceSimulationScope;
   sourceContextId: string;
+  topic: string;
   startingPhase: TopicPhase;
   sequenceNumber: number;
   probeId?: DiagnosisProbeId | null;
 }) {
   await assertSandboxAccess(input);
   const { trajectory, truth } = await loadTrajectory(input);
+
+  const timerContract =
+    input.scope === "handover" &&
+    input.startingPhase === "Time Pressure Stability"
+      ? await ensureSandboxTpsTimerContract({
+          trajectory,
+          truth,
+          tutorId: input.tutorId,
+          studentId: input.studentId,
+          topic: input.topic,
+        })
+      : null;
 
   const probeId =
     input.scope === "handover"
@@ -567,6 +661,15 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
       behavior: selected.studentBehavior,
     }),
     simulatedElapsedSeconds: selected.simulatedElapsedSeconds,
+    timerAuthority: timerContract
+      ? {
+          contractId: timerContract.contractId,
+          baselineSeconds: timerContract.baselineSeconds,
+          structureUnderTimerSeconds: timerContract.structureUnderTimerSeconds,
+          repeatedTimedExecutionSeconds: timerContract.repeatedTimedExecutionSeconds,
+          fullConstraintSeconds: timerContract.fullConstraintSeconds,
+        }
+      : null,
     studentStateAuthoritative: false as const,
     evidenceScope: "sandbox" as const,
   };
@@ -578,6 +681,7 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
   studentId: string;
   scope: SandboxLiveEvidenceSimulationScope;
   sourceContextId: string;
+  topic: string;
   startingPhase: TopicPhase;
   sequenceNumber: number;
   probeId?: DiagnosisProbeId | null;
