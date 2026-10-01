@@ -1118,7 +1118,10 @@ function buildAcceptedCopyHtml(params: {
     .map((clause) => `<li>${escapeHtml(clause.label)}</li>`)
     .join("");
   const acceptedAgreementBody = acceptedDocumentSnapshot
-    ? `<div class="agreement-body">${renderAgreementHtmlStrict(acceptedDocumentSnapshot, acceptedDocumentRenderCode)}</div>`
+    ? `<div class="agreement-body">${renderAgreementHtmlStrict(
+        hydrateDocumentContent(acceptedDocumentSnapshot, { ...formData, legalName: acceptedName }),
+        acceptedDocumentRenderCode,
+      )}</div>`
     : renderToStaticMarkup(
         <div className="agreement-body">
           {buildTutorAgreementBody(document, { ...formData, legalName: acceptedName })}
