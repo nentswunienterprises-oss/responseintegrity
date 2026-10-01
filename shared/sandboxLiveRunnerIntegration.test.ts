@@ -240,6 +240,45 @@ test("generic Sandbox evidence simulation is deterministic for retries and never
 });
 
 
+test("TPS Handover reuses inherited baseline-derived Timer Contract authority", () => {
+  assert.match(
+    liveRunnerSource,
+    /\(isTrainingEvidenceCapture \|\| isHandoverContinuityVerification\)[\s\S]*displayPhase === "Time Pressure Stability"/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /activeTpsPressureLevel === "light_timer"[\s\S]*"time_pressure\.structure_under_timer"/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /Baseline: \{tpsTimerContract\.baselineSeconds\}s[\s\S]*inherited Timer Contract governs the opportunity/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /sandboxHandoverEnabled \? sandboxHandoverSimulation\?\.formId \|\| "sandbox-pending" : "live"/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /scope: "handover"[\s\S]*topic: currentTopicName[\s\S]*startingPhase: displayPhase/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /async function ensureSandboxTpsTimerContract/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /deriveTpsTimerContractV1\(snapshot\)/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /persistTpsTimerContract/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /input\.scope === "handover"[\s\S]*input\.startingPhase === "Time Pressure Stability"[\s\S]*ensureSandboxTpsTimerContract/,
+  );
+});
+
 test("Sandbox Handover projects continuity-native wording instead of diagnosis repeat wording", () => {
   assert.match(
     sandboxRediagnosisSource,
