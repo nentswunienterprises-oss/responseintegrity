@@ -4542,7 +4542,7 @@ function IntroSessionDrillRunnerRoute() {
     return (
       <SpecialistSandboxSimulation
         studentIdOverride={String(studentId)}
-        tutorAssignmentIdOverride={runtimeMode!.assignmentId!}
+        tutorAssignmentIdOverride={runtimeMode.assignmentId}
         operationalModeOverride={operationalMode}
         embedded
       />
