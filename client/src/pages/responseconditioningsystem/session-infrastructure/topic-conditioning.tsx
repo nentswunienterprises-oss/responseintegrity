@@ -35,7 +35,7 @@ export default function ResponseConditioningTopicConditioning() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
         <DeepDiveLessonRunner
-          lessonKey="topic-conditioning-v1"
+          lessonKey="topic-conditioning-v2"
           title="Topic Conditioning"
           completion={<DeepDiveCapabilityCheck assessmentKey="topic_conditioning_mastery_v1" />}
         >
@@ -168,6 +168,59 @@ export default function ResponseConditioningTopicConditioning() {
           </p>
         </Card>
 
+        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
+          <h2 className="text-2xl font-bold">How a New Topic Enters the System</h2>
+          <p className="text-muted-foreground">
+            A new topic does not inherit a phase from another topic and it does not receive a phase from a symptom alone.
+            The entry signal only tells RI-OS where to ask first.
+          </p>
+          <p className="font-semibold">
+            Starting signal = routing hypothesis. Direct behavioral evidence = placement authority.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">When the Entry Signal Is Uncertain</h2>
+          <p className="text-muted-foreground">
+            If there is no trustworthy starting signal, RI-OS begins with a neutral Independent Normal Probe: one normal,
+            familiar-form problem with difficulty and time pressure removed.
+          </p>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li>No timer or urgency target.</li>
+            <li>No modelling or method prompt.</li>
+            <li>The student executes independently.</li>
+            <li>The response can naturally expose Clarity and immediate Structured Execution behavior.</li>
+            <li>Behavior that never appears remains not observed rather than being elicited just to fill the form.</li>
+          </ul>
+          <p className="font-semibold">
+            This neutral baseline is not an automatic Structured Execution placement. It is the first clean evidence
+            condition from which the system decides what question comes next.
+          </p>
+        </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="A brand-new topic has no reliable parent or history signal. Where should the Specialist place it before the first opportunity?"
+          options={[
+            {
+              key: "a",
+              label: "Structured Execution, because the neutral independent probe sits between Clarity and pressure work.",
+              feedback: "The neutral probe is an evidence condition, not a phase assignment.",
+            },
+            {
+              key: "b",
+              label: "Do not pre-place it. Run the system-selected neutral independent baseline and let the resulting evidence route the next question.",
+              feedback: "Yes. Uncertain entry is resolved by clean evidence, not by guessing a middle phase.",
+            },
+            {
+              key: "c",
+              label: "Clarity, because every new topic must always restart from the first phase.",
+              feedback: "A new topic needs evidence-complete placement. It is not automatically forced to Clarity.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="When the signal is uncertain, RI-OS starts neutral and lets the response reveal which earlier layer needs to be resolved."
+        />
+
         <DeepDiveTeachingInteraction
           prompt="A student scores 86% in a familiar class test, but in RI their structure repeatedly breaks when the same method appears in less familiar forms. How should the class-test mark be used?"
           options={[
@@ -195,7 +248,7 @@ export default function ResponseConditioningTopicConditioning() {
           <h2 className="text-2xl font-bold">How the OS works inside a topic</h2>
           <p className="text-muted-foreground">Response Integrity-OS does not float above schoolwork. It operates inside it.</p>
           <p className="text-muted-foreground">
-            That means every topic is pushed through the same conditioning sequence.
+            That means every topic is governed by the same phase architecture, while Diagnosis establishes the correct entry point rather than forcing every topic to restart from Clarity.
           </p>
 
           <div className="space-y-2">
@@ -208,7 +261,7 @@ export default function ResponseConditioningTopicConditioning() {
               <li>knowing the steps (Method)</li>
               <li>knowing why the steps work (Reason)</li>
             </ul>
-            <p className="text-muted-foreground">Tool: 3-Layer Lens</p>
+            <p className="text-muted-foreground">Training sets: Modeling, Identification, then Light Apply.</p>
             <p className="font-medium">Question: Can the student clearly see what they are dealing with in this topic?</p>
             <p className="text-muted-foreground">If no, this topic starts at Clarity.</p>
           </div>
@@ -223,7 +276,7 @@ export default function ResponseConditioningTopicConditioning() {
               <li>reducing guessing</li>
               <li>repeating the method reliably</li>
             </ul>
-            <p className="text-muted-foreground">Tools: independent execution reps, step-order correction, and 3-Layer Lens checks. Model only if a Clarity gap appears.</p>
+            <p className="text-muted-foreground">Training sets: Required Structure, Independent Execution, then Variation Control.</p>
             <p className="font-medium">Question: Can the student act reliably in this topic without being carried?</p>
             <p className="text-muted-foreground">If no, this topic sits in Structured Execution.</p>
           </div>
@@ -233,12 +286,12 @@ export default function ResponseConditioningTopicConditioning() {
             <p className="text-muted-foreground">Now difficulty is introduced inside the topic.</p>
             <p className="text-muted-foreground">This means:</p>
             <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>harder questions</li>
-              <li>unfamiliar forms</li>
-              <li>no rescue</li>
-              <li>first-step guidance only</li>
+              <li>challenging, same-form problems</li>
+              <li>difficulty held as the active pressure variable</li>
+              <li>support tightened across the registered sets</li>
+              <li>repeated exposure without changing the topic-state manually</li>
             </ul>
-            <p className="text-muted-foreground">Tool: Boss Battles</p>
+            <p className="text-muted-foreground">Training sets: Controlled Entry, No Rescue, then Repeat Exposure. Boss Battles are the challenging problem load used inside this phase.</p>
             <p className="font-medium">Question: Can the student stay stable in this topic when certainty disappears?</p>
             <p className="text-muted-foreground">If no, this topic sits in Controlled Discomfort.</p>
           </div>
@@ -248,15 +301,56 @@ export default function ResponseConditioningTopicConditioning() {
             <p className="text-muted-foreground">Now the same topic is tested under time.</p>
             <p className="text-muted-foreground">This means:</p>
             <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>timed attempts</li>
-              <li>process under pressure</li>
-              <li>structure maintained under urgency</li>
+              <li>an individualized system-owned Timer Contract</li>
+              <li>process and structure preserved under urgency</li>
+              <li>repeated timed exposure at the same baseline condition</li>
+              <li>the final defined tighter constraint only when the registered set requires it</li>
             </ul>
-            <p className="text-muted-foreground">Tool: Timed Execution</p>
+            <p className="text-muted-foreground">Training sets: Structure Under Timer, Repeated Timed Execution, then Full Constraint.</p>
             <p className="font-medium">Question: Can the student stay structured in this topic when time pressure appears?</p>
             <p className="text-muted-foreground">If no, this topic sits in Time Pressure Stability.</p>
           </div>
         </Card>
+
+        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
+          <h2 className="text-2xl font-bold">Timing Authority Is Topic-Specific Too</h2>
+          <p className="text-muted-foreground">
+            Time Pressure Stability is not just topic-specific in phase and stability. Its timing authority is also
+            bound to the individual student and topic.
+          </p>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li>A Timer Contract from Algebra does not become the timer for Fractions.</li>
+            <li>The primary Training baseline comes from the current topic's qualifying Independent Execution evidence.</li>
+            <li>Diagnosis can establish equivalent clean no-pressure timing when the topic may enter above Structured Execution.</li>
+            <li>If timing authority is missing when the topic needs it, RI-OS resolves that readiness gap before authoritative timed work.</li>
+          </ul>
+          <p className="font-semibold">
+            Topic state and topic timing lineage travel together. The Specialist cannot borrow a timer from another arena.
+          </p>
+        </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="Algebra has a valid 44-second Timer Contract. Fractions is newly diagnosed toward Time Pressure Stability but has no timing authority yet. May the Specialist use Algebra's 44 seconds for Fractions?"
+          options={[
+            {
+              key: "a",
+              label: "Yes. The Timer Contract belongs to the student, so one strong baseline can cover all topics.",
+              feedback: "Timing authority is student-and-topic specific. Different topics can have different normal independent execution durations.",
+            },
+            {
+              key: "b",
+              label: "No. Fractions needs its own valid timing authority through the system's qualifying evidence route.",
+              feedback: "Yes. The system cannot copy pressure from one topic into another.",
+            },
+            {
+              key: "c",
+              label: "Yes, but only as a temporary timer until Fractions produces more evidence.",
+              feedback: "A temporary invented timer would still create unauthorized pressure evidence.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Every active topic carries its own evidence lineage, including individualized timing authority when TPS is relevant."
+        />
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">The important truth</h2>
