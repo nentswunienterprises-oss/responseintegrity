@@ -34,6 +34,10 @@ const sandboxEnvironmentSource = readFileSync(
   new URL("../server/sandboxEnvironment.ts", import.meta.url),
   "utf8",
 );
+const sandboxRediagnosisSource = readFileSync(
+  new URL("../server/sandboxRediagnosis.ts", import.meta.url),
+  "utf8",
+);
 const serverRoutesSource = readFileSync(
   new URL("../server/routes.ts", import.meta.url),
   "utf8",
@@ -104,6 +108,81 @@ test("evidence diagnosis remains on the evidence-native runner even when the Spe
   );
   assert.doesNotMatch(introSessionRouteSource, /\/api\/tutor\/runtime-mode/);
   assert.doesNotMatch(introSessionRouteSource, /SpecialistSandboxSimulation/);
+});
+
+test("Sandbox diagnosis keeps the evidence-native runner and projects private simulated student behavior", () => {
+  assert.match(evidenceDiagnosisRunnerSource, /\/api\/tutor\/runtime-mode/);
+  assert.match(
+    evidenceDiagnosisRunnerSource,
+    /\/api\/tutor\/sandbox-live-evidence/,
+  );
+  assert.match(
+    evidenceDiagnosisRunnerSource,
+    /<LiveSandboxStudentResponse>[\s\S]*sandboxSimulation\.studentBehavior/,
+  );
+  assert.match(
+    evidenceDiagnosisRunnerSource,
+    /runtimeAuthority\?\.operationalMode === "sandbox"[\s\S]*recordSandboxSimulation/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /private\.specialist_sandbox_diagnosis_outcomes/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /studentBehavior: selected\.studentBehavior/,
+  );
+  assert.doesNotMatch(
+    sandboxRediagnosisSource.slice(
+      sandboxRediagnosisSource.indexOf("export async function prepareSandboxLiveEvidenceSimulation"),
+      sandboxRediagnosisSource.indexOf("export async function submitSandboxLiveEvidenceSimulation"),
+    ),
+    /canonicalObservations:/,
+  );
+});
+
+test("Sandbox Handover stays on the live Handover runner and reveals simulated behavior before evidence capture", () => {
+  assert.match(
+    liveRunnerSource,
+    /requestedMode !== "handover"/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /sandboxHandoverEnabled[\s\S]*\/api\/tutor\/sandbox-live-evidence/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /<LiveSandboxStudentResponse>[\s\S]*sandboxHandoverSimulation\.studentBehavior/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /sandboxHandoverEnabled && \(!repStarted \|\| !handoverExecutionFinished\)[\s\S]*"hidden"/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /Click Student Finished before recording Handover observations/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /"Time Pressure Stability": "time\.consistency"/,
+  );
+});
+
+test("generic Sandbox evidence simulation is deterministic for retries and never grants Handover condition integrity without intervention evidence", () => {
+  const prepareStart = sandboxRediagnosisSource.indexOf(
+    "export async function prepareSandboxLiveEvidenceSimulation",
+  );
+  const genericEnd = sandboxRediagnosisSource.indexOf(
+    "export async function prepareSandboxRediagnosis",
+    prepareStart,
+  );
+  const genericSource = sandboxRediagnosisSource.slice(prepareStart, genericEnd);
+  assert.match(genericSource, /earliestUnsupportedCapability: null/);
+  assert.doesNotMatch(genericSource, /history\.readiness\.earliestUnsupportedCapability/);
+  assert.match(
+    genericSource,
+    /input\.scope === "diagnosis"[\s\S]*"condition_integrity"/,
+  );
 });
 
 test("DB-session proof auth never leaks a stale Supabase bearer into diagnosis or live-runner authority checks", () => {
