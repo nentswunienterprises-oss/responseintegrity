@@ -147,6 +147,18 @@ test("Sandbox diagnosis keeps the evidence-native runner and projects private si
 test("Sandbox Handover stays on the live Handover runner and reveals simulated behavior before evidence capture", () => {
   assert.match(
     liveRunnerSource,
+    /operationalMode === "sandbox"[\s\S]*\(!studentId \|\| !runtimeMode\?\.assignmentId\)[\s\S]*missing its assignment or student identity/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /operationalMode === "sandbox"[\s\S]*requestedMode !== "handover"[\s\S]*<SpecialistSandboxSimulation/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /<IntroSessionDrillRunnerCore[\s\S]*sandboxAssignmentId=[\s\S]*operationalMode === "sandbox"/,
+  );
+  assert.match(
+    liveRunnerSource,
     /requestedMode !== "handover"/,
   );
   assert.match(
@@ -279,6 +291,28 @@ test("completed Sandbox training uses the live Response Snapshot completion cont
   );
   assert.match(sandboxRouteSource, /requestedSessionNumber/);
   assert.match(sandboxRouteSource, /req\.query\.sessionNumber/);
+});
+
+test("Sandbox trajectory initialization is serialized across environment and history requests", () => {
+  assert.match(
+    sandboxEnvironmentSource,
+    /pg_advisory_xact_lock\(hashtextextended\(\$1, 0\)\)/,
+  );
+  assert.match(
+    sandboxEnvironmentSource,
+    /const lockedExisting = await client\.query\(selectSql, selectParams\)/,
+  );
+  assert.match(
+    sandboxEnvironmentSource,
+    /Both the environment form and history can initialize at the same time/,
+  );
+});
+
+test("stateful Sandbox surfaces the actual environment request failure", () => {
+  assert.match(
+    sandboxRunnerSource,
+    /environmentQuery\.error instanceof Error[\s\S]*environmentQuery\.error\.message/,
+  );
 });
 
 test("a newly confirmed Sandbox lesson overrides the previous completion boundary", () => {
