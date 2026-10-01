@@ -271,6 +271,41 @@ export default function EvidenceCompleteDiagnosisRunner() {
     return body as DiagnosisApiResponse;
   };
 
+
+  const loadPassiveAttemptForSlot = async ({
+    contextId,
+    probeId,
+    slotNumber,
+  }: {
+    contextId: string;
+    probeId: string;
+    slotNumber: number;
+  }): Promise<TpsPassiveAttemptSubmissionV1 | null> => {
+    const headers = await authHeaders();
+    const params = new URLSearchParams({
+      topic,
+      source: "diagnosis",
+      sourceContextId: contextId,
+      sourceItemId: probeId,
+      slotNumber: String(slotNumber),
+    });
+    const response = await fetch(
+      `${API_URL}/api/tutor/students/${studentId}/tps-passive-attempt?${params.toString()}`,
+      {
+        headers,
+        credentials: "include",
+        cache: "no-store",
+      },
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        body?.message || "Recorded diagnosis timing could not be recovered.",
+      );
+    }
+    return (body?.attempt || null) as TpsPassiveAttemptSubmissionV1 | null;
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -297,16 +332,80 @@ export default function EvidenceCompleteDiagnosisRunner() {
           state = await postHistory(id, state.probeHistory);
         }
 
+        const nextProbe = state.nextProbe || null;
+        const nextOpportunityNumber =
+          state.opportunityNumber || state.probeHistory.length + 1;
+        const recoveredPassiveAttempt =
+          state.timingAuthority?.mode === "passive_baseline" && nextProbe
+            ? await loadPassiveAttemptForSlot({
+                contextId: id,
+                probeId: nextProbe.id,
+                slotNumber: nextOpportunityNumber,
+              })
+            : null;
+
         if (!cancelled) {
           setApiState(state);
           setObservations({});
           setSupportEvent("none");
-          setOpportunityStarted(false);
           setActiveLayerIndex(0);
           setConfirmStep(false);
-          opportunityStartedAtRef.current = null;
-          setPassiveTiming(null);
           setTimedTiming(null);
+          setActivePassiveAttempt(null);
+          setPassiveReplacement(null);
+          setPassiveTiming(null);
+          setPassiveTimingAttempt(null);
+          setPassiveTimingNotice(null);
+          opportunityStartedAtRef.current = null;
+
+          if (recoveredPassiveAttempt?.timingValidity === "valid") {
+            const recoveredTiming = buildPassiveExecutionTimingEvidence({
+              startedAt: recoveredPassiveAttempt.startedAt,
+              endedAt: recoveredPassiveAttempt.endedAt,
+            });
+            if (
+              !recoveredTiming ||
+              recoveredTiming.elapsedMs !== recoveredPassiveAttempt.elapsedMs
+            ) {
+              throw new Error(
+                "Recorded diagnosis timing could not be reconciled with its immutable execution boundary.",
+              );
+            }
+
+            setPassiveTiming(recoveredTiming);
+            setPassiveTimingAttempt({
+              version: 1,
+              attemptId: recoveredPassiveAttempt.attemptId,
+              source: "diagnosis",
+              sourceContextId: recoveredPassiveAttempt.sourceContextId,
+              sourceItemId: recoveredPassiveAttempt.sourceItemId,
+              slotNumber: recoveredPassiveAttempt.slotNumber,
+              attemptNumber: recoveredPassiveAttempt.attemptNumber,
+              timingValidity: "valid",
+              endReason: "student_finished",
+            });
+            opportunityStartedAtRef.current = recoveredPassiveAttempt.startedAt;
+            setOpportunityStarted(true);
+            setPassiveTimingNotice(
+              "Student execution timing was already recorded for this opportunity. Resume the evidence layers from that same completed response; do not present another problem.",
+            );
+          } else if (
+            recoveredPassiveAttempt?.timingValidity ===
+            "timing_invalid_technical"
+          ) {
+            const recoveredReplacement: DiagnosisPassiveReplacementState = {
+              nextAttemptNumber: recoveredPassiveAttempt.attemptNumber + 1,
+              replacementForAttemptId: recoveredPassiveAttempt.attemptId,
+              freshPreparedEquivalentConfirmed: false,
+            };
+            setPassiveReplacement(recoveredReplacement);
+            setOpportunityStarted(false);
+            setPassiveTimingNotice(
+              "The prior attempt ended in a technical timing failure. This evidence slot remains unresolved until a fresh equivalent reserve is run under the same condition.",
+            );
+          } else {
+            setOpportunityStarted(false);
+          }
         }
       } catch (bootError) {
         if (!cancelled) {
