@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { API_URL } from "@/lib/config";
+import { getAuthMode } from "@/lib/authMode";
 import { supabase } from "@/lib/supabaseClient";
 import { instructionPromptDisplayText, instructionPromptLabelFor } from "@/lib/instructionPromptLabel";
 import {
@@ -147,11 +148,18 @@ const buildStorageKey = (
   ].join(":");
 
 async function authHeaders() {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const authMode = await getAuthMode();
   const headers: HeadersInit = { "Content-Type": "application/json" };
-  if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+  if (!authMode.dbSessionAuthMode) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
+  }
+
   return headers;
 }
 
