@@ -1238,11 +1238,20 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 </p>
               </div>
 
-              <p className="mt-4 text-xs leading-5 text-muted-foreground">
-                Use one problem for this opportunity. Observe the whole response.
-                The runner will capture one evidence layer at a time so you can
-                stay focused on the student rather than a long form.
-              </p>
+              <div className="mt-4 rounded-xl border bg-background/70 p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  What happens after Begin
+                </p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  This opportunity uses one problem and one continuous student response.
+                  You will record {currentProbe.dimensions.length} behavioral observations across{" "}
+                  {groupedDimensions.length} evidence {groupedDimensions.length === 1 ? "layer" : "layers"} from that same response.
+                </p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  Moving to the next evidence layer does not mean giving another problem.
+                  A new problem is introduced only if the system opens another opportunity.
+                </p>
+              </div>
 
               <div className="mt-5 flex justify-end">
                 <button
