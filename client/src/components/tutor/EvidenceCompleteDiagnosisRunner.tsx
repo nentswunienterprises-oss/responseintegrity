@@ -204,7 +204,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opportunityStarted, setOpportunityStarted] = useState(false);
-  const [activeLayerIndex, setActiveLayerIndex] = useState(0);
+  const [activeObservationIndex, setActiveObservationIndex] = useState(0);
   const [confirmStep, setConfirmStep] = useState(false);
   const opportunityStartedAtRef = useRef<string | null>(null);
   const [passiveTiming, setPassiveTiming] =
@@ -348,7 +348,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
           setApiState(state);
           setObservations({});
           setSupportEvent("none");
-          setActiveLayerIndex(0);
+          setActiveObservationIndex(0);
           setConfirmStep(false);
           setTimedTiming(null);
           setActivePassiveAttempt(null);
@@ -505,9 +505,20 @@ export default function EvidenceCompleteDiagnosisRunner() {
     })).filter((group) => group.dimensions.length > 0);
   }, [currentProbe]);
 
-  const activeLayer = groupedDimensions[activeLayerIndex] || null;
-  const activeLayerComplete = activeLayer
-    ? activeLayer.dimensions.every((dimensionId) => !!observations[dimensionId])
+  const activeDimensionId =
+    currentProbe?.dimensions[activeObservationIndex] || null;
+  const activeDimension = activeDimensionId
+    ? DIAGNOSIS_OBSERVATION_MATRIX[activeDimensionId]
+    : null;
+  const activeLayerIndex = activeDimension
+    ? groupedDimensions.findIndex(
+        (group) => group.phase === activeDimension.phase,
+      )
+    : -1;
+  const activeLayer =
+    activeLayerIndex >= 0 ? groupedDimensions[activeLayerIndex] : null;
+  const activeObservationComplete = activeDimensionId
+    ? Boolean(observations[activeDimensionId])
     : false;
   const recordedBehaviorCount = currentProbe
     ? currentProbe.dimensions.filter((dimensionId) => observations[dimensionId]).length
@@ -568,7 +579,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
     setTimedTiming(null);
     setTimerNowMs(Date.now());
     setOpportunityStarted(true);
-    setActiveLayerIndex(0);
+    setActiveObservationIndex(0);
     setConfirmStep(false);
     setError(null);
     scrollRunnerTop();
@@ -680,7 +691,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
             );
           }
           setOpportunityStarted(false);
-          setActiveLayerIndex(0);
+          setActiveObservationIndex(0);
           setConfirmStep(false);
           setObservations({});
           setSupportEvent("none");
@@ -754,25 +765,44 @@ export default function EvidenceCompleteDiagnosisRunner() {
     }
   };
 
-  const continueFromLayer = () => {
-    if (!activeLayerComplete) return;
-    if (activeLayerIndex < groupedDimensions.length - 1) {
-      setActiveLayerIndex((current) => current + 1);
-    } else {
-      if (timingBoundaryRequired && !timingBoundaryCaptured) {
-        setError(
-          currentTimingMode === "timed"
-            ? "Mark Student Finished or allow the system timer to expire before reviewing this timed opportunity."
-            : "Mark Student Finished before reviewing this baseline opportunity so observation/admin time is excluded.",
-        );
-        return;
-      }
-      setConfirmStep(true);
+  const continueFromObservation = () => {
+    if (!activeObservationComplete || !currentProbe) return;
+
+    if (activeObservationIndex < currentProbe.dimensions.length - 1) {
+      setActiveObservationIndex((current) => current + 1);
+      scrollRunnerTop();
+      return;
     }
+
+    if (timingBoundaryRequired && !timingBoundaryCaptured) {
+      setError(
+        currentTimingMode === "timed"
+          ? "Mark Student Finished or allow the system timer to expire before reviewing this timed opportunity."
+          : "Mark Student Finished before reviewing this baseline opportunity so observation/admin time is excluded.",
+      );
+      return;
+    }
+
+    setConfirmStep(true);
     scrollRunnerTop();
   };
 
   const backWithinOpportunity = () => {
+    if (confirmStep) {
+      setConfirmStep(false);
+      setActiveObservationIndex(
+        Math.max(0, (currentProbe?.dimensions.length || 1) - 1),
+      );
+      scrollRunnerTop();
+      return;
+    }
+
+    if (activeObservationIndex > 0) {
+      setActiveObservationIndex((current) => current - 1);
+      scrollRunnerTop();
+      return;
+    }
+
     if (
       opportunityStarted &&
       currentTimingMode === "passive_baseline" &&
@@ -793,19 +823,13 @@ export default function EvidenceCompleteDiagnosisRunner() {
       );
       return;
     }
-    if (confirmStep) {
-      setConfirmStep(false);
-      setActiveLayerIndex(Math.max(0, groupedDimensions.length - 1));
-    } else if (activeLayerIndex > 0) {
-      setActiveLayerIndex((current) => current - 1);
-    } else {
-      setOpportunityStarted(false);
-      opportunityStartedAtRef.current = null;
-      setPassiveTiming(null);
-      setPassiveTimingAttempt(null);
-      setActivePassiveAttempt(null);
-      setTimedTiming(null);
-    }
+
+    setOpportunityStarted(false);
+    opportunityStartedAtRef.current = null;
+    setPassiveTiming(null);
+    setPassiveTimingAttempt(null);
+    setActivePassiveAttempt(null);
+    setTimedTiming(null);
     scrollRunnerTop();
   };
 
@@ -843,7 +867,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
       setObservations({});
       setSupportEvent("none");
       setOpportunityStarted(false);
-      setActiveLayerIndex(0);
+      setActiveObservationIndex(0);
       setConfirmStep(false);
       opportunityStartedAtRef.current = null;
       setPassiveTiming(null);
@@ -1460,7 +1484,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 </button>
               </div>
             </section>
-          ) : activeLayer ? (
+          ) : activeLayer && activeDimension && activeDimensionId ? (
             <section data-testid="evidence-diagnosis-observe" className="rounded-2xl border bg-card p-5 sm:p-7">
               <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 <span className="rounded-full border border-primary/15 px-2 py-1">
@@ -1483,6 +1507,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
                   </h2>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Evidence layer {activeLayerIndex + 1} of {groupedDimensions.length} · {activeLayer.phase}
+                    {" "}· Observation {activeObservationIndex + 1} of {currentProbe.dimensions.length}
                   </p>
                 </div>
                 <div className="rounded-lg border px-3 py-2 text-xs text-muted-foreground">
@@ -1581,33 +1606,26 @@ export default function EvidenceCompleteDiagnosisRunner() {
               )}
 
 
-              <div className="mt-5 space-y-5">
-                {activeLayer.dimensions.map((dimensionId) => {
-                  const definition = DIAGNOSIS_OBSERVATION_MATRIX[dimensionId];
-                  return (
-                    <div key={dimensionId} className="rounded-xl border p-4">
-                      <p className="font-medium">{definition.label}</p>
-                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                        {definition.observationQuestion}
-                      </p>
-                      <div className="mt-4 grid gap-2 lg:grid-cols-2">
-                        {definition.options.map((option) => (
-                          <BehaviorOption
-                            key={option.id}
-                            option={option}
-                            selected={observations[dimensionId] === option.id}
-                            onSelect={() =>
-                              setObservations((current) => ({
-                                ...current,
-                                [dimensionId]: option.id,
-                              }))
-                            }
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="mt-5 rounded-xl border p-4">
+                <p className="font-medium">{activeDimension.label}</p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  {activeDimension.observationQuestion}
+                </p>
+                <div className="mt-4 grid gap-2 lg:grid-cols-2">
+                  {activeDimension.options.map((option) => (
+                    <BehaviorOption
+                      key={option.id}
+                      option={option}
+                      selected={observations[activeDimensionId] === option.id}
+                      onSelect={() =>
+                        setObservations((current) => ({
+                          ...current,
+                          [activeDimensionId]: option.id,
+                        }))
+                      }
+                    />
+                  ))}
+                </div>
               </div>
 
               <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1616,17 +1634,17 @@ export default function EvidenceCompleteDiagnosisRunner() {
                   className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted/50"
                   onClick={backWithinOpportunity}
                 >
-                  {activeLayerIndex === 0 ? "Back to ready" : "Previous layer"}
+                  {activeObservationIndex === 0 ? "Back to ready" : "Previous observation"}
                 </button>
                 <button
                   type="button"
-                  disabled={!activeLayerComplete}
-                  onClick={continueFromLayer}
+                  disabled={!activeObservationComplete}
+                  onClick={continueFromObservation}
                   className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {activeLayerIndex === groupedDimensions.length - 1
+                  {activeObservationIndex === currentProbe.dimensions.length - 1
                     ? "Review Opportunity"
-                    : "Next Evidence Layer"}
+                    : "Next observation"}
                 </button>
               </div>
             </section>
