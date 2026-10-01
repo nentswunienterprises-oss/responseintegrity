@@ -295,6 +295,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
       studentId,
       scope: "diagnosis",
       sourceContextId: id,
+      topic,
       startingPhase,
       sequenceNumber: String(
         state.opportunityNumber || state.probeHistory.length + 1,
@@ -345,6 +346,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
           studentId,
           scope: "diagnosis",
           sourceContextId: runId,
+          topic,
           startingPhase,
           sequenceNumber: simulation.sequenceNumber,
           probeId: simulation.probeId,
