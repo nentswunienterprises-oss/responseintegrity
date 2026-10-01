@@ -204,6 +204,22 @@ test("Sandbox Handover stays on the live Handover runner and reveals simulated b
     liveRunnerSource,
     /Handover prep is continuity-check prep, not intro prep and not training prep\./,
   );
+  assert.match(
+    liveRunnerSource,
+    /drillMode === "handover" && handoverReDiagnosisMode && showModeInstructions/,
+  );
+  assert.doesNotMatch(
+    liveRunnerSource,
+    /drillMode === "handover" && showModeInstructions && \(/,
+  );
+  const regularHandoverPrep = liveRunnerSource.slice(
+    liveRunnerSource.indexOf('if (mode === "handover")'),
+    liveRunnerSource.indexOf('title: "Targeted Re-Diagnosis Prep"'),
+  );
+  assert.match(
+    regularHandoverPrep,
+    /record it as not observed[\s\S]*record it as confounded/,
+  );
 });
 
 test("generic Sandbox evidence simulation is deterministic for retries and never grants Handover condition integrity without intervention evidence", () => {
