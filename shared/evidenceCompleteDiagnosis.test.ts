@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  DIAGNOSIS_PROBE_EXECUTION_PROTOCOLS,
   createEvidenceCompleteDiagnosisState,
   evaluateEvidenceCompleteDiagnosis,
   getDiagnosisPhaseSupportEvidence,
@@ -564,4 +565,48 @@ test("all-clear diagnosis requires individualized baseline plus repeated tempora
       );
     }
   }
+});
+
+
+test("Independent Normal Probe forbids deliberate Clarity elicitation during the live response", () => {
+  const protocol = DIAGNOSIS_PROBE_EXECUTION_PROTOCOLS["stack.normal_independent"];
+  assert.match(protocol.beforeBegin, /hidden from the student until Begin Opportunity/);
+  assert.ok(
+    protocol.liveSteps.some(
+      (step) =>
+        step.kind === "say" &&
+        step.text ===
+          "Solve this independently. I won't help with the method. Tell me when you're finished.",
+    ),
+  );
+  assert.ok(
+    protocol.liveSteps.some(
+      (step) =>
+        step.kind === "do" &&
+        /Do not ask what method the student is using, why it fits/.test(step.text),
+    ),
+  );
+  assert.match(protocol.finishRule, /Missing evidence stays not observed/);
+});
+
+test("Clarity Recognition Probe deliberately elicits the four Clarity questions in a fixed order", () => {
+  const protocol = DIAGNOSIS_PROBE_EXECUTION_PROTOCOLS["clarity.recognition"];
+  const spoken = protocol.liveSteps
+    .filter((step) => step.kind === "say")
+    .map((step) => step.text);
+  assert.deepEqual(spoken, [
+    "What do you see here?",
+    "Which method would you use?",
+    "Why does that method fit?",
+    "Show me how you would start.",
+  ]);
+  assert.ok(
+    protocol.liveSteps.some(
+      (step) =>
+        step.kind === "do" &&
+        /Do not explain, supply the method, confirm the first step, or correct/.test(
+          step.text,
+        ),
+    ),
+  );
 });
