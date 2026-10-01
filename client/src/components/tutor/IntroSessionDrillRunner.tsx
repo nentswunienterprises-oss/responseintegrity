@@ -265,6 +265,22 @@ type TpsActiveAttempt = {
   frozenAttempt: TpsTimedAttemptSubmissionV1 | null;
 };
 
+type TpsRecoveredTimedAttempt = {
+  attemptId: string;
+  contractId: string;
+  setId: TpsTimedTrainingSetId;
+  setName: string;
+  repNumber: number;
+  attemptNumber: number;
+  pressureLevel: TpsTimedPressureLevel;
+  prescribedSeconds: number;
+  elapsedMs: number;
+  completedBeforeExpiry: boolean;
+  timingValidity: "valid" | "timing_invalid_technical";
+  endReason: TpsTimedAttemptEndReason;
+  replacementForAttemptId: string | null;
+};
+
 type TpsReplacementState = {
   nextAttemptNumber: number;
   replacementForAttemptId: string;
@@ -1013,6 +1029,7 @@ function IntroSessionDrillRunnerCore({
   const [tpsReplacementState, setTpsReplacementState] = useState<Record<string, TpsReplacementState>>({});
   const [tpsTimerNowMs, setTpsTimerNowMs] = useState(() => Date.now());
   const [tpsAttemptPersisting, setTpsAttemptPersisting] = useState(false);
+  const [tpsSaveBlocked, setTpsSaveBlocked] = useState(false);
   const [tpsTimingNotice, setTpsTimingNotice] = useState<string | null>(null);
   const tpsFinalizingRef = useRef(false);
   const [supportPickerOpen, setSupportPickerOpen] = useState(false);
@@ -1616,6 +1633,7 @@ function IntroSessionDrillRunnerCore({
     setPassiveTimingNotice(null);
     setActiveTpsAttempt(null);
     setTpsAttemptPersisting(false);
+    setTpsSaveBlocked(false);
     tpsFinalizingRef.current = false;
     setTpsTimingNotice(null);
     setSupportPickerOpen(false);
@@ -1655,7 +1673,128 @@ function IntroSessionDrillRunnerCore({
     setSubmitError(null);
   };
 
-  const beginTrainingRep = () => {
+  const loadTpsAttemptForSlot = async ({
+    contractId,
+    setId,
+    repNumber,
+  }: {
+    contractId: string;
+    setId: TpsTimedTrainingSetId;
+    repNumber: number;
+  }): Promise<TpsRecoveredTimedAttempt | null> => {
+    if (!studentId) throw new Error("Student identity is unavailable.");
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: HeadersInit = {};
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const params = new URLSearchParams({
+      topic: currentTopicName,
+      contractId,
+      setId,
+      repNumber: String(repNumber),
+    });
+    const response = await fetch(
+      `${API_URL}/api/tutor/students/${studentId}/tps-timed-attempt?${params.toString()}`,
+      {
+        headers,
+        credentials: "include",
+        cache: "no-store",
+      },
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        body?.message || "Recorded TPS timing could not be recovered.",
+      );
+    }
+    return (body?.attempt || null) as TpsRecoveredTimedAttempt | null;
+  };
+
+  const recoverRecordedTpsAttempt = (
+    recoveredAttempt: TpsRecoveredTimedAttempt,
+  ) => {
+    if (
+      !tpsTimerContract ||
+      recoveredAttempt.contractId !== tpsTimerContract.contractId ||
+      recoveredAttempt.setId !== activeTpsTimingSetId ||
+      recoveredAttempt.repNumber !== currentRep + 1
+    ) {
+      throw new Error(
+        "Recorded TPS timing does not match this Timer Contract opportunity.",
+      );
+    }
+
+    setActiveTpsAttempt(null);
+    setTpsSaveBlocked(false);
+
+    if (recoveredAttempt.timingValidity === "valid") {
+      if (
+        recoveredAttempt.endReason !== "student_finished" &&
+        recoveredAttempt.endReason !== "timer_expired"
+      ) {
+        throw new Error(
+          "Recorded TPS timing has an invalid completed end reason.",
+        );
+      }
+
+      setObservations((current: any) => ({
+        ...current,
+        [activeTpsTimingKey]: encodeTpsTimedAttemptEvidenceRef({
+          version: 1,
+          attemptId: recoveredAttempt.attemptId,
+          contractId: recoveredAttempt.contractId,
+          setId: recoveredAttempt.setId,
+          repNumber: recoveredAttempt.repNumber,
+          attemptNumber: recoveredAttempt.attemptNumber,
+          timingValidity: "valid",
+          endReason: recoveredAttempt.endReason,
+        }),
+      }));
+      setTpsReplacementState((current) => {
+        const next = { ...current };
+        delete next[activeTpsRepIdentity];
+        return next;
+      });
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(tpsReplacementStorageKey);
+      }
+      setRepStarted(true);
+      setHandoverExecutionFinished(isHandoverContinuityVerification);
+      setHandoverObservationIndex(0);
+      setHandoverObservationReview(false);
+      setTpsTimingNotice(
+        "TPS timing was already recorded for this opportunity. Resume the evidence layers from that same completed response; do not run another timed problem.",
+      );
+      setSubmitError(null);
+      return;
+    }
+
+    const recoveredReplacement: TpsReplacementState = {
+      nextAttemptNumber: recoveredAttempt.attemptNumber + 1,
+      replacementForAttemptId: recoveredAttempt.attemptId,
+      freshPreparedEquivalentConfirmed: false,
+    };
+    setTpsReplacementState((current) => ({
+      ...current,
+      [activeTpsRepIdentity]: recoveredReplacement,
+    }));
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        tpsReplacementStorageKey,
+        JSON.stringify(recoveredReplacement),
+      );
+    }
+    clearRepObservationState(currentSet, currentRep);
+    setRepStarted(false);
+    setHandoverExecutionFinished(false);
+    setHandoverObservationIndex(0);
+    setHandoverObservationReview(false);
+    setTpsTimingNotice(
+      "The prior timed attempt ended in an objective technical failure. This evidence slot remains unresolved until a fresh equivalent reserve is run under the same Timer Contract.",
+    );
+    setSubmitError(null);
+  };
+
+  const beginTrainingRep = async () => {
     if (sandboxHandoverEnabled && !sandboxHandoverSimulation) {
       setSubmitError(
         "Wait for the simulated Sandbox student response to load before beginning this Handover opportunity.",
@@ -1683,19 +1822,18 @@ function IntroSessionDrillRunnerCore({
       );
       return;
     }
-    if (activeTechnicalReplacement && !activeReplacementConfirmed) {
-      setSubmitError(
-        "This evidence slot remains unresolved after an objective technical failure. Use only a fresh equivalent problem prepared before the session. Do not reuse the exposed problem or continue to chase a stronger student response.",
-      );
-      return;
-    }
 
     if (activeRepRequiresTpsTiming) {
       if (tpsTimerContractLoading) {
         setSubmitError("Individualized timing authority is still loading.");
         return;
       }
-      if (!tpsTimerContract || !activeTpsPressureLevel || !activeTpsPrescribedSeconds) {
+      if (
+        !tpsTimerContract ||
+        !activeTpsPressureLevel ||
+        !activeTpsPrescribedSeconds ||
+        !activeTpsTimingSetId
+      ) {
         setSubmitError(
           tpsTimerContractError instanceof Error
             ? tpsTimerContractError.message
@@ -1704,10 +1842,56 @@ function IntroSessionDrillRunnerCore({
         return;
       }
 
-      const replacement = tpsReplacementState[activeTpsRepIdentity];
+      setTpsAttemptPersisting(true);
+      setSubmitError(null);
+      try {
+        const recoveredAttempt = await loadTpsAttemptForSlot({
+          contractId: tpsTimerContract.contractId,
+          setId: activeTpsTimingSetId,
+          repNumber: currentRep + 1,
+        });
+        if (recoveredAttempt?.timingValidity === "valid") {
+          recoverRecordedTpsAttempt(recoveredAttempt);
+          return;
+        }
+        if (recoveredAttempt?.timingValidity === "timing_invalid_technical") {
+          const confirmedReplacementMatches =
+            activeTpsReplacement?.replacementForAttemptId ===
+              recoveredAttempt.attemptId &&
+            activeTpsReplacement?.nextAttemptNumber ===
+              recoveredAttempt.attemptNumber + 1 &&
+            activeTpsReplacement?.freshPreparedEquivalentConfirmed;
+          if (!confirmedReplacementMatches) {
+            recoverRecordedTpsAttempt(recoveredAttempt);
+            return;
+          }
+        }
+      } catch (error) {
+        setSubmitError(
+          error instanceof Error
+            ? error.message
+            : "Recorded TPS timing could not be recovered.",
+        );
+        return;
+      } finally {
+        setTpsAttemptPersisting(false);
+      }
+
+      if (
+        activeTpsReplacement &&
+        !activeTpsReplacement.freshPreparedEquivalentConfirmed
+      ) {
+        setSubmitError(
+          "This evidence slot remains unresolved after an objective technical failure. Use only a fresh equivalent problem prepared before the session. Do not reuse the exposed problem or continue to chase a stronger student response.",
+        );
+        return;
+      }
+
+      const replacement = activeTpsReplacement;
+      setTpsSaveBlocked(false);
       setActiveTpsAttempt({
         attemptId: createTpsAttemptId(),
-        setId: activeTpsTimingSetId!,
+        setId: activeTpsTimingSetId,
         setName: set?.setName || activeRegistrySet!.setName,
         repNumber: currentRep + 1,
         attemptNumber: replacement?.nextAttemptNumber || 1,
@@ -1724,6 +1908,15 @@ function IntroSessionDrillRunnerCore({
         delete next[activeTpsTimingKey];
         return next;
       });
+    } else if (
+      activeRepRequiresPassiveTiming &&
+      activePassiveReplacement &&
+      !activePassiveReplacement.freshPreparedEquivalentConfirmed
+    ) {
+      setSubmitError(
+        "This evidence slot remains unresolved after an objective technical failure. Use only a fresh equivalent problem prepared before the session. Do not reuse the exposed problem or continue to chase a stronger student response.",
+      );
+      return;
     }
 
     if (activeRepRequiresPassiveTiming) {
@@ -1940,9 +2133,17 @@ function IntroSessionDrillRunnerCore({
     );
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(
+      const error = new Error(
         body?.message || `Failed to persist TPS timing evidence (${response.status})`,
-      );
+      ) as Error & {
+        code?: string;
+        status?: number;
+        attempt?: TpsRecoveredTimedAttempt | null;
+      };
+      error.code = body?.code;
+      error.status = response.status;
+      error.attempt = (body?.attempt || null) as TpsRecoveredTimedAttempt | null;
+      throw error;
     }
     return body?.attempt;
   };
@@ -2066,6 +2267,7 @@ function IntroSessionDrillRunnerCore({
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(tpsReplacementStorageKey);
       }
+      setTpsSaveBlocked(false);
       setTpsTimingNotice(
         persisted.endReason === "timer_expired"
           ? "Timer expired at the prescribed boundary. Record the student's response exactly as it stood at expiry."
@@ -2073,9 +2275,39 @@ function IntroSessionDrillRunnerCore({
       );
       setActiveTpsAttempt(null);
     } catch (error) {
+      const persistenceError = error as Error & {
+        code?: string;
+        status?: number;
+        attempt?: TpsRecoveredTimedAttempt | null;
+      };
+
+      if (
+        persistenceError.code === "TPS_TIMED_ATTEMPT_SLOT_ALREADY_RECORDED" &&
+        persistenceError.attempt
+      ) {
+        try {
+          recoverRecordedTpsAttempt(persistenceError.attempt);
+          return;
+        } catch (recoveryError) {
+          setTpsSaveBlocked(true);
+          setSubmitError(
+            recoveryError instanceof Error
+              ? recoveryError.message
+              : "Recorded TPS timing could not be reconciled.",
+          );
+          return;
+        }
+      }
+
+      const status = Number(persistenceError.status);
+      const nonRetryable =
+        Number.isInteger(status) && status >= 400 && status < 500;
+      setTpsSaveBlocked(nonRetryable);
       setSubmitError(
-        error instanceof Error
-          ? `${error.message} The execution boundary is frozen; retry saving it rather than restarting the clock.`
+        persistenceError instanceof Error
+          ? nonRetryable
+            ? `${persistenceError.message} The execution boundary remains frozen. This is a non-retryable contract rejection; do not restart the clock or keep resubmitting the same evidence.`
+            : `${persistenceError.message} The execution boundary is frozen; retry saving the same frozen evidence rather than restarting the clock.`
           : "TPS timing evidence could not be persisted. The execution boundary is frozen.",
       );
     } finally {
@@ -4184,13 +4416,19 @@ function IntroSessionDrillRunnerCore({
                       "student_finished",
                   )
                 }
-                disabled={tpsAttemptPersisting || !activeTpsAttempt}
+                disabled={
+                  tpsAttemptPersisting ||
+                  !activeTpsAttempt ||
+                  tpsSaveBlocked
+                }
               >
                 {tpsAttemptPersisting
                   ? "Saving timing..."
-                  : activeTpsAttempt?.frozenAttempt
-                    ? "Retry Timing Save"
-                    : "Student Finished"}
+                  : tpsSaveBlocked
+                    ? "Timing Save Blocked"
+                    : activeTpsAttempt?.frozenAttempt
+                      ? "Retry Saving Frozen Evidence"
+                      : "Student Finished"}
               </button>
               <button
                 type="button"

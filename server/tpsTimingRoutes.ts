@@ -3,6 +3,7 @@ import { isAuthenticated } from "./supabaseAuth";
 import { storage } from "./storage";
 import {
   loadLatestTpsPassiveAttemptForSlot,
+  loadLatestTpsTimedAttemptForSlot,
   loadLatestTpsTimerContract,
   loadTpsTimerContractById,
   persistTpsPassiveAttempt,
@@ -240,6 +241,84 @@ export function registerTpsTimingRoutes(app: Express) {
     },
   );
 
+  app.get(
+    "/api/tutor/students/:studentId/tps-timed-attempt",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const specialist = requireSpecialist(req, res);
+        if (!specialist) return;
+
+        const studentId = clean(req.params.studentId);
+        const topic = clean(req.query.topic);
+        const contractId = clean(req.query.contractId);
+        const setId = clean(req.query.setId);
+        const repNumber = Number(req.query.repNumber || 0);
+
+        if (
+          !studentId ||
+          !topic ||
+          !contractId ||
+          !setId ||
+          !Number.isInteger(repNumber) ||
+          repNumber <= 0
+        ) {
+          return res.status(400).json({
+            message:
+              "studentId, topic, contractId, setId and repNumber are required.",
+          });
+        }
+
+        const student = await requireOwnedStudent(studentId, specialist.id, res);
+        if (!student) return;
+
+        const contract = await loadTpsTimerContractById(contractId);
+        if (
+          !contract ||
+          String(contract.studentId) !== studentId ||
+          contract.topic.trim().toLowerCase() !== topic.toLowerCase()
+        ) {
+          return res.status(409).json({
+            code: "TPS_TIMER_CONTRACT_MISMATCH",
+            message:
+              "The supplied Timer Contract is not authoritative for this student/topic.",
+          });
+        }
+
+        const attempt = await loadLatestTpsTimedAttemptForSlot({
+          contractId,
+          setId: setId as TpsTimedAttemptSubmissionV1["setId"],
+          repNumber,
+        });
+
+        return res.json({
+          attempt: attempt
+            ? {
+                attemptId: attempt.attemptId,
+                contractId: attempt.contractId,
+                setId: attempt.setId,
+                setName: attempt.setName,
+                repNumber: attempt.repNumber,
+                attemptNumber: attempt.attemptNumber,
+                pressureLevel: attempt.pressureLevel,
+                prescribedSeconds: attempt.prescribedSeconds,
+                elapsedMs: attempt.elapsedMs,
+                completedBeforeExpiry: attempt.completedBeforeExpiry,
+                timingValidity: attempt.timingValidity,
+                endReason: attempt.endReason,
+                replacementForAttemptId: attempt.replacementForAttemptId,
+              }
+            : null,
+        });
+      } catch (error) {
+        console.error("Failed to recover TPS timed attempt slot:", error);
+        return res.status(500).json({
+          message: "TPS timed attempt recovery could not be loaded.",
+        });
+      }
+    },
+  );
+
   app.post(
     "/api/tutor/students/:studentId/tps-timed-attempt",
     isAuthenticated,
@@ -305,6 +384,25 @@ export function registerTpsTimingRoutes(app: Express) {
               error instanceof Error
                 ? error.message
                 : "TPS timed attempt could not be persisted.",
+            attempt: (error as any)?.existingAttempt
+              ? {
+                  attemptId: (error as any).existingAttempt.attemptId,
+                  contractId: (error as any).existingAttempt.contractId,
+                  setId: (error as any).existingAttempt.setId,
+                  setName: (error as any).existingAttempt.setName,
+                  repNumber: (error as any).existingAttempt.repNumber,
+                  attemptNumber: (error as any).existingAttempt.attemptNumber,
+                  pressureLevel: (error as any).existingAttempt.pressureLevel,
+                  prescribedSeconds: (error as any).existingAttempt.prescribedSeconds,
+                  elapsedMs: (error as any).existingAttempt.elapsedMs,
+                  completedBeforeExpiry:
+                    (error as any).existingAttempt.completedBeforeExpiry,
+                  timingValidity: (error as any).existingAttempt.timingValidity,
+                  endReason: (error as any).existingAttempt.endReason,
+                  replacementForAttemptId:
+                    (error as any).existingAttempt.replacementForAttemptId,
+                }
+              : undefined,
           });
       }
     },

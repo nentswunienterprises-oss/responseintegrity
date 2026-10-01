@@ -1013,6 +1013,74 @@ export const loadTpsTimedAttemptById = async (
   return data ? rowToTimedAttempt(data as Record<string, any>) : null;
 };
 
+export const loadLatestTpsTimedAttemptForSlot = async ({
+  contractId,
+  setId,
+  repNumber,
+}: {
+  contractId: string;
+  setId: TpsTimedAttemptSubmissionV1["setId"];
+  repNumber: number;
+}): Promise<PersistedTpsTimedAttempt | null> => {
+  const normalizedContractId = clean(contractId);
+  const normalizedSetId = clean(setId);
+  const normalizedRepNumber = Number(repNumber);
+
+  if (
+    !normalizedContractId ||
+    !normalizedSetId ||
+    !Number.isInteger(normalizedRepNumber) ||
+    normalizedRepNumber <= 0
+  ) {
+    return null;
+  }
+
+  if (isEmergencyDbMode()) {
+    const result = await pool.query(
+      `SELECT *
+         FROM public.${TIMED_ATTEMPT_TABLE}
+        WHERE contract_id = $1
+          AND set_id = $2
+          AND rep_number = $3
+        ORDER BY attempt_number DESC, created_at DESC
+        LIMIT 1`,
+      [normalizedContractId, normalizedSetId, normalizedRepNumber],
+    );
+    return result.rows[0] ? rowToTimedAttempt(result.rows[0]) : null;
+  }
+
+  const { data, error } = await supabase
+    .from(TIMED_ATTEMPT_TABLE)
+    .select("*")
+    .eq("contract_id", normalizedContractId)
+    .eq("set_id", normalizedSetId)
+    .eq("rep_number", normalizedRepNumber)
+    .order("attempt_number", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load TPS timed attempt slot: ${error.message}`);
+  }
+
+  return data ? rowToTimedAttempt(data as Record<string, any>) : null;
+};
+
+const timedAttemptSlotAlreadyRecordedError = (
+  existingAttempt: PersistedTpsTimedAttempt,
+) =>
+  Object.assign(
+    new Error(
+      "This TPS timing opportunity already has immutable timing evidence. Resume the recorded opportunity instead of restarting the timer.",
+    ),
+    {
+      statusCode: 409,
+      code: "TPS_TIMED_ATTEMPT_SLOT_ALREADY_RECORDED",
+      existingAttempt,
+    },
+  );
+
 export const persistTpsTimedAttempt = async ({
   contract,
   attempt,
@@ -1052,6 +1120,20 @@ export const persistTpsTimedAttempt = async ({
       );
     }
     return existing;
+  }
+
+  const existingSlotAttempt = await loadLatestTpsTimedAttemptForSlot({
+    contractId: contract.contractId,
+    setId: attempt.setId,
+    repNumber: attempt.repNumber,
+  });
+
+  if (
+    existingSlotAttempt &&
+    existingSlotAttempt.attemptId !== attempt.attemptId &&
+    existingSlotAttempt.attemptNumber >= attempt.attemptNumber
+  ) {
+    throw timedAttemptSlotAlreadyRecordedError(existingSlotAttempt);
   }
 
   if (attempt.replacementForAttemptId) {
