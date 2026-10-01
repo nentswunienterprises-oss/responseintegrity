@@ -1683,7 +1683,13 @@ Handover therefore has no Training-forward authority and no manual re-placement 
 
 Handover begins from the inherited topic, phase, and stability.
 
-The Specialist reviews inherited evidence and constraints, prepares a small reserve bank of phase-appropriate continuity problems, presents one clean continuity opportunity at a time, records concrete phase-defining behavior, and lets the Response Evidence Model decide whether another comparable opportunity is required.
+The Specialist reviews inherited evidence and constraints, prepares a small reserve bank of phase-appropriate continuity problems, and presents one clean continuity opportunity at a time.
+
+The execution boundary is:
+
+`Ready -> Observe -> Student Finished -> Record -> Confirm`
+
+The Specialist watches the complete student response before evidence administration begins. After `Student Finished`, the Handover runner presents the prescribed phase-defining observations **one at a time**, using the same observation-runner discipline as evidence-native Diagnosis. The Specialist completes the current observation before the next one opens, reviews the completed opportunity, and only then confirms it for Response Evidence evaluation.
 
 Handover is **evidence-complete, not rep-complete**. The reserve problem bank is not a completion target.
 
