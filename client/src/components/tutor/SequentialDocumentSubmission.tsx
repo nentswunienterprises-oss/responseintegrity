@@ -1137,7 +1137,7 @@ function buildAcceptedCopyHtml(params: {
     html { -webkit-text-size-adjust: 100%; }
     body { margin: 0; padding: 16px; background: #e7e1d7; color: #1f2933; font-family: "Georgia", "Times New Roman", serif; }
     .page { width: min(210mm, 100%); min-height: 297mm; margin: 0 auto; background: #fffdf8; padding: 18mm 16mm; }
-    .eyebrow { font: 600 11px/1.4 Arial, sans-serif; letter-spacing: 0.18em; text-transform: uppercase; color: #8b2c1f; }
+    .eyebrow { font: 600 11px/1.4 Arial, sans-serif; letter-spacing: 0.18em; text-transform: uppercase; color: #E63946; }
     h1 { margin: 8px 0 6px; font-size: 28px; line-height: 1.15; }
     .subhead { margin: 0; font: 500 13px/1.6 Arial, sans-serif; color: #52606d; }
     .summary { margin-top: 18px; padding: 14px 16px; border: 1px solid #d8cfc2; background: #f8f2e8; }
@@ -1145,7 +1145,7 @@ function buildAcceptedCopyHtml(params: {
     .summary-label { font: 600 11px/1.4 Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #7b8794; }
     .summary-value { margin-top: 3px; font: 400 14px/1.5 Arial, sans-serif; color: var(--ri-reader-heading, #102a43); }
     .section { margin-top: 22px; }
-    .section-title { margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid #d8cfc2; font: 700 14px/1.4 Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #7b341e; }
+    .section-title { margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid #d8cfc2; font: 700 14px/1.4 Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #E63946; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 9px 10px; border: 1px solid #ddd3c5; vertical-align: top; }
     th { width: 34%; background: #f6efe4; text-align: left; font: 600 12px/1.5 Arial, sans-serif; color: var(--ri-reader-text, #243b53); }
@@ -1160,7 +1160,7 @@ function buildAcceptedCopyHtml(params: {
     .agreement-body ul { margin: 0 0 10px 18px; padding: 0; }
     .agreement-body li { margin-bottom: 5px; font: 400 13px/1.6 Arial, sans-serif; }
     .agreement-body .tt-agreement-section + .tt-agreement-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--ri-reader-border, #e7d5c8); }
-    .agreement-body .tt-agreement-section h2 { margin: 0 0 10px; font: 700 14px/1.4 Arial, sans-serif; color: #7b341e; }
+    .agreement-body .tt-agreement-section h2 { margin: 0 0 10px; font: 700 14px/1.4 Arial, sans-serif; color: #E63946; }
     .agreement-body .tt-agreement-section-body p { margin: 0 0 10px; font: 400 13px/1.7 Arial, sans-serif; color: var(--ri-reader-text, #243b53); }
     .agreement-body .tt-agreement-subsection + .tt-agreement-subsection { margin-top: 14px; }
     .agreement-body .tt-agreement-subsection h3 { margin: 0 0 8px; font: 700 13px/1.4 Arial, sans-serif; color: var(--ri-reader-heading, #102a43); }
