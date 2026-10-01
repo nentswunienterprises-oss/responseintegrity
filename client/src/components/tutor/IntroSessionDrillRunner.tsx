@@ -2131,17 +2131,19 @@ function IntroSessionDrillRunnerCore({
 
   useEffect(() => {
     if (
-      sandboxHandoverEnabled &&
+      isHandoverContinuityVerification &&
       activeRepRequiresTpsTiming &&
       activeTpsTimingCaptured
     ) {
       setHandoverExecutionFinished(true);
+      setHandoverObservationIndex(0);
+      setHandoverObservationReview(false);
       window.requestAnimationFrame(() => {
         window.scrollTo({ top: 0, behavior: "smooth" });
       });
     }
   }, [
-    sandboxHandoverEnabled,
+    isHandoverContinuityVerification,
     activeRepRequiresTpsTiming,
     activeTpsTimingCaptured,
   ]);
