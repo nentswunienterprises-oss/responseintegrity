@@ -15,15 +15,50 @@ export function useAuth() {
   const queryClient = useQueryClient();
   const previousUserIdRef = useRef<string | null>(null);
   
-  // Wait for Supabase to initialize and check for existing session
+  // Resolve the actual auth identity before protected queries are allowed to
+  // reuse persisted React Query data. This closes the reload/hot-reload path
+  // where a tab can hold cache from one Specialist while Supabase has already
+  // restored a different Specialist session.
   useEffect(() => {
-    getAuthMode().then((authMode) => {
+    let cancelled = false;
+
+    const initializeAuthIdentity = async () => {
+      const authMode = await getAuthMode();
+      if (cancelled) return;
+
       if (authMode.dbSessionAuthMode) {
         setSupabaseReady(true);
         return;
       }
-      supabase.auth.getSession().then(() => setSupabaseReady(true));
-    });
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
+
+      const sessionUserId = session?.user?.id || null;
+      const storedUserId = getCurrentUserId();
+
+      if (storedUserId !== sessionUserId) {
+        if (storedUserId || sessionUserId) {
+          console.log(
+            "🔄 Auth identity changed before query hydration:",
+            storedUserId,
+            "→",
+            sessionUserId,
+            "- clearing cache",
+          );
+          clearAllCache();
+        }
+        setCurrentUserId(sessionUserId);
+      }
+
+      setSupabaseReady(true);
+    };
+
+    void initializeAuthIdentity();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Setup multi-tab sync - clear cache and refetch when user changes in another tab
