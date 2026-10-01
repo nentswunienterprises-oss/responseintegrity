@@ -629,63 +629,88 @@ async function ensureTrajectory(input: {
   studentId: string;
   bank: SandboxEnvironmentBank;
 }): Promise<SandboxTrajectoryBundle> {
-  const existing = await pool.query(
-    `SELECT t.*,
-            truth.canonical_phase,
-            truth.canonical_stability,
-            truth.canonical_route,
-            truth.canonical_targeted_rediagnosis_phase,
-            truth.trajectory_seed,
-            truth.previous_trajectory_class,
-            truth.continuity_tags,
-            truth.recent_outcome_keys,
-            truth.prior_tracks_diverged
-       FROM specialist_sandbox_trajectories t
-       JOIN private.specialist_sandbox_trajectory_truth truth
-         ON truth.trajectory_id = t.id
-      WHERE t.tutor_assignment_id = $1
-        AND t.tutor_id = $2
-        AND t.student_id = $3
-        AND t.bank_key = $4
-        AND t.bank_version = $5
-        AND t.status = 'active'
-      LIMIT 1`,
-    [
-      input.tutorAssignmentId,
-      input.tutorId,
-      input.studentId,
-      input.bank.bankKey,
-      input.bank.bankVersion,
-    ],
-  );
+  const selectSql = `
+    SELECT t.*,
+           truth.canonical_phase,
+           truth.canonical_stability,
+           truth.canonical_route,
+           truth.canonical_targeted_rediagnosis_phase,
+           truth.trajectory_seed,
+           truth.previous_trajectory_class,
+           truth.continuity_tags,
+           truth.recent_outcome_keys,
+           truth.prior_tracks_diverged
+      FROM specialist_sandbox_trajectories t
+      JOIN private.specialist_sandbox_trajectory_truth truth
+        ON truth.trajectory_id = t.id
+     WHERE t.tutor_assignment_id = $1
+       AND t.tutor_id = $2
+       AND t.student_id = $3
+       AND t.bank_key = $4
+       AND t.bank_version = $5
+       AND t.status = 'active'
+     ORDER BY t.created_at DESC
+     LIMIT 1
+  `;
+  const selectParams = [
+    input.tutorAssignmentId,
+    input.tutorId,
+    input.studentId,
+    input.bank.bankKey,
+    input.bank.bankVersion,
+  ];
 
-  if (existing.rows[0]) {
-    const row = existing.rows[0];
-    return {
-      trajectory: row as SandboxTrajectoryRow,
-      truth: {
-        trajectory_id: String(row.id),
-        canonical_phase: String(row.canonical_phase) as TopicPhase,
-        canonical_stability: String(row.canonical_stability) as TopicStability,
-        canonical_route: String(row.canonical_route) as SandboxTruthRow["canonical_route"],
-        canonical_targeted_rediagnosis_phase:
-          row.canonical_targeted_rediagnosis_phase
-            ? String(row.canonical_targeted_rediagnosis_phase) as TopicPhase
-            : null,
-        trajectory_seed: String(row.trajectory_seed),
-        previous_trajectory_class: row.previous_trajectory_class
-          ? String(row.previous_trajectory_class) as SandboxTrajectoryClass
+  const bundleFromRow = (row: any): SandboxTrajectoryBundle => ({
+    trajectory: row as SandboxTrajectoryRow,
+    truth: {
+      trajectory_id: String(row.id),
+      canonical_phase: String(row.canonical_phase) as TopicPhase,
+      canonical_stability: String(row.canonical_stability) as TopicStability,
+      canonical_route: String(row.canonical_route) as SandboxTruthRow["canonical_route"],
+      canonical_targeted_rediagnosis_phase:
+        row.canonical_targeted_rediagnosis_phase
+          ? String(row.canonical_targeted_rediagnosis_phase) as TopicPhase
           : null,
-        continuity_tags: jsonStringArray(row.continuity_tags),
-        recent_outcome_keys: jsonStringArray(row.recent_outcome_keys),
-        prior_tracks_diverged: Boolean(row.prior_tracks_diverged),
-      },
-    };
+      trajectory_seed: String(row.trajectory_seed),
+      previous_trajectory_class: row.previous_trajectory_class
+        ? String(row.previous_trajectory_class) as SandboxTrajectoryClass
+        : null,
+      continuity_tags: jsonStringArray(row.continuity_tags),
+      recent_outcome_keys: jsonStringArray(row.recent_outcome_keys),
+      prior_tracks_diverged: Boolean(row.prior_tracks_diverged),
+    },
+  });
+
+  const existing = await pool.query(selectSql, selectParams);
+  if (existing.rows[0]) {
+    return bundleFromRow(existing.rows[0]);
   }
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+
+    const lockIdentity = [
+      input.tutorAssignmentId,
+      input.tutorId,
+      input.studentId,
+      input.bank.bankKey,
+      input.bank.bankVersion,
+    ].join(":");
+    await client.query(
+      "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+      [lockIdentity],
+    );
+
+    // Both the environment form and history can initialize at the same time.
+    // Re-check after taking the transaction lock so only one request creates
+    // the trajectory/truth pair.
+    const lockedExisting = await client.query(selectSql, selectParams);
+    if (lockedExisting.rows[0]) {
+      await client.query("COMMIT");
+      return bundleFromRow(lockedExisting.rows[0]);
+    }
+
     const created = await client.query(
       `INSERT INTO specialist_sandbox_trajectories (
          tutor_assignment_id,
@@ -704,17 +729,17 @@ async function ensureTrajectory(input: {
          evidence_scope
        ) VALUES ($1,$2,$3,$4,$5,'Clarity','Low','normal_training',1,0,false,'active',false,'sandbox')
        RETURNING *`,
-      [
-        input.tutorAssignmentId,
-        input.tutorId,
-        input.studentId,
-        input.bank.bankKey,
-        input.bank.bankVersion,
-      ],
+      selectParams,
     );
     const trajectory = created.rows[0] as SandboxTrajectoryRow;
     const trajectorySeed = digest(
-      ["sandbox-trajectory-v3", trajectory.id, input.studentId, input.bank.bankKey, input.bank.bankVersion].join(":"),
+      [
+        "sandbox-trajectory-v3",
+        trajectory.id,
+        input.studentId,
+        input.bank.bankKey,
+        input.bank.bankVersion,
+      ].join(":"),
     );
     await client.query(
       `INSERT INTO private.specialist_sandbox_trajectory_truth (
