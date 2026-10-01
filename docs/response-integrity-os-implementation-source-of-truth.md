@@ -2789,6 +2789,20 @@ Without this layer:
 - the reporting layer can look cleaner than real delivery
 - scale becomes more expensive because drift has to be corrected manually
 
+## Specialist Development Sandbox
+
+Sandbox exercises the same RI operating surfaces that a Specialist will later use live. Simulated student behaviour therefore applies to Diagnosis, Training, Handover, and targeted re-diagnosis rather than Training alone.
+
+The runner and authority do not change merely because the Specialist is in Sandbox. Diagnosis remains evidence-native Diagnosis, Handover remains continuity verification, and Training remains Training. Sandbox replaces the source of student behaviour with deterministic private simulated truth and separately evaluates the Specialist's observation and evidence handling.
+
+The Specialist may see the simulated student response required to perform the operating task. The canonical observation record remains private. Hidden canonical truth never becomes authoritative real-student evidence.
+
+For simulated Diagnosis and Handover opportunities, the execution boundary remains:
+
+`Ready -> Observe simulated student response -> Student Finished -> Record -> Confirm`
+
+A refresh or retry must not manufacture a different student response for the same source context and opportunity.
+
 ## Specialist Certification Lifecycle
 
 The governed Specialist pathway is:
