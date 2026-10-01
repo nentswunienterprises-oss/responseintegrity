@@ -84,7 +84,10 @@ test("Sandbox mode uses the existing live-runner route rather than a separate ru
     /headers:\s*HeadersInit\s*=\s*\{\s*"Cache-Control"/,
   );
   assert.match(liveRunnerSource, /runtimeModeLoading \|\| runtimeModeFetching/);
-  assert.match(liveRunnerSource, /operationalMode === "sandbox" && studentId && runtimeMode\?\.assignmentId/);
+  assert.match(
+    liveRunnerSource,
+    /operationalMode === "sandbox"[\s\S]*studentId[\s\S]*runtimeMode\?\.assignmentId[\s\S]*requestedMode !== "handover"/,
+  );
   assert.match(
     liveRunnerSource,
     /<SpecialistSandboxSimulation[\s\S]*studentIdOverride=\{String\(studentId\)\}[\s\S]*tutorAssignmentIdOverride=\{runtimeMode\.assignmentId\}[\s\S]*operationalModeOverride=\{operationalMode\}[\s\S]*embedded/,
