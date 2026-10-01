@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { API_URL } from "@/lib/config";
 import { getAuthMode } from "@/lib/authMode";
 import { supabase } from "@/lib/supabaseClient";
+import { LiveSandboxStudentResponse } from "./TrainingLiveDeliveryUi";
 import {
   DIAGNOSIS_PROBE_EXECUTION_PROTOCOLS,
   type DiagnosisDimensionId,
@@ -47,6 +48,25 @@ type DiagnosisApiResponse = {
     baselineSeconds: number | null;
     prescribedSeconds: number | null;
   };
+};
+
+type DiagnosisRuntimeAuthority = {
+  assignmentId: string | null;
+  operationalMode: string;
+};
+
+type SandboxDiagnosisSimulation = {
+  scope: "diagnosis";
+  trajectoryId: string;
+  bankVersion: number;
+  sessionNumber: number;
+  probeId: string;
+  sequenceNumber: number;
+  formId: string;
+  studentBehavior: string;
+  simulatedElapsedSeconds: number;
+  studentStateAuthoritative: false;
+  evidenceScope: "sandbox";
 };
 
 type ActiveDiagnosisPassiveAttempt = {
@@ -195,6 +215,10 @@ export default function EvidenceCompleteDiagnosisRunner() {
 
   const [runId, setRunId] = useState<string | null>(null);
   const [apiState, setApiState] = useState<DiagnosisApiResponse | null>(null);
+  const [runtimeAuthority, setRuntimeAuthority] =
+    useState<DiagnosisRuntimeAuthority | null>(null);
+  const [sandboxSimulation, setSandboxSimulation] =
+    useState<SandboxDiagnosisSimulation | null>(null);
   const [observations, setObservations] = useState<
     Partial<Record<DiagnosisDimensionId, string>>
   >({});
@@ -224,6 +248,120 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const [timedTiming, setTimedTiming] =
     useState<TimedExecutionEvidenceV1 | null>(null);
   const [timerNowMs, setTimerNowMs] = useState(() => Date.now());
+
+  const loadRuntimeAuthority = async (): Promise<DiagnosisRuntimeAuthority> => {
+    const headers = await authHeaders();
+    const response = await fetch(`${API_URL}/api/tutor/runtime-mode`, {
+      headers,
+      credentials: "include",
+      cache: "no-store",
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        body?.message ||
+          `Failed to verify Specialist runtime mode (${response.status})`,
+      );
+    }
+    return {
+      assignmentId: body?.assignmentId ? String(body.assignmentId) : null,
+      operationalMode: String(body?.operationalMode || "training")
+        .trim()
+        .toLowerCase(),
+    };
+  };
+
+  const loadSandboxSimulation = async ({
+    runtime,
+    id,
+    state,
+  }: {
+    runtime: DiagnosisRuntimeAuthority;
+    id: string;
+    state: DiagnosisApiResponse;
+  }): Promise<SandboxDiagnosisSimulation | null> => {
+    const nextProbe = state.nextProbe;
+    if (
+      runtime.operationalMode !== "sandbox" ||
+      !runtime.assignmentId ||
+      !nextProbe ||
+      state.finalized
+    ) {
+      return null;
+    }
+
+    const params = new URLSearchParams({
+      tutorAssignmentId: runtime.assignmentId,
+      studentId,
+      scope: "diagnosis",
+      sourceContextId: id,
+      startingPhase,
+      sequenceNumber: String(
+        state.opportunityNumber || state.probeHistory.length + 1,
+      ),
+      probeId: nextProbe.id,
+    });
+    const headers = await authHeaders();
+    const response = await fetch(
+      `${API_URL}/api/tutor/sandbox-live-evidence?${params.toString()}`,
+      {
+        headers,
+        credentials: "include",
+        cache: "no-store",
+      },
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        body?.message ||
+          "Sandbox simulated student behavior could not be prepared.",
+      );
+    }
+    return body as SandboxDiagnosisSimulation;
+  };
+
+  const recordSandboxSimulation = async ({
+    runtime,
+    simulation,
+    observations: submittedObservations,
+    submittedSupportEvent,
+  }: {
+    runtime: DiagnosisRuntimeAuthority;
+    simulation: SandboxDiagnosisSimulation;
+    observations: Array<{ dimensionId: string; behaviorId: string }>;
+    submittedSupportEvent: DiagnosisSupportEvent;
+  }) => {
+    if (runtime.operationalMode !== "sandbox" || !runtime.assignmentId) return;
+
+    const headers = await authHeaders();
+    const response = await fetch(
+      `${API_URL}/api/tutor/sandbox-live-evidence`,
+      {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          tutorAssignmentId: runtime.assignmentId,
+          studentId,
+          scope: "diagnosis",
+          sourceContextId: runId,
+          startingPhase,
+          sequenceNumber: simulation.sequenceNumber,
+          probeId: simulation.probeId,
+          formId: simulation.formId,
+          supportEvent: submittedSupportEvent,
+          observations: submittedObservations,
+        }),
+      },
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        body?.message ||
+          "Sandbox simulated evidence could not be recorded.",
+      );
+    }
+  };
 
   const postHistory = async (
     id: string,
@@ -326,6 +464,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
         if (!studentId) throw new Error("Student is missing.");
         if (!topic) throw new Error("Choose a topic before starting diagnosis.");
 
+        const runtime = await loadRuntimeAuthority();
+        if (!cancelled) setRuntimeAuthority(runtime);
+
         const storedRunId = window.sessionStorage.getItem(storageKey);
         const id =
           storedRunId && isUuidLike(storedRunId) ? storedRunId : createRunId();
@@ -359,8 +500,14 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 legacySlotNumber: nextProbeOccurrenceNumber || undefined,
               })
             : null;
+        const simulation = await loadSandboxSimulation({
+          runtime,
+          id,
+          state,
+        });
 
         if (!cancelled) {
+          setSandboxSimulation(simulation);
           setApiState(state);
           setObservations({});
           setSupportEvent("none");
@@ -650,7 +797,18 @@ export default function EvidenceCompleteDiagnosisRunner() {
       let attempt = activePassiveAttempt.frozenAttempt;
       if (!attempt) {
         const endedAt = new Date().toISOString();
-        const startedMs = Date.parse(activePassiveAttempt.startedAt);
+        const simulatedElapsedMs =
+          runtimeAuthority?.operationalMode === "sandbox" &&
+          sandboxSimulation?.simulatedElapsedSeconds
+            ? Math.max(
+                1,
+                Math.round(sandboxSimulation.simulatedElapsedSeconds * 1000),
+              )
+            : null;
+        const effectiveStartedAt = simulatedElapsedMs
+          ? new Date(Date.parse(endedAt) - simulatedElapsedMs).toISOString()
+          : activePassiveAttempt.startedAt;
+        const startedMs = Date.parse(effectiveStartedAt);
         const endedMs = Date.parse(endedAt);
         if (
           !Number.isFinite(startedMs) ||
@@ -669,7 +827,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
           sourceItemId: activePassiveAttempt.sourceItemId,
           slotNumber: activePassiveAttempt.slotNumber,
           attemptNumber: activePassiveAttempt.attemptNumber,
-          startedAt: activePassiveAttempt.startedAt,
+          startedAt: effectiveStartedAt,
           endedAt,
           elapsedMs: endedMs - startedMs,
           timingValidity:
@@ -777,8 +935,19 @@ export default function EvidenceCompleteDiagnosisRunner() {
 
     if (currentTimingMode === "timed") {
       const endedAt = new Date().toISOString();
+      const simulatedElapsedMs =
+        runtimeAuthority?.operationalMode === "sandbox" &&
+        sandboxSimulation?.simulatedElapsedSeconds
+          ? Math.max(
+              1,
+              Math.round(sandboxSimulation.simulatedElapsedSeconds * 1000),
+            )
+          : null;
+      const effectiveStartedAt = simulatedElapsedMs
+        ? new Date(Date.parse(endedAt) - simulatedElapsedMs).toISOString()
+        : startedAt;
       const evidence = buildTimedExecutionEvidence({
-        startedAt,
+        startedAt: effectiveStartedAt,
         endedAt,
         prescribedSeconds,
       });
@@ -889,23 +1058,46 @@ export default function EvidenceCompleteDiagnosisRunner() {
     setError(null);
 
     try {
+      const submittedObservations = currentProbe.dimensions.map((dimensionId) => ({
+        dimensionId,
+        behaviorId: observations[dimensionId]!,
+      }));
       const result: DiagnosisProbeResult = {
         probeId: currentProbe.id,
         supportEvent,
-        observations: currentProbe.dimensions.map((dimensionId) => ({
-          dimensionId,
-          behaviorId: observations[dimensionId]!,
-        })),
+        observations: submittedObservations,
         ...(passiveTiming ? { passiveTiming } : {}),
         ...(passiveTimingAttempt ? { passiveTimingAttempt } : {}),
         ...(timedTiming ? { timedTiming } : {}),
       };
 
+      if (runtimeAuthority?.operationalMode === "sandbox") {
+        if (!sandboxSimulation) {
+          throw new Error(
+            "Sandbox simulated student behavior is missing for this opportunity.",
+          );
+        }
+        await recordSandboxSimulation({
+          runtime: runtimeAuthority,
+          simulation: sandboxSimulation,
+          observations: submittedObservations,
+          submittedSupportEvent: supportEvent,
+        });
+      }
+
       const nextState = await postHistory(runId, [
         ...apiState.probeHistory,
         result,
       ]);
+      const nextSimulation = runtimeAuthority
+        ? await loadSandboxSimulation({
+            runtime: runtimeAuthority,
+            id: runId,
+            state: nextState,
+          })
+        : null;
       setApiState(nextState);
+      setSandboxSimulation(nextSimulation);
       setObservations({});
       setSupportEvent("none");
       setOpportunityStarted(false);
@@ -956,6 +1148,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
       currentTimingMode !== "timed" ||
       timedTiming ||
       timedRemainingMs > 0 ||
+      runtimeAuthority?.operationalMode === "sandbox" ||
       !prescribedSeconds ||
       prescribedSeconds <= 0
     ) {
@@ -1517,6 +1710,14 @@ export default function EvidenceCompleteDiagnosisRunner() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {runtimeAuthority?.operationalMode === "sandbox" && sandboxSimulation && (
+                <div className="mt-4">
+                  <LiveSandboxStudentResponse>
+                    {sandboxSimulation.studentBehavior}
+                  </LiveSandboxStudentResponse>
                 </div>
               )}
 
