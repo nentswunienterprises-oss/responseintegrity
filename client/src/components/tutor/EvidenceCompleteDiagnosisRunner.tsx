@@ -1353,7 +1353,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
               </div>
             </section>
           ) : activeLayer ? (
-            <section className="rounded-2xl border bg-card p-5 sm:p-7">
+            <section data-testid="evidence-diagnosis-observe" className="rounded-2xl border bg-card p-5 sm:p-7">
               <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 <span className="rounded-full border border-primary/15 px-2 py-1">
                   Ready ✓
@@ -1379,14 +1379,6 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 </div>
               </div>
 
-              <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
-                  Keep observing this same opportunity
-                </p>
-                <p className="mt-1 text-sm font-medium leading-6">
-                  {currentProbe.specialistInstruction}
-                </p>
-              </div>
 
               {timingBoundaryRequired && (
                 <div className="mt-4 rounded-xl border p-4">
@@ -1410,14 +1402,11 @@ export default function EvidenceCompleteDiagnosisRunner() {
                         </>
                       ) : (
                         <>
-                          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                            Measurement is running silently. Freeze it at actual student completion before finishing observation admin.
-                          </p>
-                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                            Record Technical Timing Failure only for an objective timer/runtime/device failure. Weak, slow, incomplete, or incorrect student performance is real evidence and must not unlock another opportunity.
+                          <p className="mt-1 text-sm font-medium text-foreground">
+                            {timingBoundaryCaptured ? "Student execution timing recorded." : "Timing silently."}
                           </p>
                           {passiveTimingNotice && (
-                            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                            <p className="mt-1 text-xs leading-5 text-muted-foreground">
                               {passiveTimingNotice}
                             </p>
                           )}
@@ -1461,9 +1450,10 @@ export default function EvidenceCompleteDiagnosisRunner() {
                               !activePassiveAttempt ||
                               Boolean(activePassiveAttempt.frozenAttempt)
                             }
+                            title="Use only for an objective timer, runtime, or device failure."
                             className="rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50 disabled:cursor-default disabled:opacity-60"
                           >
-                            Record Technical Timing Failure
+                            Technical Timing Failure
                           </button>
                         )}
                     </div>
@@ -1471,13 +1461,6 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 </div>
               )}
 
-              <div className="mt-4 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
-                <p className="text-sm font-semibold">Record behavior, not a judgment</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Select only what actually happened. Do not translate the response
-                  into Low, Medium, High, weak, partial, or clear.
-                </p>
-              </div>
 
               <div className="mt-5 space-y-5">
                 {activeLayer.dimensions.map((dimensionId) => {
