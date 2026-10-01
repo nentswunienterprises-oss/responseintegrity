@@ -100,7 +100,7 @@ const SUPPORT_OPTIONS: Array<{
   {
     value: "none",
     title: "No intervention",
-    detail: "You only presented the problem and observed.",
+    detail: "You followed only the system-prescribed probe script and added no mathematical help, confirmation, correction, or rescue.",
     contaminated: false,
   },
   {
