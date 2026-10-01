@@ -1293,7 +1293,10 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
                   Ready
                 </span>
+                <span className="text-primary/30">→</span>
                 <span>Observe</span>
+                <span className="text-primary/30">→</span>
+                <span>Record</span>
                 <span className="text-primary/30">→</span>
                 <span>Confirm</span>
               </div>
@@ -1592,6 +1595,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 <span className="rounded-full border border-primary/15 px-2 py-1">
                   Observe ✓
                 </span>
+                <span className="rounded-full border border-primary/15 px-2 py-1">
+                  Record ✓
+                </span>
                 <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
                   Confirm
                 </span>
@@ -1678,8 +1684,11 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 <span className="rounded-full border border-primary/15 px-2 py-1">
                   Ready ✓
                 </span>
+                <span className="rounded-full border border-primary/15 px-2 py-1">
+                  Observe ✓
+                </span>
                 <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
-                  Observe
+                  Record
                 </span>
                 <span className="text-primary/30">→</span>
                 <span>Confirm</span>
