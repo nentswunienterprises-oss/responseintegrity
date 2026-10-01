@@ -121,7 +121,7 @@ export const evaluateHandoverVerificationEvidence = ({
     if (
       validTimedReferences.some(
         (reference) =>
-          reference.setId !== "time_pressure.structure_under_timer",
+          reference.setId !== "time_pressure.handover_continuity",
       )
     ) {
       return {
