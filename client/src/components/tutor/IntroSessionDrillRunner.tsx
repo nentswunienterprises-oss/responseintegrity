@@ -4523,10 +4523,11 @@ function IntroSessionDrillRunnerRoute() {
   const operationalMode = String(runtimeMode?.operationalMode || "training")
     .trim()
     .toLowerCase();
+  const sandboxAssignmentId = runtimeMode?.assignmentId || null;
 
   if (
     operationalMode === "sandbox" &&
-    (!studentId || !runtimeMode?.assignmentId)
+    (!studentId || !sandboxAssignmentId)
   ) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6 text-center text-sm text-destructive">
@@ -4542,7 +4543,7 @@ function IntroSessionDrillRunnerRoute() {
     return (
       <SpecialistSandboxSimulation
         studentIdOverride={String(studentId)}
-        tutorAssignmentIdOverride={runtimeMode.assignmentId}
+        tutorAssignmentIdOverride={sandboxAssignmentId}
         operationalModeOverride={operationalMode}
         embedded
       />
@@ -4552,7 +4553,7 @@ function IntroSessionDrillRunnerRoute() {
   return (
     <IntroSessionDrillRunnerCore
       sandboxAssignmentId={
-        operationalMode === "sandbox" ? runtimeMode?.assignmentId || null : null
+        operationalMode === "sandbox" ? sandboxAssignmentId : null
       }
     />
   );
