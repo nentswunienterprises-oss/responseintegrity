@@ -904,6 +904,7 @@ function buildVerificationPrepSpec(
         "Do not reteach or progress the student during verification.",
         "Stop as soon as the system has enough continuity evidence.",
         "Do not add opportunities to chase a preferred result.",
+        "If a behavior was not meaningfully observable, record it as not observed. If support, interruption, or another condition changed what you were observing, record it as confounded.",
       ],
       derivedFrom: `Derived from the inherited ${phase} conditions and the ${diagnosisBlock.setName} evidence dimensions, but Handover has no fixed rep-completion requirement. Training reference: ${trainingReference}.`,
       checklist: [
@@ -3732,7 +3733,7 @@ function IntroSessionDrillRunnerCore({
           </ul>
         </div>
       )}
-      {drillMode === "handover" && showModeInstructions && (
+      {drillMode === "handover" && handoverReDiagnosisMode && showModeInstructions && (
         <div className="mb-4 rounded-md border border-primary/20 bg-primary/5 p-3">
           <div className="mb-2 flex items-start justify-between gap-3">
             <p className="font-semibold">Instructions</p>
@@ -3745,28 +3746,9 @@ function IntroSessionDrillRunnerCore({
             </button>
           </div>
           <ul className="list-disc pl-5 text-sm text-foreground/90 space-y-1">
-            <li>
-              {handoverReDiagnosisMode
-                ? "This is targeted re-diagnosis inside handover. The inherited topic-state was not trustworthy enough to continue from."
-                : "This is handover verification. You are checking whether the inherited topic-state is still trustworthy."}
-            </li>
-            <li>
-              <strong>Before you begin:</strong>{" "}
-              {handoverReDiagnosisMode
-                ? "Prepare the diagnosis problems required for the targeted phase block."
-                : "Prepare a small reserve bank of clean continuity problems. There is no fixed Handover rep count."}
-            </li>
-            <li>Do not turn this into normal training.</li>
-            <li>
-              {handoverReDiagnosisMode
-                ? "Run adaptive diagnosis only for this flagged topic until the correct current phase is clear."
-                : "Record one continuity opportunity at a time. The system stops Handover as soon as evidence is sufficient to hold, adjust, or require targeted re-diagnosis."}
-            </li>
-            {!handoverReDiagnosisMode && (
-              <li>
-                If a behavior was not meaningfully observable, record that directly. If support, interruption, or another condition changed what you were observing, record it as confounded. Neither outcome counts as weakness or strength.
-              </li>
-            )}
+            <li>This is targeted re-diagnosis inside handover. The inherited topic-state was not trustworthy enough to continue from.</li>
+            <li><strong>Before you begin:</strong> Prepare the diagnosis problems required for the targeted phase block.</li>
+            <li>Run adaptive diagnosis only for this flagged topic until the correct current phase is clear.</li>
           </ul>
         </div>
       )}
