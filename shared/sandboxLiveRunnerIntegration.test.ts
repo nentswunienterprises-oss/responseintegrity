@@ -148,7 +148,7 @@ test("Sandbox diagnosis keeps the evidence-native runner and projects private si
   );
 });
 
-test("Sandbox Handover stays on the live Handover runner and reveals simulated behavior before evidence capture", () => {
+test("Sandbox Handover stays on the live Handover runner and records one observation at a time", () => {
   assert.match(
     liveRunnerSource,
     /operationalMode === "sandbox"[\s\S]*\(!studentId \|\| !sandboxAssignmentId\)[\s\S]*missing its assignment or student identity/,
@@ -161,10 +161,7 @@ test("Sandbox Handover stays on the live Handover runner and reveals simulated b
     liveRunnerSource,
     /<IntroSessionDrillRunnerCore[\s\S]*sandboxAssignmentId=[\s\S]*operationalMode === "sandbox"/,
   );
-  assert.match(
-    liveRunnerSource,
-    /requestedMode !== "handover"/,
-  );
+  assert.match(liveRunnerSource, /requestedMode !== "handover"/);
   assert.match(
     liveRunnerSource,
     /sandboxHandoverEnabled[\s\S]*\/api\/tutor\/sandbox-live-evidence/,
@@ -175,11 +172,11 @@ test("Sandbox Handover stays on the live Handover runner and reveals simulated b
   );
   assert.match(
     liveRunnerSource,
-    /sandboxHandoverEnabled && \(!repStarted \|\| !handoverExecutionFinished\)[\s\S]*"hidden"/,
+    /isHandoverContinuityVerification && \(!repStarted \|\| !handoverExecutionFinished\)[\s\S]*"hidden"/,
   );
   assert.match(
     liveRunnerSource,
-    /Click Student Finished before recording Handover observations/,
+    /isHandoverContinuityVerification && !handoverExecutionFinished[\s\S]*Click Student Finished before recording Handover observations/,
   );
   assert.match(
     sandboxRediagnosisSource,
@@ -195,8 +192,9 @@ test("Sandbox Handover stays on the live Handover runner and reveals simulated b
   );
   assert.match(
     liveRunnerSource,
-    /!sandboxHandoverEnabled && \([\s\S]*of \{set\?\.reps \?\? 0\}/,
+    /!isHandoverContinuityVerification && \([\s\S]*of \{set\?\.reps \?\? 0\}/,
   );
+
   const handoverPrepStart = liveRunnerSource.indexOf('if (mode === "handover")');
   const handoverPrepEnd = liveRunnerSource.indexOf(
     'title: "Targeted Re-Diagnosis Prep"',
@@ -223,6 +221,31 @@ test("Sandbox Handover stays on the live Handover runner and reveals simulated b
   assert.match(
     regularHandoverPrep,
     /record it as not observed[\s\S]*record it as confounded/,
+  );
+
+  assert.match(
+    liveRunnerSource,
+    /const \[handoverObservationIndex, setHandoverObservationIndex\] = useState\(0\)/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /observationIndex !== handoverObservationIndex/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /Observation \{Math\.min\(handoverObservationIndex \+ 1,[\s\S]*handoverObservationBlock\.length/,
+  );
+  assert.match(liveRunnerSource, /Previous observation/);
+  assert.match(liveRunnerSource, /Next observation/);
+  assert.match(liveRunnerSource, /Review Opportunity/);
+  assert.match(liveRunnerSource, /Review continuity evidence/);
+  assert.match(
+    liveRunnerSource,
+    /Complete the Handover observation runner and review this opportunity before confirming it/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /isHandoverContinuityVerification && !handoverObservationReview[\s\S]*Evaluate Continuity Evidence/,
   );
 });
 
