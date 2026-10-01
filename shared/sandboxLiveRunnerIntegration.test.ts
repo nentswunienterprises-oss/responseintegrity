@@ -14,6 +14,10 @@ const introSessionRouteSource = readFileSync(
   new URL("../client/src/components/tutor/IntroSessionRoute.tsx", import.meta.url),
   "utf8",
 );
+const evidenceDiagnosisRunnerSource = readFileSync(
+  new URL("../client/src/components/tutor/EvidenceCompleteDiagnosisRunner.tsx", import.meta.url),
+  "utf8",
+);
 const studentCardSource = readFileSync(
   new URL("../client/src/components/tutor/StudentCard.tsx", import.meta.url),
   "utf8",
@@ -108,6 +112,24 @@ test("Sandbox diagnosis routes through the stateful Sandbox authority instead of
   assert.match(
     introSessionRouteSource,
     /mode === "diagnosis"[\s\S]*<RuntimeAwareEvidenceDiagnosis \/>/,
+  );
+});
+
+test("DB-session proof auth never leaks a stale Supabase bearer into diagnosis or runtime authority checks", () => {
+  assert.match(introSessionRouteSource, /getAuthMode/);
+  assert.match(
+    introSessionRouteSource,
+    /if \(!authMode\.dbSessionAuthMode\)[\s\S]*supabase\.auth\.getSession/,
+  );
+  assert.match(evidenceDiagnosisRunnerSource, /getAuthMode/);
+  assert.match(
+    evidenceDiagnosisRunnerSource,
+    /if \(!authMode\.dbSessionAuthMode\)[\s\S]*supabase\.auth\.getSession/,
+  );
+  assert.match(liveRunnerSource, /getAuthMode/);
+  assert.match(
+    liveRunnerSource,
+    /if \(!authMode\.dbSessionAuthMode\)[\s\S]*supabase\.auth\.getSession/,
   );
 });
 
