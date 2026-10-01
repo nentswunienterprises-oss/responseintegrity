@@ -460,7 +460,7 @@ const SANDBOX_HANDOVER_SIMULATION_PROBE_BY_PHASE: Record<TopicPhase, DiagnosisPr
   Clarity: "clarity.recognition",
   "Structured Execution": "stack.normal_independent",
   "Controlled Discomfort": "stack.challenge_no_timer",
-  "Time Pressure Stability": "stack.timed_challenge",
+  "Time Pressure Stability": "time.consistency",
 };
 
 export type SandboxLiveEvidenceSimulationScope = "diagnosis" | "handover";
@@ -496,7 +496,6 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
     bankVersion: trajectory.bank_version,
     probeId,
   });
-  const history = await getSandboxEnvironmentHistory(input);
   const seed = [
     truth.trajectory_seed,
     input.scope,
@@ -509,10 +508,7 @@ export async function prepareSandboxLiveEvidenceSimulation(input: {
       startingPhase: input.startingPhase,
       probeId,
       sequenceNumber: input.sequenceNumber,
-      earliestUnsupportedCapability:
-        history.readiness.policyAvailable
-          ? history.readiness.earliestUnsupportedCapability
-          : null,
+      earliestUnsupportedCapability: null,
       recentOutcomeKeys: [],
     },
   });
@@ -579,7 +575,6 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
     probeId: prepared.probeId as DiagnosisProbeId,
   });
   const { trajectory, truth } = await loadTrajectory(input);
-  const history = await getSandboxEnvironmentHistory(input);
   const selected = selectSandboxDiagnosisOutcome({
     seed: [truth.trajectory_seed, input.scope, input.sourceContextId].join(":"),
     outcomes: outcomes.map((item) => item.definition),
@@ -587,10 +582,7 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
       startingPhase: input.startingPhase,
       probeId: prepared.probeId as DiagnosisProbeId,
       sequenceNumber: input.sequenceNumber,
-      earliestUnsupportedCapability:
-        history.readiness.policyAvailable
-          ? history.readiness.earliestUnsupportedCapability
-          : null,
+      earliestUnsupportedCapability: null,
       recentOutcomeKeys: [],
     },
   });
@@ -675,13 +667,17 @@ export async function submitSandboxLiveEvidenceSimulation(input: {
     sourceType: "turn",
     sourceId,
     occurrences: [
-      occurrence(
-        "condition_integrity",
-        conditionConformed ? "supported" : "breakdown",
-        conditionConformed
-          ? "The Specialist preserved the prescribed Sandbox evidence condition."
-          : "The Specialist changed the prescribed Sandbox evidence condition through mathematical support.",
-      ),
+      ...(input.scope === "diagnosis"
+        ? [
+            occurrence(
+              "condition_integrity",
+              conditionConformed ? "supported" : "breakdown",
+              conditionConformed
+                ? "The Specialist preserved the prescribed Sandbox evidence condition."
+                : "The Specialist changed the prescribed Sandbox evidence condition through mathematical support.",
+            ),
+          ]
+        : []),
       occurrence(
         "observation_integrity",
         observationExact ? "supported" : "breakdown",
