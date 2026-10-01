@@ -1143,6 +1143,8 @@ function IntroSessionDrillRunnerCore({
   const modeToUse: DrillMode = isSessionMode ? "training" : drillMode;
   const isAdaptiveDiagnosisMode = modeToUse === "diagnosis";
   const isHandoverMode = modeToUse === "handover";
+  const isHandoverContinuityVerification =
+    isHandoverMode && !handoverReDiagnosisMode;
   const isAdaptiveVerificationFlow = isAdaptiveDiagnosisMode || (isHandoverMode && handoverReDiagnosisMode);
   const evidenceModeForSubmission: EvidenceDrillMode =
     isHandoverMode && !handoverReDiagnosisMode
@@ -1283,13 +1285,26 @@ function IntroSessionDrillRunnerCore({
     isTrainingEvidenceCapture &&
     displayPhase === "Structured Execution" &&
     activeRegistrySet?.setId === TPS_TRAINING_BASELINE_SET_ID;
-  const activeTpsPressureLevel = activeRegistrySet
-    ? getTpsTrainingPressureForSet(activeRegistrySet.setId)
-    : null;
+  const configuredTpsPressureLevel =
+    activeRegistrySet?.constraints?.pressureLevel;
+  const activeTpsPressureLevel: TpsTimedPressureLevel | null =
+    configuredTpsPressureLevel === "light_timer" ||
+    configuredTpsPressureLevel === "repeated_timer" ||
+    configuredTpsPressureLevel === "full_constraint"
+      ? configuredTpsPressureLevel
+      : null;
+  const activeTpsTimingSetId: TpsTimedTrainingSetId | null =
+    activeTpsPressureLevel === "light_timer"
+      ? "time_pressure.structure_under_timer"
+      : activeTpsPressureLevel === "repeated_timer"
+        ? "time_pressure.repeated_timed_execution"
+        : activeTpsPressureLevel === "full_constraint"
+          ? "time_pressure.full_constraint"
+          : null;
   const activeRepRequiresTpsTiming =
-    isTrainingEvidenceCapture &&
+    (isTrainingEvidenceCapture || isHandoverContinuityVerification) &&
     displayPhase === "Time Pressure Stability" &&
-    Boolean(activeTpsPressureLevel);
+    Boolean(activeTpsPressureLevel && activeTpsTimingSetId);
   const passiveTimingObservationKey = (setIndex: number, repIndex: number) =>
     `set${setIndex}_rep${repIndex}_${PASSIVE_EXECUTION_TIMING_WIRE_KEY}`;
   const passiveAttemptObservationKey = (setIndex: number, repIndex: number) =>
@@ -1307,7 +1322,7 @@ function IntroSessionDrillRunnerCore({
     String(observations[activeTpsTimingKey] || "").trim(),
   );
   const activePassiveRepIdentity = `${currentTopicName.trim().toLowerCase()}::${TPS_TRAINING_BASELINE_SET_ID}::rep-${currentRep + 1}`;
-  const activeTpsRepIdentity = `${currentTopicName.trim().toLowerCase()}::${activeRegistrySet?.setId || "unknown"}::rep-${currentRep + 1}`;
+  const activeTpsRepIdentity = `${currentTopicName.trim().toLowerCase()}::${activeTpsTimingSetId || "unknown"}::rep-${currentRep + 1}`;
   const activePassiveReplacement =
     passiveReplacementState[activePassiveRepIdentity] || null;
   const activeTpsReplacement =
@@ -1335,6 +1350,11 @@ function IntroSessionDrillRunnerCore({
     "tps",
     activeTpsRepIdentity,
   ].join(":");
+  const sandboxHandoverEnabled =
+    Boolean(sandboxAssignmentId) && isHandoverContinuityVerification;
+  const sandboxHandoverContextId =
+    scheduledSessionId ||
+    `handover:${String(studentId || "unknown")}:${introTopic}:${phase}`;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1375,6 +1395,7 @@ function IntroSessionDrillRunnerCore({
       studentId,
       "tps-timer-contract",
       currentTopicName,
+      sandboxHandoverEnabled ? sandboxHandoverSimulation?.formId || "sandbox-pending" : "live",
     ],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -1402,7 +1423,8 @@ function IntroSessionDrillRunnerCore({
       activeRepRequiresTpsTiming &&
       !!studentId &&
       !!currentTopicName &&
-      !timingReadinessBlockedTopic,
+      !timingReadinessBlockedTopic &&
+      (!sandboxHandoverEnabled || !!sandboxHandoverSimulation),
     retry: false,
     staleTime: 30_000,
   });
@@ -1427,12 +1449,6 @@ function IntroSessionDrillRunnerCore({
             (tpsTimerNowMs - activeTpsStartedAtMs),
         )
       : 0;
-  const isHandoverContinuityVerification = isHandoverMode && !handoverReDiagnosisMode;
-  const sandboxHandoverEnabled =
-    Boolean(sandboxAssignmentId) && isHandoverContinuityVerification;
-  const sandboxHandoverContextId =
-    scheduledSessionId ||
-    `handover:${String(studentId || "unknown")}:${introTopic}:${phase}`;
   const isFirstRep = currentRep === 0;
   const isFirstSet = currentSet === 0;
   const isTopicReferenceCaptureStep =
@@ -1481,6 +1497,7 @@ function IntroSessionDrillRunnerCore({
           studentId: String(studentId),
           scope: "handover",
           sourceContextId: sandboxHandoverContextId,
+          topic: currentTopicName,
           startingPhase: displayPhase,
           sequenceNumber: String(currentRep + 1),
         });
@@ -1658,7 +1675,7 @@ function IntroSessionDrillRunnerCore({
       const replacement = tpsReplacementState[activeTpsRepIdentity];
       setActiveTpsAttempt({
         attemptId: createTpsAttemptId(),
-        setId: activeRegistrySet!.setId as TpsTimedTrainingSetId,
+        setId: activeTpsTimingSetId!,
         setName: set?.setName || activeRegistrySet!.setName,
         repNumber: currentRep + 1,
         attemptNumber: replacement?.nextAttemptNumber || 1,
@@ -2076,6 +2093,23 @@ function IntroSessionDrillRunnerCore({
     activeTpsTimingCaptured,
     activeTpsRemainingMs,
     tpsAttemptPersisting,
+  ]);
+
+  useEffect(() => {
+    if (
+      sandboxHandoverEnabled &&
+      activeRepRequiresTpsTiming &&
+      activeTpsTimingCaptured
+    ) {
+      setHandoverExecutionFinished(true);
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    }
+  }, [
+    sandboxHandoverEnabled,
+    activeRepRequiresTpsTiming,
+    activeTpsTimingCaptured,
   ]);
 
   useEffect(() => {
@@ -2570,6 +2604,17 @@ function IntroSessionDrillRunnerCore({
             }
           }
         }
+        if (
+          isHandoverContinuityVerification &&
+          displayPhase === "Time Pressure Stability"
+        ) {
+          const timingEvidence = String(
+            observations[tpsTimingObservationKey(setIndex, repIdx)] || "",
+          ).trim();
+          if (timingEvidence) {
+            obs[TPS_TIMED_ATTEMPT_WIRE_KEY] = timingEvidence;
+          }
+        }
         observationBlock.forEach((block) => {
           if (isTrainingEvidenceCapture) {
             obs[trainingEvidenceStatusKey(block.key)] =
@@ -2730,6 +2775,7 @@ function IntroSessionDrillRunnerCore({
           studentId: String(studentId),
           scope: "handover",
           sourceContextId: sandboxHandoverContextId,
+          topic: currentTopicName,
           startingPhase: displayPhase,
           sequenceNumber: currentRep + 1,
           formId: sandboxHandoverSimulation.formId,
@@ -3915,10 +3961,12 @@ function IntroSessionDrillRunnerCore({
               ) : tpsTimerContract && activeTpsPrescribedSeconds ? (
                 <>
                   <p className="mt-1 text-sm font-semibold">
-                    This rep runs for {activeTpsPrescribedSeconds}s.
+                    {isHandoverContinuityVerification
+                      ? `This continuity opportunity runs for ${activeTpsPrescribedSeconds}s.`
+                      : `This rep runs for ${activeTpsPrescribedSeconds}s.`}
                   </p>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Baseline: {tpsTimerContract.baselineSeconds}s · Timer is system-owned and cannot be paused, edited, rounded, or replaced by a Specialist stopwatch.
+                    Baseline: {tpsTimerContract.baselineSeconds}s · This inherited Timer Contract governs the opportunity and cannot be paused, edited, rounded, or replaced by a Specialist stopwatch.
                   </p>
                 </>
               ) : (
@@ -4201,6 +4249,10 @@ function IntroSessionDrillRunnerCore({
                 type="button"
                 className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
                 onClick={() => {
+                  if (activeRepRequiresTpsTiming) {
+                    void finishActiveTpsTiming("student_finished");
+                    return;
+                  }
                   setHandoverExecutionFinished(true);
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
