@@ -1137,6 +1137,58 @@ export const persistTpsTimedAttempt = async ({
 };
 
 
+
+export const validateTpsHandoverTimedAttemptLineage = async ({
+  contract,
+  sets,
+}: {
+  contract: PersistedTpsTimerContract;
+  sets: any[];
+}): Promise<string | null> => {
+  const setId = "time_pressure.handover_continuity";
+  const pressureLevel = getTpsTrainingPressureForSet(setId);
+  if (pressureLevel !== "light_timer") return "Handover TPS timing condition is unavailable.";
+  const prescribedSeconds = getTpsPrescribedSeconds(contract, pressureLevel);
+  const seen = new Set<string>();
+  for (const set of Array.isArray(sets) ? sets : []) {
+    const observations = Array.isArray(set?.observations) ? set.observations : [];
+    for (let index = 0; index < observations.length; index += 1) {
+      const repNumber = Number(observations[index]?._rep_number || index + 1);
+      const reference = decodeTpsTimedAttemptEvidenceRef(
+        observations[index]?.[TPS_TIMED_ATTEMPT_WIRE_KEY],
+      );
+      if (!reference) return `Handover Opportunity ${repNumber} is missing TPS timing lineage.`;
+      if (
+        reference.contractId !== contract.contractId ||
+        reference.setId !== setId ||
+        reference.repNumber !== repNumber
+      ) {
+        return `Handover Opportunity ${repNumber} timing lineage does not match its Timer Contract.`;
+      }
+      if (seen.has(reference.attemptId)) return "A Handover TPS timed attempt was reused.";
+      seen.add(reference.attemptId);
+      const attempt = await loadTpsTimedAttemptById(reference.attemptId);
+      if (!attempt) return `Handover Opportunity ${repNumber} has no persisted TPS timed attempt.`;
+      if (
+        attempt.contractId !== contract.contractId ||
+        attempt.studentId !== contract.studentId ||
+        topicKey(attempt.topic) !== topicKey(contract.topic) ||
+        attempt.setId !== setId ||
+        attempt.repNumber !== repNumber ||
+        attempt.attemptNumber !== reference.attemptNumber ||
+        attempt.pressureLevel !== pressureLevel ||
+        attempt.prescribedSeconds !== prescribedSeconds ||
+        attempt.timingValidity !== "valid" ||
+        attempt.endReason !== reference.endReason ||
+        reference.timingValidity !== "valid"
+      ) {
+        return `Handover Opportunity ${repNumber} has invalid TPS timing lineage.`;
+      }
+    }
+  }
+  return null;
+};
+
 export const validateTpsTrainingDrillTimedAttemptLineage = async ({
   contract,
   sets,
