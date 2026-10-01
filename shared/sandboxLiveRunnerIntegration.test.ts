@@ -239,6 +239,29 @@ test("generic Sandbox evidence simulation is deterministic for retries and never
   );
 });
 
+
+test("Sandbox Handover projects continuity-native wording instead of diagnosis repeat wording", () => {
+  assert.match(
+    sandboxRediagnosisSource,
+    /function projectSandboxLiveBehavior/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /input\.scope !== "handover" \|\| input\.probeId !== "time\.consistency"/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /repeated timed opportunity[\s\S]*timed continuity opportunity/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /repeated timed response[\s\S]*timed continuity response/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /studentBehavior: projectSandboxLiveBehavior/,
+  );
+});
 test("DB-session proof auth never leaks a stale Supabase bearer into diagnosis or live-runner authority checks", () => {
   assert.match(evidenceDiagnosisRunnerSource, /getAuthMode/);
   assert.match(
