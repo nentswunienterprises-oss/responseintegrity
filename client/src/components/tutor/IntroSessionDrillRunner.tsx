@@ -4545,25 +4545,22 @@ function IntroSessionDrillRunnerCore({
                 {sandboxHandoverSimulation.studentBehavior}
               </LiveSandboxStudentResponse>
             )}
-            <div className="flex justify-end">
-              <button
-                type="button"
-                className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-default disabled:opacity-60"
-                disabled={tpsAttemptPersisting}
-                onClick={() => {
-                  if (activeRepRequiresTpsTiming) {
-                    void finishActiveTpsTiming("student_finished");
-                    return;
-                  }
-                  setHandoverExecutionFinished(true);
-                  setHandoverObservationIndex(0);
-                  setHandoverObservationReview(false);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
-              >
-                {tpsAttemptPersisting ? "Saving timing..." : "Student Finished"}
-              </button>
-            </div>
+            {!activeRepRequiresTpsTiming && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  onClick={() => {
+                    setHandoverExecutionFinished(true);
+                    setHandoverObservationIndex(0);
+                    setHandoverObservationReview(false);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
+                  Student Finished
+                </button>
+              </div>
+            )}
           </div>
         )}
 
