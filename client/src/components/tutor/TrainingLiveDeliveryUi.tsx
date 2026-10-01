@@ -430,7 +430,7 @@ export function LiveObservationField({
   return (
     <div>
       <div className="mb-2">
-        <label className="block text-sm font-medium sm:text-base">{question}</label>
+        <label className="block text-lg font-semibold leading-snug sm:text-xl">{question}</label>
         {label && label !== question && (
           <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             {label}
