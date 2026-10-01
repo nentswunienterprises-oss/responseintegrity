@@ -3874,11 +3874,18 @@ function IntroSessionDrillRunnerCore({
         </div>
       )}
 
-      {isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted && (
+      {(isTrainingEvidenceCapture || sandboxHandoverEnabled) && !set?.isModelingSet && !repStarted && (
         <div className="mb-5 rounded-2xl border border-primary/20 bg-background p-5 shadow-sm">
           <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">Ready</span>
+            <span className="text-primary/30">→</span>
             <span>Observe</span>
+            {sandboxHandoverEnabled && (
+              <>
+                <span className="text-primary/30">→</span>
+                <span>Record</span>
+              </>
+            )}
             <span className="text-primary/30">→</span>
             <span>Confirm</span>
           </div>
@@ -3887,7 +3894,7 @@ function IntroSessionDrillRunnerCore({
           </div>
           <div className="mt-1 flex items-end gap-3">
             <div className="text-4xl font-black tracking-tight text-foreground sm:text-5xl">
-              REP {currentRep + 1}
+              {sandboxHandoverEnabled ? "OPPORTUNITY" : "REP"} {currentRep + 1}
             </div>
             <div className="pb-1 text-sm font-semibold text-muted-foreground">
               of {set?.reps ?? 0}
@@ -3998,7 +4005,9 @@ function IntroSessionDrillRunnerCore({
             >
               {activeTechnicalReplacement
                 ? `Begin Reserve Opportunity for Rep ${currentRep + 1}`
-                : `Begin Rep ${currentRep + 1}`}
+                : sandboxHandoverEnabled
+                  ? `Begin Opportunity ${currentRep + 1}`
+                  : `Begin Rep ${currentRep + 1}`}
             </button>
           </div>
         </div>
@@ -4372,7 +4381,11 @@ function IntroSessionDrillRunnerCore({
         </>
         )
       )}
-      {(!(isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted) && !((isAdaptiveDiagnosisMode || isHandoverMode) && !submitSuccess && (!prepReady || !!adaptiveTransition))) && (
+      {(
+        !(isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted) &&
+        !(sandboxHandoverEnabled && (!repStarted || !handoverExecutionFinished)) &&
+        !((isAdaptiveDiagnosisMode || isHandoverMode) && !submitSuccess && (!prepReady || !!adaptiveTransition))
+      ) && (
       <div className="mt-6 flex justify-end">
         {!submitSuccess && (
           <button
