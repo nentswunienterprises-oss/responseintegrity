@@ -97,30 +97,16 @@ test("Sandbox mode uses the existing live-runner route rather than a separate ru
   );
 });
 
-test("Sandbox diagnosis routes through the stateful Sandbox authority instead of the live evidence-complete endpoint", () => {
-  assert.match(introSessionRouteSource, /\/api\/tutor\/runtime-mode/);
-  assert.match(introSessionRouteSource, /refetchOnMount: "always"/);
-  assert.match(introSessionRouteSource, /cache: "no-store"/);
+test("evidence diagnosis remains on the evidence-native runner even when the Specialist is in Sandbox", () => {
   assert.match(
     introSessionRouteSource,
-    /operationalMode === "sandbox" && studentId && runtimeMode\?\.assignmentId/,
+    /mode === "diagnosis"[\s\S]*<EvidenceCompleteDiagnosisRunner \/>/,
   );
-  assert.match(
-    introSessionRouteSource,
-    /<SpecialistSandboxSimulation[\s\S]*studentIdOverride=\{String\(studentId\)\}[\s\S]*tutorAssignmentIdOverride=\{runtimeMode\.assignmentId\}[\s\S]*operationalModeOverride=\{operationalMode\}[\s\S]*embedded/,
-  );
-  assert.match(
-    introSessionRouteSource,
-    /mode === "diagnosis"[\s\S]*<RuntimeAwareEvidenceDiagnosis \/>/,
-  );
+  assert.doesNotMatch(introSessionRouteSource, /\/api\/tutor\/runtime-mode/);
+  assert.doesNotMatch(introSessionRouteSource, /SpecialistSandboxSimulation/);
 });
 
-test("DB-session proof auth never leaks a stale Supabase bearer into diagnosis or runtime authority checks", () => {
-  assert.match(introSessionRouteSource, /getAuthMode/);
-  assert.match(
-    introSessionRouteSource,
-    /if \(!authMode\.dbSessionAuthMode\)[\s\S]*supabase\.auth\.getSession/,
-  );
+test("DB-session proof auth never leaks a stale Supabase bearer into diagnosis or live-runner authority checks", () => {
   assert.match(evidenceDiagnosisRunnerSource, /getAuthMode/);
   assert.match(
     evidenceDiagnosisRunnerSource,
