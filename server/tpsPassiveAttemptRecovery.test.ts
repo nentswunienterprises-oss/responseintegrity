@@ -46,3 +46,38 @@ test("passive diagnosis timing is recovered by immutable opportunity slot after 
     /setOpportunityStarted\(true\)/,
   );
 });
+
+
+test("legacy per-probe diagnosis slot numbering remains recoverable without mutating immutable timing evidence", () => {
+  assert.match(
+    routeSource,
+    /legacySlotNumber/,
+  );
+  assert.match(
+    routeSource,
+    /source === "diagnosis"[\s\S]*legacySlotNumber !== slotNumber[\s\S]*loadLatestTpsPassiveAttemptForSlot/,
+  );
+  assert.match(
+    runnerSource,
+    /nextProbeOccurrenceNumber[\s\S]*legacySlotNumber: nextProbeOccurrenceNumber/,
+  );
+  assert.match(
+    authoritySource,
+    /legacyProbeOccurrenceNumber[\s\S]*validatePassiveAttemptReference/,
+  );
+});
+
+test("diagnosis response numbering uses global opportunity position rather than per-probe occurrence", () => {
+  const diagnosisRouteSource = readFileSync(
+    new URL("./evidenceCompleteDiagnosisRoutes.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    diagnosisRouteSource,
+    /const opportunityNumber = nextProbeId[\s\S]*replay\.state\.probeHistory\.length \+ 1/,
+  );
+  assert.match(
+    diagnosisRouteSource,
+    /probeOccurrenceNumber[\s\S]*getDiagnosisProbeOpportunityPurpose/,
+  );
+});
