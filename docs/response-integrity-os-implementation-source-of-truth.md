@@ -892,6 +892,11 @@ The live engine:
 
 - presents one system-selected named probe at a time;
 - uses one curriculum-appropriate problem per opportunity;
+- keeps the prepared problem hidden until `Begin Opportunity`, then immediately reveals or presents it so the opportunity boundary includes the student's first recognition and execution time;
+- separates live execution from evidence administration: `Ready -> Observe -> Student Finished -> Record -> Confirm`;
+- keeps observation choices closed while the student is responding and presents them one at a time only after `Student Finished`;
+- requires the Specialist to follow the probe-specific prescribed script rather than improvising questions to fill missing evidence;
+- preserves missing behavior as `not_observed` instead of asking the student for a retrospective walk-through and backfilling hindsight as live evidence;
 - records concrete observable behavior rather than Weak / Partial / Clear selections;
 - records not-observed and confounded outcomes explicitly;
 - requests another opportunity only when repeatability, recovery, consistency, contamination, conflict, timing-readiness for an otherwise above-Structured-Execution placement, or another named evidence question remains unresolved;
@@ -919,7 +924,11 @@ The current probe catalog includes:
 - `difficulty.recovery` - Difficulty Recovery Probe
 - `time.consistency` - Timed Consistency Probe
 
-Each opportunity carries its own evidence question, constraint profile, purpose, observed dimensions, and support/contamination event.
+Each opportunity carries its own evidence question, constraint profile, purpose, observed dimensions, prescribed execution protocol, and support/contamination event.
+
+For `stack.normal_independent`, the Specialist presents the problem only after `Begin Opportunity`, asks the student to solve independently without method help, and does not deliberately elicit Vocabulary / Method / Reason. Those dimensions count only when the live response naturally exposes them.
+
+When Clarity evidence remains missing or unresolved, `clarity.recognition` deliberately elicits it with the standardized sequence: what the student sees, which method they would use, why it fits, and "Show me how you would start." That final first move belongs to Clarity immediate-use evidence and is never recycled as a cold Structured Execution start.
 
 For timing authority, `stack.normal_independent` and `execution.repeatability` are the only Diagnosis probe families that can contribute clean no-pressure baseline intervals. Their timing is operational evidence, not a score. `stack.timed_challenge` and `time.consistency` must use the system-prescribed individualized diagnosis timer; a Specialist-entered or generic timer is not authoritative.
 
