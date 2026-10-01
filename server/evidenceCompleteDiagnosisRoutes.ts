@@ -300,16 +300,27 @@ async function acceptedEnrollmentAssignmentBelongsToTutor(student: any, tutorId:
   const enrollmentId = String(
     student?.parentEnrollmentId || student?.parent_enrollment_id || "",
   ).trim();
-  if (!enrollmentId) return false;
+  const studentId = String(student?.id || "").trim();
+  if (!enrollmentId && !studentId) return false;
 
   if (isEmergencyDbMode()) {
-    const result = await pool.query(
-      `SELECT assigned_tutor_id, status
-         FROM public.parent_enrollments
-        WHERE id = $1
-        LIMIT 1`,
-      [enrollmentId],
-    );
+    const result = enrollmentId
+      ? await pool.query(
+          `SELECT assigned_tutor_id, status
+             FROM public.parent_enrollments
+            WHERE id = $1
+              AND assigned_tutor_id = $2
+            LIMIT 1`,
+          [enrollmentId, tutorId],
+        )
+      : await pool.query(
+          `SELECT assigned_tutor_id, status
+             FROM public.parent_enrollments
+            WHERE assigned_student_id::text = $1::text
+              AND assigned_tutor_id = $2
+            LIMIT 1`,
+          [studentId, tutorId],
+        );
     const row = result.rows[0];
     return (
       String(row?.assigned_tutor_id || "") === tutorId &&
@@ -317,11 +328,16 @@ async function acceptedEnrollmentAssignmentBelongsToTutor(student: any, tutorId:
     );
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("parent_enrollments")
     .select("assigned_tutor_id, status")
-    .eq("id", enrollmentId)
-    .maybeSingle();
+    .eq("assigned_tutor_id", tutorId);
+
+  query = enrollmentId
+    ? query.eq("id", enrollmentId)
+    : query.eq("assigned_student_id", studentId);
+
+  const { data, error } = await query.maybeSingle();
   if (error) {
     throw new Error(`Failed to verify current Specialist assignment: ${error.message}`);
   }
