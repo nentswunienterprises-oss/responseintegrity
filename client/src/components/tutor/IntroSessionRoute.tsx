@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useSearchParams } from "react-router-dom";
 import { API_URL } from "@/lib/config";
+import { getAuthMode } from "@/lib/authMode";
 import { supabase } from "@/lib/supabaseClient";
 import SpecialistSandboxSimulation from "@/pages/operational/tutor/sandbox-simulation";
 import IntroSessionDrillRunner from "./IntroSessionDrillRunner";
@@ -16,12 +17,15 @@ function RuntimeAwareEvidenceDiagnosis() {
   } = useQuery<{ assignmentId: string | null; operationalMode: string }>({
     queryKey: ["/api/tutor/runtime-mode", "evidence-diagnosis", studentId],
     queryFn: async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const authMode = await getAuthMode();
       const headers: HeadersInit = {};
-      if (session?.access_token) {
-        headers.Authorization = `Bearer ${session.access_token}`;
+      if (!authMode.dbSessionAuthMode) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          headers.Authorization = `Bearer ${session.access_token}`;
+        }
       }
       const response = await fetch(`${API_URL}/api/tutor/runtime-mode`, {
         headers,
