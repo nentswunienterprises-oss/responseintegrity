@@ -1,126 +1,126 @@
 Response Integrity-OS BATTLE TEST: TOPIC CONDITIONING DEEP DIVE
 
-SECTION 1: TOPIC-STATE MODEL
+SECTION 1: TOPIC-STATE AND ENTRY
 
 Q1
 What is Topic Conditioning in Response Integrity?
 
 Expected Answer
-It is conditioning a student's response inside one specific mathematical topic according to that topic's current phase, stability, assigned drill, and evidence-driven next action.
+It is conditioning a student's response inside one specific school topic according to that topic's evidence-derived phase, stability, assigned drill, and system-directed next action.
 
 Fail Answer
 Teaching a topic until it is understood
 General maths remediation
-Practising the weakest subject area
+Practising whichever subject area feels weakest
 
 Q2
-Why must the Specialist replace "bad at maths" with a specific topic?
-
-Expected Answer
-Because RI state is topic-specific. The same student can be stable in fractions and break at a different phase in algebra, so a global label cannot select a valid drill.
-
-Fail Answer
-Specific topics are easier to teach
-All topics share one ability level
-Choose whichever topic the parent mentions first
-
-Q3
-A student is stable in fractions but freezes in algebra. What does that prove about state?
-
-Expected Answer
-Each topic carries its own phase and stability. Performance in one topic cannot be copied across as the state of another.
-
-Fail Answer
-The student is inconsistent
-They have one general confidence problem
-Fractions should set the algebra phase
-
-Q4
-What operating chain should the Specialist be able to see for an active topic?
-
-Expected Answer
-Topic, current breakdown, phase capability, drill, set purpose, rep purpose, active constraint, observable behaviour, evidence, system decision, then next action.
-
-Fail Answer
-Topic, explanation, worksheet, answer
-Struggle, confidence, motivation
-The platform handles the chain so the Specialist need not understand it
-
-Q5
 What is the difference between phase and stability inside a topic?
 
 Expected Answer
-Phase identifies the response capability currently being conditioned. Stability describes how reliably that capability is holding based on repeated evidence.
+Phase identifies the response capability currently being conditioned. Stability describes how reliably that capability is holding from qualifying evidence.
 
 Fail Answer
 Phase is difficulty and stability is marks
 They are the same value
 The Specialist chooses both from intuition
 
-SECTION 2: EVIDENCE AND MOVEMENT
-
-Q6
-Why is one strong answer not enough to establish a stable topic-state?
+Q3
+Why can two topics for the same student legitimately carry different states?
 
 Expected Answer
-It may reflect luck, familiarity, cueing, or an unusually easy example. Repeated evidence under the intended condition is needed to show the response returns.
+RI state is topic-specific. A student can be stable in one topic and break at a different response layer in another, so evidence from one topic cannot be copied into another topic's phase or stability.
 
 Fail Answer
-One correct answer is enough
-Tutor confidence makes it stable
-Only final marks matter
+The student is simply inconsistent
+All topics should share one phase
+Use the strongest topic as the student's global state
 
-Q7
-Who decides the next phase or stability movement?
+Q4
+What operating chain should the Specialist understand for an active topic?
 
 Expected Answer
-The system applies deterministic rules to scored drill evidence. The Specialist runs the assigned condition, logs truthfully, and follows the next action.
+Topic, entry or current evidence question, phase capability, assigned drill and set, active constraint, observable response, evidence class, system decision, then next action.
+
+Fail Answer
+Topic, explanation, worksheet, answer
+Struggle, confidence, motivation
+The platform handles it so the Specialist does not need to understand the chain
+
+Q5
+What authority does a parent symptom, history signal, or recommended starting phase have when a topic first enters Diagnosis?
+
+Expected Answer
+It is a routing hypothesis that tells RI-OS where to ask first. It is not placement authority; direct behavioral evidence still determines the earliest unreliable response layer.
+
+Fail Answer
+It permanently sets the phase
+The Specialist should confirm it from instinct
+Parent symptoms override drill evidence
+
+Q6
+What happens when a new topic has no trustworthy starting signal?
+
+Expected Answer
+RI-OS begins with a neutral Independent Normal Probe: a normal familiar-form problem with difficulty and time removed, no modelling or method prompt, and independent execution. The response routes the next evidence question; the probe is not an automatic Structured Execution placement.
+
+Fail Answer
+Always place the topic at Clarity
+Always place the topic at Structured Execution
+Use the student's strongest existing topic as the starting state
+
+Q7
+Who decides phase or stability movement after evidence is recorded?
+
+Expected Answer
+RI-OS applies the evidence rules and returns the topic-state movement or hold. The Specialist runs the assigned condition, records truthfully, and follows the system result.
 
 Fail Answer
 The Specialist
 The parent
-The student chooses when ready
+The student chooses when they feel ready
 
 Q8
-A student pauses, asks for the question to be repeated, then begins. What is the evidence-integrity boundary?
+Why is the neutral Independent Normal Probe not itself a phase assignment?
 
 Expected Answer
-Record the observable pause, request, and subsequent start in the matching fields. Do not turn them into an unproven label such as panic, low confidence, or poor attitude.
+It is a low-pressure evidence condition that can naturally expose Clarity and immediate Structured Execution behavior. The system still has to interpret what was and was not observed before deciding the next question or final placement.
 
 Fail Answer
-Record that the student panicked
-Record a confidence problem
-Choose the phase from the pause alone
+Because every neutral probe always means Clarity
+Because the Specialist chooses a phase after the probe
+Because neutral problems do not produce evidence
+
+SECTION 2: TOPIC-SPECIFIC TIMING AND MOVEMENT
 
 Q9
-Why does a Specialist's rep log matter beyond the current session?
+How does timing authority behave across topics?
 
 Expected Answer
-It feeds state movement, pattern detection, the next assigned action, and downstream reports or parent claims. A false observation can corrupt the whole evidence chain.
+A TPS Timer Contract is bound to the individual student and topic. A valid timer from one topic cannot be borrowed as authoritative timing for another topic.
 
 Fail Answer
-It is only an internal note
-Reports can be rewritten later
-The system uses answer marks instead
+One student should have one global timer
+Use the fastest topic timer everywhere
+Any prior Timer Contract is acceptable
 
 Q10
-What should be clear after a Topic Conditioning run?
+A topic may enter Controlled Discomfort or Time Pressure Stability but does not yet have valid timing authority. What should RI-OS do?
 
 Expected Answer
-The active topic, verified phase and stability, relevant strengths or breakdown fields, assigned next action, and the evidence that produced that result.
+Resolve the missing readiness through qualifying evidence-native independent timing before authoritative TPS timing is required. The system may use eligible Diagnosis baseline opportunities rather than inventing a timer or forcing unnecessary earlier Training.
 
 Fail Answer
-Whether the student passed maths
-How confident the student felt
-What the Specialist wants to teach next
+Use a generic timer
+Borrow another topic's Timer Contract
+Skip the readiness question and estimate later
 
-SECTION 3: PLACEMENT SCENARIOS
+SECTION 3: PHASE IDENTIFICATION
 
 Q11
-The student cannot name the problem type, identify the parts, or state what method applies. Which phase capability is breaking?
+The student cannot identify the problem type, method, or reason reliably before execution begins. Which response layer owns the evidence question?
 
 Expected Answer
-Clarity, because the breakdown occurs before reliable execution begins.
+Clarity, because the mental map is not sufficiently established before independent execution.
 
 Fail Answer
 Structured Execution
@@ -128,10 +128,10 @@ Controlled Discomfort
 Time Pressure Stability
 
 Q12
-The student explains the method but waits for the Specialist to start every question and needs prompts to maintain step order. Which phase capability is breaking?
+The student understands the method but cannot begin and maintain ordered execution without prompts. Which response layer owns the evidence question?
 
 Expected Answer
-Structured Execution, because the mental map is present but independent ordered execution is not stable.
+Structured Execution, because the mental map is available but independent ordered execution is not reliable.
 
 Fail Answer
 Clarity only
@@ -139,10 +139,10 @@ Controlled Discomfort
 Time Pressure Stability
 
 Q13
-The student executes a known form independently but collapses when the same method appears in an unfamiliar form. Which phase capability is breaking?
+Normal independent same-form execution is supported, but challenging same-form work causes rescue-seeking and loss of controlled engagement. Which response layer owns the evidence question?
 
 Expected Answer
-Controlled Discomfort, because known execution is not surviving uncertainty or changed presentation.
+Controlled Discomfort, because difficulty is now the condition that destabilizes an otherwise available normal independent response.
 
 Fail Answer
 Clarity
@@ -150,10 +150,10 @@ Structured Execution only
 Time Pressure Stability
 
 Q14
-The student handles known and unfamiliar forms but rushes, guesses, and loses structure under a timer. Which phase capability is breaking?
+Earlier layers are supported, a valid individualized Timer Contract is active, and the student rushes, loses structure, or fails completion under time. Which response layer owns the evidence question?
 
 Expected Answer
-Time Pressure Stability, because urgency destabilises an otherwise available response.
+Time Pressure Stability, because valid individualized urgency is the earliest condition now destabilizing the response.
 
 Fail Answer
 Clarity
@@ -163,12 +163,12 @@ Controlled Discomfort
 FINAL TEST
 
 Q15
-The Specialist says, "I know this student better than the system, so I moved the topic ahead." What is the integrity judgment?
+The Specialist says, "The system held this topic, but I advanced it because today's work looked strong." What is the integrity judgment?
 
 Expected Answer
-It is unacceptable. The Specialist has overridden operator authority and the evidence chain. Topic movement must come from scored repeated evidence and the deterministic system result.
+It is outside Specialist authority. Topic movement must come from qualifying evidence and the RI-OS result; the Specialist cannot manually override a hold, phase, stability, or timing-readiness decision.
 
 Fail Answer
-Experienced tutors may override the system
-Move ahead when the student seems ready
-The system state can be ignored if the Specialist disagrees
+Experienced Specialists may override the system
+Move ahead whenever the student seems ready
+The topic state can be ignored when the Specialist disagrees

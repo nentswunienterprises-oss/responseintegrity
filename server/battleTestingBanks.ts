@@ -123,8 +123,10 @@ const AUTO_CRITICAL_REASON_BY_PHASE: Record<string, Record<string, string>> = {
     Q14: "Overrides repeated evidence and system movement with an invented psychological conclusion.",
   },
   time_pressure_stability: {
+    Q7: "Invents or borrows timing authority instead of resolving the missing Timer Contract through evidence.",
     Q11: "Treats speed with broken structure or guessing as stable timed evidence.",
-    Q12: "Adds panic coaching to a no-support timed condition.",
+    Q12: "Adds external pacing to a no-support timed condition.",
+    Q13: "Uses technical-failure recovery as a second chance instead of preserving lineage and the fresh-reserve boundary.",
     Q14: "Treats a rescued timed rep as independent stability evidence.",
   },
   topic_conditioning: {
@@ -189,11 +191,11 @@ const QUESTION_PROMPT_VARIANTS: Record<
     form_c: "A student asks for rescue during No Rescue, and the Specialist talks them through the full method. Can the completed answer count as recovery evidence?",
   },
   "time_pressure_stability:Q11": {
-    form_b: "A timed rep beats the target, but the student omits working and guesses two answers. What evidence does the result provide?",
-    form_c: "The student finishes Full Constraint early by abandoning the trained sequence. Should speed make this a clear rep?",
+    form_b: "A timed rep beats the Timer Contract, but the student omits working and guesses two answers. What evidence does the result provide?",
+    form_c: "The student finishes Full Constraint early by abandoning the trained sequence. Should speed make this stable TPS evidence?",
   },
   "topic_conditioning:Q15": {
-    form_b: "A Specialist says, 'The score held the topic, but I advanced it because today's work looked better.' What is the integrity judgment?",
+    form_b: "A Specialist says, 'The system held the topic, but I advanced it because today's work looked better.' What is the integrity judgment?",
     form_c: "A parent asks for the next phase and the Specialist changes the topic-state without qualifying system evidence. Is that within operator authority?",
   },
   "intro_session_structure:Q7": {
