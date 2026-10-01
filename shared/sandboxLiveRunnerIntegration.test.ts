@@ -42,6 +42,10 @@ const serverRoutesSource = readFileSync(
   new URL("../server/routes.ts", import.meta.url),
   "utf8",
 );
+const tpsTimingAuthoritySource = readFileSync(
+  new URL("../server/tpsTimingAuthority.ts", import.meta.url),
+  "utf8",
+);
 const responseSnapshotCardSource = readFileSync(
   new URL("../client/src/components/tutor/ResponseSnapshotCard.tsx", import.meta.url),
   "utf8",
@@ -276,6 +280,14 @@ test("TPS Handover reuses inherited baseline-derived Timer Contract authority", 
   assert.match(
     sandboxRediagnosisSource,
     /input\.scope === "handover"[\s\S]*input\.startingPhase === "Time Pressure Stability"[\s\S]*ensureSandboxTpsTimerContract/,
+  );
+  assert.match(
+    serverRoutesSource,
+    /verificationPhase === "Time Pressure Stability"[\s\S]*loadLatestTpsTimerContract[\s\S]*validateTpsHandoverTimedAttemptLineage/,
+  );
+  assert.match(
+    tpsTimingAuthoritySource,
+    /validateTpsHandoverTimedAttemptLineage[\s\S]*time_pressure\.handover_continuity[\s\S]*loadTpsTimedAttemptById/,
   );
 });
 
