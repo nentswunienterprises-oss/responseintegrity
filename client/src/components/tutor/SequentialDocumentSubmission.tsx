@@ -1153,7 +1153,7 @@ function buildAcceptedCopyHtml(params: {
     h1, h2, h3, p, li, th, td, .summary-value, .signature-box, .footer { overflow-wrap: anywhere; word-break: break-word; }
     .clauses { margin: 0; padding-left: 18px; font: 400 13px/1.7 Arial, sans-serif; }
     .agreement-body { margin-top: 12px; }
-    .agreement-body h1, .agreement-body h2 { font-family: Arial, sans-serif; color: var(--ri-reader-heading, #102a43); }
+    .agreement-body h1, .agreement-body h2, .agreement-body h3 { font-family: Arial, sans-serif; color: #E63946; }
     .agreement-body h1 { font-size: 11px; margin: 12px 0 6px; text-transform: uppercase; letter-spacing: 0.02em; }
     .agreement-body h2 { font-size: 11px; margin: 12px 0 6px; }
     .agreement-body p { margin: 0 0 10px; font: 400 13px/1.7 Arial, sans-serif; }
@@ -1163,7 +1163,7 @@ function buildAcceptedCopyHtml(params: {
     .agreement-body .tt-agreement-section h2 { margin: 0 0 10px; font: 700 14px/1.4 Arial, sans-serif; color: #E63946; }
     .agreement-body .tt-agreement-section-body p { margin: 0 0 10px; font: 400 13px/1.7 Arial, sans-serif; color: var(--ri-reader-text, #243b53); }
     .agreement-body .tt-agreement-subsection + .tt-agreement-subsection { margin-top: 14px; }
-    .agreement-body .tt-agreement-subsection h3 { margin: 0 0 8px; font: 700 13px/1.4 Arial, sans-serif; color: var(--ri-reader-heading, #102a43); }
+    .agreement-body .tt-agreement-subsection h3 { margin: 0 0 8px; font: 700 13px/1.4 Arial, sans-serif; color: #E63946; }
     .agreement-body .tt-agreement-list { margin: 0 0 10px 18px; padding: 0; }
     .agreement-body .tt-agreement-list li { margin-bottom: 5px; font: 400 13px/1.6 Arial, sans-serif; color: var(--ri-reader-text, #243b53); }
     .agreement-body .tt-agreement-list-check { list-style-type: "• "; }
