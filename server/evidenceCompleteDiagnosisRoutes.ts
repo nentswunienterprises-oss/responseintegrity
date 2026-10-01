@@ -84,6 +84,13 @@ const isLaunchableDiagnosisSessionStatus = (
   LAUNCHABLE_SESSION_STATUSES.has(String(status || "")) ||
   (requestedKind === "handover" && String(status || "") === "completed");
 const LIVE_SCHEDULING_MODES = new Set(["trial", "certified_live"]);
+const ACCEPTED_ASSIGNMENT_STATUSES = new Set([
+  "assigned",
+  "proposal_sent",
+  "session_booked",
+  "report_received",
+  "confirmed",
+]);
 
 const diagnosisSemanticsForSessionKind = (
   kind: "intro" | "training" | "handover",
@@ -287,6 +294,74 @@ async function assignmentIsAccepted(student: any, tutorId: string) {
     .eq("status", "awaiting_tutor_acceptance")
     .maybeSingle();
   return data?.status !== "awaiting_tutor_acceptance";
+}
+
+async function acceptedEnrollmentAssignmentBelongsToTutor(student: any, tutorId: string) {
+  const enrollmentId = String(
+    student?.parentEnrollmentId || student?.parent_enrollment_id || "",
+  ).trim();
+  if (!enrollmentId) return false;
+
+  if (isEmergencyDbMode()) {
+    const result = await pool.query(
+      `SELECT assigned_tutor_id, status
+         FROM public.parent_enrollments
+        WHERE id = $1
+        LIMIT 1`,
+      [enrollmentId],
+    );
+    const row = result.rows[0];
+    return (
+      String(row?.assigned_tutor_id || "") === tutorId &&
+      ACCEPTED_ASSIGNMENT_STATUSES.has(String(row?.status || ""))
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("parent_enrollments")
+    .select("assigned_tutor_id, status")
+    .eq("id", enrollmentId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Failed to verify current Specialist assignment: ${error.message}`);
+  }
+
+  return (
+    String(data?.assigned_tutor_id || "") === tutorId &&
+    ACCEPTED_ASSIGNMENT_STATUSES.has(String(data?.status || ""))
+  );
+}
+
+async function repairStudentTutorLinkFromHandoverAuthority(input: {
+  student: any;
+  tutorId: string;
+  studentId: string;
+  scheduledSessionId: string | null;
+}) {
+  if (!input.scheduledSessionId) return false;
+  if (!(await acceptedEnrollmentAssignmentBelongsToTutor(input.student, input.tutorId))) {
+    return false;
+  }
+
+  const handoverSession = await loadScheduledSession({
+    tutorId: input.tutorId,
+    studentId: input.studentId,
+    scheduledSessionId: input.scheduledSessionId,
+    requestedKind: "handover",
+  });
+  if (
+    !handoverSession ||
+    handoverSession.type !== "handover" ||
+    !isLaunchableDiagnosisSessionStatus(handoverSession.status, "handover")
+  ) {
+    return false;
+  }
+
+  await storage.updateStudent(input.studentId, {
+    tutorId: input.tutorId,
+    updatedAt: new Date().toISOString(),
+  } as any);
+  return true;
 }
 
 async function getTutorOperationalMode(tutorId: string) {
@@ -1072,7 +1147,22 @@ export function registerEvidenceCompleteDiagnosisRoutes(app: Express) {
         if (!topic || topic.length > 200) return res.status(400).json({ message: "A valid diagnosis topic is required" });
         if (!startingPhase) return res.status(400).json({ message: "A valid starting phase is required" });
 
-        const student = await storage.getStudent(studentId);
+        let student = await storage.getStudent(studentId);
+        if (
+          student &&
+          String(student.tutorId || "") !== tutorId &&
+          requestedKind === "handover"
+        ) {
+          const repaired = await repairStudentTutorLinkFromHandoverAuthority({
+            student,
+            tutorId,
+            studentId,
+            scheduledSessionId,
+          });
+          if (repaired) {
+            student = await storage.getStudent(studentId);
+          }
+        }
         if (!student || String(student.tutorId || "") !== tutorId) {
           return res.status(403).json({ message: "Student does not belong to this specialist" });
         }
