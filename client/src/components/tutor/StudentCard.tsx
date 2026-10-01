@@ -1189,7 +1189,7 @@ function HandoverVerificationSection({
 
   return (
     <div className="pt-4 border-t border-border/60 space-y-3">
-      <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Tutor Handover Verification</p>
+      <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Handover Verification</p>
 
       <div className="rounded-xl border border-primary/25 bg-primary/[0.07] px-4 py-3">
         <div className="flex items-start justify-between gap-3">
