@@ -60,6 +60,7 @@ const sandboxLiveEvidenceQuerySchema = z.object({
   studentId: z.string().trim().min(1),
   scope: z.enum(["diagnosis", "handover"]),
   sourceContextId: z.string().trim().min(1),
+  topic: z.string().trim().min(1).max(200),
   startingPhase: z.enum([
     "Clarity",
     "Structured Execution",
@@ -83,6 +84,7 @@ const sandboxLiveEvidenceSubmissionSchema = z.object({
   studentId: z.string().trim().min(1),
   scope: z.enum(["diagnosis", "handover"]),
   sourceContextId: z.string().trim().min(1),
+  topic: z.string().trim().min(1).max(200),
   startingPhase: z.enum([
     "Clarity",
     "Structured Execution",
@@ -192,6 +194,7 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
         studentId: payload.studentId,
         scope: payload.scope,
         sourceContextId: payload.sourceContextId,
+        topic: payload.topic,
         startingPhase: payload.startingPhase,
         sequenceNumber: payload.sequenceNumber,
         probeId: payload.probeId || null,
@@ -212,6 +215,7 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
         studentId: payload.studentId,
         scope: payload.scope,
         sourceContextId: payload.sourceContextId,
+        topic: payload.topic,
         startingPhase: payload.startingPhase,
         sequenceNumber: payload.sequenceNumber,
         probeId: payload.probeId || null,
