@@ -86,7 +86,7 @@ test("Sandbox mode uses the existing live-runner route rather than a separate ru
   assert.match(liveRunnerSource, /runtimeModeLoading \|\| runtimeModeFetching/);
   assert.match(
     liveRunnerSource,
-    /operationalMode === "sandbox"[\s\S]*studentId[\s\S]*runtimeMode\?\.assignmentId[\s\S]*requestedMode !== "handover"/,
+    /operationalMode === "sandbox"[\s\S]*sandboxAssignmentId[\s\S]*requestedMode !== "handover"/,
   );
   assert.match(
     liveRunnerSource,
@@ -147,7 +147,7 @@ test("Sandbox diagnosis keeps the evidence-native runner and projects private si
 test("Sandbox Handover stays on the live Handover runner and reveals simulated behavior before evidence capture", () => {
   assert.match(
     liveRunnerSource,
-    /operationalMode === "sandbox"[\s\S]*\(!studentId \|\| !runtimeMode\?\.assignmentId\)[\s\S]*missing its assignment or student identity/,
+    /operationalMode === "sandbox"[\s\S]*\(!studentId \|\| !sandboxAssignmentId\)[\s\S]*missing its assignment or student identity/,
   );
   assert.match(
     liveRunnerSource,
