@@ -455,6 +455,261 @@ function projectProbe(probeId: DiagnosisProbeId) {
   };
 }
 
+
+const SANDBOX_HANDOVER_SIMULATION_PROBE_BY_PHASE: Record<TopicPhase, DiagnosisProbeId> = {
+  Clarity: "clarity.recognition",
+  "Structured Execution": "stack.normal_independent",
+  "Controlled Discomfort": "stack.challenge_no_timer",
+  "Time Pressure Stability": "stack.timed_challenge",
+};
+
+export type SandboxLiveEvidenceSimulationScope = "diagnosis" | "handover";
+
+export async function prepareSandboxLiveEvidenceSimulation(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  studentId: string;
+  scope: SandboxLiveEvidenceSimulationScope;
+  sourceContextId: string;
+  startingPhase: TopicPhase;
+  sequenceNumber: number;
+  probeId?: DiagnosisProbeId | null;
+}) {
+  await assertSandboxAccess(input);
+  const { trajectory, truth } = await loadTrajectory(input);
+
+  const probeId =
+    input.scope === "handover"
+      ? SANDBOX_HANDOVER_SIMULATION_PROBE_BY_PHASE[input.startingPhase]
+      : input.probeId || null;
+  if (!probeId || !(probeId in DIAGNOSIS_PROBES)) {
+    throw httpError(400, "Sandbox evidence simulation requires a valid diagnosis probe.");
+  }
+  if (!input.sourceContextId.trim()) {
+    throw httpError(400, "Sandbox evidence simulation requires a source context.");
+  }
+  if (!Number.isInteger(input.sequenceNumber) || input.sequenceNumber <= 0) {
+    throw httpError(400, "Sandbox evidence simulation sequence must be positive.");
+  }
+
+  const outcomes = await loadDiagnosisOutcomes({
+    bankVersion: trajectory.bank_version,
+    probeId,
+  });
+  const history = await getSandboxEnvironmentHistory(input);
+  const seed = [
+    truth.trajectory_seed,
+    input.scope,
+    input.sourceContextId,
+  ].join(":");
+  const selected = selectSandboxDiagnosisOutcome({
+    seed,
+    outcomes: outcomes.map((item) => item.definition),
+    context: {
+      startingPhase: input.startingPhase,
+      probeId,
+      sequenceNumber: input.sequenceNumber,
+      earliestUnsupportedCapability:
+        history.readiness.policyAvailable
+          ? history.readiness.earliestUnsupportedCapability
+          : null,
+      recentOutcomeKeys: [],
+    },
+  });
+  const selectedRecord = outcomes.find(
+    (item) =>
+      item.definition.key === selected.key &&
+      item.definition.version === selected.version,
+  );
+  if (!selectedRecord) {
+    throw new Error("Sandbox simulated evidence outcome could not be resolved.");
+  }
+
+  const formId = digest(
+    [
+      "sandbox-live-evidence-v1",
+      trajectory.id,
+      input.scope,
+      input.sourceContextId,
+      input.startingPhase,
+      input.sequenceNumber,
+      probeId,
+      selectedRecord.publicRef,
+    ].join(":"),
+  ).slice(0, 32);
+
+  return {
+    scope: input.scope,
+    trajectoryId: trajectory.id,
+    bankVersion: trajectory.bank_version,
+    sessionNumber: trajectory.session_number,
+    probeId,
+    sequenceNumber: input.sequenceNumber,
+    formId,
+    studentBehavior: selected.studentBehavior,
+    simulatedElapsedSeconds: selected.simulatedElapsedSeconds,
+    studentStateAuthoritative: false as const,
+    evidenceScope: "sandbox" as const,
+  };
+}
+
+export async function submitSandboxLiveEvidenceSimulation(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  studentId: string;
+  scope: SandboxLiveEvidenceSimulationScope;
+  sourceContextId: string;
+  startingPhase: TopicPhase;
+  sequenceNumber: number;
+  probeId?: DiagnosisProbeId | null;
+  formId: string;
+  supportEvent: DiagnosisSupportEvent;
+  observations: Array<{
+    dimensionId: string;
+    behaviorId: string;
+  }>;
+}) {
+  const prepared = await prepareSandboxLiveEvidenceSimulation(input);
+  if (prepared.formId !== input.formId) {
+    throw httpError(409, "Sandbox simulated evidence opportunity is stale.");
+  }
+
+  const outcomes = await loadDiagnosisOutcomes({
+    bankVersion: prepared.bankVersion,
+    probeId: prepared.probeId as DiagnosisProbeId,
+  });
+  const { trajectory, truth } = await loadTrajectory(input);
+  const history = await getSandboxEnvironmentHistory(input);
+  const selected = selectSandboxDiagnosisOutcome({
+    seed: [truth.trajectory_seed, input.scope, input.sourceContextId].join(":"),
+    outcomes: outcomes.map((item) => item.definition),
+    context: {
+      startingPhase: input.startingPhase,
+      probeId: prepared.probeId as DiagnosisProbeId,
+      sequenceNumber: input.sequenceNumber,
+      earliestUnsupportedCapability:
+        history.readiness.policyAvailable
+          ? history.readiness.earliestUnsupportedCapability
+          : null,
+      recentOutcomeKeys: [],
+    },
+  });
+
+  const expectedDimensionIds =
+    input.scope === "diagnosis"
+      ? DIAGNOSIS_PROBES[prepared.probeId as DiagnosisProbeId].dimensions
+      : Object.values(DIAGNOSIS_OBSERVATION_MATRIX)
+          .filter((dimension) => dimension.phase === input.startingPhase)
+          .map((dimension) => dimension.id);
+
+  const submitted = new Map(
+    input.observations.map((item) => [
+      String(item.dimensionId || "").trim(),
+      String(item.behaviorId || "").trim(),
+    ]),
+  );
+  if (
+    submitted.size !== expectedDimensionIds.length ||
+    expectedDimensionIds.some((dimensionId) => !submitted.has(dimensionId))
+  ) {
+    throw httpError(
+      400,
+      "Sandbox evidence simulation must record every prescribed behavior dimension.",
+    );
+  }
+
+  const canonical = new Map(
+    selected.canonicalObservations.map((item) => [
+      item.dimensionId,
+      item.behaviorId,
+    ]),
+  );
+  for (const dimensionId of expectedDimensionIds) {
+    if (!canonical.has(dimensionId)) {
+      throw new Error(
+        `Sandbox simulated outcome is missing canonical evidence for ${dimensionId}.`,
+      );
+    }
+  }
+
+  let matchingObservations = 0;
+  for (const dimensionId of expectedDimensionIds) {
+    if (submitted.get(dimensionId) === canonical.get(dimensionId)) {
+      matchingObservations += 1;
+    }
+  }
+  const observationExact =
+    matchingObservations === expectedDimensionIds.length;
+  const conditionConformed =
+    input.supportEvent === "none" ||
+    input.supportEvent === "neutral_clarification";
+
+  const sourceId = digest(
+    [
+      "sandbox-live-evidence-turn-v1",
+      prepared.formId,
+      input.studentId,
+    ].join(":"),
+  ).slice(0, 36);
+
+  const occurrence = (
+    layer: SandboxCapabilityOccurrence["layer"],
+    evidenceClass: SandboxCapabilityOccurrence["evidenceClass"],
+    reason: string,
+  ): SandboxCapabilityOccurrence => ({
+    layer,
+    evidenceClass,
+    sequenceNumber: input.sequenceNumber,
+    sessionNumber: trajectory.session_number,
+    phase: input.startingPhase,
+    setId:
+      input.scope === "handover"
+        ? `handover.${input.startingPhase.toLowerCase().replace(/\s+/g, "_")}`
+        : prepared.probeId,
+    repNumber: input.sequenceNumber,
+    reason,
+  });
+
+  await insertCapabilityEvidence({
+    trajectory,
+    sourceType: "turn",
+    sourceId,
+    occurrences: [
+      occurrence(
+        "condition_integrity",
+        conditionConformed ? "supported" : "breakdown",
+        conditionConformed
+          ? "The Specialist preserved the prescribed Sandbox evidence condition."
+          : "The Specialist changed the prescribed Sandbox evidence condition through mathematical support.",
+      ),
+      occurrence(
+        "observation_integrity",
+        observationExact ? "supported" : "breakdown",
+        observationExact
+          ? "The Specialist recorded the concrete simulated student behavior that occurred."
+          : "At least one recorded behavior differed from the hidden simulated student truth.",
+      ),
+      occurrence(
+        "evidence_integrity",
+        observationExact ? "supported" : "breakdown",
+        observationExact
+          ? "The Specialist preserved the evidence class carried by the simulated response."
+          : "The Specialist record changed decision-relevant evidence truth.",
+      ),
+    ],
+  });
+
+  return {
+    success: true as const,
+    matchingObservations,
+    totalObservations: expectedDimensionIds.length,
+    observationExact,
+    conditionConformed,
+    studentStateAuthoritative: false as const,
+    evidenceScope: "sandbox" as const,
+  };
+}
+
 export async function prepareSandboxRediagnosis(input: {
   tutorAssignmentId: string;
   tutorId: string;
