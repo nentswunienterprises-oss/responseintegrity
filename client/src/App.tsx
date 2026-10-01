@@ -61,10 +61,10 @@ import ResponseConditioningHowToGuide from "@/pages/responseconditioningsystem/e
 import ResponseConditioningHowToUseBossBattles from "@/pages/responseconditioningsystem/execution-standards/how-to-use-boss-battles";
 import ResponseConditioningWhatNotToDo from "@/pages/responseconditioningsystem/execution-standards/what-not-to-do";
 import ResponseConditioningEmotionalDisciplineUnderDiscomfort from "@/pages/responseconditioningsystem/execution-standards/emotional-discipline-under-discomfort";
-import ResponseConditioningWhatChangesInTheStudent from "@/pages/responseconditioningsystem/system-intelligence/what-changes-in-the-student";
-import ResponseConditioningSignsOfProgress from "@/pages/responseconditioningsystem/system-intelligence/signs-of-progress";
-import ResponseConditioningBreakdownPatterns from "@/pages/responseconditioningsystem/system-intelligence/breakdown-patterns";
-import ResponseConditioningBeforeVsAfter from "@/pages/responseconditioningsystem/system-intelligence/before-vs-after";
+import ResponseConditioningHowToDiagnose from "@/pages/responseconditioningsystem/system-intelligence/how-to-diagnose";
+import ResponseConditioningHowToInterpretPrompts from "@/pages/responseconditioningsystem/system-intelligence/how-to-interpret-prompts";
+import ResponseConditioningHowBaselinesAreEstablished from "@/pages/responseconditioningsystem/system-intelligence/how-baselines-are-established";
+import ResponseConditioningHowSystemResolvesUncertainty from "@/pages/responseconditioningsystem/system-intelligence/how-the-system-resolves-uncertainty";
 import ResponseConditioningIntroSessionStructure from "@/pages/responseconditioningsystem/session-infrastructure/intro-session-structure";
 import ResponseConditioningSessionFlowControl from "@/pages/responseconditioningsystem/session-infrastructure/session-flow-control";
 import ResponseConditioningDrillLibrary from "@/pages/responseconditioningsystem/session-infrastructure/drill-library";
@@ -360,36 +360,52 @@ function Router() {
         element={withDeepDiveDeterrent(<ResponseConditioningEmotionalDisciplineUnderDiscomfort />)}
       />
       <Route
+        path="/responseconditioningsystem/system-intelligence/how-to-diagnose"
+        element={withDeepDiveDeterrent(<ResponseConditioningHowToDiagnose />)}
+      />
+      <Route
+        path="/responseconditioningsystem/system-intelligence/how-to-interpret-prompts"
+        element={withDeepDiveDeterrent(<ResponseConditioningHowToInterpretPrompts />)}
+      />
+      <Route
+        path="/responseconditioningsystem/system-intelligence/how-baselines-are-established"
+        element={withDeepDiveDeterrent(<ResponseConditioningHowBaselinesAreEstablished />)}
+      />
+      <Route
+        path="/responseconditioningsystem/system-intelligence/how-the-system-resolves-uncertainty"
+        element={withDeepDiveDeterrent(<ResponseConditioningHowSystemResolvesUncertainty />)}
+      />
+      <Route
         path="/responseconditioningsystem/what-changes-in-the-student"
-        element={withDeepDiveDeterrent(<ResponseConditioningWhatChangesInTheStudent />)}
+        element={<Navigate to="/responseconditioningsystem/system-intelligence/how-to-diagnose" replace />}
       />
       <Route
         path="/responseconditioningsystem/system-intelligence/what-changes-in-the-student"
-        element={withDeepDiveDeterrent(<ResponseConditioningWhatChangesInTheStudent />)}
+        element={<Navigate to="/responseconditioningsystem/system-intelligence/how-to-diagnose" replace />}
       />
       <Route
         path="/responseconditioningsystem/signs-of-progress"
-        element={withDeepDiveDeterrent(<ResponseConditioningSignsOfProgress />)}
+        element={<Navigate to="/responseconditioningsystem/system-intelligence/how-to-interpret-prompts" replace />}
       />
       <Route
         path="/responseconditioningsystem/system-intelligence/signs-of-progress"
-        element={withDeepDiveDeterrent(<ResponseConditioningSignsOfProgress />)}
+        element={<Navigate to="/responseconditioningsystem/system-intelligence/how-to-interpret-prompts" replace />}
       />
       <Route
         path="/responseconditioningsystem/breakdown-patterns"
-        element={withDeepDiveDeterrent(<ResponseConditioningBreakdownPatterns />)}
+        element={<Navigate to="/responseconditioningsystem/system-intelligence/how-the-system-resolves-uncertainty" replace />}
       />
       <Route
         path="/responseconditioningsystem/system-intelligence/breakdown-patterns"
-        element={withDeepDiveDeterrent(<ResponseConditioningBreakdownPatterns />)}
+        element={<Navigate to="/responseconditioningsystem/system-intelligence/how-the-system-resolves-uncertainty" replace />}
       />
       <Route
         path="/responseconditioningsystem/before-vs-after"
-        element={withDeepDiveDeterrent(<ResponseConditioningBeforeVsAfter />)}
+        element={<Navigate to="/responseconditioningsystem/system-intelligence/how-baselines-are-established" replace />}
       />
       <Route
         path="/responseconditioningsystem/system-intelligence/before-vs-after"
-        element={withDeepDiveDeterrent(<ResponseConditioningBeforeVsAfter />)}
+        element={<Navigate to="/responseconditioningsystem/system-intelligence/how-baselines-are-established" replace />}
       />
       <Route
         path="/responseconditioningsystem/intro-session-structure"

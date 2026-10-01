@@ -70,23 +70,23 @@ const modules = [
   {
     id: "3",
     title: "System Intelligence",
-    subtitle: "How to interpret student behavior",
+    subtitle: "How RI-OS reasons from evidence",
     items: [
       {
-        label: "What changes in the student",
-        href: "/responseconditioningsystem/system-intelligence/what-changes-in-the-student",
+        label: "How to diagnose",
+        href: "/responseconditioningsystem/system-intelligence/how-to-diagnose",
       },
       {
-        label: "Signs of progress",
-        href: "/responseconditioningsystem/system-intelligence/signs-of-progress",
+        label: "How to interpret prompts",
+        href: "/responseconditioningsystem/system-intelligence/how-to-interpret-prompts",
       },
       {
-        label: "Breakdown patterns",
-        href: "/responseconditioningsystem/system-intelligence/breakdown-patterns",
+        label: "How baselines are established",
+        href: "/responseconditioningsystem/system-intelligence/how-baselines-are-established",
       },
       {
-        label: "Before vs after",
-        href: "/responseconditioningsystem/system-intelligence/before-vs-after",
+        label: "How the system resolves uncertainty",
+        href: "/responseconditioningsystem/system-intelligence/how-the-system-resolves-uncertainty",
       },
     ],
   },
