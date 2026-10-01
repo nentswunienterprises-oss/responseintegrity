@@ -115,6 +115,19 @@ A narrative about how the student felt
 Only the final outcome
 The new Specialist's opinion of prior Training
 
+
+Q11
+If the inherited topic is already in Time Pressure Stability, what timing authority governs Handover?
+
+Expected Answer
+The same current student/topic Timer Contract that governed the inherited TPS state. Handover does not create a generic timer or let the replacement Specialist choose one. Each TPS continuity opportunity runs under that inherited system-owned contract. If no valid Timer Contract exists, TPS continuity evidence is unavailable until timing authority is re-established through targeted evidence-native re-diagnosis.
+
+Fail Answer
+Use any reasonable timer
+Let the new Specialist set a fresh target
+Run Handover without timing because the phase is already known
+Rebuild the baseline inside Handover
+
 SECTION 3: PRESSURE SCENARIOS
 
 Scenario 1
