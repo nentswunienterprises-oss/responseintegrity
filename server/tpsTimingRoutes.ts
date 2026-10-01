@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { isAuthenticated } from "./supabaseAuth";
 import { storage } from "./storage";
 import {
+  loadLatestTpsPassiveAttemptForSlot,
   loadLatestTpsTimerContract,
   loadTpsTimerContractById,
   persistTpsPassiveAttempt,
@@ -85,6 +86,75 @@ export function registerTpsTimingRoutes(app: Express) {
       } catch (error) {
         console.error("Failed to load TPS Timer Contract:", error);
         return res.status(500).json({ message: "Failed to load TPS timing authority." });
+      }
+    },
+  );
+
+  app.get(
+    "/api/tutor/students/:studentId/tps-passive-attempt",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const specialist = requireSpecialist(req, res);
+        if (!specialist) return;
+
+        const studentId = clean(req.params.studentId);
+        const topic = clean(req.query.topic);
+        const source = clean(req.query.source);
+        const sourceContextId = clean(req.query.sourceContextId);
+        const sourceItemId = clean(req.query.sourceItemId);
+        const slotNumber = Number(req.query.slotNumber || 0);
+
+        if (
+          !studentId ||
+          !topic ||
+          (source !== "training" && source !== "diagnosis") ||
+          !sourceContextId ||
+          !sourceItemId ||
+          !Number.isInteger(slotNumber) ||
+          slotNumber <= 0
+        ) {
+          return res.status(400).json({
+            message:
+              "studentId, topic, source, sourceContextId, sourceItemId and slotNumber are required.",
+          });
+        }
+
+        const student = await requireOwnedStudent(studentId, specialist.id, res);
+        if (!student) return;
+
+        const attempt = await loadLatestTpsPassiveAttemptForSlot({
+          studentId,
+          topic,
+          source: source as TpsPassiveAttemptSubmissionV1["source"],
+          sourceContextId,
+          sourceItemId,
+          slotNumber,
+        });
+
+        return res.json({
+          attempt: attempt
+            ? {
+                attemptId: attempt.attemptId,
+                source: attempt.source,
+                sourceContextId: attempt.sourceContextId,
+                sourceItemId: attempt.sourceItemId,
+                slotNumber: attempt.slotNumber,
+                attemptNumber: attempt.attemptNumber,
+                startedAt: attempt.startedAt,
+                endedAt: attempt.endedAt,
+                elapsedMs: attempt.elapsedMs,
+                timingValidity: attempt.timingValidity,
+                endReason: attempt.endReason,
+                replacementForAttemptId: attempt.replacementForAttemptId,
+              }
+            : null,
+        });
+      } catch (error) {
+        console.error("Failed to recover passive baseline timing slot:", error);
+        return res.status(500).json({
+          message: "Passive baseline timing recovery could not be loaded.",
+        });
       }
     },
   );
