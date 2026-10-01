@@ -912,8 +912,6 @@ export function StudentCard({
             displayTopic={displayTopic}
             displayPhase={displayPhase}
             displayStability={displayStability}
-            recommendedStartingPhase={recommendedStartingPhase}
-            recommendedStartingReason={recommendedStartingReason}
             onMarkCompleted={() => markHandoverCompleted.mutate()}
             isMarkingCompleted={markHandoverCompleted.isPending}
             completionError={
@@ -1171,8 +1169,6 @@ function HandoverVerificationSection({
   displayTopic,
   displayPhase,
   displayStability,
-  recommendedStartingPhase,
-  recommendedStartingReason,
   onMarkCompleted,
   isMarkingCompleted,
   completionError,
@@ -1181,6 +1177,10 @@ function HandoverVerificationSection({
   const sessionStatus = String(session?.status || "");
   const sessionConfirmed = ["confirmed", "ready", "live", "scheduled", "completed"].includes(sessionStatus);
   const sessionLabel = session?.type === "handover" ? "continuity check" : "handover verification";
+  const sessionHeading =
+    sessionStatus === "completed"
+      ? sessionLabel
+      : `scheduled ${sessionLabel}`;
   const latestVerification = session?.latestHandoverVerification || null;
   const latestSummary = latestVerification?.summary || null;
   const reDiagnosisRequired = !!latestSummary?.reDiagnosisRequired;
@@ -1216,6 +1216,9 @@ function HandoverVerificationSection({
         <div className="space-y-3">
       <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 space-y-2">
         <p className="text-[11px] font-medium text-foreground">Carry-Over State</p>
+        <p className="text-xs text-muted-foreground">
+          State inherited from the student's existing training record. It remains provisional until continuity is verified.
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
             <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Topic</p>
@@ -1232,17 +1235,9 @@ function HandoverVerificationSection({
         </div>
       </div>
 
-      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 space-y-1">
-        <p className="text-[11px] font-semibold text-foreground">System Watchpoint</p>
-        <p className="text-xs text-muted-foreground">
-          Re-enter verification around <span className="font-medium text-foreground">{recommendedStartingPhase}</span>.
-        </p>
-        <p className="text-xs text-muted-foreground">{recommendedStartingReason}</p>
-      </div>
-
       {session?.scheduled_time ? (
         <div className="rounded-xl border border-primary/20 bg-muted/20 px-4 py-3 space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Scheduled {sessionLabel}</p>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{sessionHeading}</p>
           <p className="text-sm text-foreground">{new Date(session.scheduled_time).toLocaleString()}</p>
           <p className="text-xs text-muted-foreground">Status: {sessionStatus || "pending"}</p>
         </div>
@@ -1257,18 +1252,26 @@ function HandoverVerificationSection({
 
       {latestSummary ? (
         <div className={`rounded-xl border px-4 py-3 space-y-2 ${reDiagnosisRequired ? "border-primary/35 bg-primary/10" : "border-[rgba(255,240,240,0.14)] bg-[rgba(255,240,240,0.035)]"}`}>
-          <p className="text-[11px] font-semibold text-foreground">Latest Handover Result</p>
+          <p className="text-[11px] font-semibold text-foreground">Continuity Result</p>
           <p className="text-sm font-medium text-foreground">{latestSummary.verificationOutcomeLabel || "Verification submitted"}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Resulting Phase</p>
-              <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.resultingPhase || "-"}</p>
+          {reDiagnosisRequired ? (
+            <div className="rounded-lg border border-primary/20 bg-background/70 px-3 py-2">
+              <p className="text-xs leading-5 text-muted-foreground">
+                The inherited placement was not confirmed. No replacement phase or stability has been assigned.
+              </p>
             </div>
-            <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Resulting Stability</p>
-              <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.resultingStability || "-"}</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Confirmed Phase</p>
+                <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.resultingPhase || "-"}</p>
+              </div>
+              <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Confirmed Stability</p>
+                <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.resultingStability || "-"}</p>
+              </div>
             </div>
-          </div>
+          )}
           {latestSummary.evidenceReason ? (
             <p className="text-xs leading-5 text-muted-foreground">
               <span className="font-medium text-foreground">Evidence:</span> {latestSummary.evidenceReason}
@@ -1321,18 +1324,20 @@ function HandoverVerificationSection({
               Open Targeted Re-Diagnosis
             </Button>
           ) : null}
-          <Button
-            className="w-full"
-            variant="default"
-            size="sm"
-            onClick={onMarkCompleted}
-            disabled={isMarkingCompleted || !canMarkComplete}
-          >
-            {isMarkingCompleted ? "Saving..." : "Mark Continuity Check Complete"}
-          </Button>
+          {!reDiagnosisRequired ? (
+            <Button
+              className="w-full"
+              variant="default"
+              size="sm"
+              onClick={onMarkCompleted}
+              disabled={isMarkingCompleted || !canMarkComplete}
+            >
+              {isMarkingCompleted ? "Saving..." : "Mark Continuity Check Complete"}
+            </Button>
+          ) : null}
           <p className="text-xs text-muted-foreground text-center">
             {reDiagnosisRequired
-              ? "Targeted re-diagnosis is required before continuity check can be completed."
+              ? "Run evidence-complete targeted re-diagnosis before standard training resumes."
               : "Submit a clean handover result, then mark continuity check complete to clear the handover gate."}
           </p>
         </div>
