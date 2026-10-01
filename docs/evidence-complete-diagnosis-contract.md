@@ -154,6 +154,58 @@ If Diagnosis is about to place in Controlled Discomfort or test/finish Time Pres
 
 Once three clean comparable intervals exist, RI uses their median as the individualized diagnosis baseline. Only then may a system-owned timed diagnosis probe run. The Specialist cannot choose, edit, pause, round, or replace that prescribed time.
 
+## Opportunity execution protocol
+
+Every diagnostic opportunity follows one execution sequence:
+
+`Ready -> Observe -> Record -> Confirm`
+
+### Ready
+
+- The system-selected problem or example is prepared but remains hidden from the student.
+- The runner shows the exact Specialist actions and student-facing words permitted for that probe.
+- A probe may deliberately elicit a behavior only when its protocol says to do so.
+- The Specialist does not add questions merely because an evidence field would otherwise be missing.
+
+### Observe
+
+`Begin Opportunity` starts the opportunity boundary. The Specialist immediately reveals or presents the prepared problem or example and follows only the displayed probe protocol.
+
+The observation form remains closed while the student is responding. The Specialist watches the complete response rather than dividing attention between the student and evidence administration.
+
+For `stack.normal_independent`, the standardized student-facing instruction is:
+
+> "Solve this independently. I won't help with the method. Tell me when you're finished."
+
+The Specialist does not ask what method the student is using, why it fits, or other Clarity questions during this probe. Vocabulary, method, reason, and immediate-use evidence count only when the independent response naturally exposes them.
+
+For `clarity.recognition`, the probe intentionally elicits the missing Clarity evidence in this order:
+
+1. "What do you see here?"
+2. "Which method would you use?"
+3. "Why does that method fit?"
+4. "Show me how you would start."
+
+The Specialist does not explain, supply the method, confirm the first step, or correct the response. The final first move is evidence for Clarity immediate use of understanding because recognition was explicitly elicited immediately beforehand. It must not be reused as proof of a cold Structured Execution start.
+
+### Student Finished
+
+The Specialist clicks `Student Finished` at actual completion of the prescribed response. For timing-eligible opportunities, that action freezes the student execution interval before any evidence administration time is added.
+
+No observation selection occurs before the response boundary is closed.
+
+### Record
+
+The runner then presents the opportunity's observations one at a time.
+
+The Specialist records only behavior that the completed opportunity actually exposed. If a dimension was not meaningfully observable, it remains `not_observed`. The Specialist must not ask the student to reconstruct their thinking after the opportunity and then backfill that retrospective explanation as though it had been observed during the original response.
+
+Moving between evidence layers does not create another student problem. A new problem is presented only when the evidence engine opens another opportunity.
+
+### Confirm
+
+After every required observation has been recorded, the Specialist records any intervention or contamination event and confirms the opportunity. The evidence engine, not the Specialist, decides whether another probe is required.
+
 ## Probe catalog
 
 ### `clarity.recognition`
