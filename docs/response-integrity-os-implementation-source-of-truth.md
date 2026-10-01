@@ -514,6 +514,9 @@ The live law is:
 - Diagnosis is the second legitimate baseline route when an otherwise-above-Structured-Execution placement does not already have valid timing authority. Diagnosis remains evidence-complete; the three-sample requirement belongs only to the timing question.
 - An existing valid Timer Contract is reused rather than rebuilt without cause.
 - TPS timed Diagnosis and TPS Training use the immutable student/topic Timer Contract. The Specialist cannot choose, pause, round, edit, loosen, tighten, restart, or override the timer.
+- Handover verification of an inherited Time Pressure Stability state reuses that same current student/topic Timer Contract. The inherited phase is not separable from the timing authority that made its TPS evidence valid. Each continuity opportunity must carry a persisted timed-attempt reference under one unchanged contract.
+- A TPS Handover cannot fall back to a generic or Specialist-selected timer. If the inherited topic has no valid Timer Contract, TPS continuity evidence is unavailable and the missing timing authority must be re-established through targeted evidence-native re-diagnosis.
+- Sandbox TPS Handover follows the same contract shape and countdown behavior, but its persistent fictional student receives deterministic simulated baseline lineage and a simulated Timer Contract before the continuity opportunity opens.
 - Structure Under Timer and Repeated Timed Execution use the baseline duration; Full Constraint uses 85% of baseline.
 - Missing timing authority above Structured Execution is an explicit readiness gap and routes through targeted evidence-complete re-diagnosis. There is no hidden pre-TPS calibration side path.
 - Baseline timing is operational evidence for pressure construction. It does not by itself authorize parent-facing speed claims.
