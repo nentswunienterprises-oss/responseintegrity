@@ -7,7 +7,9 @@ import {
   submitSandboxEnvironmentRep,
 } from "../sandboxEnvironment";
 import {
+  prepareSandboxLiveEvidenceSimulation,
   prepareSandboxRediagnosis,
+  submitSandboxLiveEvidenceSimulation,
   submitSandboxRediagnosisProbe,
 } from "../sandboxRediagnosis";
 import { loadTutorOperationalModeAuthorityForTutor } from "../tutorOperationalModeAuthority";
@@ -52,6 +54,63 @@ const repSubmissionSchema = z.object({
   }),
 });
 
+
+const sandboxLiveEvidenceQuerySchema = z.object({
+  tutorAssignmentId: z.string().trim().min(1),
+  studentId: z.string().trim().min(1),
+  scope: z.enum(["diagnosis", "handover"]),
+  sourceContextId: z.string().trim().min(1),
+  startingPhase: z.enum([
+    "Clarity",
+    "Structured Execution",
+    "Controlled Discomfort",
+    "Time Pressure Stability",
+  ]),
+  sequenceNumber: z.coerce.number().int().positive(),
+  probeId: z.enum([
+    "stack.timed_challenge",
+    "stack.challenge_no_timer",
+    "stack.normal_independent",
+    "clarity.recognition",
+    "execution.repeatability",
+    "difficulty.recovery",
+    "time.consistency",
+  ]).optional(),
+});
+
+const sandboxLiveEvidenceSubmissionSchema = z.object({
+  tutorAssignmentId: z.string().trim().min(1),
+  studentId: z.string().trim().min(1),
+  scope: z.enum(["diagnosis", "handover"]),
+  sourceContextId: z.string().trim().min(1),
+  startingPhase: z.enum([
+    "Clarity",
+    "Structured Execution",
+    "Controlled Discomfort",
+    "Time Pressure Stability",
+  ]),
+  sequenceNumber: z.number().int().positive(),
+  probeId: z.enum([
+    "stack.timed_challenge",
+    "stack.challenge_no_timer",
+    "stack.normal_independent",
+    "clarity.recognition",
+    "execution.repeatability",
+    "difficulty.recovery",
+    "time.consistency",
+  ]).optional(),
+  formId: z.string().trim().min(1),
+  supportEvent: z.enum([
+    "none",
+    "neutral_clarification",
+    "first_step_confirmation",
+    "teaching",
+  ]),
+  observations: z.array(z.object({
+    dimensionId: z.string().trim().min(1),
+    behaviorId: z.string().trim().min(1),
+  })).min(1),
+});
 
 const rediagnosisSubmissionSchema = z.object({
   tutorAssignmentId: z.string().trim().min(1),
@@ -119,6 +178,49 @@ export function registerSandboxEnvironmentRoutes(app: Express) {
       });
     } catch (error) {
       return sendError(res, error, "Failed to resolve Specialist runtime mode.");
+    }
+  });
+
+  app.get("/api/tutor/sandbox-live-evidence", isAuthenticated, async (req, res) => {
+    try {
+      const user = requireSpecialist(req, res);
+      if (!user) return;
+      const payload = sandboxLiveEvidenceQuerySchema.parse(req.query);
+      return res.json(await prepareSandboxLiveEvidenceSimulation({
+        tutorAssignmentId: payload.tutorAssignmentId,
+        tutorId: String(user.id),
+        studentId: payload.studentId,
+        scope: payload.scope,
+        sourceContextId: payload.sourceContextId,
+        startingPhase: payload.startingPhase,
+        sequenceNumber: payload.sequenceNumber,
+        probeId: payload.probeId || null,
+      }));
+    } catch (error) {
+      return sendError(res, error, "Failed to prepare Sandbox simulated student behavior.");
+    }
+  });
+
+  app.post("/api/tutor/sandbox-live-evidence", isAuthenticated, async (req, res) => {
+    try {
+      const user = requireSpecialist(req, res);
+      if (!user) return;
+      const payload = sandboxLiveEvidenceSubmissionSchema.parse(req.body);
+      return res.status(201).json(await submitSandboxLiveEvidenceSimulation({
+        tutorAssignmentId: payload.tutorAssignmentId,
+        tutorId: String(user.id),
+        studentId: payload.studentId,
+        scope: payload.scope,
+        sourceContextId: payload.sourceContextId,
+        startingPhase: payload.startingPhase,
+        sequenceNumber: payload.sequenceNumber,
+        probeId: payload.probeId || null,
+        formId: payload.formId,
+        supportEvent: payload.supportEvent,
+        observations: payload.observations,
+      }));
+    } catch (error) {
+      return sendError(res, error, "Failed to record Sandbox simulated evidence.");
     }
   });
 
