@@ -898,21 +898,52 @@ export const validateDiagnosisPassiveTimingAttemptLineage = async ({
   for (let index = 0; index < probeHistory.length; index += 1) {
     const result = probeHistory[index];
     if (!result?.passiveTiming) continue;
+
     const reference = validateTpsPassiveAttemptEvidenceRef(
       result.passiveTimingAttempt,
     );
-    const error = await validatePassiveAttemptReference({
+    const sourceItemId = clean(result.probeId);
+    const canonicalSlotNumber = index + 1;
+
+    let error = await validatePassiveAttemptReference({
       reference,
       studentId,
       topic,
       source: "diagnosis",
       sourceContextId: runId,
-      sourceItemId: clean(result.probeId),
-      slotNumber: index + 1,
+      sourceItemId,
+      slotNumber: canonicalSlotNumber,
       rawTiming: JSON.stringify(result.passiveTiming),
     });
+
+    if (error && reference) {
+      const legacyProbeOccurrenceNumber =
+        probeHistory
+          .slice(0, index + 1)
+          .filter((item) => clean(item?.probeId) === sourceItemId).length;
+
+      if (
+        legacyProbeOccurrenceNumber > 0 &&
+        legacyProbeOccurrenceNumber !== canonicalSlotNumber
+      ) {
+        const legacyError = await validatePassiveAttemptReference({
+          reference,
+          studentId,
+          topic,
+          source: "diagnosis",
+          sourceContextId: runId,
+          sourceItemId,
+          slotNumber: legacyProbeOccurrenceNumber,
+          rawTiming: JSON.stringify(result.passiveTiming),
+        });
+        if (!legacyError) {
+          error = null;
+        }
+      }
+    }
+
     if (error) {
-      return `Diagnosis Opportunity ${index + 1}: ${error}`;
+      return `Diagnosis Opportunity ${canonicalSlotNumber}: ${error}`;
     }
   }
   return null;
