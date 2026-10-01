@@ -990,6 +990,9 @@ function IntroSessionDrillRunnerCore({
   const [repStarted, setRepStarted] = useState(false);
   const [handoverExecutionFinished, setHandoverExecutionFinished] =
     useState(false);
+  const [handoverObservationIndex, setHandoverObservationIndex] = useState(0);
+  const [handoverObservationReview, setHandoverObservationReview] =
+    useState(false);
   const [sandboxHandoverSimulation, setSandboxHandoverSimulation] = useState<null | {
     formId: string;
     probeId: string;
@@ -1274,6 +1277,31 @@ function IntroSessionDrillRunnerCore({
   }, [studentId, studentsData]);
 
   const set = drillStructure?.[currentSet] ?? null;
+  const handoverObservationBlock =
+    isHandoverContinuityVerification && set
+      ? getLiveObservationBlockForRep(set, currentRep)
+      : [];
+  const activeHandoverObservation =
+    handoverObservationBlock[handoverObservationIndex] || null;
+  const activeHandoverObservationValue = activeHandoverObservation
+    ? String(
+        observations[
+          `set${currentSet}_rep${currentRep}_${activeHandoverObservation.key}`
+        ] || "",
+      ).trim()
+    : "";
+  const activeHandoverObservationComplete =
+    !activeHandoverObservation || Boolean(activeHandoverObservationValue);
+  const recordedHandoverObservationCount = handoverObservationBlock.filter(
+    (field) =>
+      Boolean(
+        String(
+          observations[
+            `set${currentSet}_rep${currentRep}_${field.key}`
+          ] || "",
+        ).trim(),
+      ),
+  ).length;
   const isModelingSet = !!set?.isModelingSet;
   const isTrainingEvidenceCapture = modeToUse === "training" || isSessionMode;
   const activeRegistrySet = set
@@ -1592,6 +1620,8 @@ function IntroSessionDrillRunnerCore({
     setTpsTimingNotice(null);
     setSupportPickerOpen(false);
     setShowEvidenceExceptions(false);
+    setHandoverObservationIndex(0);
+    setHandoverObservationReview(false);
   }, [currentSet, currentRep, sessionTopicIndex, activeDiagnosisPhase, currentTopicName]);
 
   const clearRepObservationState = (setIndex: number, repIndex: number) => {
@@ -1718,6 +1748,8 @@ function IntroSessionDrillRunnerCore({
     }
     setSubmitError(null);
     setHandoverExecutionFinished(false);
+    setHandoverObservationIndex(0);
+    setHandoverObservationReview(false);
     setRepStarted(true);
   };
 
@@ -2850,9 +2882,16 @@ function IntroSessionDrillRunnerCore({
       return;
     }
 
-    if (sandboxHandoverEnabled && !handoverExecutionFinished) {
+    if (isHandoverContinuityVerification && !handoverExecutionFinished) {
       setSubmitError(
         "Click Student Finished before recording Handover observations.",
+      );
+      return;
+    }
+
+    if (isHandoverContinuityVerification && !handoverObservationReview) {
+      setSubmitError(
+        "Complete the Handover observation runner and review this opportunity before confirming it.",
       );
       return;
     }
@@ -2891,6 +2930,8 @@ function IntroSessionDrillRunnerCore({
         setCurrentRep((rep) => rep + 1);
         setRepStarted(false);
         setHandoverExecutionFinished(false);
+        setHandoverObservationIndex(0);
+        setHandoverObservationReview(false);
         return;
       }
       setAdaptiveDiagnosisMessage(null);
@@ -3903,13 +3944,13 @@ function IntroSessionDrillRunnerCore({
         </div>
       )}
 
-      {(isTrainingEvidenceCapture || sandboxHandoverEnabled) && !set?.isModelingSet && !repStarted && (
+      {(isTrainingEvidenceCapture || isHandoverContinuityVerification) && !set?.isModelingSet && !repStarted && (
         <div className="mb-5 rounded-2xl border border-primary/20 bg-background p-5 shadow-sm">
           <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">Ready</span>
             <span className="text-primary/30">→</span>
             <span>Observe</span>
-            {sandboxHandoverEnabled && (
+            {isHandoverContinuityVerification && (
               <>
                 <span className="text-primary/30">→</span>
                 <span>Record</span>
@@ -3919,21 +3960,21 @@ function IntroSessionDrillRunnerCore({
             <span>Confirm</span>
           </div>
           <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {sandboxHandoverEnabled
+            {isHandoverContinuityVerification
               ? `Continuity check · ${set?.setName || ""}`
               : `Set ${currentSet + 1} of ${drillStructure?.length ?? 0} · ${set?.setName || ""}`}
           </div>
           <div className="mt-1 flex items-end gap-3">
             <div className="text-4xl font-black tracking-tight text-foreground sm:text-5xl">
-              {sandboxHandoverEnabled ? "OPPORTUNITY" : "REP"} {currentRep + 1}
+              {isHandoverContinuityVerification ? "OPPORTUNITY" : "REP"} {currentRep + 1}
             </div>
-            {!sandboxHandoverEnabled && (
+            {!isHandoverContinuityVerification && (
               <div className="pb-1 text-sm font-semibold text-muted-foreground">
                 of {set?.reps ?? 0}
               </div>
             )}
           </div>
-          {!sandboxHandoverEnabled && (
+          {!isHandoverContinuityVerification && (
             <p className="mt-3 text-sm leading-6 text-muted-foreground">{set?.purpose}</p>
           )}
           <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
@@ -4016,7 +4057,7 @@ function IntroSessionDrillRunnerCore({
               </p>
             </div>
           )}
-          {(!sandboxHandoverEnabled || activeTechnicalReplacement) && (
+          {(!isHandoverContinuityVerification || activeTechnicalReplacement) && (
             <p className="mt-4 text-xs leading-5 text-muted-foreground">
               {activeTechnicalReplacement
                 ? "The failed attempt remains in durable lineage. The reserve opportunity fills the unanswered evidence slot; it does not erase or improve the failed attempt."
@@ -4044,7 +4085,7 @@ function IntroSessionDrillRunnerCore({
             >
               {activeTechnicalReplacement
                 ? `Begin Reserve Opportunity for Rep ${currentRep + 1}`
-                : sandboxHandoverEnabled
+                : isHandoverContinuityVerification
                   ? `Begin Opportunity ${currentRep + 1}`
                   : `Begin Rep ${currentRep + 1}`}
             </button>
@@ -4237,29 +4278,50 @@ function IntroSessionDrillRunnerCore({
           </div>
         )}
 
-      {sandboxHandoverEnabled &&
+      {isHandoverContinuityVerification &&
         repStarted &&
-        !handoverExecutionFinished &&
-        sandboxHandoverSimulation && (
+        !handoverExecutionFinished && (
           <div className="mb-4 space-y-4">
-            <LiveRepStage stage="observe" sandbox />
-            <LiveSandboxStudentResponse>
-              {sandboxHandoverSimulation.studentBehavior}
-            </LiveSandboxStudentResponse>
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {sandboxHandoverEnabled && (
+                <span className="rounded-full border border-primary/25 bg-background px-2 py-1 text-primary">
+                  Sandbox
+                </span>
+              )}
+              <span className="rounded-full border border-primary/15 px-2 py-1">
+                Ready ✓
+              </span>
+              <span className="text-primary/30">→</span>
+              <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
+                Observe
+              </span>
+              <span className="text-primary/30">→</span>
+              <span>Record</span>
+              <span className="text-primary/30">→</span>
+              <span>Confirm</span>
+            </div>
+            {sandboxHandoverEnabled && sandboxHandoverSimulation && (
+              <LiveSandboxStudentResponse>
+                {sandboxHandoverSimulation.studentBehavior}
+              </LiveSandboxStudentResponse>
+            )}
             <div className="flex justify-end">
               <button
                 type="button"
-                className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-default disabled:opacity-60"
+                disabled={tpsAttemptPersisting}
                 onClick={() => {
                   if (activeRepRequiresTpsTiming) {
                     void finishActiveTpsTiming("student_finished");
                     return;
                   }
                   setHandoverExecutionFinished(true);
+                  setHandoverObservationIndex(0);
+                  setHandoverObservationReview(false);
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
               >
-                Student Finished
+                {tpsAttemptPersisting ? "Saving timing..." : "Student Finished"}
               </button>
             </div>
           </div>
@@ -4267,16 +4329,62 @@ function IntroSessionDrillRunnerCore({
 
       <form className={`space-y-4 ${
         (isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted) ||
-        (sandboxHandoverEnabled && (!repStarted || !handoverExecutionFinished))
+        (isHandoverContinuityVerification && (!repStarted || !handoverExecutionFinished))
           ? "hidden"
           : ""
       }`}>
+        {isHandoverContinuityVerification && !handoverObservationReview && (
+          <div className="mb-4 rounded-2xl border bg-card p-5 sm:p-6">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {sandboxHandoverEnabled && (
+                <span className="rounded-full border border-primary/25 bg-background px-2 py-1 text-primary">
+                  Sandbox
+                </span>
+              )}
+              <span className="rounded-full border border-primary/15 px-2 py-1">
+                Ready ✓
+              </span>
+              <span className="text-primary/30">→</span>
+              <span className="rounded-full border border-primary/15 px-2 py-1">
+                Observe ✓
+              </span>
+              <span className="text-primary/30">→</span>
+              <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
+                Record
+              </span>
+              <span className="text-primary/30">→</span>
+              <span>Confirm</span>
+            </div>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Opportunity {currentRep + 1}
+                </p>
+                <h2 className="mt-1 text-2xl font-semibold">
+                  Observation {Math.min(handoverObservationIndex + 1, handoverObservationBlock.length)} of {handoverObservationBlock.length}
+                </h2>
+              </div>
+              <div className="rounded-lg border px-3 py-2 text-xs text-muted-foreground">
+                {recordedHandoverObservationCount} / {handoverObservationBlock.length} recorded
+              </div>
+            </div>
+            <div className="mt-4 rounded-xl border bg-background/70 px-4 py-3">
+              <p className="text-sm font-medium text-foreground">
+                Student response complete
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Record only what this completed continuity opportunity actually exposed. Do not reconstruct missing behavior from hindsight.
+              </p>
+            </div>
+          </div>
+        )}
+
         {getLiveObservationBlockForRep(set, currentRep).length === 0 && (
           <div className="p-3 rounded-md border border-primary/20 bg-primary/5 text-sm">
             No observations are captured for this step. Continue when pre-drill teaching is complete.
           </div>
         )}
-        {getLiveObservationBlockForRep(set, currentRep).map((obs) =>
+        {getLiveObservationBlockForRep(set, currentRep).map((obs, observationIndex) =>
           isTrainingEvidenceCapture ? (
             <LiveObservationField
               key={obs.key}
@@ -4306,7 +4414,9 @@ function IntroSessionDrillRunnerCore({
               }
               allowEvidenceExceptionWithoutOption
             />
-          ) : (
+          ) : isHandoverContinuityVerification &&
+            (handoverObservationReview ||
+              observationIndex !== handoverObservationIndex) ? null : (
             <div key={obs.key}>
               <div className="mb-2">
                 <label className="block font-medium text-sm sm:text-base">
@@ -4353,6 +4463,89 @@ function IntroSessionDrillRunnerCore({
             </div>
           ),
         )}
+        {isHandoverContinuityVerification &&
+          handoverObservationBlock.length > 0 &&
+          !handoverObservationReview && (
+            <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted/50 disabled:cursor-default disabled:opacity-50"
+                disabled={handoverObservationIndex === 0}
+                onClick={() => {
+                  setSubmitError(null);
+                  setHandoverObservationIndex((index) => Math.max(0, index - 1));
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              >
+                Previous observation
+              </button>
+              <button
+                type="button"
+                disabled={!activeHandoverObservationComplete}
+                onClick={() => {
+                  setSubmitError(null);
+                  if (
+                    handoverObservationIndex >=
+                    handoverObservationBlock.length - 1
+                  ) {
+                    setHandoverObservationReview(true);
+                  } else {
+                    setHandoverObservationIndex((index) => index + 1);
+                  }
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {handoverObservationIndex ===
+                handoverObservationBlock.length - 1
+                  ? "Review Opportunity"
+                  : "Next observation"}
+              </button>
+            </div>
+          )}
+
+        {isHandoverContinuityVerification && handoverObservationReview && (
+          <div className="rounded-2xl border bg-card p-5 sm:p-6">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {sandboxHandoverEnabled && (
+                <span className="rounded-full border border-primary/25 bg-background px-2 py-1 text-primary">
+                  Sandbox
+                </span>
+              )}
+              <span className="rounded-full border border-primary/15 px-2 py-1">Ready ✓</span>
+              <span className="text-primary/30">→</span>
+              <span className="rounded-full border border-primary/15 px-2 py-1">Observe ✓</span>
+              <span className="text-primary/30">→</span>
+              <span className="rounded-full border border-primary/15 px-2 py-1">Record ✓</span>
+              <span className="text-primary/30">→</span>
+              <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">Confirm</span>
+            </div>
+            <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Opportunity {currentRep + 1}
+            </p>
+            <h2 className="mt-1 text-2xl font-semibold">Review continuity evidence</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {recordedHandoverObservationCount} / {handoverObservationBlock.length} behaviors recorded.
+            </p>
+            <div className="mt-4 space-y-2">
+              {handoverObservationBlock.map((field) => (
+                <div key={field.key} className="rounded-lg border px-4 py-3">
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    {field.label}
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    {String(
+                      observations[
+                        `set${currentSet}_rep${currentRep}_${field.key}`
+                      ] || "Not recorded",
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {isTrainingEvidenceCapture &&
           !set?.isModelingSet &&
           repStarted &&
@@ -4428,7 +4621,8 @@ function IntroSessionDrillRunnerCore({
       )}
       {(
         !(isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted) &&
-        !(sandboxHandoverEnabled && (!repStarted || !handoverExecutionFinished)) &&
+        !(isHandoverContinuityVerification && (!repStarted || !handoverExecutionFinished)) &&
+        !(isHandoverContinuityVerification && !handoverObservationReview) &&
         !((isAdaptiveDiagnosisMode || isHandoverMode) && !submitSuccess && (!prepReady || !!adaptiveTransition))
       ) && (
       <div className="mt-6 flex justify-end">
@@ -4436,10 +4630,28 @@ function IntroSessionDrillRunnerCore({
           <button
             type="button"
             className="mr-2 px-4 py-2 rounded-md border border-primary/20 bg-background hover:bg-primary/5 disabled:opacity-60"
-            onClick={handleBackStep}
-            disabled={submitting || (isFirstSet && isFirstRep && (!isSessionMode || sessionTopicIndex === 0))}
+            onClick={() => {
+              if (isHandoverContinuityVerification && handoverObservationReview) {
+                setHandoverObservationReview(false);
+                setHandoverObservationIndex(
+                  Math.max(0, handoverObservationBlock.length - 1),
+                );
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                return;
+              }
+              handleBackStep();
+            }}
+            disabled={
+              submitting ||
+              (!isHandoverContinuityVerification &&
+                isFirstSet &&
+                isFirstRep &&
+                (!isSessionMode || sessionTopicIndex === 0))
+            }
           >
-            Back
+            {isHandoverContinuityVerification && handoverObservationReview
+              ? "Back to observations"
+              : "Back"}
           </button>
         )}
         <button
