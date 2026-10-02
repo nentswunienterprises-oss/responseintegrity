@@ -63,37 +63,37 @@ const TUTOR_SOURCE_FILES = [
   {
     key: "intro_session_structure",
     title: "Intro Session Structure",
-    description: "Response Integrity-OS BATTLE TEST: INTRO SESSION STRUCTURE (SCORING VERSION)",
+    description: "Specialist operating integrity for Intro Diagnosis structure and evidence-complete placement.",
     path: optionalExistingPath(resolve(TUTOR_SESSION_INFRASTRUCTURE_ROOT, "Intro Session Structure.md")),
   },
   {
     key: "logging_system",
     title: "Logging System",
-    description: "Response Integrity-OS BATTLE TEST: LOGGING SYSTEM (SCORING VERSION)",
+    description: "Specialist evidence integrity across observation, intervention, observability, and lineage.",
     path: optionalExistingPath(resolve(TUTOR_SESSION_INFRASTRUCTURE_ROOT, "Logging System.md")),
   },
   {
     key: "session_flow_control",
     title: "Session Flow Control",
-    description: "Response Integrity-OS BATTLE TEST: SESSION CONTEXT & DRILL FLOW (SCORING VERSION)",
+    description: "Specialist control of session context, drill authority, and system-directed flow.",
     path: optionalExistingPath(resolve(TUTOR_SESSION_INFRASTRUCTURE_ROOT, "Session Flow Control.md")),
   },
   {
     key: "drill_library",
     title: "Drill Library",
-    description: "Response Integrity-OS BATTLE TEST: DRILL LIBRARY (SCORING VERSION)",
+    description: "Specialist use of registered drills, set constraints, and evidence conditions.",
     path: optionalExistingPath(resolve(TUTOR_SESSION_INFRASTRUCTURE_ROOT, "Drill Library.md")),
   },
   {
     key: "handover_verification",
     title: "Handover Verification",
-    description: "Response Integrity-OS BATTLE TEST: HANDOVER VERIFICATION (SCORING VERSION)",
+    description: "Specialist continuity verification at reassignment boundaries without replacing Diagnosis.",
     path: optionalExistingPath(resolve(TUTOR_SESSION_INFRASTRUCTURE_ROOT, "Handover verification.md")),
   },
   {
     key: "tools_required",
     title: "Tools Required",
-    description: "Response Integrity-OS BATTLE TEST: TOOLS REQUIRED (SCORING VERSION)",
+    description: "Specialist observability and workspace setup required for trustworthy live evidence.",
     path: optionalExistingPath(resolve(TUTOR_SESSION_INFRASTRUCTURE_ROOT, "Tools Required.md")),
   },
 ] as const;

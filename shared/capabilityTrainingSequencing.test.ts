@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildCapabilityTrainingAvailability,
+  getCapabilityTrainingAssessmentPlan,
   isCapabilityTransformationSandboxReady,
   type CapabilityTrainingActiveBank,
   type CapabilityTrainingAttempt,
@@ -52,6 +53,35 @@ function pass(
     completedAt,
   };
 }
+
+test("active Training plan exposes all 20 Deep Dive Mastery checks across the four modules", () => {
+  const plan = getCapabilityTrainingAssessmentPlan();
+  const mastery = plan.filter((entry) => entry.evidenceKind === "mastery");
+  assert.equal(mastery.length, 20);
+
+  const availability = buildCapabilityTrainingAvailability({
+    now: "2026-10-02T06:00:00Z",
+    activeBanks: [],
+    attempts: [],
+  });
+
+  assert.equal(
+    availability.filter((entry) => entry.stage === "transformation_mastery").length,
+    5,
+  );
+  assert.equal(
+    availability.filter((entry) => entry.stage === "execution_standards_mastery").length,
+    5,
+  );
+  assert.equal(
+    availability.filter((entry) => entry.stage === "system_intelligence_mastery").length,
+    4,
+  );
+  assert.equal(
+    availability.filter((entry) => entry.stage === "session_infrastructure_mastery").length,
+    6,
+  );
+});
 
 test("Transformation Retrieval waits for all five Mastery passes and the spacing interval", () => {
   const fourPasses = transformationMasteryKeys
