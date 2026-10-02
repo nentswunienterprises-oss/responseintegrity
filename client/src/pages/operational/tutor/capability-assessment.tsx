@@ -468,13 +468,19 @@ export default function SpecialistCapabilityAssessment() {
     }));
   };
 
-  const optionClasses = (optionKey: string, active: boolean) => {
+  const optionClasses = (
+    optionKey: string,
+    active: boolean,
+    kind: CapabilityQuestionKind = "single_choice",
+  ) => {
     const wasConfirmed = currentConfirmation?.selectedOptionKeys.includes(optionKey);
     if (wasConfirmed && currentConfirmation?.correct) {
       return "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/20";
     }
     if (wasConfirmed && currentConfirmation && !currentConfirmation.correct) {
-      return "border-red-500 bg-red-500/10 ring-1 ring-red-500/20";
+      return kind === "multi_select"
+        ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+        : "border-red-500 bg-red-500/10 ring-1 ring-red-500/20";
     }
     if (currentConfirmation) return "opacity-60";
     return active
@@ -785,7 +791,7 @@ export default function SpecialistCapabilityAssessment() {
                       onClick={() =>
                         selectSingle(currentQuestion.key, option.key)
                       }
-                      className={`flex w-full items-start gap-3 rounded-lg border p-4 text-left transition ${optionClasses(option.key, active)}`}
+                      className={`flex w-full items-start gap-3 rounded-lg border p-4 text-left transition ${optionClasses(option.key, active, currentQuestion.kind)}`}
                     >
                       <span
                         className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
@@ -838,7 +844,7 @@ export default function SpecialistCapabilityAssessment() {
                                 )
                               ? currentConfirmation.correct
                                 ? "border-emerald-500 bg-emerald-500 text-white"
-                                : "border-red-500 bg-red-500 text-white"
+                                : "border-primary bg-primary text-primary-foreground"
                               : ""
                         }`}
                       >

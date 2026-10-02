@@ -186,6 +186,24 @@ function resolveQuestionFeedback(
     }
   }
 
+  if (question.kind === "multi_select") {
+    const selected = new Set(selectedOptionKeys);
+    const correctKeys = new Set(question.correctOptionKeys);
+    const selectedWrongKeys = selectedOptionKeys.filter((key) => !correctKeys.has(key));
+    const missedCorrectKeys = question.correctOptionKeys.filter((key) => !selected.has(key));
+    const feedback = [
+      ...selectedWrongKeys.map((key) => question.optionFeedback?.[key]),
+      ...missedCorrectKeys.map((key) => question.optionFeedback?.[key]),
+    ]
+      .filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
+      .map((value) => cleanCapabilityDisplayCopy(value.trim()))
+      .filter((value, index, values) => values.indexOf(value) === index);
+
+    if (feedback.length > 0) {
+      return feedback.join(" ");
+    }
+  }
+
   return "That answer does not match the condition being tested. Continue to see the Truth.";
 }
 
