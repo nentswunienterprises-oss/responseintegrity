@@ -109,37 +109,37 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A Specialist waits until all observation fields are completed before pressing Student Finished on a passive baseline opportunity. Which statements are true? Select every option that applies."
+          prompt="A Specialist waits until all observation fields are completed before pressing Student Finished on a passive baseline opportunity. Which statements are supported?"
           options={[
             {
               key: "a",
-              label: "Yes. Confirming the form and ending the timer can happen together.",
+              label: "The timer can end when the observation form is complete because both belong to the same rep.",
               feedback: "That adds Specialist admin time to the student's execution interval and damages comparability.",
             },
             {
               key: "b",
-              label: "No. Freeze Student Finished at actual mathematical completion, then finish observation admin.",
-              feedback: "Yes. The baseline measures student execution, not Specialist form completion.",
+              label: "Student Finished should freeze at the student's actual mathematical completion.",
+              feedback: "The baseline measures student execution, not Specialist form completion.",
             },
             {
               key: "c",
-              label: "Yes, as long as the added time is similar on every rep.",
+              label: "Administration delay is acceptable if it is roughly the same on every rep.",
               feedback: "Artificial admin delay is not student execution and cannot become part of the baseline.",
             },
-              {
-                key: "d",
-                label: "No. Post-response observation entry should happen after the execution interval has already been frozen.",
-                feedback: "Yes. Student execution time and Specialist administration must remain separate.",
-              },
-              {
-                key: "e",
-                label: "Yes, if the Specialist always completes the same number of observation fields before pressing Student Finished.",
-                feedback: "Consistent admin delay is still not student execution and cannot become part of the baseline.",
-              },
+            {
+              key: "d",
+              label: "Observation administration belongs after the execution interval has been frozen.",
+              feedback: "Student execution time and Specialist administration must remain separate.",
+            },
+            {
+              key: "e",
+              label: "Administration delay is acceptable if the Specialist completes the same number of fields on every rep.",
+              feedback: "Consistent admin delay is still not student execution and cannot become part of the baseline.",
+            },
           ]}
           kind="multi_select"
           correctOptionKeys={["b","d"]}
-          truth="The execution boundary must be frozen before post-response administration."
+          truth="The baseline measures the student's execution interval. Freeze Student Finished at actual completion, then complete the post-response observation work."
         />
 
         <Card className="p-6 space-y-4">
