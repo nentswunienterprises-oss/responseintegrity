@@ -197,13 +197,23 @@ export default function ResponseConditioningTopicConditioning() {
               label: "Clarity, because every new topic must always restart from the first phase.",
               feedback: "A new topic needs evidence-complete placement. It is not automatically forced to Clarity.",
             },
+            {
+              key: "d",
+              label: "Structured Execution Low, because it is the least assumptive middle state.",
+              feedback: "Any pre-placement still assumes a state before this topic has produced the evidence needed to support it.",
+            },
+            {
+              key: "e",
+              label: "Use the strongest nearby topic as the provisional state until this topic produces enough evidence.",
+              feedback: "Topic state does not transfer from another arena. The neutral baseline exists precisely because this topic has no reliable starting signal.",
+            },
           ]}
           correctOptionKey="b"
           truth="When the signal is uncertain, RI-OS starts neutral and lets the response reveal which earlier layer needs to be resolved."
         />
 
         <DeepDiveTeachingInteraction
-          prompt="A student scores 86% in a familiar class test, but in RI their structure repeatedly breaks when the same method appears in less familiar forms. How should the class-test mark be used?"
+          prompt="A student scores 86% in a familiar class test, but in RI their structure repeatedly breaks when the same method appears in less familiar forms. Which statements should remain true? Select every option that applies."
           options={[
             {
               key: "a",
@@ -220,8 +230,19 @@ export default function ResponseConditioningTopicConditioning() {
               label: "Keep the mark as academic context, while letting direct RI evidence of how the student responds determine the topic's phase and stability.",
               feedback: "Yes. Academic performance matters, but conditioned-response state comes from what the student actually does inside the RI condition.",
             },
+            {
+              key: "d",
+              label: "A strong class-test result can coexist with instability under changed form because the two settings are answering different questions.",
+              feedback: "Yes. School performance and RI response evidence can both be true without one cancelling the other.",
+            },
+            {
+              key: "e",
+              label: "Once direct RI evidence exists, ignore the class-test mark completely because school performance is no longer relevant.",
+              feedback: "RI does not discard school performance. It remains useful academic context even though it does not determine RI phase or stability.",
+            },
           ]}
-          correctOptionKey="c"
+          kind="multi_select"
+          correctOptionKeys={["c","d"]}
           truth="A strong class-test result can coexist with a response that loses structure when familiarity or challenge changes. RI uses direct response evidence for phase and stability, while school performance remains useful context."
         />
 
@@ -328,6 +349,16 @@ export default function ResponseConditioningTopicConditioning() {
               label: "Yes, but only as a temporary timer until Fractions produces more evidence.",
               feedback: "A temporary invented timer would still create unauthorized pressure evidence.",
             },
+            {
+              key: "d",
+              label: "Use 44 seconds for the first Fractions rep only, then replace it with the Fractions timing that appears.",
+              feedback: "The first rep would still be running under invented topic pressure. Temporary use does not make borrowed timing authoritative.",
+            },
+            {
+              key: "e",
+              label: "Use 44 seconds if the Algebra and Fractions problems are both normal difficulty and same form.",
+              feedback: "Comparable problem design does not make execution speed interchangeable across topics. Timing authority remains student-and-topic specific.",
+            },
           ]}
           correctOptionKey="b"
           truth="Every active topic carries its own evidence lineage, including individualized timing authority when TPS is relevant."
@@ -370,6 +401,16 @@ export default function ResponseConditioningTopicConditioning() {
               label: "Start both topics from the lower state so the programme stays consistent.",
               feedback: "Consistency does not mean one shared state. RI preserves different topic histories when the evidence differs.",
             },
+            {
+              key: "d",
+              label: "Keep Fractions in Clarity but inherit High Maintenance stability from Algebra because stability reflects the student more generally.",
+              feedback: "Stability is attached to the active topic state. Strength in another topic cannot upgrade Fractions evidence.",
+            },
+            {
+              key: "e",
+              label: "Start Fractions in Structured Execution Medium because Algebra already proves the student can execute independently.",
+              feedback: "Independent execution in one topic does not prove the same response layer in another. Fractions begins from its own supported state.",
+            },
           ]}
           correctOptionKey="b"
           truth="Topic state is local to the topic. Strength in Algebra can be useful context, but Fractions begins from the phase and stability supported by Fractions evidence."
@@ -410,6 +451,16 @@ export default function ResponseConditioningTopicConditioning() {
               key: "c",
               label: "Run a separate High Maintenance drill because that is the next state to confirm.",
               feedback: "High Maintenance is an earned stability state, not a separate drill the Specialist can choose in advance.",
+            },
+            {
+              key: "d",
+              label: "Mark High Maintenance once High has appeared more than once in the same session.",
+              feedback: "High Maintenance is earned through the defined later qualifying evidence, not by a Specialist counting strong moments inside one session.",
+            },
+            {
+              key: "e",
+              label: "Use the first Structured Execution set as a provisional confirmation of whether Clarity really deserved High Maintenance.",
+              feedback: "Crossing into the next phase before High Maintenance is earned bypasses the same-phase confirmation boundary.",
             },
           ]}
           correctOptionKey="a"
@@ -523,6 +574,16 @@ export default function ResponseConditioningTopicConditioning() {
               label: "The topic should advance after fewer successful reps so the higher package frequency does not slow perceived progress.",
               feedback: "Package value cannot be protected by weakening the evidence gate. Progression still depends on the same response proof.",
             },
+            {
+              key: "d",
+              label: "Keep the same phase rules but require fewer qualifying reps because the evidence is arriving at a higher frequency.",
+              feedback: "Frequency changes calendar spacing, not the amount or quality of evidence required for movement.",
+            },
+            {
+              key: "e",
+              label: "Increase difficulty and time pressure sooner because a higher package cadence should accelerate the transformation sequence.",
+              feedback: "More sessions do not authorize earlier pressure. Phase conditions still change only when RI-OS has the required evidence.",
+            },
           ]}
           correctOptionKey="b"
           truth="Package cadence and educational state are separate. More sessions create more opportunities to produce evidence, but they do not alter the evidence required for movement."
@@ -563,6 +624,16 @@ export default function ResponseConditioningTopicConditioning() {
               key: "c",
               label: "Preserve supported earlier layers and locate the first response behavior that becomes unsupported.",
               feedback: "Yes. RI follows the response chain rather than assigning the phase from the final answer or from where the error happened chronologically.",
+            },
+            {
+              key: "d",
+              label: "Treat the whole response as a topic failure and restart Diagnosis because the final answer is wrong.",
+              feedback: "The final answer cannot erase directly supported recognition and execution behavior. RI keeps the earlier supported layers intact.",
+            },
+            {
+              key: "e",
+              label: "Treat it as Time Pressure Stability because arithmetic errors usually appear when execution is rushed.",
+              feedback: "No time-pressure condition is established by the prompt. RI does not assign a later phase from an assumed cause.",
             },
           ]}
           correctOptionKey="c"

@@ -220,6 +220,16 @@ export default function ResponseConditioningStructuredExecution() {
               label: "Return to Clarity, because skipped steps mean the method is no longer understood.",
               feedback: "Skipped execution does not automatically prove a recognition failure. RI preserves earlier supported layers unless the evidence actually contradicts them.",
             },
+            {
+              key: "d",
+              label: "Treat the skipped steps as an arithmetic detail and keep Structured Execution strong because the outcome was correct.",
+              feedback: "The phase is about carrying the method structure visibly and repeatably. Missing required steps are not repaired by the final answer.",
+            },
+            {
+              key: "e",
+              label: "Move to Variation Control because skipping steps shows the familiar form is already fluent enough.",
+              feedback: "Variation Control requires the base execution structure to be reliable first; skipped required steps do not prove that.",
+            },
           ]}
           correctOptionKey="b"
           truth="Structured Execution requires visible, repeatable method use. A correct answer cannot substitute for evidence that the student can carry the known structure independently."
@@ -260,6 +270,16 @@ export default function ResponseConditioningStructuredExecution() {
               key: "b",
               label: "Several appropriate problems using the known method, so the sequence can be observed repeatedly.",
               feedback: "Yes. The material should expose repeatable execution of the known method without silently turning the task into new-method learning.",
+            },
+            {
+              key: "d",
+              label: "Mix familiar and changed forms in the same set so the Specialist can test structure and transfer at once.",
+              feedback: "Required Structure and Variation Control answer different questions. Mixing them makes the source of breakdown less clear.",
+            },
+            {
+              key: "e",
+              label: "Use one long complex problem instead of repeated comparable opportunities, because one problem can expose the entire sequence.",
+              feedback: "One complex opportunity gives less repeatability evidence and can add difficulty that the set is not meant to test.",
             },
           ]}
           correctOptionKey="b"
@@ -383,6 +403,16 @@ export default function ResponseConditioningStructuredExecution() {
               label: "Ask, 'What do you think?' so the student remains the one choosing the next step.",
               feedback: "Reflecting the question back still becomes a prompt that can carry a stalled response. In a no-help rep, the support request itself is evidence.",
             },
+            {
+              key: "d",
+              label: "Say nothing but nod if the step is correct, because non-verbal confirmation does not count as help.",
+              feedback: "A nod still resolves uncertainty for the student and can direct the next action. No-help includes non-verbal confirmation.",
+            },
+            {
+              key: "e",
+              label: "End the rep and reteach immediately, then record only the corrected execution.",
+              feedback: "The support request and stalled response are already evidence. Teaching before recording would overwrite the condition that produced them.",
+            },
           ]}
           correctOptionKey="c"
           truth="No-help execution must remain no-help when the student becomes uncertain. The request for support is evidence; answering it would change what the rep measures."
@@ -405,7 +435,7 @@ export default function ResponseConditioningStructuredExecution() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="The student stalls. The Specialist silently points to the line where the next step should happen, and the student completes the method. How should that support be treated?"
+          prompt="The student stalls. The Specialist silently points to the line where the next step should happen, and the student completes the method. Which statements are true? Select every option that applies."
           options={[
             {
               key: "a",
@@ -422,8 +452,19 @@ export default function ResponseConditioningStructuredExecution() {
               label: "As support, because the gesture supplied direction when execution had stalled.",
               feedback: "Yes. RI records the functional effect of the Specialist's action, not merely whether help was verbal.",
             },
+            {
+              key: "d",
+              label: "The stall before the gesture remains evidence of where independent execution stopped.",
+              feedback: "Yes. The support does not erase the point at which the student's unaided execution ended.",
+            },
+            {
+              key: "e",
+              label: "The later completion can still be logged as fully independent because the Specialist never verbalised the next step.",
+              feedback: "Non-verbal direction can carry execution just as verbal prompting can. Later completion does not restore a clean no-help condition.",
+            },
           ]}
-          correctOptionKey="c"
+          kind="multi_select"
+          correctOptionKeys={["c","d"]}
           truth="Non-verbal direction can contaminate independent execution just as verbal prompting can. The evidence must preserve where the student stopped and what the Specialist supplied."
         />
 
@@ -460,6 +501,16 @@ export default function ResponseConditioningStructuredExecution() {
               key: "c",
               label: "A harder unfamiliar problem, because losing the method under change means the student is ready for Controlled Discomfort.",
               feedback: "Variation is not automatically a difficulty-phase condition. The current evidence still concerns transfer of the known execution structure.",
+            },
+            {
+              key: "d",
+              label: "Return to Required Structure because any changed-form failure proves the familiar execution was not truly stable.",
+              feedback: "A transfer breakdown can exist even when familiar-form structure is supported. RI should not erase that earlier evidence automatically.",
+            },
+            {
+              key: "e",
+              label: "Keep the changed form but add minimal hints so the student can show whether the method returns with a little support.",
+              feedback: "Variation Control is a no-help transfer condition. Adding hints would answer a different question.",
             },
           ]}
           correctOptionKey="a"

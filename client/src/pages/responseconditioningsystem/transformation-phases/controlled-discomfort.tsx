@@ -220,6 +220,16 @@ export default function ResponseConditioningControlledDiscomfort() {
               label: "The student's independence by adding a timer instead of offering help, so the pressure comes from time rather than the Specialist.",
               feedback: "A timer introduces a later-phase constraint. It does not preserve the current difficulty condition; it changes what is being tested.",
             },
+            {
+              key: "d",
+              label: "Keep the difficulty but add extra hints so the student can remain inside the problem without feeling stranded.",
+              feedback: "Extra help changes the support boundary. Controlled Discomfort requires the assigned difficulty and the assigned support condition together.",
+            },
+            {
+              key: "e",
+              label: "Replace it with an equally hard changed-form problem so the challenge stays high while the frustration resets.",
+              feedback: "Changing form introduces a Structured Execution transfer variable. Controlled Discomfort should keep the underlying form comparable.",
+            },
           ]}
           correctOptionKey="b"
           truth="Controlled Discomfort keeps difficulty present when the task is still appropriate and accessible. The Specialist neither removes the challenge nor adds a later pressure variable just because discomfort appears."
@@ -260,6 +270,16 @@ export default function ResponseConditioningControlledDiscomfort() {
               key: "c",
               label: "A familiar easy problem under a strict timer, because urgency can create discomfort without changing the mathematics.",
               feedback: "That makes time the active pressure variable. Controlled Discomfort is meant to isolate response to difficulty before urgency is added.",
+            },
+            {
+              key: "d",
+              label: "A changed-form problem using the same method but no extra difficulty, because unfamiliarity creates the right discomfort.",
+              feedback: "Changed form belongs to Variation Control. Controlled Discomfort should load difficulty while preserving same-form comparability.",
+            },
+            {
+              key: "e",
+              label: "A normal same-form problem with no support, because removing help is enough to create Controlled Discomfort.",
+              feedback: "No support by itself does not create the difficult problem load this phase is meant to condition.",
             },
           ]}
           correctOptionKey="a"
@@ -377,6 +397,16 @@ export default function ResponseConditioningControlledDiscomfort() {
               label: "Refuse every form of support, even if the set's defined first-step boundary has not yet been used.",
               feedback: "Being stricter than the assigned condition also changes the rep. The Specialist must preserve the defined boundary, not invent a harsher one.",
             },
+            {
+              key: "d",
+              label: "Give encouragement that clearly confirms the student's proposed first step, because encouragement is not method support.",
+              feedback: "Confirmation can still steer the response. The Specialist must stay inside the exact support the set permits.",
+            },
+            {
+              key: "e",
+              label: "Move back to Controlled Entry because asking for help shows the student needs a more supportive set.",
+              feedback: "A support request is evidence inside the current condition, not automatic authority for the Specialist to change the set.",
+            },
           ]}
           correctOptionKey="b"
           truth="No Rescue means no support beyond the set's defined boundary. The Specialist neither expands the support because the student is uncomfortable nor makes the condition harsher than RI assigned."
@@ -398,7 +428,7 @@ export default function ResponseConditioningControlledDiscomfort() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="The Specialist preserves the difficulty and support boundary, but the student eventually stops and cannot continue. Is the rep invalid?"
+          prompt="The Specialist preserves the difficulty and support boundary, but the student eventually stops and cannot continue. Which statements are true? Select every option that applies."
           options={[
             {
               key: "a",
@@ -415,8 +445,19 @@ export default function ResponseConditioningControlledDiscomfort() {
               label: "No. Rep validity comes from preserving the condition, not from whether the student completes it.",
               feedback: "Yes. Weak learner performance and correct Specialist execution can coexist.",
             },
+            {
+              key: "d",
+              label: "The stopping point is usable evidence of how the response behaved under the assigned difficulty.",
+              feedback: "Yes. A clean breakdown can be the exact evidence the set was meant to expose.",
+            },
+            {
+              key: "e",
+              label: "Run a replacement because non-completion cannot count toward stability evidence.",
+              feedback: "Replacement is not a second chance for weak student performance. The valid non-completion remains evidence.",
+            },
           ]}
-          correctOptionKey="c"
+          kind="multi_select"
+          correctOptionKeys={["c","d"]}
           truth="A Controlled Discomfort rep can be valid even when the student breaks down. Rep validity comes from preserving the assigned condition; the learner's response is what the condition is meant to reveal."
         />
 
@@ -450,6 +491,16 @@ export default function ResponseConditioningControlledDiscomfort() {
               key: "c",
               label: "The same problem repeated immediately, because reproducing the successful response removes uncertainty about whether it was learned.",
               feedback: "Repeating the identical problem can introduce memory of the specific solution. RI needs another comparable exposure, not simple recall of the same task.",
+            },
+            {
+              key: "d",
+              label: "Repeat the same successful problem after a delay, because memory will be weaker and the result will be more trustworthy.",
+              feedback: "The same exposed problem still carries task-specific memory. RI needs a fresh comparable exposure, not delayed recall of the same solution.",
+            },
+            {
+              key: "e",
+              label: "Move to a harder problem while keeping the same support boundary, because stability is best confirmed by escalation.",
+              feedback: "Escalating difficulty changes the demand. Stability at the current condition is shown by comparable repetition first.",
             },
           ]}
           correctOptionKey="b"

@@ -286,6 +286,16 @@ export default function ResponseConditioningTimePressureStability() {
               label: "Yes, if the Specialist adds roughly the same admin time to all three reps.",
               feedback: "Artificial admin delay is never part of the student's execution baseline.",
             },
+            {
+              key: "d",
+              label: "Use the elapsed time but subtract the 20 seconds manually before the baseline is stored.",
+              feedback: "Manual correction cannot recreate the system-owned execution boundary. The timer must freeze at actual completion.",
+            },
+            {
+              key: "e",
+              label: "Average the extra administration time across the three baseline reps before taking the median.",
+              feedback: "Consistent administration delay is still not student execution and must not enter the baseline.",
+            },
           ]}
           correctOptionKey="b"
           truth="Measurement integrity depends on freezing the real student execution boundary before observation administration."
@@ -346,6 +356,16 @@ export default function ResponseConditioningTimePressureStability() {
               label: "The student is ready for a tighter timer because the successful guess shows unused speed capacity.",
               feedback: "A tighter constraint is not earned from an attempt that already lost method integrity.",
             },
+            {
+              key: "d",
+              label: "Count it as stable if the guess was a mathematically valid shortcut, because TPS only cares that the response stays functional.",
+              feedback: "TPS pressures an already-trained response. Abandoning the trained method under urgency is itself instability.",
+            },
+            {
+              key: "e",
+              label: "Keep the timing as valid but mark structure as not observed because the student reached the answer too quickly to inspect it.",
+              feedback: "The method loss was observed: the student guessed instead of preserving the known response. It should not be converted into missing evidence.",
+            },
           ]}
           correctOptionKey="b"
           truth="The timer is an added constraint on an already-trained response. A fast or correct answer does not count as stability when urgency causes the method structure to disappear."
@@ -386,6 +406,16 @@ export default function ResponseConditioningTimePressureStability() {
               key: "c",
               label: "No. The later timer needs timing evidence produced under the eligible independence condition.",
               feedback: "Yes. Pressure must be derived from timing evidence that reflects the response RI intends to stress-test.",
+            },
+            {
+              key: "d",
+              label: "Yes, if the same prompts are used consistently across all three baseline reps.",
+              feedback: "Consistent contamination is still contamination. The baseline must represent independent execution, not standardized prompting.",
+            },
+            {
+              key: "e",
+              label: "Use only the unsupported portions of the rep and subtract the time spent responding to the prompts.",
+              feedback: "The execution interval cannot be reconstructed into an independent rep by manually removing supported moments.",
             },
           ]}
           correctOptionKey="c"
@@ -514,6 +544,16 @@ export default function ResponseConditioningTimePressureStability() {
               label: "Treat it as a student timeout if the final completion exceeds the original limit.",
               feedback: "The timing condition failed technically. The student cannot be assigned a timing failure from a timer that did not operate correctly.",
             },
+            {
+              key: "d",
+              label: "Restart the same exposed problem from the beginning once the timer is working again.",
+              feedback: "The student has already seen and begun the problem. Reusing it would create a second chance rather than a fresh equivalent reserve.",
+            },
+            {
+              key: "e",
+              label: "Discard the failed attempt completely, then record only the replacement so the timing record stays clean.",
+              feedback: "Technical failure remains part of the evidence history. Recovery fills the unresolved slot without erasing the failed attempt.",
+            },
           ]}
           correctOptionKey="c"
           truth="Objective timer failure invalidates the timed condition, not the student's response. Preserve the failed attempt in lineage and fill the unresolved slot only with a fresh pre-prepared equivalent reserve under the same Timer Contract."
@@ -535,7 +575,7 @@ export default function ResponseConditioningTimePressureStability() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="The timer works correctly, but the student freezes and does not finish. What is the correct evidence treatment?"
+          prompt="The timer works correctly, but the student freezes and does not finish. Which statements are true? Select every option that applies."
           options={[
             {
               key: "a",
@@ -552,8 +592,19 @@ export default function ResponseConditioningTimePressureStability() {
               label: "Mark the attempt as confounded, because freezing is an emotional response rather than mathematical performance.",
               feedback: "RI is explicitly observing whether the student can remain functional under the condition. Freezing is part of that response, not a reason to erase it.",
             },
+            {
+              key: "d",
+              label: "No replacement is unlocked because the timing condition itself did not fail.",
+              feedback: "Yes. Replacement authority comes from objective failure of the timing condition, not weak learner performance.",
+            },
+            {
+              key: "e",
+              label: "The freeze and non-completion remain learner evidence under the valid timed condition.",
+              feedback: "Yes. TPS is explicitly observing whether the trained response survives urgency.",
+            },
           ]}
-          correctOptionKey="b"
+          kind="multi_select"
+          correctOptionKeys={["b","d","e"]}
           truth="When the timer is valid, timeout, freezing, wrong method or incomplete work are learner evidence. Replacement is reserved for objective failure of the timing condition itself."
         />
 
@@ -587,6 +638,16 @@ export default function ResponseConditioningTimePressureStability() {
               key: "c",
               label: "Preserve the assigned timer and record the structure loss as learner evidence under that condition.",
               feedback: "Yes. The Specialist protects the timing contract rather than adjusting the condition to produce a cleaner-looking response.",
+            },
+            {
+              key: "d",
+              label: "Add the same amount of extra time to this and all future reps so the condition stays comparable.",
+              feedback: "Making the same unauthorized change repeatedly does not restore the system-owned timing condition.",
+            },
+            {
+              key: "e",
+              label: "Stop the timer and finish the problem untimed inside the same rep so the Specialist can separate knowledge from pressure.",
+              feedback: "That turns one timed evidence opportunity into two different conditions. The timed response should be preserved first; any later lower-pressure check is a separate system-directed action.",
             },
           ]}
           correctOptionKey="c"

@@ -195,6 +195,16 @@ export default function ResponseConditioningClarity() {
               label: "Allow only the first few steps, then ask the student to explain the method before finishing.",
               feedback: "Partial solving still changes the evidence condition. The rep is meant to show recognition before any execution begins.",
             },
+            {
+              key: "d",
+              label: "Let the solve finish, then infer that recognition must have been present because the method was used correctly.",
+              feedback: "Execution can hide whether the student recognized the type, method and reason before solving. RI does not infer the missing recognition event.",
+            },
+            {
+              key: "e",
+              label: "Treat the solve as Light Apply and skip Identification because the student has already demonstrated a later response.",
+              feedback: "A student drifting into a later task does not give the Specialist authority to skip the condition RI assigned.",
+            },
           ]}
           correctOptionKey="b"
           truth="Identification is a recognition condition, not a shortened solve. The student must identify what they are looking at, the method and the reason before execution begins."
@@ -237,6 +247,16 @@ export default function ResponseConditioningClarity() {
               key: "c",
               label: "Examples with the same underlying structure but enough surface variation to require recognition.",
               feedback: "Yes. The student has to recognise the underlying structure without the set becoming a difficulty test.",
+            },
+            {
+              key: "d",
+              label: "Use the same visual layout each time but change the numbers, so recognition can be measured without adding difficulty.",
+              feedback: "Surface sameness can still let the student pattern-match the presentation instead of recognizing the underlying structure.",
+            },
+            {
+              key: "e",
+              label: "Use difficult unfamiliar examples but permit prompts when recognition stalls, so the Specialist can separate difficulty from knowledge.",
+              feedback: "That combines extra difficulty with support. The set would no longer isolate clean recognition.",
             },
           ]}
           correctOptionKey="c"
@@ -352,6 +372,16 @@ export default function ResponseConditioningClarity() {
               label: "High stability, because the student needed prompts but never needed the actual method explained.",
               feedback: "Prompt dependence is still dependence. Stability cannot be strengthened by support that the independent condition was meant to withhold.",
             },
+            {
+              key: "d",
+              label: "Mostly independent evidence, because the student still had to generate the words and calculations after each prompt.",
+              feedback: "The prompts carried the decision path. The student producing the response after directional help does not restore independence.",
+            },
+            {
+              key: "e",
+              label: "Clarity evidence only, because prompts affect execution but do not affect whether the student understood the method.",
+              feedback: "Leading questions can shape recognition and execution. Their functional effect must stay visible in the evidence.",
+            },
           ]}
           correctOptionKey="b"
           truth="Support is defined by what it does to the task, not only by whether the Specialist gives the literal answer. Direction that carries the student must remain visible in the evidence."
@@ -374,7 +404,7 @@ export default function ResponseConditioningClarity() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A correctly prepared Identification rep is run without contamination, and the student cannot name the method. What has failed?"
+          prompt="A correctly prepared Identification rep is run without contamination, and the student cannot name the method. Which statements are true? Select every option that applies."
           options={[
             {
               key: "c",
@@ -391,8 +421,19 @@ export default function ResponseConditioningClarity() {
               label: "The evidence event, because a rep that does not produce a correct response must be repeated before it can count.",
               feedback: "A genuine breakdown is already useful evidence. Repeating until success would replace observation with outcome-chasing.",
             },
+            {
+              key: "d",
+              label: "The Specialist can still have executed the rep correctly even though the learner response was weak.",
+              feedback: "Yes. Correct Specialist execution and weak student performance can coexist.",
+            },
+            {
+              key: "e",
+              label: "The rep should be repeated until the student names the method so the evidence event has a complete result.",
+              feedback: "Repeating until success would chase a preferred outcome. The first clean breakdown is already useful evidence.",
+            },
           ]}
-          correctOptionKey="c"
+          kind="multi_select"
+          correctOptionKeys={["c","d"]}
           truth="A weak learner response can come from a correctly executed rep. If the Specialist preserved the condition, the breakdown is valid evidence of what the student could not yet produce independently."
         />
 
@@ -429,6 +470,16 @@ export default function ResponseConditioningClarity() {
               key: "c",
               label: "Run a High Maintenance drill, then decide whether Structured Execution opens.",
               feedback: "High Maintenance is the state earned from qualifying same-phase evidence, not a separate drill the Specialist chooses.",
+            },
+            {
+              key: "d",
+              label: "Upgrade to High Maintenance manually because High already means the Clarity response is reliable.",
+              feedback: "High is strong within-phase evidence, but High Maintenance is a distinct confirmation state earned through later qualifying evidence.",
+            },
+            {
+              key: "e",
+              label: "Use the first Structured Execution rep as the confirmation of whether Clarity High was real.",
+              feedback: "The next phase cannot be used to manufacture the confirmation required before leaving the current phase.",
             },
           ]}
           correctOptionKey="b"
