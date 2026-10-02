@@ -24,6 +24,10 @@ import {
   normalizeResponseSymptoms,
   recommendStartingPhaseFromSymptoms,
 } from "@shared/responseSymptomMapping";
+import {
+  DIAGNOSIS_OBSERVATION_MATRIX,
+  type DiagnosisDimensionId,
+} from "@shared/diagnosisObservationMatrix";
 
 function splitReportedTopics(rawValue) {
   const ignoredContexts = new Set([
@@ -744,7 +748,7 @@ export function StudentCard({
         <span className="absolute bottom-3 right-3 h-3 w-3 border-b border-r border-primary/55" />
       </div>
       {sandboxCardTheme && (
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/10 px-3 py-2">
+        <div className="ri-student-info-card mb-4 flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/10 px-3 py-2">
           <div className="flex items-center gap-2">
             <span
               className="h-3 w-3 rounded-full ring-2 ring-primary/20"
@@ -771,7 +775,7 @@ export function StudentCard({
                 <Badge variant="outline" className="tutor-pod-student-card-header-badge text-[10px] uppercase tracking-[0.08em] border-primary/20 text-muted-foreground">
                   {workflowLabel}
                 </Badge>
-                <div className="rounded-xl border border-primary/20 bg-muted/20 px-3 py-1 text-right tutor-pod-student-card-header-progress">
+                <div className="ri-student-info-card rounded-xl border border-primary/20 bg-muted/20 px-3 py-1 text-right tutor-pod-student-card-header-progress">
                   <span className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{progressLabel} </span>
                   <span className="ml-1 text-lg font-semibold tabular-nums text-foreground">{sessionProgress}/{progressTotal}</span>
                 </div>
@@ -782,7 +786,7 @@ export function StudentCard({
               {studentSchool ? ` · ${studentSchool}` : ""}
             </div>
             {student.parentInfo && (
-              <div className="mt-3 rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-sm">
+              <div className="ri-student-info-card mt-3 rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-sm">
                 <p className="text-muted-foreground">Parent: <span className="font-medium text-foreground">{student.parentInfo.parent_full_name}</span></p>
                 <p className="mt-1 text-xs text-muted-foreground break-all">{student.parentInfo.parent_email}</p>
                 <div className="mt-3">
@@ -813,7 +817,7 @@ export function StudentCard({
 
       <div className="space-y-4 pt-5">
         {isSandboxStudent ? (
-          <div className="rounded-xl border border-dashed border-primary/20 bg-background p-3">
+          <div className="ri-student-info-card rounded-xl border border-dashed border-primary/20 bg-background p-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Compass className="h-4 w-4 text-primary" />
@@ -853,7 +857,7 @@ export function StudentCard({
 
         {workflow?.proposalAccepted && (
           <div className="space-y-3">
-            <div className="rounded-xl border border-primary/20 bg-muted/20 px-4 py-3">
+            <div className="ri-student-info-card rounded-xl border border-primary/20 bg-muted/20 px-4 py-3">
               <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Program Progress</p>
               <p className="mt-2 text-2xl font-semibold text-foreground tabular-nums">{sessionProgress} of {progressTotal}</p>
             </div>
@@ -880,7 +884,7 @@ export function StudentCard({
             {topicsInConditioning.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {topicsInConditioning.map((topic) => (
-                  <div key={topic.topic} className="rounded-xl border border-primary/20 bg-muted/20 px-4 py-3">
+                  <div key={topic.topic} className="ri-student-info-card rounded-xl border border-primary/20 bg-muted/20 px-4 py-3">
                     <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{topic.topic}</p>
                     <div className="mt-2 flex flex-wrap items-start gap-2">
                       <span className="min-w-0 text-sm font-medium leading-5 text-foreground">{topic.phase}</span>
@@ -912,8 +916,6 @@ export function StudentCard({
             displayTopic={displayTopic}
             displayPhase={displayPhase}
             displayStability={displayStability}
-            recommendedStartingPhase={recommendedStartingPhase}
-            recommendedStartingReason={recommendedStartingReason}
             onMarkCompleted={() => markHandoverCompleted.mutate()}
             isMarkingCompleted={markHandoverCompleted.isPending}
             completionError={
@@ -1171,8 +1173,6 @@ function HandoverVerificationSection({
   displayTopic,
   displayPhase,
   displayStability,
-  recommendedStartingPhase,
-  recommendedStartingReason,
   onMarkCompleted,
   isMarkingCompleted,
   completionError,
@@ -1181,24 +1181,54 @@ function HandoverVerificationSection({
   const sessionStatus = String(session?.status || "");
   const sessionConfirmed = ["confirmed", "ready", "live", "scheduled", "completed"].includes(sessionStatus);
   const sessionLabel = session?.type === "handover" ? "continuity check" : "handover verification";
+  const sessionHeading =
+    sessionStatus === "completed"
+      ? sessionLabel
+      : `scheduled ${sessionLabel}`;
   const latestVerification = session?.latestHandoverVerification || null;
   const latestSummary = latestVerification?.summary || null;
   const reDiagnosisRequired = !!latestSummary?.reDiagnosisRequired;
+  const handoverDimensions = Array.isArray(latestSummary?.dimensions) ? latestSummary.dimensions : [];
+  const breakdownDimensions = handoverDimensions.filter((dimension: any) => dimension?.state === "BREAKDOWN");
+  const unresolvedDimensions = handoverDimensions.filter((dimension: any) => dimension?.state === "UNRESOLVED");
+  const decisionEvidenceDimensions = reDiagnosisRequired
+    ? (breakdownDimensions.length > 0 ? breakdownDimensions : unresolvedDimensions)
+    : [];
   const canMarkComplete = sessionConfirmed && !!latestSummary && !reDiagnosisRequired;
+  const [detailsCollapsed, setDetailsCollapsed] = useState(true);
 
   return (
     <div className="pt-4 border-t border-border/60 space-y-3">
-      <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Tutor Handover Verification</p>
+      <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Handover Verification</p>
 
-      <div className="rounded-xl border border-primary/25 bg-primary/[0.07] px-4 py-3 space-y-2">
-        <p className="text-sm font-semibold text-foreground">Inherited training state is active for {studentName}.</p>
-        <p className="text-xs text-muted-foreground">
-          This student is not being re-onboarded. Use the continuity check to verify the carry-over topic-state before resuming standard training actions.
-        </p>
+      <div className="rounded-xl border border-primary/25 bg-primary/[0.07] px-4 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-foreground">Inherited training state is active for {studentName}.</p>
+            <p className="text-xs text-muted-foreground">
+              This student is not being re-onboarded. Use the continuity check to verify the carry-over topic-state before resuming standard training actions.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDetailsCollapsed((value) => !value)}
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border/60 bg-background/60 px-2.5 py-1 text-xs font-medium text-foreground transition hover:bg-muted"
+            aria-expanded={!detailsCollapsed}
+            aria-label={detailsCollapsed ? "Show handover verification details" : "Hide handover verification details"}
+          >
+            {detailsCollapsed ? "Show details" : "Hide details"}
+            {detailsCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
 
+      {!detailsCollapsed ? (
+        <div className="space-y-3">
       <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 space-y-2">
         <p className="text-[11px] font-medium text-foreground">Carry-Over State</p>
+        <p className="text-xs text-muted-foreground">
+          State inherited from the student's existing training record. It remains provisional until continuity is verified.
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
             <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Topic</p>
@@ -1215,17 +1245,9 @@ function HandoverVerificationSection({
         </div>
       </div>
 
-      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 space-y-1">
-        <p className="text-[11px] font-semibold text-foreground">System Watchpoint</p>
-        <p className="text-xs text-muted-foreground">
-          Re-enter verification around <span className="font-medium text-foreground">{recommendedStartingPhase}</span>.
-        </p>
-        <p className="text-xs text-muted-foreground">{recommendedStartingReason}</p>
-      </div>
-
       {session?.scheduled_time ? (
         <div className="rounded-xl border border-primary/20 bg-muted/20 px-4 py-3 space-y-1">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Scheduled {sessionLabel}</p>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{sessionHeading}</p>
           <p className="text-sm text-foreground">{new Date(session.scheduled_time).toLocaleString()}</p>
           <p className="text-xs text-muted-foreground">Status: {sessionStatus || "pending"}</p>
         </div>
@@ -1240,21 +1262,84 @@ function HandoverVerificationSection({
 
       {latestSummary ? (
         <div className={`rounded-xl border px-4 py-3 space-y-2 ${reDiagnosisRequired ? "border-primary/35 bg-primary/10" : "border-[rgba(255,240,240,0.14)] bg-[rgba(255,240,240,0.035)]"}`}>
-          <p className="text-[11px] font-semibold text-foreground">Latest Handover Result</p>
+          <p className="text-[11px] font-semibold text-foreground">Continuity Result</p>
           <p className="text-sm font-medium text-foreground">{latestSummary.verificationOutcomeLabel || "Verification submitted"}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Resulting Phase</p>
-              <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.resultingPhase || "-"}</p>
+          {reDiagnosisRequired ? (
+            <div className="rounded-lg border border-primary/20 bg-background/70 px-3 py-2">
+              <p className="text-xs leading-5 text-muted-foreground">
+                The inherited placement was not confirmed. No replacement phase or stability has been assigned.
+              </p>
             </div>
-            <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Resulting Stability</p>
-              <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.resultingStability || "-"}</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Confirmed Phase</p>
+                <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.resultingPhase || "-"}</p>
+              </div>
+              <div className="rounded-lg border border-primary/15 bg-background/80 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Confirmed Stability</p>
+                <p className="mt-1 text-sm font-medium text-foreground">{latestSummary.resultingStability || "-"}</p>
+              </div>
             </div>
-          </div>
+          )}
+          {reDiagnosisRequired && decisionEvidenceDimensions.length > 0 ? (
+            <div className="rounded-lg border border-primary/20 bg-background/70 px-3 py-3 space-y-3">
+              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                Evidence that triggered this result
+              </p>
+              <div className="space-y-3">
+                {decisionEvidenceDimensions.map((dimension: any) => {
+                  const canonical = DIAGNOSIS_OBSERVATION_MATRIX[
+                    dimension.dimensionId as DiagnosisDimensionId
+                  ];
+                  const evidence = Array.isArray(dimension?.evidence) ? dimension.evidence : [];
+                  const triggerEvidence = dimension?.state === "BREAKDOWN"
+                    ? evidence.filter((item: any) => item?.evidenceClass === "breakdown")
+                    : evidence.filter((item: any) =>
+                        item?.evidenceClass === "not_observed" || item?.evidenceClass === "confounded"
+                      );
+                  const visibleEvidence = triggerEvidence.length > 0
+                    ? triggerEvidence
+                    : evidence.slice(-1);
+
+                  return (
+                    <div key={dimension.dimensionId} className="space-y-1.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-xs font-semibold text-foreground">
+                          {canonical?.label || dimension.dimensionId}
+                        </p>
+                        <span className="shrink-0 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+                          {dimension.state === "BREAKDOWN" ? "Breakdown confirmed" : "Unresolved"}
+                        </span>
+                      </div>
+                      {visibleEvidence.length > 0 ? (
+                        <div className="space-y-1">
+                          {visibleEvidence.map((item: any, index: number) => (
+                            <p
+                              key={`${dimension.dimensionId}-${item?.repNumber || index + 1}-${item?.fieldKey || "evidence"}`}
+                              className="text-xs leading-5 text-muted-foreground"
+                            >
+                              <span className="font-medium text-foreground">
+                                Opportunity {item?.repNumber || index + 1}:
+                              </span>{" "}
+                              {item?.rawOption || "No clean decision-eligible behavior was recorded."}
+                            </p>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs leading-5 text-muted-foreground">
+                          No clean decision-eligible behavior was recorded for this dimension.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
           {latestSummary.evidenceReason ? (
             <p className="text-xs leading-5 text-muted-foreground">
-              <span className="font-medium text-foreground">Evidence:</span> {latestSummary.evidenceReason}
+              <span className="font-medium text-foreground">Why this result:</span> {latestSummary.evidenceReason}
             </p>
           ) : null}
           <p className="text-xs text-muted-foreground">{latestSummary.nextAction || "No next action recorded."}</p>
@@ -1304,18 +1389,20 @@ function HandoverVerificationSection({
               Open Targeted Re-Diagnosis
             </Button>
           ) : null}
-          <Button
-            className="w-full"
-            variant="default"
-            size="sm"
-            onClick={onMarkCompleted}
-            disabled={isMarkingCompleted || !canMarkComplete}
-          >
-            {isMarkingCompleted ? "Saving..." : "Mark Continuity Check Complete"}
-          </Button>
+          {!reDiagnosisRequired ? (
+            <Button
+              className="w-full"
+              variant="default"
+              size="sm"
+              onClick={onMarkCompleted}
+              disabled={isMarkingCompleted || !canMarkComplete}
+            >
+              {isMarkingCompleted ? "Saving..." : "Mark Continuity Check Complete"}
+            </Button>
+          ) : null}
           <p className="text-xs text-muted-foreground text-center">
             {reDiagnosisRequired
-              ? "Targeted re-diagnosis is required before continuity check can be completed."
+              ? "Run evidence-complete targeted re-diagnosis before standard training resumes."
               : "Submit a clean handover result, then mark continuity check complete to clear the handover gate."}
           </p>
         </div>
@@ -1323,6 +1410,8 @@ function HandoverVerificationSection({
 
       {completionError ? (
         <p className="text-xs text-primary text-center">{completionError}</p>
+      ) : null}
+        </div>
       ) : null}
     </div>
   );

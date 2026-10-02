@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 
 const setupVisualSrc = "/images/responseconditioning/tools-required/modelling-vs-observation-locked.png";
@@ -42,16 +43,17 @@ export default function ResponseConditioningHowToModel() {
         <DeepDiveLessonRunner
           lessonKey="how-to-model-piecewise-v3"
           title="How to Model"
-          completion={null}
+          completion={<DeepDiveCapabilityCheck assessmentKey="how_to_model_mastery_v1" />}
         >
         {/* What Modeling Is */}
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What Modeling Is</h2>
           <p className="text-muted-foreground">Modeling is when you:</p>
           <p className="font-medium">demonstrate a problem in a way that can be copied exactly</p>
-          <p className="text-muted-foreground">The goal is not understanding.</p>
-          <p className="text-muted-foreground">The goal is:</p>
-          <p className="font-medium text-lg">replication</p>
+          <p className="text-muted-foreground">
+            The goal is to build a clear, reproducible mental map the student can later recognize and use without Specialist carry.
+          </p>
+          <p className="font-medium text-lg">clear structure that can be recognized, explained, and reproduced</p>
         </Card>
 
         {/* Live Modelling Setup */}
@@ -371,9 +373,9 @@ export default function ResponseConditioningHowToModel() {
         {/* The Purpose of Modeling */}
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">The Purpose of Modeling</h2>
-          <p className="text-muted-foreground">Modeling is not teaching for understanding.</p>
+          <p className="text-muted-foreground">Modeling is not evidence that the student independently owns the method.</p>
           <p className="text-muted-foreground">It is:</p>
-          <p className="font-medium">building a system the student can execute under pressure</p>
+          <p className="font-medium">building the Topic Reference and mental map that later evidence opportunities require the student to produce and use</p>
         </Card>
 
         {/* Modelling vs Observation */}

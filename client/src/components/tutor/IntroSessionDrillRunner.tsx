@@ -25,12 +25,14 @@ import type { TopicReference, TopicReferenceContent } from "@shared/topicReferen
 import { useStudentWorkflowState } from "@/hooks/useStudentWorkflowState";
 import { supabase } from "@/lib/supabaseClient";
 import { API_URL } from "@/lib/config";
+import { getAuthMode } from "@/lib/authMode";
 import SpecialistSandboxSimulation from "@/pages/operational/tutor/sandbox-simulation";
 import { instructionPromptDisplayText, instructionPromptLabelFor } from "@/lib/instructionPromptLabel";
 import {
   LIVE_PHASE_CONTEXT,
   LiveObservationField,
   LivePhaseContext,
+  LiveSandboxStudentResponse,
   LiveRepContextCard,
   LiveRepStage,
   LiveSupportPanel,
@@ -261,6 +263,22 @@ type TpsActiveAttempt = {
   startedAt: string;
   replacementForAttemptId: string | null;
   frozenAttempt: TpsTimedAttemptSubmissionV1 | null;
+};
+
+type TpsRecoveredTimedAttempt = {
+  attemptId: string;
+  contractId: string;
+  setId: TpsTimedTrainingSetId;
+  setName: string;
+  repNumber: number;
+  attemptNumber: number;
+  pressureLevel: TpsTimedPressureLevel;
+  prescribedSeconds: number;
+  elapsedMs: number;
+  completedBeforeExpiry: boolean;
+  timingValidity: "valid" | "timing_invalid_technical";
+  endReason: TpsTimedAttemptEndReason;
+  replacementForAttemptId: string | null;
 };
 
 type TpsReplacementState = {
@@ -897,14 +915,12 @@ function buildVerificationPrepSpec(
     return {
       title: "Handover Prep",
       objective: `Verify whether the inherited ${phase} topic-state is still trustworthy. ${phasePurpose}`,
-      problemPlan: `Prepare a small bank of clean ${phase} continuity problems. The system evaluates evidence after each opportunity and stops as soon as there is enough evidence to hold the inherited state, adjust stability, or require targeted re-diagnosis. Extra prepared problems are reserve only, not a completion target.`,
+      problemPlan: `Prepare a small reserve bank of clean ${phase} continuity problems. Present one at a time. The system stops as soon as there is enough evidence to hold the inherited state, adjust stability, or require targeted re-diagnosis. Anything extra stays reserve only.`,
       tutorRules: [
-        ...verificationRules,
-        ...phaseRules,
-        "Do not reteach from scratch.",
-        "Do not progress the student during verification.",
+        "Do not reteach or progress the student during verification.",
         "Stop as soon as the system has enough continuity evidence.",
-        "Do not add extra opportunities to chase a preferred result.",
+        "Do not add opportunities to chase a preferred result.",
+        "If a behavior was not meaningfully observable, record it as not observed. If support, interruption, or another condition changed what you were observing, record it as confounded.",
       ],
       derivedFrom: `Derived from the inherited ${phase} conditions and the ${diagnosisBlock.setName} evidence dimensions, but Handover has no fixed rep-completion requirement. Training reference: ${trainingReference}.`,
       checklist: [
@@ -955,7 +971,11 @@ function observationLevelForField(field: ObservationField, optionIndex: number, 
   return observationLevelFromOptionIndex(optionIndex, field.options.length);
 }
 
-function IntroSessionDrillRunnerCore() {
+function IntroSessionDrillRunnerCore({
+  sandboxAssignmentId,
+}: {
+  sandboxAssignmentId?: string | null;
+} = {}) {
   const { studentId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -984,6 +1004,18 @@ function IntroSessionDrillRunnerCore() {
     reference: TopicReference;
   } | null>(null);
   const [repStarted, setRepStarted] = useState(false);
+  const [handoverExecutionFinished, setHandoverExecutionFinished] =
+    useState(false);
+  const [handoverObservationIndex, setHandoverObservationIndex] = useState(0);
+  const [handoverObservationReview, setHandoverObservationReview] =
+    useState(false);
+  const [sandboxHandoverSimulation, setSandboxHandoverSimulation] = useState<null | {
+    formId: string;
+    probeId: string;
+    sequenceNumber: number;
+    studentBehavior: string;
+    simulatedElapsedSeconds: number;
+  }>(null);
   const [activePassiveAttempt, setActivePassiveAttempt] =
     useState<TpsActivePassiveAttempt | null>(null);
   const [passiveReplacementState, setPassiveReplacementState] = useState<
@@ -997,6 +1029,7 @@ function IntroSessionDrillRunnerCore() {
   const [tpsReplacementState, setTpsReplacementState] = useState<Record<string, TpsReplacementState>>({});
   const [tpsTimerNowMs, setTpsTimerNowMs] = useState(() => Date.now());
   const [tpsAttemptPersisting, setTpsAttemptPersisting] = useState(false);
+  const [tpsSaveBlocked, setTpsSaveBlocked] = useState(false);
   const [tpsTimingNotice, setTpsTimingNotice] = useState<string | null>(null);
   const tpsFinalizingRef = useRef(false);
   const [supportPickerOpen, setSupportPickerOpen] = useState(false);
@@ -1130,6 +1163,8 @@ function IntroSessionDrillRunnerCore() {
   const modeToUse: DrillMode = isSessionMode ? "training" : drillMode;
   const isAdaptiveDiagnosisMode = modeToUse === "diagnosis";
   const isHandoverMode = modeToUse === "handover";
+  const isHandoverContinuityVerification =
+    isHandoverMode && !handoverReDiagnosisMode;
   const isAdaptiveVerificationFlow = isAdaptiveDiagnosisMode || (isHandoverMode && handoverReDiagnosisMode);
   const evidenceModeForSubmission: EvidenceDrillMode =
     isHandoverMode && !handoverReDiagnosisMode
@@ -1259,6 +1294,31 @@ function IntroSessionDrillRunnerCore() {
   }, [studentId, studentsData]);
 
   const set = drillStructure?.[currentSet] ?? null;
+  const handoverObservationBlock =
+    isHandoverContinuityVerification && set
+      ? getLiveObservationBlockForRep(set, currentRep)
+      : [];
+  const activeHandoverObservation =
+    handoverObservationBlock[handoverObservationIndex] || null;
+  const activeHandoverObservationValue = activeHandoverObservation
+    ? String(
+        observations[
+          `set${currentSet}_rep${currentRep}_${activeHandoverObservation.key}`
+        ] || "",
+      ).trim()
+    : "";
+  const activeHandoverObservationComplete =
+    !activeHandoverObservation || Boolean(activeHandoverObservationValue);
+  const recordedHandoverObservationCount = handoverObservationBlock.filter(
+    (field) =>
+      Boolean(
+        String(
+          observations[
+            `set${currentSet}_rep${currentRep}_${field.key}`
+          ] || "",
+        ).trim(),
+      ),
+  ).length;
   const isModelingSet = !!set?.isModelingSet;
   const isTrainingEvidenceCapture = modeToUse === "training" || isSessionMode;
   const activeRegistrySet = set
@@ -1270,13 +1330,28 @@ function IntroSessionDrillRunnerCore() {
     isTrainingEvidenceCapture &&
     displayPhase === "Structured Execution" &&
     activeRegistrySet?.setId === TPS_TRAINING_BASELINE_SET_ID;
-  const activeTpsPressureLevel = activeRegistrySet
-    ? getTpsTrainingPressureForSet(activeRegistrySet.setId)
-    : null;
+  const configuredTpsPressureLevel =
+    activeRegistrySet?.constraints?.pressureLevel;
+  const activeTpsPressureLevel: TpsTimedPressureLevel | null =
+    configuredTpsPressureLevel === "light_timer" ||
+    configuredTpsPressureLevel === "repeated_timer" ||
+    configuredTpsPressureLevel === "full_constraint"
+      ? configuredTpsPressureLevel
+      : null;
+  const activeTpsTimingSetId: TpsTimedTrainingSetId | null =
+    isHandoverContinuityVerification && activeTpsPressureLevel === "light_timer"
+      ? "time_pressure.handover_continuity"
+      : activeTpsPressureLevel === "light_timer"
+        ? "time_pressure.structure_under_timer"
+        : activeTpsPressureLevel === "repeated_timer"
+          ? "time_pressure.repeated_timed_execution"
+          : activeTpsPressureLevel === "full_constraint"
+            ? "time_pressure.full_constraint"
+            : null;
   const activeRepRequiresTpsTiming =
-    isTrainingEvidenceCapture &&
+    (isTrainingEvidenceCapture || isHandoverContinuityVerification) &&
     displayPhase === "Time Pressure Stability" &&
-    Boolean(activeTpsPressureLevel);
+    Boolean(activeTpsPressureLevel && activeTpsTimingSetId);
   const passiveTimingObservationKey = (setIndex: number, repIndex: number) =>
     `set${setIndex}_rep${repIndex}_${PASSIVE_EXECUTION_TIMING_WIRE_KEY}`;
   const passiveAttemptObservationKey = (setIndex: number, repIndex: number) =>
@@ -1294,7 +1369,7 @@ function IntroSessionDrillRunnerCore() {
     String(observations[activeTpsTimingKey] || "").trim(),
   );
   const activePassiveRepIdentity = `${currentTopicName.trim().toLowerCase()}::${TPS_TRAINING_BASELINE_SET_ID}::rep-${currentRep + 1}`;
-  const activeTpsRepIdentity = `${currentTopicName.trim().toLowerCase()}::${activeRegistrySet?.setId || "unknown"}::rep-${currentRep + 1}`;
+  const activeTpsRepIdentity = `${currentTopicName.trim().toLowerCase()}::${activeTpsTimingSetId || "unknown"}::rep-${currentRep + 1}`;
   const activePassiveReplacement =
     passiveReplacementState[activePassiveRepIdentity] || null;
   const activeTpsReplacement =
@@ -1322,6 +1397,11 @@ function IntroSessionDrillRunnerCore() {
     "tps",
     activeTpsRepIdentity,
   ].join(":");
+  const sandboxHandoverEnabled =
+    Boolean(sandboxAssignmentId) && isHandoverContinuityVerification;
+  const sandboxHandoverContextId =
+    scheduledSessionId ||
+    `handover:${String(studentId || "unknown")}:${introTopic}:${phase}`;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1362,6 +1442,7 @@ function IntroSessionDrillRunnerCore() {
       studentId,
       "tps-timer-contract",
       currentTopicName,
+      sandboxHandoverEnabled ? sandboxHandoverSimulation?.formId || "sandbox-pending" : "live",
     ],
     queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -1389,7 +1470,8 @@ function IntroSessionDrillRunnerCore() {
       activeRepRequiresTpsTiming &&
       !!studentId &&
       !!currentTopicName &&
-      !timingReadinessBlockedTopic,
+      !timingReadinessBlockedTopic &&
+      (!sandboxHandoverEnabled || !!sandboxHandoverSimulation),
     retry: false,
     staleTime: 30_000,
   });
@@ -1414,7 +1496,6 @@ function IntroSessionDrillRunnerCore() {
             (tpsTimerNowMs - activeTpsStartedAtMs),
         )
       : 0;
-  const isHandoverContinuityVerification = isHandoverMode && !handoverReDiagnosisMode;
   const isFirstRep = currentRep === 0;
   const isFirstSet = currentSet === 0;
   const isTopicReferenceCaptureStep =
@@ -1434,6 +1515,83 @@ function IntroSessionDrillRunnerCore() {
       : scheduledSession?.type === "handover"
         ? "Handover"
         : "Unknown";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      if (
+        !sandboxHandoverEnabled ||
+        !sandboxAssignmentId ||
+        !studentId ||
+        !prepReady
+      ) {
+        if (!cancelled) setSandboxHandoverSimulation(null);
+        return;
+      }
+
+      try {
+        const authMode = await getAuthMode();
+        const headers: HeadersInit = {};
+        if (!authMode.dbSessionAuthMode) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            headers.Authorization = `Bearer ${session.access_token}`;
+          }
+        }
+        const params = new URLSearchParams({
+          tutorAssignmentId: sandboxAssignmentId,
+          studentId: String(studentId),
+          scope: "handover",
+          sourceContextId: sandboxHandoverContextId,
+          topic: currentTopicName,
+          startingPhase: displayPhase,
+          sequenceNumber: String(currentRep + 1),
+        });
+        const response = await fetch(
+          `${API_URL}/api/tutor/sandbox-live-evidence?${params.toString()}`,
+          {
+            headers,
+            credentials: "include",
+            cache: "no-store",
+          },
+        );
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(
+            body?.message ||
+              "Sandbox Handover student behavior could not be prepared.",
+          );
+        }
+        if (!cancelled) {
+          setSandboxHandoverSimulation(body);
+          setHandoverExecutionFinished(false);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSandboxHandoverSimulation(null);
+          setSubmitError(
+            error instanceof Error
+              ? error.message
+              : "Sandbox Handover student behavior could not be prepared.",
+          );
+        }
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    sandboxHandoverEnabled,
+    sandboxAssignmentId,
+    studentId,
+    prepReady,
+    sandboxHandoverContextId,
+    displayPhase,
+    currentRep,
+  ]);
 
   useEffect(() => {
     if (!drillStructure) return;
@@ -1475,10 +1633,13 @@ function IntroSessionDrillRunnerCore() {
     setPassiveTimingNotice(null);
     setActiveTpsAttempt(null);
     setTpsAttemptPersisting(false);
+    setTpsSaveBlocked(false);
     tpsFinalizingRef.current = false;
     setTpsTimingNotice(null);
     setSupportPickerOpen(false);
     setShowEvidenceExceptions(false);
+    setHandoverObservationIndex(0);
+    setHandoverObservationReview(false);
   }, [currentSet, currentRep, sessionTopicIndex, activeDiagnosisPhase, currentTopicName]);
 
   const clearRepObservationState = (setIndex: number, repIndex: number) => {
@@ -1512,7 +1673,134 @@ function IntroSessionDrillRunnerCore() {
     setSubmitError(null);
   };
 
-  const beginTrainingRep = () => {
+  const loadTpsAttemptForSlot = async ({
+    contractId,
+    setId,
+    repNumber,
+  }: {
+    contractId: string;
+    setId: TpsTimedTrainingSetId;
+    repNumber: number;
+  }): Promise<TpsRecoveredTimedAttempt | null> => {
+    if (!studentId) throw new Error("Student identity is unavailable.");
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: HeadersInit = {};
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const params = new URLSearchParams({
+      topic: currentTopicName,
+      contractId,
+      setId,
+      repNumber: String(repNumber),
+    });
+    const response = await fetch(
+      `${API_URL}/api/tutor/students/${studentId}/tps-timed-attempt?${params.toString()}`,
+      {
+        headers,
+        credentials: "include",
+        cache: "no-store",
+      },
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        body?.message || "Recorded TPS timing could not be recovered.",
+      );
+    }
+    return (body?.attempt || null) as TpsRecoveredTimedAttempt | null;
+  };
+
+  const recoverRecordedTpsAttempt = (
+    recoveredAttempt: TpsRecoveredTimedAttempt,
+  ) => {
+    if (
+      !tpsTimerContract ||
+      recoveredAttempt.contractId !== tpsTimerContract.contractId ||
+      recoveredAttempt.setId !== activeTpsTimingSetId ||
+      recoveredAttempt.repNumber !== currentRep + 1
+    ) {
+      throw new Error(
+        "Recorded TPS timing does not match this Timer Contract opportunity.",
+      );
+    }
+
+    setActiveTpsAttempt(null);
+    setTpsSaveBlocked(false);
+
+    if (recoveredAttempt.timingValidity === "valid") {
+      if (
+        recoveredAttempt.endReason !== "student_finished" &&
+        recoveredAttempt.endReason !== "timer_expired"
+      ) {
+        throw new Error(
+          "Recorded TPS timing has an invalid completed end reason.",
+        );
+      }
+
+      setObservations((current: any) => ({
+        ...current,
+        [activeTpsTimingKey]: encodeTpsTimedAttemptEvidenceRef({
+          version: 1,
+          attemptId: recoveredAttempt.attemptId,
+          contractId: recoveredAttempt.contractId,
+          setId: recoveredAttempt.setId,
+          repNumber: recoveredAttempt.repNumber,
+          attemptNumber: recoveredAttempt.attemptNumber,
+          timingValidity: "valid",
+          endReason: recoveredAttempt.endReason,
+        }),
+      }));
+      setTpsReplacementState((current) => {
+        const next = { ...current };
+        delete next[activeTpsRepIdentity];
+        return next;
+      });
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(tpsReplacementStorageKey);
+      }
+      setRepStarted(true);
+      setHandoverExecutionFinished(isHandoverContinuityVerification);
+      setHandoverObservationIndex(0);
+      setHandoverObservationReview(false);
+      setTpsTimingNotice(
+        "TPS timing was already recorded for this opportunity. Resume the evidence layers from that same completed response; do not run another timed problem.",
+      );
+      setSubmitError(null);
+      return;
+    }
+
+    const recoveredReplacement: TpsReplacementState = {
+      nextAttemptNumber: recoveredAttempt.attemptNumber + 1,
+      replacementForAttemptId: recoveredAttempt.attemptId,
+      freshPreparedEquivalentConfirmed: false,
+    };
+    setTpsReplacementState((current) => ({
+      ...current,
+      [activeTpsRepIdentity]: recoveredReplacement,
+    }));
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        tpsReplacementStorageKey,
+        JSON.stringify(recoveredReplacement),
+      );
+    }
+    clearRepObservationState(currentSet, currentRep);
+    setRepStarted(false);
+    setHandoverExecutionFinished(false);
+    setHandoverObservationIndex(0);
+    setHandoverObservationReview(false);
+    setTpsTimingNotice(
+      "The prior timed attempt ended in an objective technical failure. This evidence slot remains unresolved until a fresh equivalent reserve is run under the same Timer Contract.",
+    );
+    setSubmitError(null);
+  };
+
+  const beginTrainingRep = async () => {
+    if (sandboxHandoverEnabled && !sandboxHandoverSimulation) {
+      setSubmitError(
+        "Wait for the simulated Sandbox student response to load before beginning this Handover opportunity.",
+      );
+      return;
+    }
     if (
       modeToUse === "training" &&
       (topicDataLoading || drillSessionAccessLoading)
@@ -1534,19 +1822,18 @@ function IntroSessionDrillRunnerCore() {
       );
       return;
     }
-    if (activeTechnicalReplacement && !activeReplacementConfirmed) {
-      setSubmitError(
-        "This evidence slot remains unresolved after an objective technical failure. Use only a fresh equivalent problem prepared before the session. Do not reuse the exposed problem or continue to chase a stronger student response.",
-      );
-      return;
-    }
 
     if (activeRepRequiresTpsTiming) {
       if (tpsTimerContractLoading) {
         setSubmitError("Individualized timing authority is still loading.");
         return;
       }
-      if (!tpsTimerContract || !activeTpsPressureLevel || !activeTpsPrescribedSeconds) {
+      if (
+        !tpsTimerContract ||
+        !activeTpsPressureLevel ||
+        !activeTpsPrescribedSeconds ||
+        !activeTpsTimingSetId
+      ) {
         setSubmitError(
           tpsTimerContractError instanceof Error
             ? tpsTimerContractError.message
@@ -1555,10 +1842,56 @@ function IntroSessionDrillRunnerCore() {
         return;
       }
 
-      const replacement = tpsReplacementState[activeTpsRepIdentity];
+      setTpsAttemptPersisting(true);
+      setSubmitError(null);
+      try {
+        const recoveredAttempt = await loadTpsAttemptForSlot({
+          contractId: tpsTimerContract.contractId,
+          setId: activeTpsTimingSetId,
+          repNumber: currentRep + 1,
+        });
+        if (recoveredAttempt?.timingValidity === "valid") {
+          recoverRecordedTpsAttempt(recoveredAttempt);
+          return;
+        }
+        if (recoveredAttempt?.timingValidity === "timing_invalid_technical") {
+          const confirmedReplacementMatches =
+            activeTpsReplacement?.replacementForAttemptId ===
+              recoveredAttempt.attemptId &&
+            activeTpsReplacement?.nextAttemptNumber ===
+              recoveredAttempt.attemptNumber + 1 &&
+            activeTpsReplacement?.freshPreparedEquivalentConfirmed;
+          if (!confirmedReplacementMatches) {
+            recoverRecordedTpsAttempt(recoveredAttempt);
+            return;
+          }
+        }
+      } catch (error) {
+        setSubmitError(
+          error instanceof Error
+            ? error.message
+            : "Recorded TPS timing could not be recovered.",
+        );
+        return;
+      } finally {
+        setTpsAttemptPersisting(false);
+      }
+
+      if (
+        activeTpsReplacement &&
+        !activeTpsReplacement.freshPreparedEquivalentConfirmed
+      ) {
+        setSubmitError(
+          "This evidence slot remains unresolved after an objective technical failure. Use only a fresh equivalent problem prepared before the session. Do not reuse the exposed problem or continue to chase a stronger student response.",
+        );
+        return;
+      }
+
+      const replacement = activeTpsReplacement;
+      setTpsSaveBlocked(false);
       setActiveTpsAttempt({
         attemptId: createTpsAttemptId(),
-        setId: activeRegistrySet!.setId as TpsTimedTrainingSetId,
+        setId: activeTpsTimingSetId,
         setName: set?.setName || activeRegistrySet!.setName,
         repNumber: currentRep + 1,
         attemptNumber: replacement?.nextAttemptNumber || 1,
@@ -1575,6 +1908,15 @@ function IntroSessionDrillRunnerCore() {
         delete next[activeTpsTimingKey];
         return next;
       });
+    } else if (
+      activeRepRequiresPassiveTiming &&
+      activePassiveReplacement &&
+      !activePassiveReplacement.freshPreparedEquivalentConfirmed
+    ) {
+      setSubmitError(
+        "This evidence slot remains unresolved after an objective technical failure. Use only a fresh equivalent problem prepared before the session. Do not reuse the exposed problem or continue to chase a stronger student response.",
+      );
+      return;
     }
 
     if (activeRepRequiresPassiveTiming) {
@@ -1598,6 +1940,9 @@ function IntroSessionDrillRunnerCore() {
       });
     }
     setSubmitError(null);
+    setHandoverExecutionFinished(false);
+    setHandoverObservationIndex(0);
+    setHandoverObservationReview(false);
     setRepStarted(true);
   };
 
@@ -1788,9 +2133,17 @@ function IntroSessionDrillRunnerCore() {
     );
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(
+      const error = new Error(
         body?.message || `Failed to persist TPS timing evidence (${response.status})`,
-      );
+      ) as Error & {
+        code?: string;
+        status?: number;
+        attempt?: TpsRecoveredTimedAttempt | null;
+      };
+      error.code = body?.code;
+      error.status = response.status;
+      error.attempt = (body?.attempt || null) as TpsRecoveredTimedAttempt | null;
+      throw error;
     }
     return body?.attempt;
   };
@@ -1914,6 +2267,7 @@ function IntroSessionDrillRunnerCore() {
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(tpsReplacementStorageKey);
       }
+      setTpsSaveBlocked(false);
       setTpsTimingNotice(
         persisted.endReason === "timer_expired"
           ? "Timer expired at the prescribed boundary. Record the student's response exactly as it stood at expiry."
@@ -1921,9 +2275,39 @@ function IntroSessionDrillRunnerCore() {
       );
       setActiveTpsAttempt(null);
     } catch (error) {
+      const persistenceError = error as Error & {
+        code?: string;
+        status?: number;
+        attempt?: TpsRecoveredTimedAttempt | null;
+      };
+
+      if (
+        persistenceError.code === "TPS_TIMED_ATTEMPT_SLOT_ALREADY_RECORDED" &&
+        persistenceError.attempt
+      ) {
+        try {
+          recoverRecordedTpsAttempt(persistenceError.attempt);
+          return;
+        } catch (recoveryError) {
+          setTpsSaveBlocked(true);
+          setSubmitError(
+            recoveryError instanceof Error
+              ? recoveryError.message
+              : "Recorded TPS timing could not be reconciled.",
+          );
+          return;
+        }
+      }
+
+      const status = Number(persistenceError.status);
+      const nonRetryable =
+        Number.isInteger(status) && status >= 400 && status < 500;
+      setTpsSaveBlocked(nonRetryable);
       setSubmitError(
-        error instanceof Error
-          ? `${error.message} The execution boundary is frozen; retry saving it rather than restarting the clock.`
+        persistenceError instanceof Error
+          ? nonRetryable
+            ? `${persistenceError.message} The execution boundary remains frozen. This is a non-retryable contract rejection; do not restart the clock or keep resubmitting the same evidence.`
+            : `${persistenceError.message} The execution boundary is frozen; retry saving the same frozen evidence rather than restarting the clock.`
           : "TPS timing evidence could not be persisted. The execution boundary is frozen.",
       );
     } finally {
@@ -1975,6 +2359,25 @@ function IntroSessionDrillRunnerCore() {
     activeTpsTimingCaptured,
     activeTpsRemainingMs,
     tpsAttemptPersisting,
+  ]);
+
+  useEffect(() => {
+    if (
+      isHandoverContinuityVerification &&
+      activeRepRequiresTpsTiming &&
+      activeTpsTimingCaptured
+    ) {
+      setHandoverExecutionFinished(true);
+      setHandoverObservationIndex(0);
+      setHandoverObservationReview(false);
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    }
+  }, [
+    isHandoverContinuityVerification,
+    activeRepRequiresTpsTiming,
+    activeTpsTimingCaptured,
   ]);
 
   useEffect(() => {
@@ -2469,6 +2872,17 @@ function IntroSessionDrillRunnerCore() {
             }
           }
         }
+        if (
+          isHandoverContinuityVerification &&
+          displayPhase === "Time Pressure Stability"
+        ) {
+          const timingEvidence = String(
+            observations[tpsTimingObservationKey(setIndex, repIdx)] || "",
+          ).trim();
+          if (timingEvidence) {
+            obs[TPS_TIMED_ATTEMPT_WIRE_KEY] = timingEvidence;
+          }
+        }
         observationBlock.forEach((block) => {
           if (isTrainingEvidenceCapture) {
             obs[trainingEvidenceStatusKey(block.key)] =
@@ -2569,6 +2983,84 @@ function IntroSessionDrillRunnerCore() {
     }
   };
 
+  const recordSandboxHandoverObservation = async () => {
+    if (
+      !sandboxHandoverEnabled ||
+      !sandboxAssignmentId ||
+      !sandboxHandoverSimulation ||
+      !set ||
+      !activeRegistrySet ||
+      !studentId
+    ) {
+      return;
+    }
+
+    const submittedObservations = getLiveObservationBlockForRep(
+      set,
+      currentRep,
+    ).map((block) => {
+      const field = activeRegistrySet.fields.find(
+        (candidate) => candidate.fieldKey === block.key,
+      );
+      const dimensionId = String(field?.dimensionId || "");
+      const selectedLabel = String(
+        observations[`set${currentSet}_rep${currentRep}_${block.key}`] || "",
+      );
+      const behaviorId =
+        DIAGNOSIS_OBSERVATION_MATRIX[
+          dimensionId as DiagnosisDimensionId
+        ]?.options.find((option) => option.label === selectedLabel)?.id || "";
+      return { dimensionId, behaviorId };
+    });
+
+    if (
+      submittedObservations.some(
+        (item) => !item.dimensionId || !item.behaviorId,
+      )
+    ) {
+      throw new Error(
+        "Sandbox Handover evidence could not be mapped to canonical behavior.",
+      );
+    }
+
+    const authMode = await getAuthMode();
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    if (!authMode.dbSessionAuthMode) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+    }
+
+    const response = await fetch(
+      `${API_URL}/api/tutor/sandbox-live-evidence`,
+      {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          tutorAssignmentId: sandboxAssignmentId,
+          studentId: String(studentId),
+          scope: "handover",
+          sourceContextId: sandboxHandoverContextId,
+          topic: currentTopicName,
+          startingPhase: displayPhase,
+          sequenceNumber: currentRep + 1,
+          formId: sandboxHandoverSimulation.formId,
+          supportEvent: "none",
+          observations: submittedObservations,
+        }),
+      },
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        body?.message ||
+          "Sandbox Handover observation evidence could not be recorded.",
+      );
+    }
+  };
+
   const handleNext = async () => {
     if (!drillStructure) {
       setSubmitError("Drill structure is loading. Please wait.");
@@ -2624,6 +3116,33 @@ function IntroSessionDrillRunnerCore() {
       return;
     }
 
+    if (isHandoverContinuityVerification && !handoverExecutionFinished) {
+      setSubmitError(
+        "Click Student Finished before recording Handover observations.",
+      );
+      return;
+    }
+
+    if (isHandoverContinuityVerification && !handoverObservationReview) {
+      setSubmitError(
+        "Complete the Handover observation runner and review this opportunity before confirming it.",
+      );
+      return;
+    }
+
+    if (sandboxHandoverEnabled) {
+      try {
+        await recordSandboxHandoverObservation();
+      } catch (sandboxError) {
+        setSubmitError(
+          sandboxError instanceof Error
+            ? sandboxError.message
+            : "Sandbox Handover evidence could not be recorded.",
+        );
+        return;
+      }
+    }
+
     if (isHandoverContinuityVerification) {
       const serializedSet = serializeSetForSubmission(set, currentSet);
       const evaluation = evaluateHandoverVerificationEvidence({
@@ -2643,6 +3162,10 @@ function IntroSessionDrillRunnerCore() {
         }
         setAdaptiveDiagnosisMessage(`Continuity evidence is not yet sufficient after opportunity ${completedOpportunities}. Record one more clean opportunity under the same inherited ${displayPhase} conditions. Do not teach forward or chase a preferred result.`);
         setCurrentRep((rep) => rep + 1);
+        setRepStarted(false);
+        setHandoverExecutionFinished(false);
+        setHandoverObservationIndex(0);
+        setHandoverObservationReview(false);
         return;
       }
       setAdaptiveDiagnosisMessage(null);
@@ -3370,13 +3893,13 @@ function IntroSessionDrillRunnerCore() {
             <p className="text-sm font-semibold text-foreground">
               {verificationPrepSpec.title}
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {isAdaptiveDiagnosisMode
-                ? "Diagnosis prep is verification-readiness prep, not training prep."
-                : handoverReDiagnosisMode
-                  ? "Targeted re-diagnosis prep is for resolving one flagged inherited topic, not for normal training."
-                  : "Handover prep is continuity-check prep, not intro prep and not training prep."}
-            </p>
+            {(isAdaptiveDiagnosisMode || handoverReDiagnosisMode) && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {isAdaptiveDiagnosisMode
+                  ? "Diagnosis prep is verification-readiness prep, not training prep."
+                  : "Targeted re-diagnosis prep is for resolving one flagged inherited topic, not for normal training."}
+              </p>
+            )}
           </div>
           <div className="rounded-lg border border-primary/15 bg-background/80 p-3 space-y-2 text-sm text-muted-foreground">
             <p>
@@ -3447,7 +3970,9 @@ function IntroSessionDrillRunnerCore() {
               })}
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">{verificationPrepSpec.derivedFrom}</p>
+          {!isHandoverContinuityVerification && (
+            <p className="text-xs text-muted-foreground">{verificationPrepSpec.derivedFrom}</p>
+          )}
           <div className="flex justify-end">
             <button
               type="button"
@@ -3531,7 +4056,7 @@ function IntroSessionDrillRunnerCore() {
           </ul>
         </div>
       )}
-      {drillMode === "handover" && showModeInstructions && (
+      {drillMode === "handover" && handoverReDiagnosisMode && showModeInstructions && (
         <div className="mb-4 rounded-md border border-primary/20 bg-primary/5 p-3">
           <div className="mb-2 flex items-start justify-between gap-3">
             <p className="font-semibold">Instructions</p>
@@ -3544,28 +4069,9 @@ function IntroSessionDrillRunnerCore() {
             </button>
           </div>
           <ul className="list-disc pl-5 text-sm text-foreground/90 space-y-1">
-            <li>
-              {handoverReDiagnosisMode
-                ? "This is targeted re-diagnosis inside handover. The inherited topic-state was not trustworthy enough to continue from."
-                : "This is handover verification. You are checking whether the inherited topic-state is still trustworthy."}
-            </li>
-            <li>
-              <strong>Before you begin:</strong>{" "}
-              {handoverReDiagnosisMode
-                ? "Prepare the diagnosis problems required for the targeted phase block."
-                : "Prepare a small reserve bank of clean continuity problems. There is no fixed Handover rep count."}
-            </li>
-            <li>Do not turn this into normal training.</li>
-            <li>
-              {handoverReDiagnosisMode
-                ? "Run adaptive diagnosis only for this flagged topic until the correct current phase is clear."
-                : "Record one continuity opportunity at a time. The system stops Handover as soon as evidence is sufficient to hold, adjust, or require targeted re-diagnosis."}
-            </li>
-            {!handoverReDiagnosisMode && (
-              <li>
-                If a behavior was not meaningfully observable, record that directly. If support, interruption, or another condition changed what you were observing, record it as confounded. Neither outcome counts as weakness or strength.
-              </li>
-            )}
+            <li>This is targeted re-diagnosis inside handover. The inherited topic-state was not trustworthy enough to continue from.</li>
+            <li><strong>Before you begin:</strong> Prepare the diagnosis problems required for the targeted phase block.</li>
+            <li>Run adaptive diagnosis only for this flagged topic until the correct current phase is clear.</li>
           </ul>
         </div>
       )}
@@ -3672,26 +4178,39 @@ function IntroSessionDrillRunnerCore() {
         </div>
       )}
 
-      {isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted && (
+      {(isTrainingEvidenceCapture || isHandoverContinuityVerification) && !set?.isModelingSet && !repStarted && (
         <div className="mb-5 rounded-2xl border border-primary/20 bg-background p-5 shadow-sm">
           <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">Ready</span>
+            <span className="text-primary/30">→</span>
             <span>Observe</span>
+            {isHandoverContinuityVerification && (
+              <>
+                <span className="text-primary/30">→</span>
+                <span>Record</span>
+              </>
+            )}
             <span className="text-primary/30">→</span>
             <span>Confirm</span>
           </div>
           <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Set {currentSet + 1} of {drillStructure?.length ?? 0} · {set?.setName}
+            {isHandoverContinuityVerification
+              ? `Continuity check · ${set?.setName || ""}`
+              : `Set ${currentSet + 1} of ${drillStructure?.length ?? 0} · ${set?.setName || ""}`}
           </div>
           <div className="mt-1 flex items-end gap-3">
             <div className="text-4xl font-black tracking-tight text-foreground sm:text-5xl">
-              REP {currentRep + 1}
+              {isHandoverContinuityVerification ? "OPPORTUNITY" : "REP"} {currentRep + 1}
             </div>
-            <div className="pb-1 text-sm font-semibold text-muted-foreground">
-              of {set?.reps ?? 0}
-            </div>
+            {!isHandoverContinuityVerification && (
+              <div className="pb-1 text-sm font-semibold text-muted-foreground">
+                of {set?.reps ?? 0}
+              </div>
+            )}
           </div>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">{set?.purpose}</p>
+          {!isHandoverContinuityVerification && (
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">{set?.purpose}</p>
+          )}
           <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">
               {instructionPromptLabelFor(set?.repInstruction || "")}
@@ -3719,10 +4238,12 @@ function IntroSessionDrillRunnerCore() {
               ) : tpsTimerContract && activeTpsPrescribedSeconds ? (
                 <>
                   <p className="mt-1 text-sm font-semibold">
-                    This rep runs for {activeTpsPrescribedSeconds}s.
+                    {isHandoverContinuityVerification
+                      ? `This continuity opportunity runs for ${activeTpsPrescribedSeconds}s.`
+                      : `This rep runs for ${activeTpsPrescribedSeconds}s.`}
                   </p>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Baseline: {tpsTimerContract.baselineSeconds}s · Timer is system-owned and cannot be paused, edited, rounded, or replaced by a Specialist stopwatch.
+                    Baseline: {tpsTimerContract.baselineSeconds}s · This inherited Timer Contract governs the opportunity and cannot be paused, edited, rounded, or replaced by a Specialist stopwatch.
                   </p>
                 </>
               ) : (
@@ -3770,11 +4291,13 @@ function IntroSessionDrillRunnerCore() {
               </p>
             </div>
           )}
-          <p className="mt-4 text-xs leading-5 text-muted-foreground">
-            {activeTechnicalReplacement
-              ? "The failed attempt remains in durable lineage. The reserve opportunity fills the unanswered evidence slot; it does not erase or improve the failed attempt."
-              : "Use the problem prepared before the session. Once the rep starts, keep attention on the student's response rather than on form administration."}
-          </p>
+          {(!isHandoverContinuityVerification || activeTechnicalReplacement) && (
+            <p className="mt-4 text-xs leading-5 text-muted-foreground">
+              {activeTechnicalReplacement
+                ? "The failed attempt remains in durable lineage. The reserve opportunity fills the unanswered evidence slot; it does not erase or improve the failed attempt."
+                : "Use the problem prepared before the session. Once the rep starts, keep attention on the student's response rather than on form administration."}
+            </p>
+          )}
           <div className="mt-5 flex justify-end">
             <button
               type="button"
@@ -3796,7 +4319,9 @@ function IntroSessionDrillRunnerCore() {
             >
               {activeTechnicalReplacement
                 ? `Begin Reserve Opportunity for Rep ${currentRep + 1}`
-                : `Begin Rep ${currentRep + 1}`}
+                : isHandoverContinuityVerification
+                  ? `Begin Opportunity ${currentRep + 1}`
+                  : `Begin Rep ${currentRep + 1}`}
             </button>
           </div>
         </div>
@@ -3891,13 +4416,19 @@ function IntroSessionDrillRunnerCore() {
                       "student_finished",
                   )
                 }
-                disabled={tpsAttemptPersisting || !activeTpsAttempt}
+                disabled={
+                  tpsAttemptPersisting ||
+                  !activeTpsAttempt ||
+                  tpsSaveBlocked
+                }
               >
                 {tpsAttemptPersisting
                   ? "Saving timing..."
-                  : activeTpsAttempt?.frozenAttempt
-                    ? "Retry Timing Save"
-                    : "Student Finished"}
+                  : tpsSaveBlocked
+                    ? "Timing Save Blocked"
+                    : activeTpsAttempt?.frozenAttempt
+                      ? "Retry Saving Frozen Evidence"
+                      : "Student Finished"}
               </button>
               <button
                 type="button"
@@ -3916,8 +4447,10 @@ function IntroSessionDrillRunnerCore() {
         </div>
       )}
 
-      {/* Shared live-delivery rep context */}
+      {/* Shared live-delivery rep context. Handover uses its dedicated
+          Opportunity runner so the same instructions are not repeated as a Rep card. */}
       {set &&
+        !isHandoverContinuityVerification &&
         !(isTrainingEvidenceCapture && !set.isModelingSet && !repStarted) && (
           <LiveRepContextCard
             setIndex={currentSet + 1}
@@ -3985,13 +4518,110 @@ function IntroSessionDrillRunnerCore() {
           </div>
         )}
 
-      <form className={`space-y-4 ${isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted ? "hidden" : ""}`}>
+      {isHandoverContinuityVerification &&
+        repStarted &&
+        !handoverExecutionFinished && (
+          <div className="mb-4 space-y-4">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {sandboxHandoverEnabled && (
+                <span className="rounded-full border border-primary/25 bg-background px-2 py-1 text-primary">
+                  Sandbox
+                </span>
+              )}
+              <span className="rounded-full border border-primary/15 px-2 py-1">
+                Ready ✓
+              </span>
+              <span className="text-primary/30">→</span>
+              <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
+                Observe
+              </span>
+              <span className="text-primary/30">→</span>
+              <span>Record</span>
+              <span className="text-primary/30">→</span>
+              <span>Confirm</span>
+            </div>
+            {sandboxHandoverEnabled && sandboxHandoverSimulation && (
+              <LiveSandboxStudentResponse>
+                {sandboxHandoverSimulation.studentBehavior}
+              </LiveSandboxStudentResponse>
+            )}
+            {!activeRepRequiresTpsTiming && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  onClick={() => {
+                    setHandoverExecutionFinished(true);
+                    setHandoverObservationIndex(0);
+                    setHandoverObservationReview(false);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
+                  Student Finished
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+      <form className={`space-y-4 ${
+        (isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted) ||
+        (isHandoverContinuityVerification && (!repStarted || !handoverExecutionFinished))
+          ? "hidden"
+          : ""
+      }`}>
+        {isHandoverContinuityVerification && !handoverObservationReview && (
+          <div className="mb-4 rounded-2xl border bg-card p-5 sm:p-6">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {sandboxHandoverEnabled && (
+                <span className="rounded-full border border-primary/25 bg-background px-2 py-1 text-primary">
+                  Sandbox
+                </span>
+              )}
+              <span className="rounded-full border border-primary/15 px-2 py-1">
+                Ready ✓
+              </span>
+              <span className="text-primary/30">→</span>
+              <span className="rounded-full border border-primary/15 px-2 py-1">
+                Observe ✓
+              </span>
+              <span className="text-primary/30">→</span>
+              <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
+                Record
+              </span>
+              <span className="text-primary/30">→</span>
+              <span>Confirm</span>
+            </div>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Opportunity {currentRep + 1}
+                </p>
+                <h2 className="mt-1 text-2xl font-semibold">
+                  Observation {Math.min(handoverObservationIndex + 1, handoverObservationBlock.length)} of {handoverObservationBlock.length}
+                </h2>
+              </div>
+              <div className="rounded-lg border px-3 py-2 text-xs text-muted-foreground">
+                {recordedHandoverObservationCount} / {handoverObservationBlock.length} recorded
+              </div>
+            </div>
+            <div className="mt-4 rounded-xl border bg-background/70 px-4 py-3">
+              <p className="text-sm font-medium text-foreground">
+                Student response complete
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Record only what this completed continuity opportunity actually exposed. Do not reconstruct missing behavior from hindsight.
+              </p>
+            </div>
+          </div>
+        )}
+
         {getLiveObservationBlockForRep(set, currentRep).length === 0 && (
           <div className="p-3 rounded-md border border-primary/20 bg-primary/5 text-sm">
             No observations are captured for this step. Continue when pre-drill teaching is complete.
           </div>
         )}
-        {getLiveObservationBlockForRep(set, currentRep).map((obs) =>
+        {getLiveObservationBlockForRep(set, currentRep).map((obs, observationIndex) =>
           isTrainingEvidenceCapture ? (
             <LiveObservationField
               key={obs.key}
@@ -4021,7 +4651,9 @@ function IntroSessionDrillRunnerCore() {
               }
               allowEvidenceExceptionWithoutOption
             />
-          ) : (
+          ) : isHandoverContinuityVerification &&
+            (handoverObservationReview ||
+              observationIndex !== handoverObservationIndex) ? null : (
             <div key={obs.key}>
               <div className="mb-2">
                 <label className="block font-medium text-sm sm:text-base">
@@ -4068,6 +4700,89 @@ function IntroSessionDrillRunnerCore() {
             </div>
           ),
         )}
+        {isHandoverContinuityVerification &&
+          handoverObservationBlock.length > 0 &&
+          !handoverObservationReview && (
+            <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted/50 disabled:cursor-default disabled:opacity-50"
+                disabled={handoverObservationIndex === 0}
+                onClick={() => {
+                  setSubmitError(null);
+                  setHandoverObservationIndex((index) => Math.max(0, index - 1));
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              >
+                Previous observation
+              </button>
+              <button
+                type="button"
+                disabled={!activeHandoverObservationComplete}
+                onClick={() => {
+                  setSubmitError(null);
+                  if (
+                    handoverObservationIndex >=
+                    handoverObservationBlock.length - 1
+                  ) {
+                    setHandoverObservationReview(true);
+                  } else {
+                    setHandoverObservationIndex((index) => index + 1);
+                  }
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {handoverObservationIndex ===
+                handoverObservationBlock.length - 1
+                  ? "Review Opportunity"
+                  : "Next observation"}
+              </button>
+            </div>
+          )}
+
+        {isHandoverContinuityVerification && handoverObservationReview && (
+          <div className="rounded-2xl border bg-card p-5 sm:p-6">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {sandboxHandoverEnabled && (
+                <span className="rounded-full border border-primary/25 bg-background px-2 py-1 text-primary">
+                  Sandbox
+                </span>
+              )}
+              <span className="rounded-full border border-primary/15 px-2 py-1">Ready ✓</span>
+              <span className="text-primary/30">→</span>
+              <span className="rounded-full border border-primary/15 px-2 py-1">Observe ✓</span>
+              <span className="text-primary/30">→</span>
+              <span className="rounded-full border border-primary/15 px-2 py-1">Record ✓</span>
+              <span className="text-primary/30">→</span>
+              <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">Confirm</span>
+            </div>
+            <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Opportunity {currentRep + 1}
+            </p>
+            <h2 className="mt-1 text-2xl font-semibold">Review continuity evidence</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {recordedHandoverObservationCount} / {handoverObservationBlock.length} behaviors recorded.
+            </p>
+            <div className="mt-4 space-y-2">
+              {handoverObservationBlock.map((field) => (
+                <div key={field.key} className="rounded-lg border px-4 py-3">
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    {field.label}
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    {String(
+                      observations[
+                        `set${currentSet}_rep${currentRep}_${field.key}`
+                      ] || "Not recorded",
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {isTrainingEvidenceCapture &&
           !set?.isModelingSet &&
           repStarted &&
@@ -4141,16 +4856,39 @@ function IntroSessionDrillRunnerCore() {
         </>
         )
       )}
-      {(!(isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted) && !((isAdaptiveDiagnosisMode || isHandoverMode) && !submitSuccess && (!prepReady || !!adaptiveTransition))) && (
+      {(
+        !(isTrainingEvidenceCapture && !set?.isModelingSet && !repStarted) &&
+        !(isHandoverContinuityVerification && (!repStarted || !handoverExecutionFinished)) &&
+        !(isHandoverContinuityVerification && !handoverObservationReview) &&
+        !((isAdaptiveDiagnosisMode || isHandoverMode) && !submitSuccess && (!prepReady || !!adaptiveTransition))
+      ) && (
       <div className="mt-6 flex justify-end">
         {!submitSuccess && (
           <button
             type="button"
             className="mr-2 px-4 py-2 rounded-md border border-primary/20 bg-background hover:bg-primary/5 disabled:opacity-60"
-            onClick={handleBackStep}
-            disabled={submitting || (isFirstSet && isFirstRep && (!isSessionMode || sessionTopicIndex === 0))}
+            onClick={() => {
+              if (isHandoverContinuityVerification && handoverObservationReview) {
+                setHandoverObservationReview(false);
+                setHandoverObservationIndex(
+                  Math.max(0, handoverObservationBlock.length - 1),
+                );
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                return;
+              }
+              handleBackStep();
+            }}
+            disabled={
+              submitting ||
+              (!isHandoverContinuityVerification &&
+                isFirstSet &&
+                isFirstRep &&
+                (!isSessionMode || sessionTopicIndex === 0))
+            }
           >
-            Back
+            {isHandoverContinuityVerification && handoverObservationReview
+              ? "Back to observations"
+              : "Back"}
           </button>
         )}
         <button
@@ -4224,6 +4962,10 @@ function IntroSessionDrillRunnerCore() {
 
 function IntroSessionDrillRunnerRoute() {
   const { studentId } = useParams();
+  const [routeSearchParams] = useSearchParams();
+  const requestedMode = String(routeSearchParams.get("mode") || "diagnosis")
+    .trim()
+    .toLowerCase();
   const {
     data: runtimeMode,
     isLoading: runtimeModeLoading,
@@ -4232,10 +4974,13 @@ function IntroSessionDrillRunnerRoute() {
   } = useQuery<{ assignmentId: string | null; operationalMode: string }>({
     queryKey: ["/api/tutor/runtime-mode", "live-runner", studentId],
     queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const authMode = await getAuthMode();
       const headers: HeadersInit = {};
-      if (session?.access_token) {
-        headers.Authorization = `Bearer ${session.access_token}`;
+      if (!authMode.dbSessionAuthMode) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          headers.Authorization = `Bearer ${session.access_token}`;
+        }
       }
       const response = await fetch(`${API_URL}/api/tutor/runtime-mode`, {
         headers,
@@ -4272,19 +5017,12 @@ function IntroSessionDrillRunnerRoute() {
   const operationalMode = String(runtimeMode?.operationalMode || "training")
     .trim()
     .toLowerCase();
+  const sandboxAssignmentId = runtimeMode?.assignmentId || null;
 
-  if (operationalMode === "sandbox" && studentId && runtimeMode?.assignmentId) {
-    return (
-      <SpecialistSandboxSimulation
-        studentIdOverride={String(studentId)}
-        tutorAssignmentIdOverride={runtimeMode.assignmentId}
-        operationalModeOverride={operationalMode}
-        embedded
-      />
-    );
-  }
-
-  if (operationalMode === "sandbox") {
+  if (
+    operationalMode === "sandbox" &&
+    (!studentId || !sandboxAssignmentId)
+  ) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6 text-center text-sm text-destructive">
         Sandbox is active, but the live runner is missing its assignment or student identity.
@@ -4292,7 +5030,27 @@ function IntroSessionDrillRunnerRoute() {
     );
   }
 
-  return <IntroSessionDrillRunnerCore />;
+  if (
+    operationalMode === "sandbox" &&
+    requestedMode !== "handover"
+  ) {
+    return (
+      <SpecialistSandboxSimulation
+        studentIdOverride={String(studentId)}
+        tutorAssignmentIdOverride={sandboxAssignmentId}
+        operationalModeOverride={operationalMode}
+        embedded
+      />
+    );
+  }
+
+  return (
+    <IntroSessionDrillRunnerCore
+      sandboxAssignmentId={
+        operationalMode === "sandbox" ? sandboxAssignmentId : null
+      }
+    />
+  );
 }
 
 export default IntroSessionDrillRunnerRoute;

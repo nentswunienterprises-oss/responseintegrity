@@ -10,6 +10,14 @@ const sandboxRunnerSource = readFileSync(
   new URL("../client/src/pages/operational/tutor/sandbox-simulation.tsx", import.meta.url),
   "utf8",
 );
+const introSessionRouteSource = readFileSync(
+  new URL("../client/src/components/tutor/IntroSessionRoute.tsx", import.meta.url),
+  "utf8",
+);
+const evidenceDiagnosisRunnerSource = readFileSync(
+  new URL("../client/src/components/tutor/EvidenceCompleteDiagnosisRunner.tsx", import.meta.url),
+  "utf8",
+);
 const studentCardSource = readFileSync(
   new URL("../client/src/components/tutor/StudentCard.tsx", import.meta.url),
   "utf8",
@@ -26,8 +34,16 @@ const sandboxEnvironmentSource = readFileSync(
   new URL("../server/sandboxEnvironment.ts", import.meta.url),
   "utf8",
 );
+const sandboxRediagnosisSource = readFileSync(
+  new URL("../server/sandboxRediagnosis.ts", import.meta.url),
+  "utf8",
+);
 const serverRoutesSource = readFileSync(
   new URL("../server/routes.ts", import.meta.url),
+  "utf8",
+);
+const tpsTimingAuthoritySource = readFileSync(
+  new URL("../server/tpsTimingAuthority.ts", import.meta.url),
   "utf8",
 );
 const responseSnapshotCardSource = readFileSync(
@@ -72,7 +88,10 @@ test("Sandbox mode uses the existing live-runner route rather than a separate ru
     /headers:\s*HeadersInit\s*=\s*\{\s*"Cache-Control"/,
   );
   assert.match(liveRunnerSource, /runtimeModeLoading \|\| runtimeModeFetching/);
-  assert.match(liveRunnerSource, /operationalMode === "sandbox" && studentId && runtimeMode\?\.assignmentId/);
+  assert.match(
+    liveRunnerSource,
+    /operationalMode === "sandbox"[\s\S]*sandboxAssignmentId[\s\S]*requestedMode !== "handover"/,
+  );
   assert.match(
     liveRunnerSource,
     /<SpecialistSandboxSimulation[\s\S]*studentIdOverride=\{String\(studentId\)\}[\s\S]*tutorAssignmentIdOverride=\{runtimeMode\.assignmentId\}[\s\S]*operationalModeOverride=\{operationalMode\}[\s\S]*embedded/,
@@ -86,6 +105,247 @@ test("Sandbox mode uses the existing live-runner route rather than a separate ru
   assert.doesNotMatch(
     studentCardSource,
     /case "stateful-sandbox"[\s\S]{0,500}\/operational\/specialist\/sandbox\?studentId=/,
+  );
+});
+
+test("evidence diagnosis remains on the evidence-native runner even when the Specialist is in Sandbox", () => {
+  assert.match(
+    introSessionRouteSource,
+    /mode === "diagnosis"[\s\S]*<EvidenceCompleteDiagnosisRunner \/>/,
+  );
+  assert.doesNotMatch(introSessionRouteSource, /\/api\/tutor\/runtime-mode/);
+  assert.doesNotMatch(introSessionRouteSource, /SpecialistSandboxSimulation/);
+});
+
+test("Sandbox diagnosis keeps the evidence-native runner and projects private simulated student behavior", () => {
+  assert.match(evidenceDiagnosisRunnerSource, /\/api\/tutor\/runtime-mode/);
+  assert.match(
+    evidenceDiagnosisRunnerSource,
+    /\/api\/tutor\/sandbox-live-evidence/,
+  );
+  assert.match(
+    evidenceDiagnosisRunnerSource,
+    /<LiveSandboxStudentResponse>[\s\S]*sandboxSimulation\.studentBehavior/,
+  );
+  assert.match(
+    evidenceDiagnosisRunnerSource,
+    /runtimeAuthority\?\.operationalMode === "sandbox"[\s\S]*recordSandboxSimulation/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /private\.specialist_sandbox_diagnosis_outcomes/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /studentBehavior: selected\.studentBehavior/,
+  );
+  assert.doesNotMatch(
+    sandboxRediagnosisSource.slice(
+      sandboxRediagnosisSource.indexOf("export async function prepareSandboxLiveEvidenceSimulation"),
+      sandboxRediagnosisSource.indexOf("export async function submitSandboxLiveEvidenceSimulation"),
+    ),
+    /canonicalObservations:/,
+  );
+});
+
+test("Sandbox Handover stays on the live Handover runner and records one observation at a time", () => {
+  assert.match(
+    liveRunnerSource,
+    /operationalMode === "sandbox"[\s\S]*\(!studentId \|\| !sandboxAssignmentId\)[\s\S]*missing its assignment or student identity/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /operationalMode === "sandbox"[\s\S]*requestedMode !== "handover"[\s\S]*<SpecialistSandboxSimulation/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /<IntroSessionDrillRunnerCore[\s\S]*sandboxAssignmentId=[\s\S]*operationalMode === "sandbox"/,
+  );
+  assert.match(liveRunnerSource, /requestedMode !== "handover"/);
+  assert.match(
+    liveRunnerSource,
+    /sandboxHandoverEnabled[\s\S]*\/api\/tutor\/sandbox-live-evidence/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /<LiveSandboxStudentResponse>[\s\S]*sandboxHandoverSimulation\.studentBehavior/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /isHandoverContinuityVerification && \(!repStarted \|\| !handoverExecutionFinished\)[\s\S]*"hidden"/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /isHandoverContinuityVerification && !handoverExecutionFinished[\s\S]*Click Student Finished before recording Handover observations/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /"Time Pressure Stability": "time\.consistency"/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /Continuity check · \$\{set\?\.setName \|\| ""\}/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /!isHandoverContinuityVerification[\s\S]*<LiveRepContextCard/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /!isHandoverContinuityVerification && \([\s\S]*of \{set\?\.reps \?\? 0\}/,
+  );
+
+  const handoverPrepStart = liveRunnerSource.indexOf('if (mode === "handover")');
+  const handoverPrepEnd = liveRunnerSource.indexOf(
+    'title: "Targeted Re-Diagnosis Prep"',
+    handoverPrepStart,
+  );
+  const handoverPrepSource = liveRunnerSource.slice(handoverPrepStart, handoverPrepEnd);
+  assert.doesNotMatch(handoverPrepSource, /\.\.\.verificationRules|\.\.\.phaseRules/);
+  assert.doesNotMatch(
+    liveRunnerSource,
+    /Handover prep is continuity-check prep, not intro prep and not training prep\./,
+  );
+  assert.match(
+    liveRunnerSource,
+    /drillMode === "handover" && handoverReDiagnosisMode && showModeInstructions/,
+  );
+  assert.doesNotMatch(
+    liveRunnerSource,
+    /drillMode === "handover" && showModeInstructions && \(/,
+  );
+  const regularHandoverPrep = liveRunnerSource.slice(
+    liveRunnerSource.indexOf('if (mode === "handover")'),
+    liveRunnerSource.indexOf('title: "Targeted Re-Diagnosis Prep"'),
+  );
+  assert.match(
+    regularHandoverPrep,
+    /record it as not observed[\s\S]*record it as confounded/,
+  );
+
+  assert.match(
+    liveRunnerSource,
+    /const \[handoverObservationIndex, setHandoverObservationIndex\] = useState\(0\)/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /observationIndex !== handoverObservationIndex/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /Observation \{Math\.min\(handoverObservationIndex \+ 1,[\s\S]*handoverObservationBlock\.length/,
+  );
+  assert.match(liveRunnerSource, /Previous observation/);
+  assert.match(liveRunnerSource, /Next observation/);
+  assert.match(liveRunnerSource, /Review Opportunity/);
+  assert.match(liveRunnerSource, /Review continuity evidence/);
+  assert.match(
+    liveRunnerSource,
+    /Complete the Handover observation runner and review this opportunity before confirming it/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /isHandoverContinuityVerification && !handoverObservationReview[\s\S]*Evaluate Continuity Evidence/,
+  );
+});
+
+test("generic Sandbox evidence simulation is deterministic for retries and never grants Handover condition integrity without intervention evidence", () => {
+  const prepareStart = sandboxRediagnosisSource.indexOf(
+    "export async function prepareSandboxLiveEvidenceSimulation",
+  );
+  const genericEnd = sandboxRediagnosisSource.indexOf(
+    "export async function prepareSandboxRediagnosis",
+    prepareStart,
+  );
+  const genericSource = sandboxRediagnosisSource.slice(prepareStart, genericEnd);
+  assert.match(genericSource, /earliestUnsupportedCapability: null/);
+  assert.doesNotMatch(genericSource, /history\.readiness\.earliestUnsupportedCapability/);
+  assert.match(
+    genericSource,
+    /input\.scope === "diagnosis"[\s\S]*"condition_integrity"/,
+  );
+});
+
+
+test("TPS Handover reuses inherited baseline-derived Timer Contract authority", () => {
+  assert.match(
+    liveRunnerSource,
+    /\(isTrainingEvidenceCapture \|\| isHandoverContinuityVerification\)[\s\S]*displayPhase === "Time Pressure Stability"/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /isHandoverContinuityVerification && activeTpsPressureLevel === "light_timer"[\s\S]*"time_pressure\.handover_continuity"/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /Baseline: \{tpsTimerContract\.baselineSeconds\}s[\s\S]*inherited Timer Contract governs the opportunity/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /sandboxHandoverEnabled \? sandboxHandoverSimulation\?\.formId \|\| "sandbox-pending" : "live"/,
+  );
+  assert.match(
+    liveRunnerSource,
+    /scope: "handover"[\s\S]*topic: currentTopicName[\s\S]*startingPhase: displayPhase/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /async function ensureSandboxTpsTimerContract/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /deriveTpsTimerContractV1\(snapshot\)/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /persistTpsTimerContract/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /input\.scope === "handover"[\s\S]*input\.startingPhase === "Time Pressure Stability"[\s\S]*ensureSandboxTpsTimerContract/,
+  );
+  assert.match(
+    serverRoutesSource,
+    /verificationPhase === "Time Pressure Stability"[\s\S]*loadLatestTpsTimerContract[\s\S]*validateTpsHandoverTimedAttemptLineage/,
+  );
+  assert.match(
+    tpsTimingAuthoritySource,
+    /validateTpsHandoverTimedAttemptLineage[\s\S]*time_pressure\.handover_continuity[\s\S]*loadTpsTimedAttemptById/,
+  );
+});
+
+test("Sandbox Handover projects continuity-native wording instead of diagnosis repeat wording", () => {
+  assert.match(
+    sandboxRediagnosisSource,
+    /function projectSandboxLiveBehavior/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /input\.scope !== "handover" \|\| input\.probeId !== "time\.consistency"/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /repeated timed opportunity[\s\S]*timed continuity opportunity/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /repeated timed response[\s\S]*timed continuity response/,
+  );
+  assert.match(
+    sandboxRediagnosisSource,
+    /studentBehavior: projectSandboxLiveBehavior/,
+  );
+});
+test("DB-session proof auth never leaks a stale Supabase bearer into diagnosis or live-runner authority checks", () => {
+  assert.match(evidenceDiagnosisRunnerSource, /getAuthMode/);
+  assert.match(
+    evidenceDiagnosisRunnerSource,
+    /if \(!authMode\.dbSessionAuthMode\)[\s\S]*supabase\.auth\.getSession/,
+  );
+  assert.match(liveRunnerSource, /getAuthMode/);
+  assert.match(
+    liveRunnerSource,
+    /if \(!authMode\.dbSessionAuthMode\)[\s\S]*supabase\.auth\.getSession/,
   );
 });
 
@@ -167,6 +427,28 @@ test("completed Sandbox training uses the live Response Snapshot completion cont
   );
   assert.match(sandboxRouteSource, /requestedSessionNumber/);
   assert.match(sandboxRouteSource, /req\.query\.sessionNumber/);
+});
+
+test("Sandbox trajectory initialization is serialized across environment and history requests", () => {
+  assert.match(
+    sandboxEnvironmentSource,
+    /pg_advisory_xact_lock\(hashtextextended\(\$1, 0\)\)/,
+  );
+  assert.match(
+    sandboxEnvironmentSource,
+    /const lockedExisting = await client\.query\(selectSql, selectParams\)/,
+  );
+  assert.match(
+    sandboxEnvironmentSource,
+    /Both the environment form and history can initialize at the same time/,
+  );
+});
+
+test("stateful Sandbox surfaces the actual environment request failure", () => {
+  assert.match(
+    sandboxRunnerSource,
+    /environmentQuery\.error instanceof Error[\s\S]*environmentQuery\.error\.message/,
+  );
 });
 
 test("a newly confirmed Sandbox lesson overrides the previous completion boundary", () => {

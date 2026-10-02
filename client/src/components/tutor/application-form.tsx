@@ -437,9 +437,9 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
       {/* Resume draft prompt */}
       {showResumePrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full text-center">
+          <div className="bg-card text-card-foreground rounded-lg border border-border shadow-lg p-6 max-w-sm w-full text-center">
             <div className="mb-4 font-semibold">Resume previous application?</div>
-            <div className="mb-6 text-sm text-gray-600">You have a saved draft. Would you like to continue where you left off?</div>
+            <div className="mb-6 text-sm text-muted-foreground">You have a saved draft. Would you like to continue where you left off?</div>
             <div className="flex gap-4 justify-center">
               <Button onClick={handleResumeDraft} aria-label="Resume previous application">Resume</Button>
               <Button variant="outline" onClick={handleDiscardDraft} aria-label="Discard draft">Discard</Button>
@@ -448,7 +448,7 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
         </div>
       )}
       {/* Progress bar */}
-      <div className="w-full h-2 bg-gray-200 rounded-full my-4" aria-label="Progress bar">
+      <div className="w-full h-2 bg-muted rounded-full my-4" aria-label="Progress bar">
         <div
           className="h-2 bg-red-500 rounded-full transition-all"
           style={{ width: `${(currentStep / totalSteps) * 100}%` }}
@@ -488,7 +488,7 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
             </CardHeader>
             <CardContent className="space-y-4">
               <Label>Have you completed Matric? (Required)</Label>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 Matric is required for Specialist onboarding. Applicants must be 18 or older unless they completed Matric early.
               </p>
               <RadioGroup
@@ -496,15 +496,15 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
                 onValueChange={(v) => form.setValue("completedMatric", v as ApplicationFormData["completedMatric"])}
               >
                 <div className="flex flex-col gap-2 mt-2">
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="yes" id="matric_yes" />
                     <Label htmlFor="matric_yes" className="font-medium">Yes</Label>
                   </div>
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="currently" id="matric_currently" />
                     <Label htmlFor="matric_currently" className="font-medium">Currently completing - not yet eligible</Label>
                   </div>
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="no" id="matric_no" />
                     <Label htmlFor="matric_no" className="font-medium">No - not yet eligible</Label>
                   </div>
@@ -517,11 +517,11 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
                 onValueChange={(v) => form.setValue("mathLevel", v as ApplicationFormData["mathLevel"])}
               >
                 <div className="flex flex-col gap-2 mt-2">
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="core" id="math_core" />
                     <Label htmlFor="math_core" className="font-medium">Pure Mathematics</Label>
                   </div>
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="literacy" id="math_lit" />
                     <Label htmlFor="math_lit" className="font-medium">Mathematical Literacy</Label>
                   </div>
@@ -560,23 +560,23 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
                 onValueChange={(v) => form.setValue("currentSituation", v as ApplicationFormData["currentSituation"])}
               >
                 <div className="flex flex-col gap-2 mt-2">
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="gap_year" id="gap_year" />
                     <Label htmlFor="gap_year" className="font-medium">Gap year</Label>
                   </div>
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="waiting_uni" id="waiting_uni" />
                     <Label htmlFor="waiting_uni" className="font-medium">Waiting for university</Label>
                   </div>
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="studying" id="studying" />
                     <Label htmlFor="studying" className="font-medium">Studying part-time</Label>
                   </div>
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="working" id="working" />
                     <Label htmlFor="working" className="font-medium">Working</Label>
                   </div>
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="other" id="other" />
                     <Label htmlFor="other" className="font-medium">Other</Label>
                   </div>
@@ -602,11 +602,11 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
                 onValueChange={(v) => form.setValue("helpedBefore", v as ApplicationFormData["helpedBefore"])}
               >
                 <div className="flex flex-col gap-2 mt-2">
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="yes" id="helped_yes" />
                     <Label htmlFor="helped_yes" className="font-medium">Yes</Label>
                   </div>
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="no" id="helped_no" />
                     <Label htmlFor="helped_no" className="font-medium">No</Label>
                   </div>
@@ -678,11 +678,11 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
                 onValueChange={(v) => form.setValue("structurePreference", v as ApplicationFormData["structurePreference"])}
               >
                 <div className="flex flex-col gap-2 mt-2">
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="structure" id="structure" />
                     <Label htmlFor="structure" className="font-medium">I prefer structure and clear systems</Label>
                   </div>
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="flexibility" id="flexibility" />
                     <Label htmlFor="flexibility" className="font-medium">I prefer flexibility and doing things my own way</Label>
                   </div>
@@ -705,15 +705,15 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
                 onValueChange={(v) => form.setValue("availableAfternoon", v as ApplicationFormData["availableAfternoon"])}
               >
                 <div className="flex flex-col gap-2 mt-2">
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="yes" id="afternoon_yes" />
                     <Label htmlFor="afternoon_yes" className="font-medium">Yes</Label>
                   </div>
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="no" id="afternoon_no" />
                     <Label htmlFor="afternoon_no" className="font-medium">No</Label>
                   </div>
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="sometimes" id="afternoon_sometimes" />
                     <Label htmlFor="afternoon_sometimes" className="font-medium">Sometimes</Label>
                   </div>
@@ -751,17 +751,17 @@ export function ApplicationForm({ onSuccess, onCancel }: ApplicationFormProps) {
                 onValueChange={(v) => form.setValue("commitment", v as ApplicationFormData["commitment"])}
               >
                 <div className="flex flex-col gap-2 mt-2">
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="yes" id="commit_yes" />
                     <Label htmlFor="commit_yes" className="font-medium">Yes</Label>
                   </div>
-                  <div className="flex items-center gap-2 bg-gray-50 rounded px-3 py-2 border border-gray-200">
+                  <div className="flex items-center gap-2 bg-muted/20 text-foreground rounded px-3 py-2 border border-border/70">
                     <RadioGroupItem value="no" id="commit_no" />
                     <Label htmlFor="commit_no" className="font-medium">No</Label>
                   </div>
                 </div>
               </RadioGroup>
-              <div className="mt-4 text-xs text-center text-gray-600">
+              <div className="mt-4 text-xs text-center text-muted-foreground">
                 Final Section - Instruction<br />Submit your application only if you are serious about being trained and held to a high standard.
               </div>
             </CardContent>

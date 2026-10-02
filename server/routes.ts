@@ -194,6 +194,7 @@ import {
   persistTpsTimerContract,
   persistTpsTimerContractDirect,
   validateTrainingPassiveTimingAttemptLineage,
+  validateTpsHandoverTimedAttemptLineage,
   validateTpsTrainingDrillTimedAttemptLineage,
   type PersistedTpsTimerContract,
 } from "./tpsTimingAuthority";
@@ -8857,6 +8858,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const handoverLaunch = getSessionLaunchState(scheduledSession, "handover");
               if (!handoverLaunch.canLaunch) {
                 return res.status(400).json({ message: "Handover verification is blocked until the continuity check session is confirmed." });
+              }
+
+              if (verificationPhase === "Time Pressure Stability") {
+                const inheritedTimerContract = await loadLatestTpsTimerContract({
+                  studentId: String(studentId),
+                  topic: normalizedTopic,
+                });
+                if (!inheritedTimerContract) {
+                  return res.status(409).json({
+                    code: TPS_TIMER_BASELINE_INCOMPLETE,
+                    message:
+                      "Inherited Time Pressure Stability cannot be verified without the student/topic Timer Contract. Re-establish timing authority through targeted evidence-native re-diagnosis.",
+                    decisionAuthority: "evidence_native",
+                    requiredRoute: "evidence_complete_diagnosis",
+                    targetedRediagnosisStartPhase: "Structured Execution",
+                  });
+                }
+                const handoverTimingLineageError =
+                  await validateTpsHandoverTimedAttemptLineage({
+                    contract: inheritedTimerContract,
+                    sets: verificationBlocks,
+                  });
+                if (handoverTimingLineageError) {
+                  return res.status(409).json({
+                    code: "TPS_HANDOVER_TIMING_LINEAGE_INVALID",
+                    message: handoverTimingLineageError,
+                    decisionAuthority: "evidence_native",
+                  });
+                }
               }
 
               let handoverSummary:

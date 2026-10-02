@@ -9,9 +9,11 @@ test("specialist onboarding documents expose current eligibility and integrity t
   const docsByStep = new Map(TUTOR_ONBOARDING_DOCUMENTS.map((doc) => [doc.step, doc]));
 
   assert.equal(docsByStep.get(1)?.title, "Specialist Consent Form");
+  assert.equal(docsByStep.get(1)?.code, "Response Integrity-SCF-001");
   assert.equal(docsByStep.get(1)?.version, "2");
   assert.equal(docsByStep.get(2)?.version, "2");
   assert.equal(docsByStep.get(3)?.title, "Specialist Independent Contractor Agreement");
+  assert.equal(docsByStep.get(3)?.version, "2");
   assert.equal(docsByStep.get(4)?.title, "Specialist Safeguarding and Conduct Policy");
 
   assert.ok(docsByStep.get(1)?.mandatoryClauses.some((clause) => clause.key === "evidence_integrity"));

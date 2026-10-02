@@ -17,6 +17,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { API_URL } from "@/lib/config";
 import { resolveStoredDocumentUrl } from "@shared/storedDocumentUrl";
 import { CheckCircle2, ChevronDown, Download, ExternalLink, FileCheck, Loader2, ShieldCheck, XCircle } from "lucide-react";
+import { hydrateDocumentContent, renderAgreementHtmlStrict } from "@/components/tutor/SequentialDocumentSubmission";
 
 interface TutorDocumentReviewProps {
   application: any;
@@ -31,7 +32,7 @@ type DocumentStatus =
   | "rejected";
 
 const AGREEMENT_STEPS = [
-  { step: 1, code: "Response Integrity-TCF-001", title: "Specialist Consent Form" },
+  { step: 1, code: "Response Integrity-SCF-001", title: "Specialist Consent Form" },
   { step: 2, code: "Response Integrity-EQV-002", title: "Entry Qualification Verification" },
   { step: 3, code: "Response Integrity-ICA-003", title: "Specialist Independent Contractor Agreement" },
   { step: 4, code: "Response Integrity-SCP-004", title: "Specialist Safeguarding and Conduct Policy" },
@@ -130,7 +131,7 @@ function TutorAgreementSubsection({ title, children }: { title: string; children
 
 function buildTutorAgreementBody(code: string, formData: Record<string, string>) {
   switch (code) {
-    case "Response Integrity-TCF-001":
+    case "Response Integrity-SCF-001":
       return (
         <>
           <TutorAgreementSection title="Contractor Details">
@@ -288,6 +289,11 @@ function buildAcceptedAgreementHtml(item: { code: string; title: string }, accep
   const acceptedName = acceptance?.typedFullName || acceptance?.typed_full_name || "Unknown";
   const documentVersion = normalizeDisplayedVersion(acceptance?.documentVersion || acceptance?.document_version || "1");
   const documentChecksum = acceptance?.documentChecksum || acceptance?.document_checksum || "";
+  const acceptedDocumentCode = String(acceptance?.documentCode || acceptance?.document_code || item.code || "").trim();
+  const acceptedDocumentTitle = String(acceptance?.documentTitle || acceptance?.document_title || item.title || "").trim();
+  const acceptedDocumentSnapshot = String(acceptance?.documentSnapshot || acceptance?.document_snapshot || "").trim();
+  const acceptedDocumentRenderCode =
+    acceptedDocumentCode === "Response Integrity-TCF-001" ? "Response Integrity-SCF-001" : acceptedDocumentCode;
   const formSnapshot = acceptance?.formSnapshotJson || acceptance?.form_snapshot_json || {};
   const idType = normalizeIdTypeChoice(formSnapshot.idType);
   const acceptedClauses = acceptance?.acceptedClausesJson || acceptance?.accepted_clauses_json || [];
@@ -305,64 +311,71 @@ function buildAcceptedAgreementHtml(item: { code: string; title: string }, accep
   const clauseItems = Array.isArray(acceptedClauses)
     ? acceptedClauses.map((value: string) => `<li>${escapeHtml(String(value))}</li>`).join("")
     : "";
-  const agreementBody = renderToStaticMarkup(
-    <div className="agreement-body-inner">
-      {buildTutorAgreementBody(item.code, {
-        legalName: normalizeValue(acceptedName || formSnapshot.legalName),
-        phoneNumber: normalizeValue(formSnapshot.phoneNumber),
-        dateOfBirth: normalizeValue(formSnapshot.dateOfBirth),
-        emailAddress: normalizeValue(formSnapshot.emailAddress),
-        idType,
-        idNumber: normalizeValue(formSnapshot.idNumber),
-        schoolName: normalizeValue(formSnapshot.schoolName),
-        currentStatus: normalizeValue(formSnapshot.currentStatus),
-        matricYear: normalizeValue(formSnapshot.matricYear),
-        examNumber: normalizeValue(formSnapshot.examNumber),
-      })}
-    </div>
-  );
+  const acceptedFormData = {
+    legalName: normalizeValue(acceptedName || formSnapshot.legalName),
+    phoneNumber: normalizeValue(formSnapshot.phoneNumber),
+    dateOfBirth: normalizeValue(formSnapshot.dateOfBirth),
+    emailAddress: normalizeValue(formSnapshot.emailAddress),
+    idType,
+    idNumber: normalizeValue(formSnapshot.idNumber),
+    schoolName: normalizeValue(formSnapshot.schoolName),
+    currentStatus: normalizeValue(formSnapshot.currentStatus),
+    matricYear: normalizeValue(formSnapshot.matricYear),
+    examNumber: normalizeValue(formSnapshot.examNumber),
+  };
+
+  const agreementBody = acceptedDocumentSnapshot
+    ? `<div class="agreement-body">${renderAgreementHtmlStrict(
+        hydrateDocumentContent(acceptedDocumentSnapshot, acceptedFormData),
+        acceptedDocumentRenderCode,
+      )}</div>`
+    : renderToStaticMarkup(
+        <div className="agreement-body-inner">
+          {buildTutorAgreementBody(item.code, acceptedFormData)}
+        </div>
+      );
 
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>${escapeHtml(item.code)} Accepted Copy</title>
+  <title>${escapeHtml(acceptedDocumentCode || item.code)} Accepted Copy</title>
   <style>
     @page { size: A4; margin: 18mm 16mm; }
     body { margin: 0; background: #efe7d8; color: #1f2933; font-family: Georgia, "Times New Roman", serif; }
     .page { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fffdf8; padding: 18mm 16mm; box-sizing: border-box; }
-    .eyebrow { font: 600 11px/1.4 Arial, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #8b2c1f; }
+    .eyebrow { font: 600 11px/1.4 Arial, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #E63946; }
     h1 { margin: 8px 0 6px; font-size: 28px; line-height: 1.15; }
     .subhead { margin: 0; font: 500 13px/1.6 Arial, sans-serif; color: #52606d; }
     .section { margin-top: 20px; }
-    .section-title { margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid #d8cfc2; font: 700 14px/1.4 Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #7b341e; }
+    .section-title { margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid #d8cfc2; font: 700 14px/1.4 Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #E63946; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 9px 10px; border: 1px solid #ddd3c5; vertical-align: top; }
     th { width: 34%; background: #f6efe4; text-align: left; font: 600 12px/1.5 Arial, sans-serif; color: #243b53; }
     td, p, li { font: 400 13px/1.6 Arial, sans-serif; }
-    .agreement-body h1 { font-size: 11px; margin: 12px 0 6px; text-transform: uppercase; letter-spacing: 0.02em; }
-    .agreement-body h2 { font-size: 11px; margin: 12px 0 6px; }
+    .agreement-body h1 { font-size: 11px; margin: 12px 0 6px; text-transform: uppercase; letter-spacing: 0.02em; color: #E63946; }
+    .agreement-body h2 { font-size: 11px; margin: 12px 0 6px; color: #E63946; }
     ul { margin: 0 0 0 18px; padding: 0; }
     .agreement-body-inner .tt-agreement-section + .tt-agreement-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #e7d5c8; }
-    .agreement-body-inner .tt-agreement-section h2 { margin: 0 0 10px; font: 700 14px/1.4 Arial, sans-serif; color: #7b341e; }
+    .agreement-body-inner .tt-agreement-section h2 { margin: 0 0 10px; font: 700 14px/1.4 Arial, sans-serif; color: #E63946; }
     .agreement-body-inner .tt-agreement-section-body p { margin: 0 0 10px; font: 400 13px/1.7 Arial, sans-serif; color: #243b53; }
     .agreement-body-inner .tt-agreement-subsection + .tt-agreement-subsection { margin-top: 14px; }
-    .agreement-body-inner .tt-agreement-subsection h3 { margin: 0 0 8px; font: 700 13px/1.4 Arial, sans-serif; color: #102a43; }
+    .agreement-body-inner .tt-agreement-subsection h3 { margin: 0 0 8px; font: 700 13px/1.4 Arial, sans-serif; color: #E63946; }
     .agreement-body-inner .tt-agreement-list { margin: 0 0 10px 18px; padding: 0; }
     .agreement-body-inner .tt-agreement-list li { margin-bottom: 5px; font: 400 13px/1.6 Arial, sans-serif; color: #243b53; }
     .agreement-body-inner .tt-agreement-list-check { list-style-type: "• "; }
     .agreement-body-inner .tt-inline-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .agreement-body-inner .tt-inline-detail-grid > div { padding: 10px 12px; border: 1px solid #ddd3c5; border-radius: 12px; background: #f8f2e8; }
     .agreement-body-inner .tt-inline-detail-grid .tt-inline-detail-span { grid-column: span 2; }
-    .agreement-body-inner .tt-inline-detail-grid span { display: block; margin-bottom: 4px; font: 700 10px/1.4 Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #9f1d2b; }
+    .agreement-body-inner .tt-inline-detail-grid span { display: block; margin-bottom: 4px; font: 700 10px/1.4 Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #E63946; }
     .agreement-body-inner .tt-inline-detail-grid strong { font: 600 13px/1.5 Arial, sans-serif; color: #102a43; }
   </style>
 </head>
 <body>
   <main class="page">
     <div class="eyebrow">Response Integrity Accepted Agreement Copy</div>
-    <h1>${escapeHtml(item.title)}</h1>
-    <p class="subhead">${escapeHtml(item.code)} | Version ${escapeHtml(String(documentVersion))}</p>
+    <h1>${escapeHtml(acceptedDocumentTitle || item.title)}</h1>
+    <p class="subhead">${escapeHtml(acceptedDocumentCode || item.code)} | Version ${escapeHtml(String(documentVersion))}</p>
     <section class="section">
       <h2 class="section-title">Acceptance Record</h2>
       <p>Accepted by: ${escapeHtml(String(acceptedName))}</p>
@@ -393,7 +406,7 @@ function formatDocStatus(value: string) {
 
 function getReviewStepLabel(step: string) {
   const labels: Record<string, string> = {
-    "1": "TCF",
+    "1": "SCF",
     "2": "EQV",
     "3": "ICA",
     "4": "SCP",
@@ -583,7 +596,7 @@ export function TutorDocumentReview({ application, onReview }: TutorDocumentRevi
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${item.code}-accepted-copy.html`;
+    link.download = `${acceptance?.documentCode || acceptance?.document_code || item.code}-accepted-copy.html`;
     link.click();
     URL.revokeObjectURL(url);
   };

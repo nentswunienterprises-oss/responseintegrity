@@ -1,6 +1,6 @@
 RESPONSE INTEGRITY (PTY) LTD
 RESPONSE INTEGRITY SPECIALIST DEVELOPMENT PATHWAY
-SPECIALIST CONSENT FORM (Response Integrity-TCF-001)
+SPECIALIST CONSENT FORM (Response Integrity-SCF-001)
 
 This in-app agreement must be completed before participation begins.
 
@@ -147,4 +147,4 @@ They accept all operational, structural, and performance requirements.
 They agree to operate strictly within the Response Integrity system.
 They understand that deviation results in removal from the system.
 
-Document Reference: Response Integrity-TCF-001
+Document Reference: Response Integrity-SCF-001

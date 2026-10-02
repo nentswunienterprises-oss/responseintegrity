@@ -17,12 +17,13 @@ Q2
 What state must the replacement Specialist inherit and review?
 
 Expected Answer
-The student's active topic, current phase, current stability, prior evidence and history, assigned next action, and active constraints.
+The student's active topic, current phase, current stability, prior evidence and history, assigned next action, and active constraints. If the inherited phase is Time Pressure Stability, the current student/topic Timer Contract is part of that inherited operating state and must govern continuity verification.
 
 Fail Answer
 Only the topic name
 Only the latest mark
 Nothing; the new Specialist starts fresh
+Use a new generic timer because the Specialist changed
 
 Q3
 What is the central purpose of Handover Verification?
@@ -63,10 +64,12 @@ Q6
 How does the replacement Specialist run Handover?
 
 Expected Answer
-Present one clean continuity opportunity at a time, record the concrete phase-defining behavior, and let the system decide whether another comparable opportunity is needed. Handover ends when evidence is sufficient to hold, adjust stability, or require targeted re-diagnosis; it does not end because a fixed rep count was completed.
+Present one clean continuity opportunity at a time, watch the complete response, click Student Finished at actual completion, then record the prescribed phase-defining observations one at a time before reviewing and confirming the opportunity. Let the system decide whether another comparable opportunity is needed. Handover ends when evidence is sufficient to hold, adjust stability, or require targeted re-diagnosis; it does not end because a fixed rep count was completed.
 
 Fail Answer
 Run three reps and finish regardless of evidence
+Log several observation fields while the student is still responding
+Scroll through the full observation form and fill it from an overall impression
 Keep drilling until the inherited state is confirmed
 Teach between opportunities so the student improves during verification
 

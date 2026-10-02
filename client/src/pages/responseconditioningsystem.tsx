@@ -48,45 +48,54 @@ const modules = [
       {
         label: "How to model",
         href: "/responseconditioningsystem/execution-standards/how-to-model",
+        capabilityKey: "how_to_model",
       },
       {
         label: "How to intervene",
         href: "/responseconditioningsystem/execution-standards/how-to-intervene",
+        capabilityKey: "how_to_intervene",
       },
       {
         label: "How to use Boss Battles",
         href: "/responseconditioningsystem/execution-standards/how-to-use-boss-battles",
+        capabilityKey: "how_to_use_boss_battles",
       },
       {
         label: "What not to do",
         href: "/responseconditioningsystem/execution-standards/what-not-to-do",
+        capabilityKey: "what_not_to_do",
       },
       {
         label: "Emotional discipline under discomfort",
         href: "/responseconditioningsystem/execution-standards/emotional-discipline-under-discomfort",
+        capabilityKey: "emotional_discipline_under_discomfort",
       },
     ],
   },
   {
     id: "3",
     title: "System Intelligence",
-    subtitle: "How to interpret student behavior",
+    subtitle: "How RI-OS reasons from evidence",
     items: [
       {
-        label: "What changes in the student",
-        href: "/responseconditioningsystem/system-intelligence/what-changes-in-the-student",
+        label: "How to diagnose",
+        href: "/responseconditioningsystem/system-intelligence/how-to-diagnose",
+        capabilityKey: "how_to_diagnose",
       },
       {
-        label: "Signs of progress",
-        href: "/responseconditioningsystem/system-intelligence/signs-of-progress",
+        label: "How to interpret prompts",
+        href: "/responseconditioningsystem/system-intelligence/how-to-interpret-prompts",
+        capabilityKey: "how_to_interpret_prompts",
       },
       {
-        label: "Breakdown patterns",
-        href: "/responseconditioningsystem/system-intelligence/breakdown-patterns",
+        label: "How baselines are established",
+        href: "/responseconditioningsystem/system-intelligence/how-baselines-are-established",
+        capabilityKey: "how_baselines_are_established",
       },
       {
-        label: "Before vs after",
-        href: "/responseconditioningsystem/system-intelligence/before-vs-after",
+        label: "How the system resolves uncertainty",
+        href: "/responseconditioningsystem/system-intelligence/how-the-system-resolves-uncertainty",
+        capabilityKey: "how_the_system_resolves_uncertainty",
       },
     ],
   },
@@ -131,6 +140,7 @@ const modules = [
 
 type MasteryAvailability = {
   assessmentKey: string;
+  evidenceKind: "mastery" | "retrieval" | "transfer";
   coveredDeepDiveKeys: string[];
   status: "unavailable" | "locked" | "available" | "complete";
   reason: "bank_unavailable" | "attempt_limit" | "retry_cooldown" | null;
@@ -162,10 +172,13 @@ export default function ResponseConditioningSystem() {
   });
 
   const capabilityAssessments = capabilityPlanQuery.data?.assessments || [];
-  const completedCapabilityChecks = capabilityAssessments.filter(
+  const masteryAssessments = capabilityAssessments.filter(
+    (assessment) => assessment.evidenceKind === "mastery",
+  );
+  const completedCapabilityChecks = masteryAssessments.filter(
     (assessment) => assessment.status === "complete",
   ).length;
-  const totalCapabilityChecks = capabilityAssessments.length || 11;
+  const totalCapabilityChecks = masteryAssessments.length || 20;
   const capabilityProgressPercent =
     totalCapabilityChecks > 0
       ? Math.round((completedCapabilityChecks / totalCapabilityChecks) * 100)

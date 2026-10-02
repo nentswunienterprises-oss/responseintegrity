@@ -39,7 +39,7 @@ const TUTOR_SOURCE_FILES = [
   {
     key: "structured_execution",
     title: "Structured Execution Deep Dive",
-    description: "Independent, ordered, repeatable method execution without tutor carry.",
+    description: "Independent, ordered, repeatable method execution without Specialist carry.",
     path: resolveTransformationPhasePath("Structured Execution"),
   },
   {
@@ -63,37 +63,37 @@ const TUTOR_SOURCE_FILES = [
   {
     key: "intro_session_structure",
     title: "Intro Session Structure",
-    description: "Response Integrity-OS BATTLE TEST: INTRO SESSION STRUCTURE (SCORING VERSION)",
+    description: "Specialist operating integrity for Intro Diagnosis structure and evidence-complete placement.",
     path: optionalExistingPath(resolve(TUTOR_SESSION_INFRASTRUCTURE_ROOT, "Intro Session Structure.md")),
   },
   {
     key: "logging_system",
     title: "Logging System",
-    description: "Response Integrity-OS BATTLE TEST: LOGGING SYSTEM (SCORING VERSION)",
+    description: "Specialist evidence integrity across observation, intervention, observability, and lineage.",
     path: optionalExistingPath(resolve(TUTOR_SESSION_INFRASTRUCTURE_ROOT, "Logging System.md")),
   },
   {
     key: "session_flow_control",
     title: "Session Flow Control",
-    description: "Response Integrity-OS BATTLE TEST: SESSION CONTEXT & DRILL FLOW (SCORING VERSION)",
+    description: "Specialist control of session context, drill authority, and system-directed flow.",
     path: optionalExistingPath(resolve(TUTOR_SESSION_INFRASTRUCTURE_ROOT, "Session Flow Control.md")),
   },
   {
     key: "drill_library",
     title: "Drill Library",
-    description: "Response Integrity-OS BATTLE TEST: DRILL LIBRARY (SCORING VERSION)",
+    description: "Specialist use of registered drills, set constraints, and evidence conditions.",
     path: optionalExistingPath(resolve(TUTOR_SESSION_INFRASTRUCTURE_ROOT, "Drill Library.md")),
   },
   {
     key: "handover_verification",
     title: "Handover Verification",
-    description: "Response Integrity-OS BATTLE TEST: HANDOVER VERIFICATION (SCORING VERSION)",
+    description: "Specialist continuity verification at reassignment boundaries without replacing Diagnosis.",
     path: optionalExistingPath(resolve(TUTOR_SESSION_INFRASTRUCTURE_ROOT, "Handover verification.md")),
   },
   {
     key: "tools_required",
     title: "Tools Required",
-    description: "Response Integrity-OS BATTLE TEST: TOOLS REQUIRED (SCORING VERSION)",
+    description: "Specialist observability and workspace setup required for trustworthy live evidence.",
     path: optionalExistingPath(resolve(TUTOR_SESSION_INFRASTRUCTURE_ROOT, "Tools Required.md")),
   },
 ] as const;
@@ -123,8 +123,10 @@ const AUTO_CRITICAL_REASON_BY_PHASE: Record<string, Record<string, string>> = {
     Q14: "Overrides repeated evidence and system movement with an invented psychological conclusion.",
   },
   time_pressure_stability: {
+    Q7: "Invents or borrows timing authority instead of resolving the missing Timer Contract through evidence.",
     Q11: "Treats speed with broken structure or guessing as stable timed evidence.",
-    Q12: "Adds panic coaching to a no-support timed condition.",
+    Q12: "Adds external pacing to a no-support timed condition.",
+    Q13: "Uses technical-failure recovery as a second chance instead of preserving lineage and the fresh-reserve boundary.",
     Q14: "Treats a rescued timed rep as independent stability evidence.",
   },
   topic_conditioning: {
@@ -154,6 +156,7 @@ const AUTO_CRITICAL_REASON_BY_PHASE: Record<string, Record<string, string>> = {
     "Scenario 4": "Treats speed with collapsed structure as Full Constraint success.",
   },
   handover_verification: {
+    Q2: "Drops the inherited TPS Timer Contract or replaces it with Specialist-selected timing authority.",
     Q9: "Assigns inherited-state movement to the replacement Specialist rather than verification evidence.",
     "Scenario 1": "Erases inherited topic-state and replaces continuity verification with personal re-placement.",
     "Scenario 2": "Manually changes phase from one rep before the authorised verification result.",
@@ -177,7 +180,7 @@ const QUESTION_PROMPT_VARIANTS: Record<
 > = {
   "clarity:Q11": {
     form_b: "In Light Apply, the student answers correctly after the Specialist points to the operation and states the opening step. What does the evidence show?",
-    form_c: "A student completes a Light Apply item only after the Specialist supplies the method name and asks a leading first-step question. May the rep be scored as clear Clarity?",
+    form_c: "A student completes a Light Apply item only after the Specialist supplies the method name and asks a leading first-step question. May the rep be treated as clear Clarity evidence?",
   },
   "structured_execution:Q11": {
     form_b: "In Independent Execution, the Specialist asks, 'What do we always do first?' and the student then completes the problem. Can the rep prove an independent start?",
@@ -188,11 +191,11 @@ const QUESTION_PROMPT_VARIANTS: Record<
     form_c: "A student asks for rescue during No Rescue, and the Specialist talks them through the full method. Can the completed answer count as recovery evidence?",
   },
   "time_pressure_stability:Q11": {
-    form_b: "A timed rep beats the target, but the student omits working and guesses two answers. What evidence does the result provide?",
-    form_c: "The student finishes Full Constraint early by abandoning the trained sequence. Should speed make this a clear rep?",
+    form_b: "A timed rep beats the Timer Contract, but the student omits working and guesses two answers. What evidence does the result provide?",
+    form_c: "The student finishes Full Constraint early by abandoning the trained sequence. Should speed make this stable TPS evidence?",
   },
   "topic_conditioning:Q15": {
-    form_b: "A Specialist says, 'The score held the topic, but I advanced it because today's work looked better.' What is the integrity judgment?",
+    form_b: "A Specialist says, 'The system held the topic, but I advanced it because today's work looked better.' What is the integrity judgment?",
     form_c: "A parent asks for the next phase and the Specialist changes the topic-state without qualifying system evidence. Is that within operator authority?",
   },
   "intro_session_structure:Q7": {

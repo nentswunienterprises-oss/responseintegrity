@@ -9,6 +9,10 @@ import {
 import { evaluateHandoverVerificationEvidence } from "./handoverEvidenceEvaluator";
 import { computeAdaptiveDiagnosisPhaseSummary } from "./adaptiveDiagnosis";
 import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
+import {
+  TPS_TIMED_ATTEMPT_WIRE_KEY,
+  encodeTpsTimedAttemptEvidenceRef,
+} from "./tpsTimingContract";
 
 const buildVerificationSet = (
   phase: TopicPhase,
@@ -55,6 +59,18 @@ const buildVerificationSet = (
         rep[field.fieldKey + "_level"] = identity.level;
         rep[field.fieldKey + "_evidence_class"] = String(identity.evidenceClass || "");
       });
+      if (phase === "Time Pressure Stability") {
+        rep[TPS_TIMED_ATTEMPT_WIRE_KEY] = encodeTpsTimedAttemptEvidenceRef({
+          version: 1,
+          attemptId: `handover-tps-attempt-${repIndex + 1}`,
+          contractId: "handover-tps-contract",
+          setId: "time_pressure.handover_continuity",
+          repNumber: repIndex + 1,
+          attemptNumber: 1,
+          timingValidity: "valid",
+          endReason: "student_finished",
+        });
+      }
       return rep;
     }),
   };
@@ -196,6 +212,52 @@ test("unresolved ineligible evidence routes to targeted re-diagnosis only when t
   assert.equal(result.verificationOutcome, "targeted_re_diagnosis_required");
   assert.equal(result.resultingStability, "High Maintenance");
   assert.equal(result.reDiagnosisRequired, true);
+});
+
+test("TPS Handover is unavailable when inherited Timer Contract evidence is missing", () => {
+  const set = buildVerificationSet(
+    "Time Pressure Stability",
+    () => "supported",
+    2,
+  );
+  delete set.observations[0][TPS_TIMED_ATTEMPT_WIRE_KEY];
+  const result = evaluateHandoverVerificationEvidence({
+    phase: "Time Pressure Stability",
+    previousStability: "High",
+    set,
+  });
+  assert.equal(result.status, "unavailable");
+  if (result.status === "unavailable") {
+    assert.match(result.reason, /Timer Contract attempt/);
+  }
+});
+
+test("TPS Handover cannot mix Timer Contracts across continuity opportunities", () => {
+  const set = buildVerificationSet(
+    "Time Pressure Stability",
+    () => "supported",
+    2,
+  );
+  set.observations[1][TPS_TIMED_ATTEMPT_WIRE_KEY] =
+    encodeTpsTimedAttemptEvidenceRef({
+      version: 1,
+      attemptId: "handover-tps-attempt-2",
+      contractId: "different-tps-contract",
+      setId: "time_pressure.handover_continuity",
+      repNumber: 2,
+      attemptNumber: 1,
+      timingValidity: "valid",
+      endReason: "student_finished",
+    });
+  const result = evaluateHandoverVerificationEvidence({
+    phase: "Time Pressure Stability",
+    previousStability: "High",
+    set,
+  });
+  assert.equal(result.status, "unavailable");
+  if (result.status === "unavailable") {
+    assert.match(result.reason, /one inherited Timer Contract/);
+  }
 });
 
 test("forged semantic evidence is unavailable rather than scored", () => {

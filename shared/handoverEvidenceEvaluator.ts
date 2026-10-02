@@ -13,6 +13,10 @@ import {
   type ResponseEvidenceDimensionState,
 } from "./responseEvidenceModel";
 import type { TopicPhase, TopicStability } from "./topicConditioningEngine";
+import {
+  TPS_TIMED_ATTEMPT_WIRE_KEY,
+  decodeTpsTimedAttemptEvidenceRef,
+} from "./tpsTimingContract";
 
 export type HandoverEvidenceOccurrence = {
   setId: string;
@@ -94,6 +98,55 @@ export const evaluateHandoverVerificationEvidence = ({
       previousStability,
       reason: validation.error,
     };
+  }
+
+  if (phase === "Time Pressure Stability") {
+    const timedReferences = validation.normalizedSet.observations.map((rep) =>
+      decodeTpsTimedAttemptEvidenceRef(rep[TPS_TIMED_ATTEMPT_WIRE_KEY]),
+    );
+    if (timedReferences.some((reference) => !reference)) {
+      return {
+        status: "unavailable",
+        authority: "evidence_native",
+        phase,
+        previousStability,
+        reason:
+          "Time Pressure Stability Handover requires a persisted system-owned Timer Contract attempt for every continuity opportunity.",
+      };
+    }
+
+    const validTimedReferences = timedReferences.filter(
+      (reference): reference is NonNullable<typeof reference> => Boolean(reference),
+    );
+    if (
+      validTimedReferences.some(
+        (reference) =>
+          reference.setId !== "time_pressure.handover_continuity",
+      )
+    ) {
+      return {
+        status: "unavailable",
+        authority: "evidence_native",
+        phase,
+        previousStability,
+        reason:
+          "Time Pressure Stability Handover must verify continuity under the inherited light-timer condition, not a different TPS pressure level.",
+      };
+    }
+
+    const contractIds = new Set(
+      validTimedReferences.map((reference) => reference.contractId),
+    );
+    if (contractIds.size !== 1) {
+      return {
+        status: "unavailable",
+        authority: "evidence_native",
+        phase,
+        previousStability,
+        reason:
+          "All Time Pressure Stability Handover opportunities must remain under one inherited Timer Contract.",
+      };
+    }
   }
 
   const occurrences: HandoverEvidenceOccurrence[] = [];

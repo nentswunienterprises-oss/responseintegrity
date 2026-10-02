@@ -659,7 +659,7 @@ export const tutorApplications = pgTable("tutor_applications", {
   documentSubmissionStep: integer("document_submission_step").default(0),
   documentsStatus: jsonb("documents_status").default('{"1": "not_started", "2": "not_started", "3": "not_started", "4": "not_started", "5": "not_started", "6": "not_started"}'),
 
-  // Step 1: Response Integrity-TCF-001
+  // Step 1: Response Integrity-SCF-001
   doc1SubmissionUrl: varchar("doc_1_submission_url"),
   doc1SubmissionUploadedAt: timestamp("doc_1_submission_uploaded_at"),
   doc1SubmissionVerified: boolean("doc_1_submission_verified").default(false),

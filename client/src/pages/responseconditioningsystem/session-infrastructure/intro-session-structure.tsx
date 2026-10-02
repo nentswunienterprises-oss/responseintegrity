@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -15,12 +16,38 @@ const operatingRules = [
 
 const specialistResponsibilities = [
   "Start from the selected topic and the available starting signal.",
-  "Present the exact system-selected probe under its stated constraints.",
-  "Record what actually happened for every exposed response dimension.",
+  "Prepare the system-selected problem or example, but keep it hidden until Begin Opportunity.",
+  "Follow only the probe-specific words and actions shown by the runner.",
+  "Watch the complete student response before opening the observation runner.",
+  "Click Student Finished at actual completion, then record the observations one at a time.",
+  "Record only what the opportunity actually exposed. Do not use a retrospective walk-through to fill missing live evidence.",
   "Use not-observed when the opportunity did not fairly expose a behavior.",
   "Use confounded when intervention, content exposure, task design, or another condition prevents clean interpretation.",
   "Record intervention separately from the student's behavior.",
   "Submit the observation faithfully and follow the next evidence question produced from that evidence.",
+];
+
+const opportunityExecutionFlow = [
+  {
+    stage: "Ready",
+    rule: "Prepare the problem or example and keep it hidden. Read the exact allowed script before exposing anything to the student.",
+  },
+  {
+    stage: "Observe",
+    rule: "Click Begin Opportunity, immediately reveal the prepared problem or example, follow only the prescribed probe script, and watch the whole response.",
+  },
+  {
+    stage: "Student Finished",
+    rule: "Close the response boundary at actual completion before any evidence administration begins.",
+  },
+  {
+    stage: "Record",
+    rule: "Record the exposed behaviors one at a time. Missing behavior stays not-observed; hindsight is not live evidence.",
+  },
+  {
+    stage: "Confirm",
+    rule: "Record intervention or contamination honestly and submit the opportunity. The system decides whether another probe is needed.",
+  },
 ];
 
 const systemResponsibilities = [
@@ -109,6 +136,11 @@ export default function ResponseConditioningIntroSessionStructure() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+        <DeepDiveLessonRunner
+          lessonKey="intro-session-structure-v2"
+          title="Intro Session Structure"
+          completion={<DeepDiveCapabilityCheck assessmentKey="intro_session_structure_mastery_v1" />}
+        >
         <Card className="p-6 space-y-4 border-2 border-primary/20 bg-primary/5">
           <h2 className="text-2xl font-bold">What Intro Is</h2>
           <p className="text-muted-foreground">
@@ -344,6 +376,35 @@ export default function ResponseConditioningIntroSessionStructure() {
           </p>
         </Card>
 
+        <Card className="p-6 space-y-4 border-2 border-primary/20">
+          <h2 className="text-2xl font-bold">One Standard Opportunity Flow</h2>
+          <p className="text-muted-foreground">
+            Every diagnosis opportunity uses the same execution boundary. The student response
+            happens first; evidence administration happens after it.
+          </p>
+          <div className="space-y-3">
+            {opportunityExecutionFlow.map((item, index) => (
+              <div key={item.stage} className="rounded-lg border p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {index + 1}. {item.stage}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">{item.rule}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-sm font-medium">
+            Independent Normal Probe does not deliberately ask for Vocabulary, Method, or Reason.
+            If those behaviors were not naturally exposed, record not-observed and let the system
+            select Clarity Recognition when that evidence is still required.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Clarity Recognition is different because elicitation is the probe condition. Ask:
+            "What do you see here?", "Which method would you use?", "Why does that method fit?",
+            then "Show me how you would start." Do not reuse that prompted first move as evidence
+            of a cold Structured Execution start.
+          </p>
+        </Card>
+
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Specialist Responsibility</h2>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
@@ -450,7 +511,7 @@ export default function ResponseConditioningIntroSessionStructure() {
             from the state that the evidence supports.
           </p>
         </Card>
-        <DeepDiveCapabilityCheck assessmentKey="intro_session_structure_mastery_v1" />
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );

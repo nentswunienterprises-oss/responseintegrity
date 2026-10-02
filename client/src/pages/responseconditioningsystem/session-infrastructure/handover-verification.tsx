@@ -1,10 +1,12 @@
 import { Link, useNavigate } from "react-router-dom";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 const handoverRules = [
   "Start from the inherited topic, phase, stability, evidence history, next action, and active constraints.",
+  "If the inherited phase is Time Pressure Stability, preserve the same student/topic Timer Contract. Do not invent, loosen, tighten, pause, or replace the timer. Missing timing authority must be re-established before TPS continuity evidence can count.",
   "Verify continuity only. Do not teach forward, progress the student, or restart Intro inside Handover.",
   "Record the concrete behavior that actually occurred. Do not choose a preferred state.",
   "If a behavior was not meaningfully observable, record it as not observed. If support or another condition changed the observation, record it as confounded.",
@@ -71,6 +73,11 @@ export default function ResponseConditioningHandoverVerification() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+        <DeepDiveLessonRunner
+          lessonKey="handover-verification-v2"
+          title="Handover Verification"
+          completion={<DeepDiveCapabilityCheck assessmentKey="handover_verification_mastery_v1" />}
+        >
         <Card className="p-6 space-y-4 border-2 border-primary/20 bg-primary/5">
           <h2 className="text-2xl font-bold">What Handover Is</h2>
           <p className="text-muted-foreground">
@@ -85,9 +92,10 @@ export default function ResponseConditioningHandoverVerification() {
           <ol className="space-y-2 pl-5 list-decimal text-muted-foreground">
             <li>Review the inherited topic, phase, stability, recent evidence, next action, and constraints.</li>
             <li>Prepare a small reserve bank of phase-appropriate continuity problems. The reserve is not a completion target.</li>
-            <li>Present one clean continuity opportunity under the inherited phase conditions.</li>
-            <li>Record the concrete behavior for each phase-defining dimension.</li>
-            <li>Let the system decide whether evidence is sufficient or another clean comparable opportunity is required.</li>
+            <li>Present one clean continuity opportunity under the inherited phase conditions and watch the complete response.</li>
+            <li>Click Student Finished at the actual end of execution before evidence administration begins.</li>
+            <li>Record the phase-defining observations one at a time. Complete the current observation before the next one opens.</li>
+            <li>Review the completed opportunity, then let the system decide whether evidence is sufficient or another clean comparable opportunity is required.</li>
             <li>Stop as soon as the system resolves to hold, bounded stability adjustment, or targeted re-diagnosis.</li>
           </ol>
           <p className="font-semibold">There is no “complete three reps” rule. Handover is evidence-complete, not rep-complete.</p>
@@ -151,7 +159,7 @@ export default function ResponseConditioningHandoverVerification() {
           <p className="font-semibold">Preserve history. Hold the inherited phase conditions. Record behavior exactly. Let the evidence model decide.</p>
           <p className="text-sm text-muted-foreground">A reliable Handover should feel continuous to the student while remaining independently defensible to the next Specialist, the institution, and any later audit.</p>
         </Card>
-        <DeepDiveCapabilityCheck assessmentKey="handover_verification_mastery_v1" />
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );

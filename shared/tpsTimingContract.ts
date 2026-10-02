@@ -643,6 +643,10 @@ export const TPS_TRAINING_TIMED_SET_PRESSURE = {
   "time_pressure.structure_under_timer": "light_timer",
   "time_pressure.repeated_timed_execution": "repeated_timer",
   "time_pressure.full_constraint": "full_constraint",
+  // Handover reuses the inherited Timer Contract but keeps its timed-attempt
+  // lineage separate from Training reps so continuity verification cannot
+  // collide with or masquerade as a Training attempt.
+  "time_pressure.handover_continuity": "light_timer",
 } as const;
 
 export type TpsTimedTrainingSetId = keyof typeof TPS_TRAINING_TIMED_SET_PRESSURE;
@@ -743,7 +747,7 @@ export const validateTpsTimedAttemptAgainstContract = ({
 }): TpsTimedAttemptValidation => {
   const expectedPressure = getTpsTrainingPressureForSet(attempt.setId);
   if (!expectedPressure) {
-    return { ok: false, error: "Unknown TPS Training set." };
+    return { ok: false, error: "Unknown TPS timed set." };
   }
   if (attempt.pressureLevel !== expectedPressure) {
     return {

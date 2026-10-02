@@ -52,6 +52,16 @@ export type DiagnosisProbeDefinition = {
   opportunityPurposes: string[];
 };
 
+
+export type DiagnosisProbeExecutionProtocol = {
+  beforeBegin: string;
+  liveSteps: Array<{
+    kind: "say" | "do";
+    text: string;
+  }>;
+  finishRule: string;
+};
+
 export type DiagnosisProbeObservation = {
   dimensionId: DiagnosisDimensionId;
   behaviorId: string;
@@ -204,6 +214,164 @@ const EXECUTION_IMMEDIATE = without(BY_PHASE["Structured Execution"], [
   "execution.repeatability",
 ]);
 
+export const DIAGNOSIS_PROBE_EXECUTION_PROTOCOLS: Record<
+  DiagnosisProbeId,
+  DiagnosisProbeExecutionProtocol
+> = {
+  "stack.timed_challenge": {
+    beforeBegin:
+      "Prepare one curriculum-appropriate challenging problem. Keep it hidden from the student until Begin Opportunity.",
+    liveSteps: [
+      {
+        kind: "do",
+        text: "Immediately reveal or present the prepared problem after Begin Opportunity. Use only the system-prescribed timer.",
+      },
+      {
+        kind: "say",
+        text: "Begin.",
+      },
+      {
+        kind: "do",
+        text: "Watch the whole response. Do not teach, cue steps, rescue, correct, or add another time target.",
+      },
+    ],
+    finishRule:
+      "Click Student Finished at actual completion. If the system timer expires first, the execution boundary closes there. Record observations only after the boundary is closed.",
+  },
+  "stack.challenge_no_timer": {
+    beforeBegin:
+      "Prepare one comparable challenging problem without a timer. Keep it hidden from the student until Begin Opportunity.",
+    liveSteps: [
+      {
+        kind: "do",
+        text: "Immediately reveal or present the prepared problem after Begin Opportunity.",
+      },
+      {
+        kind: "say",
+        text: "Work through this problem independently. Tell me when you're finished.",
+      },
+      {
+        kind: "do",
+        text: "Watch the whole response. Do not teach or rescue.",
+      },
+    ],
+    finishRule:
+      "Click Student Finished at actual completion. Then record only the behavior this opportunity actually exposed.",
+  },
+  "stack.normal_independent": {
+    beforeBegin:
+      "Prepare one normal familiar-form problem. Keep it hidden from the student until Begin Opportunity.",
+    liveSteps: [
+      {
+        kind: "do",
+        text: "Immediately reveal or present the prepared problem after Begin Opportunity.",
+      },
+      {
+        kind: "say",
+        text: "Solve this independently. I won't help with the method. Tell me when you're finished.",
+      },
+      {
+        kind: "do",
+        text: "Watch the whole response. Do not ask what method the student is using, why it fits, or otherwise elicit missing Clarity evidence.",
+      },
+    ],
+    finishRule:
+      "Click Student Finished at actual completion. Only then record the evidence that the response naturally exposed. Missing evidence stays not observed.",
+  },
+  "clarity.recognition": {
+    beforeBegin:
+      "Prepare one clean topic example. Keep it hidden from the student until Begin Opportunity.",
+    liveSteps: [
+      {
+        kind: "do",
+        text: "Immediately reveal or present the prepared example after Begin Opportunity.",
+      },
+      {
+        kind: "say",
+        text: "What do you see here?",
+      },
+      {
+        kind: "say",
+        text: "Which method would you use?",
+      },
+      {
+        kind: "say",
+        text: "Why does that method fit?",
+      },
+      {
+        kind: "say",
+        text: "Show me how you would start.",
+      },
+      {
+        kind: "do",
+        text: "Do not explain, supply the method, confirm the first step, or correct the response.",
+      },
+    ],
+    finishRule:
+      "After the student answers the recognition questions and shows the first application of that understanding, click Student Finished. Then record the four Clarity observations.",
+  },
+  "execution.repeatability": {
+    beforeBegin:
+      "Prepare one comparable normal same-form problem. Keep it hidden from the student until Begin Opportunity.",
+    liveSteps: [
+      {
+        kind: "do",
+        text: "Immediately reveal or present the prepared problem after Begin Opportunity.",
+      },
+      {
+        kind: "say",
+        text: "Solve this one independently too. Tell me when you're finished.",
+      },
+      {
+        kind: "do",
+        text: "Watch whether the method repeats. Do not prompt the method or first step.",
+      },
+    ],
+    finishRule:
+      "Click Student Finished at actual completion. Then record the repeatability evidence from this opportunity.",
+  },
+  "difficulty.recovery": {
+    beforeBegin:
+      "Prepare one additional challenging problem. Keep it hidden from the student until Begin Opportunity.",
+    liveSteps: [
+      {
+        kind: "do",
+        text: "Immediately reveal or present the prepared problem after Begin Opportunity.",
+      },
+      {
+        kind: "say",
+        text: "Work through this independently. Tell me when you're finished.",
+      },
+      {
+        kind: "do",
+        text: "Watch engagement, recovery, and rescue dependence. Do not rescue.",
+      },
+    ],
+    finishRule:
+      "Click Student Finished at actual completion. Then record only the difficult-response behavior that was actually observable.",
+  },
+  "time.consistency": {
+    beforeBegin:
+      "Prepare one comparable timed problem. Keep it hidden from the student until Begin Opportunity.",
+    liveSteps: [
+      {
+        kind: "do",
+        text: "Immediately reveal or present the prepared problem after Begin Opportunity. Use only the system-prescribed timer.",
+      },
+      {
+        kind: "say",
+        text: "Begin.",
+      },
+      {
+        kind: "do",
+        text: "Watch structure, pace, and completion. Do not coach or alter the timer.",
+      },
+    ],
+    finishRule:
+      "Click Student Finished at actual completion. If the system timer expires first, the execution boundary closes there. Then record the timed consistency evidence.",
+  },
+};
+
 export const DIAGNOSIS_PROBES: Record<DiagnosisProbeId, DiagnosisProbeDefinition> = {
   "stack.timed_challenge": probe(
     "stack.timed_challenge",
@@ -263,7 +431,7 @@ export const DIAGNOSIS_PROBES: Record<DiagnosisProbeId, DiagnosisProbeDefinition
     "Clarity Recognition Probe",
     "Clarity",
     "Can the student identify the problem, method, and reason before training begins?",
-    "Present a clean topic example. Ask what they see, which method they would use, and why. Do not explain or supply the answer.",
+    "Present a clean topic example. Ask what they see, which method they would use, why it fits, and then ask them to show how they would start. Do not explain, supply the method, confirm the first step, or correct the response.",
     BY_PHASE.Clarity,
     "none",
     "recognition",

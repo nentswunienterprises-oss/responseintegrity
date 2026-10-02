@@ -1,9 +1,34 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
+import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getDrillSchemaDefinition } from "@shared/responseIntegrityDrillRegistry";
+
+const supportMeaning: Record<string, string> = {
+  minimal:
+    "Minimal support only. Preserve the difficulty and return execution to the student immediately.",
+  first_step_only:
+    "Only the first-step boundary may be used. Do not carry the method or the rest of the execution.",
+  none:
+    "No support. The repeated difficult exposure must stand on the student's response.",
+};
+
+const controlledDiscomfortSignals = [
+  "Initial response: what happens at first contact with difficulty?",
+  "First-step control: can the student begin in a controlled, method-consistent way?",
+  "Discomfort tolerance: does the response remain functional while the difficult condition stays present?",
+  "Rescue dependence: does responsibility remain with the student or transfer back to the Specialist?",
+];
 
 export default function ResponseConditioningHowToUseBossBattles() {
   const navigate = useNavigate();
+  const trainingSchema = useMemo(
+    () => getDrillSchemaDefinition("training", "Controlled Discomfort"),
+    [],
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -14,344 +39,238 @@ export default function ResponseConditioningHowToUseBossBattles() {
             className="mb-4 -ml-2"
             onClick={() => navigate("/responseconditioningsystem")}
           >
-            
             Back to Response Conditioning System
           </Button>
 
-          <div className="flex items-start gap-4">
-            <div>
-              <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">
-                Response Integrity-OS Deep Dive
-              </p>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mt-1">
-                How to Use Boss Battles
-              </h1>
-              <p className="text-muted-foreground mt-1">under Execution Standards</p>
-            </div>
+          <div>
+            <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">
+              Response Integrity-OS Deep Dive
+            </p>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight mt-1">
+              How to Use Boss Battles
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Controlled Discomfort problem design under Execution Standards
+            </p>
           </div>
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+        <DeepDiveLessonRunner
+          lessonKey="how-to-use-boss-battles-v2"
+          title="How to Use Boss Battles"
+          completion={<DeepDiveCapabilityCheck assessmentKey="how_to_use_boss_battles_mastery_v1" />}
+        >
+          <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
+            <h2 className="text-2xl font-bold">Boss Battles belong inside Controlled Discomfort</h2>
+            <p className="text-muted-foreground">
+              A Boss Battle is a deliberately challenging, curriculum-appropriate problem used when
+              difficulty is the active pressure variable.
+            </p>
+            <p className="font-semibold">
+              Boss Battle is not a fifth phase, not a free-form challenge mode, and not permission to
+              improvise support.
+            </p>
+            <p className="text-muted-foreground">
+              The phase is Controlled Discomfort. The live set determines the exact support boundary.
+              The Boss Battle is the challenging problem condition used inside that system.
+            </p>
+          </Card>
 
-        {/* What a Boss Battle Is */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What a Boss Battle Is</h2>
-          <p className="text-muted-foreground">A Boss Battle is:</p>
-          <p className="font-medium">an intentionally more difficult problem designed to trigger uncertainty after stability</p>
-          <p className="text-muted-foreground">Not random.</p>
-          <p className="text-muted-foreground">Not punishment.</p>
-          <p className="text-muted-foreground">Not excessive difficulty.</p>
-        </Card>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">When a Boss Battle is used</h2>
+            <p className="text-muted-foreground">
+              The Specialist does not wait until the student "looks comfortable" or count a preferred
+              number of correct questions and then decide to add difficulty.
+            </p>
+            <p className="font-semibold">
+              RI-OS assigns Controlled Discomfort from the topic's evidence-derived state. The
+              Specialist prepares and runs the assigned Controlled Discomfort drill.
+            </p>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li>Clarity must not be replaced by difficulty.</li>
+              <li>Structured Execution must not be replaced by difficulty.</li>
+              <li>Difficulty is introduced because Controlled Discomfort is the correct active load.</li>
+              <li>Topic movement remains system-owned after the evidence is submitted.</li>
+            </ul>
+          </Card>
 
-        {/* The Purpose */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The Purpose</h2>
-          <p className="text-muted-foreground">Boss Battles exist to:</p>
-          <ul className="space-y-2 pl-4">
-            <li className="font-medium">expose the student's default response</li>
-            <li className="font-medium">train stability under difficulty</li>
-            <li className="font-medium">replace panic with process</li>
-          </ul>
-        </Card>
+          <DeepDiveTeachingInteraction
+            prompt="The student has solved four easy problems correctly, but the topic is still assigned to Structured Execution. May the Specialist introduce a Boss Battle because the student now looks comfortable?"
+            options={[
+              {
+                key: "a",
+                label: "Yes. Four correct answers are enough to unlock Boss Battles.",
+                feedback: "Correct-answer volume is not the authority for changing the active phase or pressure condition.",
+              },
+              {
+                key: "b",
+                label: "No. Keep the assigned Structured Execution condition until RI-OS moves the topic from qualifying evidence.",
+                feedback: "Yes. Boss Battles are a Controlled Discomfort load, not a Specialist-selected reward for looking comfortable.",
+              },
+              {
+                key: "c",
+                label: "Yes, if the Specialist believes the student needs more confidence under challenge.",
+                feedback: "Specialist preference does not authorize a phase change.",
+              },
+            ]}
+            correctOptionKey="b"
+            truth="Boss Battles appear because Controlled Discomfort is the system-assigned load, not because the Specialist decides the student has earned a harder question."
+          />
 
-        {/* When to Use It */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">When to Use It</h2>
-          <p className="text-muted-foreground">Only when:</p>
-          <ul className="space-y-2 pl-4">
-            <li className="font-medium">the student has completed 3-4 problems correctly</li>
-            <li className="font-medium">the method is stable</li>
-            <li className="font-medium">the student is starting to appear comfortable</li>
-          </ul>
-
-          <div className="bg-muted rounded p-3 mt-3">
-            <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-            <p className="text-muted-foreground">Boss Battles are introduced after comfort, not during confusion.</p>
-          </div>
-        </Card>
-
-        {/* The Setup */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The Setup</h2>
-          <p className="text-muted-foreground">You do not announce it as:</p>
-          <p className="font-medium">"This is a hard one."</p>
-          <p className="text-muted-foreground">You simply say:</p>
-          <p className="font-medium">"Try this."</p>
-          <p className="text-muted-foreground">Then observe.</p>
-        </Card>
-
-        {/* The Critical Moment */}
-        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">The Critical Moment</h2>
-          <p className="text-muted-foreground">The second the student sees the problem.</p>
-          <p className="text-muted-foreground">Before they speak.</p>
-          <p className="text-muted-foreground">Before they act.</p>
-          <p className="text-muted-foreground">You are watching:</p>
-          <ul className="space-y-1 pl-4 text-muted-foreground">
-            <li>hesitation</li>
-            <li>facial change</li>
-            <li>body language</li>
-            <li>first reaction</li>
-          </ul>
-          <p className="text-muted-foreground">This is the raw response pattern</p>
-        </Card>
-
-        {/* The Most Important Rule */}
-        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">The Most Important Rule</h2>
-          <p className="text-lg font-bold text-primary mb-3">Do Not Rescue</p>
-
-          <p className="text-muted-foreground">When the student reacts:</p>
-          <p className="font-medium">Preserve the active set's support boundary.</p>
-          <p className="text-muted-foreground">
-            Where the assigned drill calls for a 10-15 second hold, keep that hold. Do not turn it into a universal rule for every Boss Battle set.
-          </p>
-
-          <div className="space-y-3 mt-4">
-            <div>
-              <p className="font-semibold mb-2">Why</p>
-              <p className="text-muted-foreground">This is where:</p>
-              <ul className="space-y-1 pl-4 text-muted-foreground">
-                <li>panic appears</li>
-                <li>habits surface</li>
-                <li>conditioning begins</li>
-              </ul>
+          <Card className="p-6 space-y-5">
+            <h2 className="text-2xl font-bold">The Controlled Discomfort sequence</h2>
+            <p className="text-muted-foreground">
+              The live Training registry defines three Controlled Discomfort sets. All use challenging,
+              same-form problems. What changes is the support boundary and the evidence question.
+            </p>
+            <div className="space-y-3">
+              {trainingSchema.sets.map((set, index) => (
+                <div key={set.setId} className="rounded-xl border p-4 space-y-2">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Set {index + 1}
+                      </p>
+                      <h3 className="text-lg font-semibold">{set.setName}</h3>
+                    </div>
+                    <span className="rounded-full border px-2 py-1 text-[11px] font-medium">
+                      {set.reps} reps
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{set.purpose}</p>
+                  <p className="text-sm font-medium">
+                    {supportMeaning[set.constraints.supportLevel] ||
+                      `Use the registered ${set.constraints.supportLevel.replaceAll("_", " ")} support boundary.`}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Difficulty: {set.constraints.difficultyLevel.replaceAll("_", " ")} | Form:{" "}
+                    {set.constraints.variationLevel.replaceAll("_", " ")} | Pressure:{" "}
+                    {set.constraints.pressureLevel.replaceAll("_", " ")}
+                  </p>
+                </div>
+              ))}
             </div>
+          </Card>
 
-            <div>
-              <p className="font-semibold mb-2">If you interrupt:</p>
-              <p className="text-muted-foreground">you remove the training moment</p>
-            </div>
-          </div>
-        </Card>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">Controlled Entry</h2>
+            <p className="text-muted-foreground">
+              Controlled Entry introduces the challenging condition while allowing only the registered
+              minimal support boundary.
+            </p>
+            <p className="font-semibold">
+              The difficulty stays. Support may target the allowed boundary, but the Specialist does not
+              remove the challenge or carry the execution.
+            </p>
+          </Card>
 
-        {/* What You Do After the Hold */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What You Do After the Hold</h2>
-          <p className="text-muted-foreground">
-            Do not automatically guide. Check the active set first.
-          </p>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">No Rescue</h2>
+            <p className="text-muted-foreground">
+              No Rescue tightens the support boundary to first-step-only. The Specialist may not turn
+              uncertainty into a worked demonstration or method walkthrough.
+            </p>
+            <p className="font-semibold">
+              First-step-only is a specific set contract. It is not the universal rule for every Boss Battle.
+            </p>
+          </Card>
 
-          <div className="space-y-3">
-            <div className="rounded-md border p-4">
-              <p className="font-semibold">Controlled Entry</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Minimal support is allowed. Preserve the difficulty and do not carry execution.
-              </p>
-            </div>
-            <div className="rounded-md border border-primary/25 bg-primary/5 p-4">
-              <p className="font-semibold">No Rescue</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                First-step-only support is allowed. This is where the "guide only to the first step" rule belongs.
-              </p>
-            </div>
-            <div className="rounded-md border p-4">
-              <p className="font-semibold">Repeat Exposure</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                No support. The repeated difficult exposure must reveal whether the controlled response now holds without rescue.
-              </p>
-            </div>
-          </div>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">Repeat Exposure</h2>
+            <p className="text-muted-foreground">
+              Repeat Exposure removes support. The same challenging condition is repeated so the system can
+              see whether controlled engagement and recovery now hold without rescue.
+            </p>
+            <p className="font-semibold">
+              Do not soften the problem, add reassurance that changes execution, or supply a step because
+              the repeated exposure feels uncomfortable.
+            </p>
+          </Card>
 
-          <p className="font-semibold">
-            Boss Battle difficulty does not give the Specialist permission to choose a support level.
-          </p>
-        </Card>
+          <DeepDiveTeachingInteraction
+            prompt="During No Rescue, the student stalls and asks for help. What support may the Specialist provide?"
+            options={[
+              {
+                key: "a",
+                label: "Walk through the method until the student is moving again.",
+                feedback: "That becomes rescue and destroys the first-step-only condition.",
+              },
+              {
+                key: "b",
+                label: "Use only the registered first-step boundary, then return responsibility to the student.",
+                feedback: "Yes. The set determines support, not the amount of discomfort in the moment.",
+              },
+              {
+                key: "c",
+                label: "No support at all, because every Boss Battle is always no-help.",
+                feedback: "No-help belongs to Repeat Exposure. No Rescue is specifically first-step-only.",
+              },
+            ]}
+            correctOptionKey="b"
+            truth="Boss Battle difficulty does not define support. The active Controlled Discomfort set does."
+          />
 
-        {/* The Flow */}
-        <Card className="p-6 space-y-6">
-          <h2 className="text-2xl font-bold">The Flow</h2>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">What you actually observe</h2>
+            <p className="text-muted-foreground">
+              The goal is not to invent a psychological story about the student. Observe the response
+              dimensions the system can defend.
+            </p>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              {controlledDiscomfortSignals.map((signal) => (
+                <li key={signal}>{signal}</li>
+              ))}
+            </ul>
+            <p className="font-semibold">
+              Record behavior, support, and condition separately. Do not convert facial expression, tone,
+              or your impression into an unsupported diagnosis.
+            </p>
+          </Card>
 
-          <div className="space-y-2">
-            <p className="font-semibold">Step 1: Introduce</p>
-            <p className="text-muted-foreground">Give the problem naturally.</p>
-          </div>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">What Boss Battles are not</h2>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li>They are not random difficulty for motivation or entertainment.</li>
+              <li>They are not Time Pressure Stability. No timer is added merely because a problem is hard.</li>
+              <li>They are not a reason to abandon same-form comparability inside the registered Training sets.</li>
+              <li>They are not a reason to rescue a student from a valid difficult response.</li>
+              <li>They are not a manual test for deciding phase movement outside RI-OS.</li>
+            </ul>
+          </Card>
 
-          <div className="space-y-2">
-            <p className="font-semibold">Step 2: Observe</p>
-            <p className="text-muted-foreground">Say nothing.</p>
-            <p className="text-muted-foreground">Watch the response.</p>
-          </div>
+          <DeepDiveTeachingInteraction
+            prompt="A Boss Battle produces panic, a wrong method, and incomplete work, but the problem and support condition were valid. Should the Specialist repeat it immediately with an easier version so the student can finish successfully?"
+            options={[
+              {
+                key: "a",
+                label: "Yes. A Boss Battle should end with a successful completion.",
+                feedback: "The weak response is real evidence. Changing the condition to manufacture success hides the truth the drill was designed to expose.",
+              },
+              {
+                key: "b",
+                label: "No. Preserve and record the valid response, then let RI-OS determine the next action.",
+                feedback: "Yes. The Specialist protects the condition and records what happened.",
+              },
+              {
+                key: "c",
+                label: "Yes, but only if the easier problem remains in the same topic.",
+                feedback: "Same topic does not make a changed difficulty condition equivalent.",
+              },
+            ]}
+            correctOptionKey="b"
+            truth="Controlled Discomfort is valuable because valid difficulty reveals the response. The Specialist does not chase a preferred result."
+          />
 
-          <div className="space-y-2">
-            <p className="font-semibold">Step 3: Hold</p>
-            <p className="text-muted-foreground">Allow discomfort to exist.</p>
-            <p className="text-muted-foreground">No interruption.</p>
-          </div>
-
-          <div className="space-y-2">
-            <p className="font-semibold">Step 4: Apply the Set's Support Contract</p>
-            <p className="text-muted-foreground">Minimal, first-step only, or none. Use exactly what the active set permits.</p>
-          </div>
-
-          <div className="space-y-2">
-            <p className="font-semibold">Step 5: Continue Execution</p>
-            <p className="text-muted-foreground">The student works through the problem under the preserved condition.</p>
-            <p className="text-muted-foreground">Do not add extra guidance because the moment feels difficult.</p>
-          </div>
-
-          <div className="space-y-2">
-            <p className="font-semibold">Step 6: Debrief</p>
-            <p className="text-muted-foreground">After the attempt:</p>
-            <p className="text-muted-foreground">You name the behaviour.</p>
-          </div>
-        </Card>
-
-        {/* The Debrief */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The Debrief</h2>
-          <p className="text-muted-foreground">You do NOT focus on:</p>
-          <p className="font-medium">right vs wrong</p>
-          <p className="text-muted-foreground">You focus on:</p>
-          <p className="font-medium">how they responded</p>
-
-          <div>
-            <p className="font-semibold mb-3">What You Say</p>
-            <p className="text-muted-foreground">"You paused."</p>
-            <p className="text-muted-foreground">"You identified the type."</p>
-            <p className="text-muted-foreground">"You started with what you knew."</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">Why This Matters</p>
-            <p className="text-muted-foreground">You are reinforcing:</p>
-            <p className="font-medium">response, not result</p>
-          </div>
-        </Card>
-
-        {/* What Not to Do */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What Not to Do</h2>
-
-          <div className="space-y-4">
-            <div>
-              <p className="font-semibold flex items-center gap-2">
-                Introduce Too Early
-              </p>
-              <p className="text-muted-foreground">Student is not ready, and chaos follows.</p>
-            </div>
-
-            <div>
-              <p className="font-semibold flex items-center gap-2">
-                Over-Guide
-              </p>
-              <p className="text-muted-foreground">Too many hints leave no room for thinking.</p>
-            </div>
-
-            <div>
-              <p className="font-semibold flex items-center gap-2">
-                Rescue
-              </p>
-              <p className="text-muted-foreground">Jumping in quickly prevents conditioning.</p>
-            </div>
-
-            <div>
-              <p className="font-semibold flex items-center gap-2">
-                Label It as "Hard"
-              </p>
-              <p className="text-muted-foreground">Creates anticipation and anxiety</p>
-            </div>
-
-            <div>
-              <p className="font-semibold flex items-center gap-2">
-                Skip Debrief
-              </p>
-              <p className="text-muted-foreground">Misses the learning moment</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* What You Must Maintain */}
-        <Card className="p-6 space-y-6">
-          <h2 className="text-2xl font-bold">What You Must Maintain</h2>
-
-          <div className="space-y-2">
-            <p className="font-semibold">Calm</p>
-            <p className="text-muted-foreground">No urgency in your tone</p>
-          </div>
-
-          <div className="space-y-2">
-            <p className="font-semibold">Control</p>
-            <p className="text-muted-foreground">You manage the pace</p>
-          </div>
-
-          <div className="space-y-2">
-            <p className="font-semibold">Precision</p>
-            <p className="text-muted-foreground">You intervene only when needed</p>
-          </div>
-
-          <div className="space-y-2">
-            <p className="font-semibold">Silence</p>
-            <p className="text-muted-foreground">You allow thinking space</p>
-          </div>
-        </Card>
-
-        {/* What This Builds */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What This Builds</h2>
-
-          <div className="space-y-3">
-            <div>
-              <p className="font-semibold mb-1">1. Tolerance</p>
-              <p className="text-muted-foreground">Student stays in difficulty longer</p>
-            </div>
-
-            <div>
-              <p className="font-semibold mb-1">2. Initiation</p>
-              <p className="text-muted-foreground">They start without waiting</p>
-            </div>
-
-            <div>
-              <p className="font-semibold mb-1">3. Control</p>
-              <p className="text-muted-foreground">They don't rush or panic</p>
-            </div>
-
-            <div>
-              <p className="font-semibold mb-1">4. Trust in System</p>
-              <p className="text-muted-foreground">They rely on structure, not emotion</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* What Mastery Looks Like */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What Mastery Looks Like</h2>
-          <p className="text-muted-foreground">You will see:</p>
-          <ul className="space-y-2 pl-4 text-muted-foreground">
-            <li>shorter hesitation</li>
-            <li>quicker first step</li>
-            <li>less emotional reaction</li>
-            <li>more stable execution</li>
-          </ul>
-          <p className="text-muted-foreground">The student begins to treat difficulty as:</p>
-          <p className="font-medium">normal</p>
-        </Card>
-
-        {/* The Core Principle */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The Core Principle</h2>
-          <p className="text-muted-foreground">Boss Battles are:</p>
-          <p className="font-bold text-lg">pressure without chaos</p>
-        </Card>
-
-        {/* Final Rule */}
-        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">Final Rule</h2>
-          <p className="text-muted-foreground">If the student never experiences:</p>
-          <ul className="space-y-1 pl-4 text-muted-foreground">
-            <li>hesitation</li>
-            <li>uncertainty</li>
-            <li>discomfort</li>
-          </ul>
-          <p className="text-muted-foreground">Then:</p>
-          <p className="font-semibold">you are not training response</p>
-          <p className="text-muted-foreground">You are protecting comfort.</p>
-          <p className="text-muted-foreground">And Response Integrity does not protect comfort.</p>
-          <p className="text-muted-foreground">It builds:</p>
-          <p className="font-bold text-lg">capability under pressure</p>
-        </Card>
-
+          <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
+            <h2 className="text-2xl font-bold">Operating rule</h2>
+            <p className="font-semibold">
+              Controlled Discomfort chooses the load. The set chooses the support boundary. The Specialist
+              preserves both. Evidence decides what happens next.
+            </p>
+          </Card>
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );

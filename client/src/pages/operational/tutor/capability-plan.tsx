@@ -37,6 +37,8 @@ type CapabilityAvailability = {
     | "transformation_mastery"
     | "transformation_retrieval"
     | "transformation_transfer"
+    | "execution_standards_mastery"
+    | "system_intelligence_mastery"
     | "session_infrastructure_mastery";
 };
 
@@ -271,6 +273,12 @@ export default function SpecialistCapabilityPlan() {
       entry.stage === "transformation_retrieval" ||
       entry.stage === "transformation_transfer",
   );
+  const executionStandards = assessments.filter(
+    (entry) => entry.stage === "execution_standards_mastery",
+  );
+  const systemIntelligence = assessments.filter(
+    (entry) => entry.stage === "system_intelligence_mastery",
+  );
   const sessionInfrastructure = assessments.filter(
     (entry) => entry.stage === "session_infrastructure_mastery",
   );
@@ -299,9 +307,10 @@ export default function SpecialistCapabilityPlan() {
             Capability Path
           </h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Master each Transformation Deep Dive, prove you still retain the
-            system later, then prove you can apply it across mixed situations.
-            That evidence unlocks Sandbox.
+            Build operating understanding across all four Response Conditioning
+            modules. The Transformation Mastery, Retention and Application gate
+            opens Sandbox; the remaining Deep Dive Masteries keep Training explicit
+            rather than leaving execution or system reasoning assumed.
           </p>
         </div>
 
@@ -394,11 +403,46 @@ export default function SpecialistCapabilityPlan() {
 
         <section className="space-y-4">
           <div>
-            <h2 className="text-xl font-semibold">3. Continue Training inside Sandbox</h2>
+            <h2 className="text-xl font-semibold">3. Master Execution Standards</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Sandbox is not Training completion. It gives you a protected
-              operating environment so Session Infrastructure can be learned
-              against the system you will actually use.
+              Prove the delivery boundaries behind modelling, intervention, Controlled
+              Discomfort problems, common execution failures, and Specialist self-regulation.
+            </p>
+          </div>
+          {executionStandards.map((assessment, index) => (
+            <CapabilityCard
+              key={assessment.assessmentKey}
+              assessment={assessment}
+              index={index}
+              navigate={navigate}
+            />
+          ))}
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold">4. Master System Intelligence</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Prove you understand how RI-OS diagnoses, interprets prompts, establishes
+              baselines, and resolves uncertainty instead of operating the runner blindly.
+            </p>
+          </div>
+          {systemIntelligence.map((assessment, index) => (
+            <CapabilityCard
+              key={assessment.assessmentKey}
+              assessment={assessment}
+              index={index}
+              navigate={navigate}
+            />
+          ))}
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold">5. Master Session Infrastructure</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Continue Training against the actual session system: Diagnosis flow,
+              drill authority, logging, Handover continuity, and live observability.
             </p>
           </div>
           {sessionInfrastructure.map((assessment, index) => (

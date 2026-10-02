@@ -35,7 +35,7 @@ export default function ResponseConditioningTopicConditioning() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
         <DeepDiveLessonRunner
-          lessonKey="topic-conditioning-v1"
+          lessonKey="topic-conditioning-v2"
           title="Topic Conditioning"
           completion={<DeepDiveCapabilityCheck assessmentKey="topic_conditioning_mastery_v1" />}
         >
@@ -86,38 +86,19 @@ export default function ResponseConditioningTopicConditioning() {
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Why this matters</h2>
-          <p className="text-muted-foreground">Most tutoring asks: "Does the student understand this topic?"</p>
-          <p className="font-semibold">Response Integrity asks a harder and more useful question:</p>
-          <p className="font-semibold">"In this topic, where does the student break?"</p>
-          <p className="text-muted-foreground">That changes everything.</p>
-          <p className="text-muted-foreground">Because a student can:</p>
+          <p className="text-muted-foreground">
+            Topic knowledge and response capability are separate questions. A student may know substantial content and still break at a specific response layer.
+          </p>
+          <p className="font-semibold">RI-OS asks: "In this topic, where does the response first become unreliable?"</p>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-            <li>understand some parts of a topic</li>
-            <li>still freeze in that topic</li>
-            <li>still guess in that topic</li>
-            <li>still rush in that topic</li>
-            <li>still collapse under time in that topic</li>
+            <li>Clarity: is the mental map usable?</li>
+            <li>Structured Execution: can the known method run independently and in order?</li>
+            <li>Controlled Discomfort: does that response survive challenging same-form difficulty?</li>
+            <li>Time Pressure Stability: does the trained response survive individualized urgency?</li>
           </ul>
-          <p className="text-muted-foreground">So the real issue is not just topic knowledge.</p>
-          <p className="font-semibold">The real issue is:</p>
-          <p className="font-semibold">How the student behaves inside that topic when difficulty appears.</p>
-          <p className="text-muted-foreground">That is what Response Integrity conditions.</p>
-          <p className="text-muted-foreground">Response Integrity is not trying to:</p>
-          <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-            <li>teach as much content as possible in one session</li>
-            <li>move through the syllabus as fast as possible</li>
-            <li>finish topics for the sake of progress</li>
-            <li>impress parents with volume</li>
-          </ul>
-          <p className="text-muted-foreground">Response Integrity is doing something more precise.</p>
-          <p className="text-muted-foreground">Response Integrity is asking:</p>
-          <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-            <li>Inside this topic, is the student clear?</li>
-            <li>Can they execute?</li>
-            <li>Can they stay stable when difficulty appears?</li>
-            <li>Can they stay stable when time pressure appears?</li>
-          </ul>
-          <p className="font-semibold">If not, the topic is not conditioned yet.</p>
+          <p className="font-semibold">
+            Topic Conditioning exists to locate that layer precisely and run the system-owned condition required next.
+          </p>
         </Card>
 
         <Card className="p-6 space-y-4">
@@ -168,6 +149,59 @@ export default function ResponseConditioningTopicConditioning() {
           </p>
         </Card>
 
+        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
+          <h2 className="text-2xl font-bold">How a New Topic Enters the System</h2>
+          <p className="text-muted-foreground">
+            A new topic does not inherit a phase from another topic and it does not receive a phase from a symptom alone.
+            The entry signal only tells RI-OS where to ask first.
+          </p>
+          <p className="font-semibold">
+            Starting signal = routing hypothesis. Direct behavioral evidence = placement authority.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">When the Entry Signal Is Uncertain</h2>
+          <p className="text-muted-foreground">
+            If there is no trustworthy starting signal, RI-OS begins with a neutral Independent Normal Probe: one normal,
+            familiar-form problem with difficulty and time pressure removed.
+          </p>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li>No timer or urgency target.</li>
+            <li>No modelling or method prompt.</li>
+            <li>The student executes independently.</li>
+            <li>The response can naturally expose Clarity and immediate Structured Execution behavior.</li>
+            <li>Behavior that never appears remains not observed rather than being elicited just to fill the form.</li>
+          </ul>
+          <p className="font-semibold">
+            This neutral baseline is not an automatic Structured Execution placement. It is the first clean evidence
+            condition from which the system decides what question comes next.
+          </p>
+        </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="A brand-new topic has no reliable parent or history signal. Where should the Specialist place it before the first opportunity?"
+          options={[
+            {
+              key: "a",
+              label: "Structured Execution, because the neutral independent probe sits between Clarity and pressure work.",
+              feedback: "The neutral probe is an evidence condition, not a phase assignment.",
+            },
+            {
+              key: "b",
+              label: "Do not pre-place it. Run the system-selected neutral independent baseline and let the resulting evidence route the next question.",
+              feedback: "Yes. Uncertain entry is resolved by clean evidence, not by guessing a middle phase.",
+            },
+            {
+              key: "c",
+              label: "Clarity, because every new topic must always restart from the first phase.",
+              feedback: "A new topic needs evidence-complete placement. It is not automatically forced to Clarity.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="When the signal is uncertain, RI-OS starts neutral and lets the response reveal which earlier layer needs to be resolved."
+        />
+
         <DeepDiveTeachingInteraction
           prompt="A student scores 86% in a familiar class test, but in RI their structure repeatedly breaks when the same method appears in less familiar forms. How should the class-test mark be used?"
           options={[
@@ -195,7 +229,7 @@ export default function ResponseConditioningTopicConditioning() {
           <h2 className="text-2xl font-bold">How the OS works inside a topic</h2>
           <p className="text-muted-foreground">Response Integrity-OS does not float above schoolwork. It operates inside it.</p>
           <p className="text-muted-foreground">
-            That means every topic is pushed through the same conditioning sequence.
+            That means every topic is governed by the same phase architecture, while Diagnosis establishes the correct entry point rather than forcing every topic to restart from Clarity.
           </p>
 
           <div className="space-y-2">
@@ -208,7 +242,7 @@ export default function ResponseConditioningTopicConditioning() {
               <li>knowing the steps (Method)</li>
               <li>knowing why the steps work (Reason)</li>
             </ul>
-            <p className="text-muted-foreground">Tool: 3-Layer Lens</p>
+            <p className="text-muted-foreground">Training sets: Modeling, Identification, then Light Apply.</p>
             <p className="font-medium">Question: Can the student clearly see what they are dealing with in this topic?</p>
             <p className="text-muted-foreground">If no, this topic starts at Clarity.</p>
           </div>
@@ -223,7 +257,7 @@ export default function ResponseConditioningTopicConditioning() {
               <li>reducing guessing</li>
               <li>repeating the method reliably</li>
             </ul>
-            <p className="text-muted-foreground">Tools: independent execution reps, step-order correction, and 3-Layer Lens checks. Model only if a Clarity gap appears.</p>
+            <p className="text-muted-foreground">Training sets: Required Structure, Independent Execution, then Variation Control.</p>
             <p className="font-medium">Question: Can the student act reliably in this topic without being carried?</p>
             <p className="text-muted-foreground">If no, this topic sits in Structured Execution.</p>
           </div>
@@ -233,12 +267,12 @@ export default function ResponseConditioningTopicConditioning() {
             <p className="text-muted-foreground">Now difficulty is introduced inside the topic.</p>
             <p className="text-muted-foreground">This means:</p>
             <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>harder questions</li>
-              <li>unfamiliar forms</li>
-              <li>no rescue</li>
-              <li>first-step guidance only</li>
+              <li>challenging, same-form problems</li>
+              <li>difficulty held as the active pressure variable</li>
+              <li>support tightened across the registered sets</li>
+              <li>repeated exposure without changing the topic-state manually</li>
             </ul>
-            <p className="text-muted-foreground">Tool: Boss Battles</p>
+            <p className="text-muted-foreground">Training sets: Controlled Entry, No Rescue, then Repeat Exposure. Boss Battles are the challenging problem load used inside this phase.</p>
             <p className="font-medium">Question: Can the student stay stable in this topic when certainty disappears?</p>
             <p className="text-muted-foreground">If no, this topic sits in Controlled Discomfort.</p>
           </div>
@@ -248,15 +282,56 @@ export default function ResponseConditioningTopicConditioning() {
             <p className="text-muted-foreground">Now the same topic is tested under time.</p>
             <p className="text-muted-foreground">This means:</p>
             <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>timed attempts</li>
-              <li>process under pressure</li>
-              <li>structure maintained under urgency</li>
+              <li>an individualized system-owned Timer Contract</li>
+              <li>process and structure preserved under urgency</li>
+              <li>repeated timed exposure at the same baseline condition</li>
+              <li>the final defined tighter constraint only when the registered set requires it</li>
             </ul>
-            <p className="text-muted-foreground">Tool: Timed Execution</p>
+            <p className="text-muted-foreground">Training sets: Structure Under Timer, Repeated Timed Execution, then Full Constraint.</p>
             <p className="font-medium">Question: Can the student stay structured in this topic when time pressure appears?</p>
             <p className="text-muted-foreground">If no, this topic sits in Time Pressure Stability.</p>
           </div>
         </Card>
+
+        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
+          <h2 className="text-2xl font-bold">Timing Authority Is Topic-Specific Too</h2>
+          <p className="text-muted-foreground">
+            Time Pressure Stability is not just topic-specific in phase and stability. Its timing authority is also
+            bound to the individual student and topic.
+          </p>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li>A Timer Contract from Algebra does not become the timer for Fractions.</li>
+            <li>The primary Training baseline comes from the current topic's qualifying Independent Execution evidence.</li>
+            <li>Diagnosis can establish equivalent clean no-pressure timing when the topic may enter above Structured Execution.</li>
+            <li>If timing authority is missing when the topic needs it, RI-OS resolves that readiness gap before authoritative timed work.</li>
+          </ul>
+          <p className="font-semibold">
+            Topic state and topic timing lineage travel together. The Specialist cannot borrow a timer from another arena.
+          </p>
+        </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="Algebra has a valid 44-second Timer Contract. Fractions is newly diagnosed toward Time Pressure Stability but has no timing authority yet. May the Specialist use Algebra's 44 seconds for Fractions?"
+          options={[
+            {
+              key: "a",
+              label: "Yes. The Timer Contract belongs to the student, so one strong baseline can cover all topics.",
+              feedback: "Timing authority is student-and-topic specific. Different topics can have different normal independent execution durations.",
+            },
+            {
+              key: "b",
+              label: "No. Fractions needs its own valid timing authority through the system's qualifying evidence route.",
+              feedback: "Yes. The system cannot copy pressure from one topic into another.",
+            },
+            {
+              key: "c",
+              label: "Yes, but only as a temporary timer until Fractions produces more evidence.",
+              feedback: "A temporary invented timer would still create unauthorized pressure evidence.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Every active topic carries its own evidence lineage, including individualized timing authority when TPS is relevant."
+        />
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">The important truth</h2>
@@ -417,24 +492,17 @@ export default function ResponseConditioningTopicConditioning() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Why Topic Conditioning is different from normal tutoring</h2>
-          <p className="text-muted-foreground">Normal tutoring usually works like this:</p>
+          <h2 className="text-2xl font-bold">The operating sequence</h2>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-            <li>explain topic</li>
-            <li>practice topic</li>
-            <li>move on</li>
+            <li>identify the active topic</li>
+            <li>establish or inherit its evidence-derived state</li>
+            <li>run the system-authorized phase, set, and constraint</li>
+            <li>record concrete response evidence</li>
+            <li>follow the resulting hold, movement, readiness, or re-diagnosis direction</li>
           </ul>
-          <p className="text-muted-foreground">Response Integrity works like this:</p>
-          <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-            <li>select topic</li>
-            <li>diagnose where response breaks in that topic</li>
-            <li>apply the correct phase</li>
-            <li>repeat until response stabilizes</li>
-            <li>move only when stable</li>
-          </ul>
-          <p className="text-muted-foreground">That means Response Integrity is not competing on more hours, worksheets, or explanations.</p>
-          <p className="font-semibold">Response Integrity is competing on precision of response training.</p>
-          <p className="font-semibold">This is why Response Integrity feels different.</p>
+          <p className="font-semibold">
+            The Specialist does not replace this sequence with a preferred worksheet, phase, timer, or progression decision.
+          </p>
         </Card>
 
         <DeepDiveTeachingInteraction
@@ -534,29 +602,21 @@ export default function ResponseConditioningTopicConditioning() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What the parent is really buying</h2>
-          <p className="text-muted-foreground">Parents may think they are buying math tutoring, support with schoolwork, and help with difficult topics.</p>
-          <p className="font-semibold">
-            But what Response Integrity is really delivering is conditioned response inside the topics that currently break the
-            student.
+          <h2 className="text-2xl font-bold">What Topic Conditioning connects</h2>
+          <p className="text-muted-foreground">
+            Topic Conditioning binds real school content to the operating state RI-OS can defend for that topic.
           </p>
-          <p className="text-muted-foreground">That is why Response Integrity is stronger than ordinary tutoring.</p>
-          <p className="text-muted-foreground">Because you are not just helping the child "understand fractions."</p>
-          <p className="text-muted-foreground">You are training them to stay calm, start, execute, and remain stable under time and difficulty.</p>
-          <p className="text-muted-foreground">Then you do the same in algebra, then word problems, then exponents.</p>
-          <p className="text-muted-foreground">Over time, the child changes. Not just their knowledge. Their response.</p>
-          <p className="font-semibold">
-            Topic Conditioning is the process of using real school topics as arenas to train stable academic response
-            through the Response Integrity Operating System.
-          </p>
-          <p className="text-muted-foreground">It connects:</p>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-            <li>the student's actual school topics</li>
-            <li>the parent's observed symptoms</li>
-            <li>the Specialist's diagnosis</li>
-            <li>the OS phases</li>
-            <li>the student's transformation</li>
+            <li>the student's active school topic</li>
+            <li>the starting signal or inherited topic state</li>
+            <li>direct behavioral evidence from Diagnosis, Training, or Handover</li>
+            <li>the current phase and stability</li>
+            <li>the registered set, support, difficulty, variation, and timing condition</li>
+            <li>the next system-authorized action</li>
           </ul>
+          <p className="font-semibold">
+            The topic is the arena. The Response Integrity Operating System determines what capability is being conditioned inside it.
+          </p>
         </Card>
         </DeepDiveLessonRunner>
       </div>

@@ -329,7 +329,7 @@ test("passive timing wire rejects invalid or tampered duration evidence", () => 
 });
 
 
-test("TPS Training set IDs deterministically select the Timer Contract condition", () => {
+test("TPS Training and Handover set IDs deterministically select the Timer Contract condition", () => {
   const contract = {
     version: 1 as const,
     studentId: "student-1",
@@ -357,6 +357,10 @@ test("TPS Training set IDs deterministically select the Timer Contract condition
     getTpsTrainingPressureForSet("time_pressure.full_constraint"),
     "full_constraint",
   );
+  assert.equal(
+    getTpsTrainingPressureForSet("time_pressure.handover_continuity"),
+    "light_timer",
+  );
 
   const validAttempt: TpsTimedAttemptSubmissionV1 = {
     attemptId: "attempt-1",
@@ -378,6 +382,20 @@ test("TPS Training set IDs deterministically select the Timer Contract condition
   assert.deepEqual(
     validateTpsTimedAttemptAgainstContract({ contract, attempt: validAttempt }),
     { ok: true, attempt: validAttempt },
+  );
+
+  const handoverAttempt: TpsTimedAttemptSubmissionV1 = {
+    ...validAttempt,
+    attemptId: "handover-attempt-1",
+    setId: "time_pressure.handover_continuity",
+    setName: "Handover Continuity",
+  };
+  assert.deepEqual(
+    validateTpsTimedAttemptAgainstContract({
+      contract,
+      attempt: handoverAttempt,
+    }),
+    { ok: true, attempt: handoverAttempt },
   );
 
   assert.match(
@@ -478,7 +496,7 @@ test("TPS timed lineage distinguishes clean expiry from technical failure", () =
 });
 
 
-test("TPS Training drill wire stores only accepted valid timed-attempt lineage", () => {
+test("TPS timed drill wire stores only accepted valid Training or Handover lineage", () => {
   const reference = {
     version: 1 as const,
     attemptId: "attempt-valid-2",
@@ -493,6 +511,18 @@ test("TPS Training drill wire stores only accepted valid timed-attempt lineage",
   const encoded = encodeTpsTimedAttemptEvidenceRef(reference);
   assert.equal(TPS_TIMED_ATTEMPT_WIRE_KEY, "_tps_timed_attempt_v1");
   assert.deepEqual(decodeTpsTimedAttemptEvidenceRef(encoded), reference);
+
+  const handoverReference = {
+    ...reference,
+    attemptId: "handover-attempt-valid",
+    setId: "time_pressure.handover_continuity" as const,
+  };
+  assert.deepEqual(
+    decodeTpsTimedAttemptEvidenceRef(
+      encodeTpsTimedAttemptEvidenceRef(handoverReference),
+    ),
+    handoverReference,
+  );
 
   assert.equal(
     decodeTpsTimedAttemptEvidenceRef(JSON.stringify({

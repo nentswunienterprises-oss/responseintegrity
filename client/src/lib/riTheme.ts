@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 export type RITheme = "light" | "warm-dark" | "dark";
 
 export const RI_THEME_STORAGE_KEY = "ri-ui-theme";
-export const DEFAULT_RI_THEME: RITheme = "warm-dark";
+export const DEFAULT_RI_THEME: RITheme = "dark";
 
 export function isRITheme(value: string | null): value is RITheme {
   return value === "light" || value === "warm-dark" || value === "dark";

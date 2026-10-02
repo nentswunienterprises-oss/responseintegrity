@@ -22,7 +22,8 @@ test("validation-only mode does not import or open the production database modul
 test("full MVP coverage can be required without forcing incremental authoring to pretend complete", () => {
   assert.match(source, /--require-mvp-coverage/);
   assert.match(source, /requireMvpCoverage && coverage\.missingEvidenceCells\.length > 0/);
-  assert.match(source, /Missing \$\{coverage\.missingEvidenceCells\.length\} of 33 required evidence cells/);
+  assert.match(source, /requiredEvidenceCellCount/);
+  assert.match(source, /Missing \$\{coverage\.missingEvidenceCells\.length\} of \$\{requiredEvidenceCellCount\} required evidence cells/);
 });
 
 test("database mutation requires apply and imports banks inactive without rotating the active release", () => {

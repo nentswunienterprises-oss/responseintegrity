@@ -26,6 +26,15 @@ import type {
   SandboxCapabilityOccurrence,
 } from "@shared/sandboxEnvironment";
 import type { TopicPhase, TopicStability } from "@shared/topicConditioningEngine";
+import {
+  deriveTpsTimerContractV1,
+  type TpsBaselineSnapshot,
+} from "@shared/tpsTimingContract";
+import {
+  loadLatestTpsTimerContract,
+  persistTpsTimerContract,
+  type PersistedTpsTimerContract,
+} from "./tpsTimingAuthority";
 import { getSandboxEnvironmentHistory } from "./sandboxEnvironment";
 
 const BANK_KEY = "sandbox_stateful_environment";
@@ -452,6 +461,375 @@ function projectProbe(probeId: DiagnosisProbeId) {
       };
     }),
     supportOptions: SANDBOX_DIAGNOSIS_SUPPORT_EVENTS,
+  };
+}
+
+
+const SANDBOX_HANDOVER_SIMULATION_PROBE_BY_PHASE: Record<TopicPhase, DiagnosisProbeId> = {
+  Clarity: "clarity.recognition",
+  "Structured Execution": "stack.normal_independent",
+  "Controlled Discomfort": "stack.challenge_no_timer",
+  "Time Pressure Stability": "time.consistency",
+};
+
+
+async function ensureSandboxTpsTimerContract(input: {
+  trajectory: TrajectoryRow;
+  truth: TrajectoryTruthRow;
+  tutorId: string;
+  studentId: string;
+  topic: string;
+}): Promise<PersistedTpsTimerContract> {
+  const topic = String(input.topic || "").trim();
+  if (!topic) {
+    throw httpError(
+      400,
+      "Sandbox Time Pressure Stability simulation requires a topic for timing authority.",
+    );
+  }
+
+  const epochKey = `sandbox:${input.trajectory.id}:structured_execution:v1`;
+  const existing = await loadLatestTpsTimerContract({
+    studentId: input.studentId,
+    topic,
+  });
+  if (existing?.baselineSourceEpochKey === epochKey) {
+    return existing;
+  }
+
+  // Sandbox students carry persistent fictional state. Their inherited TPS state
+  // must therefore carry the fictional baseline lineage that would have made that
+  // state possible. Keep the three samples deterministic for the trajectory so a
+  // refresh cannot manufacture a different Timer Contract.
+  const seedHex = digest(
+    [
+      "sandbox-tps-baseline-v1",
+      input.truth.trajectory_seed,
+      input.trajectory.id,
+      input.studentId,
+      topic.toLowerCase(),
+    ].join(":"),
+  ).slice(0, 8);
+  const seedNumber = Number.parseInt(seedHex, 16);
+  const baselineSeconds = 44 + (Number.isFinite(seedNumber) ? seedNumber % 9 : 0);
+  const sampleSeconds: [number, number, number] = [
+    Math.max(1, baselineSeconds - 2),
+    baselineSeconds,
+    baselineSeconds + 2,
+  ];
+
+  const snapshot: TpsBaselineSnapshot = {
+    source: "training",
+    sourceEpochKey: epochKey,
+    baselineGroupId: `sandbox:${input.trajectory.id}:independent_execution`,
+    studentId: input.studentId,
+    topic,
+    recordIds: [
+      `sandbox:${input.trajectory.id}:se-baseline:1`,
+      `sandbox:${input.trajectory.id}:se-baseline:2`,
+      `sandbox:${input.trajectory.id}:se-baseline:3`,
+    ],
+    elapsedMs: [
+      sampleSeconds[0] * 1000,
+      sampleSeconds[1] * 1000,
+      sampleSeconds[2] * 1000,
+    ],
+    baselineSeconds,
+    completedAt: new Date().toISOString(),
+  };
+
+  return persistTpsTimerContract({
+    contract: deriveTpsTimerContractV1(snapshot),
+    tutorId: input.tutorId,
+  });
+}
+
+
+function projectSandboxLiveBehavior(input: {
+  scope: SandboxLiveEvidenceSimulationScope;
+  probeId: DiagnosisProbeId;
+  behavior: string;
+}) {
+  if (input.scope !== "handover" || input.probeId !== "time.consistency") {
+    return input.behavior;
+  }
+
+  return input.behavior
+    .replace(/On the repeated timed opportunity, the student again /i, "Under the timed continuity condition, the student ")
+    .replace(/repeated timed opportunity/gi, "timed continuity opportunity")
+    .replace(/repeated timed response/gi, "timed continuity response")
+    .replace(/The repeat is/gi, "The timed continuity response is")
+    .replace(/the repeat is/gi, "the timed continuity response is")
+    .replace(/breaks again/gi, "breaks");
+}
+
+export type SandboxLiveEvidenceSimulationScope = "diagnosis" | "handover";
+
+export async function prepareSandboxLiveEvidenceSimulation(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  studentId: string;
+  scope: SandboxLiveEvidenceSimulationScope;
+  sourceContextId: string;
+  topic: string;
+  startingPhase: TopicPhase;
+  sequenceNumber: number;
+  probeId?: DiagnosisProbeId | null;
+}) {
+  await assertSandboxAccess(input);
+  const { trajectory, truth } = await loadTrajectory(input);
+
+  const timerContract =
+    input.scope === "handover" &&
+    input.startingPhase === "Time Pressure Stability"
+      ? await ensureSandboxTpsTimerContract({
+          trajectory,
+          truth,
+          tutorId: input.tutorId,
+          studentId: input.studentId,
+          topic: input.topic,
+        })
+      : null;
+
+  const probeId =
+    input.scope === "handover"
+      ? SANDBOX_HANDOVER_SIMULATION_PROBE_BY_PHASE[input.startingPhase]
+      : input.probeId || null;
+  if (!probeId || !(probeId in DIAGNOSIS_PROBES)) {
+    throw httpError(400, "Sandbox evidence simulation requires a valid diagnosis probe.");
+  }
+  if (!input.sourceContextId.trim()) {
+    throw httpError(400, "Sandbox evidence simulation requires a source context.");
+  }
+  if (!Number.isInteger(input.sequenceNumber) || input.sequenceNumber <= 0) {
+    throw httpError(400, "Sandbox evidence simulation sequence must be positive.");
+  }
+
+  const outcomes = await loadDiagnosisOutcomes({
+    bankVersion: trajectory.bank_version,
+    probeId,
+  });
+  const seed = [
+    truth.trajectory_seed,
+    input.scope,
+    input.sourceContextId,
+  ].join(":");
+  const selected = selectSandboxDiagnosisOutcome({
+    seed,
+    outcomes: outcomes.map((item) => item.definition),
+    context: {
+      startingPhase: input.startingPhase,
+      probeId,
+      sequenceNumber: input.sequenceNumber,
+      earliestUnsupportedCapability: null,
+      recentOutcomeKeys: [],
+    },
+  });
+  const selectedRecord = outcomes.find(
+    (item) =>
+      item.definition.key === selected.key &&
+      item.definition.version === selected.version,
+  );
+  if (!selectedRecord) {
+    throw new Error("Sandbox simulated evidence outcome could not be resolved.");
+  }
+
+  const formId = digest(
+    [
+      "sandbox-live-evidence-v1",
+      trajectory.id,
+      input.scope,
+      input.sourceContextId,
+      input.startingPhase,
+      input.sequenceNumber,
+      probeId,
+      selectedRecord.publicRef,
+    ].join(":"),
+  ).slice(0, 32);
+
+  return {
+    scope: input.scope,
+    trajectoryId: trajectory.id,
+    bankVersion: trajectory.bank_version,
+    sessionNumber: trajectory.session_number,
+    probeId,
+    sequenceNumber: input.sequenceNumber,
+    formId,
+    studentBehavior: projectSandboxLiveBehavior({
+      scope: input.scope,
+      probeId,
+      behavior: selected.studentBehavior,
+    }),
+    simulatedElapsedSeconds: selected.simulatedElapsedSeconds,
+    timerAuthority: timerContract
+      ? {
+          contractId: timerContract.contractId,
+          baselineSeconds: timerContract.baselineSeconds,
+          structureUnderTimerSeconds: timerContract.structureUnderTimerSeconds,
+          repeatedTimedExecutionSeconds: timerContract.repeatedTimedExecutionSeconds,
+          fullConstraintSeconds: timerContract.fullConstraintSeconds,
+        }
+      : null,
+    studentStateAuthoritative: false as const,
+    evidenceScope: "sandbox" as const,
+  };
+}
+
+export async function submitSandboxLiveEvidenceSimulation(input: {
+  tutorAssignmentId: string;
+  tutorId: string;
+  studentId: string;
+  scope: SandboxLiveEvidenceSimulationScope;
+  sourceContextId: string;
+  topic: string;
+  startingPhase: TopicPhase;
+  sequenceNumber: number;
+  probeId?: DiagnosisProbeId | null;
+  formId: string;
+  supportEvent: DiagnosisSupportEvent;
+  observations: Array<{
+    dimensionId: string;
+    behaviorId: string;
+  }>;
+}) {
+  const prepared = await prepareSandboxLiveEvidenceSimulation(input);
+  if (prepared.formId !== input.formId) {
+    throw httpError(409, "Sandbox simulated evidence opportunity is stale.");
+  }
+
+  const outcomes = await loadDiagnosisOutcomes({
+    bankVersion: prepared.bankVersion,
+    probeId: prepared.probeId as DiagnosisProbeId,
+  });
+  const { trajectory, truth } = await loadTrajectory(input);
+  const selected = selectSandboxDiagnosisOutcome({
+    seed: [truth.trajectory_seed, input.scope, input.sourceContextId].join(":"),
+    outcomes: outcomes.map((item) => item.definition),
+    context: {
+      startingPhase: input.startingPhase,
+      probeId: prepared.probeId as DiagnosisProbeId,
+      sequenceNumber: input.sequenceNumber,
+      earliestUnsupportedCapability: null,
+      recentOutcomeKeys: [],
+    },
+  });
+
+  const expectedDimensionIds =
+    input.scope === "diagnosis"
+      ? DIAGNOSIS_PROBES[prepared.probeId as DiagnosisProbeId].dimensions
+      : Object.values(DIAGNOSIS_OBSERVATION_MATRIX)
+          .filter((dimension) => dimension.phase === input.startingPhase)
+          .map((dimension) => dimension.id);
+
+  const submitted = new Map(
+    input.observations.map((item) => [
+      String(item.dimensionId || "").trim(),
+      String(item.behaviorId || "").trim(),
+    ]),
+  );
+  if (
+    submitted.size !== expectedDimensionIds.length ||
+    expectedDimensionIds.some((dimensionId) => !submitted.has(dimensionId))
+  ) {
+    throw httpError(
+      400,
+      "Sandbox evidence simulation must record every prescribed behavior dimension.",
+    );
+  }
+
+  const canonical = new Map(
+    selected.canonicalObservations.map((item) => [
+      item.dimensionId,
+      item.behaviorId,
+    ]),
+  );
+  for (const dimensionId of expectedDimensionIds) {
+    if (!canonical.has(dimensionId)) {
+      throw new Error(
+        `Sandbox simulated outcome is missing canonical evidence for ${dimensionId}.`,
+      );
+    }
+  }
+
+  let matchingObservations = 0;
+  for (const dimensionId of expectedDimensionIds) {
+    if (submitted.get(dimensionId) === canonical.get(dimensionId)) {
+      matchingObservations += 1;
+    }
+  }
+  const observationExact =
+    matchingObservations === expectedDimensionIds.length;
+  const conditionConformed =
+    input.supportEvent === "none" ||
+    input.supportEvent === "neutral_clarification";
+
+  const sourceId = digest(
+    [
+      "sandbox-live-evidence-turn-v1",
+      prepared.formId,
+      input.studentId,
+    ].join(":"),
+  ).slice(0, 36);
+
+  const occurrence = (
+    layer: SandboxCapabilityOccurrence["layer"],
+    evidenceClass: SandboxCapabilityOccurrence["evidenceClass"],
+    reason: string,
+  ): SandboxCapabilityOccurrence => ({
+    layer,
+    evidenceClass,
+    sequenceNumber: input.sequenceNumber,
+    sessionNumber: trajectory.session_number,
+    phase: input.startingPhase,
+    setId:
+      input.scope === "handover"
+        ? `handover.${input.startingPhase.toLowerCase().replace(/\s+/g, "_")}`
+        : prepared.probeId,
+    repNumber: input.sequenceNumber,
+    reason,
+  });
+
+  await insertCapabilityEvidence({
+    trajectory,
+    sourceType: "turn",
+    sourceId,
+    occurrences: [
+      ...(input.scope === "diagnosis"
+        ? [
+            occurrence(
+              "condition_integrity",
+              conditionConformed ? "supported" : "breakdown",
+              conditionConformed
+                ? "The Specialist preserved the prescribed Sandbox evidence condition."
+                : "The Specialist changed the prescribed Sandbox evidence condition through mathematical support.",
+            ),
+          ]
+        : []),
+      occurrence(
+        "observation_integrity",
+        observationExact ? "supported" : "breakdown",
+        observationExact
+          ? "The Specialist recorded the concrete simulated student behavior that occurred."
+          : "At least one recorded behavior differed from the hidden simulated student truth.",
+      ),
+      occurrence(
+        "evidence_integrity",
+        observationExact ? "supported" : "breakdown",
+        observationExact
+          ? "The Specialist preserved the evidence class carried by the simulated response."
+          : "The Specialist record changed decision-relevant evidence truth.",
+      ),
+    ],
+  });
+
+  return {
+    success: true as const,
+    matchingObservations,
+    totalObservations: expectedDimensionIds.length,
+    observationExact,
+    conditionConformed,
+    studentStateAuthoritative: false as const,
+    evidenceScope: "sandbox" as const,
   };
 }
 

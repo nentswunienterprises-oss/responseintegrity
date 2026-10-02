@@ -1,7 +1,9 @@
 import type { CapabilityEvidenceKind } from "./capabilityEngine";
 import {
   CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1,
+  EXECUTION_STANDARDS_DEEP_DIVE_KEYS,
   SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS,
+  SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
   TRANSFORMATION_DEEP_DIVE_KEYS,
   TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
   TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
@@ -52,16 +54,27 @@ export interface CapabilityTrainingAvailability {
   maxAttempts: number | null;
   passThresholdPercent: number;
   formSize: number;
-  stage: "transformation_mastery" | "transformation_retrieval" | "transformation_transfer" | "session_infrastructure_mastery";
+  stage:
+    | "transformation_mastery"
+    | "transformation_retrieval"
+    | "transformation_transfer"
+    | "execution_standards_mastery"
+    | "system_intelligence_mastery"
+    | "session_infrastructure_mastery";
 }
 
 const transformationMasteryKeys = TRANSFORMATION_DEEP_DIVE_KEYS.map(
   (deepDiveKey) => `${deepDiveKey}_mastery_v1`,
 );
+const executionStandardsMasteryKeys = EXECUTION_STANDARDS_DEEP_DIVE_KEYS.map(
+  (deepDiveKey) => `${deepDiveKey}_mastery_v1`,
+);
+const systemIntelligenceMasteryKeys = SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS.map(
+  (deepDiveKey) => `${deepDiveKey}_mastery_v1`,
+);
 const sessionInfrastructureMasteryKeys = SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS.map(
   (deepDiveKey) => `${deepDiveKey}_mastery_v1`,
 );
-
 function timestamp(value: string | Date) {
   const time = value instanceof Date ? value.getTime() : new Date(value).getTime();
   if (!Number.isFinite(time)) {
@@ -76,6 +89,22 @@ function stageFor(entry: CapabilityAssessmentPlanEntry): CapabilityTrainingAvail
   }
   if (entry.assessmentKey === TRANSFORMATION_TRANSFER_ASSESSMENT_KEY) {
     return "transformation_transfer";
+  }
+  if (
+    entry.evidenceKind === "mastery" &&
+    entry.coveredDeepDiveKeys.some((key) =>
+      EXECUTION_STANDARDS_DEEP_DIVE_KEYS.includes(key),
+    )
+  ) {
+    return "execution_standards_mastery";
+  }
+  if (
+    entry.evidenceKind === "mastery" &&
+    entry.coveredDeepDiveKeys.some((key) =>
+      SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS.includes(key),
+    )
+  ) {
+    return "system_intelligence_mastery";
   }
   if (
     entry.evidenceKind === "mastery" &&
@@ -99,6 +128,8 @@ export function getCapabilityTrainingAssessmentPlan() {
     ...transformationMasteryKeys,
     TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
     TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
+    ...executionStandardsMasteryKeys,
+    ...systemIntelligenceMasteryKeys,
     ...sessionInfrastructureMasteryKeys,
   ];
   return orderedKeys

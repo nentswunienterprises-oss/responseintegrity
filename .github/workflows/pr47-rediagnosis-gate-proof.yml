@@ -390,7 +390,7 @@ jobs:
               await begin.click();
 
               for (let layer = 0; layer < 4; layer += 1) {
-                const observeSection = page.locator("section").filter({ hasText: "Record behavior, not a judgment" }).first();
+                const observeSection = page.getByTestId("evidence-diagnosis-observe").first();
                 await observeSection.waitFor({ state: "visible", timeout: 30000 });
 
                 const dimensionCards = observeSection

@@ -7,6 +7,7 @@ import {
   summarizeCapabilityBankCoverage,
   validateCapabilityAssessmentAgainstBlueprint,
 } from "../shared/capabilityBankCoverage";
+import { getRequiredCapabilityEvidenceCells } from "../shared/capabilityBlueprint";
 import { buildCapabilityCriticalBoundaryRequirements } from "../shared/capabilityCriticalCoverage";
 
 const optionSchema = z.object({
@@ -332,8 +333,9 @@ async function main() {
     payload.assessments.map(validationShape),
   );
 
+  const requiredEvidenceCellCount = getRequiredCapabilityEvidenceCells().length;
   console.log(
-    `[CAPABILITY BANK] blueprint coverage ${coverage.coveredEvidenceCells.length}/33 evidence cells`,
+    `[CAPABILITY BANK] blueprint coverage ${coverage.coveredEvidenceCells.length}/${requiredEvidenceCellCount} evidence cells`,
   );
   if (coverage.missingEvidenceCells.length > 0) {
     console.log(`[CAPABILITY BANK] missing: ${coverage.missingEvidenceCells.join(", ")}`);
@@ -341,7 +343,7 @@ async function main() {
 
   if (requireMvpCoverage && coverage.missingEvidenceCells.length > 0) {
     throw new Error(
-      `Capability bank is not MVP-complete. Missing ${coverage.missingEvidenceCells.length} of 33 required evidence cells.`,
+      `Capability bank is not MVP-complete. Missing ${coverage.missingEvidenceCells.length} of ${requiredEvidenceCellCount} required evidence cells.`,
     );
   }
 

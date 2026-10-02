@@ -28,9 +28,9 @@ const DOC_ROOT = resolve(process.cwd(), "onboarding");
 export const TUTOR_ONBOARDING_DOCUMENTS: TutorOnboardingDocumentDefinition[] = [
   {
     step: 1,
-    code: "Response Integrity-TCF-001",
+    code: "Response Integrity-SCF-001",
     title: "Specialist Consent Form",
-    fileName: "TT-TCF-001.txt",
+    fileName: "RI-SCF-001.txt",
     version: "2",
     requiresAcceptance: true,
     requiresUpload: false,

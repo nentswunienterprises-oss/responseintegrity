@@ -391,23 +391,27 @@
 }
 
 
-/* Keep browser autofill from recoloring the Specialist email/password fields. */
-.ri-auth-form input[type="email"]:-webkit-autofill,
-.ri-auth-form input[type="email"]:-webkit-autofill:hover,
-.ri-auth-form input[type="email"]:-webkit-autofill:focus,
-.ri-auth-form input[type="password"]:-webkit-autofill,
-.ri-auth-form input[type="password"]:-webkit-autofill:hover,
-.ri-auth-form input[type="password"]:-webkit-autofill:focus {
+/* Keep browser autofill from recoloring credential fields for every role.
+   Email/password inputs stay white with dark text, matching the original login treatment. */
+input[type="email"]:-webkit-autofill,
+input[type="email"]:-webkit-autofill:hover,
+input[type="email"]:-webkit-autofill:focus,
+input[type="password"]:-webkit-autofill,
+input[type="password"]:-webkit-autofill:hover,
+input[type="password"]:-webkit-autofill:focus {
   -webkit-text-fill-color: #1A1A1A !important;
-  caret-color: #1A1A1A;
+  caret-color: #1A1A1A !important;
+  background-color: #FFFFFF !important;
   -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
   box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+  color-scheme: light;
 }
 
-.ri-auth-form input[type="email"]:autofill,
-.ri-auth-form input[type="password"]:autofill {
+input[type="email"]:autofill,
+input[type="password"]:autofill {
   color: #1A1A1A !important;
   background: #FFFFFF !important;
+  -webkit-text-fill-color: #1A1A1A !important;
 }
 
 /* RESPONSE INTEGRITY WORLD — scoped dark product atmosphere */
@@ -681,7 +685,7 @@ body:has(.ri-world-page) header {
 
 
 /* RI APPEARANCE MODES — Light / Warm Dark / Dark */
-/* Warm Dark is the default and intentionally inherits RI Warm Dark v1 above. */
+/* Dark is the default. Warm Dark remains available as an explicit appearance choice. */
 
 html[data-ri-theme="light"] body:has(.ri-world-page),
 html[data-ri-theme="light"] .ri-world-page {
@@ -751,6 +755,73 @@ html[data-ri-theme="light"] .ri-lesson-chrome {
   background: rgba(255, 245, 237, 0.93);
   border-color: rgba(230, 57, 70, 0.12);
   box-shadow: 0 12px 30px rgba(77, 45, 45, 0.08);
+}
+
+/* LOCKED RI LIGHT — flat cream, low-contrast borders, almost no material lift.
+   This matches the earlier Specialist Light reference: surfaces sit in the same
+   cream field instead of looking like separate pink/white sheets. */
+html[data-ri-theme="light"] body:has(.ri-world-page) {
+  background: var(--ri-cream) !important;
+  background-image: none !important;
+}
+
+html[data-ri-theme="light"] .ri-world-page,
+html[data-ri-theme="light"] .ri-os-world {
+  background: var(--ri-cream) !important;
+  background-image: none !important;
+}
+
+html[data-ri-theme="light"] .ri-world-page .ri-world-hero,
+html[data-ri-theme="light"] .ri-world-page .shadcn-card,
+html[data-ri-theme="light"] .ri-pod-world .ri-metric-card,
+html[data-ri-theme="light"] .ri-pod-world .ri-focus-card,
+html[data-ri-theme="light"] .ri-pod-world .tutor-pod-student-card,
+html[data-ri-theme="light"] .ri-os-world .shadcn-card,
+html[data-ri-theme="light"] .ri-os-world .ri-teaching-interaction,
+html[data-ri-theme="light"] .ri-os-world .ri-completion-card {
+  color-scheme: light;
+  color: var(--ri-charcoal);
+  background: var(--ri-cream) !important;
+  background-image: none !important;
+  border-color: rgba(230, 57, 70, 0.13) !important;
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="light"] .ri-world-page .ri-world-hero,
+html[data-ri-theme="light"] .ri-pod-world .shadcn-card,
+html[data-ri-theme="light"] .ri-os-world .shadcn-card,
+html[data-ri-theme="light"] .ri-specialist-surface .rounded-xl,
+html[data-ri-theme="light"] .ri-specialist-surface .rounded-2xl,
+html[data-ri-theme="light"] .ri-specialist-surface .rounded-3xl,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-button,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-input,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-textarea,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-select-trigger,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-tabs-list,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-dialog-content,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-menu-content,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-popover-content,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-alert {
+  border-radius: 0.375rem;
+}
+
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-badge,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-tabs-trigger,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-menu-item,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-menu-subtrigger,
+html[data-ri-theme="light"] body:has(.ri-specialist-world) .ri-ui-select-item {
+  border-radius: 0.25rem;
+}
+
+html[data-ri-theme="light"] .ri-world-page .ri-world-hero::before,
+html[data-ri-theme="light"] .ri-world-page .ri-world-hero::after {
+  display: none;
+}
+
+html[data-ri-theme="light"] .ri-lesson-chrome {
+  background: rgba(255, 245, 237, 0.96);
+  border-color: rgba(230, 57, 70, 0.10);
+  box-shadow: none;
 }
 
 /* True Dark: cream remains as copy and micro-accent, not as a large surface. */
@@ -866,8 +937,85 @@ html[data-ri-theme="dark"] .ri-lesson-chrome {
 }
 
 
+/* LOCKED RI DEPTH — all modes stay restrained.
+   Warm Dark gets hierarchy from cream-on-dark contrast, not floating shadows.
+   Dark gets hierarchy from tonal separation and borders, not elevation. */
+html[data-ri-theme="warm-dark"] .ri-world-page .ri-world-hero,
+html[data-ri-theme="warm-dark"] .ri-world-page .shadcn-card,
+html[data-ri-theme="warm-dark"] .ri-pod-world .tutor-pod-student-card,
+html[data-ri-theme="warm-dark"] .ri-lesson-chrome {
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="warm-dark"] .ri-world-page .ri-module-card:hover,
+html[data-ri-theme="warm-dark"] .ri-world-page .ri-metric-card:hover,
+html[data-ri-theme="warm-dark"] .ri-pod-world .tutor-pod-student-card:hover,
+html[data-ri-theme="warm-dark"] .ri-specialist-surface .shadcn-card:hover {
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="dark"] body:has(.ri-world-page) {
+  background: #0E0E0E !important;
+  background-image: none !important;
+}
+
+html[data-ri-theme="dark"] .ri-world-page,
+html[data-ri-theme="dark"] .ri-os-world {
+  background: #0E0E0E !important;
+  background-image: none !important;
+}
+
+html[data-ri-theme="dark"] .ri-world-page .ri-world-hero {
+  background: #121212 !important;
+  border-color: rgba(255, 245, 237, 0.11) !important;
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="dark"] .ri-world-page .shadcn-card,
+html[data-ri-theme="dark"] .ri-pod-world .ri-metric-card,
+html[data-ri-theme="dark"] .ri-pod-world .tutor-pod-student-card,
+html[data-ri-theme="dark"] .ri-os-world .shadcn-card {
+  background: #151515 !important;
+  background-image: none !important;
+  border-color: rgba(255, 240, 240, 0.09) !important;
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="dark"] .ri-pod-world .ri-focus-card,
+html[data-ri-theme="dark"] .ri-os-world .ri-teaching-interaction {
+  background: #171717 !important;
+  background-image: none !important;
+  border-color: rgba(230, 57, 70, 0.22) !important;
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="dark"] .ri-os-world .ri-completion-card {
+  background: #151515 !important;
+  background-image: none !important;
+  border-color: rgba(230, 57, 70, 0.20) !important;
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="dark"] .ri-lesson-chrome {
+  background: rgba(14, 14, 14, 0.96) !important;
+  border-color: rgba(255, 240, 240, 0.08) !important;
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="dark"] .ri-world-page .ri-module-card:hover,
+html[data-ri-theme="dark"] .ri-world-page .ri-metric-card:hover,
+html[data-ri-theme="dark"] .ri-pod-world .tutor-pod-student-card:hover,
+html[data-ri-theme="dark"] .ri-specialist-surface .shadcn-card:hover {
+  box-shadow: none !important;
+}
+
 /* LOCKED RI MODES — specialist app-wide material treatment */
-.ri-specialist-surface .shadcn-card {
+/* Light deliberately stays on the original RI Light treatment from the first
+   appearance-mode release. Later Specialist-wide material/control overrides
+   apply only to Warm Dark and Dark so Light keeps its earlier softness,
+   spacing, radii, borders, and native control treatment. */
+
+html:not([data-ri-theme="light"]) .ri-specialist-surface .shadcn-card {
   border-radius: 0.375rem;
 }
 
@@ -904,22 +1052,9 @@ html[data-ri-theme="warm-dark"] .ri-specialist-surface .shadcn-card:hover {
   border-color: rgba(230, 57, 70, 0.34);
 }
 
-/* Light: cream-led shell with the same restrained RI material language. */
-html[data-ri-theme="light"] .ri-specialist-surface .shadcn-card {
-  --background: 23.33 100% 98.4%;
-  --foreground: 0 0% 10.2%;
-  --card: 23.33 100% 98.4%;
-  --card-foreground: 0 0% 10.2%;
-  --muted: 0 100% 96.86%;
-  --muted-foreground: 0 0% 35.29%;
-  --accent: 0 100% 96.86%;
-  --accent-foreground: 0 0% 10.2%;
-  color-scheme: light;
-  color: var(--ri-charcoal);
-  background: linear-gradient(180deg, #FFFAF6 0%, var(--ri-cream) 100%);
-  border-color: rgba(230, 57, 70, 0.15);
-  box-shadow: 0 14px 44px rgba(77, 45, 45, 0.08);
-}
+/* Light intentionally inherits the original RI light-world card treatment above.
+   Do not restyle Specialist cards here: the faint blush wash, cream material,
+   low-contrast red border, and restrained shadow are the locked Light reference. */
 
 /* Dark: neutral charcoal surfaces with no ambient red wash. */
 html[data-ri-theme="dark"] .ri-specialist-surface .shadcn-card {
@@ -945,9 +1080,135 @@ html[data-ri-theme="dark"] .ri-specialist-surface .shadcn-card {
     0 18px 54px rgba(0, 0, 0, 0.30);
 }
 
+/* Dark gateway onboarding surfaces live outside the document dialog.
+   Keep these rules global so they remain active while the reader is closed. */
+html[data-ri-theme="dark"] body:has(.ri-specialist-world) .ri-specialist-onboarding-callout,
+html[data-ri-theme="dark"] body:has(.ri-specialist-world) .ri-specialist-onboarding-checklist {
+  --background: 0 0% 9%;
+  --foreground: 23.33 100% 96.47%;
+  --muted: 350 8% 13%;
+  --muted-foreground: 350 12% 70%;
+  --border: 350 12% 21%;
+  color-scheme: dark;
+  background: #171717 !important;
+  background-image: none !important;
+  border-color: rgba(255, 240, 240, 0.10) !important;
+  color: var(--ri-cream) !important;
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="dark"] body:has(.ri-specialist-world) .ri-specialist-onboarding-callout .text-\[\#6B5B52\],
+html[data-ri-theme="dark"] body:has(.ri-specialist-world) .ri-specialist-onboarding-checklist .text-muted-foreground {
+  color: #B9ABAD !important;
+}
+
+html[data-ri-theme="dark"] body:has(.ri-specialist-world) .ri-specialist-onboarding-checklist label,
+html[data-ri-theme="dark"] body:has(.ri-specialist-world) .ri-specialist-onboarding-checklist span {
+  color: var(--ri-cream);
+}
+
+/* Warm Dark: only alignment background sections go dark.
+   Information cards remain cream on top of those dark surfaces. */
+html[data-ri-theme="warm-dark"] .ri-pod-world .ri-alignment-shell {
+  --background: 0 0% 8.2% !important;
+  --foreground: 23.33 100% 96.47% !important;
+  --muted: 350 8% 14% !important;
+  --muted-foreground: 350 12% 72% !important;
+  color-scheme: dark;
+  background: #151515 !important;
+  background-image: none !important;
+  border-color: rgba(255, 240, 240, 0.10) !important;
+  color: var(--ri-cream);
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="warm-dark"] .ri-pod-world .ri-alignment-section {
+  --background: 0 0% 10.2% !important;
+  --foreground: 23.33 100% 96.47% !important;
+  --muted: 350 8% 14% !important;
+  --muted-foreground: 350 12% 72% !important;
+  color-scheme: dark;
+  background: #1A1A1A !important;
+  background-image: none !important;
+  border-color: rgba(255, 240, 240, 0.10) !important;
+  color: var(--ri-cream);
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="warm-dark"] .ri-pod-world .ri-alignment-info-card {
+  --background: 23.33 100% 96.47% !important;
+  --foreground: 0 0% 10.2% !important;
+  --muted: 0 100% 96.86% !important;
+  --muted-foreground: 0 0% 35.29% !important;
+  color-scheme: light;
+  background: var(--ri-cream) !important;
+  background-image: none !important;
+  border-color: rgba(230, 57, 70, 0.15) !important;
+  color: var(--ri-charcoal);
+  box-shadow: none !important;
+}
+
+/* Warm Dark: Student cards follow the same shell/info-card hierarchy.
+   The student card stays dark; concrete information surfaces sit on cream. */
+html[data-ri-theme="warm-dark"] .ri-pod-world .tutor-pod-student-card {
+  --background: 0 0% 8.2%;
+  --foreground: 23.33 100% 96.47%;
+  --muted: 350 8% 14%;
+  --muted-foreground: 350 12% 72%;
+  color-scheme: dark;
+  background: #151515 !important;
+  background-image: none !important;
+  border-color: rgba(255, 240, 240, 0.10) !important;
+  color: var(--ri-cream);
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="warm-dark"] .ri-pod-world .tutor-pod-student-card .ri-student-info-card {
+  --background: 23.33 100% 96.47%;
+  --foreground: 0 0% 10.2%;
+  --muted: 0 100% 96.86%;
+  --muted-foreground: 0 0% 35.29%;
+  --border: 350 26% 82%;
+  color-scheme: light;
+  background: var(--ri-cream) !important;
+  background-image: none !important;
+  border-color: rgba(230, 57, 70, 0.15) !important;
+  color: var(--ri-charcoal);
+  box-shadow: none !important;
+}
+
+/* Warm Dark: Pod operating sections use dark background shells while
+   concrete information cards remain cream. */
+html[data-ri-theme="warm-dark"] .ri-pod-world .ri-pod-section-shell {
+  --background: 0 0% 8.2% !important;
+  --foreground: 23.33 100% 96.47% !important;
+  --muted: 350 8% 14% !important;
+  --muted-foreground: 350 12% 72% !important;
+  --border: 350 12% 20% !important;
+  color-scheme: dark;
+  background: #151515 !important;
+  background-image: none !important;
+  border-color: rgba(255, 240, 240, 0.10) !important;
+  color: var(--ri-cream);
+  box-shadow: none !important;
+}
+
+html[data-ri-theme="warm-dark"] .ri-pod-world .ri-pod-info-card {
+  --background: 23.33 100% 96.47% !important;
+  --foreground: 0 0% 10.2% !important;
+  --muted: 0 100% 96.86% !important;
+  --muted-foreground: 0 0% 35.29% !important;
+  color-scheme: light;
+  background: var(--ri-cream) !important;
+  background-image: none !important;
+  border-color: rgba(230, 57, 70, 0.15) !important;
+  color: var(--ri-charcoal);
+  box-shadow: none !important;
+}
+
 /* Bring common specialist sub-surfaces into the same restrained geometry. */
-.ri-specialist-surface .rounded-2xl,
-.ri-specialist-surface .rounded-3xl {
+html:not([data-ri-theme="light"]) .ri-specialist-surface .rounded-2xl,
+html:not([data-ri-theme="light"]) .ri-specialist-surface .rounded-3xl {
   border-radius: 0.375rem;
 }
 
@@ -956,27 +1217,27 @@ html[data-ri-theme="dark"] .ri-specialist-surface .shadcn-card {
 /* These rules do not alter Light / Warm Dark / Dark palettes. They only give
    specialist controls the same restrained geometry and material behavior. */
 
-body:has(.ri-specialist-world) .ri-ui-button,
-body:has(.ri-specialist-world) .ri-ui-input,
-body:has(.ri-specialist-world) .ri-ui-textarea,
-body:has(.ri-specialist-world) .ri-ui-select-trigger,
-body:has(.ri-specialist-world) .ri-ui-tabs-list,
-body:has(.ri-specialist-world) .ri-ui-dialog-content,
-body:has(.ri-specialist-world) .ri-ui-menu-content,
-body:has(.ri-specialist-world) .ri-ui-popover-content,
-body:has(.ri-specialist-world) .ri-ui-alert {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-button,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-input,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-textarea,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-select-trigger,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-tabs-list,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-dialog-content,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-menu-content,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-popover-content,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-alert {
   border-radius: 0.375rem;
 }
 
-body:has(.ri-specialist-world) .ri-ui-badge,
-body:has(.ri-specialist-world) .ri-ui-tabs-trigger,
-body:has(.ri-specialist-world) .ri-ui-menu-item,
-body:has(.ri-specialist-world) .ri-ui-menu-subtrigger,
-body:has(.ri-specialist-world) .ri-ui-select-item {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-badge,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-tabs-trigger,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-menu-item,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-menu-subtrigger,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-select-item {
   border-radius: 0.25rem;
 }
 
-body:has(.ri-specialist-world) .ri-ui-button {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-button {
   box-shadow: none;
   transition:
     background-color 140ms ease,
@@ -985,97 +1246,97 @@ body:has(.ri-specialist-world) .ri-ui-button {
     opacity 140ms ease;
 }
 
-body:has(.ri-specialist-world) .ri-ui-button:focus-visible,
-body:has(.ri-specialist-world) .ri-ui-input:focus-visible,
-body:has(.ri-specialist-world) .ri-ui-textarea:focus-visible,
-body:has(.ri-specialist-world) .ri-ui-select-trigger:focus {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-button:focus-visible,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-input:focus-visible,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-textarea:focus-visible,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-select-trigger:focus {
   box-shadow: 0 0 0 1px hsl(var(--ring));
 }
 
-body:has(.ri-specialist-world) .ri-ui-input,
-body:has(.ri-specialist-world) .ri-ui-textarea,
-body:has(.ri-specialist-world) .ri-ui-select-trigger {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-input,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-textarea,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-select-trigger {
   border-color: hsl(var(--input));
   box-shadow: none;
 }
 
-body:has(.ri-specialist-world) .ri-ui-input:hover,
-body:has(.ri-specialist-world) .ri-ui-textarea:hover,
-body:has(.ri-specialist-world) .ri-ui-select-trigger:hover {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-input:hover,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-textarea:hover,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-select-trigger:hover {
   border-color: hsl(var(--primary) / 0.32);
 }
 
-body:has(.ri-specialist-world) .ri-ui-tabs-list {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-tabs-list {
   gap: 0.125rem;
   border: 1px solid hsl(var(--border));
   background: hsl(var(--muted) / 0.55);
   padding: 0.125rem;
 }
 
-body:has(.ri-specialist-world) .ri-ui-tabs-trigger {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-tabs-trigger {
   box-shadow: none !important;
 }
 
-body:has(.ri-specialist-world) .ri-ui-tabs-trigger[data-state="active"] {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-tabs-trigger[data-state="active"] {
   background: hsl(var(--background)) !important;
   box-shadow: none !important;
 }
 
-body:has(.ri-specialist-world) .ri-ui-badge {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-badge {
   box-shadow: none;
   letter-spacing: 0.02em;
 }
 
-body:has(.ri-specialist-world) .ri-ui-dialog-content,
-body:has(.ri-specialist-world) .ri-ui-menu-content,
-body:has(.ri-specialist-world) .ri-ui-popover-content,
-body:has(.ri-specialist-world) .ri-ui-select-content {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-dialog-content,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-menu-content,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-popover-content,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-select-content {
   border-color: hsl(var(--border));
   background: hsl(var(--popover));
   color: hsl(var(--popover-foreground));
   box-shadow: 0 18px 52px rgba(0, 0, 0, 0.28);
 }
 
-body:has(.ri-specialist-world) .ri-ui-dialog-overlay {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-dialog-overlay {
   background: rgba(0, 0, 0, 0.72);
   backdrop-filter: blur(2px);
 }
 
-body:has(.ri-specialist-world) .ri-ui-menu-item:focus,
-body:has(.ri-specialist-world) .ri-ui-menu-subtrigger:focus,
-body:has(.ri-specialist-world) .ri-ui-menu-subtrigger[data-state="open"],
-body:has(.ri-specialist-world) .ri-ui-select-item:focus {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-menu-item:focus,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-menu-subtrigger:focus,
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-menu-subtrigger[data-state="open"],
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-select-item:focus {
   background: hsl(var(--accent));
   color: hsl(var(--accent-foreground));
 }
 
-body:has(.ri-specialist-world) .ri-ui-alert {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-alert {
   box-shadow: none;
 }
 
-body:has(.ri-specialist-world) .ri-ui-table-wrap {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-table-wrap {
   border: 1px solid hsl(var(--border));
   border-radius: 0.375rem;
 }
 
-body:has(.ri-specialist-world) .ri-ui-table thead {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-table thead {
   background: hsl(var(--muted) / 0.45);
 }
 
-body:has(.ri-specialist-world) .ri-ui-table tbody tr:hover {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-table tbody tr:hover {
   background: hsl(var(--accent) / 0.65);
 }
 
-body:has(.ri-specialist-world) .ri-ui-checkbox {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-checkbox {
   border-radius: 0.1875rem;
 }
 
-body:has(.ri-specialist-world) .ri-ui-switch {
+html:not([data-ri-theme="light"]) body:has(.ri-specialist-world) .ri-ui-switch {
   border: 1px solid hsl(var(--border));
 }
 
 /* Keep functional pills circular; restrained geometry applies to containers,
    not avatars, switches, progress dots, or status indicators. */
-.ri-specialist-surface .rounded-xl {
+html:not([data-ri-theme="light"]) .ri-specialist-surface .rounded-xl {
   border-radius: 0.375rem;
 }

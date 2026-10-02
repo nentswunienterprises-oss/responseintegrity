@@ -32,8 +32,8 @@ import { TUTOR_ONBOARDING_DOCUMENTS } from "./tutorOnboardingDocuments";
 import { buildCurrentTutorOnboardingAcceptanceMap } from "@shared/tutorOnboardingAcceptanceVersion";
 
 // Prefer the modern secret key for privileged server access.
-// During key migration, a modern publishable key is preferable to a disabled
-// legacy service_role credential for non-RLS server operations.
+// While the production secret-key cutover is being completed, the modern
+// publishable key is safer than a disabled legacy service_role credential.
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey =
   process.env.SUPABASE_SECRET_KEY ||

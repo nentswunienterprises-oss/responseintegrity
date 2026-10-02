@@ -761,7 +761,9 @@ export default function SpecialistSandboxSimulation({
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              The stateful Sandbox environment is not available yet.
+              {environmentQuery.error instanceof Error
+                ? environmentQuery.error.message
+                : "The stateful Sandbox environment is not available yet."}
             </AlertDescription>
           </Alert>
         </div>

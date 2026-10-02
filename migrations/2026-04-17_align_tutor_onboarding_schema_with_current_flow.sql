@@ -133,7 +133,7 @@ ALTER TABLE tutor_applications
 
 COMMENT ON COLUMN tutor_applications.document_submission_step IS 'Current step in 6-step tutor onboarding document submission (0-6).';
 COMMENT ON COLUMN tutor_applications.documents_status IS 'JSON status for tutor document steps 1-6: not_started, pending_upload, pending_review, approved, rejected.';
-COMMENT ON COLUMN tutor_applications.doc_1_submission_url IS 'Tutor submission for TT-TCF-001.';
+COMMENT ON COLUMN tutor_applications.doc_1_submission_url IS 'Specialist submission for Response Integrity-SCF-001.';
 COMMENT ON COLUMN tutor_applications.doc_2_submission_url IS 'Tutor submission for TT-EQV-002.';
 COMMENT ON COLUMN tutor_applications.doc_3_submission_url IS 'Tutor submission for TT-ICA-003.';
 COMMENT ON COLUMN tutor_applications.doc_4_submission_url IS 'Tutor submission for TT-SCP-004.';

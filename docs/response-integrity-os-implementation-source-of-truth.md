@@ -99,11 +99,13 @@ The Specialist development pathway is:
 - Application -> Training -> Sandbox -> Practicals -> Trial -> Certification -> Certified Live
 - standard development window: 75 active days
 - approved documented extension maximum: 90 active days
-- Transformation Training authority: each of the five Transformation Deep Dives uses a 45-item private Mastery bank; a 15-question form requires a clean 15/15 pass with no critical fail, with at most three total attempts
+- every one of the 20 live Deep Dives has a Capability Mastery gate in the public architecture; each Mastery gate is designed for a 45-item private bank and a balanced 15-question form requiring a clean 15/15 pass with no critical fail, with at most three total attempts
+- private-bank activation is versioned and fail-closed: a Deep Dive whose approved private bank is not active remains unavailable rather than silently bypassed
 - Mastery retries prefer unseen questions while preserving competency and critical-boundary coverage
-- after all five Transformation Masteries, a separately authored 25-question Delayed Retrieval gate requires 24/25+ with no critical fail after the required spacing interval
+- the five Transformation Deep Dives remain the authority boundary for Sandbox entry: after all five Transformation Masteries, a separately authored 25-question Delayed Retrieval gate requires 24/25+ with no critical fail after the required spacing interval
 - after Retrieval, a separately authored 25-question Interleaved Transfer gate requires 24/25+ with no critical fail
-- Sandbox opens only after all five Transformation Masteries plus Transformation Retrieval plus Transformation Transfer; Sandbox access is an expansion of Training, not Training completion
+- Sandbox opens only after all five Transformation Masteries plus Transformation Retrieval plus Transformation Transfer; Execution Standards, System Intelligence and Session Infrastructure Mastery remain part of Specialist Training but do not silently replace the approved Transformation Sandbox-entry gate
+- Sandbox access is an expansion of Training, not Training completion
 - Sandbox capability evaluation: continuous, system-derived evidence across Condition, Observation, Evidence, Authority, and Continuity Integrity
 - Sandbox exit authority: the system must first resolve Practicals readiness; the assigned TD then records either remediation or an explicit readiness sign-off for Practicals entry
 - Practicals is the governed stage after Sandbox; it is not a shortcut into Trial and it is not opened by Battle Testing
@@ -514,6 +516,9 @@ The live law is:
 - Diagnosis is the second legitimate baseline route when an otherwise-above-Structured-Execution placement does not already have valid timing authority. Diagnosis remains evidence-complete; the three-sample requirement belongs only to the timing question.
 - An existing valid Timer Contract is reused rather than rebuilt without cause.
 - TPS timed Diagnosis and TPS Training use the immutable student/topic Timer Contract. The Specialist cannot choose, pause, round, edit, loosen, tighten, restart, or override the timer.
+- Handover verification of an inherited Time Pressure Stability state reuses that same current student/topic Timer Contract. The inherited phase is not separable from the timing authority that made its TPS evidence valid. Each continuity opportunity must carry a persisted timed-attempt reference under one unchanged contract.
+- A TPS Handover cannot fall back to a generic or Specialist-selected timer. If the inherited topic has no valid Timer Contract, TPS continuity evidence is unavailable and the missing timing authority must be re-established through targeted evidence-native re-diagnosis.
+- Sandbox TPS Handover follows the same contract shape and countdown behavior, but its persistent fictional student receives deterministic simulated baseline lineage and a simulated Timer Contract before the continuity opportunity opens.
 - Structure Under Timer and Repeated Timed Execution use the baseline duration; Full Constraint uses 85% of baseline.
 - Missing timing authority above Structured Execution is an explicit readiness gap and routes through targeted evidence-complete re-diagnosis. There is no hidden pre-TPS calibration side path.
 - Baseline timing is operational evidence for pressure construction. It does not by itself authorize parent-facing speed claims.
@@ -892,6 +897,11 @@ The live engine:
 
 - presents one system-selected named probe at a time;
 - uses one curriculum-appropriate problem per opportunity;
+- keeps the prepared problem hidden until `Begin Opportunity`, then immediately reveals or presents it so the opportunity boundary includes the student's first recognition and execution time;
+- separates live execution from evidence administration: `Ready -> Observe -> Student Finished -> Record -> Confirm`;
+- keeps observation choices closed while the student is responding and presents them one at a time only after `Student Finished`;
+- requires the Specialist to follow the probe-specific prescribed script rather than improvising questions to fill missing evidence;
+- preserves missing behavior as `not_observed` instead of asking the student for a retrospective walk-through and backfilling hindsight as live evidence;
 - records concrete observable behavior rather than Weak / Partial / Clear selections;
 - records not-observed and confounded outcomes explicitly;
 - requests another opportunity only when repeatability, recovery, consistency, contamination, conflict, timing-readiness for an otherwise above-Structured-Execution placement, or another named evidence question remains unresolved;
@@ -919,7 +929,11 @@ The current probe catalog includes:
 - `difficulty.recovery` - Difficulty Recovery Probe
 - `time.consistency` - Timed Consistency Probe
 
-Each opportunity carries its own evidence question, constraint profile, purpose, observed dimensions, and support/contamination event.
+Each opportunity carries its own evidence question, constraint profile, purpose, observed dimensions, prescribed execution protocol, and support/contamination event.
+
+For `stack.normal_independent`, the Specialist presents the problem only after `Begin Opportunity`, asks the student to solve independently without method help, and does not deliberately elicit Vocabulary / Method / Reason. Those dimensions count only when the live response naturally exposes them.
+
+When Clarity evidence remains missing or unresolved, `clarity.recognition` deliberately elicits it with the standardized sequence: what the student sees, which method they would use, why it fits, and "Show me how you would start." That final first move belongs to Clarity immediate-use evidence and is never recycled as a cold Structured Execution start.
 
 For timing authority, `stack.normal_independent` and `execution.repeatability` are the only Diagnosis probe families that can contribute clean no-pressure baseline intervals. Their timing is operational evidence, not a score. `stack.timed_challenge` and `time.consistency` must use the system-prescribed individualized diagnosis timer; a Specialist-entered or generic timer is not authoritative.
 
@@ -1671,7 +1685,13 @@ Handover therefore has no Training-forward authority and no manual re-placement 
 
 Handover begins from the inherited topic, phase, and stability.
 
-The Specialist reviews inherited evidence and constraints, prepares a small reserve bank of phase-appropriate continuity problems, presents one clean continuity opportunity at a time, records concrete phase-defining behavior, and lets the Response Evidence Model decide whether another comparable opportunity is required.
+The Specialist reviews inherited evidence and constraints, prepares a small reserve bank of phase-appropriate continuity problems, and presents one clean continuity opportunity at a time.
+
+The execution boundary is:
+
+`Ready -> Observe -> Student Finished -> Record -> Confirm`
+
+The Specialist watches the complete student response before evidence administration begins. After `Student Finished`, the Handover runner presents the prescribed phase-defining observations **one at a time**, using the same observation-runner discipline as evidence-native Diagnosis. The Specialist completes the current observation before the next one opens, reviews the completed opportunity, and only then confirms it for Response Evidence evaluation.
 
 Handover is **evidence-complete, not rep-complete**. The reserve problem bank is not a completion target.
 
@@ -2779,6 +2799,20 @@ Without this layer:
 - parent trust can be harmed before leadership notices
 - the reporting layer can look cleaner than real delivery
 - scale becomes more expensive because drift has to be corrected manually
+
+## Specialist Development Sandbox
+
+Sandbox exercises the same RI operating surfaces that a Specialist will later use live. Simulated student behaviour therefore applies to Diagnosis, Training, Handover, and targeted re-diagnosis rather than Training alone.
+
+The runner and authority do not change merely because the Specialist is in Sandbox. Diagnosis remains evidence-native Diagnosis, Handover remains continuity verification, and Training remains Training. Sandbox replaces the source of student behaviour with deterministic private simulated truth and separately evaluates the Specialist's observation and evidence handling.
+
+The Specialist may see the simulated student response required to perform the operating task. The canonical observation record remains private. Hidden canonical truth never becomes authoritative real-student evidence.
+
+For simulated Diagnosis and Handover opportunities, the execution boundary remains:
+
+`Ready -> Observe simulated student response -> Student Finished -> Record -> Confirm`
+
+A refresh or retry must not manufacture a different student response for the same source context and opportunity.
 
 ## Specialist Certification Lifecycle
 

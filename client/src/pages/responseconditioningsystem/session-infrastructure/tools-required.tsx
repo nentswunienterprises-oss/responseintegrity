@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -133,6 +134,11 @@ export default function ResponseConditioningToolsRequired() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+        <DeepDiveLessonRunner
+          lessonKey="tools-required-v2"
+          title="Tools Required"
+          completion={<DeepDiveCapabilityCheck assessmentKey="tools_required_mastery_v1" />}
+        >
         <Card className="p-6 md:p-8 border-2 border-primary/20 space-y-5">
           <div className="flex flex-wrap items-center gap-2">
             <Badge className="bg-primary/10 text-primary hover:bg-primary/10">Session Setup</Badge>
@@ -345,7 +351,7 @@ export default function ResponseConditioningToolsRequired() {
             observes concrete behaviour, and records it on the Response Integrity platform.
           </p>
         </Card>
-        <DeepDiveCapabilityCheck assessmentKey="tools_required_mastery_v1" />
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );

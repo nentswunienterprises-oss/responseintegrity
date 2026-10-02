@@ -362,6 +362,51 @@ test("client Proof Specialist signup and login stay on server-session auth", () 
   assert.doesNotMatch(signupBranch, /Please log in to continue/);
 });
 
+
+test("client auth switches cannot retain protected query data from the previous Specialist", () => {
+  const authFormSource = readFileSync(
+    resolve(process.cwd(), "client/src/components/auth/auth-form.tsx"),
+    "utf8",
+  );
+  const useAuthSource = readFileSync(
+    resolve(process.cwd(), "client/src/hooks/useAuth.ts"),
+    "utf8",
+  );
+
+  const submitStart = authFormSource.indexOf("const handleSubmit");
+  const loginStart = authFormSource.indexOf('if (mode === "login")', submitStart);
+  const loginEnd = authFormSource.indexOf("// Ensure redirectUrl is defined", loginStart);
+  const preLogin = authFormSource.slice(submitStart, loginStart);
+  const loginBranch = authFormSource.slice(loginStart, loginEnd);
+
+  assert.doesNotMatch(
+    preLogin,
+    /clearAllCache\(\)/,
+    "Do not clear while the previous auth session can still repopulate protected queries.",
+  );
+  assert.ok(
+    loginBranch.indexOf("supabase.auth.signInWithPassword") <
+      loginBranch.indexOf("clearAllCache()"),
+    "Supabase identity must switch before the previous account cache is purged.",
+  );
+  assert.ok(
+    loginBranch.indexOf("clearAllCache()") <
+      loginBranch.indexOf('queryClient.setQueryData(["/api/auth/user"]'),
+    "Protected cache must be purged before the new DB user is exposed to the app.",
+  );
+
+  const initStart = useAuthSource.indexOf("const initializeAuthIdentity");
+  const initEnd = useAuthSource.indexOf("// Setup multi-tab sync", initStart);
+  const initSource = useAuthSource.slice(initStart, initEnd);
+
+  assert.match(initSource, /storedUserId !== sessionUserId/);
+  assert.match(initSource, /clearAllCache\(\)/);
+  assert.ok(
+    initSource.indexOf("clearAllCache()") <
+      initSource.lastIndexOf("setSupabaseReady(true)"),
+    "Persisted protected queries must be reconciled before auth readiness opens them.",
+  );
+});
 test("emergency tutor application submission cannot invoke Supabase HTTP", () => {
   const routesSource = readFileSync(resolve(process.cwd(), "server/routes.ts"), "utf8");
   const applicationRouteStart = routesSource.indexOf('"/api/tutor/application"');
@@ -1361,6 +1406,42 @@ test("diagnosis semantics separate the booked session container from the activit
   assert.match(
     migrationSource,
     /Do not interpret as activity type\. Use session_container \+ activity_kind\./,
+  );
+});
+
+test("handover re-diagnosis repairs stale student ownership only from current accepted assignment and handover session authority", () => {
+  const diagnosisSource = readFileSync(
+    resolve(process.cwd(), "server/evidenceCompleteDiagnosisRoutes.ts"),
+    "utf8",
+  );
+
+  assert.match(
+    diagnosisSource,
+    /async function acceptedEnrollmentAssignmentBelongsToTutor/,
+  );
+  assert.match(
+    diagnosisSource,
+    /SELECT assigned_tutor_id, status[\s\S]*FROM public\.parent_enrollments/,
+  );
+  assert.match(
+    diagnosisSource,
+    /async function repairStudentTutorLinkFromHandoverAuthority/,
+  );
+  assert.match(
+    diagnosisSource,
+    /requestedKind: "handover"/,
+  );
+  assert.match(
+    diagnosisSource,
+    /handoverSession\.type !== "handover"/,
+  );
+  assert.match(
+    diagnosisSource,
+    /storage\.updateStudent\(input\.studentId,[\s\S]*tutorId: input\.tutorId/,
+  );
+  assert.match(
+    diagnosisSource,
+    /requestedKind === "handover"[\s\S]*repairStudentTutorLinkFromHandoverAuthority/,
   );
 });
 

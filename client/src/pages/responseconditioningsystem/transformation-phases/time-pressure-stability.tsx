@@ -146,7 +146,7 @@ export default function ResponseConditioningTimePressureStability() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
         <DeepDiveLessonRunner
-          lessonKey="time-pressure-stability-v1"
+          lessonKey="time-pressure-stability-v2"
           title="Time Pressure Stability"
           completion={<DeepDiveCapabilityCheck assessmentKey="time_pressure_stability_mastery_v1" />}
         >
@@ -202,6 +202,132 @@ export default function ResponseConditioningTimePressureStability() {
           </ul>
         </Card>
 
+        <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
+          <h2 className="text-2xl font-bold">Where the Timer Comes From</h2>
+          <p className="text-muted-foreground">
+            Time Pressure Stability does not use a generic timer and the Specialist does not choose a target.
+            RI-OS first establishes a clean no-pressure execution baseline for this student and this topic.
+          </p>
+          <p className="font-semibold">
+            The timer is individualized evidence authority, not a pacing preference.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">Primary Baseline Route: Structured Execution</h2>
+          <p className="text-muted-foreground">
+            During Structured Execution Training, RI-OS passively measures the canonical Independent Execution set.
+            One qualifying set contains three canonical independent opportunities.
+          </p>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li>Normal difficulty.</li>
+            <li>Same-form execution.</li>
+            <li>No active timer or urgency target.</li>
+            <li>No help that supplies the method, first move, or execution structure.</li>
+            <li>Student execution is structurally supported by the evidence model.</li>
+            <li>Timing itself is technically valid.</li>
+          </ul>
+          <p className="text-muted-foreground">
+            If more than one complete qualifying Independent Execution set exists in the current Structured Execution
+            conditioning epoch, the most recent complete qualifying set is the source. RI-OS never cherry-picks
+            individual fast or strong reps across sets.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">Diagnosis Can Establish the Same Timing Authority</h2>
+          <p className="text-muted-foreground">
+            A topic can legitimately be placed above Structured Execution without first completing Structured Execution
+            Training. Diagnosis therefore has an equivalent route using normal, same-form, no-pressure independent
+            execution opportunities.
+          </p>
+          <p className="text-muted-foreground">
+            Diagnosis stays evidence-complete. The first eligible independent opportunity may become timing sample 1,
+            then RI-OS gathers only the remaining clean comparable samples required to reach three.
+          </p>
+          <p className="font-semibold">
+            If an earlier response layer breaks first, Diagnosis stops there. It does not keep collecting timing just
+            because a three-sample baseline could be useful later.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">Passive Timing Does Not Create Pressure</h2>
+          <p className="text-muted-foreground">
+            Baseline timing is invisible as a target. The student is not told to hurry and the Specialist does not run a
+            personal stopwatch.
+          </p>
+          <p className="font-semibold">
+            Begin Rep or Begin Opportunity -&gt; student executes -&gt; Student Finished -&gt; observation and admin.
+          </p>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li>The system owns the start timestamp.</li>
+            <li>Student Finished freezes the end of mathematical execution.</li>
+            <li>Observation and form-completion time happen after the execution interval is frozen.</li>
+            <li>The running baseline duration must not become a pacing cue.</li>
+          </ul>
+        </Card>
+
+        <DeepDiveTeachingInteraction
+          prompt="The student finishes the baseline problem, but the Specialist spends another 20 seconds completing observations before pressing Student Finished. Can that elapsed time authorize the Timer Contract?"
+          options={[
+            {
+              key: "a",
+              label: "Yes, because the whole rep was still open in the runner.",
+              feedback: "The baseline measures the student's mathematical execution, not Specialist administration after completion.",
+            },
+            {
+              key: "b",
+              label: "No. Student Finished must freeze the boundary at actual mathematical completion, before post-response admin.",
+              feedback: "Yes. Adding form-completion time changes the measured execution interval.",
+            },
+            {
+              key: "c",
+              label: "Yes, if the Specialist adds roughly the same admin time to all three reps.",
+              feedback: "Artificial admin delay is never part of the student's execution baseline.",
+            },
+          ]}
+          correctOptionKey="b"
+          truth="Measurement integrity depends on freezing the real student execution boundary before observation administration."
+        />
+
+        <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">How Three Timings Become the Timer Contract</h2>
+          <p className="text-muted-foreground">
+            RI-OS takes the median of the three qualifying elapsed times and freezes that value as the individualized
+            baseline for the current student, topic, and valid source lineage.
+          </p>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-lg border p-4">
+              <p className="font-semibold">Structure Under Timer</p>
+              <p className="mt-1 text-sm text-muted-foreground">100% of the baseline.</p>
+            </div>
+            <div className="rounded-lg border p-4">
+              <p className="font-semibold">Repeated Timed Execution</p>
+              <p className="mt-1 text-sm text-muted-foreground">100% of the baseline.</p>
+            </div>
+            <div className="rounded-lg border p-4">
+              <p className="font-semibold">Full Constraint</p>
+              <p className="mt-1 text-sm text-muted-foreground">85% of the baseline, rounded by RI-OS.</p>
+            </div>
+          </div>
+          <p className="font-semibold">
+            The resulting Timer Contract is system-owned. The Specialist cannot enter, estimate, round, pause, restart,
+            loosen, tighten, or replace it.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">No Baseline Means No Invented Timer</h2>
+          <p className="text-muted-foreground">
+            Missing timing authority is an explicit readiness condition. If a topic needs Time Pressure Stability but
+            does not have a valid current Timer Contract, ordinary timed work does not begin with a guessed value.
+          </p>
+          <p className="font-semibold">
+            RI-OS routes the evidence-native baseline work required to establish timing authority first.
+          </p>
+        </Card>
+
         <DeepDiveTeachingInteraction
           prompt="A student finishes inside the timer but skips the known method and guesses successfully. What does the timed result prove?"
           options={[
@@ -232,7 +358,7 @@ export default function ResponseConditioningTimePressureStability() {
           </p>
           <div className="rounded-lg border bg-background p-4">
             <p className="font-semibold text-lg">
-              {trainingSchema.sets.map((set) => `${set.setName} (${set.reps})`).join(" -> ")}
+              {trainingSchema.sets.map((set) => `${set.setName} (${set.reps})`).join(", ")}
             </p>
             <p className="text-sm text-muted-foreground mt-2">
               {requiredTrainingProblems} required opportunities in the live training drill. Every set produces evidence about structure under time.
@@ -375,8 +501,8 @@ export default function ResponseConditioningTimePressureStability() {
           options={[
             {
               key: "c",
-              label: "Record the technical failure and run a fresh equivalent replacement under the same intended time condition.",
-              feedback: "Yes. Technical lineage remains visible, and the replacement supplies the missing valid timed evidence.",
+              label: "Record the technical failure and use a fresh pre-prepared equivalent reserve under the same intended time condition.",
+              feedback: "Yes. Technical lineage remains visible, and the fresh pre-prepared equivalent reserve fills the unresolved evidence slot without erasing the failed attempt.",
             },
             {
               key: "a",
@@ -390,7 +516,7 @@ export default function ResponseConditioningTimePressureStability() {
             },
           ]}
           correctOptionKey="c"
-          truth="Objective timer failure invalidates the timed condition, not the student's response. Preserve the technical failure and use a fresh equivalent replacement rather than estimating or blaming the student."
+          truth="Objective timer failure invalidates the timed condition, not the student's response. Preserve the failed attempt in lineage and fill the unresolved slot only with a fresh pre-prepared equivalent reserve under the same Timer Contract."
         />
 
         <Card className="p-6 space-y-5">

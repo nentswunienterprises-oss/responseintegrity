@@ -505,6 +505,86 @@ export const loadTpsPassiveAttemptById = async (
   return data ? rowToPassiveAttempt(data as Record<string, any>) : null;
 };
 
+
+export const loadLatestTpsPassiveAttemptForSlot = async ({
+  studentId,
+  topic,
+  source,
+  sourceContextId,
+  sourceItemId,
+  slotNumber,
+}: {
+  studentId: string;
+  topic: string;
+  source: TpsPassiveAttemptSubmissionV1["source"];
+  sourceContextId: string;
+  sourceItemId: string;
+  slotNumber: number;
+}): Promise<PersistedTpsPassiveAttempt | null> => {
+  const normalizedStudentId = clean(studentId);
+  const normalizedTopic = clean(topic);
+  const normalizedContextId = clean(sourceContextId);
+  const normalizedItemId = clean(sourceItemId);
+  const normalizedSlotNumber = Number(slotNumber);
+
+  if (
+    !normalizedStudentId ||
+    !normalizedTopic ||
+    !normalizedContextId ||
+    !normalizedItemId ||
+    !Number.isInteger(normalizedSlotNumber) ||
+    normalizedSlotNumber <= 0
+  ) {
+    return null;
+  }
+
+  if (isEmergencyDbMode()) {
+    const result = await pool.query(
+      `SELECT *
+         FROM public.${BASELINE_ATTEMPT_TABLE}
+        WHERE student_id = $1
+          AND topic_key = $2
+          AND source = $3
+          AND source_context_id = $4
+          AND source_item_id = $5
+          AND slot_number = $6
+        ORDER BY attempt_number DESC, created_at DESC
+        LIMIT 1`,
+      [
+        normalizedStudentId,
+        topicKey(normalizedTopic),
+        source,
+        normalizedContextId,
+        normalizedItemId,
+        normalizedSlotNumber,
+      ],
+    );
+    return result.rows[0] ? rowToPassiveAttempt(result.rows[0]) : null;
+  }
+
+  const { data, error } = await supabase
+    .from(BASELINE_ATTEMPT_TABLE)
+    .select("*")
+    .eq("student_id", normalizedStudentId)
+    .eq("topic_key", topicKey(normalizedTopic))
+    .eq("source", source)
+    .eq("source_context_id", normalizedContextId)
+    .eq("source_item_id", normalizedItemId)
+    .eq("slot_number", normalizedSlotNumber)
+    .order("attempt_number", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Failed to load passive baseline timing slot: ${error.message}`,
+    );
+  }
+
+  return data ? rowToPassiveAttempt(data as Record<string, any>) : null;
+};
+
 export const persistTpsPassiveAttempt = async ({
   studentId,
   topic,
@@ -576,6 +656,31 @@ export const persistTpsPassiveAttempt = async ({
       );
     }
     return existing;
+  }
+
+  const existingSlotAttempt = await loadLatestTpsPassiveAttemptForSlot({
+    studentId: normalizedStudentId,
+    topic: normalizedTopic,
+    source: attempt.source,
+    sourceContextId: attempt.sourceContextId,
+    sourceItemId: attempt.sourceItemId,
+    slotNumber: attempt.slotNumber,
+  });
+
+  if (
+    existingSlotAttempt &&
+    existingSlotAttempt.attemptId !== attempt.attemptId &&
+    existingSlotAttempt.attemptNumber >= attempt.attemptNumber
+  ) {
+    throw Object.assign(
+      new Error(
+        "This passive timing opportunity already has immutable timing evidence. Resume the recorded opportunity instead of restarting the clock.",
+      ),
+      {
+        statusCode: 409,
+        code: "TPS_PASSIVE_ATTEMPT_SLOT_ALREADY_RECORDED",
+      },
+    );
   }
 
   if (attempt.replacementForAttemptId) {
@@ -793,21 +898,52 @@ export const validateDiagnosisPassiveTimingAttemptLineage = async ({
   for (let index = 0; index < probeHistory.length; index += 1) {
     const result = probeHistory[index];
     if (!result?.passiveTiming) continue;
+
     const reference = validateTpsPassiveAttemptEvidenceRef(
       result.passiveTimingAttempt,
     );
-    const error = await validatePassiveAttemptReference({
+    const sourceItemId = clean(result.probeId);
+    const canonicalSlotNumber = index + 1;
+
+    let error = await validatePassiveAttemptReference({
       reference,
       studentId,
       topic,
       source: "diagnosis",
       sourceContextId: runId,
-      sourceItemId: clean(result.probeId),
-      slotNumber: index + 1,
+      sourceItemId,
+      slotNumber: canonicalSlotNumber,
       rawTiming: JSON.stringify(result.passiveTiming),
     });
+
+    if (error && reference) {
+      const legacyProbeOccurrenceNumber =
+        probeHistory
+          .slice(0, index + 1)
+          .filter((item) => clean(item?.probeId) === sourceItemId).length;
+
+      if (
+        legacyProbeOccurrenceNumber > 0 &&
+        legacyProbeOccurrenceNumber !== canonicalSlotNumber
+      ) {
+        const legacyError = await validatePassiveAttemptReference({
+          reference,
+          studentId,
+          topic,
+          source: "diagnosis",
+          sourceContextId: runId,
+          sourceItemId,
+          slotNumber: legacyProbeOccurrenceNumber,
+          rawTiming: JSON.stringify(result.passiveTiming),
+        });
+        if (!legacyError) {
+          error = null;
+        }
+      }
+    }
+
     if (error) {
-      return `Diagnosis Opportunity ${index + 1}: ${error}`;
+      return `Diagnosis Opportunity ${canonicalSlotNumber}: ${error}`;
     }
   }
   return null;
@@ -877,6 +1013,74 @@ export const loadTpsTimedAttemptById = async (
   return data ? rowToTimedAttempt(data as Record<string, any>) : null;
 };
 
+export const loadLatestTpsTimedAttemptForSlot = async ({
+  contractId,
+  setId,
+  repNumber,
+}: {
+  contractId: string;
+  setId: TpsTimedAttemptSubmissionV1["setId"];
+  repNumber: number;
+}): Promise<PersistedTpsTimedAttempt | null> => {
+  const normalizedContractId = clean(contractId);
+  const normalizedSetId = clean(setId);
+  const normalizedRepNumber = Number(repNumber);
+
+  if (
+    !normalizedContractId ||
+    !normalizedSetId ||
+    !Number.isInteger(normalizedRepNumber) ||
+    normalizedRepNumber <= 0
+  ) {
+    return null;
+  }
+
+  if (isEmergencyDbMode()) {
+    const result = await pool.query(
+      `SELECT *
+         FROM public.${TIMED_ATTEMPT_TABLE}
+        WHERE contract_id = $1
+          AND set_id = $2
+          AND rep_number = $3
+        ORDER BY attempt_number DESC, created_at DESC
+        LIMIT 1`,
+      [normalizedContractId, normalizedSetId, normalizedRepNumber],
+    );
+    return result.rows[0] ? rowToTimedAttempt(result.rows[0]) : null;
+  }
+
+  const { data, error } = await supabase
+    .from(TIMED_ATTEMPT_TABLE)
+    .select("*")
+    .eq("contract_id", normalizedContractId)
+    .eq("set_id", normalizedSetId)
+    .eq("rep_number", normalizedRepNumber)
+    .order("attempt_number", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load TPS timed attempt slot: ${error.message}`);
+  }
+
+  return data ? rowToTimedAttempt(data as Record<string, any>) : null;
+};
+
+const timedAttemptSlotAlreadyRecordedError = (
+  existingAttempt: PersistedTpsTimedAttempt,
+) =>
+  Object.assign(
+    new Error(
+      "This TPS timing opportunity already has immutable timing evidence. Resume the recorded opportunity instead of restarting the timer.",
+    ),
+    {
+      statusCode: 409,
+      code: "TPS_TIMED_ATTEMPT_SLOT_ALREADY_RECORDED",
+      existingAttempt,
+    },
+  );
+
 export const persistTpsTimedAttempt = async ({
   contract,
   attempt,
@@ -916,6 +1120,20 @@ export const persistTpsTimedAttempt = async ({
       );
     }
     return existing;
+  }
+
+  const existingSlotAttempt = await loadLatestTpsTimedAttemptForSlot({
+    contractId: contract.contractId,
+    setId: attempt.setId,
+    repNumber: attempt.repNumber,
+  });
+
+  if (
+    existingSlotAttempt &&
+    existingSlotAttempt.attemptId !== attempt.attemptId &&
+    existingSlotAttempt.attemptNumber >= attempt.attemptNumber
+  ) {
+    throw timedAttemptSlotAlreadyRecordedError(existingSlotAttempt);
   }
 
   if (attempt.replacementForAttemptId) {
@@ -1000,6 +1218,58 @@ export const persistTpsTimedAttempt = async ({
   return persisted;
 };
 
+
+
+export const validateTpsHandoverTimedAttemptLineage = async ({
+  contract,
+  sets,
+}: {
+  contract: PersistedTpsTimerContract;
+  sets: any[];
+}): Promise<string | null> => {
+  const setId = "time_pressure.handover_continuity";
+  const pressureLevel = getTpsTrainingPressureForSet(setId);
+  if (pressureLevel !== "light_timer") return "Handover TPS timing condition is unavailable.";
+  const prescribedSeconds = getTpsPrescribedSeconds(contract, pressureLevel);
+  const seen = new Set<string>();
+  for (const set of Array.isArray(sets) ? sets : []) {
+    const observations = Array.isArray(set?.observations) ? set.observations : [];
+    for (let index = 0; index < observations.length; index += 1) {
+      const repNumber = Number(observations[index]?._rep_number || index + 1);
+      const reference = decodeTpsTimedAttemptEvidenceRef(
+        observations[index]?.[TPS_TIMED_ATTEMPT_WIRE_KEY],
+      );
+      if (!reference) return `Handover Opportunity ${repNumber} is missing TPS timing lineage.`;
+      if (
+        reference.contractId !== contract.contractId ||
+        reference.setId !== setId ||
+        reference.repNumber !== repNumber
+      ) {
+        return `Handover Opportunity ${repNumber} timing lineage does not match its Timer Contract.`;
+      }
+      if (seen.has(reference.attemptId)) return "A Handover TPS timed attempt was reused.";
+      seen.add(reference.attemptId);
+      const attempt = await loadTpsTimedAttemptById(reference.attemptId);
+      if (!attempt) return `Handover Opportunity ${repNumber} has no persisted TPS timed attempt.`;
+      if (
+        attempt.contractId !== contract.contractId ||
+        attempt.studentId !== contract.studentId ||
+        topicKey(attempt.topic) !== topicKey(contract.topic) ||
+        attempt.setId !== setId ||
+        attempt.repNumber !== repNumber ||
+        attempt.attemptNumber !== reference.attemptNumber ||
+        attempt.pressureLevel !== pressureLevel ||
+        attempt.prescribedSeconds !== prescribedSeconds ||
+        attempt.timingValidity !== "valid" ||
+        attempt.endReason !== reference.endReason ||
+        reference.timingValidity !== "valid"
+      ) {
+        return `Handover Opportunity ${repNumber} has invalid TPS timing lineage.`;
+      }
+    }
+  }
+  return null;
+};
 
 export const validateTpsTrainingDrillTimedAttemptLineage = async ({
   contract,

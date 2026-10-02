@@ -39,7 +39,7 @@ Q4
 What is the purpose and support boundary of Independent Execution?
 
 Expected Answer
-It tests repeated full execution of the known method with no tutor support, exposing whether the student can start, sequence, correct and complete independently.
+It tests repeated full execution of the known method with no Specialist support, exposing whether the student can start, sequence, correct and complete independently.
 
 Fail Answer
 First-step confirmation is allowed
@@ -50,7 +50,7 @@ Q5
 What is the purpose and constraint of Variation Control?
 
 Expected Answer
-It tests whether the method survives a changed surface form with no tutor support, separating genuine method ownership from familiarity with repeated examples.
+It tests whether the method survives a changed surface form with no Specialist support, separating genuine method ownership from familiarity with repeated examples.
 
 Fail Answer
 Repeat the exact same form with hints

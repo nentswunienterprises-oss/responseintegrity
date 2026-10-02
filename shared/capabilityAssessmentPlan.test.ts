@@ -3,6 +3,10 @@ import test from "node:test";
 import { getRequiredCapabilityEvidenceCells } from "./capabilityBlueprint";
 import {
   CAPABILITY_MVP_ASSESSMENT_PLAN_V1,
+  EXECUTION_STANDARDS_DEEP_DIVE_KEYS,
+  SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS,
+  SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
+  TRANSFORMATION_DEEP_DIVE_KEYS,
   TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
   TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
   getCapabilityMvpPlannedEvidenceCells,
@@ -10,29 +14,54 @@ import {
 
 const requiredCells = getRequiredCapabilityEvidenceCells().map((cell) => cell.code).sort();
 
-test("MVP assessment plan uses 16 digital proof events instead of 33 separate assessments", () => {
-  assert.equal(CAPABILITY_MVP_ASSESSMENT_PLAN_V1.length, 16);
-  assert.equal(CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter((entry) => entry.evidenceKind === "mastery").length, 11);
-  assert.equal(CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter((entry) => entry.evidenceKind === "retrieval").length, 2);
-  assert.equal(CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter((entry) => entry.evidenceKind === "transfer").length, 3);
+test("assessment plan uses 25 digital proof events for the 20 Deep Dive architecture", () => {
+  assert.equal(CAPABILITY_MVP_ASSESSMENT_PLAN_V1.length, 25);
+  assert.equal(
+    CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter((entry) => entry.evidenceKind === "mastery").length,
+    20,
+  );
+  assert.equal(
+    CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter((entry) => entry.evidenceKind === "retrieval").length,
+    2,
+  );
+  assert.equal(
+    CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter((entry) => entry.evidenceKind === "transfer").length,
+    3,
+  );
 });
 
-test("the 16 planned assessments cover every one of the 33 required capability evidence cells", () => {
+test("the planned assessments cover every one of the 42 required capability evidence cells", () => {
   assert.deepEqual(getCapabilityMvpPlannedEvidenceCells(), requiredCells);
 });
 
-test("mastery remains one Deep Dive at a time while cumulative checks carry multiple cells", () => {
+test("Mastery remains one Deep Dive at a time", () => {
   for (const entry of CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter((item) => item.evidenceKind === "mastery")) {
     assert.equal(entry.coveredDeepDiveKeys.length, 1);
     assert.equal(entry.formSize, 15);
     assert.equal(entry.minimumItemPoolSize, 45);
+    assert.equal(entry.passThresholdPercent, 100);
   }
+});
 
-  for (const entry of CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter((item) => item.evidenceKind !== "mastery")) {
-    assert.ok(entry.coveredDeepDiveKeys.length >= 4);
-    assert.ok(entry.minimumItemPoolSize >= entry.formSize);
-  }
+test("legacy cumulative Retrieval and Transfer remain scoped to their approved 11 Deep Dives", () => {
+  const cumulative = CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter(
+    (entry) => entry.evidenceKind !== "mastery",
+  );
+  assert.equal(cumulative.length, 5);
+  assert.ok(cumulative.every((entry) => entry.minimumItemPoolSize >= entry.formSize));
+  assert.ok(cumulative.every((entry) => entry.passThresholdPercent === 96));
 
+  const cumulativeCovered = new Set(cumulative.flatMap((entry) => entry.coveredDeepDiveKeys));
+  const expected = new Set([
+    ...TRANSFORMATION_DEEP_DIVE_KEYS,
+    ...SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS,
+  ]);
+  assert.deepEqual([...cumulativeCovered].sort(), [...expected].sort());
+  assert.ok(EXECUTION_STANDARDS_DEEP_DIVE_KEYS.every((key) => !cumulativeCovered.has(key)));
+  assert.ok(SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS.every((key) => !cumulativeCovered.has(key)));
+});
+
+test("Transformation Retrieval and Transfer keep their existing timing and form contracts", () => {
   const retrieval = CAPABILITY_MVP_ASSESSMENT_PLAN_V1.find(
     (entry) => entry.assessmentKey === TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
   );
@@ -47,29 +76,20 @@ test("mastery remains one Deep Dive at a time while cumulative checks carry mult
   assert.equal(transfer.minimumDelayHours, 0);
 });
 
-test("Mastery requires a clean pass while cumulative Transformation gates preserve 96 percent", () => {
-  const mastery = CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter(
-    (entry) => entry.evidenceKind === "mastery",
+test("all 20 Deep Dives have a Mastery gate", () => {
+  const mastered = new Set(
+    CAPABILITY_MVP_ASSESSMENT_PLAN_V1
+      .filter((entry) => entry.evidenceKind === "mastery")
+      .flatMap((entry) => entry.coveredDeepDiveKeys),
   );
-  assert.ok(mastery.every((entry) => entry.passThresholdPercent === 100));
-
-  const cumulative = CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter(
-    (entry) => entry.evidenceKind !== "mastery",
+  assert.equal(mastered.size, 20);
+  assert.deepEqual(
+    [...mastered].sort(),
+    [
+      ...TRANSFORMATION_DEEP_DIVE_KEYS,
+      ...EXECUTION_STANDARDS_DEEP_DIVE_KEYS,
+      ...SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
+      ...SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS,
+    ].sort(),
   );
-  assert.ok(cumulative.every((entry) => entry.passThresholdPercent === 96));
-});
-
-test("all 11 Deep Dives appear in mastery, retrieval, and transfer plan coverage", () => {
-  const kinds = ["mastery", "retrieval", "transfer"] as const;
-  for (const cell of requiredCells) {
-    assert.ok(getCapabilityMvpPlannedEvidenceCells().includes(cell));
-  }
-  for (const kind of kinds) {
-    const covered = new Set(
-      CAPABILITY_MVP_ASSESSMENT_PLAN_V1
-        .filter((entry) => entry.evidenceKind === kind)
-        .flatMap((entry) => entry.coveredDeepDiveKeys),
-    );
-    assert.equal(covered.size, 11, `${kind} must cover all 11 Deep Dives`);
-  }
 });

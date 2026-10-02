@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { API_URL } from "@/lib/config";
+import { getAuthMode } from "@/lib/authMode";
 import { supabase } from "@/lib/supabaseClient";
-import { instructionPromptDisplayText, instructionPromptLabelFor } from "@/lib/instructionPromptLabel";
+import { LiveSandboxStudentResponse } from "./TrainingLiveDeliveryUi";
 import {
+  DIAGNOSIS_PROBE_EXECUTION_PROTOCOLS,
   type DiagnosisDimensionId,
   type DiagnosisProbeDefinition,
   getDiagnosisPhaseSupportEvidence,
@@ -46,6 +48,25 @@ type DiagnosisApiResponse = {
     baselineSeconds: number | null;
     prescribedSeconds: number | null;
   };
+};
+
+type DiagnosisRuntimeAuthority = {
+  assignmentId: string | null;
+  operationalMode: string;
+};
+
+type SandboxDiagnosisSimulation = {
+  scope: "diagnosis";
+  trajectoryId: string;
+  bankVersion: number;
+  sessionNumber: number;
+  probeId: string;
+  sequenceNumber: number;
+  formId: string;
+  studentBehavior: string;
+  simulatedElapsedSeconds: number;
+  studentStateAuthoritative: false;
+  evidenceScope: "sandbox";
 };
 
 type ActiveDiagnosisPassiveAttempt = {
@@ -99,7 +120,7 @@ const SUPPORT_OPTIONS: Array<{
   {
     value: "none",
     title: "No intervention",
-    detail: "You only presented the problem and observed.",
+    detail: "You followed only the system-prescribed probe script and added no mathematical help, confirmation, correction, or rescue.",
     contaminated: false,
   },
   {
@@ -147,11 +168,18 @@ const buildStorageKey = (
   ].join(":");
 
 async function authHeaders() {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const authMode = await getAuthMode();
   const headers: HeadersInit = { "Content-Type": "application/json" };
-  if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+  if (!authMode.dbSessionAuthMode) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
+  }
+
   return headers;
 }
 
@@ -178,6 +206,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
       : requestedSessionContext === "training"
         ? "training"
         : "intro";
+  const isTargetedHandoverRediagnosis = sessionContextKind === "handover";
 
   const storageKey = useMemo(
     () => buildStorageKey(studentId, topic, scheduledSessionId),
@@ -186,6 +215,10 @@ export default function EvidenceCompleteDiagnosisRunner() {
 
   const [runId, setRunId] = useState<string | null>(null);
   const [apiState, setApiState] = useState<DiagnosisApiResponse | null>(null);
+  const [runtimeAuthority, setRuntimeAuthority] =
+    useState<DiagnosisRuntimeAuthority | null>(null);
+  const [sandboxSimulation, setSandboxSimulation] =
+    useState<SandboxDiagnosisSimulation | null>(null);
   const [observations, setObservations] = useState<
     Partial<Record<DiagnosisDimensionId, string>>
   >({});
@@ -195,7 +228,8 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opportunityStarted, setOpportunityStarted] = useState(false);
-  const [activeLayerIndex, setActiveLayerIndex] = useState(0);
+  const [executionFinished, setExecutionFinished] = useState(false);
+  const [activeObservationIndex, setActiveObservationIndex] = useState(0);
   const [confirmStep, setConfirmStep] = useState(false);
   const opportunityStartedAtRef = useRef<string | null>(null);
   const [passiveTiming, setPassiveTiming] =
@@ -214,6 +248,122 @@ export default function EvidenceCompleteDiagnosisRunner() {
   const [timedTiming, setTimedTiming] =
     useState<TimedExecutionEvidenceV1 | null>(null);
   const [timerNowMs, setTimerNowMs] = useState(() => Date.now());
+
+  const loadRuntimeAuthority = async (): Promise<DiagnosisRuntimeAuthority> => {
+    const headers = await authHeaders();
+    const response = await fetch(`${API_URL}/api/tutor/runtime-mode`, {
+      headers,
+      credentials: "include",
+      cache: "no-store",
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        body?.message ||
+          `Failed to verify Specialist runtime mode (${response.status})`,
+      );
+    }
+    return {
+      assignmentId: body?.assignmentId ? String(body.assignmentId) : null,
+      operationalMode: String(body?.operationalMode || "training")
+        .trim()
+        .toLowerCase(),
+    };
+  };
+
+  const loadSandboxSimulation = async ({
+    runtime,
+    id,
+    state,
+  }: {
+    runtime: DiagnosisRuntimeAuthority;
+    id: string;
+    state: DiagnosisApiResponse;
+  }): Promise<SandboxDiagnosisSimulation | null> => {
+    const nextProbe = state.nextProbe;
+    if (
+      runtime.operationalMode !== "sandbox" ||
+      !runtime.assignmentId ||
+      !nextProbe ||
+      state.finalized
+    ) {
+      return null;
+    }
+
+    const params = new URLSearchParams({
+      tutorAssignmentId: runtime.assignmentId,
+      studentId,
+      scope: "diagnosis",
+      sourceContextId: id,
+      topic,
+      startingPhase,
+      sequenceNumber: String(
+        state.opportunityNumber || state.probeHistory.length + 1,
+      ),
+      probeId: nextProbe.id,
+    });
+    const headers = await authHeaders();
+    const response = await fetch(
+      `${API_URL}/api/tutor/sandbox-live-evidence?${params.toString()}`,
+      {
+        headers,
+        credentials: "include",
+        cache: "no-store",
+      },
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        body?.message ||
+          "Sandbox simulated student behavior could not be prepared.",
+      );
+    }
+    return body as SandboxDiagnosisSimulation;
+  };
+
+  const recordSandboxSimulation = async ({
+    runtime,
+    simulation,
+    observations: submittedObservations,
+    submittedSupportEvent,
+  }: {
+    runtime: DiagnosisRuntimeAuthority;
+    simulation: SandboxDiagnosisSimulation;
+    observations: Array<{ dimensionId: string; behaviorId: string }>;
+    submittedSupportEvent: DiagnosisSupportEvent;
+  }) => {
+    if (runtime.operationalMode !== "sandbox" || !runtime.assignmentId) return;
+
+    const headers = await authHeaders();
+    const response = await fetch(
+      `${API_URL}/api/tutor/sandbox-live-evidence`,
+      {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          tutorAssignmentId: runtime.assignmentId,
+          studentId,
+          scope: "diagnosis",
+          sourceContextId: runId,
+          topic,
+          startingPhase,
+          sequenceNumber: simulation.sequenceNumber,
+          probeId: simulation.probeId,
+          formId: simulation.formId,
+          supportEvent: submittedSupportEvent,
+          observations: submittedObservations,
+        }),
+      },
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        body?.message ||
+          "Sandbox simulated evidence could not be recorded.",
+      );
+    }
+  };
 
   const postHistory = async (
     id: string,
@@ -262,6 +412,50 @@ export default function EvidenceCompleteDiagnosisRunner() {
     return body as DiagnosisApiResponse;
   };
 
+
+  const loadPassiveAttemptForSlot = async ({
+    contextId,
+    probeId,
+    slotNumber,
+    legacySlotNumber,
+  }: {
+    contextId: string;
+    probeId: string;
+    slotNumber: number;
+    legacySlotNumber?: number;
+  }): Promise<TpsPassiveAttemptSubmissionV1 | null> => {
+    const headers = await authHeaders();
+    const params = new URLSearchParams({
+      topic,
+      source: "diagnosis",
+      sourceContextId: contextId,
+      sourceItemId: probeId,
+      slotNumber: String(slotNumber),
+    });
+    if (
+      Number.isInteger(legacySlotNumber) &&
+      Number(legacySlotNumber) > 0 &&
+      Number(legacySlotNumber) !== slotNumber
+    ) {
+      params.set("legacySlotNumber", String(legacySlotNumber));
+    }
+    const response = await fetch(
+      `${API_URL}/api/tutor/students/${studentId}/tps-passive-attempt?${params.toString()}`,
+      {
+        headers,
+        credentials: "include",
+        cache: "no-store",
+      },
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        body?.message || "Recorded diagnosis timing could not be recovered.",
+      );
+    }
+    return (body?.attempt || null) as TpsPassiveAttemptSubmissionV1 | null;
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -271,6 +465,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
       try {
         if (!studentId) throw new Error("Student is missing.");
         if (!topic) throw new Error("Choose a topic before starting diagnosis.");
+
+        const runtime = await loadRuntimeAuthority();
+        if (!cancelled) setRuntimeAuthority(runtime);
 
         const storedRunId = window.sessionStorage.getItem(storageKey);
         const id =
@@ -288,16 +485,96 @@ export default function EvidenceCompleteDiagnosisRunner() {
           state = await postHistory(id, state.probeHistory);
         }
 
+        const nextProbe = state.nextProbe || null;
+        const nextOpportunityNumber =
+          state.opportunityNumber || state.probeHistory.length + 1;
+        const nextProbeOccurrenceNumber = nextProbe
+          ? state.probeHistory.filter(
+              (item) => item.probeId === nextProbe.id,
+            ).length + 1
+          : null;
+        const recoveredPassiveAttempt =
+          state.timingAuthority?.mode === "passive_baseline" && nextProbe
+            ? await loadPassiveAttemptForSlot({
+                contextId: id,
+                probeId: nextProbe.id,
+                slotNumber: nextOpportunityNumber,
+                legacySlotNumber: nextProbeOccurrenceNumber || undefined,
+              })
+            : null;
+        const simulation = await loadSandboxSimulation({
+          runtime,
+          id,
+          state,
+        });
+
         if (!cancelled) {
+          setSandboxSimulation(simulation);
           setApiState(state);
           setObservations({});
           setSupportEvent("none");
-          setOpportunityStarted(false);
-          setActiveLayerIndex(0);
+          setExecutionFinished(false);
+          setActiveObservationIndex(0);
           setConfirmStep(false);
-          opportunityStartedAtRef.current = null;
-          setPassiveTiming(null);
           setTimedTiming(null);
+          setActivePassiveAttempt(null);
+          setPassiveReplacement(null);
+          setPassiveTiming(null);
+          setPassiveTimingAttempt(null);
+          setPassiveTimingNotice(null);
+          opportunityStartedAtRef.current = null;
+
+          if (recoveredPassiveAttempt?.timingValidity === "valid") {
+            const recoveredTiming = buildPassiveExecutionTimingEvidence({
+              startedAt: recoveredPassiveAttempt.startedAt,
+              endedAt: recoveredPassiveAttempt.endedAt,
+            });
+            if (
+              !recoveredTiming ||
+              recoveredTiming.elapsedMs !== recoveredPassiveAttempt.elapsedMs
+            ) {
+              throw new Error(
+                "Recorded diagnosis timing could not be reconciled with its immutable execution boundary.",
+              );
+            }
+
+            setPassiveTiming(recoveredTiming);
+            setPassiveTimingAttempt({
+              version: 1,
+              attemptId: recoveredPassiveAttempt.attemptId,
+              source: "diagnosis",
+              sourceContextId: recoveredPassiveAttempt.sourceContextId,
+              sourceItemId: recoveredPassiveAttempt.sourceItemId,
+              slotNumber: recoveredPassiveAttempt.slotNumber,
+              attemptNumber: recoveredPassiveAttempt.attemptNumber,
+              timingValidity: "valid",
+              endReason: "student_finished",
+            });
+            opportunityStartedAtRef.current = recoveredPassiveAttempt.startedAt;
+            setOpportunityStarted(true);
+            setExecutionFinished(true);
+            setPassiveTimingNotice(
+              "Student execution timing was already recorded for this opportunity. Resume the evidence layers from that same completed response; do not present another problem.",
+            );
+          } else if (
+            recoveredPassiveAttempt?.timingValidity ===
+            "timing_invalid_technical"
+          ) {
+            const recoveredReplacement: DiagnosisPassiveReplacementState = {
+              nextAttemptNumber: recoveredPassiveAttempt.attemptNumber + 1,
+              replacementForAttemptId: recoveredPassiveAttempt.attemptId,
+              freshPreparedEquivalentConfirmed: false,
+            };
+            setPassiveReplacement(recoveredReplacement);
+            setOpportunityStarted(false);
+            setExecutionFinished(false);
+            setPassiveTimingNotice(
+              "The prior attempt ended in a technical timing failure. This evidence slot remains unresolved until a fresh equivalent reserve is run under the same condition.",
+            );
+          } else {
+            setOpportunityStarted(false);
+            setExecutionFinished(false);
+          }
         }
       } catch (bootError) {
         if (!cancelled) {
@@ -326,6 +603,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
   ]);
 
   const currentProbe = apiState?.nextProbe || null;
+  const executionProtocol = currentProbe
+    ? DIAGNOSIS_PROBE_EXECUTION_PROTOCOLS[currentProbe.id]
+    : null;
   const opportunityNumber =
     apiState?.opportunityNumber || (apiState?.probeHistory.length || 0) + 1;
   const currentTimingMode = apiState?.timingAuthority?.mode || "none";
@@ -397,9 +677,20 @@ export default function EvidenceCompleteDiagnosisRunner() {
     })).filter((group) => group.dimensions.length > 0);
   }, [currentProbe]);
 
-  const activeLayer = groupedDimensions[activeLayerIndex] || null;
-  const activeLayerComplete = activeLayer
-    ? activeLayer.dimensions.every((dimensionId) => !!observations[dimensionId])
+  const activeDimensionId =
+    currentProbe?.dimensions[activeObservationIndex] || null;
+  const activeDimension = activeDimensionId
+    ? DIAGNOSIS_OBSERVATION_MATRIX[activeDimensionId]
+    : null;
+  const activeLayerIndex = activeDimension
+    ? groupedDimensions.findIndex(
+        (group) => group.phase === activeDimension.phase,
+      )
+    : -1;
+  const activeLayer =
+    activeLayerIndex >= 0 ? groupedDimensions[activeLayerIndex] : null;
+  const activeObservationComplete = activeDimensionId
+    ? Boolean(observations[activeDimensionId])
     : false;
   const recordedBehaviorCount = currentProbe
     ? currentProbe.dimensions.filter((dimensionId) => observations[dimensionId]).length
@@ -460,7 +751,8 @@ export default function EvidenceCompleteDiagnosisRunner() {
     setTimedTiming(null);
     setTimerNowMs(Date.now());
     setOpportunityStarted(true);
-    setActiveLayerIndex(0);
+    setExecutionFinished(false);
+    setActiveObservationIndex(0);
     setConfirmStep(false);
     setError(null);
     scrollRunnerTop();
@@ -507,7 +799,18 @@ export default function EvidenceCompleteDiagnosisRunner() {
       let attempt = activePassiveAttempt.frozenAttempt;
       if (!attempt) {
         const endedAt = new Date().toISOString();
-        const startedMs = Date.parse(activePassiveAttempt.startedAt);
+        const simulatedElapsedMs =
+          runtimeAuthority?.operationalMode === "sandbox" &&
+          sandboxSimulation?.simulatedElapsedSeconds
+            ? Math.max(
+                1,
+                Math.round(sandboxSimulation.simulatedElapsedSeconds * 1000),
+              )
+            : null;
+        const effectiveStartedAt = simulatedElapsedMs
+          ? new Date(Date.parse(endedAt) - simulatedElapsedMs).toISOString()
+          : activePassiveAttempt.startedAt;
+        const startedMs = Date.parse(effectiveStartedAt);
         const endedMs = Date.parse(endedAt);
         if (
           !Number.isFinite(startedMs) ||
@@ -526,7 +829,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
           sourceItemId: activePassiveAttempt.sourceItemId,
           slotNumber: activePassiveAttempt.slotNumber,
           attemptNumber: activePassiveAttempt.attemptNumber,
-          startedAt: activePassiveAttempt.startedAt,
+          startedAt: effectiveStartedAt,
           endedAt,
           elapsedMs: endedMs - startedMs,
           timingValidity:
@@ -572,7 +875,8 @@ export default function EvidenceCompleteDiagnosisRunner() {
             );
           }
           setOpportunityStarted(false);
-          setActiveLayerIndex(0);
+          setExecutionFinished(false);
+          setActiveObservationIndex(0);
           setConfirmStep(false);
           setObservations({});
           setSupportEvent("none");
@@ -613,8 +917,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
           window.localStorage.removeItem(passiveReplacementStorageKey);
         }
         setActivePassiveAttempt(null);
+        setExecutionFinished(true);
         setPassiveTimingNotice(
-          "Student execution boundary recorded. Finish the observations without adding Specialist admin time to the interval.",
+          "Student execution boundary recorded. Record the observations from that completed response.",
         );
         setError(null);
       } catch (persistError) {
@@ -632,8 +937,19 @@ export default function EvidenceCompleteDiagnosisRunner() {
 
     if (currentTimingMode === "timed") {
       const endedAt = new Date().toISOString();
+      const simulatedElapsedMs =
+        runtimeAuthority?.operationalMode === "sandbox" &&
+        sandboxSimulation?.simulatedElapsedSeconds
+          ? Math.max(
+              1,
+              Math.round(sandboxSimulation.simulatedElapsedSeconds * 1000),
+            )
+          : null;
+      const effectiveStartedAt = simulatedElapsedMs
+        ? new Date(Date.parse(endedAt) - simulatedElapsedMs).toISOString()
+        : startedAt;
       const evidence = buildTimedExecutionEvidence({
-        startedAt,
+        startedAt: effectiveStartedAt,
         endedAt,
         prescribedSeconds,
       });
@@ -642,29 +958,63 @@ export default function EvidenceCompleteDiagnosisRunner() {
         return;
       }
       setTimedTiming(evidence);
+      setExecutionFinished(true);
       setError(null);
     }
   };
 
-  const continueFromLayer = () => {
-    if (!activeLayerComplete) return;
-    if (activeLayerIndex < groupedDimensions.length - 1) {
-      setActiveLayerIndex((current) => current + 1);
-    } else {
-      if (timingBoundaryRequired && !timingBoundaryCaptured) {
-        setError(
-          currentTimingMode === "timed"
-            ? "Mark Student Finished or allow the system timer to expire before reviewing this timed opportunity."
-            : "Mark Student Finished before reviewing this baseline opportunity so observation/admin time is excluded.",
-        );
-        return;
-      }
-      setConfirmStep(true);
+  const finishLiveOpportunity = () => {
+    if (currentTimingMode === "none") {
+      setExecutionFinished(true);
+      setError(null);
+      scrollRunnerTop();
+      return;
     }
+    void finishOpportunityTiming("student_finished");
+  };
+
+  const continueFromObservation = () => {
+    if (!activeObservationComplete || !currentProbe) return;
+
+    if (activeObservationIndex < currentProbe.dimensions.length - 1) {
+      setActiveObservationIndex((current) => current + 1);
+      scrollRunnerTop();
+      return;
+    }
+
+    if (timingBoundaryRequired && !timingBoundaryCaptured) {
+      setError(
+        currentTimingMode === "timed"
+          ? "Mark Student Finished or allow the system timer to expire before reviewing this timed opportunity."
+          : "Mark Student Finished before reviewing this baseline opportunity so observation/admin time is excluded.",
+      );
+      return;
+    }
+
+    setConfirmStep(true);
     scrollRunnerTop();
   };
 
   const backWithinOpportunity = () => {
+    if (confirmStep) {
+      setConfirmStep(false);
+      setActiveObservationIndex(
+        Math.max(0, (currentProbe?.dimensions.length || 1) - 1),
+      );
+      scrollRunnerTop();
+      return;
+    }
+
+    if (activeObservationIndex > 0) {
+      setActiveObservationIndex((current) => current - 1);
+      scrollRunnerTop();
+      return;
+    }
+
+    if (executionFinished) {
+      return;
+    }
+
     if (
       opportunityStarted &&
       currentTimingMode === "passive_baseline" &&
@@ -685,19 +1035,14 @@ export default function EvidenceCompleteDiagnosisRunner() {
       );
       return;
     }
-    if (confirmStep) {
-      setConfirmStep(false);
-      setActiveLayerIndex(Math.max(0, groupedDimensions.length - 1));
-    } else if (activeLayerIndex > 0) {
-      setActiveLayerIndex((current) => current - 1);
-    } else {
-      setOpportunityStarted(false);
-      opportunityStartedAtRef.current = null;
-      setPassiveTiming(null);
-      setPassiveTimingAttempt(null);
-      setActivePassiveAttempt(null);
-      setTimedTiming(null);
-    }
+
+    setOpportunityStarted(false);
+    setExecutionFinished(false);
+    opportunityStartedAtRef.current = null;
+    setPassiveTiming(null);
+    setPassiveTimingAttempt(null);
+    setActivePassiveAttempt(null);
+    setTimedTiming(null);
     scrollRunnerTop();
   };
 
@@ -715,27 +1060,51 @@ export default function EvidenceCompleteDiagnosisRunner() {
     setError(null);
 
     try {
+      const submittedObservations = currentProbe.dimensions.map((dimensionId) => ({
+        dimensionId,
+        behaviorId: observations[dimensionId]!,
+      }));
       const result: DiagnosisProbeResult = {
         probeId: currentProbe.id,
         supportEvent,
-        observations: currentProbe.dimensions.map((dimensionId) => ({
-          dimensionId,
-          behaviorId: observations[dimensionId]!,
-        })),
+        observations: submittedObservations,
         ...(passiveTiming ? { passiveTiming } : {}),
         ...(passiveTimingAttempt ? { passiveTimingAttempt } : {}),
         ...(timedTiming ? { timedTiming } : {}),
       };
 
+      if (runtimeAuthority?.operationalMode === "sandbox") {
+        if (!sandboxSimulation) {
+          throw new Error(
+            "Sandbox simulated student behavior is missing for this opportunity.",
+          );
+        }
+        await recordSandboxSimulation({
+          runtime: runtimeAuthority,
+          simulation: sandboxSimulation,
+          observations: submittedObservations,
+          submittedSupportEvent: supportEvent,
+        });
+      }
+
       const nextState = await postHistory(runId, [
         ...apiState.probeHistory,
         result,
       ]);
+      const nextSimulation = runtimeAuthority
+        ? await loadSandboxSimulation({
+            runtime: runtimeAuthority,
+            id: runId,
+            state: nextState,
+          })
+        : null;
       setApiState(nextState);
+      setSandboxSimulation(nextSimulation);
       setObservations({});
       setSupportEvent("none");
       setOpportunityStarted(false);
-      setActiveLayerIndex(0);
+      setExecutionFinished(false);
+      setActiveObservationIndex(0);
       setConfirmStep(false);
       opportunityStartedAtRef.current = null;
       setPassiveTiming(null);
@@ -781,6 +1150,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
       currentTimingMode !== "timed" ||
       timedTiming ||
       timedRemainingMs > 0 ||
+      runtimeAuthority?.operationalMode === "sandbox" ||
       !prescribedSeconds ||
       prescribedSeconds <= 0
     ) {
@@ -801,6 +1171,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
       ...evidence,
       completedBeforeExpiry: false,
     });
+    setExecutionFinished(true);
   }, [
     opportunityStarted,
     currentTimingMode,
@@ -814,7 +1185,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
       <main className="min-h-screen bg-background px-4 py-12">
         <div className="mx-auto max-w-3xl rounded-2xl border bg-card p-8">
           <p className="text-sm text-muted-foreground">
-            Opening response diagnosis...
+            {isTargetedHandoverRediagnosis
+              ? "Opening targeted re-diagnosis..."
+              : "Opening response diagnosis..."}
           </p>
         </div>
       </main>
@@ -825,7 +1198,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
     return (
       <main className="min-h-screen bg-background px-4 py-12">
         <div className="mx-auto max-w-3xl space-y-4 rounded-2xl border bg-card p-8">
-          <h1 className="text-2xl font-semibold">Response Diagnosis</h1>
+          <h1 className="text-2xl font-semibold">
+            {isTargetedHandoverRediagnosis ? "Targeted Re-Diagnosis" : "Response Diagnosis"}
+          </h1>
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
             {error}
           </div>
@@ -887,7 +1262,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Evidence-native response diagnosis
+                {isTargetedHandoverRediagnosis
+                  ? "Evidence-native targeted re-diagnosis"
+                  : "Evidence-native response diagnosis"}
               </p>
               <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">
                 {topic}
@@ -918,7 +1295,7 @@ export default function EvidenceCompleteDiagnosisRunner() {
         {complete && decision ? (
           <section className="rounded-2xl border bg-card p-6 sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Diagnosis complete
+              {isTargetedHandoverRediagnosis ? "Targeted re-diagnosis complete" : "Diagnosis complete"}
             </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-3">
               <ResultCell
@@ -1126,7 +1503,10 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
                   Ready
                 </span>
+                <span className="text-primary/30">→</span>
                 <span>Observe</span>
+                <span className="text-primary/30">→</span>
+                <span>Record</span>
                 <span className="text-primary/30">→</span>
                 <span>Confirm</span>
               </div>
@@ -1204,14 +1584,37 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 </div>
               )}
 
-              <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
-                  {instructionPromptLabelFor(currentProbe.specialistInstruction)}
-                </p>
-                <p className="mt-1 text-base font-semibold leading-6">
-                  {instructionPromptDisplayText(currentProbe.specialistInstruction)}
-                </p>
-              </div>
+              {executionProtocol && (
+                <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                    Before Begin
+                  </p>
+                  <p className="mt-1 text-sm font-medium leading-6">
+                    {executionProtocol.beforeBegin}
+                  </p>
+
+                  <div className="mt-4 border-t border-primary/15 pt-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                      After Begin, follow only this protocol
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {executionProtocol.liveSteps.map((step, index) => (
+                        <div
+                          key={`${currentProbe.id}-ready-step-${index}`}
+                          className="flex gap-3 text-sm leading-6"
+                        >
+                          <span className="w-9 shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            {step.kind}
+                          </span>
+                          <span className="text-foreground">
+                            {step.kind === "say" ? `“${step.text}”` : step.text}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-4 rounded-xl border p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1223,11 +1626,21 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 </p>
               </div>
 
-              <p className="mt-4 text-xs leading-5 text-muted-foreground">
-                Use one problem for this opportunity. Observe the whole response.
-                The runner will capture one evidence layer at a time so you can
-                stay focused on the student rather than a long form.
-              </p>
+              <div className="mt-4 rounded-xl border bg-background/70 p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  What happens after Begin
+                </p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  This opportunity uses one problem and one continuous student response.
+                  You will record {currentProbe.dimensions.length} behavioral observations across{" "}
+                  {groupedDimensions.length} evidence {groupedDimensions.length === 1 ? "layer" : "layers"} from that same response.
+                </p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  The observation runner stays closed while the student is responding.
+                  Click Student Finished at the actual end of the response, then record the observations one at a time.
+                  A new problem is introduced only if the system opens another opportunity.
+                </p>
+              </div>
 
               <div className="mt-5 flex justify-end">
                 <button
@@ -1248,6 +1661,149 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 </button>
               </div>
             </section>
+          ) : !executionFinished ? (
+            <section className="rounded-2xl border bg-card p-5 sm:p-7">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <span className="rounded-full border border-primary/15 px-2 py-1">
+                  Ready ✓
+                </span>
+                <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
+                  Observe
+                </span>
+                <span className="text-primary/30">→</span>
+                <span>Record</span>
+                <span className="text-primary/30">→</span>
+                <span>Confirm</span>
+              </div>
+
+              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Opportunity {opportunityNumber}
+              </p>
+              <h2 className="mt-1 text-2xl font-semibold">
+                {currentProbe.label}
+              </h2>
+
+              <div className="mt-4 rounded-xl border border-primary/15 bg-background/70 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  Evidence question
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {currentProbe.evidenceQuestion}
+                </p>
+              </div>
+
+              {executionProtocol && (
+                <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                    Say / do this now
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {executionProtocol.liveSteps.map((step, index) => (
+                      <div
+                        key={`${currentProbe.id}-live-step-${index}`}
+                        className="flex gap-3 text-sm leading-6"
+                      >
+                        <span className="w-9 shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {step.kind}
+                        </span>
+                        <span className="text-foreground">
+                          {step.kind === "say" ? `“${step.text}”` : step.text}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {runtimeAuthority?.operationalMode === "sandbox" && sandboxSimulation && (
+                <div className="mt-4">
+                  <LiveSandboxStudentResponse>
+                    {sandboxSimulation.studentBehavior}
+                  </LiveSandboxStudentResponse>
+                </div>
+              )}
+
+              <div className="mt-4 rounded-xl border p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {currentTimingMode === "timed"
+                        ? "System timer"
+                        : currentTimingMode === "passive_baseline"
+                          ? "Execution boundary"
+                          : "Live response"}
+                    </p>
+                    {currentTimingMode === "timed" ? (
+                      <>
+                        <p className="mt-1 text-3xl font-semibold tabular-nums">
+                          {timedTiming
+                            ? timedTiming.completedBeforeExpiry
+                              ? "Finished"
+                              : "Expired"
+                            : `${timedRemainingSeconds ?? prescribedSeconds}s`}
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          The Specialist cannot edit or pause the system-prescribed timer.
+                        </p>
+                      </>
+                    ) : currentTimingMode === "passive_baseline" ? (
+                      <>
+                        <p className="mt-1 text-sm font-medium text-foreground">
+                          Timing silently.
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          The student has not entered the observation form. Watch the whole response.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="mt-1 text-sm font-medium text-foreground">
+                        Watch the whole response. Do not start logging yet.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex shrink-0 flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={finishLiveOpportunity}
+                      disabled={passiveAttemptPersisting}
+                      className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-muted/50 disabled:cursor-default disabled:opacity-60"
+                    >
+                      {passiveAttemptPersisting
+                        ? "Saving timing..."
+                        : currentTimingMode === "passive_baseline" &&
+                            activePassiveAttempt?.frozenAttempt
+                          ? "Retry Timing Save"
+                          : "Student Finished"}
+                    </button>
+
+                    {currentTimingMode === "passive_baseline" && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void finishOpportunityTiming("technical_failure")
+                        }
+                        disabled={
+                          passiveAttemptPersisting ||
+                          !activePassiveAttempt ||
+                          Boolean(activePassiveAttempt.frozenAttempt)
+                        }
+                        title="Use only for an objective timer, runtime, or device failure."
+                        className="rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50 disabled:cursor-default disabled:opacity-60"
+                      >
+                        Record Technical Timing Failure
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {executionProtocol && (
+                  <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                    {executionProtocol.finishRule}
+                  </p>
+                )}
+              </div>
+            </section>
           ) : confirmStep ? (
             <section className="rounded-2xl border bg-card p-5 sm:p-7">
               <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1256,6 +1812,9 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 </span>
                 <span className="rounded-full border border-primary/15 px-2 py-1">
                   Observe ✓
+                </span>
+                <span className="rounded-full border border-primary/15 px-2 py-1">
+                  Record ✓
                 </span>
                 <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
                   Confirm
@@ -1337,14 +1896,17 @@ export default function EvidenceCompleteDiagnosisRunner() {
                 </button>
               </div>
             </section>
-          ) : activeLayer ? (
-            <section className="rounded-2xl border bg-card p-5 sm:p-7">
+          ) : activeLayer && activeDimension && activeDimensionId ? (
+            <section data-testid="evidence-diagnosis-observe" className="rounded-2xl border bg-card p-5 sm:p-7">
               <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 <span className="rounded-full border border-primary/15 px-2 py-1">
                   Ready ✓
                 </span>
+                <span className="rounded-full border border-primary/15 px-2 py-1">
+                  Observe ✓
+                </span>
                 <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
-                  Observe
+                  Record
                 </span>
                 <span className="text-primary/30">→</span>
                 <span>Confirm</span>
@@ -1353,163 +1915,80 @@ export default function EvidenceCompleteDiagnosisRunner() {
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    Opportunity {opportunityNumber} · Evidence layer {activeLayerIndex + 1} of {groupedDimensions.length}
+                    Opportunity {opportunityNumber}
                   </p>
                   <h2 className="mt-1 text-2xl font-semibold">
-                    {activeLayer.phase}
+                    {currentProbe.label}
                   </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Evidence layer {activeLayerIndex + 1} of {groupedDimensions.length} · {activeLayer.phase}
+                    {" "}· Observation {activeObservationIndex + 1} of {currentProbe.dimensions.length}
+                  </p>
                 </div>
                 <div className="rounded-lg border px-3 py-2 text-xs text-muted-foreground">
                   {recordedBehaviorCount} / {currentProbe.dimensions.length} recorded
                 </div>
               </div>
 
-              <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
-                  Keep observing this same opportunity
+              <div className="mt-4 rounded-xl border border-primary/15 bg-background/70 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  Evidence question
                 </p>
-                <p className="mt-1 text-sm font-medium leading-6">
-                  {currentProbe.specialistInstruction}
-                </p>
-              </div>
-
-              {timingBoundaryRequired && (
-                <div className="mt-4 rounded-xl border p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        {currentTimingMode === "timed" ? "System timer" : "Execution boundary"}
-                      </p>
-                      {currentTimingMode === "timed" ? (
-                        <>
-                          <p className="mt-1 text-3xl font-semibold tabular-nums">
-                            {timedTiming
-                              ? timedTiming.completedBeforeExpiry
-                                ? "Finished"
-                                : "Expired"
-                              : `${timedRemainingSeconds ?? prescribedSeconds}s`}
-                          </p>
-                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                            Prescribed from this student's diagnosis baseline. The Specialist cannot edit or pause it.
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                            Measurement is running silently. Freeze it at actual student completion before finishing observation admin.
-                          </p>
-                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                            Record Technical Timing Failure only for an objective timer/runtime/device failure. Weak, slow, incomplete, or incorrect student performance is real evidence and must not unlock another opportunity.
-                          </p>
-                          {passiveTimingNotice && (
-                            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                              {passiveTimingNotice}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    </div>
-                    <div className="flex shrink-0 flex-col gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void finishOpportunityTiming("student_finished")
-                        }
-                        disabled={
-                          timingBoundaryCaptured ||
-                          passiveAttemptPersisting
-                        }
-                        className="rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-muted/50 disabled:cursor-default disabled:opacity-60"
-                      >
-                        {passiveAttemptPersisting
-                          ? "Saving timing..."
-                          : currentTimingMode === "passive_baseline" &&
-                              activePassiveAttempt?.frozenAttempt
-                            ? "Retry Timing Save"
-                            : timingBoundaryCaptured
-                              ? currentTimingMode === "timed" &&
-                                  timedTiming &&
-                                  !timedTiming.completedBeforeExpiry
-                                ? "Timer Expired ✓"
-                                : "Student Finished ✓"
-                              : "Student Finished"}
-                      </button>
-                      {currentTimingMode === "passive_baseline" &&
-                        !timingBoundaryCaptured && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void finishOpportunityTiming("technical_failure")
-                            }
-                            disabled={
-                              passiveAttemptPersisting ||
-                              !activePassiveAttempt ||
-                              Boolean(activePassiveAttempt.frozenAttempt)
-                            }
-                            className="rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50 disabled:cursor-default disabled:opacity-60"
-                          >
-                            Record Technical Timing Failure
-                          </button>
-                        )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-4 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
-                <p className="text-sm font-semibold">Record behavior, not a judgment</p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Select only what actually happened. Do not translate the response
-                  into Low, Medium, High, weak, partial, or clear.
+                  {currentProbe.evidenceQuestion}
                 </p>
               </div>
 
-              <div className="mt-5 space-y-5">
-                {activeLayer.dimensions.map((dimensionId) => {
-                  const definition = DIAGNOSIS_OBSERVATION_MATRIX[dimensionId];
-                  return (
-                    <div key={dimensionId} className="rounded-xl border p-4">
-                      <p className="font-medium">{definition.label}</p>
-                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                        {definition.observationQuestion}
-                      </p>
-                      <div className="mt-4 grid gap-2 lg:grid-cols-2">
-                        {definition.options.map((option) => (
-                          <BehaviorOption
-                            key={option.id}
-                            option={option}
-                            selected={observations[dimensionId] === option.id}
-                            onSelect={() =>
-                              setObservations((current) => ({
-                                ...current,
-                                [dimensionId]: option.id,
-                              }))
-                            }
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="mt-4 rounded-xl border bg-background/70 px-4 py-3">
+                <p className="text-sm font-medium text-foreground">
+                  Student response complete
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Record only what this completed opportunity actually exposed. Do not infer missing behavior from hindsight.
+                </p>
+              </div>
+
+
+              <div className="mt-5 rounded-xl border p-4">
+                <p className="font-medium">{activeDimension.label}</p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  {activeDimension.observationQuestion}
+                </p>
+                <div className="mt-4 grid gap-2 lg:grid-cols-2">
+                  {activeDimension.options.map((option) => (
+                    <BehaviorOption
+                      key={option.id}
+                      option={option}
+                      selected={observations[activeDimensionId] === option.id}
+                      onSelect={() =>
+                        setObservations((current) => ({
+                          ...current,
+                          [activeDimensionId]: option.id,
+                        }))
+                      }
+                    />
+                  ))}
+                </div>
               </div>
 
               <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <button
                   type="button"
-                  className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted/50"
+                  className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted/50 disabled:cursor-default disabled:opacity-50"
                   onClick={backWithinOpportunity}
+                  disabled={activeObservationIndex === 0}
                 >
-                  {activeLayerIndex === 0 ? "Back to ready" : "Previous layer"}
+                  Previous observation
                 </button>
                 <button
                   type="button"
-                  disabled={!activeLayerComplete}
-                  onClick={continueFromLayer}
+                  disabled={!activeObservationComplete}
+                  onClick={continueFromObservation}
                   className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {activeLayerIndex === groupedDimensions.length - 1
+                  {activeObservationIndex === currentProbe.dimensions.length - 1
                     ? "Review Opportunity"
-                    : "Next Evidence Layer"}
+                    : "Next observation"}
                 </button>
               </div>
             </section>

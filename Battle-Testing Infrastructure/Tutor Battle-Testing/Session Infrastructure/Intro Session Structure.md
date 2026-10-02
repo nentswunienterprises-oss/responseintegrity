@@ -166,9 +166,12 @@ Q15
 What is the Specialist's operating job inside Intro?
 
 Expected Answer
-Present the system-selected evidence question, preserve its condition, record concrete behavior and intervention honestly, keep missing or confounded evidence truthful, and follow the system-selected next question until placement is evidence-complete.
+Run each system-selected opportunity through the standard boundary: prepare the problem but keep it hidden, click Begin Opportunity, immediately present it and follow only the prescribed probe script, watch the complete student response, click Student Finished at actual completion, then record the exposed behaviors one at a time and confirm intervention honestly. Missing behavior stays not-observed rather than being filled by a retrospective walk-through. Follow the system-selected next probe until placement is evidence-complete.
 
 Fail Answer
 Assess and decide where the student belongs
+Show the problem before Begin Opportunity
+Log observations while the student is still responding
+Ask the student afterwards what they were thinking so missing evidence can be filled
 Teach while testing
 Keep probing until the student looks strong

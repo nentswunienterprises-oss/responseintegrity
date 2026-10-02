@@ -6,6 +6,10 @@ export type TutorOnboardingAcceptanceLike = {
   document_version?: string | null;
   documentChecksum?: string | null;
   document_checksum?: string | null;
+  documentCode?: string | null;
+  document_code?: string | null;
+  documentSnapshot?: string | null;
+  document_snapshot?: string | null;
   acceptedAt?: string | Date | null;
   accepted_at?: string | Date | null;
 };
@@ -13,6 +17,7 @@ export type TutorOnboardingAcceptanceLike = {
 export type TutorOnboardingDocumentLike = {
   step: number;
   version: string;
+  code?: string | null;
   contentHash?: string | null;
   content_hash?: string | null;
 };
@@ -29,6 +34,18 @@ function readChecksum(acceptance: TutorOnboardingAcceptanceLike): string {
   return String(acceptance.documentChecksum ?? acceptance.document_checksum ?? "").trim();
 }
 
+function readAcceptanceCode(acceptance: TutorOnboardingAcceptanceLike): string {
+  return String(acceptance.documentCode ?? acceptance.document_code ?? "").trim();
+}
+
+function readAcceptanceSnapshot(acceptance: TutorOnboardingAcceptanceLike): string {
+  return String(acceptance.documentSnapshot ?? acceptance.document_snapshot ?? "");
+}
+
+function readDocumentCode(document: TutorOnboardingDocumentLike): string {
+  return String(document.code ?? "").trim();
+}
+
 function readDocumentChecksum(document: TutorOnboardingDocumentLike): string {
   return String(document.contentHash ?? document.content_hash ?? "").trim();
 }
@@ -40,6 +57,39 @@ function readAcceptedAt(acceptance: TutorOnboardingAcceptanceLike): number {
   return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
+function isLegacySpecialistNomenclatureAcceptance(
+  acceptance: TutorOnboardingAcceptanceLike,
+  document: TutorOnboardingDocumentLike,
+): boolean {
+  const step = readStep(acceptance);
+  const version = readVersion(acceptance);
+  const acceptanceCode = readAcceptanceCode(acceptance);
+  const currentCode = readDocumentCode(document);
+  const snapshot = readAcceptanceSnapshot(acceptance);
+
+  if (
+    step === 1 &&
+    version === "2" &&
+    currentCode === "Response Integrity-SCF-001" &&
+    acceptanceCode === "Response Integrity-TCF-001" &&
+    snapshot.includes("Response Integrity-TCF-001")
+  ) {
+    return true;
+  }
+
+  if (
+    step === 3 &&
+    version === "2" &&
+    currentCode === "Response Integrity-ICA-003" &&
+    acceptanceCode === "Response Integrity-ICA-003" &&
+    snapshot.includes("Response Integrity-TCF-001")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function tutorOnboardingAcceptanceMatchesDocument(
   acceptance: TutorOnboardingAcceptanceLike | null | undefined,
   document: TutorOnboardingDocumentLike | null | undefined,
@@ -49,7 +99,9 @@ export function tutorOnboardingAcceptanceMatchesDocument(
   if (readVersion(acceptance) !== String(document.version ?? "").trim()) return false;
 
   const currentChecksum = readDocumentChecksum(document);
-  if (currentChecksum && readChecksum(acceptance) !== currentChecksum) return false;
+  if (currentChecksum && readChecksum(acceptance) !== currentChecksum) {
+    return isLegacySpecialistNomenclatureAcceptance(acceptance, document);
+  }
 
   return true;
 }
