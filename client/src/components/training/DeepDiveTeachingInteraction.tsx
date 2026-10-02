@@ -78,6 +78,7 @@ export function DeepDiveTeachingInteraction({
 
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const feedbackRef = useRef<HTMLDivElement | null>(null);
   const correct = submitted && sameStringSet(selectedKeys, answerKeys);
 
   const selectedOptions = options.filter((option) => selectedKeys.includes(option.key));
@@ -90,6 +91,19 @@ export function DeepDiveTeachingInteraction({
   useEffect(() => {
     if (submitted) onAnswered?.();
   }, [onAnswered, submitted]);
+
+  useEffect(() => {
+    if (!submitted || !window.matchMedia("(max-width: 639px)").matches) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      feedbackRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [submitted]);
 
   const chooseOption = (optionKey: string) => {
     if (submitted) return;
