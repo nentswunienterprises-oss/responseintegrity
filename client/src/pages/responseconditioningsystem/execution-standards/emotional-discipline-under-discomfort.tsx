@@ -53,17 +53,17 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
           </Card>
 
           <DeepDiveTeachingInteraction
-            prompt="During a no-support TPS rep, the student freezes and says, 'I don't know what to do.' Which responses preserve the condition? Select every option that applies."
+            prompt="During a no-support TPS rep, the student freezes and says, 'I don't know what to do.' Which responses preserve the condition?"
             options={[
               {
                 key: "a",
-                label: "Ask the first-step question because it is neutral and keeps the student calm.",
+                label: "Ask a first-step question because neutral wording does not count as support.",
                 feedback: "The question supplies response control inside a no-support condition. The Specialist's discomfort cannot authorize that intervention.",
               },
               {
                 key: "b",
-                label: "Preserve the no-support timed condition, observe what happens, and record the response after the execution boundary.",
-                feedback: "Yes. The freeze may be exactly the evidence the timed condition is designed to expose.",
+                label: "Do not add first-step or confirmation support; preserve the no-support timed condition.",
+                feedback: "The Specialist must not rescue the response away from the condition being observed.",
               },
               {
                 key: "c",
@@ -72,18 +72,18 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
               },
               {
                 key: "d",
-                label: "Treat the freeze as potentially meaningful evidence of what the trained response does under urgency.",
-                feedback: "Yes. The Specialist should allow the valid condition to reveal the response rather than rescuing it away.",
+                label: "Treat the freeze as evidence of the response under urgency and record it after the execution boundary.",
+                feedback: "The valid timed condition is allowed to reveal whether the trained response survives urgency.",
               },
               {
                 key: "e",
-                label: "Give reassurance that confirms the student's current direction without explicitly naming the next step.",
+                label: "Give reassurance that confirms the student's current direction without naming the next step.",
                 feedback: "Confirmation can still steer the response and therefore changes the no-support condition.",
               },
             ]}
             kind="multi_select"
-          correctOptionKeys={["b","d"]}
-            truth="Emotional discipline means the Specialist does not convert personal discomfort into extra support."
+            correctOptionKeys={["b","d"]}
+            truth="Emotional discipline means preserving the assigned no-support timed condition even when the student's struggle creates an urge to rescue."
           />
 
           <Card className="p-6 space-y-4">
