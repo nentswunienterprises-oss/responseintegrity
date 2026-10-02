@@ -1,7 +1,7 @@
-import type { TutorBattleTestPhaseKey } from "./battleTesting";
 import {
   CAPABILITY_DEEP_DIVE_BLUEPRINTS,
   type CapabilityBlueprintEvidenceKind,
+  type CapabilityDeepDiveKey,
 } from "./capabilityBlueprint";
 
 export type CapabilityCriticalCoverageMode = "all_boundaries" | "one_per_deep_dive";
@@ -10,7 +10,7 @@ export interface CapabilityAssessmentPlanEntry {
   assessmentKey: string;
   title: string;
   evidenceKind: CapabilityBlueprintEvidenceKind;
-  coveredDeepDiveKeys: TutorBattleTestPhaseKey[];
+  coveredDeepDiveKeys: CapabilityDeepDiveKey[];
   formSize: number;
   minimumItemPoolSize: number;
   passThresholdPercent: number;
@@ -29,7 +29,7 @@ const FUTURE_CUMULATIVE_MINIMUM_POOL_SIZE = 40;
 const CUMULATIVE_PASS_THRESHOLD_PERCENT = 96;
 
 const masteryEntry = (
-  deepDiveKey: TutorBattleTestPhaseKey,
+  deepDiveKey: CapabilityDeepDiveKey,
   title: string,
 ): CapabilityAssessmentPlanEntry => ({
   assessmentKey: `${deepDiveKey}_mastery_v1`,
@@ -147,7 +147,7 @@ export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] 
 ];
 
 
-export const TRANSFORMATION_DEEP_DIVE_KEYS: TutorBattleTestPhaseKey[] = [
+export const TRANSFORMATION_DEEP_DIVE_KEYS: CapabilityDeepDiveKey[] = [
   "topic_conditioning",
   "clarity",
   "structured_execution",
@@ -155,7 +155,22 @@ export const TRANSFORMATION_DEEP_DIVE_KEYS: TutorBattleTestPhaseKey[] = [
   "time_pressure_stability",
 ];
 
-export const SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS: TutorBattleTestPhaseKey[] = [
+export const EXECUTION_STANDARDS_DEEP_DIVE_KEYS: CapabilityDeepDiveKey[] = [
+  "how_to_model",
+  "how_to_intervene",
+  "how_to_use_boss_battles",
+  "what_not_to_do",
+  "emotional_discipline_under_discomfort",
+];
+
+export const SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS: CapabilityDeepDiveKey[] = [
+  "how_to_diagnose",
+  "how_to_interpret_prompts",
+  "how_baselines_are_established",
+  "how_the_system_resolves_uncertainty",
+];
+
+export const SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS: CapabilityDeepDiveKey[] = [
   "intro_session_structure",
   "logging_system",
   "session_flow_control",

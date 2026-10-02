@@ -1,6 +1,32 @@
-import type { TutorBattleTestModuleKey, TutorBattleTestPhaseKey } from "./battleTesting";
-
 export type CapabilityBlueprintEvidenceKind = "mastery" | "retrieval" | "transfer";
+
+export type CapabilityModuleKey =
+  | "transformation_phases"
+  | "execution_standards"
+  | "system_intelligence"
+  | "session_infrastructure";
+
+export type CapabilityDeepDiveKey =
+  | "topic_conditioning"
+  | "clarity"
+  | "structured_execution"
+  | "controlled_discomfort"
+  | "time_pressure_stability"
+  | "how_to_model"
+  | "how_to_intervene"
+  | "how_to_use_boss_battles"
+  | "what_not_to_do"
+  | "emotional_discipline_under_discomfort"
+  | "how_to_diagnose"
+  | "how_to_interpret_prompts"
+  | "how_baselines_are_established"
+  | "how_the_system_resolves_uncertainty"
+  | "intro_session_structure"
+  | "session_flow_control"
+  | "drill_library"
+  | "logging_system"
+  | "handover_verification"
+  | "tools_required";
 
 export interface CapabilityCriticalBoundary {
   key: string;
@@ -8,23 +34,23 @@ export interface CapabilityCriticalBoundary {
 }
 
 export interface CapabilityDeepDiveBlueprint {
-  key: TutorBattleTestPhaseKey;
+  key: CapabilityDeepDiveKey;
   title: string;
-  moduleKey: TutorBattleTestModuleKey;
+  moduleKey: CapabilityModuleKey;
   operatingCapability: string;
   competencyKeys: string[];
   criticalBoundaries: CapabilityCriticalBoundary[];
   requiredEvidenceKinds: CapabilityBlueprintEvidenceKind[];
-  transferPartners: TutorBattleTestPhaseKey[];
+  transferPartners: CapabilityDeepDiveKey[];
 }
 
 export interface CapabilityModuleBlueprint {
-  key: TutorBattleTestModuleKey;
+  key: CapabilityModuleKey;
   title: string;
-  deepDiveKeys: TutorBattleTestPhaseKey[];
+  deepDiveKeys: CapabilityDeepDiveKey[];
 }
 
-export const CAPABILITY_BLUEPRINT_VERSION = 2;
+export const CAPABILITY_BLUEPRINT_VERSION = 3;
 
 export const CAPABILITY_CROSS_CUTTING_COMPETENCIES = [
   "evidence.observation_vs_inference",
@@ -43,6 +69,10 @@ const FULL_CAPABILITY_EVIDENCE: CapabilityBlueprintEvidenceKind[] = [
   "transfer",
 ];
 
+const MASTERY_ONLY_CAPABILITY_EVIDENCE: CapabilityBlueprintEvidenceKind[] = [
+  "mastery",
+];
+
 export const CAPABILITY_MODULE_BLUEPRINTS: CapabilityModuleBlueprint[] = [
   {
     key: "transformation_phases",
@@ -53,6 +83,27 @@ export const CAPABILITY_MODULE_BLUEPRINTS: CapabilityModuleBlueprint[] = [
       "structured_execution",
       "controlled_discomfort",
       "time_pressure_stability",
+    ],
+  },
+  {
+    key: "execution_standards",
+    title: "Execution Standards",
+    deepDiveKeys: [
+      "how_to_model",
+      "how_to_intervene",
+      "how_to_use_boss_battles",
+      "what_not_to_do",
+      "emotional_discipline_under_discomfort",
+    ],
+  },
+  {
+    key: "system_intelligence",
+    title: "System Intelligence",
+    deepDiveKeys: [
+      "how_to_diagnose",
+      "how_to_interpret_prompts",
+      "how_baselines_are_established",
+      "how_the_system_resolves_uncertainty",
     ],
   },
   {
@@ -153,7 +204,7 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
     title: "Controlled Discomfort Deep Dive",
     moduleKey: "transformation_phases",
     operatingCapability:
-      "Keep a known method and productive response functioning when controlled difficulty, uncertainty, or unfamiliarity appears.",
+      "Keep a known method and productive response functioning when challenging same-form difficulty is introduced under a defined support boundary.",
     competencyKeys: [
       "controlled_discomfort.response_under_uncertainty",
       "controlled_discomfort.observation_fields",
@@ -266,6 +317,306 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
       "intro_session_structure",
       "logging_system",
     ],
+  },
+  {
+    key: "how_to_model",
+    title: "How to Model",
+    moduleKey: "execution_standards",
+    operatingCapability:
+      "Build a visible, reproducible Clarity mental map through the Topic Reference without confusing Specialist-led modelling with independent student evidence.",
+    competencyKeys: [
+      "modeling.purpose",
+      "modeling.topic_reference",
+      "modeling.vocabulary_method_reason",
+      "modeling.visibility",
+      "modeling.evidence_boundary",
+      "modeling.observation_transition",
+      "evidence.condition_integrity",
+      "system.authority",
+    ],
+    criticalBoundaries: [
+      {
+        key: "modeling.not_independent_evidence",
+        description: "Specialist-led modelling cannot be treated as independent student capability evidence.",
+      },
+      {
+        key: "modeling.work_must_be_visible",
+        description: "Clarity Modelling cannot proceed when the worked method is not visibly available to the student.",
+      },
+      {
+        key: "modeling.must_end_before_observation",
+        description: "Modelling behaviour cannot silently continue into a later observation condition.",
+      },
+    ],
+    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    transferPartners: ["clarity", "how_to_intervene", "tools_required"],
+  },
+  {
+    key: "how_to_intervene",
+    title: "How to Intervene",
+    moduleKey: "execution_standards",
+    operatingCapability:
+      "Apply only the support authorized by the active set, separate live guidance from later correction, and preserve evidence integrity when a student stalls or breaks.",
+    competencyKeys: [
+      "intervention.support_contracts",
+      "intervention.guidance_vs_correction",
+      "intervention.phase_boundaries",
+      "intervention.stall_response",
+      "intervention.evidence_effect",
+      "intervention.prerequisite_breakdown",
+      "evidence.contamination",
+      "system.authority",
+    ],
+    criticalBoundaries: [
+      {
+        key: "intervention.no_support_violation",
+        description: "A no-support opportunity cannot receive method, step, rescue, or pacing guidance and still be treated as clean evidence.",
+      },
+      {
+        key: "intervention.no_hidden_remodelling",
+        description: "A later-phase rep cannot be quietly converted into Clarity modelling when a prerequisite appears weak.",
+      },
+      {
+        key: "intervention.correction_cannot_rewrite_rep",
+        description: "Later correction cannot strengthen what the student independently demonstrated in the completed opportunity.",
+      },
+    ],
+    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    transferPartners: ["how_to_model", "controlled_discomfort", "logging_system"],
+  },
+  {
+    key: "how_to_use_boss_battles",
+    title: "How to Use Boss Battles",
+    moduleKey: "execution_standards",
+    operatingCapability:
+      "Use challenging same-form Boss Battle problems only inside system-assigned Controlled Discomfort while preserving the exact support boundary of the active set.",
+    competencyKeys: [
+      "boss_battles.controlled_discomfort_home",
+      "boss_battles.system_assigned_phase",
+      "boss_battles.same_form_difficulty",
+      "boss_battles.set_support_boundaries",
+      "boss_battles.observation_dimensions",
+      "boss_battles.no_success_chasing",
+      "evidence.condition_integrity",
+      "system.authority",
+    ],
+    criticalBoundaries: [
+      {
+        key: "boss_battles.no_manual_phase_escalation",
+        description: "The Specialist cannot introduce Boss Battles because a student merely looks ready or has produced a preferred number of correct answers.",
+      },
+      {
+        key: "boss_battles.no_condition_softening",
+        description: "A valid difficult response cannot be replaced with an easier problem to manufacture a successful result.",
+      },
+      {
+        key: "boss_battles.support_follows_set",
+        description: "Boss Battle difficulty never overrides the active Controlled Discomfort support contract.",
+      },
+    ],
+    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    transferPartners: ["controlled_discomfort", "how_to_intervene", "drill_library"],
+  },
+  {
+    key: "what_not_to_do",
+    title: "What Not To Do",
+    moduleKey: "execution_standards",
+    operatingCapability:
+      "Recognize and avoid the common Specialist actions that contaminate conditions, manufacture evidence, create unauthorized retries, or manually override system authority.",
+    competencyKeys: [
+      "execution_errors.support_violation",
+      "execution_errors.forced_observability",
+      "execution_errors.speed_chasing",
+      "execution_errors.technical_recovery",
+      "execution_errors.manual_state_change",
+      "execution_errors.context_blending",
+      "evidence.logging_integrity",
+      "system.authority",
+    ],
+    criticalBoundaries: [
+      {
+        key: "execution_errors.no_manufactured_evidence",
+        description: "The Specialist cannot force observability or rescue a response to make the evidence record look complete or stronger.",
+      },
+      {
+        key: "execution_errors.no_student_second_chance",
+        description: "Technical-recovery authority cannot be used to retry an undesirable student performance.",
+      },
+      {
+        key: "execution_errors.no_manual_state_movement",
+        description: "The Specialist cannot manually advance, regress, or replace an RI-OS topic-state decision.",
+      },
+    ],
+    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    transferPartners: ["how_to_intervene", "logging_system", "session_flow_control"],
+  },
+  {
+    key: "emotional_discipline_under_discomfort",
+    title: "Emotional Discipline Under Discomfort",
+    moduleKey: "execution_standards",
+    operatingCapability:
+      "Regulate Specialist reactions so hesitation, frustration, silence, panic, and rescue-seeking do not cause unauthorized support or distortion of the active evidence condition.",
+    competencyKeys: [
+      "emotional_discipline.self_regulation",
+      "emotional_discipline.support_authority",
+      "emotional_discipline.silence",
+      "emotional_discipline.no_psychological_inference",
+      "emotional_discipline.correction_boundary",
+      "emotional_discipline.condition_preservation",
+      "evidence.observation_vs_inference",
+      "system.authority",
+    ],
+    criticalBoundaries: [
+      {
+        key: "emotional_discipline.no_emotion_driven_support",
+        description: "Student discomfort cannot authorize support that the active set does not permit.",
+      },
+      {
+        key: "emotional_discipline.no_psychological_inference",
+        description: "Silence, facial expression, or frustration cannot be converted into unsupported psychological conclusions.",
+      },
+      {
+        key: "emotional_discipline.no_condition_relief",
+        description: "The Specialist cannot loosen valid difficulty or timing merely to reduce discomfort.",
+      },
+    ],
+    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    transferPartners: ["how_to_intervene", "controlled_discomfort", "time_pressure_stability"],
+  },
+  {
+    key: "how_to_diagnose",
+    title: "How to Diagnose",
+    moduleKey: "system_intelligence",
+    operatingCapability:
+      "Understand Diagnosis as evidence-complete search for the earliest unreliable response layer, using routing hypotheses, constraint stripping, and system-owned placement authority.",
+    competencyKeys: [
+      "diagnosis.earliest_breakdown_search",
+      "diagnosis.starting_signal_routing",
+      "diagnosis.neutral_entry_probe",
+      "diagnosis.constraint_stripping",
+      "diagnosis.evidence_complete_stop",
+      "diagnosis.placement_authority",
+      "diagnosis.starting_stability",
+      "evidence.observation_vs_inference",
+      "system.authority",
+    ],
+    criticalBoundaries: [
+      {
+        key: "diagnosis.starting_signal_not_placement",
+        description: "A symptom or recommended starting phase can route the first evidence question but cannot establish final placement.",
+      },
+      {
+        key: "diagnosis.no_fixed_rep_quota",
+        description: "Diagnosis cannot continue merely to satisfy a prepared rep count after the evidence question is resolved.",
+      },
+      {
+        key: "diagnosis.no_specialist_placement",
+        description: "The Specialist cannot substitute personal phase or stability judgment for RI-OS placement.",
+      },
+    ],
+    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    transferPartners: ["intro_session_structure", "topic_conditioning", "how_baselines_are_established"],
+  },
+  {
+    key: "how_to_interpret_prompts",
+    title: "How to Interpret Prompts",
+    moduleKey: "system_intelligence",
+    operatingCapability:
+      "Read runner prompts by function so student-facing language, operator actions, evidence questions, observation prompts, and system directions do not contaminate one another.",
+    competencyKeys: [
+      "prompts.say_channel",
+      "prompts.do_this_now_channel",
+      "prompts.evidence_question",
+      "prompts.opportunity_reason",
+      "prompts.observation_after_response",
+      "prompts.system_direction",
+      "evidence.observability_integrity",
+      "system.authority",
+    ],
+    criticalBoundaries: [
+      {
+        key: "prompts.do_not_speak_operator_instruction",
+        description: "DO THIS NOW operator instructions cannot be read to the student as though they were student-facing script.",
+      },
+      {
+        key: "prompts.evidence_question_not_coaching",
+        description: "An evidence question cannot be turned into live coaching that supplies the behavior being measured.",
+      },
+      {
+        key: "prompts.no_forced_observability",
+        description: "Observation prompts cannot be used to manufacture evidence that the live opportunity never exposed.",
+      },
+    ],
+    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    transferPartners: ["how_to_diagnose", "logging_system", "session_flow_control"],
+  },
+  {
+    key: "how_baselines_are_established",
+    title: "How Baselines Are Established",
+    moduleKey: "system_intelligence",
+    operatingCapability:
+      "Understand neutral topic-entry baselines and individualized TPS timing authority, including passive measurement, qualifying sources, Timer Contract derivation, readiness gaps, and technical lineage.",
+    competencyKeys: [
+      "baselines.neutral_topic_entry",
+      "baselines.passive_timing_boundary",
+      "baselines.structured_execution_source",
+      "baselines.diagnosis_source",
+      "baselines.timer_contract_derivation",
+      "baselines.missing_authority_readiness",
+      "baselines.technical_failure_lineage",
+      "evidence.condition_integrity",
+      "system.authority",
+    ],
+    criticalBoundaries: [
+      {
+        key: "baselines.no_invented_timer",
+        description: "Missing timing authority cannot be repaired with a remembered, borrowed, generic, or Specialist-entered timer.",
+      },
+      {
+        key: "baselines.freeze_actual_finish",
+        description: "Passive timing must freeze at actual student mathematical completion before observation administration continues.",
+      },
+      {
+        key: "baselines.no_student_failure_replacement",
+        description: "Student timeout, panic, wrong method, incomplete work, or weak performance cannot authorize technical replacement.",
+      },
+    ],
+    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    transferPartners: ["time_pressure_stability", "how_to_diagnose", "logging_system"],
+  },
+  {
+    key: "how_the_system_resolves_uncertainty",
+    title: "How the System Resolves Uncertainty",
+    moduleKey: "system_intelligence",
+    operatingCapability:
+      "Distinguish missing, confounded, conflicting, conditional, and clean evidence so RI-OS can keep questions open, resolve prerequisite uncertainty, and avoid invented conclusions.",
+    competencyKeys: [
+      "uncertainty.not_observed",
+      "uncertainty.confounded",
+      "uncertainty.conflicting_evidence",
+      "uncertainty.earlier_layer_priority",
+      "uncertainty.prerequisite_sentinel",
+      "uncertainty.handover_continuity",
+      "uncertainty.bounded_continuation",
+      "evidence.observation_vs_inference",
+      "system.authority",
+    ],
+    criticalBoundaries: [
+      {
+        key: "uncertainty.missing_not_weakness",
+        description: "Not-observed evidence cannot be converted into weakness or strength.",
+      },
+      {
+        key: "uncertainty.confound_not_clean",
+        description: "Confounded evidence cannot be counted as clean support or clean breakdown for the intended claim.",
+      },
+      {
+        key: "uncertainty.no_forced_conclusion",
+        description: "The Specialist cannot fill unresolved evidence gaps from intuition merely to finish Diagnosis, Training, or Handover.",
+      },
+    ],
+    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    transferPartners: ["how_to_diagnose", "handover_verification", "logging_system"],
   },
   {
     key: "intro_session_structure",
@@ -500,10 +851,10 @@ export const CAPABILITY_DEEP_DIVE_BY_KEY = new Map(
 );
 
 export function getCapabilityDeepDiveBlueprint(key: string) {
-  return CAPABILITY_DEEP_DIVE_BY_KEY.get(key as TutorBattleTestPhaseKey) || null;
+  return CAPABILITY_DEEP_DIVE_BY_KEY.get(key as CapabilityDeepDiveKey) || null;
 }
 
-export function getCapabilityModuleBlueprint(key: TutorBattleTestModuleKey) {
+export function getCapabilityModuleBlueprint(key: CapabilityModuleKey) {
   return CAPABILITY_MODULE_BLUEPRINTS.find((module) => module.key === key) || null;
 }
 
