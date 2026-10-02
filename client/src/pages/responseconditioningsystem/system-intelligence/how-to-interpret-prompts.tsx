@@ -173,12 +173,15 @@ export default function ResponseConditioningHowToInterpretPrompts() {
         />
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">System direction is an operating decision</h2>
+          <h2 className="text-2xl font-bold">System direction is evidence-derived</h2>
           <p className="text-muted-foreground">
-            When the runner says continue verification, move to another evidence question, require targeted re-diagnosis, run a specific drill, or preserve a state, the system has already interpreted the evidence under its rules.
+            When the runner says continue verification, hold, require targeted re-diagnosis, run a specific drill, or preserve a state, RI-OS is applying the shared decision rules to the recorded qualifying evidence.
+          </p>
+          <p className="text-muted-foreground">
+            The point is consistency: the same evidence should produce the same operating decision regardless of which Specialist happens to be present. Specialist judgment still matters through accurate observation, condition preservation, truthful recording, and identifying a prompt or system defect that needs escalation.
           </p>
           <p className="font-semibold">
-            The Specialist follows the direction. They do not substitute a preferred phase, drill, timer, or result.
+            Follow the current direction because it is the evidence-derived state, not because software is beyond question. Do not replace it with preference in the live flow; change the route through new qualifying evidence or a confirmed system correction.
           </p>
         </Card>
         </DeepDiveLessonRunner>
