@@ -69,8 +69,8 @@ export async function resetCapabilityReviewSession(input: {
 
   const configResult = await pool.query(
     `SELECT bank_version,
-            review_mode
-       FROM private.specialist_capability_assessment_configs
+            COALESCE((to_jsonb(config)->>'review_mode')::boolean, false) AS review_mode
+       FROM private.specialist_capability_assessment_configs AS config
       WHERE assessment_key = $1
         AND active = true
       LIMIT 1`,
