@@ -101,6 +101,17 @@ Additional rules:
 - **RI fidelity:** preserve phase boundaries, session-context boundaries, evidence eligibility, behaviour-versus-interpretation distinctions, state authority, and approved bank meaning.
 - **Quality over coverage:** coverage, uniqueness, and character counts are structural checks only. They are not acceptance criteria.
 
+### Founder Review corrections - 2 October 2026
+
+The How to Interpret Prompts review exposed two additional authoring rules that now apply to all Capability banks:
+
+- **No polarity traps:** a single-choice stem using words such as *avoid*, *wrong*, *not*, or *must not* is invalid if more than one option semantically describes an action the Specialist should avoid. Rewrite the stem positively, or use explicit multi-select when several actions are genuinely correct.
+- **Options must answer the same question:** do not mix a meta-answer such as "avoid doing X" with several concrete actions that also satisfy the stem. Grammatical form and decision level should remain parallel enough that the learner is choosing RI reasoning, not decoding test-writing structure.
+- **Context is not authority:** asking a student or parent for preference can be valid context. The error occurs when that preference is used to override an evidence-derived state or route. Feedback must name that distinction.
+- **System direction must be explained by evidence:** never teach "follow RI-OS because the system says so." The reason RI-OS owns state movement and next action is that it applies shared decision rules to the recorded qualifying evidence. Specialist judgment enters through clean execution, observation, recording, and defect escalation.
+- **Disagreement is not disobedience:** if a Specialist suspects a prompt or system defect, the correct route is to preserve the evidence boundary and escalate the defect separately, not to improvise a private state decision.
+
+
 The audit also used the correction pattern established across RI review history: preserve exact operating truth, remove drift, remove unnecessary machinery from learner-facing language, and prefer the clearest complete explanation over wording that merely sounds rigorous.
 
 ## Review Mode loop
