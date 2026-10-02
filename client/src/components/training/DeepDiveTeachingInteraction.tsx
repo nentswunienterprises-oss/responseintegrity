@@ -277,7 +277,7 @@ export function DeepDiveTeachingInteraction({
               </div>
             ) : null}
             <div>
-              <p className="font-medium">{correct ? "Complete" : "Review the set"}</p>
+              <p className="font-medium">{correct ? "Yes" : "Review the set"}</p>
               <p className="mt-1 text-sm text-muted-foreground">{multiSelectSummary}</p>
             </div>
           </div>
