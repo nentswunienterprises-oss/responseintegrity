@@ -147,7 +147,7 @@ export function DeepDiveLessonRunner({
         <>
           <div key={stepIndex} className="ri-lesson-step">{renderedStep}</div>
 
-          <div className="ri-lesson-nav flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="ri-lesson-nav flex items-end justify-between gap-3 border-t pt-5">
             <Button
               variant="ghost"
               disabled={stepIndex === 0}
@@ -157,7 +157,7 @@ export function DeepDiveLessonRunner({
               Back
             </Button>
 
-            <div className="space-y-2 sm:text-right">
+            <div className="ml-auto space-y-2 text-right">
               {isTeachingInteraction && !interactionAnswered ? (
                 <p className="text-xs text-muted-foreground">
                   Answer the check before continuing.
