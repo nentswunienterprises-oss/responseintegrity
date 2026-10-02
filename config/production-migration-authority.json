@@ -81,6 +81,11 @@
       "path": "migrations/2026-09-28_capability_interactive_feedback.sql",
       "description": "Add persisted per-question confirmations and assessment reflection fields for interactive Specialist Capability checks.",
       "risk": "additive"
+    },
+    {
+      "path": "migrations/2026-10-02_add_capability_review_mode.sql",
+      "description": "Add the optional Capability review-mode flag used by Specialist Capability sequencing and isolated Proof review controls.",
+      "risk": "additive"
     }
   ]
 }
