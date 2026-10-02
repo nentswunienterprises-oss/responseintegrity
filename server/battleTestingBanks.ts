@@ -39,7 +39,7 @@ const TUTOR_SOURCE_FILES = [
   {
     key: "structured_execution",
     title: "Structured Execution Deep Dive",
-    description: "Independent, ordered, repeatable method execution without tutor carry.",
+    description: "Independent, ordered, repeatable method execution without Specialist carry.",
     path: resolveTransformationPhasePath("Structured Execution"),
   },
   {
@@ -180,7 +180,7 @@ const QUESTION_PROMPT_VARIANTS: Record<
 > = {
   "clarity:Q11": {
     form_b: "In Light Apply, the student answers correctly after the Specialist points to the operation and states the opening step. What does the evidence show?",
-    form_c: "A student completes a Light Apply item only after the Specialist supplies the method name and asks a leading first-step question. May the rep be scored as clear Clarity?",
+    form_c: "A student completes a Light Apply item only after the Specialist supplies the method name and asks a leading first-step question. May the rep be treated as clear Clarity evidence?",
   },
   "structured_execution:Q11": {
     form_b: "In Independent Execution, the Specialist asks, 'What do we always do first?' and the student then completes the problem. Can the rep prove an independent start?",
