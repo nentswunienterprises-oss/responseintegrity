@@ -85,7 +85,7 @@ export default function ResponseConditioningHowToDiagnose() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A parent says the student collapses in exams, so the starting signal points to Time Pressure Stability. Does that place the topic in Time Pressure Stability?"
+          prompt="A parent says the student collapses in exams, so the starting signal points to Time Pressure Stability. Which statements are true? Select every option that applies."
           options={[
             {
               key: "a",
@@ -102,8 +102,19 @@ export default function ResponseConditioningHowToDiagnose() {
               label: "Yes, but only if the Specialist personally agrees with the parent.",
               feedback: "Specialist agreement does not create placement authority. Evidence does.",
             },
+              {
+                key: "d",
+                label: "The parent report can still help RI decide which evidence question to ask first.",
+                feedback: "Yes. A starting signal can improve routing without becoming placement authority.",
+              },
+              {
+                key: "e",
+                label: "TPS can only own the placement once earlier response layers have been sufficiently supported by behavioral evidence.",
+                feedback: "Yes. A later pressure layer cannot be assumed while an earlier layer remains unresolved.",
+              },
           ]}
-          correctOptionKey="b"
+          kind="multi_select"
+          correctOptionKeys={["b","d","e"]}
           truth="Starting signals make Diagnosis efficient. They do not replace evidence-complete placement."
         />
 
@@ -176,6 +187,16 @@ export default function ResponseConditioningHowToDiagnose() {
               label: "Run them only if the Specialist wants more confidence in the decision.",
               feedback: "Personal reassurance cannot add unauthorized evidence volume after the system has resolved the question.",
             },
+              {
+                key: "d",
+                label: "No. Unused prepared problems remain reserve capacity for later unresolved evidence questions.",
+                feedback: "Yes. Preparation does not turn reserve material into a mandatory quota.",
+              },
+              {
+                key: "e",
+                label: "Yes. The Specialist should always finish the three prepared reps so every Diagnosis session has the same volume.",
+                feedback: "Standardized volume cannot replace evidence sufficiency. Diagnosis is complete when the active question is resolved.",
+              },
           ]}
           correctOptionKey="b"
           truth="The system decides whether another opportunity is necessary. Prepared problems are reserve capacity, not a target."

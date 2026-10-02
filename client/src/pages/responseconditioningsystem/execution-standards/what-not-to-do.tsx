@@ -108,6 +108,16 @@ export default function ResponseConditioningWhatNotToDo() {
                 label: "Infer the method recognition from the final answer.",
                 feedback: "A final answer cannot automatically prove the unobserved recognition process.",
               },
+              {
+                key: "d",
+                label: "Keep the recognition dimension unresolved while preserving the rest of the rep exactly as observed.",
+                feedback: "Yes. One missing dimension does not erase the evidence that was actually observed.",
+              },
+              {
+                key: "e",
+                label: "Ask a leading follow-up that names the likely method, then use the answer to complete the original observation.",
+                feedback: "That manufactures recognition evidence and rewrites the original condition.",
+              },
             ]}
             correctOptionKey="b"
             truth="Completeness is system-owned. The Specialist owns truthful observation."
@@ -164,7 +174,7 @@ export default function ResponseConditioningWhatNotToDo() {
           </Card>
 
           <DeepDiveTeachingInteraction
-            prompt="A TPS rep times out with panic and incomplete work, but the timer and runtime worked correctly. What must the Specialist not do?"
+            prompt="A TPS rep times out with panic and incomplete work, but the timer worked correctly. Which actions must the Specialist NOT take? Select every option that applies."
             options={[
               {
                 key: "a",
@@ -181,8 +191,19 @@ export default function ResponseConditioningWhatNotToDo() {
                 label: "Continue to the observation questions after the execution boundary is frozen.",
                 feedback: "That is the correct post-response workflow.",
               },
+              {
+                key: "d",
+                label: "Classify the attempt as a technical timer failure merely because the student response broke down.",
+                feedback: "Yes. Student panic and timeout under a working timer are performance evidence, not technical failure.",
+              },
+              {
+                key: "e",
+                label: "Delete the attempt and reuse the same exposed problem so the student can show what they can really do.",
+                feedback: "Yes. A valid weak response must remain in the record and does not authorize a second chance on the same problem.",
+              },
             ]}
-            correctOptionKey="b"
+            kind="multi_select"
+          correctOptionKeys={["b","d","e"]}
             truth="Replacement authority exists for objective technical failure only, never for an undesirable student result."
           />
 

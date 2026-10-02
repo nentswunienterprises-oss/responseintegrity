@@ -68,7 +68,7 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A student receives a first-step cue before the Specialist can see whether they would start independently. Which statement is reliable?"
+          prompt="A student receives a first-step cue before the Specialist can see whether they would start independently. Which statements are reliable? Select every option that applies."
           options={[
             {
               key: "a",
@@ -85,8 +85,19 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
               label: "The student had a strong start because they continued after the cue.",
               feedback: "Assisted continuation cannot prove the missing independent start.",
             },
+              {
+                key: "d",
+                label: "The cue itself should remain visible in the evidence record because it changed the condition.",
+                feedback: "Yes. The intervention is part of the truth of what happened.",
+              },
+              {
+                key: "e",
+                label: "The later independent work proves that the student would have started independently without the cue.",
+                feedback: "Later performance cannot prove the counterfactual first step that was never observed.",
+              },
           ]}
-          correctOptionKey="b"
+          kind="multi_select"
+          correctOptionKeys={["b","d"]}
           truth="Evidence validity and student behavior must remain separate. A changed condition cannot prove the original claim."
         />
 
@@ -153,6 +164,16 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
               label: "Mark it supported if every other dimension was supported.",
               feedback: "Strength in one dimension cannot be copied into another.",
             },
+              {
+                key: "d",
+                label: "No. The missing dimension can remain unresolved while the already observed dimensions keep their own evidence.",
+                feedback: "Yes. Dimension-level truth should not be flattened into a forced overall conclusion.",
+              },
+              {
+                key: "e",
+                label: "Yes, but only if the inferred value matches the inherited state.",
+                feedback: "Matching the inherited state does not make an unobserved behavior observable.",
+              },
           ]}
           correctOptionKey="b"
           truth="The system can ask for another opportunity. The Specialist cannot manufacture completeness."

@@ -53,7 +53,7 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
           </Card>
 
           <DeepDiveTeachingInteraction
-            prompt="During a no-support TPS rep, the student freezes and says, 'I don't know what to do.' The Specialist feels an urge to ask, 'What's the first step?' What is the correct move?"
+            prompt="During a no-support TPS rep, the student freezes and says, 'I don't know what to do.' Which responses preserve the condition? Select every option that applies."
             options={[
               {
                 key: "a",
@@ -70,8 +70,19 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
                 label: "Pause the timer, settle the student, then restart the same problem.",
                 feedback: "Pausing and restarting changes timing authority and can turn real student evidence into an unauthorized second chance.",
               },
+              {
+                key: "d",
+                label: "Treat the freeze as potentially meaningful evidence of what the trained response does under urgency.",
+                feedback: "Yes. The Specialist should allow the valid condition to reveal the response rather than rescuing it away.",
+              },
+              {
+                key: "e",
+                label: "Give reassurance that confirms the student's current direction without explicitly naming the next step.",
+                feedback: "Confirmation can still steer the response and therefore changes the no-support condition.",
+              },
             ]}
-            correctOptionKey="b"
+            kind="multi_select"
+          correctOptionKeys={["b","d"]}
             truth="Emotional discipline means the Specialist does not convert personal discomfort into extra support."
           />
 
@@ -128,6 +139,16 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
                 key: "c",
                 label: "Whether the Specialist thinks a successful finish would build confidence.",
                 feedback: "A preferred emotional outcome cannot replace condition integrity.",
+              },
+              {
+                key: "d",
+                label: "The support boundary remains minimal even if the student's visible frustration increases.",
+                feedback: "Yes. Emotional intensity does not expand the registered support condition.",
+              },
+              {
+                key: "e",
+                label: "Whether the full method would help the student end the rep feeling successful.",
+                feedback: "A preferred emotional outcome cannot replace the active support boundary.",
               },
             ]}
             correctOptionKey="b"

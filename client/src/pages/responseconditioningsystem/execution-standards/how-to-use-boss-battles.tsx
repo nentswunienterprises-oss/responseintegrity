@@ -97,7 +97,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
           </Card>
 
           <DeepDiveTeachingInteraction
-            prompt="The student has solved four easy problems correctly, but the topic is still assigned to Structured Execution. May the Specialist introduce a Boss Battle because the student now looks comfortable?"
+            prompt="The student has solved four easy problems correctly, but the topic is still assigned to Structured Execution. Which statements are true? Select every option that applies."
             options={[
               {
                 key: "a",
@@ -114,8 +114,19 @@ export default function ResponseConditioningHowToUseBossBattles() {
                 label: "Yes, if the Specialist believes the student needs more confidence under challenge.",
                 feedback: "Specialist preference does not authorize a phase change.",
               },
+              {
+                key: "d",
+                label: "No. Boss Battle difficulty only belongs once Controlled Discomfort is the active system-assigned phase.",
+                feedback: "Yes. The pressure load follows the state, not the Specialist's impression of readiness.",
+              },
+              {
+                key: "e",
+                label: "Yes, if the Specialist keeps the support boundary unchanged.",
+                feedback: "Preserving support does not authorize adding a new difficulty condition outside the assigned phase.",
+              },
             ]}
-            correctOptionKey="b"
+            kind="multi_select"
+          correctOptionKeys={["b","d"]}
             truth="Boss Battles appear because Controlled Discomfort is the system-assigned load, not because the Specialist decides the student has earned a harder question."
           />
 
@@ -207,6 +218,16 @@ export default function ResponseConditioningHowToUseBossBattles() {
                 label: "No support at all, because every Boss Battle is always no-help.",
                 feedback: "No-help belongs to Repeat Exposure. No Rescue is specifically first-step-only.",
               },
+              {
+                key: "d",
+                label: "Only the authorized first-step boundary; reassurance that confirms later steps would become additional support.",
+                feedback: "Yes. Support stops at the first-step boundary.",
+              },
+              {
+                key: "e",
+                label: "A full method explanation followed by another No Rescue attempt on the same problem.",
+                feedback: "That converts the rep into teaching and then gives a second chance on exposed material.",
+              },
             ]}
             correctOptionKey="b"
             truth="Boss Battle difficulty does not define support. The active Controlled Discomfort set does."
@@ -257,6 +278,16 @@ export default function ResponseConditioningHowToUseBossBattles() {
                 key: "c",
                 label: "Yes, but only if the easier problem remains in the same topic.",
                 feedback: "Same topic does not make a changed difficulty condition equivalent.",
+              },
+              {
+                key: "d",
+                label: "No. The weak response is exactly the kind of valid difficulty evidence Controlled Discomfort is meant to expose.",
+                feedback: "Yes. A clean breakdown under the assigned load remains useful evidence.",
+              },
+              {
+                key: "e",
+                label: "Yes, if the easier version is only slightly easier and keeps the same method.",
+                feedback: "Any performance-dependent softening changes the intended difficulty condition and chases success.",
               },
             ]}
             correctOptionKey="b"

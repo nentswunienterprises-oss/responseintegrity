@@ -87,6 +87,16 @@ export default function ResponseConditioningHowToInterpretPrompts() {
               label: "Paraphrase the instruction into encouragement.",
               feedback: "Paraphrasing can add unintended support. Preserve the written boundary.",
             },
+              {
+                key: "d",
+                label: "Use only any separate SAY wording that the runner provides for the student-facing instruction.",
+                feedback: "Yes. SAY is the student-facing channel; DO THIS NOW remains operator-facing.",
+              },
+              {
+                key: "e",
+                label: "Explain that the Specialist will not rescue so the student understands the rules before starting.",
+                feedback: "That reveals an operator condition to the student and can change how they respond.",
+              },
           ]}
           correctOptionKey="b"
           truth="SAY and DO THIS NOW are different control channels. Mixing them can contaminate the condition."
@@ -129,7 +139,7 @@ export default function ResponseConditioningHowToInterpretPrompts() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="The observation form later asks how the student recognized the method. During the live independent opportunity, should the Specialist ask the student to explain the method so the field will be easier to complete?"
+          prompt="The observation form later asks how the student recognized the method, but the live independent opportunity never exposed that reasoning. Which responses preserve evidence integrity? Select every option that applies."
           options={[
             {
               key: "a",
@@ -146,8 +156,19 @@ export default function ResponseConditioningHowToInterpretPrompts() {
               label: "Only if the Specialist asks neutrally.",
               feedback: "Even a neutral question can elicit evidence the opportunity was not designed to produce.",
             },
+              {
+                key: "d",
+                label: "No. Let the original opportunity stand even if the recognition field remains unresolved.",
+                feedback: "Yes. Missing evidence is preferable to manufactured observability.",
+              },
+              {
+                key: "e",
+                label: "Ask only after the student has finished, then treat that answer as if it had been exposed in the original opportunity.",
+                feedback: "A later elicited answer is a different evidence event and cannot be backfilled into the original response.",
+              },
           ]}
-          correctOptionKey="b"
+          kind="multi_select"
+          correctOptionKeys={["b","d"]}
           truth="Observation prompts are evidence capture, not a script for forcing every behavior to appear."
         />
 

@@ -109,7 +109,7 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A Specialist waits until all observation fields are completed before pressing Student Finished on a passive baseline opportunity. Is that valid timing?"
+          prompt="A Specialist waits until all observation fields are completed before pressing Student Finished on a passive baseline opportunity. Which statements are true? Select every option that applies."
           options={[
             {
               key: "a",
@@ -126,8 +126,19 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
               label: "Yes, as long as the added time is similar on every rep.",
               feedback: "Artificial admin delay is not student execution and cannot become part of the baseline.",
             },
+              {
+                key: "d",
+                label: "No. Post-response observation entry should happen after the execution interval has already been frozen.",
+                feedback: "Yes. Student execution time and Specialist administration must remain separate.",
+              },
+              {
+                key: "e",
+                label: "Yes, if the Specialist always completes the same number of observation fields before pressing Student Finished.",
+                feedback: "Consistent admin delay is still not student execution and cannot become part of the baseline.",
+              },
           ]}
-          correctOptionKey="b"
+          kind="multi_select"
+          correctOptionKeys={["b","d"]}
           truth="The execution boundary must be frozen before post-response administration."
         />
 
@@ -200,6 +211,16 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
               label: "Follow the readiness route so evidence-native independent timing establishes the missing authority before TPS timing is used.",
               feedback: "Yes. Missing authority is resolved through the system, not by Specialist invention.",
             },
+              {
+                key: "d",
+                label: "Do not run authoritative TPS timing until the missing student-topic timing authority has been established.",
+                feedback: "Yes. TPS cannot use invented or borrowed urgency.",
+              },
+              {
+                key: "e",
+                label: "Use 50 seconds only for one provisional rep, then replace it once a formal baseline exists.",
+                feedback: "A provisional invented timer is still an unauthorized pressure condition.",
+              },
           ]}
           correctOptionKey="c"
           truth="No valid baseline means no invented timer. RI-OS must establish timing authority first."
