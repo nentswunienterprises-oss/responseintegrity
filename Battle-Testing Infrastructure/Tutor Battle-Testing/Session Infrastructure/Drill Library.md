@@ -33,7 +33,7 @@ To condition the capability at an already placed topic-state by running the live
 Fail Answer
 To decide the starting phase
 To choose questions freely
-To verify a new tutor
+To verify a replacement Specialist
 
 Q4
 What is the purpose of a Verification drill?
@@ -44,7 +44,7 @@ To check whether an inherited or continuity-sensitive topic-state still holds wi
 Fail Answer
 To repeat Intro
 To teach before a handover
-To replace the stored state with tutor judgment
+To replace the stored state with Specialist judgment
 
 SECTION 2: LIVE TRAINING LANES
 
@@ -63,11 +63,11 @@ Q6
 What support distinctions must be preserved across Structured Execution sets?
 
 Expected Answer
-Required Structure allows minimal support while step order is established. Independent Execution and Variation Control allow no tutor support; Variation Control also changes the surface form.
+Required Structure allows minimal support while step order is established. Independent Execution and Variation Control allow no Specialist support; Variation Control also changes the surface form.
 
 Fail Answer
 First-step help is allowed in every set
-The tutor may prompt whenever the student hesitates
+The Specialist may prompt whenever the student hesitates
 All three sets use the same support
 
 Q7
@@ -89,7 +89,7 @@ Structure Under Timer introduces a light timer, Repeated Timed Execution repeats
 
 Fail Answer
 They only ask the student to work faster
-The tutor chooses any timer each rep
+The Specialist chooses any timer each rep
 Full Constraint permits shortcuts
 
 Q9
@@ -111,7 +111,7 @@ The exact problems or reps, correct phase fit, delivery order, active timer or d
 
 Fail Answer
 Only the topic name
-The tutor can improvise the questions live
+The Specialist can improvise the questions live
 Preparation means explaining the method beforehand
 
 SECTION 3: PRESSURE SCENARIOS
