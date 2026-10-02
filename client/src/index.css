@@ -685,7 +685,7 @@ body:has(.ri-world-page) header {
 
 
 /* RI APPEARANCE MODES — Light / Warm Dark / Dark */
-/* Warm Dark is the default and intentionally inherits RI Warm Dark v1 above. */
+/* Dark is the default. Warm Dark remains available as an explicit appearance choice. */
 
 html[data-ri-theme="light"] body:has(.ri-world-page),
 html[data-ri-theme="light"] .ri-world-page {

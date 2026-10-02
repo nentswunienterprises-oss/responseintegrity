@@ -14,26 +14,28 @@
       // Apply the saved RI appearance before first paint so the startup loader
       // does not flash the wrong surface while React is booting.
       (function () {
+        var theme = "dark";
         try {
-          var theme = localStorage.getItem("ri-ui-theme");
-          if (theme === "light" || theme === "warm-dark" || theme === "dark") {
-            document.documentElement.dataset.riTheme = theme;
+          var storedTheme = localStorage.getItem("ri-ui-theme");
+          if (storedTheme === "light" || storedTheme === "warm-dark" || storedTheme === "dark") {
+            theme = storedTheme;
           }
         } catch (_) {
           // Storage can be unavailable in hardened/private contexts.
         }
+        document.documentElement.dataset.riTheme = theme;
       })();
     </script>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
 
       html {
-        --loader-bg: #FFF5ED;
-        --loader-ink: #1A1A1A;
-        --loader-muted: #6B5A5D;
-        --loader-spinner-track: #E9DDD8;
+        --loader-bg: #0E0E0E;
+        --loader-ink: #FFF5ED;
+        --loader-muted: #B9ABAD;
+        --loader-spinner-track: rgba(255, 245, 237, 0.14);
         --loader-spinner-active: #E63946;
-        color-scheme: light;
+        color-scheme: dark;
       }
 
       html[data-ri-theme="light"] {
