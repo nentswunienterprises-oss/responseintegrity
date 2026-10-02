@@ -11,7 +11,7 @@ To preserve a trustworthy rep-by-rep record of what the student actually did so 
 Fail Answer
 To write a session summary
 To show parents that progress happened
-To record tutor impressions
+To record Specialist impressions
 
 Q2
 What is the difference between an observation and an interpretation?
@@ -21,7 +21,7 @@ An observation states visible or audible behaviour, such as an eight-second paus
 
 Fail Answer
 They are the same
-An experienced tutor can record the psychological cause
+An experienced Specialist can record the psychological cause
 Interpretation is more useful than behaviour
 
 Q3
@@ -32,7 +32,7 @@ Because the set defines the condition being tested and each repetition is a sepa
 
 Fail Answer
 Only the final outcome matters
-The tutor will remember the context
+The Specialist will remember the context
 Set and rep numbers are administration
 
 SECTION 2: RECORDING DISCIPLINE
@@ -101,7 +101,7 @@ Expected Answer
 No. If it was not observed, it must not be logged as fact. The Specialist records evidence, not a likely story.
 
 Fail Answer
-Yes, when the tutor knows the student
+Yes, when the Specialist knows the student
 Yes, if it makes the log complete
 Use professional judgment to fill gaps
 
@@ -109,11 +109,11 @@ Q10
 Who determines phase placement or movement after the observations are submitted?
 
 Expected Answer
-The system applies the deterministic scoring and movement rules. The Specialist preserves the condition, selects truthful observations, and follows the system output rather than manufacturing a conclusion.
+The system applies the deterministic evidence and movement rules. The Specialist preserves the condition, selects truthful observations, and follows the system output rather than manufacturing a conclusion.
 
 Fail Answer
 The Specialist decides from the total session
-The parent and tutor agree
+The parent and Specialist agree
 The system output is only advice and can be ignored
 
 SECTION 4: PRESSURE SCENARIOS
@@ -137,7 +137,7 @@ No. Retrospectively manufacturing missing rep evidence corrupts the record. The 
 
 Fail Answer
 Yes, if it is the same day
-Yes, experienced tutors remember
+Yes, experienced Specialists remember
 Fill in average options
 
 Scenario 3
