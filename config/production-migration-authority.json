@@ -83,6 +83,11 @@
       "risk": "additive"
     },
     {
+      "path": "migrations/20261001_tps_handover_timing_lineage.sql",
+      "description": "Allow the dedicated Time Pressure Stability Handover continuity set ID while preserving the existing timed-attempt lineage table.",
+      "risk": "additive"
+    },
+    {
       "path": "migrations/2026-10-02_add_capability_review_mode.sql",
       "description": "Add the optional Capability review-mode flag used by Specialist Capability sequencing and isolated Proof review controls.",
       "risk": "additive"
