@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -226,7 +226,7 @@ export function DeepDiveTeachingInteraction({
       ) : null}
 
       {submitted && kind === "single_choice" ? (
-        <div className="ri-feedback-panel space-y-3 rounded-lg border bg-background p-4">
+        <div ref={feedbackRef} className="ri-feedback-panel scroll-mt-24 space-y-3 rounded-lg border bg-background p-4">
           <div className="flex items-start gap-3">
             {!correct ? (
               <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-destructive/10">
@@ -255,7 +255,7 @@ export function DeepDiveTeachingInteraction({
       ) : null}
 
       {submitted && kind === "multi_select" ? (
-        <div className="ri-feedback-panel space-y-4 rounded-lg border bg-background p-4">
+        <div ref={feedbackRef} className="ri-feedback-panel scroll-mt-24 space-y-4 rounded-lg border bg-background p-4">
           <div className="flex items-start gap-3">
             {!correct ? (
               <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-destructive/10">
