@@ -1,6 +1,6 @@
 # Capability Training Architecture - 28 September 2026
 
-Status: **FOUNDER-APPROVED PRODUCT LAW; FEATURE-BRANCH IMPLEMENTATION COMPLETE; REVIEW/MAIN ACCEPTANCE OPEN**
+Status: **FOUNDER-APPROVED PRODUCT LAW; 20-DEEP-DIVE MASTERY EXTENSION IMPLEMENTED IN CODE; NEW PRIVATE-BANK ACTIVATION OPEN; REVIEW/MAIN ACCEPTANCE OPEN**
 
 ## Purpose
 
@@ -22,7 +22,7 @@ Sandbox access is an expansion of the learning environment. It is not proof that
 
 ## 1. Deep Dive Mastery
 
-Each Transformation Deep Dive owns a 45-item approved private bank.
+Each live Deep Dive owns a separate Mastery gate designed for a 45-item approved private bank. The five Transformation Masteries retain their additional Retrieval and Transfer authority because they govern Sandbox entry. Execution Standards, System Intelligence and Session Infrastructure Mastery extend Training coverage without inheriting Transformation Retrieval or Transfer by implication.
 
 A Mastery attempt:
 
@@ -154,14 +154,14 @@ Implemented:
 - Mastery is a clean 15/15 pass with no critical fail;
 - maximum three total Mastery attempts;
 - Mastery retries prefer unseen bank items and fall back to the full bank only when the remaining unseen pool cannot preserve required coverage;
-- five Transformation Masteries gate a 24-hour-spaced Delayed Retrieval assessment;
+- all 20 live Deep Dives have Mastery gates in the capability plan; the five Transformation Masteries specifically gate a 24-hour-spaced Delayed Retrieval assessment;
 - Retrieval gates a separate Interleaved Transfer assessment;
 - both cumulative Transformation gates use 25 questions and require 24/25+ with no critical fail;
 - Capability, not legacy Battle Testing, owns the Training -> Sandbox transition;
 - Sandbox unlock does not mark Training complete and opens Session Infrastructure learning in the protected operating environment;
-- all five Transformation Deep Dives now run through a piece-by-piece lesson runner with formative teaching interactions that do not consume Capability attempts;
+- all 20 live Deep Dives now run through the piece-by-piece lesson-runner architecture, with formative teaching interactions where authored and Capability Mastery surfaced at lesson completion;
 - the Specialist Capability Path UI exposes Mastery -> Retention -> Application -> Sandbox without surfacing unnecessary internal machinery;
-- long-scroll delivery has been removed from the five Transformation Deep Dives: only the active lesson step is rendered, formative checks gate Continue, drill sets are separated into individual learning steps, and the Capability Check appears after lesson completion;
+- long-scroll delivery has been removed from the live Deep Dive surfaces: only the active lesson step is rendered and the Capability Check appears after lesson completion;
 - current source-of-truth documents and integration tests have been reconciled to the new authority.
 
 Proof content:
