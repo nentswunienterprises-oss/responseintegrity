@@ -11,13 +11,13 @@ Session context explains why the session exists. Drill type is the procedure run
 Fail Answer
 They are two names for the same thing
 The phase decides the session context
-The tutor chooses whichever sounds suitable
+The Specialist chooses whichever sounds suitable
 
 Q2
 What are the three live session contexts?
 
 Expected Answer
-Intro, Active Training, and Tutor Handover Verification.
+Intro, Active Training, and Specialist Handover Verification.
 
 Fail Answer
 Clarity, execution, and pressure
@@ -44,7 +44,7 @@ Diagnosis, because Intro exists to place the topic-entry state rather than run n
 Fail Answer
 Training, to start progress immediately
 Verification, because the parent supplied a recommendation
-Any drill the tutor prefers
+Any drill the Specialist prefers
 
 SECTION 2: ACTIVE TRAINING AND HANDOVER
 
@@ -56,7 +56,7 @@ The system-selected Training drill for the topic's current phase and state.
 
 Fail Answer
 Diagnosis every session
-The tutor's favourite drill
+The Specialist's favourite drill
 Whichever phase looked weak last week
 
 Q6
@@ -68,18 +68,18 @@ When a newly activated topic needs entry placement. That topic is diagnosed with
 Fail Answer
 Whenever an existing topic has one weak rep
 At the start of every session
-When the tutor wants to recheck everything
+When the Specialist wants to recheck everything
 
 Q7
-Which drill type serves Tutor Handover Verification, and why?
+Which drill type serves Specialist Handover Verification, and why?
 
 Expected Answer
-Verification, because the student already has inherited topic-state and the new tutor must confirm continuity rather than restart placement or begin normal training immediately.
+Verification, because the student already has inherited topic-state and the replacement Specialist must confirm continuity rather than restart placement or begin normal training immediately.
 
 Fail Answer
-Diagnosis because the tutor is new
+Diagnosis because the Specialist is new
 Training because the student is already active
-The tutor decides after meeting the student
+The Specialist decides after meeting the student
 
 Q8
 Why does the current transformation phase not replace session context?
@@ -96,10 +96,10 @@ Q9
 May the Specialist replace the system-selected drill because another activity feels more suitable?
 
 Expected Answer
-No. The Specialist follows the assigned topic-state and drill. Any authorised change must come from captured evidence and the system flow, not tutor instinct.
+No. The Specialist follows the assigned topic-state and drill. Any authorised change must come from captured evidence and the system flow, not Specialist instinct.
 
 Fail Answer
-Yes, good tutors adapt freely
+Yes, good Specialists adapt freely
 Yes, if the student prefers it
 The system recommendation is optional
 
@@ -124,7 +124,7 @@ One weak rep should be logged inside the assigned training flow. The Specialist 
 
 Fail Answer
 Nothing; weakness always requires diagnosis
-The tutor should also restart Clarity
+The Specialist should also restart Clarity
 Diagnosis is safer than following the drill
 
 Scenario 2
@@ -139,13 +139,13 @@ Wait until a new Intro session
 Use the phase of the student's other topics
 
 Scenario 3
-A replacement tutor treats Handover as a fresh Intro and discards the inherited state. What boundary was broken?
+A replacement Specialist treats Handover as a fresh Intro and discards the inherited state. What boundary was broken?
 
 Expected Answer
-The tutor confused continuity verification with new placement, erased valid history, and bypassed the Handover context.
+The Specialist confused continuity verification with new placement, erased valid history, and bypassed the Handover context.
 
 Fail Answer
-Nothing; every new tutor should start over
+Nothing; every replacement Specialist should start over
 Fresh diagnosis is always more accurate
 The inherited state is only a suggestion
 
@@ -171,4 +171,4 @@ Identify why the session exists, run the drill type that serves that context, pr
 Fail Answer
 Adapt the flow to the student's mood
 Choose the activity that teaches best
-Use tutor judgment to keep momentum
+Use Specialist judgment to keep momentum
