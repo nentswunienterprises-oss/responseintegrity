@@ -219,13 +219,14 @@ The applicant enters the Academy.
 
 The learning experience is active rather than document-only: Deep Dives interleave short doctrine segments with formative teaching interactions and immediate feedback. Those formative interactions teach; they do not consume Capability attempts or create formal Mastery evidence.
 
-Transformation authority is then evidenced through:
+Capability evidence is organized across all 20 live Deep Dives:
 
-- five separate Deep Dive Mastery gates, each using a 45-item private bank and a balanced 15-question form
-- a clean Mastery pass of 15/15 with no critical fail
-- at most three total attempts per Deep Dive, with retries preferring unseen bank items
-- a separate delayed 25-question Transformation Retrieval gate at 24/25+ with no critical fail
-- a separate 25-question interleaved Transformation Transfer gate at 24/25+ with no critical fail
+- each live Deep Dive has a separate Mastery gate designed for a 45-item private bank and a balanced 15-question form
+- a clean Mastery pass is 15/15 with no critical fail
+- at most three total attempts are available per Deep Dive, with retries preferring unseen bank items
+- private-bank activation is fail-closed, so a not-yet-active bank remains unavailable rather than being bypassed
+- the approved Sandbox-entry authority remains the Transformation gate: five Transformation Masteries, followed by the separate delayed 25-question Transformation Retrieval gate at 24/25+ with no critical fail, then the separate 25-question interleaved Transformation Transfer gate at 24/25+ with no critical fail
+- Execution Standards, System Intelligence and Session Infrastructure Mastery extend Training coverage without redefining the Transformation Sandbox-entry gate
 
 Output:
 
