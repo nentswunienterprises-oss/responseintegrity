@@ -435,31 +435,31 @@ export default function ResponseConditioningStructuredExecution() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="The student stalls. The Specialist silently points to the line where the next step should happen, and the student completes the method. Which statements are true? Select every option that applies."
+          prompt="The student stalls. The Specialist silently points to the line where the next step should happen, and the student completes the method. Which conclusions are supported?"
           options={[
             {
               key: "a",
-              label: "As no support, because the Specialist did not say the next step or correct the mathematics.",
+              label: "Because nothing was said aloud, the rep remains no-support.",
               feedback: "Support is not limited to words. Pointing can remove the very decision the student was supposed to make independently.",
             },
             {
               key: "b",
-              label: "As minor support that can be ignored if the rest is independent.",
+              label: "The cue can be ignored because most of the response was independent.",
               feedback: "The size of the cue does not make it disappear. If it materially directs execution, it belongs in the evidence.",
             },
             {
               key: "c",
-              label: "As support, because the gesture supplied direction when execution had stalled.",
-              feedback: "Yes. RI records the functional effect of the Specialist's action, not merely whether help was verbal.",
+              label: "The gesture counts as support because it supplied direction at the stall.",
+              feedback: "RI records the functional effect of the Specialist's action, not merely whether help was verbal.",
             },
             {
               key: "d",
               label: "The stall before the gesture remains evidence of where independent execution stopped.",
-              feedback: "Yes. The support does not erase the point at which the student's unaided execution ended.",
+              feedback: "The support does not erase the point at which the student's unaided execution ended.",
             },
             {
               key: "e",
-              label: "The later completion can still be logged as fully independent because the Specialist never verbalised the next step.",
+              label: "The final completion can be logged as fully independent because the cue was non-verbal.",
               feedback: "Non-verbal direction can carry execution just as verbal prompting can. Later completion does not restore a clean no-help condition.",
             },
           ]}
