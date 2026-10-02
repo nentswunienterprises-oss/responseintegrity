@@ -250,68 +250,77 @@ export default function ResponseConditioningTopicConditioning() {
           <h2 className="text-2xl font-bold">How the OS works inside a topic</h2>
           <p className="text-muted-foreground">Response Integrity-OS does not float above schoolwork. It operates inside it.</p>
           <p className="text-muted-foreground">
-            That means every topic is governed by the same phase architecture, while Diagnosis establishes the correct entry point rather than forcing every topic to restart from Clarity.
+            Every topic is governed by the same four-phase architecture, while Diagnosis establishes the correct entry point rather than forcing every topic to restart from Clarity.
           </p>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li>Clarity establishes the usable mental map.</li>
+            <li>Structured Execution establishes independent, ordered execution.</li>
+            <li>Controlled Discomfort tests whether that response survives meaningful difficulty.</li>
+            <li>Time Pressure Stability tests whether the trained response survives individualized urgency.</li>
+          </ul>
+          <p className="font-semibold">
+            The phases are shared across topics. The student's evidence determines where this topic enters and what happens next.
+          </p>
+        </Card>
 
-          <div className="space-y-2">
-            <h3 className="text-xl font-semibold">Phase 1: Clarity</h3>
-            <p className="text-muted-foreground">The student learns to see the topic clearly.</p>
-            <p className="text-muted-foreground">This means:</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>naming the correct terms (Vocablary)</li>
-              <li>recognizing the problem type</li>
-              <li>knowing the steps (Method)</li>
-              <li>knowing why the steps work (Reason)</li>
-            </ul>
-            <p className="text-muted-foreground">Training sets: Modeling, Identification, then Light Apply.</p>
-            <p className="font-medium">Question: Can the student clearly see what they are dealing with in this topic?</p>
-            <p className="text-muted-foreground">If no, this topic starts at Clarity.</p>
-          </div>
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">Phase 1: Clarity</h2>
+          <p className="text-muted-foreground">The student learns to see the topic clearly.</p>
+          <p className="text-muted-foreground">This means:</p>
+          <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
+            <li>naming the correct terms (Vocabulary)</li>
+            <li>recognizing the problem type</li>
+            <li>knowing the steps (Method)</li>
+            <li>knowing why the steps work (Reason)</li>
+          </ul>
+          <p className="text-muted-foreground">Training sets: Modeling, Identification, then Light Apply.</p>
+          <p className="font-medium">Question: Can the student clearly see what they are dealing with in this topic?</p>
+          <p className="text-muted-foreground">If no, this topic starts at Clarity.</p>
+        </Card>
 
-          <div className="space-y-2">
-            <h3 className="text-xl font-semibold">Phase 2: Structured Execution</h3>
-            <p className="text-muted-foreground">The student must now execute inside the topic.</p>
-            <p className="text-muted-foreground">This means:</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>starting without delay</li>
-              <li>following steps in order</li>
-              <li>reducing guessing</li>
-              <li>repeating the method reliably</li>
-            </ul>
-            <p className="text-muted-foreground">Training sets: Required Structure, Independent Execution, then Variation Control.</p>
-            <p className="font-medium">Question: Can the student act reliably in this topic without being carried?</p>
-            <p className="text-muted-foreground">If no, this topic sits in Structured Execution.</p>
-          </div>
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">Phase 2: Structured Execution</h2>
+          <p className="text-muted-foreground">The student must now execute inside the topic.</p>
+          <p className="text-muted-foreground">This means:</p>
+          <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
+            <li>starting without delay</li>
+            <li>following steps in order</li>
+            <li>reducing guessing</li>
+            <li>repeating the method reliably</li>
+          </ul>
+          <p className="text-muted-foreground">Training sets: Required Structure, Independent Execution, then Variation Control.</p>
+          <p className="font-medium">Question: Can the student act reliably in this topic without being carried?</p>
+          <p className="text-muted-foreground">If no, this topic sits in Structured Execution.</p>
+        </Card>
 
-          <div className="space-y-2">
-            <h3 className="text-xl font-semibold">Phase 3: Controlled Discomfort</h3>
-            <p className="text-muted-foreground">Now difficulty is introduced inside the topic.</p>
-            <p className="text-muted-foreground">This means:</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>challenging, same-form problems</li>
-              <li>difficulty held as the active pressure variable</li>
-              <li>support tightened across the registered sets</li>
-              <li>repeated exposure without changing the topic-state manually</li>
-            </ul>
-            <p className="text-muted-foreground">Training sets: Controlled Entry, No Rescue, then Repeat Exposure. Boss Battles are the challenging problem load used inside this phase.</p>
-            <p className="font-medium">Question: Can the student stay stable in this topic when certainty disappears?</p>
-            <p className="text-muted-foreground">If no, this topic sits in Controlled Discomfort.</p>
-          </div>
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">Phase 3: Controlled Discomfort</h2>
+          <p className="text-muted-foreground">Now difficulty is introduced inside the topic.</p>
+          <p className="text-muted-foreground">This means:</p>
+          <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
+            <li>challenging, same-form problems</li>
+            <li>difficulty held as the active pressure variable</li>
+            <li>support tightened across the registered sets</li>
+            <li>repeated exposure without changing the topic-state manually</li>
+          </ul>
+          <p className="text-muted-foreground">Training sets: Controlled Entry, No Rescue, then Repeat Exposure. Boss Battles are the challenging problem load used inside this phase.</p>
+          <p className="font-medium">Question: Can the student stay stable in this topic when certainty disappears?</p>
+          <p className="text-muted-foreground">If no, this topic sits in Controlled Discomfort.</p>
+        </Card>
 
-          <div className="space-y-2">
-            <h3 className="text-xl font-semibold">Phase 4: Time Pressure Stability</h3>
-            <p className="text-muted-foreground">Now the same topic is tested under time.</p>
-            <p className="text-muted-foreground">This means:</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>an individualized system-owned Timer Contract</li>
-              <li>process and structure preserved under urgency</li>
-              <li>repeated timed exposure at the same baseline condition</li>
-              <li>the final defined tighter constraint only when the registered set requires it</li>
-            </ul>
-            <p className="text-muted-foreground">Training sets: Structure Under Timer, Repeated Timed Execution, then Full Constraint.</p>
-            <p className="font-medium">Question: Can the student stay structured in this topic when time pressure appears?</p>
-            <p className="text-muted-foreground">If no, this topic sits in Time Pressure Stability.</p>
-          </div>
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">Phase 4: Time Pressure Stability</h2>
+          <p className="text-muted-foreground">Now the same topic is tested under time.</p>
+          <p className="text-muted-foreground">This means:</p>
+          <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
+            <li>an individualized system-owned Timer Contract</li>
+            <li>process and structure preserved under urgency</li>
+            <li>repeated timed exposure at the same baseline condition</li>
+            <li>the final defined tighter constraint only when the registered set requires it</li>
+          </ul>
+          <p className="text-muted-foreground">Training sets: Structure Under Timer, Repeated Timed Execution, then Full Constraint.</p>
+          <p className="font-medium">Question: Can the student stay structured in this topic when time pressure appears?</p>
+          <p className="text-muted-foreground">If no, this topic sits in Time Pressure Stability.</p>
         </Card>
 
         <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
