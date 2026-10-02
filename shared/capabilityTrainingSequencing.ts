@@ -75,13 +75,6 @@ const systemIntelligenceMasteryKeys = SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS.map(
 const sessionInfrastructureMasteryKeys = SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS.map(
   (deepDiveKey) => `${deepDiveKey}_mastery_v1`,
 );
-const allMasteryKeys = [
-  ...transformationMasteryKeys,
-  ...executionStandardsMasteryKeys,
-  ...systemIntelligenceMasteryKeys,
-  ...sessionInfrastructureMasteryKeys,
-];
-
 function timestamp(value: string | Date) {
   const time = value instanceof Date ? value.getTime() : new Date(value).getTime();
   if (!Number.isFinite(time)) {
@@ -168,7 +161,7 @@ export function isCapabilityTransformationSandboxReady(
 ) {
   const byKey = new Map(assessments.map((entry) => [entry.assessmentKey, entry] as const));
   return [
-    ...allMasteryKeys,
+    ...transformationMasteryKeys,
     TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
     TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
   ].every((key) => byKey.get(key)?.status === "complete");

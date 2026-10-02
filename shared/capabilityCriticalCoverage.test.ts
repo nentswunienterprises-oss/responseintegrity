@@ -25,7 +25,7 @@ for (const assessment of CAPABILITY_MVP_ASSESSMENT_PLAN_V1) {
 
 test("all mastery checks require every critical boundary in their Deep Dive", () => {
   const mastery = CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter((entry) => entry.evidenceKind === "mastery");
-  assert.equal(mastery.length, 11);
+  assert.equal(mastery.length, 20);
   assert.ok(mastery.every((entry) => entry.criticalCoverageMode === "all_boundaries"));
 });
 
