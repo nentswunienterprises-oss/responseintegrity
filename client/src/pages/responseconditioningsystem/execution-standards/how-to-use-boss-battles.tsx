@@ -97,37 +97,37 @@ export default function ResponseConditioningHowToUseBossBattles() {
           </Card>
 
           <DeepDiveTeachingInteraction
-            prompt="The student has solved four easy problems correctly, but the topic is still assigned to Structured Execution. Which statements are true? Select every option that applies."
+            prompt="The student has solved four easy problems correctly, but the topic is still assigned to Structured Execution. Which conclusions are supported?"
             options={[
               {
                 key: "a",
-                label: "Yes. Four correct answers are enough to unlock Boss Battles.",
+                label: "Four correct answers unlock Boss Battles.",
                 feedback: "Correct-answer volume is not the authority for changing the active phase or pressure condition.",
               },
               {
                 key: "b",
-                label: "No. Keep the assigned Structured Execution condition until RI-OS moves the topic from qualifying evidence.",
-                feedback: "Yes. Boss Battles are a Controlled Discomfort load, not a Specialist-selected reward for looking comfortable.",
+                label: "The Specialist should keep the assigned Structured Execution condition until RI-OS moves the topic.",
+                feedback: "Boss Battles are a Controlled Discomfort load, not a Specialist-selected reward for looking comfortable.",
               },
               {
                 key: "c",
-                label: "Yes, if the Specialist believes the student needs more confidence under challenge.",
+                label: "The Specialist can add a Boss Battle when they believe the student needs confidence under challenge.",
                 feedback: "Specialist preference does not authorize a phase change.",
               },
               {
                 key: "d",
-                label: "No. Boss Battle difficulty only belongs once Controlled Discomfort is the active system-assigned phase.",
-                feedback: "Yes. The pressure load follows the state, not the Specialist's impression of readiness.",
+                label: "Boss Battle difficulty belongs to Controlled Discomfort, not Structured Execution.",
+                feedback: "The pressure load follows the system-assigned phase.",
               },
               {
                 key: "e",
-                label: "Yes, if the Specialist keeps the support boundary unchanged.",
+                label: "Keeping the same support boundary makes a Boss Battle valid inside Structured Execution.",
                 feedback: "Preserving support does not authorize adding a new difficulty condition outside the assigned phase.",
               },
             ]}
             kind="multi_select"
-          correctOptionKeys={["b","d"]}
-            truth="Boss Battles appear because Controlled Discomfort is the system-assigned load, not because the Specialist decides the student has earned a harder question."
+            correctOptionKeys={["b","d"]}
+            truth="Boss Battles are the difficult same-form load inside Controlled Discomfort. The Specialist does not introduce them before RI-OS moves the topic into that phase."
           />
 
           <Card className="p-6 space-y-5">
