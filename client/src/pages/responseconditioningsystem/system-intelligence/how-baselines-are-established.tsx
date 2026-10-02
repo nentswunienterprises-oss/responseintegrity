@@ -98,7 +98,7 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
             The student is not placed under a time target. The system silently measures the real execution interval.
           </p>
           <p className="font-semibold">
-            Begin Rep or Begin Opportunity -> student executes -> Student Finished -> observation and admin continue afterward.
+            Begin Rep or Begin Opportunity, student executes, Student Finished, then observation and admin continue afterward.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>The start timestamp is system-owned.</li>
