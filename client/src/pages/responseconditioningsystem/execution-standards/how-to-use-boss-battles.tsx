@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
         <DeepDiveLessonRunner
           lessonKey="how-to-use-boss-battles-v2"
           title="How to Use Boss Battles"
-          completion={null}
+          completion={<DeepDiveCapabilityCheck assessmentKey="how_to_use_boss_battles_mastery_v1" />}
         >
           <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
             <h2 className="text-2xl font-bold">Boss Battles belong inside Controlled Discomfort</h2>

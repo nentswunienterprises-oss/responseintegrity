@@ -1,4 +1,7 @@
 import { useNavigate } from "react-router-dom";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
+import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -9,480 +12,190 @@ export default function ResponseConditioningWhatNotToDo() {
     <div className="min-h-screen bg-background">
       <div className="border-b bg-card">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
-          <Button
-            variant="ghost"
-            className="mb-4 -ml-2"
-            onClick={() => navigate("/responseconditioningsystem")}
-          >
-            
+          <Button variant="ghost" className="mb-4 -ml-2" onClick={() => navigate("/responseconditioningsystem")}>
             Back to Response Conditioning System
           </Button>
-
-          <div className="flex items-start gap-4">
-            <div>
-              <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">
-                Response Integrity-OS Deep Dive
-              </p>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mt-1">
-                What Not To Do
-              </h1>
-              <p className="text-muted-foreground mt-1">OS-wide tutor standards</p>
-            </div>
+          <div>
+            <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Response Integrity-OS Deep Dive</p>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight mt-1">What Not To Do</h1>
+            <p className="text-muted-foreground mt-1">OS-wide Specialist execution boundaries</p>
           </div>
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+        <DeepDiveLessonRunner
+          lessonKey="what-not-to-do-v2"
+          title="What Not To Do"
+          completion={<DeepDiveCapabilityCheck assessmentKey="what_not_to_do_mastery_v1" />}
+        >
+          <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
+            <h2 className="text-2xl font-bold">The shared failure pattern</h2>
+            <p className="text-muted-foreground">
+              Most serious delivery errors happen when a Specialist changes the assigned condition to make the live moment easier, smoother, faster, or more conclusive.
+            </p>
+            <p className="font-semibold">Do not improve the appearance of the response by weakening the integrity of the evidence.</p>
+          </Card>
 
-        {/* Purpose */}
-        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">Purpose</h2>
-          <p className="text-muted-foreground">These are OS-wide tutor standards.</p>
-          <p className="text-muted-foreground">They apply across Response Integrity-OS.</p>
-          <p className="text-muted-foreground">Each rule below includes the phase-specific application where it matters.</p>
-          <p className="text-muted-foreground">If these behaviors appear consistently, the standard is not being met.</p>
-        </Card>
-
-        {/* 1. Do Not Rescue */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">1. Do Not Rescue</h2>
-
-          <div>
-            <p className="font-semibold mb-2">What It Looks Like</p>
-            <p className="text-muted-foreground">giving answers too early</p>
-            <p className="text-muted-foreground">stepping in at the first sign of struggle</p>
-            <p className="text-muted-foreground">finishing the student's thinking</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">Why It Happens</p>
-            <p className="text-muted-foreground">discomfort feels uncomfortable</p>
-            <p className="text-muted-foreground">tutor wants to help</p>
-            <p className="text-muted-foreground">tutor wants progress to look smooth</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">What It Causes</p>
-            <p className="text-muted-foreground">dependency</p>
-            <p className="text-muted-foreground">weak response patterns</p>
-            <p className="text-muted-foreground">inability to handle difficulty alone</p>
-          </div>
-
-          <div className="bg-muted rounded p-3">
-            <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-            <p className="text-muted-foreground">If you step in too early, the student does not build independent response.</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">By Phase</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>Clarity: do not let the student solve during recognition reps.</li>
-              <li>Structured Execution: do not interrupt the cold start too early.</li>
-              <li>Controlled Discomfort: obey the active set - Controlled Entry allows minimal support, No Rescue allows first-step-only support, and Repeat Exposure allows no support.</li>
-              <li>Time Pressure Stability: keep the timer active and do not rescue structure under time.</li>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">1. Do not rescue outside the support contract</h2>
+            <p className="text-muted-foreground">
+              Hesitation, rescue-seeking, a missing first step, loss of structure, and timeout can be the exact response RI-OS needs to observe.
+            </p>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li>Clarity Modeling may be Specialist-led because modelling is the assigned condition.</li>
+              <li>Identification, Independent Execution, Variation Control, Repeat Exposure, and all TPS Training sets preserve no support.</li>
+              <li>Controlled Entry allows minimal support.</li>
+              <li>No Rescue allows first-step-only support.</li>
             </ul>
-          </div>
-        </Card>
+          </Card>
 
-        {/* 2. Do Not Over-Explain */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">2. Do Not Over-Explain</h2>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">2. Do not over-explain inside an evidence opportunity</h2>
+            <p className="text-muted-foreground">
+              Teaching, method prompting, step prompting, and full rescue can change what an opportunity is allowed to prove.
+            </p>
+            <p className="font-semibold">
+              Keep teaching inside the places the protocol authorizes. Do not smuggle modelling into an independent observation condition.
+            </p>
+          </Card>
 
-          <div>
-            <p className="font-semibold mb-2">What It Looks Like</p>
-            <p className="text-muted-foreground">long explanations mid-problem</p>
-            <p className="text-muted-foreground">repeating concepts multiple times</p>
-            <p className="text-muted-foreground">talking more than the student executes</p>
-          </div>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">3. Do not take over execution</h2>
+            <p className="text-muted-foreground">
+              Do not write the student's steps, finish their reasoning, or carry the method after the live condition requires independent execution.
+            </p>
+            <p className="text-muted-foreground">
+              If support occurs, record it separately. Do not log the assisted response as though the student produced it alone.
+            </p>
+          </Card>
 
-          <div>
-            <p className="font-semibold mb-2">Why It Happens</p>
-            <p className="text-muted-foreground">tutor wants clarity</p>
-            <p className="text-muted-foreground">tutor fears confusion</p>
-            <p className="text-muted-foreground">tutor tries to "cover everything"</p>
-          </div>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">4. Do not lose the Clarity mental map</h2>
+            <p className="text-muted-foreground">
+              Vocabulary, Method, and Reason are the Clarity mental map. Later phases rely on that map, but they do not automatically become Clarity whenever execution weakens.
+            </p>
+            <p className="font-semibold">
+              Preserve the active condition and let prerequisite evidence determine whether an earlier layer must be re-checked.
+            </p>
+          </Card>
 
-          <div>
-            <p className="font-semibold mb-2">What It Causes</p>
-            <p className="text-muted-foreground">passive learning</p>
-            <p className="text-muted-foreground">cognitive overload</p>
-            <p className="text-muted-foreground">reduced execution</p>
-          </div>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">5. Do not force every field to become observable</h2>
+            <p className="text-muted-foreground">
+              If a behavior never meaningfully appeared, record not observed. If support or another condition makes interpretation unsafe, record confounded.
+            </p>
+            <p className="font-semibold">
+              Never ask extra live questions only so the observation form will look complete.
+            </p>
+          </Card>
 
-          <div className="bg-muted rounded p-3">
-            <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-            <p className="text-muted-foreground">The student needs to execute, not only listen.</p>
-          </div>
+          <DeepDiveTeachingInteraction
+            prompt="The observation form later asks how the student recognized the method, but the live no-support rep never exposed that reasoning. What should the Specialist do?"
+            options={[
+              {
+                key: "a",
+                label: "Ask the student immediately before ending the rep so every field can be filled.",
+                feedback: "That changes the live condition and manufactures evidence the original opportunity did not expose.",
+              },
+              {
+                key: "b",
+                label: "Record not observed and let RI-OS decide whether another evidence opportunity is needed.",
+                feedback: "Yes. Missing evidence must stay missing.",
+              },
+              {
+                key: "c",
+                label: "Infer the method recognition from the final answer.",
+                feedback: "A final answer cannot automatically prove the unobserved recognition process.",
+              },
+            ]}
+            correctOptionKey="b"
+            truth="Completeness is system-owned. The Specialist owns truthful observation."
+          />
 
-          <div>
-            <p className="font-semibold mb-2">By Phase</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>Clarity: teach through Vocabulary, Method, and Reason, then return to observation.</li>
-              <li>Structured Execution: do not keep remodeling once independent execution is required.</li>
-              <li>Controlled Discomfort: no full explanations are given mid-struggle.</li>
-              <li>Time Pressure Stability: do not replace method discipline with urgency talk.</li>
-            </ul>
-          </div>
-        </Card>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">6. Do not interrupt thinking because silence feels uncomfortable</h2>
+            <p className="text-muted-foreground">
+              A pause is behavior. It is not automatic permission to prompt.
+            </p>
+            <p className="font-semibold">
+              Check the active support contract first. In a no-support condition, continue observing rather than inserting a first-step cue.
+            </p>
+          </Card>
 
-        {/* 3. Do Not Take Over */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">3. Do Not Take Over</h2>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">7. Do not chase speed</h2>
+            <p className="text-muted-foreground">
+              Structured Execution and Controlled Discomfort are not timed phases. TPS timing is individualized and system-owned.
+            </p>
+            <p className="font-semibold">
+              Do not add hurry language, choose a faster target, pause the Timer Contract, or treat a fast guessed response as stable TPS evidence.
+            </p>
+          </Card>
 
-          <div>
-            <p className="font-semibold mb-2">What It Looks Like</p>
-            <p className="text-muted-foreground">writing for the student</p>
-            <p className="text-muted-foreground">solving steps yourself</p>
-            <p className="text-muted-foreground">controlling the entire process</p>
-          </div>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">8. Do not use technical recovery as a student second chance</h2>
+            <p className="text-muted-foreground">
+              Objective timer, runtime, or device failure may leave a timing slot unresolved and authorize a fresh pre-prepared equivalent reserve under the same condition.
+            </p>
+            <p className="font-semibold">
+              Timeout, panic, wrong method, incomplete work, weak performance, or ordinary timer expiry are real student evidence and never unlock replacement.
+            </p>
+          </Card>
 
-          <div>
-            <p className="font-semibold mb-2">Why It Happens</p>
-            <p className="text-muted-foreground">impatience</p>
-            <p className="text-muted-foreground">desire for correct answers</p>
-            <p className="text-muted-foreground">need to "move the session forward"</p>
-          </div>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">9. Do not manually move the topic</h2>
+            <p className="text-muted-foreground">
+              Do not advance a strong-looking topic, move a weak-looking topic backward, invent starting stability, or replace a system-selected drill with a preferred one.
+            </p>
+            <p className="font-semibold">
+              The Specialist executes the condition and records the evidence. RI-OS owns the resulting operating decision.
+            </p>
+          </Card>
 
-          <div>
-            <p className="font-semibold mb-2">What It Causes</p>
-            <p className="text-muted-foreground">zero ownership</p>
-            <p className="text-muted-foreground">no skill development</p>
-            <p className="text-muted-foreground">false progress</p>
-          </div>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">10. Do not turn Handover into Diagnosis or Training</h2>
+            <p className="text-muted-foreground">
+              Handover verifies whether inherited state remains trustworthy after reassignment. It does not restart placement and it does not teach forward.
+            </p>
+            <p className="font-semibold">
+              Hold inherited state until continuity evidence supports a hold, bounded same-phase adjustment, or targeted re-diagnosis route.
+            </p>
+          </Card>
 
-          <div className="bg-muted rounded p-3">
-            <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-            <p className="text-muted-foreground">The student must remain the one doing the work.</p>
-          </div>
+          <DeepDiveTeachingInteraction
+            prompt="A TPS rep times out with panic and incomplete work, but the timer and runtime worked correctly. What must the Specialist not do?"
+            options={[
+              {
+                key: "a",
+                label: "Record the timed response exactly as it occurred.",
+                feedback: "That is required evidence capture.",
+              },
+              {
+                key: "b",
+                label: "Start a replacement attempt so the student gets a fair chance to show a better response.",
+                feedback: "Yes. This must not happen. Student failure under a valid timer is real evidence, not a technical replacement condition.",
+              },
+              {
+                key: "c",
+                label: "Continue to the observation questions after the execution boundary is frozen.",
+                feedback: "That is the correct post-response workflow.",
+              },
+            ]}
+            correctOptionKey="b"
+            truth="Replacement authority exists for objective technical failure only, never for an undesirable student result."
+          />
 
-          <div>
-            <p className="font-semibold mb-2">By Phase</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>Structured Execution: after correction, return the work to the student for re-execution.</li>
-              <li>Controlled Discomfort: maintain the difficulty and keep the student working through it.</li>
-              <li>Time Pressure Stability: the tutor does not take control just because the timer is active.</li>
-            </ul>
-          </div>
-        </Card>
-
-        {/* 4. Do Not Skip the 3-Layer Lens */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">4. Do Not Skip the 3-Layer Lens</h2>
-
-          <div>
-            <p className="font-semibold mb-2">What It Looks Like</p>
-            <p className="text-muted-foreground">teaching only steps</p>
-            <p className="text-muted-foreground">ignoring vocabulary</p>
-            <p className="text-muted-foreground">ignoring reasoning</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">Why It Happens</p>
-            <p className="text-muted-foreground">rushing</p>
-            <p className="text-muted-foreground">assuming understanding</p>
-            <p className="text-muted-foreground">focusing on speed</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">What It Causes</p>
-            <p className="text-muted-foreground">confusion under pressure</p>
-            <p className="text-muted-foreground">fragile knowledge</p>
-            <p className="text-muted-foreground">inability to adapt</p>
-          </div>
-
-          <div className="bg-muted rounded p-3">
-            <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-            <p className="text-muted-foreground">Every concept must pass through Vocabulary, Method, and Reason.</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">By Phase</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>Clarity: Vocabulary, Method, and Reason are the active lens of the phase.</li>
-              <li>Structured Execution: the lens is no longer retaught in full, but structure still depends on it.</li>
-              <li>Controlled Discomfort and Time Pressure Stability: pressure should not erase precise language or method awareness.</li>
-            </ul>
-          </div>
-        </Card>
-
-        {/* 5. Do Not Accept Vague Language */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">5. Do Not Accept Vague Language</h2>
-
-          <div>
-            <p className="font-semibold mb-2">What It Looks Like</p>
-            <p className="text-muted-foreground">"this thing"</p>
-            <p className="text-muted-foreground">"that number"</p>
-            <p className="text-muted-foreground">incomplete explanations</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">Why It Happens</p>
-            <p className="text-muted-foreground">tutor lets it slide</p>
-            <p className="text-muted-foreground">avoids correction</p>
-            <p className="text-muted-foreground">prioritizes flow over precision</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">What It Causes</p>
-            <p className="text-muted-foreground">weak clarity</p>
-            <p className="text-muted-foreground">poor communication</p>
-            <p className="text-muted-foreground">unstable thinking</p>
-          </div>
-
-          <div className="bg-muted rounded p-3">
-            <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-            <p className="text-muted-foreground">Imprecise language usually signals imprecise thinking.</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">By Phase</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>Clarity: correct naming and explanation are part of the required evidence.</li>
-              <li>Later phases: pressure does not excuse vague terms or skipped reasoning.</li>
-            </ul>
-          </div>
-        </Card>
-
-        {/* 6. Do Not Interrupt Thinking */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">6. Do Not Interrupt Thinking</h2>
-
-          <div>
-            <p className="font-semibold mb-2">What It Looks Like</p>
-            <p className="text-muted-foreground">speaking immediately when the student pauses</p>
-            <p className="text-muted-foreground">filling silence</p>
-            <p className="text-muted-foreground">guiding too quickly</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">Why It Happens</p>
-            <p className="text-muted-foreground">silence feels uncomfortable</p>
-            <p className="text-muted-foreground">tutor assumes they are stuck</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">What It Causes</p>
-            <p className="text-muted-foreground">no independent thinking</p>
-            <p className="text-muted-foreground">no discomfort tolerance</p>
-            <p className="text-muted-foreground">weak response conditioning</p>
-          </div>
-
-          <div className="bg-muted rounded p-3">
-            <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-            <p className="text-muted-foreground">Give the student time to think before you step in.</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">By Phase</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>Structured Execution: observe the cold start before giving correction.</li>
-              <li>Controlled Discomfort: maintain the hold window instead of interrupting the struggle.</li>
-              <li>Time Pressure Stability: observe the first response under time before intervening.</li>
-            </ul>
-          </div>
-        </Card>
-
-        {/* 7. Do Not Turn the Session into a Lecture */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">7. Do Not Turn the Session into a Lecture</h2>
-
-          <div>
-            <p className="font-semibold mb-2">What It Looks Like</p>
-            <p className="text-muted-foreground">tutor speaking most of the time</p>
-            <p className="text-muted-foreground">student listening instead of executing</p>
-            <p className="text-muted-foreground">long explanations without application</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">Why It Happens</p>
-            <p className="text-muted-foreground">tutor feels responsible for "teaching"</p>
-            <p className="text-muted-foreground">confusion about role</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">What It Causes</p>
-            <p className="text-muted-foreground">passive students</p>
-            <p className="text-muted-foreground">no execution training</p>
-            <p className="text-muted-foreground">poor retention</p>
-          </div>
-
-          <div className="bg-muted rounded p-3">
-            <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-            <p className="text-muted-foreground">Response Integrity sessions are execution environments, not lectures.</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">By Phase</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>Clarity: even when teaching is present, it is structured and limited to the lens.</li>
-              <li>All later phases: the student should be doing more than the tutor is saying.</li>
-            </ul>
-          </div>
-        </Card>
-
-        {/* 8. Do Not Prioritize Comfort */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">8. Do Not Prioritize Comfort</h2>
-
-          <div>
-            <p className="font-semibold mb-2">What It Looks Like</p>
-            <p className="text-muted-foreground">softening every difficult moment</p>
-            <p className="text-muted-foreground">reassuring excessively</p>
-            <p className="text-muted-foreground">avoiding challenge</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">Why It Happens</p>
-            <p className="text-muted-foreground">desire to be liked</p>
-            <p className="text-muted-foreground">fear of student frustration</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">What It Causes</p>
-            <p className="text-muted-foreground">avoidance habits</p>
-            <p className="text-muted-foreground">emotional dependency</p>
-            <p className="text-muted-foreground">inability to handle pressure</p>
-          </div>
-
-          <div className="bg-muted rounded p-3">
-            <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-            <p className="text-muted-foreground">Comfort alone does not build capability.</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">By Phase</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>Clarity: keep the phase light, but do not turn it into free teaching.</li>
-              <li>Controlled Discomfort: do not soften the drill to make the moment feel better.</li>
-              <li>Time Pressure Stability: urgency may rise, but structure remains the priority.</li>
-            </ul>
-          </div>
-        </Card>
-
-        {/* 9. Do Not Chase Speed */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">9. Do Not Chase Speed</h2>
-
-          <div>
-            <p className="font-semibold mb-2">What It Looks Like</p>
-            <p className="text-muted-foreground">pushing students to go faster</p>
-            <p className="text-muted-foreground">rushing through steps</p>
-            <p className="text-muted-foreground">focusing on finishing quickly</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">Why It Happens</p>
-            <p className="text-muted-foreground">pressure to show progress</p>
-            <p className="text-muted-foreground">misunderstanding efficiency</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">What It Causes</p>
-            <p className="text-muted-foreground">careless errors</p>
-            <p className="text-muted-foreground">skipped structure</p>
-            <p className="text-muted-foreground">unstable execution</p>
-          </div>
-
-          <div className="bg-muted rounded p-3">
-            <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-            <p className="text-muted-foreground">Prioritize stable method before speed.</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">By Phase</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>Clarity: no time pressure is used.</li>
-              <li>Structured Execution: clean order matters more than pace.</li>
-              <li>Controlled Discomfort: no time pressure yet; the target is stability under difficulty.</li>
-              <li>Time Pressure Stability: the timer is active, but method still stays ahead of speed.</li>
-            </ul>
-          </div>
-        </Card>
-
-        {/* 10. Do Not Ignore Breakdown Patterns */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">10. Do Not Ignore Breakdown Patterns</h2>
-
-          <div>
-            <p className="font-semibold mb-2">What It Looks Like</p>
-            <p className="text-muted-foreground">repeating the same correction</p>
-            <p className="text-muted-foreground">ignoring recurring mistakes</p>
-            <p className="text-muted-foreground">not diagnosing patterns</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">Why It Happens</p>
-            <p className="text-muted-foreground">lack of observation</p>
-            <p className="text-muted-foreground">focus on immediate task</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">What It Causes</p>
-            <p className="text-muted-foreground">no real improvement</p>
-            <p className="text-muted-foreground">repeated failure</p>
-            <p className="text-muted-foreground">wasted sessions</p>
-          </div>
-
-          <div className="bg-muted rounded p-3">
-            <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-            <p className="text-muted-foreground">Every repeated mistake is a signal.</p>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-2">By Phase</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>Clarity: track vocabulary, method, and reason misses separately.</li>
-              <li>Structured Execution: track skipped steps, weak starts, and re-execution failures.</li>
-              <li>Controlled Discomfort: track rescue-seeking and structure loss under strain.</li>
-              <li>Time Pressure Stability: track reactive starts, pace loss, and structure drift under the timer.</li>
-            </ul>
-          </div>
-        </Card>
-
-        {/* Common Pattern Behind Execution Failures */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Shared Cause</h2>
-          <p className="text-muted-foreground">Most of these mistakes come from choosing short-term ease over long-term capability.</p>
-        </Card>
-
-        {/* The Standard */}
-        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">The Standard</h2>
-          <p className="text-muted-foreground">Response Integrity prioritizes:</p>
-          <ul className="space-y-2 pl-4 font-medium">
-            <li>structure over comfort</li>
-            <li>process over speed</li>
-            <li>execution over explanation</li>
-          </ul>
-        </Card>
-
-        {/* Final Principle */}
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Final Principle</h2>
-          <p className="text-muted-foreground">A session can feel smooth and still miss the standard.</p>
-          <p className="font-bold text-lg">The target is student capability, not a smooth session.</p>
-        </Card>
-
-        {/* Final Rule */}
-        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">Final Rule</h2>
-          <p className="text-muted-foreground">Use this check at the end of a session.</p>
-          <p className="text-muted-foreground">If the session felt:</p>
-          <ul className="space-y-1 pl-4 text-muted-foreground">
-            <li>smooth</li>
-            <li>easy</li>
-            <li>fast</li>
-          </ul>
-          <p className="text-muted-foreground">but the student still cannot:</p>
-          <ul className="space-y-1 pl-4 text-muted-foreground">
-            <li>start independently</li>
-            <li>follow steps</li>
-            <li>stay calm under difficulty</li>
-          </ul>
-          <p className="font-semibold">then the session did not meet the standard</p>
-        </Card>
-
+          <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
+            <h2 className="text-2xl font-bold">Final operating filter</h2>
+            <p className="font-semibold">
+              Before changing anything live, ask: "Does the active RI-OS condition authorize this move?"
+            </p>
+            <p className="text-muted-foreground">
+              If not, preserve the condition, record what happened, and follow the system result.
+            </p>
+          </Card>
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );

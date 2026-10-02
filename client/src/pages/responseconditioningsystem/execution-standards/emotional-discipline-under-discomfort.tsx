@@ -1,4 +1,7 @@
 import { useNavigate } from "react-router-dom";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
+import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -9,284 +12,138 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
     <div className="min-h-screen bg-background">
       <div className="border-b bg-card">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
-          <Button
-            variant="ghost"
-            className="mb-4 -ml-2"
-            onClick={() => navigate("/responseconditioningsystem")}
-          >
-            
+          <Button variant="ghost" className="mb-4 -ml-2" onClick={() => navigate("/responseconditioningsystem")}>
             Back to Response Conditioning System
           </Button>
-
-          <div className="flex items-start gap-4">
-            <div>
-              <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">
-                Response Integrity-OS Deep Dive
-              </p>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight mt-1">
-                Emotional Discipline Under Discomfort
-              </h1>
-              <p className="text-muted-foreground mt-1">under Execution Standards</p>
-            </div>
+          <div>
+            <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Response Integrity-OS Deep Dive</p>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight mt-1">Emotional Discipline Under Discomfort</h1>
+            <p className="text-muted-foreground mt-1">under Execution Standards</p>
           </div>
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What It Is</h2>
-          <p className="text-muted-foreground">Emotional discipline is:</p>
-          <p className="font-medium">your ability to remain stable while the student is unstable</p>
-        </Card>
+        <DeepDiveLessonRunner
+          lessonKey="emotional-discipline-under-discomfort-v2"
+          title="Emotional Discipline Under Discomfort"
+          completion={<DeepDiveCapabilityCheck assessmentKey="emotional_discipline_under_discomfort_mastery_v1" />}
+        >
+          <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
+            <h2 className="text-2xl font-bold">Emotional discipline protects the condition</h2>
+            <p className="text-muted-foreground">
+              A Specialist will see hesitation, frustration, silence, rescue-seeking, panic, slow work, and weak responses. The job is not to make those moments disappear.
+            </p>
+            <p className="font-semibold">
+              The job is to remain stable enough to preserve the exact support, difficulty, and timing condition RI-OS assigned.
+            </p>
+          </Card>
 
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Why It Matters</h2>
-          <p className="text-muted-foreground">Students will:</p>
-          <ul className="space-y-1 pl-4 text-muted-foreground">
-            <li>hesitate</li>
-            <li>panic</li>
-            <li>get frustrated</li>
-            <li>ask for answers</li>
-          </ul>
-          <p className="text-muted-foreground">These are not problems.</p>
-          <p className="text-muted-foreground">They are:</p>
-          <p className="font-medium">the exact moments the system is designed for</p>
-        </Card>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">The active support boundary comes first</h2>
+            <p className="text-muted-foreground">
+              Emotional discipline does not mean "never help." It means never letting your own discomfort decide how much help to give.
+            </p>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li>Modeled: demonstrate because the set explicitly requires modelling.</li>
+              <li>Minimal: use only the small support the set permits.</li>
+              <li>First-step only: stop at the opening step and return execution to the student.</li>
+              <li>None: do not rescue, prompt the method, confirm a step, or coach through the live response.</li>
+            </ul>
+          </Card>
 
-        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">The Risk</h2>
-          <p className="text-muted-foreground">Most tutors react to these moments by:</p>
-          <ul className="space-y-1 pl-4 text-muted-foreground">
-            <li>helping too quickly</li>
-            <li>softening the situation</li>
-            <li>removing pressure</li>
-          </ul>
-          <p className="text-muted-foreground">This feels supportive.</p>
-          <p className="font-semibold">It destroys the process.</p>
-        </Card>
+          <DeepDiveTeachingInteraction
+            prompt="During a no-support TPS rep, the student freezes and says, 'I don't know what to do.' The Specialist feels an urge to ask, 'What's the first step?' What is the correct move?"
+            options={[
+              {
+                key: "a",
+                label: "Ask the first-step question because it is neutral and keeps the student calm.",
+                feedback: "The question supplies response control inside a no-support condition. The Specialist's discomfort cannot authorize that intervention.",
+              },
+              {
+                key: "b",
+                label: "Preserve the no-support timed condition, observe what happens, and record the response after the execution boundary.",
+                feedback: "Yes. The freeze may be exactly the evidence the timed condition is designed to expose.",
+              },
+              {
+                key: "c",
+                label: "Pause the timer, settle the student, then restart the same problem.",
+                feedback: "Pausing and restarting changes timing authority and can turn real student evidence into an unauthorized second chance.",
+              },
+            ]}
+            correctOptionKey="b"
+            truth="Emotional discipline means the Specialist does not convert personal discomfort into extra support."
+          />
 
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The Role of the Tutor</h2>
-          <p className="text-muted-foreground">You are not there to remove discomfort.</p>
-          <p className="text-muted-foreground">You are there to:</p>
-          <p className="font-medium">hold structure while discomfort exists</p>
-        </Card>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">Silence is not automatically a problem</h2>
+            <p className="text-muted-foreground">
+              A pause can mean many things. RI-OS needs the behavior, not a story about the behavior.
+            </p>
+            <p className="font-semibold">
+              Do not infer panic, laziness, defiance, confidence, motivation, or emotional state from silence alone.
+            </p>
+            <p className="text-muted-foreground">
+              Record the observable delay, what happened next, and whether the behavior was meaningfully observable under the intended condition.
+            </p>
+          </Card>
 
-        <Card className="p-6 space-y-6">
-          <h2 className="text-2xl font-bold">What You Must Control</h2>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">Do not rescue the evidence</h2>
+            <p className="text-muted-foreground">
+              The most dangerous moment is often when a valid weak response is already visible and the Specialist wants to repair it before the rep ends.
+            </p>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li>Do not soften a challenging problem because the student looks uncomfortable.</li>
+              <li>Do not add encouragement that becomes pacing or method guidance.</li>
+              <li>Do not turn a no-support rep into a guided rep because the student asks for help.</li>
+              <li>Do not restart a timed attempt because the student panicked, timed out, guessed, or worked slowly.</li>
+            </ul>
+          </Card>
 
- <div className="space-y-3 ">
-            <p className="text-lg font-semibold">1. Your Urge to Rescue</p>
-            <div>
-              <p className="font-semibold mb-1">What It Feels Like</p>
-              <p className="text-muted-foreground">"Let me just help them"</p>
-              <p className="text-muted-foreground">"They're stuck"</p>
-              <p className="text-muted-foreground">"This is taking too long"</p>
-            </div>
-            <div>
-              <p className="font-semibold mb-1">What You Do Instead</p>
-              <p className="text-muted-foreground">You wait.</p>
-              <p className="text-muted-foreground">You observe.</p>
-              <p className="text-muted-foreground">You allow the moment.</p>
-            </div>
-            <div className="bg-muted rounded p-3">
-              <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-              <p className="text-muted-foreground">Do not act on the urge to rescue.</p>
-            </div>
-          </div>
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">Correction happens at the correct boundary</h2>
+            <p className="text-muted-foreground">
+              Preserving a live evidence condition does not mean abandoning learning. It means separating evidence from correction.
+            </p>
+            <p className="font-semibold">
+              Let the opportunity reveal the response first. Freeze the execution boundary. Record the evidence. Then correct or prepare the next assigned exposure where the protocol permits it.
+            </p>
+          </Card>
 
- <div className="space-y-3 ">
-            <p className="text-lg font-semibold">2. Your Reaction to Frustration</p>
-            <div>
-              <p className="font-semibold mb-1">What It Looks Like</p>
-              <p className="text-muted-foreground">Student:</p>
-              <ul className="space-y-1 pl-4 text-muted-foreground">
-                <li>sighs</li>
-                <li>complains</li>
-                <li>says "I can't do this"</li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-semibold mb-1">What Weak Tutors Do</p>
-              <p className="text-muted-foreground">reassure</p>
-              <p className="text-muted-foreground">reduce difficulty</p>
-              <p className="text-muted-foreground">change approach</p>
-            </div>
-            <div>
-              <p className="font-semibold mb-1">What You Do</p>
-              <p className="text-muted-foreground">You stay neutral.</p>
-              <p className="text-muted-foreground">You redirect to structure.</p>
-            </div>
-            <div>
-              <p className="font-semibold mb-1">What You Say</p>
-              <p className="text-muted-foreground">"What do you know?"</p>
-              <p className="text-muted-foreground">"What's the first step?"</p>
-            </div>
-            <div className="bg-muted rounded p-3">
-              <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-              <p className="text-muted-foreground">Do not react emotionally. Maintain process.</p>
-            </div>
-          </div>
+          <DeepDiveTeachingInteraction
+            prompt="A Controlled Entry problem is valid and challenging. The student becomes frustrated and asks for the full method. What should determine the Specialist's response?"
+            options={[
+              {
+                key: "a",
+                label: "How upset the student looks.",
+                feedback: "Visible frustration does not rewrite the set contract.",
+              },
+              {
+                key: "b",
+                label: "The Controlled Entry support boundary: minimal support only, without carrying the method or execution.",
+                feedback: "Yes. The set, not the emotional intensity of the moment, determines what support is allowed.",
+              },
+              {
+                key: "c",
+                label: "Whether the Specialist thinks a successful finish would build confidence.",
+                feedback: "A preferred emotional outcome cannot replace condition integrity.",
+              },
+            ]}
+            correctOptionKey="b"
+            truth="The Specialist regulates themselves so the registered condition remains intact."
+          />
 
- <div className="space-y-3 ">
-            <p className="text-lg font-semibold">3. Your Need to Fix Quickly</p>
-            <div>
-              <p className="font-semibold mb-1">What It Feels Like</p>
-              <p className="text-muted-foreground">wanting progress</p>
-              <p className="text-muted-foreground">wanting flow</p>
-              <p className="text-muted-foreground">wanting correctness</p>
-            </div>
-            <div>
-              <p className="font-semibold mb-1">What You Do Instead</p>
-              <p className="text-muted-foreground">You slow down.</p>
-              <p className="text-muted-foreground">You stay inside the process.</p>
-            </div>
-            <div className="bg-muted rounded p-3">
-              <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-              <p className="text-muted-foreground">Speed is not the goal. Stability is.</p>
-            </div>
-          </div>
-
- <div className="space-y-3 ">
-            <p className="text-lg font-semibold">4. Your Discomfort with Silence</p>
-            <div>
-              <p className="font-semibold mb-1">What It Feels Like</p>
-              <p className="text-muted-foreground">pressure to speak</p>
-              <p className="text-muted-foreground">need to fill the gap</p>
-            </div>
-            <div>
-              <p className="font-semibold mb-1">What You Do Instead</p>
-              <p className="text-muted-foreground">You allow silence.</p>
-              <p className="text-muted-foreground">You let the student think.</p>
-            </div>
-            <div className="bg-muted rounded p-3">
-              <p className="font-semibold text-sm uppercase tracking-wide mb-1">Rule</p>
-              <p className="text-muted-foreground">Silence is part of the system.</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The Standard State</h2>
-          <p className="text-muted-foreground">You must remain:</p>
-          <ul className="space-y-1 pl-4 text-muted-foreground">
-            <li>calm</li>
-            <li>neutral</li>
-            <li>controlled</li>
-            <li>non-reactive</li>
-          </ul>
-          <p className="text-muted-foreground">Not:</p>
-          <ul className="space-y-1 pl-4 text-muted-foreground">
-            <li>encouraging excessively</li>
-            <li>rushing</li>
-            <li>emotionally involved</li>
-          </ul>
-        </Card>
-
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What the Student Experiences</h2>
-          <p className="text-muted-foreground">At first:</p>
-          <ul className="space-y-1 pl-4 text-muted-foreground">
-            <li>discomfort</li>
-            <li>resistance</li>
-            <li>hesitation</li>
-          </ul>
-          <p className="text-muted-foreground">Then:</p>
-          <ul className="space-y-1 pl-4 text-muted-foreground">
-            <li>small control</li>
-            <li>first step</li>
-            <li>gradual stability</li>
-          </ul>
-          <p className="text-muted-foreground">This only happens if:</p>
-          <p className="font-medium">you do not interfere</p>
-        </Card>
-
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What Breaks Emotional Discipline</h2>
-          <div className="space-y-3">
-            <div>
-              <p className="font-semibold">&#10060; Wanting to Be Liked</p>
-              <p className="text-muted-foreground">You make things easier.</p>
-            </div>
-            <div>
-              <p className="font-semibold">&#10060; Avoiding Discomfort</p>
-              <p className="text-muted-foreground">You remove pressure.</p>
-            </div>
-            <div>
-              <p className="font-semibold">&#10060; Over-Identifying</p>
-              <p className="text-muted-foreground">You feel what the student feels.</p>
-            </div>
-            <div>
-              <p className="font-semibold">&#10060; Reacting to Time</p>
-              <p className="text-muted-foreground">You rush the process.</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">The Correct Position</h2>
-          <p className="text-muted-foreground">You are:</p>
-          <p className="font-medium">present, but not reactive</p>
-        </Card>
-
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What You Reinforce</h2>
-          <p className="text-muted-foreground">Not:</p>
-          <ul className="space-y-1 pl-4 text-muted-foreground">
-            <li>comfort</li>
-            <li>speed</li>
-            <li>correctness</li>
-          </ul>
-          <p className="text-muted-foreground">You reinforce:</p>
-          <p className="font-medium">calm execution under difficulty</p>
-        </Card>
-
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The Hidden Truth</h2>
-          <p className="text-muted-foreground">Students learn more from:</p>
-          <p className="font-medium">how you respond to their struggle</p>
-          <p className="text-muted-foreground">than from:</p>
-          <p className="font-medium">what you explain</p>
-        </Card>
-
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What Mastery Looks Like</h2>
-          <p className="text-muted-foreground">You will see:</p>
-          <ul className="space-y-1 pl-4 text-muted-foreground">
-            <li>fewer interventions</li>
-            <li>more silence</li>
-            <li>more student thinking</li>
-            <li>stable pacing</li>
-          </ul>
-          <p className="text-muted-foreground">The student begins to:</p>
-          <p className="font-medium">self-regulate</p>
-        </Card>
-
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The Internal Check</h2>
-          <p className="text-muted-foreground">At any moment, ask:</p>
-          <p className="font-medium">"Am I maintaining the system, or reacting to the student?"</p>
-        </Card>
-
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Final Principle</h2>
-          <p className="text-muted-foreground">Emotional discipline is:</p>
-          <p className="font-medium">holding the line when it would be easier not to</p>
-        </Card>
-
-        <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">Final Rule</h2>
-          <p className="text-muted-foreground">If you remove discomfort to make the session feel better:</p>
-          <p className="font-semibold">you weaken the student</p>
-          <p className="text-muted-foreground">If you hold structure through discomfort:</p>
-          <p className="font-semibold">you strengthen the student</p>
-          <p className="text-muted-foreground">That's the difference.</p>
-          <p className="text-muted-foreground">This is not kindness vs harshness.</p>
-          <p className="text-muted-foreground">This is:</p>
-          <p className="font-medium">short-term relief vs long-term capability</p>
-          <p className="text-muted-foreground">And Response Integrity chooses:</p>
-          <p className="font-bold text-lg">capability</p>
-        </Card>
+          <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
+            <h2 className="text-2xl font-bold">Operating check</h2>
+            <p className="font-semibold">
+              Before intervening, ask: "Is this support authorized by the active set, or am I reacting to the student's discomfort?"
+            </p>
+            <p className="text-muted-foreground">
+              If the set does not authorize the move, do not make it. Preserve the response and let RI-OS interpret the evidence.
+            </p>
+          </Card>
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );

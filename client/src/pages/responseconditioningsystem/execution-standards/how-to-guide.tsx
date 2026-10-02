@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 
 export default function ResponseConditioningHowToGuide() {
@@ -36,7 +37,7 @@ export default function ResponseConditioningHowToGuide() {
         <DeepDiveLessonRunner
           lessonKey="how-to-intervene-piecewise-v1"
           title="How to Intervene"
-          completion={null}
+          completion={<DeepDiveCapabilityCheck assessmentKey="how_to_intervene_mastery_v1" />}
         >
           <Card className="p-6 space-y-4 border-primary/25 bg-primary/5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-primary">Core rule</p>
@@ -115,7 +116,7 @@ export default function ResponseConditioningHowToGuide() {
               <h2 className="text-2xl font-bold mt-1">Clarity</h2>
             </div>
             <p className="text-muted-foreground">
-              Clarity is where the original Model, Apply, Guide rhythm is most visible, but even here the support boundary changes by set.
+              Clarity is where explicit modelling and light application are permitted, but the support boundary still changes by set.
             </p>
             <div className="space-y-3">
               <div className="rounded-md border p-4">
@@ -300,15 +301,15 @@ export default function ResponseConditioningHowToGuide() {
           </Card>
 
           <Card className="p-6 space-y-5">
-            <h2 className="text-2xl font-bold">The Three-Layer Lens Still Matters</h2>
+            <h2 className="text-2xl font-bold">The Clarity Mental Map Still Matters</h2>
             <p className="text-muted-foreground">
-              Vocabulary, Method, and Reason remain the core concept map, especially for Clarity and for understanding what needs correction.
+              Vocabulary, Method, and Reason remain the core Clarity mental map, especially when understanding what needs correction.
             </p>
             <p className="text-muted-foreground">
-              But not every later-phase breakdown is a Three-Layer failure. A student can know the method and still break in independent execution, under difficulty, or under time.
+              But not every later-phase breakdown is a Clarity failure. A student can know the method and still break in independent execution, under difficulty, or under time.
             </p>
             <p className="font-semibold">
-              Diagnose the actual response layer before deciding what should happen next.
+              Preserve the active condition, record the actual response layer that broke, and let RI-OS determine what should happen next.
             </p>
           </Card>
 
