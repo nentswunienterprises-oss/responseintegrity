@@ -156,3 +156,20 @@ This checkpoint remains **OPEN** until all of the following are true:
 ## Handoff rule
 
 If work continues in another chat, session, or by another contributor, start here. This document and GitHub issue #112 are the durable branch-level definition of done for Capability Review Mode. PR #108 is already merged; any follow-on PR from this branch must reference and satisfy this checkpoint before Review Mode is considered complete.
+
+
+## OS-wide Capability reconciliation - 2 October 2026
+
+Founder Review exposed that the ambiguity was not isolated to How to Interpret Prompts. The entire active private Capability estate was therefore treated as one authoring surface.
+
+The reconciliation standard is now:
+
+- **No polarity traps in single-choice.** Stems such as “What should the Specialist avoid?”, “What must not happen?”, “What is wrong?”, and “Why is that wrong?” are not permitted as single-choice when the option set can make several actions semantically defensible. Rewrite the question positively/diagnostically, or use explicit multi-select.
+- **Every bank contains deliberate interaction variation.** A private bank may not be single-choice only. Each bank must include at least one multi-select or sequence question.
+- **Multi-select is structured.** It has at least five options, at least two defensible answers, and teaching feedback for every option so missed truths and selected non-answers can both be explained.
+- **Sequence is real ordering.** It has at least four steps and the approved answer orders every option exactly once.
+- **System authority is evidence governance.** Any question teaching RI-OS state or next-action authority must explain the evidence basis: qualifying observations are recorded, shared RI rules interpret them, and the resulting operating state is therefore not a Specialist preference. Software is not authoritative merely because it is software.
+- **Human judgment remains necessary.** Specialist judgment belongs in accurate observation, preserving the active condition, truthful recording, and escalating a suspected prompt or system defect. It does not become private state-movement authority.
+- **Coverage is preserved when wording changes.** Reconciliation must not reduce competency-cell counts or critical-boundary coverage from the bank version it replaces.
+
+The private-bank importer now fails closed on these rules so future bank authoring cannot silently drift back to the pre-review pattern.

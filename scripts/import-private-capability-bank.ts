@@ -87,6 +87,31 @@ function assertNoLearnerCopyJargon(context: string, value: string) {
   );
 }
 
+const AMBIGUOUS_SINGLE_CHOICE_STEM_PATTERNS = [
+  {
+    label: "avoid / must-not polarity",
+    pattern: /\b(?:what (?:should|must) .{0,100} avoid|what must not happen|what should .{0,100} not do)\b/i,
+  },
+  {
+    label: "wrong-use polarity",
+    pattern: /\bwhat is the wrong use\b/i,
+  },
+  {
+    label: "not-conclude polarity",
+    pattern: /\bwhat should .{0,100} not conclude\b/i,
+  },
+  {
+    label: "what-is-wrong polarity",
+    pattern: /\b(?:what is wrong|why is that wrong)\b/i,
+  },
+] as const;
+
+const AUTHORITY_COMPETENCY_PATTERN = /(?:authority|system_direction)/i;
+const AUTHORITY_PROMPT_PATTERN =
+  /\b(?:RI-OS|system returns|system holds|system direction|authority|next action)\b/i;
+const EVIDENCE_AUTHORITY_RATIONALE_PATTERN =
+  /\b(?:evidence(?:-derived)?|qualifying|recorded (?:state|evidence)|shared (?:rule|decision)|decision rule|state logic)\b/i;
+
 const assessmentSchema = z.object({
   assessmentKey: z.string().trim().min(1),
   bankVersion: z.number().int().positive(),
@@ -238,18 +263,60 @@ function validationShape(assessment: ParsedAssessment) {
 }
 
 function validateAssessment(assessment: ParsedAssessment) {
+  if (!assessment.items.some((item) => item.kind !== "single_choice")) {
+    throw new Error(
+      `Capability bank ${assessment.assessmentKey} is flattened into single-choice only. Every bank must include at least one intentional multi-select or sequence item.`,
+    );
+  }
+
   for (const item of assessment.items) {
+    const optionKeys = item.options.map((option) => option.key);
+    const optionKeySet = new Set(optionKeys);
+    const correctKeys = new Set(item.correctOptionKeys);
+    const criticalFailKeys = new Set(item.criticalFailOptionKeys || []);
+
+    if (optionKeySet.size !== optionKeys.length) {
+      throw new Error(
+        `Capability bank ${assessment.assessmentKey}/${item.key} contains duplicate option keys.`,
+      );
+    }
+
+    const unknownCorrectKeys = item.correctOptionKeys.filter((key) => !optionKeySet.has(key));
+    if (unknownCorrectKeys.length) {
+      throw new Error(
+        `Capability bank ${assessment.assessmentKey}/${item.key} has correct key(s) missing from the options: ${unknownCorrectKeys.join(", ")}.`,
+      );
+    }
+
+    const criticalCorrectOverlap = item.correctOptionKeys.filter((key) => criticalFailKeys.has(key));
+    if (criticalCorrectOverlap.length) {
+      throw new Error(
+        `Capability bank ${assessment.assessmentKey}/${item.key} marks correct option(s) as critical fail: ${criticalCorrectOverlap.join(", ")}.`,
+      );
+    }
+
     if (item.kind === "single_choice") {
-      const correctKeys = new Set(item.correctOptionKeys);
-      const optionKeys = new Set(item.options.map((option) => option.key));
-      const wrongKeys = item.options
-        .map((option) => option.key)
-        .filter((key) => !correctKeys.has(key));
+      if (item.correctOptionKeys.length !== 1) {
+        throw new Error(
+          `Capability bank ${assessment.assessmentKey}/${item.key} is single-choice but does not define exactly one correct option.`,
+        );
+      }
+
+      const polarityHit = AMBIGUOUS_SINGLE_CHOICE_STEM_PATTERNS.find(({ pattern }) =>
+        pattern.test(item.prompt),
+      );
+      if (polarityHit) {
+        throw new Error(
+          `Capability bank ${assessment.assessmentKey}/${item.key} uses a risky single-choice stem (${polarityHit.label}). Rewrite it as a positive/diagnostic question, or use explicit multi-select when several actions or conclusions are defensible.`,
+        );
+      }
+
+      const wrongKeys = optionKeys.filter((key) => !correctKeys.has(key));
       const missingFeedback = wrongKeys.filter(
         (key) => !item.optionFeedback[key]?.trim(),
       );
       const unknownFeedback = Object.keys(item.optionFeedback).filter(
-        (key) => !optionKeys.has(key),
+        (key) => !optionKeySet.has(key),
       );
       const correctFeedback = Object.keys(item.optionFeedback).filter(
         (key) => correctKeys.has(key),
@@ -270,6 +337,66 @@ function validateAssessment(assessment: ParsedAssessment) {
           `Capability bank ${assessment.assessmentKey}/${item.key} stores option-specific feedback for correct option(s): ${correctFeedback.join(", ")}. Correct answers use the approved Truth instead.`,
         );
       }
+    }
+
+    if (item.kind === "multi_select") {
+      if (item.options.length < 5) {
+        throw new Error(
+          `Capability bank ${assessment.assessmentKey}/${item.key} multi-select exposes fewer than five options.`,
+        );
+      }
+      if (item.correctOptionKeys.length < 2) {
+        throw new Error(
+          `Capability bank ${assessment.assessmentKey}/${item.key} multi-select must contain at least two defensible answers.`,
+        );
+      }
+
+      const missingFeedback = optionKeys.filter(
+        (key) => !item.optionFeedback[key]?.trim(),
+      );
+      const unknownFeedback = Object.keys(item.optionFeedback).filter(
+        (key) => !optionKeySet.has(key),
+      );
+      if (missingFeedback.length) {
+        throw new Error(
+          `Capability bank ${assessment.assessmentKey}/${item.key} multi-select is missing teaching feedback for option(s): ${missingFeedback.join(", ")}. Feedback must explain both missed defensible answers and selected non-answers.`,
+        );
+      }
+      if (unknownFeedback.length) {
+        throw new Error(
+          `Capability bank ${assessment.assessmentKey}/${item.key} has feedback for unknown option(s): ${unknownFeedback.join(", ")}.`,
+        );
+      }
+    }
+
+    if (item.kind === "sequence") {
+      if (item.options.length < 4) {
+        throw new Error(
+          `Capability bank ${assessment.assessmentKey}/${item.key} sequence exposes fewer than four ordered steps.`,
+        );
+      }
+      if (
+        item.correctOptionKeys.length !== item.options.length ||
+        item.correctOptionKeys.some((key) => !optionKeySet.has(key))
+      ) {
+        throw new Error(
+          `Capability bank ${assessment.assessmentKey}/${item.key} sequence must order every available option exactly once.`,
+        );
+      }
+    }
+
+    const authorityRelated =
+      AUTHORITY_COMPETENCY_PATTERN.test(item.competencyKey) ||
+      AUTHORITY_PROMPT_PATTERN.test(item.prompt);
+    if (
+      authorityRelated &&
+      !EVIDENCE_AUTHORITY_RATIONALE_PATTERN.test(
+        [item.explanation, ...Object.values(item.optionFeedback || {})].join(" "),
+      )
+    ) {
+      throw new Error(
+        `Capability bank ${assessment.assessmentKey}/${item.key} teaches system authority without explaining its evidence basis. State and next-action authority must be grounded in qualifying evidence and shared RI decision rules, not obedience to software.`,
+      );
     }
 
     const promptContext = `${assessment.assessmentKey}/${item.key}/prompt`;
