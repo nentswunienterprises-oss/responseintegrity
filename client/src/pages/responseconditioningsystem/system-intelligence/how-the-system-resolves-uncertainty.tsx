@@ -122,6 +122,20 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
         </Card>
 
         <Card className="p-6 space-y-4">
+          <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Example</p>
+          <h2 className="text-2xl font-bold">The timer is present, but the broken behavior is structure</h2>
+          <p className="text-muted-foreground">
+            A student working in Time Pressure Stability starts a timed problem but loses the required step order halfway through.
+          </p>
+          <p className="text-muted-foreground">
+            The timer does not automatically make this a Time Pressure Stability breakdown. RI-OS must remove the timer and see whether the earlier execution layer returns under a comparable untimed condition.
+          </p>
+          <p className="font-semibold">
+            The condition tells the system where the breakdown appeared. The evidence determines which layer owns it.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Training can trigger a prerequisite check without moving the topic backward</h2>
           <p className="text-muted-foreground">
             If current-phase Training exposes a breakdown that may actually come from an earlier prerequisite, the runner can request a stripped-constraint prerequisite sentinel.
@@ -131,6 +145,22 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
             <li>If it is contradicted, ordinary Training freezes and targeted re-diagnosis re-establishes the earlier layer.</li>
             <li>If it is not observed or confounded, the system routes re-diagnosis rather than guessing.</li>
           </ul>
+        </Card>
+
+        <Card className="p-6 space-y-4">
+          <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Example</p>
+          <h2 className="text-2xl font-bold">A timed breakdown triggers an untimed prerequisite check</h2>
+          <p className="text-muted-foreground">
+            A student in Time Pressure Stability breaks down during a clean timed opportunity. The runner removes the timer and presents one comparable problem with no coaching or rescue.
+          </p>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li>If structure and independent execution return, the original breakdown remains owned by Time Pressure Stability.</li>
+            <li>If structure still breaks, ordinary Training pauses and targeted re-diagnosis begins from Structured Execution.</li>
+            <li>If the prerequisite check is not observed or becomes confounded, the system routes re-diagnosis rather than inventing a conclusion.</li>
+          </ul>
+          <p className="font-semibold">
+            Training can detect that prior state is no longer trustworthy. Diagnosis still owns the reclassification.
+          </p>
         </Card>
 
         <Card className="p-6 space-y-4">
@@ -178,6 +208,20 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
           correctOptionKey="b"
           truth="The system can ask for another opportunity. The Specialist cannot manufacture completeness."
         />
+
+        <Card className="p-6 space-y-4">
+          <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Example</p>
+          <h2 className="text-2xl font-bold">Handover preserves what was proved and keeps the missing dimension open</h2>
+          <p className="text-muted-foreground">
+            A new Specialist inherits a student's Structured Execution state. In the first continuity opportunity, the student starts independently and follows the required steps, but the task does not meaningfully expose repeatability.
+          </p>
+          <p className="text-muted-foreground">
+            RI-OS keeps the supported start and step evidence, records repeatability as not observed, and can ask for another comparable continuity opportunity. It does not copy strength from the observed dimensions into the missing one just to finish Handover.
+          </p>
+          <p className="font-semibold">
+            Handover closes from sufficient evidence, not from filling every field with a convenient answer.
+          </p>
+        </Card>
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Another opportunity is not extra practice</h2>
