@@ -36,9 +36,9 @@ async function loadActiveCapabilityConfig(assessmentKey: string): Promise<Privat
             form_size,
             max_attempts,
             retry_cooldown_hours,
-            review_mode,
+            COALESCE((to_jsonb(config)->>'review_mode')::boolean, false) AS review_mode,
             competency_blueprint
-       FROM private.specialist_capability_assessment_configs
+       FROM private.specialist_capability_assessment_configs AS config
       WHERE assessment_key = $1
         AND active = true
       LIMIT 1`,
