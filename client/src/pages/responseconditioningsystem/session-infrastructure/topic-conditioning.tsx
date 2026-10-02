@@ -213,31 +213,31 @@ export default function ResponseConditioningTopicConditioning() {
         />
 
         <DeepDiveTeachingInteraction
-          prompt="A student scores 86% in a familiar class test, but in RI their structure repeatedly breaks when the same method appears in less familiar forms. Which statements should remain true? Select every option that applies."
+          prompt="A student scores 86% in a familiar class test, but in RI their structure repeatedly breaks when the same method appears in less familiar forms. Which conclusions are supported?"
           options={[
             {
               key: "a",
-              label: "Treat the mark as evidence that the topic is at least High, because the student has already performed well academically.",
+              label: "The class-test mark proves the topic is at least High.",
               feedback: "The mark proves performance in that class-test setting. It does not prove the same response remains stable when familiarity and challenge change.",
             },
             {
               key: "b",
-              label: "Treat them as conflicting and wait for another class test before deciding the topic state.",
+              label: "The two sources conflict, so topic state should wait for another class test.",
               feedback: "The sources are not competing measurements of the same thing. The class test gives academic context; RI is observing the response under the condition being trained.",
             },
             {
               key: "c",
-              label: "Keep the mark as academic context, while letting direct RI evidence of how the student responds determine the topic's phase and stability.",
-              feedback: "Yes. Academic performance matters, but conditioned-response state comes from what the student actually does inside the RI condition.",
+              label: "The class-test mark remains academic context; direct RI response evidence determines phase and stability.",
+              feedback: "Academic performance remains useful context, while conditioned-response state comes from what the student actually does inside the RI condition.",
             },
             {
               key: "d",
-              label: "A strong class-test result can coexist with instability under changed form because the two settings are answering different questions.",
-              feedback: "Yes. School performance and RI response evidence can both be true without one cancelling the other.",
+              label: "Strong class-test performance can coexist with instability under changed form because the settings answer different questions.",
+              feedback: "School performance and RI response evidence can both be true without one cancelling the other.",
             },
             {
               key: "e",
-              label: "Once direct RI evidence exists, ignore the class-test mark completely because school performance is no longer relevant.",
+              label: "Once direct RI evidence exists, the class-test mark becomes irrelevant.",
               feedback: "RI does not discard school performance. It remains useful academic context even though it does not determine RI phase or stability.",
             },
           ]}
