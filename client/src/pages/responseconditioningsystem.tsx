@@ -47,28 +47,28 @@ const modules = [
     items: [
       {
         label: "How to model",
-        href: "/responseconditioningsystem/execution-standards/how-to-model",,
-        capabilityKey: "how_to_model"
+        href: "/responseconditioningsystem/execution-standards/how-to-model",
+        capabilityKey: "how_to_model",
       },
       {
         label: "How to intervene",
-        href: "/responseconditioningsystem/execution-standards/how-to-intervene",,
-        capabilityKey: "how_to_intervene"
+        href: "/responseconditioningsystem/execution-standards/how-to-intervene",
+        capabilityKey: "how_to_intervene",
       },
       {
         label: "How to use Boss Battles",
-        href: "/responseconditioningsystem/execution-standards/how-to-use-boss-battles",,
-        capabilityKey: "how_to_use_boss_battles"
+        href: "/responseconditioningsystem/execution-standards/how-to-use-boss-battles",
+        capabilityKey: "how_to_use_boss_battles",
       },
       {
         label: "What not to do",
-        href: "/responseconditioningsystem/execution-standards/what-not-to-do",,
-        capabilityKey: "what_not_to_do"
+        href: "/responseconditioningsystem/execution-standards/what-not-to-do",
+        capabilityKey: "what_not_to_do",
       },
       {
         label: "Emotional discipline under discomfort",
-        href: "/responseconditioningsystem/execution-standards/emotional-discipline-under-discomfort",,
-        capabilityKey: "emotional_discipline_under_discomfort"
+        href: "/responseconditioningsystem/execution-standards/emotional-discipline-under-discomfort",
+        capabilityKey: "emotional_discipline_under_discomfort",
       },
     ],
   },
@@ -79,23 +79,23 @@ const modules = [
     items: [
       {
         label: "How to diagnose",
-        href: "/responseconditioningsystem/system-intelligence/how-to-diagnose",,
-        capabilityKey: "how_to_diagnose"
+        href: "/responseconditioningsystem/system-intelligence/how-to-diagnose",
+        capabilityKey: "how_to_diagnose",
       },
       {
         label: "How to interpret prompts",
-        href: "/responseconditioningsystem/system-intelligence/how-to-interpret-prompts",,
-        capabilityKey: "how_to_interpret_prompts"
+        href: "/responseconditioningsystem/system-intelligence/how-to-interpret-prompts",
+        capabilityKey: "how_to_interpret_prompts",
       },
       {
         label: "How baselines are established",
-        href: "/responseconditioningsystem/system-intelligence/how-baselines-are-established",,
-        capabilityKey: "how_baselines_are_established"
+        href: "/responseconditioningsystem/system-intelligence/how-baselines-are-established",
+        capabilityKey: "how_baselines_are_established",
       },
       {
         label: "How the system resolves uncertainty",
-        href: "/responseconditioningsystem/system-intelligence/how-the-system-resolves-uncertainty",,
-        capabilityKey: "how_the_system_resolves_uncertainty"
+        href: "/responseconditioningsystem/system-intelligence/how-the-system-resolves-uncertainty",
+        capabilityKey: "how_the_system_resolves_uncertainty",
       },
     ],
   },
