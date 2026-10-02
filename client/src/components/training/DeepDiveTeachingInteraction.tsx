@@ -248,7 +248,7 @@ export function DeepDiveTeachingInteraction({
               </div>
             ) : null}
             <div className="space-y-1">
-              <p className="font-medium">{correct ? "Yes." : "Not quite"}</p>
+              <p className="font-medium">{correct ? "Yes" : "Not quite"}</p>
               {singleChoiceFeedback ? (
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   {singleChoiceFeedback}
