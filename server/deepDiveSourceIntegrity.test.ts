@@ -12,6 +12,15 @@ const deepDivePaths = [
   "client/src/pages/responseconditioningsystem/transformation-phases/structured-execution.tsx",
   "client/src/pages/responseconditioningsystem/transformation-phases/controlled-discomfort.tsx",
   "client/src/pages/responseconditioningsystem/transformation-phases/time-pressure-stability.tsx",
+  "client/src/pages/responseconditioningsystem/execution-standards/how-to-model.tsx",
+  "client/src/pages/responseconditioningsystem/execution-standards/how-to-guide.tsx",
+  "client/src/pages/responseconditioningsystem/execution-standards/how-to-use-boss-battles.tsx",
+  "client/src/pages/responseconditioningsystem/execution-standards/what-not-to-do.tsx",
+  "client/src/pages/responseconditioningsystem/execution-standards/emotional-discipline-under-discomfort.tsx",
+  "client/src/pages/responseconditioningsystem/system-intelligence/how-to-diagnose.tsx",
+  "client/src/pages/responseconditioningsystem/system-intelligence/how-to-interpret-prompts.tsx",
+  "client/src/pages/responseconditioningsystem/system-intelligence/how-baselines-are-established.tsx",
+  "client/src/pages/responseconditioningsystem/system-intelligence/how-the-system-resolves-uncertainty.tsx",
   "client/src/pages/responseconditioningsystem/session-infrastructure/intro-session-structure.tsx",
   "client/src/pages/responseconditioningsystem/session-infrastructure/logging-system.tsx",
   "client/src/pages/responseconditioningsystem/session-infrastructure/session-flow-control.tsx",
@@ -25,6 +34,16 @@ test("live Deep Dive modules load through the TSX runtime", async () => {
     const moduleUrl = new URL(`../${sourcePath}`, import.meta.url);
     const loaded = await import(moduleUrl.href);
     assert.equal(typeof loaded.default, "function", sourcePath);
+  }
+});
+
+test("all 20 live Deep Dives use the piece-by-piece lesson runner and Mastery completion", () => {
+  assert.equal(deepDivePaths.length, 20);
+  for (const sourcePath of deepDivePaths) {
+    const source = read(sourcePath);
+    assert.match(source, /DeepDiveLessonRunner/, sourcePath);
+    assert.match(source, /DeepDiveCapabilityCheck/, sourcePath);
+    assert.doesNotMatch(source, /completion=\{null\}/, sourcePath);
   }
 });
 
