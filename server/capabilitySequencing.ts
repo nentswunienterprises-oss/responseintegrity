@@ -90,8 +90,8 @@ export async function getSpecialistCapabilityTrainingState(input: {
               evidence_kind,
               max_attempts,
               retry_cooldown_hours,
-              review_mode
-         FROM private.specialist_capability_assessment_configs
+              COALESCE((to_jsonb(config)->>'review_mode')::boolean, false) AS review_mode
+         FROM private.specialist_capability_assessment_configs AS config
         WHERE active = true
           AND evidence_kind IN ('mastery', 'retrieval', 'transfer')`,
     ),
