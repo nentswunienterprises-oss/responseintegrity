@@ -6,7 +6,7 @@ Q1
 What capability is Controlled Discomfort designed to build?
 
 Expected Answer
-The ability to keep a known method and productive response functioning when difficulty, uncertainty, or unfamiliarity appears.
+The ability to keep a known method and productive response functioning when challenging same-form difficulty is introduced under a defined support boundary.
 
 Fail Answer
 Confidence
@@ -61,7 +61,7 @@ Q6
 What is the purpose and support boundary of Repeat Exposure?
 
 Expected Answer
-It tests whether the response becomes consistent across repeated challenging exposure at the same difficulty with no tutor support.
+It tests whether the response becomes consistent across repeated challenging exposure at the same difficulty with no Specialist support.
 
 Fail Answer
 Reduce difficulty after every struggle
