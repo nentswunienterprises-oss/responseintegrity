@@ -78,3 +78,17 @@ Founder correction: 2 October 2026.
 
 Implementation branch:
 `fix/preview-training-session-authority`
+
+
+## Multi-select interaction structure - 2 October 2026
+
+Multi-select is not a pile of plausible sentences. It must have a readable reasoning shape.
+
+- The stem defines one clear selection rule, such as **Which conclusions are supported?**, **Which responses preserve the condition?**, or **Which actions violate the boundary?**
+- Options are standalone claims. Do not mix a statement-selection stem with inherited Yes/No answers from an older binary question.
+- Correct options must express distinct truths, not several paraphrases of the same principle.
+- The component owns the instruction **Select all that apply.** Do not repeat that sentence inside the stem.
+- Before confirmation, the interface shows how many options are selected.
+- After confirmation, the interface separates missed required selections from selected options that do not apply.
+- Fully correct multi-select feedback is concise and does not print a stack of repeated "Yes" explanations.
+- The Core rule is always shown after a multi-select submission so the learner can compress the set back into one reusable RI principle.
