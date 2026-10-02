@@ -358,7 +358,7 @@ export default function ResponseConditioningTimePressureStability() {
           </p>
           <div className="rounded-lg border bg-background p-4">
             <p className="font-semibold text-lg">
-              {trainingSchema.sets.map((set) => `${set.setName} (${set.reps})`).join(" -> ")}
+              {trainingSchema.sets.map((set) => `${set.setName} (${set.reps})`).join(", ")}
             </p>
             <p className="text-sm text-muted-foreground mt-2">
               {requiredTrainingProblems} required opportunities in the live training drill. Every set produces evidence about structure under time.
