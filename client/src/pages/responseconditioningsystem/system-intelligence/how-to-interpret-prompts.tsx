@@ -139,37 +139,37 @@ export default function ResponseConditioningHowToInterpretPrompts() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="The observation form later asks how the student recognized the method, but the live independent opportunity never exposed that reasoning. Which responses preserve evidence integrity? Select every option that applies."
+          prompt="The observation form later asks how the student recognized the method, but the live independent opportunity never exposed that reasoning. Which responses preserve evidence integrity?"
           options={[
             {
               key: "a",
-              label: "Yes. Every field should be made observable before the opportunity ends.",
-              feedback: "That would change the opportunity. Missing evidence is allowed to remain not observed.",
+              label: "Ask before the opportunity ends so every observation field can be filled.",
+              feedback: "That changes the opportunity. Missing evidence is allowed to remain not observed.",
             },
             {
               key: "b",
-              label: "No. Preserve the live condition and record not observed if that behavior was never exposed.",
-              feedback: "Yes. The form records the response. It must not manufacture the response.",
+              label: "Record the recognition dimension as not observed for this opportunity.",
+              feedback: "The form records the response. It must not manufacture the response.",
             },
             {
               key: "c",
-              label: "Only if the Specialist asks neutrally.",
+              label: "Ask a neutral recognition question because neutral wording preserves independence.",
               feedback: "Even a neutral question can elicit evidence the opportunity was not designed to produce.",
             },
-              {
-                key: "d",
-                label: "No. Let the original opportunity stand even if the recognition field remains unresolved.",
-                feedback: "Yes. Missing evidence is preferable to manufactured observability.",
-              },
-              {
-                key: "e",
-                label: "Ask only after the student has finished, then treat that answer as if it had been exposed in the original opportunity.",
-                feedback: "A later elicited answer is a different evidence event and cannot be backfilled into the original response.",
-              },
+            {
+              key: "d",
+              label: "Keep the rest of the opportunity intact instead of adding a follow-up just to manufacture the missing dimension.",
+              feedback: "Missing evidence is preferable to manufactured observability.",
+            },
+            {
+              key: "e",
+              label: "Ask after the student finishes, then backfill that answer into the original opportunity.",
+              feedback: "A later elicited answer is a different evidence event and cannot be backfilled into the original response.",
+            },
           ]}
           kind="multi_select"
           correctOptionKeys={["b","d"]}
-          truth="Observation prompts are evidence capture, not a script for forcing every behavior to appear."
+          truth="Observation prompts capture evidence; they do not authorize the Specialist to create missing evidence. A dimension that was not exposed remains not observed."
         />
 
         <Card className="p-6 space-y-4">
