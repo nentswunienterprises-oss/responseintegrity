@@ -86,38 +86,19 @@ export default function ResponseConditioningTopicConditioning() {
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Why this matters</h2>
-          <p className="text-muted-foreground">Most tutoring asks: "Does the student understand this topic?"</p>
-          <p className="font-semibold">Response Integrity asks a harder and more useful question:</p>
-          <p className="font-semibold">"In this topic, where does the student break?"</p>
-          <p className="text-muted-foreground">That changes everything.</p>
-          <p className="text-muted-foreground">Because a student can:</p>
+          <p className="text-muted-foreground">
+            Topic knowledge and response capability are separate questions. A student may know substantial content and still break at a specific response layer.
+          </p>
+          <p className="font-semibold">RI-OS asks: "In this topic, where does the response first become unreliable?"</p>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-            <li>understand some parts of a topic</li>
-            <li>still freeze in that topic</li>
-            <li>still guess in that topic</li>
-            <li>still rush in that topic</li>
-            <li>still collapse under time in that topic</li>
+            <li>Clarity: is the mental map usable?</li>
+            <li>Structured Execution: can the known method run independently and in order?</li>
+            <li>Controlled Discomfort: does that response survive challenging same-form difficulty?</li>
+            <li>Time Pressure Stability: does the trained response survive individualized urgency?</li>
           </ul>
-          <p className="text-muted-foreground">So the real issue is not just topic knowledge.</p>
-          <p className="font-semibold">The real issue is:</p>
-          <p className="font-semibold">How the student behaves inside that topic when difficulty appears.</p>
-          <p className="text-muted-foreground">That is what Response Integrity conditions.</p>
-          <p className="text-muted-foreground">Response Integrity is not trying to:</p>
-          <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-            <li>teach as much content as possible in one session</li>
-            <li>move through the syllabus as fast as possible</li>
-            <li>finish topics for the sake of progress</li>
-            <li>impress parents with volume</li>
-          </ul>
-          <p className="text-muted-foreground">Response Integrity is doing something more precise.</p>
-          <p className="text-muted-foreground">Response Integrity is asking:</p>
-          <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-            <li>Inside this topic, is the student clear?</li>
-            <li>Can they execute?</li>
-            <li>Can they stay stable when difficulty appears?</li>
-            <li>Can they stay stable when time pressure appears?</li>
-          </ul>
-          <p className="font-semibold">If not, the topic is not conditioned yet.</p>
+          <p className="font-semibold">
+            Topic Conditioning exists to locate that layer precisely and run the system-owned condition required next.
+          </p>
         </Card>
 
         <Card className="p-6 space-y-4">
@@ -511,24 +492,17 @@ export default function ResponseConditioningTopicConditioning() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Why Topic Conditioning is different from normal tutoring</h2>
-          <p className="text-muted-foreground">Normal tutoring usually works like this:</p>
+          <h2 className="text-2xl font-bold">The operating sequence</h2>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-            <li>explain topic</li>
-            <li>practice topic</li>
-            <li>move on</li>
+            <li>identify the active topic</li>
+            <li>establish or inherit its evidence-derived state</li>
+            <li>run the system-authorized phase, set, and constraint</li>
+            <li>record concrete response evidence</li>
+            <li>follow the resulting hold, movement, readiness, or re-diagnosis direction</li>
           </ul>
-          <p className="text-muted-foreground">Response Integrity works like this:</p>
-          <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-            <li>select topic</li>
-            <li>diagnose where response breaks in that topic</li>
-            <li>apply the correct phase</li>
-            <li>repeat until response stabilizes</li>
-            <li>move only when stable</li>
-          </ul>
-          <p className="text-muted-foreground">That means Response Integrity is not competing on more hours, worksheets, or explanations.</p>
-          <p className="font-semibold">Response Integrity is competing on precision of response training.</p>
-          <p className="font-semibold">This is why Response Integrity feels different.</p>
+          <p className="font-semibold">
+            The Specialist does not replace this sequence with a preferred worksheet, phase, timer, or progression decision.
+          </p>
         </Card>
 
         <DeepDiveTeachingInteraction
@@ -628,29 +602,21 @@ export default function ResponseConditioningTopicConditioning() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">What the parent is really buying</h2>
-          <p className="text-muted-foreground">Parents may think they are buying math tutoring, support with schoolwork, and help with difficult topics.</p>
-          <p className="font-semibold">
-            But what Response Integrity is really delivering is conditioned response inside the topics that currently break the
-            student.
+          <h2 className="text-2xl font-bold">What Topic Conditioning connects</h2>
+          <p className="text-muted-foreground">
+            Topic Conditioning binds real school content to the operating state RI-OS can defend for that topic.
           </p>
-          <p className="text-muted-foreground">That is why Response Integrity is stronger than ordinary tutoring.</p>
-          <p className="text-muted-foreground">Because you are not just helping the child "understand fractions."</p>
-          <p className="text-muted-foreground">You are training them to stay calm, start, execute, and remain stable under time and difficulty.</p>
-          <p className="text-muted-foreground">Then you do the same in algebra, then word problems, then exponents.</p>
-          <p className="text-muted-foreground">Over time, the child changes. Not just their knowledge. Their response.</p>
-          <p className="font-semibold">
-            Topic Conditioning is the process of using real school topics as arenas to train stable academic response
-            through the Response Integrity Operating System.
-          </p>
-          <p className="text-muted-foreground">It connects:</p>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-            <li>the student's actual school topics</li>
-            <li>the parent's observed symptoms</li>
-            <li>the Specialist's diagnosis</li>
-            <li>the OS phases</li>
-            <li>the student's transformation</li>
+            <li>the student's active school topic</li>
+            <li>the starting signal or inherited topic state</li>
+            <li>direct behavioral evidence from Diagnosis, Training, or Handover</li>
+            <li>the current phase and stability</li>
+            <li>the registered set, support, difficulty, variation, and timing condition</li>
+            <li>the next system-authorized action</li>
           </ul>
+          <p className="font-semibold">
+            The topic is the arena. The Response Integrity Operating System determines what capability is being conditioned inside it.
+          </p>
         </Card>
         </DeepDiveLessonRunner>
       </div>

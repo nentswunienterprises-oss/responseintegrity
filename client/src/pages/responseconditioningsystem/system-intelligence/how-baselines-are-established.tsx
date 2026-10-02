@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,7 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
         <DeepDiveLessonRunner
           lessonKey="system-intelligence-how-baselines-are-established-v1"
           title="How Baselines Are Established"
-          completion={null}
+          completion={<DeepDiveCapabilityCheck assessmentKey="how_baselines_are_established_mastery_v1" />}
         >
         <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Baseline does not mean one thing</h2>
