@@ -174,7 +174,7 @@ export default function ResponseConditioningWhatNotToDo() {
           </Card>
 
           <DeepDiveTeachingInteraction
-            prompt="A TPS rep times out with panic and incomplete work, but the timer worked correctly. Which actions must the Specialist NOT take? Select every option that applies."
+            prompt="A TPS rep times out with panic and incomplete work, but the timer worked correctly. Which actions would violate the evidence boundary?"
             options={[
               {
                 key: "a",
@@ -184,7 +184,7 @@ export default function ResponseConditioningWhatNotToDo() {
               {
                 key: "b",
                 label: "Start a replacement attempt so the student gets a fair chance to show a better response.",
-                feedback: "Yes. This must not happen. Student failure under a valid timer is real evidence, not a technical replacement condition.",
+                feedback: "Student failure under a valid timer is real evidence, not a technical replacement condition.",
               },
               {
                 key: "c",
@@ -193,18 +193,18 @@ export default function ResponseConditioningWhatNotToDo() {
               },
               {
                 key: "d",
-                label: "Classify the attempt as a technical timer failure merely because the student response broke down.",
-                feedback: "Yes. Student panic and timeout under a working timer are performance evidence, not technical failure.",
+                label: "Classify the attempt as a technical timer failure because the student response broke down.",
+                feedback: "Student panic and timeout under a working timer are performance evidence, not technical failure.",
               },
               {
                 key: "e",
                 label: "Delete the attempt and reuse the same exposed problem so the student can show what they can really do.",
-                feedback: "Yes. A valid weak response must remain in the record and does not authorize a second chance on the same problem.",
+                feedback: "A valid weak response must remain in the record and does not authorize a second chance on the same problem.",
               },
             ]}
             kind="multi_select"
-          correctOptionKeys={["b","d","e"]}
-            truth="Replacement authority exists for objective technical failure only, never for an undesirable student result."
+            correctOptionKeys={["b","d","e"]}
+            truth="When timing works, the student's panic, timeout, wrong method or incomplete work are real evidence. Do not create a replacement, relabel the attempt as technical failure, or erase the valid response."
           />
 
           <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
