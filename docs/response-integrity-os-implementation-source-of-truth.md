@@ -99,11 +99,13 @@ The Specialist development pathway is:
 - Application -> Training -> Sandbox -> Practicals -> Trial -> Certification -> Certified Live
 - standard development window: 75 active days
 - approved documented extension maximum: 90 active days
-- Transformation Training authority: each of the five Transformation Deep Dives uses a 45-item private Mastery bank; a 15-question form requires a clean 15/15 pass with no critical fail, with at most three total attempts
+- every one of the 20 live Deep Dives has a Capability Mastery gate in the public architecture; each Mastery gate is designed for a 45-item private bank and a balanced 15-question form requiring a clean 15/15 pass with no critical fail, with at most three total attempts
+- private-bank activation is versioned and fail-closed: a Deep Dive whose approved private bank is not active remains unavailable rather than silently bypassed
 - Mastery retries prefer unseen questions while preserving competency and critical-boundary coverage
-- after all five Transformation Masteries, a separately authored 25-question Delayed Retrieval gate requires 24/25+ with no critical fail after the required spacing interval
+- the five Transformation Deep Dives remain the authority boundary for Sandbox entry: after all five Transformation Masteries, a separately authored 25-question Delayed Retrieval gate requires 24/25+ with no critical fail after the required spacing interval
 - after Retrieval, a separately authored 25-question Interleaved Transfer gate requires 24/25+ with no critical fail
-- Sandbox opens only after all five Transformation Masteries plus Transformation Retrieval plus Transformation Transfer; Sandbox access is an expansion of Training, not Training completion
+- Sandbox opens only after all five Transformation Masteries plus Transformation Retrieval plus Transformation Transfer; Execution Standards, System Intelligence and Session Infrastructure Mastery remain part of Specialist Training but do not silently replace the approved Transformation Sandbox-entry gate
+- Sandbox access is an expansion of Training, not Training completion
 - Sandbox capability evaluation: continuous, system-derived evidence across Condition, Observation, Evidence, Authority, and Continuity Integrity
 - Sandbox exit authority: the system must first resolve Practicals readiness; the assigned TD then records either remediation or an explicit readiness sign-off for Practicals entry
 - Practicals is the governed stage after Sandbox; it is not a shortcut into Trial and it is not opened by Battle Testing
