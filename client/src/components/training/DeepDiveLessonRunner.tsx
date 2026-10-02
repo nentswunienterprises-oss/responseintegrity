@@ -118,8 +118,8 @@ export function DeepDiveLessonRunner({
       <div className="ri-lesson-chrome sticky top-0 z-20 -mx-4 border-b bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/85">
         <div className="mx-auto max-w-3xl space-y-2">
           <div className="flex items-center justify-between gap-4 text-sm">
-            <p className="font-medium">{title}</p>
-            <p className="text-muted-foreground">
+            <p className="min-w-0 flex-1 font-medium">{title}</p>
+            <p className="shrink-0 whitespace-nowrap tabular-nums text-muted-foreground">
               {complete
                 ? "Complete"
                 : `${stepIndex + 1} of ${Math.max(steps.length, 1)}`}
