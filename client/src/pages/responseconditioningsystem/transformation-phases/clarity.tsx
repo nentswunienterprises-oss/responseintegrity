@@ -404,31 +404,31 @@ export default function ResponseConditioningClarity() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A correctly prepared Identification rep is run without contamination, and the student cannot name the method. Which statements are true? Select every option that applies."
+          prompt="A correctly prepared Identification rep is run without contamination, and the student cannot name the method. Which conclusions are supported?"
           options={[
             {
-              key: "c",
-              label: "The student's recognition at that moment; the rep itself can still be valid evidence.",
-              feedback: "Yes. Specialist execution and learner performance are separate truths.",
-            },
-            {
               key: "a",
-              label: "The Specialist's execution, because a valid rep should produce the target behavior.",
+              label: "The Specialist executed the rep incorrectly because a valid rep should produce the target behavior.",
               feedback: "A well-run evidence condition does not guarantee a strong learner response. Its job is to reveal what is actually supported.",
             },
             {
               key: "b",
-              label: "The evidence event, because a rep that does not produce a correct response must be repeated before it can count.",
+              label: "The evidence event is invalid because incorrect responses do not count.",
               feedback: "A genuine breakdown is already useful evidence. Repeating until success would replace observation with outcome-chasing.",
             },
             {
+              key: "c",
+              label: "The student's recognition broke down in that opportunity.",
+              feedback: "The learner did not produce the required recognition under the clean Identification condition.",
+            },
+            {
               key: "d",
-              label: "The Specialist can still have executed the rep correctly even though the learner response was weak.",
-              feedback: "Yes. Correct Specialist execution and weak student performance can coexist.",
+              label: "The rep can still be valid evidence if the Specialist preserved the condition.",
+              feedback: "Correct Specialist execution and weak student performance can coexist.",
             },
             {
               key: "e",
-              label: "The rep should be repeated until the student names the method so the evidence event has a complete result.",
+              label: "The rep should be repeated until the student names the method.",
               feedback: "Repeating until success would chase a preferred outcome. The first clean breakdown is already useful evidence.",
             },
           ]}
