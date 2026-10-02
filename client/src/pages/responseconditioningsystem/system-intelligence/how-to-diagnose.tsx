@@ -85,37 +85,37 @@ export default function ResponseConditioningHowToDiagnose() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A parent says the student collapses in exams, so the starting signal points to Time Pressure Stability. Which statements are true? Select every option that applies."
+          prompt="A parent says the student collapses in exams. What can RI legitimately conclude from that starting signal?"
           options={[
             {
               key: "a",
-              label: "Yes. The parent symptom is enough because it names a pressure problem.",
+              label: "The topic is placed in Time Pressure Stability because the symptom names exam pressure.",
               feedback: "A symptom can route the first evidence question, but it cannot prove that Clarity, Structured Execution, and Controlled Discomfort are already intact.",
             },
             {
               key: "b",
-              label: "No. It is a routing hypothesis. Behavioral evidence still has to establish the earliest unreliable response layer.",
-              feedback: "Yes. The system uses the signal to search efficiently without turning the signal into placement authority.",
+              label: "The report can determine which evidence question RI asks first.",
+              feedback: "The report can make Diagnosis more efficient by routing the first evidence question.",
             },
             {
               key: "c",
-              label: "Yes, but only if the Specialist personally agrees with the parent.",
+              label: "The Specialist can convert the report into placement evidence if they personally agree with it.",
               feedback: "Specialist agreement does not create placement authority. Evidence does.",
             },
-              {
-                key: "d",
-                label: "The parent report can still help RI decide which evidence question to ask first.",
-                feedback: "Yes. A starting signal can improve routing without becoming placement authority.",
-              },
-              {
-                key: "e",
-                label: "TPS can only own the placement once earlier response layers have been sufficiently supported by behavioral evidence.",
-                feedback: "Yes. A later pressure layer cannot be assumed while an earlier layer remains unresolved.",
-              },
+            {
+              key: "d",
+              label: "The report is a routing hypothesis, not placement evidence.",
+              feedback: "Starting signals guide the search; they do not establish final phase.",
+            },
+            {
+              key: "e",
+              label: "Time Pressure Stability can own placement only after earlier required response layers are sufficiently supported.",
+              feedback: "A later-pressure placement must be supported by evidence that earlier required layers hold.",
+            },
           ]}
           kind="multi_select"
           correctOptionKeys={["b","d","e"]}
-          truth="Starting signals make Diagnosis efficient. They do not replace evidence-complete placement."
+          truth="Starting signals make Diagnosis efficient. They guide where RI asks first, but direct behavioral evidence still determines the earliest unreliable response layer and final placement."
         />
 
         <Card className="p-6 space-y-4">
