@@ -575,32 +575,32 @@ export default function ResponseConditioningTimePressureStability() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="The timer works correctly, but the student freezes and does not finish. Which statements are true? Select every option that applies."
+          prompt="The timer works correctly, but the student freezes and does not finish. Which conclusions are supported?"
           options={[
             {
               key: "a",
-              label: "Run a replacement, because incomplete attempts should not count.",
+              label: "A replacement should run because incomplete timed attempts should not count.",
               feedback: "Non-completion under a valid timer is itself evidence of the response under pressure. Replacement is not for undesirable learner outcomes.",
             },
             {
               key: "b",
-              label: "Keep it. A valid timer makes the freeze learner evidence, not a reason to replace the attempt.",
-              feedback: "Yes. A working timer plus a weak response is still a valid observation of timed stability.",
+              label: "The attempt remains a valid timed evidence event.",
+              feedback: "A working timer plus a weak response is still a valid observation of timed stability.",
             },
             {
               key: "c",
-              label: "Mark the attempt as confounded, because freezing is an emotional response rather than mathematical performance.",
+              label: "The attempt is confounded because freezing is emotional rather than mathematical.",
               feedback: "RI is explicitly observing whether the student can remain functional under the condition. Freezing is part of that response, not a reason to erase it.",
             },
             {
               key: "d",
-              label: "No replacement is unlocked because the timing condition itself did not fail.",
-              feedback: "Yes. Replacement authority comes from objective failure of the timing condition, not weak learner performance.",
+              label: "No technical replacement is unlocked because the timing condition itself did not fail.",
+              feedback: "Replacement authority comes from objective failure of the timing condition, not weak learner performance.",
             },
             {
               key: "e",
-              label: "The freeze and non-completion remain learner evidence under the valid timed condition.",
-              feedback: "Yes. TPS is explicitly observing whether the trained response survives urgency.",
+              label: "The freeze and non-completion are student-response evidence under urgency.",
+              feedback: "TPS is explicitly observing whether the trained response survives urgency.",
             },
           ]}
           kind="multi_select"
