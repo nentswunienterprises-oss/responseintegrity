@@ -428,31 +428,31 @@ export default function ResponseConditioningControlledDiscomfort() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="The Specialist preserves the difficulty and support boundary, but the student eventually stops and cannot continue. Which statements are true? Select every option that applies."
+          prompt="The Specialist preserves the difficulty and support boundary, but the student eventually stops and cannot continue. Which conclusions are supported?"
           options={[
             {
               key: "a",
-              label: "Yes, because a valid difficulty rep must reach completion before it can say anything about stability.",
+              label: "The rep is invalid because completion is required before it can say anything about stability.",
               feedback: "Completion is not required for the rep to reveal a breakdown. The student's stopping point can be exactly the evidence the condition was designed to expose.",
             },
             {
               key: "b",
-              label: "Only if the Specialist thinks a little more encouragement would have worked.",
+              label: "Validity depends on whether the Specialist believes more encouragement would have worked.",
               feedback: "Specialist expectation does not decide validity. The question is whether the assigned condition was preserved.",
             },
             {
               key: "c",
-              label: "No. Rep validity comes from preserving the condition, not from whether the student completes it.",
-              feedback: "Yes. Weak learner performance and correct Specialist execution can coexist.",
+              label: "Rep validity comes from preserving the assigned condition, not from successful completion.",
+              feedback: "Weak learner performance and correct Specialist execution can coexist.",
             },
             {
               key: "d",
-              label: "The stopping point is usable evidence of how the response behaved under the assigned difficulty.",
-              feedback: "Yes. A clean breakdown can be the exact evidence the set was meant to expose.",
+              label: "The stopping point is usable evidence of the response under the assigned difficulty.",
+              feedback: "A clean breakdown can be the exact evidence the set was meant to expose.",
             },
             {
               key: "e",
-              label: "Run a replacement because non-completion cannot count toward stability evidence.",
+              label: "A replacement should be run because non-completion cannot count toward stability evidence.",
               feedback: "Replacement is not a second chance for weak student performance. The valid non-completion remains evidence.",
             },
           ]}
