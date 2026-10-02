@@ -140,6 +140,7 @@ const modules = [
 
 type MasteryAvailability = {
   assessmentKey: string;
+  evidenceKind: "mastery" | "retrieval" | "transfer";
   coveredDeepDiveKeys: string[];
   status: "unavailable" | "locked" | "available" | "complete";
   reason: "bank_unavailable" | "attempt_limit" | "retry_cooldown" | null;
@@ -171,10 +172,13 @@ export default function ResponseConditioningSystem() {
   });
 
   const capabilityAssessments = capabilityPlanQuery.data?.assessments || [];
-  const completedCapabilityChecks = capabilityAssessments.filter(
+  const masteryAssessments = capabilityAssessments.filter(
+    (assessment) => assessment.evidenceKind === "mastery",
+  );
+  const completedCapabilityChecks = masteryAssessments.filter(
     (assessment) => assessment.status === "complete",
   ).length;
-  const totalCapabilityChecks = capabilityAssessments.length || 20;
+  const totalCapabilityChecks = masteryAssessments.length || 20;
   const capabilityProgressPercent =
     totalCapabilityChecks > 0
       ? Math.round((completedCapabilityChecks / totalCapabilityChecks) * 100)
