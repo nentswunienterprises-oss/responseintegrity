@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -64,6 +65,11 @@ export default function ResponseConditioningLoggingSystem() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+        <DeepDiveLessonRunner
+          lessonKey="logging-system-v2"
+          title="Logging System"
+          completion={<DeepDiveCapabilityCheck assessmentKey="logging_system_mastery_v1" />}
+        >
         <Card className="p-6 space-y-4 border-2 border-primary/20 bg-primary/5">
           <h2 className="text-2xl font-bold">What Logging Is</h2>
           <p className="text-muted-foreground">
@@ -200,7 +206,7 @@ export default function ResponseConditioningLoggingSystem() {
           <h2 className="text-2xl font-bold">Specialist Standard</h2>
           <p className="font-semibold">Observe accurately. Preserve the condition. Record intervention honestly. Keep missing evidence missing. Let evidence determine the decision.</p>
         </Card>
-        <DeepDiveCapabilityCheck assessmentKey="logging_system_mastery_v1" />
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );

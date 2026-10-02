@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -66,6 +67,11 @@ export default function ResponseConditioningDrillLibrary() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+        <DeepDiveLessonRunner
+          lessonKey="drill-library-v2"
+          title="Drill Library"
+          completion={<DeepDiveCapabilityCheck assessmentKey="drill_library_mastery_v1" />}
+        >
         <Card className="p-6 space-y-4 border-2 border-primary/20 bg-primary/5">
           <h2 className="text-2xl font-bold">A Drill Is a Controlled Evidence Condition</h2>
           <p className="text-muted-foreground">
@@ -145,7 +151,7 @@ export default function ResponseConditioningDrillLibrary() {
           <h2 className="text-2xl font-bold">Specialist Standard</h2>
           <p className="font-semibold">Use the authorized drill source. Preserve the condition. Record the real response. Let evidence decide what happens next.</p>
         </Card>
-        <DeepDiveCapabilityCheck assessmentKey="drill_library_mastery_v1" />
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );

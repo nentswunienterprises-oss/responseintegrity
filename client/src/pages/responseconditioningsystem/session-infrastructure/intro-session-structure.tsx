@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -135,6 +136,11 @@ export default function ResponseConditioningIntroSessionStructure() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+        <DeepDiveLessonRunner
+          lessonKey="intro-session-structure-v2"
+          title="Intro Session Structure"
+          completion={<DeepDiveCapabilityCheck assessmentKey="intro_session_structure_mastery_v1" />}
+        >
         <Card className="p-6 space-y-4 border-2 border-primary/20 bg-primary/5">
           <h2 className="text-2xl font-bold">What Intro Is</h2>
           <p className="text-muted-foreground">
@@ -505,7 +511,7 @@ export default function ResponseConditioningIntroSessionStructure() {
             from the state that the evidence supports.
           </p>
         </Card>
-        <DeepDiveCapabilityCheck assessmentKey="intro_session_structure_mastery_v1" />
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );

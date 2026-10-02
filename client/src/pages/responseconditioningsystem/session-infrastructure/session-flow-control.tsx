@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -67,6 +68,11 @@ export default function ResponseConditioningSessionFlowControl() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+        <DeepDiveLessonRunner
+          lessonKey="session-flow-control-v2"
+          title="Session Flow Control"
+          completion={<DeepDiveCapabilityCheck assessmentKey="session_flow_control_mastery_v1" />}
+        >
         <Card className="p-6 space-y-4 border-2 border-primary/20 bg-primary/5">
           <h2 className="text-2xl font-bold">The First Question Is Context</h2>
           <p className="text-muted-foreground">
@@ -122,7 +128,7 @@ export default function ResponseConditioningSessionFlowControl() {
             Do not improvise a fourth session context between the defined ones, and do not use one context's rules to solve another context's problem.
           </p>
         </Card>
-        <DeepDiveCapabilityCheck assessmentKey="session_flow_control_mastery_v1" />
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
+import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -72,6 +73,11 @@ export default function ResponseConditioningHandoverVerification() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+        <DeepDiveLessonRunner
+          lessonKey="handover-verification-v2"
+          title="Handover Verification"
+          completion={<DeepDiveCapabilityCheck assessmentKey="handover_verification_mastery_v1" />}
+        >
         <Card className="p-6 space-y-4 border-2 border-primary/20 bg-primary/5">
           <h2 className="text-2xl font-bold">What Handover Is</h2>
           <p className="text-muted-foreground">
@@ -153,7 +159,7 @@ export default function ResponseConditioningHandoverVerification() {
           <p className="font-semibold">Preserve history. Hold the inherited phase conditions. Record behavior exactly. Let the evidence model decide.</p>
           <p className="text-sm text-muted-foreground">A reliable Handover should feel continuous to the student while remaining independently defensible to the next Specialist, the institution, and any later audit.</p>
         </Card>
-        <DeepDiveCapabilityCheck assessmentKey="handover_verification_mastery_v1" />
+        </DeepDiveLessonRunner>
       </div>
     </div>
   );
