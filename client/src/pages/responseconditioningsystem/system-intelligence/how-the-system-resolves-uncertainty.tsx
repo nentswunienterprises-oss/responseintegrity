@@ -68,37 +68,37 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A student receives a first-step cue before the Specialist can see whether they would start independently. Which statements are reliable? Select every option that applies."
+          prompt="A student receives a first-step cue before the Specialist can see whether they would start independently. Which conclusions are supported?"
           options={[
             {
               key: "a",
-              label: "The student had a weak independent start.",
+              label: "The student demonstrated a weak independent start.",
               feedback: "The cue changed the condition before independent start behavior could be observed cleanly.",
             },
             {
               key: "b",
               label: "Independent start is confounded or not observed, depending on what was actually exposed.",
-              feedback: "Yes. Do not manufacture weakness from a condition that no longer answered the independent-start question.",
+              feedback: "Do not manufacture weakness from a condition that no longer answered the independent-start question.",
             },
             {
               key: "c",
-              label: "The student had a strong start because they continued after the cue.",
+              label: "The student demonstrated a strong start because they continued successfully after the cue.",
               feedback: "Assisted continuation cannot prove the missing independent start.",
             },
-              {
-                key: "d",
-                label: "The cue itself should remain visible in the evidence record because it changed the condition.",
-                feedback: "Yes. The intervention is part of the truth of what happened.",
-              },
-              {
-                key: "e",
-                label: "The later independent work proves that the student would have started independently without the cue.",
-                feedback: "Later performance cannot prove the counterfactual first step that was never observed.",
-              },
+            {
+              key: "d",
+              label: "The cue belongs in the evidence record because it changed the condition.",
+              feedback: "The intervention is part of the truth of what happened.",
+            },
+            {
+              key: "e",
+              label: "Later independent work proves that the student would have started independently without the cue.",
+              feedback: "Later performance cannot prove the counterfactual first step that was never observed.",
+            },
           ]}
           kind="multi_select"
           correctOptionKeys={["b","d"]}
-          truth="Evidence validity and student behavior must remain separate. A changed condition cannot prove the original claim."
+          truth="When support arrives before the target behavior can be observed, preserve the intervention and the observability limit. Do not convert an unseen independent response into strength or weakness."
         />
 
         <Card className="p-6 space-y-4">
