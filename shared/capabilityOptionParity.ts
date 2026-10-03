@@ -28,6 +28,12 @@ export interface CapabilityOptionParitySummary {
     optionKey: string;
     label: string;
   }>;
+  promptShapeMismatches: Array<{
+    itemKey: string;
+    optionKey: string;
+    prompt: string;
+    label: string;
+  }>;
 }
 
 export const CAPABILITY_OPTION_PARITY_MAX_SHORTCUT_RATE = 0.25;
@@ -91,6 +97,37 @@ function hasIndirectOptionCopy(label: string) {
   return INDIRECT_OPTION_PATTERNS.some((pattern) => pattern.test(label));
 }
 
+const IMPERATIVE_OPTION_START =
+  /^(?:use|keep|record|run|leave|treat|start|stop|preserve|follow|remove|ask|give|mark|move|return|continue|begin|hold|apply|collect|present|watch|finish|freeze|route|strip|allow|do not|don't|take|choose|write|click|say|speak|let|stay|end|wait)\b/i;
+
+const NON_ACTION_PROMPT =
+  /(?:what prevents|what authority|what (?:does|did) .*\b(?:mean|show|prove|reveal)\b|what (?:is|was) the (?:risk|concern|problem|issue|purpose|role|boundary|evidence|signal)|who (?:decides|owns|determines))/i;
+
+const ACTION_PROMPT =
+  /(?:what should|how should|what happens next|what should happen|which .* should)/i;
+
+function optionShapeMatchesPrompt(prompt: string, label: string) {
+  const normalizedPrompt = String(prompt || "").replace(/\s+/g, " ").trim();
+  const normalizedLabel = String(label || "").replace(/\s+/g, " ").trim();
+  if (!normalizedPrompt || !normalizedLabel) return true;
+
+  if (
+    NON_ACTION_PROMPT.test(normalizedPrompt) &&
+    IMPERATIVE_OPTION_START.test(normalizedLabel)
+  ) {
+    return false;
+  }
+
+  if (
+    ACTION_PROMPT.test(normalizedPrompt) &&
+    /^(?:because|since)\b/i.test(normalizedLabel)
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 export function analyzeCapabilityOptionParity(
   items: CapabilityOptionParityItem[],
 ): CapabilityOptionParitySummary {
@@ -103,6 +140,7 @@ export function analyzeCapabilityOptionParity(
   const acceptedKeyCounts: Record<string, number> = {};
   const acceptedLabelItems = new Map<string, { label: string; itemKeys: string[] }>();
   const indirectOptionCopy: CapabilityOptionParitySummary["indirectOptionCopy"] = [];
+  const promptShapeMismatches: CapabilityOptionParitySummary["promptShapeMismatches"] = [];
 
   for (const item of items) {
     if (
@@ -119,6 +157,17 @@ export function analyzeCapabilityOptionParity(
         indirectOptionCopy.push({
           itemKey: item.key,
           optionKey: option.key,
+          label: option.label,
+        });
+      }
+      if (
+        item.prompt &&
+        !optionShapeMatchesPrompt(item.prompt, option.label)
+      ) {
+        promptShapeMismatches.push({
+          itemKey: item.key,
+          optionKey: option.key,
+          prompt: item.prompt,
           label: option.label,
         });
       }
@@ -203,6 +252,7 @@ export function analyzeCapabilityOptionParity(
     nearDuplicateAcceptedPairKeys,
     reusedAcceptedTruths,
     indirectOptionCopy,
+    promptShapeMismatches,
   };
 }
 
@@ -254,6 +304,19 @@ export function assertCapabilityOptionParity(
       .join("; ");
     throw new Error(
       `Capability assessment ${assessmentKey} contains answer-option copy that comments on the option instead of answering the prompt directly. Remove meta phrasing such as "That can seem reasonable", "What matters is that", and "The key is that". ${examples}`,
+    );
+  }
+
+  if (summary.promptShapeMismatches.length > 0) {
+    const examples = summary.promptShapeMismatches
+      .slice(0, 5)
+      .map(
+        (entry) =>
+          `${entry.itemKey}/${entry.optionKey}: prompt="${entry.prompt}" option="${entry.label}"`,
+      )
+      .join("; ");
+    throw new Error(
+      `Capability assessment ${assessmentKey} contains answer options whose grammatical shape does not answer the prompt. Every correct and incorrect option must fit the exact question being asked. ${examples}`,
     );
   }
 
