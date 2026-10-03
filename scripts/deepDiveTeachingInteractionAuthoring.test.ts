@@ -34,6 +34,14 @@ test("formative interactions keep the OS-wide silent alternate-valid standard", 
       const optionCount = [...block.matchAll(/key:\s*"([^"]+)"/g)].length;
       assert.ok(optionCount >= 5, `${file} has a formative interaction with fewer than five options.`);
 
+      for (const match of block.matchAll(/label:\s*"([^"]+)"/g)) {
+        assert.doesNotMatch(
+          match[1],
+          /\bThat can seem reasonable\b|^What matters is that\b|^The key is that\b/i,
+          `${file} has formative answer copy that comments on the option instead of answering the prompt directly.`,
+        );
+      }
+
       if (kind === "multi_select") {
         assert.ok(accepted.length >= 2, `${file} multi-select needs at least two accepted answers.`);
         continue;
