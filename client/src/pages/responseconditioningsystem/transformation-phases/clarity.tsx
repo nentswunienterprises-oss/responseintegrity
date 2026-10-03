@@ -199,6 +199,35 @@ export default function ResponseConditioningClarity() {
           </p>
         </Card>
 
+
+
+        <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
+          <p className="text-muted-foreground">
+            Use the active student topic and the Map/pre-session preparation direction. Preparation is not generic worksheet
+            selection: every problem must be usable under the condition of the set it belongs to.
+          </p>
+          <div className="space-y-3">
+            {trainingSchema.sets.map((set) => (
+              <div key={set.setId} className="rounded-lg border p-4 space-y-2">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h3 className="font-semibold">{set.setName}</h3>
+                  <span className="text-sm text-muted-foreground">{set.reps} required {set.reps === 1 ? "opportunity" : "opportunities"}</span>
+                </div>
+                <p className="text-sm text-muted-foreground">{set.purpose}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{constraintLabel(set)}</p>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
+            <p className="font-semibold">Preparation boundary</p>
+            <p className="text-sm text-muted-foreground">
+              The current system defines quantity, support, pressure, variation, and difficulty constraints. It does not yet define
+              a complete universal rule for constructing every mathematical problem. Do not invent extra methodology and treat it as canon.
+            </p>
+          </div>
+        </Card>
+
         <DeepDiveTeachingInteraction
           prompt="You are choosing problems for a recognition-focused Clarity set. Which set gives the cleanest evidence?"
           options={[
@@ -227,33 +256,6 @@ export default function ResponseConditioningClarity() {
           correctOptionKeys={["c","a"]}
           truth="Clarity material should expose the student's mental map cleanly. It should avoid both rote surface repetition and unnecessary difficulty that would introduce a different breakdown."
         />
-
-        <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
-          <p className="text-muted-foreground">
-            Use the active student topic and the Map/pre-session preparation direction. Preparation is not generic worksheet
-            selection: every problem must be usable under the condition of the set it belongs to.
-          </p>
-          <div className="space-y-3">
-            {trainingSchema.sets.map((set) => (
-              <div key={set.setId} className="rounded-lg border p-4 space-y-2">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 className="font-semibold">{set.setName}</h3>
-                  <span className="text-sm text-muted-foreground">{set.reps} required {set.reps === 1 ? "opportunity" : "opportunities"}</span>
-                </div>
-                <p className="text-sm text-muted-foreground">{set.purpose}</p>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{constraintLabel(set)}</p>
-              </div>
-            ))}
-          </div>
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
-            <p className="font-semibold">Preparation boundary</p>
-            <p className="text-sm text-muted-foreground">
-              The current system defines quantity, support, pressure, variation, and difficulty constraints. It does not yet define
-              a complete universal rule for constructing every mathematical problem. Do not invent extra methodology and treat it as canon.
-            </p>
-          </div>
-        </Card>
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Run the Drill: Set by Set</h2>
@@ -324,34 +326,35 @@ export default function ResponseConditioningClarity() {
 
           return [
             setCard,
-                    <DeepDiveTeachingInteraction
-                      prompt="During an Identification rep, the student skips the recognition response, solves the problem immediately, and reaches the correct answer. What should the Specialist do with that result?"
-                      options={[
-                        {
-                          key: "b",
-                          label: "Do not treat the correct solve as recognition evidence; the required recognition response was never observed before execution.",
-                          feedback: "Yes. Identification isolates the mental map before execution, so the Specialist has to preserve recognition without solving.",
-                        },
-                        { key: "a", label: "Use a fresh equivalent Identification opportunity and ask for the type, method and reason before any solving begins.", feedback: "Yes. Identification must show recognition before execution; the Specialist can redirect the task without giving the recognition answer." },
-                        {
-                          key: "c",
-                          label: "Allow only the first few steps, then ask the student to explain the method before finishing.",
-                          feedback: "Partial solving still changes the evidence condition. The rep is meant to show recognition before any execution begins.",
-                        },
-                        {
-                          key: "d",
-                          label: "Let the solve finish, then infer that recognition must have been present because the method was used correctly.",
-                          feedback: "Execution can hide whether the student recognized the type, method and reason before solving. RI does not infer the missing recognition event.",
-                        },
-                        {
-                          key: "e",
-                          label: "Treat the solve as Light Apply and skip Identification because the student has already demonstrated a later response.",
-                          feedback: "A student drifting into a later task does not let the Specialist skip the condition RI assigned.",
-                        },
-                      ]}
-                      correctOptionKeys={["b","a"]}
-                      truth="Identification is a recognition condition, not a shortened solve. The student must identify what they are looking at, the method and the reason before execution begins."
-                    />
+            <DeepDiveTeachingInteraction
+              key="clarity-identification-boundary-check"
+              prompt="During an Identification rep, the student skips the recognition response, solves the problem immediately, and reaches the correct answer. What should the Specialist do with that result?"
+              options={[
+                {
+                  key: "b",
+                  label: "Do not treat the correct solve as recognition evidence; the required recognition response was never observed before execution.",
+                  feedback: "Yes. Identification isolates the mental map before execution, so the Specialist has to preserve recognition without solving.",
+                },
+                { key: "a", label: "Use a fresh equivalent Identification opportunity and ask for the type, method and reason before any solving begins.", feedback: "Yes. Identification must show recognition before execution; the Specialist can redirect the task without giving the recognition answer." },
+                {
+                  key: "c",
+                  label: "Allow only the first few steps, then ask the student to explain the method before finishing.",
+                  feedback: "Partial solving still changes the evidence condition. The rep is meant to show recognition before any execution begins.",
+                },
+                {
+                  key: "d",
+                  label: "Let the solve finish, then infer that recognition must have been present because the method was used correctly.",
+                  feedback: "Execution can hide whether the student recognized the type, method and reason before solving. RI does not infer the missing recognition event.",
+                },
+                {
+                  key: "e",
+                  label: "Treat the solve as Light Apply and skip Identification because the student has already demonstrated a later response.",
+                  feedback: "A student drifting into a later task does not let the Specialist skip the condition RI assigned.",
+                },
+              ]}
+              correctOptionKeys={["b","a"]}
+              truth="Identification is a recognition condition, not a shortened solve. The student must identify what they are looking at, the method and the reason before execution begins."
+            />
           ];
         })}
 
