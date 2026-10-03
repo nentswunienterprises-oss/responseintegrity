@@ -9,9 +9,9 @@ const contexts = [
     title: "Intro Diagnosis",
     purpose: "Establish the correct Training entry state for a newly activated topic.",
     specialist:
-      "Present the system-selected probe, preserve its condition, record concrete behavior and intervention, submit, then follow the next evidence question.",
+      "Present the check RI-OS selects, preserve its condition, record concrete behavior and intervention, submit, then follow the next evidence question.",
     system:
-      "Select probes from the evidence state, strip constraints when needed, derive Low / Medium / High placement, and stop when the required evidence is complete.",
+      "Select the next check from the evidence already recorded, remove pressure when an earlier layer needs checking, decide Low / Medium / High placement, and stop when the required evidence is complete.",
     notFor:
       "Do not teach through the diagnosis, pick a preferred phase, complete a fixed rep quota, or manually place the topic.",
   },
@@ -114,7 +114,7 @@ export default function ResponseConditioningSessionFlowControl() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What Never Changes</h2>
           <ul className="space-y-2 pl-5 list-disc text-muted-foreground">
-            <li>The Specialist records what actually happened; the system owns interpretation and state movement.</li>
+            <li>The Specialist records what actually happened; RI-OS interprets the evidence and decides whether the state changes.</li>
             <li>Not-observed and confounded evidence remain missing/confounded.</li>
             <li>Support, pressure, variation, difficulty, and timing conditions are part of the evidence.</li>
             <li>One strong-looking answer cannot silently erase a real breakdown, and one failure under a higher constraint does not automatically condemn every earlier layer.</li>
