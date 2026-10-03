@@ -361,3 +361,27 @@ test("target questions reject instruction-shaped answers", () => {
     /grammatical shape does not answer the prompt/i,
   );
 });
+
+
+test("source-referential answer copy fails closed", () => {
+  const items = balancedItems();
+  items[0] = {
+    ...items[0],
+    options: items[0].options.map((option) =>
+      option.key === "b"
+        ? {
+            ...option,
+            label:
+              "That is why the live Deep Dive describes this as the bridge between schoolwork and Specialist execution.",
+          }
+        : option,
+    ),
+  };
+
+  const summary = analyzeCapabilityOptionParity(items);
+  assert.equal(summary.indirectOptionCopy.length, 1);
+  assert.throws(
+    () => assertCapabilityOptionParity("source-reference", items),
+    /comments on the option instead of answering the prompt directly/i,
+  );
+});
