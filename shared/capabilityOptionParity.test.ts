@@ -507,6 +507,123 @@ test("capability identity prompts reject doctrine statements", () => {
   );
 });
 
+test("direct declarative reasons are allowed when they answer why", () => {
+  const items = balancedItems();
+  items[0] = {
+    ...items[0],
+    prompt: "Why should the remaining reps still be run?",
+    options: [
+      {
+        key: "a",
+        label:
+          "A strong first rep does not make the remaining required repetitions optional.",
+      },
+      {
+        key: "b",
+        label:
+          "Because repeated evidence is needed before the response is treated as stable.",
+      },
+      {
+        key: "c",
+        label:
+          "Because one unusually strong performance can overstate repeatability.",
+      },
+      {
+        key: "d",
+        label:
+          "Because the remaining reps test whether the response recurs under the same condition.",
+      },
+      {
+        key: "e",
+        label:
+          "Because the set has not yet produced enough comparable evidence.",
+      },
+    ],
+    correctOptionKeys: ["a", "b"],
+  };
+
+  const summary = analyzeCapabilityOptionParity(items);
+  assert.equal(summary.promptShapeMismatches.length, 0);
+});
+
+test("not-yet is a direct yes-no answer", () => {
+  const items = balancedItems();
+  items[0] = {
+    ...items[0],
+    prompt: "Is that the right conclusion?",
+    options: [
+      {
+        key: "a",
+        label:
+          "Not yet. The required evidence has not been established.",
+      },
+      {
+        key: "b",
+        label:
+          "No. The conclusion is not supported by the current evidence.",
+      },
+      {
+        key: "c",
+        label:
+          "Yes. The current evidence is sufficient.",
+      },
+      {
+        key: "d",
+        label:
+          "No. A later condition still has to be tested.",
+      },
+      {
+        key: "e",
+        label:
+          "Yes. The response already meets the required condition.",
+      },
+    ],
+    correctOptionKeys: ["a", "b"],
+  };
+
+  const summary = analyzeCapabilityOptionParity(items);
+  assert.equal(summary.promptShapeMismatches.length, 0);
+});
+
+test("missing prompts allow direct missing-content statements", () => {
+  const items = balancedItems();
+  items[0] = {
+    ...items[0],
+    prompt: "What is missing from the Modeling?",
+    options: [
+      {
+        key: "a",
+        label:
+          "Reason is missing from the Topic Reference.",
+      },
+      {
+        key: "b",
+        label:
+          "The Specialist still needs to make the Reason explicit.",
+      },
+      {
+        key: "c",
+        label:
+          "Evidence that the student can explain why the method applies.",
+      },
+      {
+        key: "d",
+        label:
+          "A clear explanation of the Method.",
+      },
+      {
+        key: "e",
+        label:
+          "Confirmation that the Vocabulary is understood.",
+      },
+    ],
+    correctOptionKeys: ["a", "b"],
+  };
+
+  const summary = analyzeCapabilityOptionParity(items);
+  assert.equal(summary.promptShapeMismatches.length, 0);
+});
+
 test("source-referential answer copy fails closed", () => {
   const items = balancedItems();
   items[0] = {
