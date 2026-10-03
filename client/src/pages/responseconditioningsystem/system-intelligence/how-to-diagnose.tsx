@@ -48,7 +48,7 @@ export default function ResponseConditioningHowToDiagnose() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The operating split</h2>
+          <h2 className="text-2xl font-bold">Diagnosis and Training do different jobs</h2>
           <div className="grid gap-3 md:grid-cols-2">
             <div className="rounded-lg border p-4">
               <p className="font-semibold">RI-OS owns</p>
@@ -64,7 +64,7 @@ export default function ResponseConditioningHowToDiagnose() {
               <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
                 <li>preparing the requested problem condition</li>
                 <li>following the live protocol exactly</li>
-                <li>preserving the support boundary</li>
+                <li>preserving the active support rule</li>
                 <li>recording only the behavior that actually occurred</li>
               </ul>
             </div>
@@ -157,7 +157,7 @@ export default function ResponseConditioningHowToDiagnose() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Evidence-complete, not rep-complete</h2>
+          <h2 className="text-2xl font-bold">Stop when the evidence question is resolved</h2>
           <p className="text-muted-foreground">
             Diagnosis does not run a fixed number of reps for every student. It stops when the current evidence question is resolved.
           </p>
@@ -180,12 +180,12 @@ export default function ResponseConditioningHowToDiagnose() {
             {
               key: "b",
               label: "No. Stop when the system has enough evidence and follow the resulting placement.",
-              feedback: "Yes. Diagnosis is evidence-complete, not volume-complete.",
+              feedback: "Yes. Diagnosis stops when the evidence question is resolved; it does not collect extra reps just for volume.",
             },
             {
               key: "c",
               label: "Run them only if the Specialist wants more confidence in the decision.",
-              feedback: "Personal reassurance cannot add unauthorized evidence volume after the system has resolved the question.",
+              feedback: "Personal reassurance cannot justify adding extra evidence after RI-OS has already resolved the question.",
             },
               {
                 key: "d",
@@ -208,7 +208,7 @@ export default function ResponseConditioningHowToDiagnose() {
             The final phase is the first response layer where direct clean evidence shows the required behavior is not holding after earlier layers have been sufficiently supported.
           </p>
           <p className="text-muted-foreground">
-            Starting stability is derived from the behavior class of that decisive evidence. Diagnosis can establish Low, Medium, or High.
+            Starting stability is decided from the behavior shown in that decisive evidence. Diagnosis can establish Low, Medium, or High.
           </p>
           <p className="font-semibold">
             High Maintenance is never diagnosed. It is earned later through Training evidence.
