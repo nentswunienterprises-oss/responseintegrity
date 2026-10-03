@@ -19,6 +19,63 @@ function acceptedKeys(block: string) {
   return [...raw.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
 }
 
+
+const IMPERATIVE_OPTION_START =
+  /^(?:use|keep|record|run|leave|treat|start|stop|preserve|follow|remove|ask|give|mark|move|return|continue|begin|hold|apply|collect|present|watch|finish|freeze|route|strip|allow|do not|don't|take|choose|write|click|say|speak|let|stay|end|wait)\b/i;
+
+function finalQuestionClause(prompt: string) {
+  const normalized = prompt.replace(/\s+/g, " ").trim();
+  const questionEnd = normalized.lastIndexOf("?");
+  if (questionEnd < 0) return normalized;
+
+  const throughQuestion = normalized.slice(0, questionEnd + 1);
+  let start = 0;
+  const sentenceBoundary = /[.!?][”"'’)]?\s+/g;
+  let match: RegExpExecArray | null;
+  while ((match = sentenceBoundary.exec(throughQuestion))) {
+    if (match.index >= questionEnd) break;
+    start = sentenceBoundary.lastIndex;
+  }
+  return throughQuestion.slice(start).trim().toLowerCase();
+}
+
+function answerShapeFitsPrompt(prompt: string, label: string) {
+  const question = finalQuestionClause(prompt);
+  const option = label.replace(/\s+/g, " ").trim();
+
+  const isAction =
+    /^(?:what should|how should|what happens next|what should happen|what must|which .* should)\b/.test(
+      question,
+    );
+  const isReason =
+    /^(?:why|what prevents|what makes|which explanation|what is the reason)\b/.test(
+      question,
+    );
+  const isWho = /^who\b/.test(question);
+  const isInterpretation =
+    /^(?:what (?:is|was) (?:the )?(?:risk|concern|problem|issue|purpose|role|boundary|evidence|signal|difference|meaning|definition)|what (?:does|did).*\b(?:mean|show|prove|reveal|indicate)\b|what (?:changed|happened)\b|what is (?:missing|lost)\b)/.test(
+      question,
+    );
+  const isYesNo =
+    /^(?:can|should|is|are|does|do|did|has|have|will|would|could|may)\b/.test(
+      question,
+    );
+
+  if (
+    (isReason || isWho || isInterpretation) &&
+    IMPERATIVE_OPTION_START.test(option)
+  ) {
+    return false;
+  }
+  if (isAction && /^(?:because|since)\b/i.test(option)) {
+    return false;
+  }
+  if (isYesNo && !/^(?:yes|no)\b/i.test(option)) {
+    return false;
+  }
+  return true;
+}
+
 test("formative interactions keep the OS-wide silent alternate-valid standard", () => {
   let singleCount = 0;
   let dualCount = 0;
@@ -34,12 +91,19 @@ test("formative interactions keep the OS-wide silent alternate-valid standard", 
       const optionCount = [...block.matchAll(/key:\s*"([^"]+)"/g)].length;
       assert.ok(optionCount >= 5, `${file} has a formative interaction with fewer than five options.`);
 
+      const prompt = block.match(/prompt="([^"]+)"/)?.[1] || "";
       for (const match of block.matchAll(/label:\s*"([^"]+)"/g)) {
         assert.doesNotMatch(
           match[1],
-          /\bThat can seem reasonable\b|^What matters is that\b|^The key is that\b/i,
+          /\bThat can seem reasonable\b|^What matters is that\b|^The key is that\b|part of the response still looks usable|avoids opening another evidence question/i,
           `${file} has formative answer copy that comments on the option instead of answering the prompt directly.`,
         );
+        if (prompt) {
+          assert.ok(
+            answerShapeFitsPrompt(prompt, match[1]),
+            `${file} has a formative option whose grammatical shape does not answer the final question: prompt="${prompt}" option="${match[1]}".`,
+          );
+        }
       }
 
       if (kind === "multi_select") {
