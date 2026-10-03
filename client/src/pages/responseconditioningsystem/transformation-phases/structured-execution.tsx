@@ -47,7 +47,7 @@ const STRUCTURED_SET_EXECUTION: Record<
     doNot: [
       "Do not accept a correct answer if the required steps were skipped.",
       "Do not supply the next step before the student attempts the sequence.",
-      "Do not turn this set back into Clarity modeling unless the engine places the topic back there.",
+      "Do not turn this set back into Clarity modelling unless RI-OS places the topic back there.",
     ],
   },
   "structured_execution.independent_execution": {
@@ -198,7 +198,7 @@ export default function ResponseConditioningStructuredExecution() {
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>If Vocabulary, Method, ordered steps, or Reason visibly breaks, record that break instead of letting a correct answer hide it.</li>
             <li>An isolated calculation error does not automatically mean the mental map broke; locate where the error actually occurred.</li>
-            <li>The Specialist records the evidence. RI-OS decides topic-state movement and whether an earlier prerequisite needs checking.</li>
+            <li>The Specialist records the evidence. RI-OS decides whether the topic state changes and whether an earlier prerequisite needs checking.</li>
           </ul>
         </Card>
 
