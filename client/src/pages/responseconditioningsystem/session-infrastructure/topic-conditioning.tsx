@@ -195,7 +195,7 @@ export default function ResponseConditioningTopicConditioning() {
             {
               key: "c",
               label: "Clarity, because every new topic must always restart from the first phase.",
-              feedback: "A new topic needs evidence-complete placement. It is not automatically forced to Clarity.",
+              feedback: "A new topic needs enough clean evidence to support its placement. It is not automatically forced to Clarity.",
             },
             {
               key: "d",
@@ -356,7 +356,7 @@ export default function ResponseConditioningTopicConditioning() {
             {
               key: "c",
               label: "Yes, but only as a temporary timer until Fractions produces more evidence.",
-              feedback: "A temporary invented timer would still create unauthorized pressure evidence.",
+              feedback: "A temporary invented timer would still create a pressure condition RI-OS did not allow.",
             },
             {
               key: "d",
@@ -552,13 +552,13 @@ export default function ResponseConditioningTopicConditioning() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The operating sequence</h2>
+          <h2 className="text-2xl font-bold">The sequence to follow</h2>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
             <li>identify the active topic</li>
-            <li>establish or inherit its evidence-derived state</li>
-            <li>run the system-authorized phase, set, and constraint</li>
+            <li>establish or inherit the state supported by its evidence</li>
+            <li>run the phase, set, and condition RI-OS requires</li>
             <li>record concrete response evidence</li>
-            <li>follow the resulting hold, movement, readiness, or re-diagnosis direction</li>
+            <li>follow the next direction: stay, move, prepare, or re-diagnose</li>
           </ul>
           <p className="font-semibold">
             The Specialist does not replace this sequence with a preferred worksheet, phase, timer, or progression decision.
@@ -591,7 +591,7 @@ export default function ResponseConditioningTopicConditioning() {
             {
               key: "e",
               label: "Increase difficulty and time pressure sooner because a higher package cadence should accelerate the transformation sequence.",
-              feedback: "More sessions do not authorize earlier pressure. Phase conditions still change only when RI-OS has the required evidence.",
+              feedback: "More sessions do not allow earlier pressure. Phase conditions still change only when RI-OS has the required evidence.",
             },
           ]}
           correctOptionKey="b"
