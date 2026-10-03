@@ -90,7 +90,7 @@ export default function ResponseConditioningHowToDiagnose() {
             {
               key: "a",
               label: "The topic is placed in Time Pressure Stability because the symptom names exam pressure.",
-              feedback: "A symptom can route the first evidence question, but it cannot prove that Clarity, Structured Execution, and Controlled Discomfort are already intact.",
+              feedback: "A symptom can tell RI-OS which evidence question to ask first, but it cannot prove that Clarity, Structured Execution, and Controlled Discomfort are already intact.",
             },
             {
               key: "b",
@@ -100,7 +100,7 @@ export default function ResponseConditioningHowToDiagnose() {
             {
               key: "c",
               label: "The Specialist can convert the report into placement evidence if they personally agree with it.",
-              feedback: "Specialist agreement does not create placement authority. Evidence does.",
+              feedback: "Specialist agreement does not determine placement. Evidence does.",
             },
             {
               key: "d",
@@ -205,7 +205,7 @@ export default function ResponseConditioningHowToDiagnose() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What the final placement means</h2>
           <p className="text-muted-foreground">
-            The final phase is the first response layer with direct clean evidence that does not meet its support contract after earlier required layers are sufficiently supported.
+            The final phase is the first response layer where direct clean evidence shows the required behavior is not holding after earlier layers have been sufficiently supported.
           </p>
           <p className="text-muted-foreground">
             Starting stability is derived from the behavior class of that decisive evidence. Diagnosis can establish Low, Medium, or High.
