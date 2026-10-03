@@ -107,7 +107,7 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
             When clean evidence supports a capability in one opportunity and contradicts it in another, the system does not average the conflict into a convenient label.
           </p>
           <p className="text-muted-foreground">
-            It asks the smallest comparable confirmation question still permitted by the evidence contract.
+            It asks the smallest comparable confirmation question still allowed by the evidence rules.
           </p>
         </Card>
 
@@ -138,12 +138,12 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Training can trigger a prerequisite check without moving the topic backward</h2>
           <p className="text-muted-foreground">
-            If current-phase Training exposes a breakdown that may actually come from an earlier prerequisite, the runner can request a stripped-constraint prerequisite sentinel.
+            If current-phase Training exposes a breakdown that may actually come from an earlier prerequisite, RI-OS can remove the active pressure and check that earlier layer directly.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>If the prerequisite holds, the breakdown stays owned by the current phase.</li>
             <li>If it is contradicted, ordinary Training freezes and targeted re-diagnosis re-establishes the earlier layer.</li>
-            <li>If it is not observed or confounded, the system routes re-diagnosis rather than guessing.</li>
+            <li>If it is not observed or becomes confounded, RI-OS requires re-diagnosis rather than guessing.</li>
           </ul>
         </Card>
 
@@ -156,10 +156,10 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>If structure and independent execution return, the original breakdown remains owned by Time Pressure Stability.</li>
             <li>If structure still breaks, ordinary Training pauses and targeted re-diagnosis begins from Structured Execution.</li>
-            <li>If the prerequisite check is not observed or becomes confounded, the system routes re-diagnosis rather than inventing a conclusion.</li>
+            <li>If the prerequisite check is not observed or becomes confounded, RI-OS requires re-diagnosis rather than inventing a conclusion.</li>
           </ul>
           <p className="font-semibold">
-            Training can detect that prior state is no longer trustworthy. Diagnosis still owns the reclassification.
+            Training can detect that the prior state is no longer trustworthy. Diagnosis still determines the new placement.
           </p>
         </Card>
 
@@ -171,8 +171,8 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>Clean supported continuity evidence can hold the inherited state.</li>
             <li>Not-observed or confounded dimensions can require another comparable continuity opportunity.</li>
-            <li>A confirmed phase-defining breakdown routes targeted re-diagnosis.</li>
-            <li>Persistent conditional evidence can produce a bounded same-phase stability adjustment when the verification window closes.</li>
+            <li>A confirmed phase-defining breakdown requires targeted re-diagnosis.</li>
+            <li>Persistent conditional evidence can adjust stability within the same phase when the limited Handover check ends.</li>
           </ul>
         </Card>
 
@@ -187,7 +187,7 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
             {
               key: "b",
               label: "No. Preserve not observed and let the system decide whether another comparable opportunity is required.",
-              feedback: "Yes. Missing evidence must stay missing until the system receives enough clean evidence or reaches its bounded route.",
+              feedback: "Yes. Missing evidence must stay missing until RI-OS receives enough clean evidence or reaches the defined stopping point.",
             },
             {
               key: "c",
@@ -236,7 +236,7 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">When the system blocks, the correct action is to preserve the block</h2>
           <p className="text-muted-foreground">
-            If clean evidence is exhausted, timing authority is missing, or a required layer remains unresolved, RI-OS can stop normal progression and route evidence review or targeted re-diagnosis.
+            If clean evidence is exhausted, the required timing baseline is missing, or an earlier layer remains unresolved, RI-OS can stop normal progression and open evidence review or targeted re-diagnosis.
           </p>
           <p className="font-semibold">
             A blocked state is not a product failure to work around. It is the system refusing to make a claim it cannot defend.
