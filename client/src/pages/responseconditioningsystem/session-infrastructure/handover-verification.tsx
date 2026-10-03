@@ -6,8 +6,8 @@ import { Card } from "@/components/ui/card";
 
 const handoverRules = [
   "Start from the inherited topic, phase, stability, evidence history, next action, and active constraints.",
-  "If the inherited phase is Time Pressure Stability, preserve the same student/topic Timer Contract. Do not invent, loosen, tighten, pause, or replace the timer. If the valid topic timer is missing, re-establish it before TPS continuity evidence can count.",
-  "Verify continuity only. Do not teach forward, progress the student, or restart Intro inside Handover.",
+  "If the inherited phase is Time Pressure Stability, preserve the same student/topic Timer Contract. Do not invent, loosen, tighten, pause, or replace the timer. If the valid topic timer is missing, re-establish it before TPS Handover evidence can count.",
+  "Check whether the inherited state still holds. Do not teach forward, progress the student, or restart Intro inside Handover.",
   "Record the concrete behavior that actually occurred. Do not choose a preferred state.",
   "If a behavior was not meaningfully observable, record it as not observed. If support or another condition changed the observation, record it as confounded.",
   "Stop when RI-OS has enough evidence to keep the state, adjust stability, or require targeted re-diagnosis.",
@@ -16,7 +16,7 @@ const handoverRules = [
 const evidenceClasses = [
   {
     title: "Breakdown",
-    detail: "A phase-defining capability broke under a clean continuity condition. Confirmed breakdown sends the topic to targeted re-diagnosis; Handover does not manually move the phase backward.",
+    detail: "A behavior that defines the inherited phase broke during a clean Handover check. A confirmed breakdown sends the topic to targeted re-diagnosis; Handover does not manually move the phase backward.",
   },
   {
     title: "Conditional",
@@ -28,7 +28,7 @@ const evidenceClasses = [
   },
   {
     title: "Supported",
-    detail: "The phase-defining behavior held cleanly under the inherited condition.",
+    detail: "The behavior that defines the inherited phase held cleanly under the inherited condition.",
   },
   {
     title: "Not observed / Confounded",
@@ -39,7 +39,7 @@ const evidenceClasses = [
 const outcomes = [
   {
     title: "Hold inherited state",
-    detail: "Enough clean evidence supports the inherited phase and stability. Training may resume from that state once the continuity gate is cleared.",
+    detail: "Enough clean evidence supports the inherited phase and stability. Training may resume from that state once the Handover check is complete.",
   },
   {
     title: "Adjust stability",
@@ -47,7 +47,7 @@ const outcomes = [
   },
   {
     title: "Targeted re-diagnosis",
-    detail: "A phase-defining breakdown is confirmed, or the Handover limit is reached without enough clean evidence for a decision. The inherited state stays unchanged until targeted re-diagnosis re-establishes the correct state.",
+    detail: "A breakdown in a behavior that defines the inherited phase is confirmed, or the Handover limit is reached without enough clean evidence for a decision. The inherited state stays unchanged until targeted re-diagnosis re-establishes the correct state.",
   },
 ];
 
@@ -91,14 +91,14 @@ export default function ResponseConditioningHandoverVerification() {
           <h2 className="text-2xl font-bold">The Evidence-Driven Structure</h2>
           <ol className="space-y-2 pl-5 list-decimal text-muted-foreground">
             <li>Review the inherited topic, phase, stability, recent evidence, next action, and constraints.</li>
-            <li>Prepare a small reserve bank of phase-appropriate continuity problems. The reserve is not a completion target.</li>
-            <li>Present one clean continuity opportunity under the inherited phase conditions and watch the complete response.</li>
+            <li>Prepare a small reserve bank of phase-appropriate Handover problems. The reserve is not a completion target.</li>
+            <li>Present one clean Handover opportunity under the inherited phase conditions and watch the complete response.</li>
             <li>Click Student Finished at the actual end of execution before evidence administration begins.</li>
-            <li>Record the phase-defining observations one at a time. Complete the current observation before the next one opens.</li>
+            <li>Record the observations that matter for the inherited phase one at a time. Complete the current observation before the next one opens.</li>
             <li>Review the completed opportunity, then let the system decide whether evidence is sufficient or another clean comparable opportunity is required.</li>
             <li>Stop as soon as RI-OS has enough evidence to keep the state, adjust stability within the same phase, or require targeted re-diagnosis.</li>
           </ol>
-          <p className="font-semibold">There is no “complete three reps” rule. Handover is evidence-complete, not rep-complete.</p>
+          <p className="font-semibold">There is no “complete three reps” rule. Handover ends when the evidence question is resolved, not after a fixed rep count.</p>
           <p className="text-sm text-muted-foreground">
             Handover has a defined limit so it cannot quietly become Training. If clean evidence still cannot resolve the question within that limit, the topic moves to targeted re-diagnosis.
           </p>
@@ -126,7 +126,7 @@ export default function ResponseConditioningHandoverVerification() {
           <ul className="space-y-2 pl-5 list-disc text-muted-foreground">
             <li>An isolated breakdown can remain unresolved while the system asks for comparable clean evidence.</li>
             <li>After a breakdown, recovery requires the normal evidence minimum plus an additional clean supported confirmation.</li>
-            <li>If a phase-defining breakdown becomes confirmed, Handover stops and routes to targeted re-diagnosis.</li>
+            <li>If a breakdown in a behavior that defines the inherited phase becomes confirmed, Handover stops and requires targeted re-diagnosis.</li>
             <li>The Specialist must not keep giving extra opportunities to make the inherited state “win.”</li>
           </ul>
         </Card>
