@@ -91,6 +91,8 @@ const INDIRECT_OPTION_PATTERNS = [
   /\bThat can seem reasonable\b/i,
   /^What matters is that\b/i,
   /^The key is that\b/i,
+  /\bbecause part of the response still looks usable\b/i,
+  /\bit avoids opening another evidence question\b/i,
 ] as const;
 
 function hasIndirectOptionCopy(label: string) {
@@ -303,7 +305,7 @@ export function assertCapabilityOptionParity(
       )
       .join("; ");
     throw new Error(
-      `Capability assessment ${assessmentKey} contains answer-option copy that comments on the option instead of answering the prompt directly. Remove meta phrasing such as "That can seem reasonable", "What matters is that", and "The key is that". ${examples}`,
+      `Capability assessment ${assessmentKey} contains answer-option copy that comments on the option instead of answering the prompt directly. Remove meta or reusable filler phrasing such as "That can seem reasonable", "What matters is that", "The key is that", and generic "part of the response still looks usable" rationales. ${examples}`,
     );
   }
 
