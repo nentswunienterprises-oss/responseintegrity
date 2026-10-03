@@ -79,7 +79,7 @@ export default function ResponseConditioningLoggingSystem() {
             Active condition → concrete observed behavior → evidence eligibility → dimension state → system decision → next action
           </p>
           <p className="text-sm text-muted-foreground">
-            The Specialist owns truthful observation. The Response Evidence Model owns evidence interpretation and the resulting operating decision.
+            The Specialist owns truthful observation. RI-OS interprets the recorded evidence and decides what happens next.
           </p>
         </Card>
 
@@ -155,7 +155,7 @@ export default function ResponseConditioningLoggingSystem() {
                 Handover verifies inherited truth after Specialist reassignment. It is neither normal Training nor a restart of Intro.
               </p>
               <p className="text-sm text-muted-foreground">
-                Present one clean continuity opportunity at a time and stop when the evidence model can hold the inherited state, make a bounded same-phase stability adjustment, or require targeted evidence-complete re-diagnosis.
+                Present one clean continuity opportunity at a time and stop when RI-OS has enough evidence to keep the inherited state, adjust stability within the same phase, or require targeted re-diagnosis.
               </p>
             </div>
           </div>
@@ -164,7 +164,7 @@ export default function ResponseConditioningLoggingSystem() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Timing Evidence Integrity</h2>
           <p className="text-muted-foreground">
-            Passive baseline timing and TPS timed attempts are system-owned evidence. The Specialist does not choose, pause, round, estimate, or manually repair the timer.
+            RI-OS records passive baseline timing and TPS timed attempts automatically. The Specialist does not choose, pause, round, estimate, or manually repair the timer.
           </p>
           <ul className="space-y-2 pl-5 list-disc text-muted-foreground">
             <li>Structured Execution passive timing runs without a countdown or pacing cue.</li>
