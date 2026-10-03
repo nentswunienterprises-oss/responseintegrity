@@ -247,7 +247,7 @@ function optionShapeMatchesPrompt(prompt: string, label: string) {
 
   if (
     shape === "reason" &&
-    (/^(?:if|when|that is\b|that\b)/i.test(normalizedLabel) ||
+    (/^(?:if|when|that is\b|that\b|this\b)/i.test(normalizedLabel) ||
       (/\btherefore\b/i.test(normalizedLabel) &&
         !/^(?:because|since)\b/i.test(normalizedLabel)))
   ) {
