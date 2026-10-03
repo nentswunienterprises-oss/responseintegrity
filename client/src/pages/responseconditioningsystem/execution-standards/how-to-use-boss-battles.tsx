@@ -237,7 +237,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
             <h2 className="text-2xl font-bold">What you actually observe</h2>
             <p className="text-muted-foreground">
               The goal is not to invent a psychological story about the student. Observe the response
-              dimensions the system can defend.
+              behaviors the evidence actually supports.
             </p>
             <ul className="space-y-2 text-sm text-muted-foreground">
               {controlledDiscomfortSignals.map((signal) => (
