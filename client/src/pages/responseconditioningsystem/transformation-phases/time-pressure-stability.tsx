@@ -214,23 +214,22 @@ export default function ResponseConditioningTimePressureStability() {
         </Card>
 
         <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">Primary Baseline Route: Structured Execution</h2>
+          <h2 className="text-2xl font-bold">Where the TPS Baseline Usually Comes From</h2>
           <p className="text-muted-foreground">
-            During Structured Execution Training, RI-OS passively measures the canonical Independent Execution set.
-            One qualifying set contains three canonical independent opportunities.
+            During Structured Execution Training, RI-OS quietly records how long the student takes in the Independent Execution set.
+            One complete clean set gives the system three timing samples.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>Normal difficulty.</li>
-            <li>Same-form execution.</li>
-            <li>No active timer or urgency target.</li>
-            <li>No help that supplies the method, first move, or execution structure.</li>
-            <li>Student execution is structurally supported by the evidence model.</li>
-            <li>Timing itself is technically valid.</li>
+            <li>The problems are normal difficulty.</li>
+            <li>The three attempts use the same form of problem.</li>
+            <li>There is no visible timer or urgency target.</li>
+            <li>No help may give the method, first move, or execution structure.</li>
+            <li>The student must execute independently enough for each attempt to count as clean evidence.</li>
+            <li>The system must have recorded the timing correctly.</li>
           </ul>
           <p className="text-muted-foreground">
-            If more than one complete qualifying Independent Execution set exists in the current Structured Execution
-            conditioning epoch, the most recent complete qualifying set is the source. RI-OS never cherry-picks
-            individual fast or strong reps across sets.
+            If the student completes more than one clean Independent Execution set during the current stretch of Structured Execution Training,
+            RI-OS uses the most recent complete set. It does not mix the fastest or strongest attempts from different sets.
           </p>
         </Card>
 
