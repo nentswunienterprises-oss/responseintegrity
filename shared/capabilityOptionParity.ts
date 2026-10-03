@@ -160,7 +160,7 @@ function classifyPromptShape(prompt: string): PromptShape {
   }
 
   if (
-    /^(?:which capability\b|which phase\b|where is .*\bbreakdown\b|where does .*\bbreakdown\b)/.test(
+    /^(?:which capability\b|which phase (?:is|best|matches|fits|applies|should|would)\b|where is .*\bbreakdown\b|where does .*\bbreakdown\b)/.test(
       question,
     )
   ) {
