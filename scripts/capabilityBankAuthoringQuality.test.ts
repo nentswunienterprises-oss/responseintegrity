@@ -25,3 +25,9 @@ test("private Capability import requires evidence-based authority teaching", () 
   assert.match(source, /EVIDENCE_AUTHORITY_RATIONALE_PATTERN/);
   assert.match(source, /not obedience to software/);
 });
+
+
+test("private Capability import blocks distractor shortcuts", () => {
+  assert.match(source, /assertCapabilityOptionParity/);
+  assert.match(source, /option parity max-key/);
+});
