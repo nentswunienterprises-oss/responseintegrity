@@ -1082,9 +1082,7 @@ export default function SpecialistCapabilityAssessment() {
                 ? "Yes"
                 : showingTruth
                   ? "Truth"
-                  : currentQuestion.kind === "multi_select"
-                    ? "Review the set"
-                    : "Not quite";
+                  : "Not quite";
               const pingCopy = showingTruth
                 ? currentConfirmation.truth || currentConfirmation.feedback
                 : currentConfirmation.feedback;
