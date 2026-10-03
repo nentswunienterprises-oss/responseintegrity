@@ -503,7 +503,7 @@ export default function ResponseConditioningClarity() {
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Diagnosis Is a Different Recipe</h2>
           <p className="text-muted-foreground">
-            Clarity diagnosis is separate from the Clarity training drill. Diagnosis uses separate probes to establish the entry
+            Clarity diagnosis is separate from the Clarity training drill. Diagnosis uses separate checks to establish the entry
             point before normal training.
           </p>
           <div className="space-y-3">
