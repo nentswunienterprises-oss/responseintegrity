@@ -56,7 +56,7 @@ export default function ResponseConditioningWhatNotToDo() {
               Teaching, method prompting, step prompting, and full rescue can change what an opportunity is allowed to prove.
             </p>
             <p className="font-semibold">
-              Keep teaching inside the places the protocol authorizes. Do not smuggle modelling into an independent observation condition.
+              Teach only where the RI rules allow it. Do not smuggle modelling into an independent observation condition.
             </p>
           </Card>
 
@@ -146,7 +146,7 @@ export default function ResponseConditioningWhatNotToDo() {
           <Card className="p-6 space-y-4">
             <h2 className="text-2xl font-bold">8. Do not use technical recovery as a student second chance</h2>
             <p className="text-muted-foreground">
-              Objective timer, runtime, or device failure may leave a timing slot unresolved and authorize a fresh pre-prepared equivalent reserve under the same condition.
+              Objective timer, runtime, or device failure may leave a timing slot unresolved and allow a fresh pre-prepared equivalent reserve under the same condition.
             </p>
             <p className="font-semibold">
               Timeout, panic, wrong method, incomplete work, weak performance, or ordinary timer expiry are real student evidence and never unlock replacement.
@@ -159,7 +159,7 @@ export default function ResponseConditioningWhatNotToDo() {
               Do not advance a strong-looking topic, move a weak-looking topic backward, invent starting stability, or replace a system-selected drill with a preferred one.
             </p>
             <p className="font-semibold">
-              The Specialist executes the condition and records the evidence. RI-OS owns the resulting operating decision.
+              The Specialist runs the condition and records the evidence. RI-OS decides what happens next.
             </p>
           </Card>
 
@@ -199,7 +199,7 @@ export default function ResponseConditioningWhatNotToDo() {
               {
                 key: "e",
                 label: "Delete the attempt and reuse the same exposed problem so the student can show what they can really do.",
-                feedback: "A valid weak response must remain in the record and does not authorize a second chance on the same problem.",
+                feedback: "A valid weak response must remain in the record and does not allow a second chance on the same problem.",
               },
             ]}
             kind="multi_select"
@@ -208,9 +208,9 @@ export default function ResponseConditioningWhatNotToDo() {
           />
 
           <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-            <h2 className="text-2xl font-bold">Final operating filter</h2>
+            <h2 className="text-2xl font-bold">Final check</h2>
             <p className="font-semibold">
-              Before changing anything live, ask: "Does the active RI-OS condition authorize this move?"
+              Before changing anything live, ask: "Does the active RI-OS condition allow this move?"
             </p>
             <p className="text-muted-foreground">
               If not, preserve the condition, record what happened, and follow the system result.
