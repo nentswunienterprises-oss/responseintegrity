@@ -303,7 +303,7 @@ export default function SpecialistCapabilityAssessment() {
   }, [form, hydratedFormId]);
 
   useEffect(() => {
-    if (!form) return;
+    if (!form?.formId) return;
 
     window.requestAnimationFrame(() => {
       window.scrollTo({
