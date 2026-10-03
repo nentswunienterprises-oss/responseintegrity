@@ -38,7 +38,7 @@ export default function ResponseConditioningWhatNotToDo() {
           </Card>
 
           <Card className="p-6 space-y-4">
-            <h2 className="text-2xl font-bold">1. Do not rescue outside the support contract</h2>
+            <h2 className="text-2xl font-bold">1. Do not rescue outside the active support rule</h2>
             <p className="text-muted-foreground">
               Hesitation, rescue-seeking, a missing first step, loss of structure, and timeout can be the exact response RI-OS needs to observe.
             </p>
@@ -120,7 +120,7 @@ export default function ResponseConditioningWhatNotToDo() {
               },
             ]}
             correctOptionKey="b"
-            truth="Completeness is system-owned. The Specialist owns truthful observation."
+            truth="RI-OS decides when the evidence is complete. The Specialist owns truthful observation."
           />
 
           <Card className="p-6 space-y-4">
@@ -129,14 +129,14 @@ export default function ResponseConditioningWhatNotToDo() {
               A pause is behavior. It is not automatic permission to prompt.
             </p>
             <p className="font-semibold">
-              Check the active support contract first. In a no-support condition, continue observing rather than inserting a first-step cue.
+              Check the active support rule first. In a no-support condition, continue observing rather than inserting a first-step cue.
             </p>
           </Card>
 
           <Card className="p-6 space-y-4">
             <h2 className="text-2xl font-bold">7. Do not chase speed</h2>
             <p className="text-muted-foreground">
-              Structured Execution and Controlled Discomfort are not timed phases. TPS timing is individualized and system-owned.
+              Structured Execution and Controlled Discomfort are not timed phases. TPS timing is individualized and set by RI-OS.
             </p>
             <p className="font-semibold">
               Do not add hurry language, choose a faster target, pause the Timer Contract, or treat a fast guessed response as stable TPS evidence.
@@ -169,7 +169,7 @@ export default function ResponseConditioningWhatNotToDo() {
               Handover verifies whether inherited state remains trustworthy after reassignment. It does not restart placement and it does not teach forward.
             </p>
             <p className="font-semibold">
-              Hold inherited state until continuity evidence supports a hold, bounded same-phase adjustment, or targeted re-diagnosis route.
+              Keep the inherited state unchanged until continuity evidence supports keeping it, adjusting stability within the same phase, or targeted re-diagnosis.
             </p>
           </Card>
 
