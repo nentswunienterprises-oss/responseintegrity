@@ -191,7 +191,7 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
             },
             {
               key: "c",
-              label: "Mark it supported if every other required behavior was supported.",
+              label: "Yes. Mark it supported if every other required behavior was supported.",
               feedback: "Strength in one observed behavior cannot be copied into a different one.",
             },
               {
