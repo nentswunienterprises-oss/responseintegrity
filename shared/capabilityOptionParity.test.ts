@@ -292,3 +292,72 @@ test("yes-no prompts require direct yes or no answer grammar", () => {
     /grammatical shape does not answer the prompt/i,
   );
 });
+
+
+test("reusable distractor doctrine tails fail closed", () => {
+  const items = balancedItems();
+  items[0] = {
+    ...items[0],
+    options: items[0].options.map((option) =>
+      option.key === "b"
+        ? {
+            ...option,
+            label:
+              "A timed problem so urgency is tested from the start. Testing the stronger condition first reveals the student's limit faster and reduces the need for separate lower-pressure checks.",
+          }
+        : option,
+    ),
+  };
+
+  const summary = analyzeCapabilityOptionParity(items);
+  assert.equal(summary.indirectOptionCopy.length, 1);
+  assert.throws(
+    () => assertCapabilityOptionParity("reusable-distractor-tail", items),
+    /reusable filler phrasing/i,
+  );
+});
+
+test("target questions reject instruction-shaped answers", () => {
+  const items = balancedItems();
+  items[0] = {
+    ...items[0],
+    prompt:
+      "A timed response fails, but earlier layers are unresolved. What is Diagnosis trying to locate?",
+    options: [
+      {
+        key: "a",
+        label:
+          "The earliest response layer that becomes unreliable under clean evidence.",
+      },
+      {
+        key: "b",
+        label:
+          "Strip away later pressures until the earliest unreliable response layer appears.",
+      },
+      {
+        key: "c",
+        label:
+          "The boundary where the response first stops holding after later constraints are removed.",
+      },
+      {
+        key: "d",
+        label:
+          "The highest-pressure condition the student can complete successfully.",
+      },
+      {
+        key: "e",
+        label:
+          "The phase that most closely resembles the visible timed symptom.",
+      },
+    ],
+    correctOptionKeys: ["a", "c"],
+  };
+
+  const summary = analyzeCapabilityOptionParity(items);
+  assert.equal(summary.promptShapeMismatches.length, 1);
+  assert.equal(summary.promptShapeMismatches[0].optionKey, "b");
+  assert.throws(
+    () => assertCapabilityOptionParity("target-question-shape", items),
+    /grammatical shape does not answer the prompt/i,
+  );
+});
