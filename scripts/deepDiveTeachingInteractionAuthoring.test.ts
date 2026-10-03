@@ -39,6 +39,41 @@ function finalQuestionClause(prompt: string) {
   return throughQuestion.slice(start).trim().toLowerCase();
 }
 
+function normalizedWords(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function longestSharedWordRun(a: string[], b: string[]) {
+  let longest = 0;
+  let previous = new Array(b.length + 1).fill(0);
+
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = new Array(b.length + 1).fill(0);
+    for (let j = 1; j <= b.length; j += 1) {
+      if (a[i - 1] === b[j - 1]) {
+        current[j] = previous[j - 1] + 1;
+        longest = Math.max(longest, current[j]);
+      }
+    }
+    previous = current;
+  }
+
+  return longest;
+}
+
+function acceptedPairLooksDuplicative(labels: string[]) {
+  if (labels.length !== 2) return false;
+  const left = normalizedWords(labels[0]);
+  const right = normalizedWords(labels[1]);
+  const shorter = Math.max(1, Math.min(left.length, right.length));
+  const sharedRun = longestSharedWordRun(left, right);
+  return sharedRun >= 5 && sharedRun / shorter >= 0.35;
+}
+
 function answerShapeFitsPrompt(prompt: string, label: string) {
   const question = finalQuestionClause(prompt);
   const option = label.replace(/\s+/g, " ").trim();
@@ -88,8 +123,18 @@ test("formative interactions keep the OS-wide silent alternate-valid standard", 
       total += 1;
       const kind = block.match(/kind="([^"]+)"/)?.[1] || "single_choice";
       const accepted = acceptedKeys(block);
+      const optionLabels = new Map(
+        [...block.matchAll(/key:\s*"([^"]+)"[\s\S]*?label:\s*"([^"]+)"/g)].map(
+          (match) => [match[1], match[2]] as const,
+        ),
+      );
       const optionCount = [...block.matchAll(/key:\s*"([^"]+)"/g)].length;
       assert.ok(optionCount >= 5, `${file} has a formative interaction with fewer than five options.`);
+      assert.equal(
+        new Set([...optionLabels.values()].map((label) => label.replace(/\s+/g, " ").trim().toLowerCase())).size,
+        optionLabels.size,
+        `${file} has duplicate formative option wording inside one interaction.`,
+      );
 
       const prompt = block.match(/prompt="([^"]+)"/)?.[1] || "";
       for (const match of block.matchAll(/label:\s*"([^"]+)"/g)) {
@@ -113,7 +158,21 @@ test("formative interactions keep the OS-wide silent alternate-valid standard", 
 
       singleCount += 1;
       assert.ok(accepted.length === 1 || accepted.length === 2, `${file} single-choice must define one or two accepted answers.`);
-      if (accepted.length === 2) dualCount += 1;
+      if (accepted.length === 2) {
+        dualCount += 1;
+        const acceptedLabels = accepted
+          .map((key) => optionLabels.get(key))
+          .filter((label): label is string => Boolean(label));
+        assert.equal(
+          acceptedLabels.length,
+          2,
+          `${file} silent alternate-valid interaction is missing accepted option copy.`,
+        );
+        assert.ok(
+          !acceptedPairLooksDuplicative(acceptedLabels),
+          `${file} has two accepted formative answers that substantially repeat the same wording instead of expressing distinct valid truths.`,
+        );
+      }
 
       for (const m of block.matchAll(/key:\s*"([^"]+)"[\s\S]*?feedback:\s*"([^"]+)"/g)) {
         if (/^Yes\b/.test(m[2])) {
