@@ -173,3 +173,22 @@ The reconciliation standard is now:
 - **Coverage is preserved when wording changes.** Reconciliation must not reduce competency-cell counts or critical-boundary coverage from the bank version it replaces.
 
 The private-bank importer now fails closed on these rules so future bank authoring cannot silently drift back to the pre-review pattern.
+
+## Transformation Phases Founder approval checkpoint - 4 October 2026
+
+The five Transformation Phases Mastery banks have now completed interactive Founder Review and are locked:
+
+- Topic Conditioning `topic_conditioning_mastery_v1` v17
+- Clarity `clarity_mastery_v1` v15
+- Structured Execution `structured_execution_mastery_v1` v14
+- Controlled Discomfort `controlled_discomfort_mastery_v1` v14
+- Time Pressure Stability `time_pressure_stability_mastery_v1` v14
+
+All five are active with Review Mode off.
+
+Their approved Deep Dive learning flows are also frozen under the teach-before-test structure established during review.
+
+This closes Founder acceptance for the five Transformation Mastery banks, but does **not** close this broader Capability checkpoint. Session Infrastructure and the cumulative Transformation Retrieval / Transfer gates remain separately governed by their own review status.
+
+Durable record: `docs/TRANSFORMATION_PHASES_FOUNDER_APPROVAL_CHECKPOINT_2026-10-04.md`.
+
