@@ -229,7 +229,7 @@ export default function ResponseConditioningClarity() {
         <DeepDiveTeachingInteraction
           prompt="You are choosing problems for a recognition-focused Clarity set. Which set gives the cleanest evidence?"
           options={[
-            { key: "a", label: "Use problems that share the same underlying structure but vary enough in presentation that the student has to recognise the form.", feedback: "Yes. Surface variation prevents pattern matching while keeping difficulty from becoming the active variable." },
+            { key: "a", label: "Use problems that keep the known method and normal difficulty comparable, so recognition is not mixed with a new method or challenge variable.", feedback: "Yes. Keeping method and difficulty comparable prevents another capability demand from contaminating the recognition question." },
             {
               key: "b",
               label: "Very unfamiliar, high-difficulty examples, so guessing and memorisation are less likely.",
@@ -237,8 +237,8 @@ export default function ResponseConditioningClarity() {
             },
             {
               key: "c",
-              label: "Examples with the same underlying structure but enough surface variation to require recognition.",
-              feedback: "Yes. The student has to recognise the underlying structure without the set becoming a difficulty test.",
+              label: "Use surface presentations that differ enough to prevent layout pattern-matching, while preserving the same underlying structure.",
+              feedback: "Yes. Surface variation forces recognition of the underlying form instead of recognition by repeated layout.",
             },
             {
               key: "d",
