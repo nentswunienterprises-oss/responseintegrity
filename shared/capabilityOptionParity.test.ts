@@ -151,3 +151,22 @@ test("reused doctrine as a silent accepted answer fails closed", () => {
     /specific prompt rather than act as reusable RI doctrine/i,
   );
 });
+
+
+test("meta commentary inside answer options fails closed", () => {
+  const items = balancedItems();
+  items[0] = item(0, ["a", "c"], {
+    a: "The student should stay in the assigned condition.",
+    b: "Move the topic backward. That can seem reasonable because an earlier layer was questioned.",
+    c: "The current evidence still supports the assigned condition.",
+    d: "What matters is that the Specialist prefers a safer route.",
+    e: "The key is that the report looked strong.",
+  });
+
+  const summary = analyzeCapabilityOptionParity(items);
+  assert.equal(summary.indirectOptionCopy.length, 3);
+  assert.throws(
+    () => assertCapabilityOptionParity("indirect-answer-copy", items),
+    /comments on the option instead of answering the prompt directly/i,
+  );
+});
