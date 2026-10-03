@@ -98,7 +98,7 @@ export default function ResponseConditioningHowToInterpretPrompts() {
                 feedback: "That reveals an operator condition to the student and can change how they respond.",
               },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","d"]}
           truth="SAY and DO THIS NOW are different control channels. Mixing them can contaminate the condition."
         />
 

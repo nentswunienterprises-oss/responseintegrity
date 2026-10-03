@@ -31,3 +31,10 @@ test("private Capability import blocks distractor shortcuts", () => {
   assert.match(source, /assertCapabilityOptionParity/);
   assert.match(source, /option parity max-key/);
 });
+
+
+test("private Capability import enforces the five-option silent-alternate standard", () => {
+  assert.match(source, /single-choice must expose exactly five options/);
+  assert.match(source, /single-choice must define one or two accepted answers/);
+  assert.match(source, /silent alternate-valid single-choice items around 80%/);
+});

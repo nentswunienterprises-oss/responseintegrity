@@ -7,19 +7,21 @@ export interface CapabilityOptionParityItem {
 
 export interface CapabilityOptionParitySummary {
   eligibleSingleChoiceItems: number;
-  correctUniquelyLongest: number;
-  correctUniquelyShortest: number;
-  correctOverLongestDistractorBy20Pct: number;
-  correctUniquelyLongestRate: number;
-  correctUniquelyShortestRate: number;
-  correctOverLongestDistractorBy20PctRate: number;
-  correctKeyCounts: Record<string, number>;
-  maxCorrectKeyCount: number;
-  maxCorrectKeyRate: number;
+  alternateValidItems: number;
+  alternateValidRate: number;
+  acceptedClusterLongerBy20Pct: number;
+  acceptedClusterLongerBy20PctRate: number;
+  acceptedClusterShorterBy20Pct: number;
+  acceptedClusterShorterBy20PctRate: number;
+  acceptedKeyCounts: Record<string, number>;
+  maxAcceptedKeyCount: number;
+  maxAcceptedKeyRate: number;
 }
 
 export const CAPABILITY_OPTION_PARITY_MAX_SHORTCUT_RATE = 0.25;
-export const CAPABILITY_OPTION_PARITY_MAX_KEY_CONCENTRATION = 0.4;
+export const CAPABILITY_OPTION_PARITY_MAX_KEY_CONCENTRATION = 0.55;
+export const CAPABILITY_SILENT_ALTERNATE_MIN_RATE = 0.7;
+export const CAPABILITY_SILENT_ALTERNATE_MAX_RATE = 0.9;
 
 function visibleLength(value: string) {
   return String(value || "")
@@ -32,63 +34,65 @@ export function analyzeCapabilityOptionParity(
   items: CapabilityOptionParityItem[],
 ): CapabilityOptionParitySummary {
   let eligibleSingleChoiceItems = 0;
-  let correctUniquelyLongest = 0;
-  let correctUniquelyShortest = 0;
-  let correctOverLongestDistractorBy20Pct = 0;
-  const correctKeyCounts: Record<string, number> = {};
+  let alternateValidItems = 0;
+  let acceptedClusterLongerBy20Pct = 0;
+  let acceptedClusterShorterBy20Pct = 0;
+  const acceptedKeyCounts: Record<string, number> = {};
 
   for (const item of items) {
     if (
       item.kind !== "single_choice" ||
-      item.options.length !== 4 ||
-      item.correctOptionKeys.length !== 1
+      item.options.length !== 5 ||
+      item.correctOptionKeys.length < 1 ||
+      item.correctOptionKeys.length > 2
     ) {
       continue;
     }
 
-    const correctKey = item.correctOptionKeys[0];
-    const correct = item.options.find((option) => option.key === correctKey);
-    if (!correct) continue;
-
-    const correctLength = visibleLength(correct.label);
+    const acceptedKeys = new Set(item.correctOptionKeys);
+    const acceptedLengths = item.options
+      .filter((option) => acceptedKeys.has(option.key))
+      .map((option) => visibleLength(option.label));
     const distractorLengths = item.options
-      .filter((option) => option.key !== correctKey)
+      .filter((option) => !acceptedKeys.has(option.key))
       .map((option) => visibleLength(option.label));
 
-    if (distractorLengths.length !== 3) continue;
+    if (!acceptedLengths.length || !distractorLengths.length) continue;
 
     eligibleSingleChoiceItems += 1;
-    correctKeyCounts[correctKey] = (correctKeyCounts[correctKey] || 0) + 1;
+    if (item.correctOptionKeys.length === 2) alternateValidItems += 1;
 
+    for (const key of item.correctOptionKeys) {
+      acceptedKeyCounts[key] = (acceptedKeyCounts[key] || 0) + 1;
+    }
+
+    const shortestAccepted = Math.min(...acceptedLengths);
+    const longestAccepted = Math.max(...acceptedLengths);
     const longestDistractor = Math.max(...distractorLengths);
     const shortestDistractor = Math.min(...distractorLengths);
 
-    if (correctLength > longestDistractor) {
-      correctUniquelyLongest += 1;
+    if (shortestAccepted > longestDistractor * 1.2) {
+      acceptedClusterLongerBy20Pct += 1;
     }
-    if (correctLength < shortestDistractor) {
-      correctUniquelyShortest += 1;
-    }
-    if (correctLength > longestDistractor * 1.2) {
-      correctOverLongestDistractorBy20Pct += 1;
+    if (longestAccepted < shortestDistractor * 0.8) {
+      acceptedClusterShorterBy20Pct += 1;
     }
   }
 
   const divisor = eligibleSingleChoiceItems || 1;
-  const maxCorrectKeyCount = Math.max(0, ...Object.values(correctKeyCounts));
+  const maxAcceptedKeyCount = Math.max(0, ...Object.values(acceptedKeyCounts));
 
   return {
     eligibleSingleChoiceItems,
-    correctUniquelyLongest,
-    correctUniquelyShortest,
-    correctOverLongestDistractorBy20Pct,
-    correctUniquelyLongestRate: correctUniquelyLongest / divisor,
-    correctUniquelyShortestRate: correctUniquelyShortest / divisor,
-    correctOverLongestDistractorBy20PctRate:
-      correctOverLongestDistractorBy20Pct / divisor,
-    correctKeyCounts,
-    maxCorrectKeyCount,
-    maxCorrectKeyRate: maxCorrectKeyCount / divisor,
+    alternateValidItems,
+    alternateValidRate: alternateValidItems / divisor,
+    acceptedClusterLongerBy20Pct,
+    acceptedClusterLongerBy20PctRate: acceptedClusterLongerBy20Pct / divisor,
+    acceptedClusterShorterBy20Pct,
+    acceptedClusterShorterBy20PctRate: acceptedClusterShorterBy20Pct / divisor,
+    acceptedKeyCounts,
+    maxAcceptedKeyCount,
+    maxAcceptedKeyRate: maxAcceptedKeyCount / divisor,
   };
 }
 
@@ -103,38 +107,38 @@ export function assertCapabilityOptionParity(
   }
 
   if (
-    summary.maxCorrectKeyRate >
+    summary.alternateValidRate < CAPABILITY_SILENT_ALTERNATE_MIN_RATE ||
+    summary.alternateValidRate > CAPABILITY_SILENT_ALTERNATE_MAX_RATE
+  ) {
+    throw new Error(
+      `Capability assessment ${assessmentKey} must keep silent alternate-valid single-choice questions around 80% of eligible items. Found ${summary.alternateValidItems}/${summary.eligibleSingleChoiceItems} (${(summary.alternateValidRate * 100).toFixed(1)}%).`,
+    );
+  }
+
+  if (
+    summary.maxAcceptedKeyRate >
     CAPABILITY_OPTION_PARITY_MAX_KEY_CONCENTRATION
   ) {
     throw new Error(
-      `Capability assessment ${assessmentKey} leaks the answer by position: one option key is correct for ${summary.maxCorrectKeyCount}/${summary.eligibleSingleChoiceItems} single-choice items. Rebalance correct-answer positions before release.`,
+      `Capability assessment ${assessmentKey} leaks accepted answers by position: one option key is accepted in ${summary.maxAcceptedKeyCount}/${summary.eligibleSingleChoiceItems} single-choice items. Rebalance accepted-answer positions before release.`,
     );
   }
 
   if (
-    summary.correctUniquelyLongestRate >
+    summary.acceptedClusterLongerBy20PctRate >
     CAPABILITY_OPTION_PARITY_MAX_SHORTCUT_RATE
   ) {
     throw new Error(
-      `Capability assessment ${assessmentKey} leaks the answer by option length: ${summary.correctUniquelyLongest}/${summary.eligibleSingleChoiceItems} single-choice items make the correct answer uniquely longest. Reconcile option parity before release.`,
+      `Capability assessment ${assessmentKey} leaks accepted answers by length: ${summary.acceptedClusterLongerBy20Pct}/${summary.eligibleSingleChoiceItems} single-choice items make every accepted answer more than 20% longer than every distractor.`,
     );
   }
 
   if (
-    summary.correctOverLongestDistractorBy20PctRate >
+    summary.acceptedClusterShorterBy20PctRate >
     CAPABILITY_OPTION_PARITY_MAX_SHORTCUT_RATE
   ) {
     throw new Error(
-      `Capability assessment ${assessmentKey} leaks the answer by exaggerated option length: ${summary.correctOverLongestDistractorBy20Pct}/${summary.eligibleSingleChoiceItems} single-choice items make the correct answer more than 20% longer than every distractor. Re-author distractors to comparable specificity before release.`,
-    );
-  }
-
-  if (
-    summary.correctUniquelyShortestRate >
-    CAPABILITY_OPTION_PARITY_MAX_SHORTCUT_RATE
-  ) {
-    throw new Error(
-      `Capability assessment ${assessmentKey} leaks the answer by option length: ${summary.correctUniquelyShortest}/${summary.eligibleSingleChoiceItems} single-choice items make the correct answer uniquely shortest. Reconcile option parity before release.`,
+      `Capability assessment ${assessmentKey} leaks accepted answers by length: ${summary.acceptedClusterShorterBy20Pct}/${summary.eligibleSingleChoiceItems} single-choice items make every accepted answer materially shorter than every distractor.`,
     );
   }
 

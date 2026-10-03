@@ -107,6 +107,9 @@ const AMBIGUOUS_SINGLE_CHOICE_STEM_PATTERNS = [
   },
 ] as const;
 
+const SILENT_ALTERNATE_VALID_MIN_RATE = 0.7;
+const SILENT_ALTERNATE_VALID_MAX_RATE = 0.9;
+
 const AUTHORITY_COMPETENCY_PATTERN = /(?:authority|system_direction)/i;
 const AUTHORITY_PROMPT_PATTERN =
   /\b(?:RI-OS|system returns|system holds|system direction|authority|next action)\b/i;
@@ -297,9 +300,14 @@ function validateAssessment(assessment: ParsedAssessment) {
     }
 
     if (item.kind === "single_choice") {
-      if (item.correctOptionKeys.length !== 1) {
+      if (item.options.length !== 5) {
         throw new Error(
-          `Capability bank ${assessment.assessmentKey}/${item.key} is single-choice but does not define exactly one correct option.`,
+          `Capability bank ${assessment.assessmentKey}/${item.key} single-choice must expose exactly five options.`,
+        );
+      }
+      if (item.correctOptionKeys.length < 1 || item.correctOptionKeys.length > 2) {
+        throw new Error(
+          `Capability bank ${assessment.assessmentKey}/${item.key} single-choice must define one or two accepted answers.`,
         );
       }
 
@@ -308,7 +316,7 @@ function validateAssessment(assessment: ParsedAssessment) {
       );
       if (polarityHit) {
         throw new Error(
-          `Capability bank ${assessment.assessmentKey}/${item.key} uses a risky single-choice stem (${polarityHit.label}). Rewrite it as a positive/diagnostic question, or use explicit multi-select when several actions or conclusions are defensible.`,
+          `Capability bank ${assessment.assessmentKey}/${item.key} uses a risky single-choice stem (${polarityHit.label}). Rewrite it as a positive/diagnostic question. Use explicit multi-select when every defensible answer must be selected; use two accepted single-choice answers only when either one is independently sufficient.`,
         );
       }
 
@@ -341,9 +349,9 @@ function validateAssessment(assessment: ParsedAssessment) {
     }
 
     if (item.kind === "multi_select") {
-      if (item.options.length < 5) {
+      if (item.options.length !== 5) {
         throw new Error(
-          `Capability bank ${assessment.assessmentKey}/${item.key} multi-select exposes fewer than five options.`,
+          `Capability bank ${assessment.assessmentKey}/${item.key} multi-select must expose exactly five options.`,
         );
       }
       if (item.correctOptionKeys.length < 2) {
@@ -418,6 +426,24 @@ function validateAssessment(assessment: ParsedAssessment) {
       const feedbackContext = `${assessment.assessmentKey}/${item.key}/option-feedback:${optionKey}`;
       assertNoAuthoringLeak(feedbackContext, feedback);
       assertNoLearnerCopyJargon(feedbackContext, feedback);
+    }
+  }
+
+  const singleChoiceItems = assessment.items.filter(
+    (item) => item.kind === "single_choice",
+  );
+  if (singleChoiceItems.length >= 10) {
+    const alternateValidCount = singleChoiceItems.filter(
+      (item) => item.correctOptionKeys.length === 2,
+    ).length;
+    const alternateValidRate = alternateValidCount / singleChoiceItems.length;
+    if (
+      alternateValidRate < SILENT_ALTERNATE_VALID_MIN_RATE ||
+      alternateValidRate > SILENT_ALTERNATE_VALID_MAX_RATE
+    ) {
+      throw new Error(
+        `Capability bank ${assessment.assessmentKey} must keep silent alternate-valid single-choice items around 80% of single-choice questions. Found ${alternateValidCount}/${singleChoiceItems.length} (${(alternateValidRate * 100).toFixed(1)}%).`,
+      );
     }
   }
 

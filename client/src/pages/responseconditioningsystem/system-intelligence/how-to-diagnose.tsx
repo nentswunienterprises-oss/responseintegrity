@@ -198,7 +198,7 @@ export default function ResponseConditioningHowToDiagnose() {
                 feedback: "Standardized volume cannot replace evidence sufficiency. Diagnosis is complete when the active question is resolved.",
               },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","d"]}
           truth="The system decides whether another opportunity is necessary. Prepared problems are reserve capacity, not a target."
         />
 

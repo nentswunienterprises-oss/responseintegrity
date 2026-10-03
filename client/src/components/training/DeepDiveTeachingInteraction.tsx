@@ -69,8 +69,8 @@ export function DeepDiveTeachingInteraction({
   if (answerKeys.some((key) => !optionKeys.has(key))) {
     throw new Error("Deep Dive formative interaction answer keys must exist in the options.");
   }
-  if (kind === "single_choice" && answerKeys.length !== 1) {
-    throw new Error("Single-choice formative interactions must define exactly one defensible answer.");
+  if (kind === "single_choice" && (answerKeys.length < 1 || answerKeys.length > 2)) {
+    throw new Error("Single-choice formative interactions must define one or two defensible answers.");
   }
   if (kind === "multi_select" && answerKeys.length < 2) {
     throw new Error("Multi-select formative interactions must define at least two defensible answers.");
@@ -79,7 +79,11 @@ export function DeepDiveTeachingInteraction({
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const feedbackRef = useRef<HTMLDivElement | null>(null);
-  const correct = submitted && sameStringSet(selectedKeys, answerKeys);
+  const correct =
+    submitted &&
+    (kind === "single_choice"
+      ? selectedKeys.length === 1 && answerKeys.includes(selectedKeys[0])
+      : sameStringSet(selectedKeys, answerKeys));
 
   const selectedOptions = options.filter((option) => selectedKeys.includes(option.key));
   const selectedCorrectOptions = selectedOptions.filter((option) => answerKeys.includes(option.key));

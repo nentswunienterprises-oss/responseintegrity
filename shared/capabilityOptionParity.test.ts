@@ -6,100 +6,99 @@ import {
   assertCapabilityOptionParity,
 } from "./capabilityOptionParity";
 
+const KEYS = ["a", "b", "c", "d", "e"];
+
 const item = (
   index: number,
-  correctKey: string,
+  correctKeys: string[],
   labels: Record<string, string>,
 ) => ({
   key: `item-${index}`,
   kind: "single_choice" as const,
-  options: ["A", "B", "C", "D"].map((key) => ({ key, label: labels[key] })),
-  correctOptionKeys: [correctKey],
+  options: KEYS.map((key) => ({ key, label: labels[key] })),
+  correctOptionKeys: correctKeys,
 });
 
-test("balanced option lengths and answer positions do not create a release shortcut", () => {
+function balancedItems() {
+  return Array.from({ length: 45 }, (_, index) => {
+    const first = KEYS[index % KEYS.length];
+    const second = KEYS[(index + 2) % KEYS.length];
+    const correctKeys = (index + 1) % 5 === 0 ? [first] : [first, second];
+    return item(index, correctKeys, {
+      a: "Plausible response under matched condition alpha.",
+      b: "Plausible response under matched condition bravo.",
+      c: "Plausible response under matched condition charlie.",
+      d: "Plausible response under matched condition delta.",
+      e: "Plausible response under matched condition echo.",
+    });
+  });
+}
+
+test("five-option banks with about eighty percent silent alternate-valid items pass parity", () => {
+  const summary = assertCapabilityOptionParity("balanced", balancedItems());
+  assert.equal(summary.eligibleSingleChoiceItems, 45);
+  assert.equal(summary.alternateValidItems, 36);
+  assert.equal(summary.alternateValidRate, 0.8);
+  assert.equal(summary.acceptedClusterLongerBy20Pct, 0);
+  assert.equal(summary.acceptedClusterShorterBy20Pct, 0);
+  assert.ok(summary.maxAcceptedKeyRate < 0.55);
+});
+
+test("systemic accepted-answer position leakage fails closed", () => {
   const items = Array.from({ length: 45 }, (_, index) => {
-    const correctKey = ["A", "B", "C", "D"][index % 4];
-    return item(index, correctKey, {
-      A: "Plausible response under matched condition A.",
-      B: "Plausible response under matched condition B.",
-      C: "Plausible response under matched condition C.",
-      D: "Plausible response under matched condition D.",
+    const second = KEYS[(index % 4) + 1];
+    const correctKeys = (index + 1) % 5 === 0 ? ["a"] : ["a", second];
+    return item(index, correctKeys, {
+      a: "Plausible response under matched condition alpha.",
+      b: "Plausible response under matched condition bravo.",
+      c: "Plausible response under matched condition charlie.",
+      d: "Plausible response under matched condition delta.",
+      e: "Plausible response under matched condition echo.",
     });
   });
 
-  const summary = assertCapabilityOptionParity("balanced", items);
-  assert.equal(summary.eligibleSingleChoiceItems, 45);
-  assert.equal(summary.correctUniquelyLongest, 0);
-  assert.equal(summary.correctUniquelyShortest, 0);
-  assert.equal(summary.correctOverLongestDistractorBy20Pct, 0);
-  assert.ok(summary.maxCorrectKeyRate < 0.4);
-});
-
-test("systemic correct-answer position leakage fails closed", () => {
-  const items = Array.from({ length: 45 }, (_, index) =>
-    item(index, "A", {
-      A: "Plausible response under matched condition A.",
-      B: "Plausible response under matched condition B.",
-      C: "Plausible response under matched condition C.",
-      D: "Plausible response under matched condition D.",
-    }),
-  );
-
   const summary = analyzeCapabilityOptionParity(items);
-  assert.equal(summary.maxCorrectKeyCount, 45);
+  assert.equal(summary.maxAcceptedKeyCount, 45);
   assert.throws(
     () => assertCapabilityOptionParity("position-leak", items),
-    /leaks the answer by position/i,
+    /leaks accepted answers by position/i,
   );
 });
 
-test("systemic uniquely-longest correct answers fail closed", () => {
-  const items = Array.from({ length: 45 }, (_, index) => {
-    const correctKey = ["A", "B", "C", "D"][index % 4];
-    const labels = {
-      A: "Short but plausible response alpha.",
-      B: "Short but plausible response bravo.",
-      C: "Short but plausible response charlie.",
-      D: "Short but plausible response delta.",
-    };
-    labels[correctKey as keyof typeof labels] =
-      "This correct response is much longer and more qualified than every distractor, making it visibly answer-like without requiring mastery.";
-    return item(index, correctKey, labels);
-  });
+test("systemic accepted-answer length leakage fails closed", () => {
+  const items = balancedItems().map((entry) => ({
+    ...entry,
+    options: entry.options.map((option) => ({
+      ...option,
+      label: entry.correctOptionKeys.includes(option.key)
+        ? "This accepted response is much longer and more qualified than every distractor, making the accepted cluster visible without requiring mastery."
+        : "Short but plausible distractor response.",
+    })),
+  }));
 
   const summary = analyzeCapabilityOptionParity(items);
-  assert.equal(summary.correctUniquelyLongest, 45);
-  assert.equal(summary.correctOverLongestDistractorBy20Pct, 45);
+  assert.equal(summary.acceptedClusterLongerBy20Pct, 45);
   assert.throws(
     () => assertCapabilityOptionParity("length-leak", items),
-    /leaks the answer by option length/i,
+    /leaks accepted answers by length/i,
   );
 });
 
 test("isolated length variation does not fail a bank", () => {
-  const items = Array.from({ length: 45 }, (_, index) => {
-    const correctKey = ["A", "B", "C", "D"][index % 4];
-    if (index < 10) {
-      const labels = {
-        A: "Short distractor alpha with a plausible rationale.",
-        B: "Short distractor bravo with a plausible rationale.",
-        C: "Short distractor charlie with a plausible rationale.",
-        D: "Short distractor delta with a plausible rationale.",
-      };
-      labels[correctKey as keyof typeof labels] =
-        "This correct response is intentionally somewhat longer than the distractors while remaining an isolated variation.";
-      return item(index, correctKey, labels);
-    }
-    return item(index, correctKey, {
-      A: "Comparable response alpha with matched wording length.",
-      B: "Comparable response bravo with matched wording length.",
-      C: "Comparable response charlie with matched wording length.",
-      D: "Comparable response delta with matched wording length.",
-    });
+  const items = balancedItems().map((entry, index) => {
+    if (index >= 10) return entry;
+    return {
+      ...entry,
+      options: entry.options.map((option) => ({
+        ...option,
+        label: entry.correctOptionKeys.includes(option.key)
+          ? "This accepted response is intentionally longer than the distractors while remaining an isolated variation."
+          : "Short plausible distractor response.",
+      })),
+    };
   });
 
   const summary = assertCapabilityOptionParity("isolated-variation", items);
-  assert.equal(summary.correctUniquelyLongest, 10);
-  assert.ok(summary.correctUniquelyLongestRate < 0.25);
+  assert.equal(summary.acceptedClusterLongerBy20Pct, 10);
+  assert.ok(summary.acceptedClusterLongerBy20PctRate < 0.25);
 });

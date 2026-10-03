@@ -205,7 +205,7 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
                 feedback: "Matching the inherited state does not make an unobserved behavior observable.",
               },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","d"]}
           truth="The system can ask for another opportunity. The Specialist cannot manufacture completeness."
         />
 

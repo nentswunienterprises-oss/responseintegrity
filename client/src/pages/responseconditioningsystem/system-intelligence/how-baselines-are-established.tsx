@@ -222,7 +222,7 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
                 feedback: "A provisional invented timer is still a pressure condition RI-OS did not allow.",
               },
           ]}
-          correctOptionKey="c"
+          correctOptionKeys={["c","d"]}
           truth="No valid baseline means no invented timer. RI-OS must establish the baseline first."
         />
 
