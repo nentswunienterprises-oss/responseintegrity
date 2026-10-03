@@ -163,7 +163,7 @@ export default function ResponseConditioningTopicConditioning() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">When the Entry Signal Is Uncertain</h2>
           <p className="text-muted-foreground">
-            If there is no trustworthy starting signal, RI-OS begins with a neutral Independent Normal Probe: one normal,
+            If there is no trustworthy starting signal, RI-OS begins with one neutral independent starting problem: one normal,
             familiar-form problem with difficulty and time pressure removed.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
@@ -184,8 +184,8 @@ export default function ResponseConditioningTopicConditioning() {
           options={[
             {
               key: "a",
-              label: "Structured Execution, because the neutral independent probe sits between Clarity and pressure work.",
-              feedback: "The neutral probe is an evidence condition, not a phase assignment.",
+              label: "Structured Execution, because the neutral independent starting problem sits between Clarity and pressure work.",
+              feedback: "The neutral starting problem creates clean evidence; it does not assign a phase by itself.",
             },
             {
               key: "b",
