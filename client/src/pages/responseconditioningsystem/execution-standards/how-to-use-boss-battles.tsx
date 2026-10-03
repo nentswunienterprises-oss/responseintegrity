@@ -73,7 +73,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
               improvise support.
             </p>
             <p className="text-muted-foreground">
-              The phase is Controlled Discomfort. The live set determines the exact support boundary.
+              The phase is Controlled Discomfort. The active set determines exactly what support is allowed.
               The Boss Battle is the challenging problem condition used inside that system.
             </p>
           </Card>
@@ -85,7 +85,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
               number of correct questions and then decide to add difficulty.
             </p>
             <p className="font-semibold">
-              RI-OS assigns Controlled Discomfort from the topic's evidence-derived state. The
+              RI-OS assigns Controlled Discomfort from the topic state supported by evidence. The
               Specialist prepares and runs the assigned Controlled Discomfort drill.
             </p>
             <ul className="space-y-2 text-sm text-muted-foreground">
@@ -112,7 +112,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
               {
                 key: "c",
                 label: "The Specialist can add a Boss Battle when they believe the student needs confidence under challenge.",
-                feedback: "Specialist preference does not authorize a phase change.",
+                feedback: "Specialist preference does not allow a phase change.",
               },
               {
                 key: "d",
@@ -121,8 +121,8 @@ export default function ResponseConditioningHowToUseBossBattles() {
               },
               {
                 key: "e",
-                label: "Keeping the same support boundary makes a Boss Battle valid inside Structured Execution.",
-                feedback: "Preserving support does not authorize adding a new difficulty condition outside the assigned phase.",
+                label: "Keeping the same support rule makes a Boss Battle valid inside Structured Execution.",
+                feedback: "Preserving support does not allow the Specialist to add a new difficulty condition outside the assigned phase.",
               },
             ]}
             kind="multi_select"
@@ -134,7 +134,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
             <h2 className="text-2xl font-bold">The Controlled Discomfort sequence</h2>
             <p className="text-muted-foreground">
               The live Training registry defines three Controlled Discomfort sets. All use challenging,
-              same-form problems. What changes is the support boundary and the evidence question.
+              same-form problems. What changes is the support rule and the evidence question.
             </p>
             <div className="space-y-3">
               {trainingSchema.sets.map((set, index) => (
@@ -153,7 +153,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
                   <p className="text-sm text-muted-foreground">{set.purpose}</p>
                   <p className="text-sm font-medium">
                     {supportMeaning[set.constraints.supportLevel] ||
-                      `Use the registered ${set.constraints.supportLevel.replaceAll("_", " ")} support boundary.`}
+                      `Use the registered ${set.constraints.supportLevel.replaceAll("_", " ")} support rule.`}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Difficulty: {set.constraints.difficultyLevel.replaceAll("_", " ")} | Form:{" "}
@@ -169,7 +169,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
             <h2 className="text-2xl font-bold">Controlled Entry</h2>
             <p className="text-muted-foreground">
               Controlled Entry introduces the challenging condition while allowing only the registered
-              minimal support boundary.
+              minimal support rule.
             </p>
             <p className="font-semibold">
               The difficulty stays. Support may target the allowed boundary, but the Specialist does not
@@ -180,7 +180,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
           <Card className="p-6 space-y-4">
             <h2 className="text-2xl font-bold">No Rescue</h2>
             <p className="text-muted-foreground">
-              No Rescue tightens the support boundary to first-step-only. The Specialist may not turn
+              No Rescue tightens the support rule to first-step-only. The Specialist may not turn
               uncertainty into a worked demonstration or method walkthrough.
             </p>
             <p className="font-semibold">
@@ -220,7 +220,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
               },
               {
                 key: "d",
-                label: "Only the authorized first-step boundary; reassurance that confirms later steps would become additional support.",
+                label: "Only the allowed first-step support; reassurance that confirms later steps would become additional support.",
                 feedback: "Yes. Support stops at the first-step boundary.",
               },
               {
@@ -295,9 +295,9 @@ export default function ResponseConditioningHowToUseBossBattles() {
           />
 
           <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-            <h2 className="text-2xl font-bold">Operating rule</h2>
+            <h2 className="text-2xl font-bold">Rule to follow</h2>
             <p className="font-semibold">
-              Controlled Discomfort chooses the load. The set chooses the support boundary. The Specialist
+              Controlled Discomfort chooses the load. The set chooses the support rule. The Specialist
               preserves both. Evidence decides what happens next.
             </p>
           </Card>
