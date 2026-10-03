@@ -94,6 +94,21 @@ const INDIRECT_OPTION_PATTERNS = [
   /^The key is that\b/i,
   /\bbecause part of the response still looks usable\b/i,
   /\bit avoids opening another evidence question\b/i,
+  /\bThe most dramatic visible failure is the strongest placement signal\b/i,
+  /\bTesting the stronger condition first reveals the student(?:'|’)?s limit faster\b/i,
+  /\bRestoring access to the method lets the Specialist observe the student(?:'|’)?s actual capability\b/i,
+  /\bThe Specialist has the full live context and can adapt the decision\b/i,
+  /\bSuccessful completion shows the underlying capability held\b/i,
+  /\bA fixed sample size makes the decision more consistent\b/i,
+  /\bCombining mixed results gives one stable summary\b/i,
+  /\bThe Specialist has immediate context that the system may not capture\b/i,
+  /\bThe visible behavior already matches the defining pattern\b/i,
+  /\bThe surrounding evidence is sufficient to complete the missing field\b/i,
+  /\bKeeping the original pressure reproduces the failure more realistically\b/i,
+  /\bReports and history are reliable enough to place the topic\b/i,
+  /\bThe Specialist(?:'|’)?s live judgment can integrate nuance better\b/i,
+  /\bA default stability level keeps initial placement consistent\b/i,
+  /\bA fixed number of reps makes Diagnosis more objective\b/i,
 ] as const;
 
 function hasIndirectOptionCopy(label: string) {
@@ -108,6 +123,7 @@ type PromptShape =
   | "reason"
   | "who"
   | "interpretation"
+  | "target"
   | "yes_no"
   | "other";
 
@@ -160,6 +176,14 @@ function classifyPromptShape(prompt: string): PromptShape {
   }
 
   if (
+    /^what is .*\b(?:trying to|meant to|supposed to)\b.*\b(?:locate|find|identify|establish|determine|resolve)\b/.test(
+      question,
+    )
+  ) {
+    return "target";
+  }
+
+  if (
     /^(?:can|should|is|are|does|do|did|has|have|will|would|could|may)\b/.test(
       question,
     )
@@ -179,7 +203,8 @@ function optionShapeMatchesPrompt(prompt: string, label: string) {
   if (
     (shape === "reason" ||
       shape === "who" ||
-      shape === "interpretation") &&
+      shape === "interpretation" ||
+      shape === "target") &&
     IMPERATIVE_OPTION_START.test(normalizedLabel)
   ) {
     return false;
@@ -380,7 +405,7 @@ export function assertCapabilityOptionParity(
       )
       .join("; ");
     throw new Error(
-      `Capability assessment ${assessmentKey} contains answer-option copy that comments on the option instead of answering the prompt directly. Remove meta or reusable filler phrasing such as "That can seem reasonable", "What matters is that", "The key is that", and generic "part of the response still looks usable" rationales. ${examples}`,
+      `Capability assessment ${assessmentKey} contains answer-option copy that comments on the option instead of answering the prompt directly. Remove meta or reusable filler phrasing, including generic RI-doctrine tails that can be pasted across unrelated prompts. ${examples}`,
     );
   }
 
