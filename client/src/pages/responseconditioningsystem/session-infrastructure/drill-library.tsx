@@ -15,12 +15,12 @@ const PHASES = [
 
 const drillTypes = [
   {
-    title: "Diagnosis probes",
+    title: "Diagnosis checks",
     use: "Intro Diagnosis and targeted re-diagnosis",
     authority:
       "Diagnosis asks only for the smallest next problem needed to resolve the current evidence question.",
     boundary:
-      "Diagnosis is not a fixed phase block or fixed rep quota. Specialists do not choose the next probe or placement.",
+      "Diagnosis is not a fixed phase block or fixed rep quota. Specialists do not choose the next check or the placement.",
   },
   {
     title: "Training drills",
