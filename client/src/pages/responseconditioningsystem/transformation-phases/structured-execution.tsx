@@ -351,72 +351,119 @@ export default function ResponseConditioningStructuredExecution() {
             </Card>
           );
 
-          if (set.setId !== "structured_execution.required_structure") {
-            return [setCard];
+          if (set.setId === "structured_execution.required_structure") {
+            return [
+              setCard,
+            <DeepDiveTeachingInteraction
+              key="structured-execution-required-structure-check"
+              prompt="A student reaches the correct answer but skips two required steps and cannot explain how they moved between them. What does the result show?"
+              options={[
+                {
+                  key: "a",
+                  label: "Structured Execution is strong enough, because the correct outcome proves the missing steps were mentally understood.",
+                  feedback: "The missing structure cannot be inferred from the correct answer. RI needs the execution chain to be observable and repeatable.",
+                },
+                {
+                  key: "b",
+                  label: "The correct result proves the outcome, not that the student can reliably execute the required sequence.",
+                  feedback: "Yes. This phase asks whether the known method can be carried in order, not whether one answer happened to land correctly.",
+                },
+                {
+                  key: "c",
+                  label: "Return to Clarity, because skipped steps mean the method is no longer understood.",
+                  feedback: "Skipped execution does not automatically prove a recognition failure. RI preserves earlier supported layers unless the evidence actually contradicts them.",
+                },
+                {
+                  key: "d",
+                  label: "Treat the skipped steps as an arithmetic detail and keep Structured Execution strong because the outcome was correct.",
+                  feedback: "The phase is about carrying the method structure visibly and repeatably. Missing required steps are not repaired by the final answer.",
+                },
+                { key: "e", label: "The answer can be correct while the required execution chain is still unproven because the skipped steps were never shown.", feedback: "Yes. Outcome correctness cannot replace observable, repeatable structure." },
+              ]}
+              correctOptionKeys={["b","e"]}
+              truth="Structured Execution requires visible, repeatable method use. A correct answer cannot substitute for evidence that the student can carry the known structure independently."
+            />
+            ];
           }
 
-          return [
-            setCard,
+          if (set.setId === "structured_execution.independent_execution") {
+            return [
+              setCard,
                     <DeepDiveTeachingInteraction
-                      key="structured-execution-required-structure-check"
-                  prompt="A student reaches the correct answer but skips two required steps and cannot explain how they moved between them. What does the result show?"
+                      key="structured-execution-independent-execution-check"
+                  prompt="During a no-help execution rep, the student asks, 'Is this the right next step?' What response preserves the rep?"
                   options={[
                     {
                       key: "a",
-                      label: "Structured Execution is strong enough, because the correct outcome proves the missing steps were mentally understood.",
-                      feedback: "The missing structure cannot be inferred from the correct answer. RI needs the execution chain to be observable and repeatable.",
-                    },
-                    {
-                      key: "b",
-                      label: "The correct result proves the outcome, not that the student can reliably execute the required sequence.",
-                      feedback: "Yes. This phase asks whether the known method can be carried in order, not whether one answer happened to land correctly.",
+                      label: "Confirm yes or no, because that checks the student's idea without telling them what the next step is.",
+                      feedback: "A yes or no answer still supplies directional information the learner was supposed to generate and evaluate independently.",
                     },
                     {
                       key: "c",
-                      label: "Return to Clarity, because skipped steps mean the method is no longer understood.",
-                      feedback: "Skipped execution does not automatically prove a recognition failure. RI preserves earlier supported layers unless the evidence actually contradicts them.",
+                      label: "Do not resolve the step; observe the request and let the student's next action stand as evidence.",
+                      feedback: "Yes. The condition is designed to show whether execution can continue without Specialist direction.",
+                    },
+                    {
+                      key: "b",
+                      label: "Ask, 'What do you think?' so the student remains the one choosing the next step.",
+                      feedback: "Reflecting the question back still becomes a prompt that can carry a stalled response. In a no-help rep, the support request itself is evidence.",
                     },
                     {
                       key: "d",
-                      label: "Treat the skipped steps as an arithmetic detail and keep Structured Execution strong because the outcome was correct.",
-                      feedback: "The phase is about carrying the method structure visibly and repeatably. Missing required steps are not repaired by the final answer.",
+                      label: "Say nothing but nod if the step is correct, because non-verbal confirmation does not count as help.",
+                      feedback: "A nod still resolves uncertainty for the student and can direct the next action. No-help includes non-verbal confirmation.",
                     },
-                    { key: "e", label: "The answer can be correct while the required execution chain is still unproven because the skipped steps were never shown.", feedback: "Yes. Outcome correctness cannot replace observable, repeatable structure." },
+                    { key: "e", label: "Leave the uncertainty unresolved and observe what the student does next; answering the support request would change the no-help condition.", feedback: "Yes. The request itself is evidence, and resolving it would supply direction." },
                   ]}
-                  correctOptionKeys={["b","e"]}
-                  truth="Structured Execution requires visible, repeatable method use. A correct answer cannot substitute for evidence that the student can carry the known structure independently."
+                  correctOptionKeys={["c","e"]}
+                  truth="No-help execution must remain no-help when the student becomes uncertain. The request for support is evidence; answering it would change what the rep measures."
             />
-          ];
+            ];
+          }
+
+          if (set.setId === "structured_execution.variation_control") {
+            return [
+              setCard,
+                    <DeepDiveTeachingInteraction
+                      key="structured-execution-variation-control-check"
+                  prompt="The student executes a familiar form well, then loses the same method when the problem is presented differently. What should the Specialist preserve next?"
+                  options={[
+                    {
+                      key: "a",
+                      label: "The changed form, because the breakdown is showing whether the known method transfers across variation.",
+                      feedback: "Yes. Variation Control exists to expose whether execution survives a changed presentation.",
+                    },
+                    {
+                      key: "b",
+                      label: "Return to the familiar form and rebuild successful execution first.",
+                      feedback: "Returning only to the familiar form can hide the transfer weakness that the changed form just revealed.",
+                    },
+                    {
+                      key: "c",
+                      label: "A harder unfamiliar problem, because losing the method under change means the student is ready for Controlled Discomfort.",
+                      feedback: "Variation is not automatically a difficulty-phase condition. The current evidence still concerns transfer of the known execution structure.",
+                    },
+                    {
+                      key: "d",
+                      label: "Return to Required Structure because any changed-form failure proves the familiar execution was not truly stable.",
+                      feedback: "A transfer breakdown can exist even when familiar-form structure is supported. RI should not erase that earlier evidence automatically.",
+                    },
+                    {
+                      key: "e",
+                      label: "Keep the changed form but add minimal hints so the student can show whether the method returns with a little support.",
+                      feedback: "Variation Control is a no-help transfer condition. Adding hints would answer a different question.",
+                    },
+                  ]}
+                  correctOptionKey="a"
+                  truth="Variation Control belongs inside Structured Execution. The Specialist preserves a valid changed form and observes whether the known method survives the change without adding a different phase demand."
+            />
+            ];
+          }
+
+          return [setCard];
         })}
 
-        <DeepDiveTeachingInteraction
-          prompt="During a no-help execution rep, the student asks, 'Is this the right next step?' What response preserves the rep?"
-          options={[
-            {
-              key: "a",
-              label: "Confirm yes or no, because that checks the student's idea without telling them what the next step is.",
-              feedback: "A yes or no answer still supplies directional information the learner was supposed to generate and evaluate independently.",
-            },
-            {
-              key: "c",
-              label: "Do not resolve the step; observe the request and let the student's next action stand as evidence.",
-              feedback: "Yes. The condition is designed to show whether execution can continue without Specialist direction.",
-            },
-            {
-              key: "b",
-              label: "Ask, 'What do you think?' so the student remains the one choosing the next step.",
-              feedback: "Reflecting the question back still becomes a prompt that can carry a stalled response. In a no-help rep, the support request itself is evidence.",
-            },
-            {
-              key: "d",
-              label: "Say nothing but nod if the step is correct, because non-verbal confirmation does not count as help.",
-              feedback: "A nod still resolves uncertainty for the student and can direct the next action. No-help includes non-verbal confirmation.",
-            },
-            { key: "e", label: "Leave the uncertainty unresolved and observe what the student does next; answering the support request would change the no-help condition.", feedback: "Yes. The request itself is evidence, and resolving it would supply direction." },
-          ]}
-          correctOptionKeys={["c","e"]}
-          truth="No-help execution must remain no-help when the student becomes uncertain. The request for support is evidence; answering it would change what the rep measures."
-        />
+
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What You Observe</h2>
@@ -484,38 +531,7 @@ export default function ResponseConditioningStructuredExecution() {
           </p>
         </Card>
 
-        <DeepDiveTeachingInteraction
-          prompt="The student executes a familiar form well, then loses the same method when the problem is presented differently. What should the Specialist preserve next?"
-          options={[
-            {
-              key: "a",
-              label: "The changed form, because the breakdown is showing whether the known method transfers across variation.",
-              feedback: "Yes. Variation Control exists to expose whether execution survives a changed presentation.",
-            },
-            {
-              key: "b",
-              label: "Return to the familiar form and rebuild successful execution first.",
-              feedback: "Returning only to the familiar form can hide the transfer weakness that the changed form just revealed.",
-            },
-            {
-              key: "c",
-              label: "A harder unfamiliar problem, because losing the method under change means the student is ready for Controlled Discomfort.",
-              feedback: "Variation is not automatically a difficulty-phase condition. The current evidence still concerns transfer of the known execution structure.",
-            },
-            {
-              key: "d",
-              label: "Return to Required Structure because any changed-form failure proves the familiar execution was not truly stable.",
-              feedback: "A transfer breakdown can exist even when familiar-form structure is supported. RI should not erase that earlier evidence automatically.",
-            },
-            {
-              key: "e",
-              label: "Keep the changed form but add minimal hints so the student can show whether the method returns with a little support.",
-              feedback: "Variation Control is a no-help transfer condition. Adding hints would answer a different question.",
-            },
-          ]}
-          correctOptionKey="a"
-          truth="Variation Control belongs inside Structured Execution. The Specialist preserves a valid changed form and observes whether the known method survives the change without adding a different phase demand."
-        />
+
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression Logic</h2>
