@@ -41,7 +41,7 @@ const CLARITY_SET_EXECUTION: Record<
     specialistAction:
       "Model the topic through Vocabulary, Recognition, Method, Ordered Steps, and Reason. Make the language, applicable method, step order, and reason explicit, then require the student to explain it back.",
     preserve:
-      "This is teaching and preparation, not decision-eligible evidence. Build the map before asking the student to demonstrate it independently.",
+      "This is teaching and preparation, not evidence the system can use to judge independent performance. Build the map before asking the student to demonstrate it independently.",
     doNot: [
       "Do not turn Modeling into repeated solving practice.",
       "Do not teach Method without Reason.",
@@ -87,7 +87,7 @@ const progressionBands = [
   "Low: run the Clarity drill. No Boss Battles, no time pressure, no skipping the mental-map layers.",
   "Medium: remain in Clarity. Reduce unnecessary explanation and strengthen repeatable recognition and light execution.",
   "High: remain in Clarity and prove repeatability. High does not phase-progress directly.",
-  "High Maintenance: qualifying evidence can progress the topic into Structured Execution at Low. The engine owns that decision.",
+  "High Maintenance: the required clean evidence can progress the topic into Structured Execution at Low. RI-OS decides that from the evidence.",
 ];
 
 const constraintLabel = (set: EvidenceSetDefinition) => {
@@ -203,7 +203,7 @@ export default function ResponseConditioningClarity() {
             {
               key: "e",
               label: "Treat the solve as Light Apply and skip Identification because the student has already demonstrated a later response.",
-              feedback: "A student drifting into a later task does not give the Specialist authority to skip the condition RI assigned.",
+              feedback: "A student drifting into a later task does not let the Specialist skip the condition RI assigned.",
             },
           ]}
           correctOptionKey="b"
@@ -221,7 +221,7 @@ export default function ResponseConditioningClarity() {
             </p>
             <p className="text-sm text-muted-foreground mt-2">
               {requiredTrainingProblems} required opportunities in the live training drill. Modeling is preparation; the later reps
-              produce decision-eligible behavioral evidence.
+              produce clean behavioral evidence RI-OS can use.
             </p>
           </div>
           <p className="font-medium">
@@ -454,7 +454,7 @@ export default function ResponseConditioningClarity() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="Clarity is at High and the next session is due. Which action preserves RI's progression authority?"
+          prompt="Clarity is at High and the next session is due. Which action preserves RI's progression rule?"
           options={[
             {
               key: "a",
@@ -464,17 +464,17 @@ export default function ResponseConditioningClarity() {
             {
               key: "b",
               label: "Run the ordinary Clarity drill again and submit the resulting evidence for RI to evaluate.",
-              feedback: "Yes. High remains inside Clarity until later qualifying evidence earns High Maintenance and the system authorizes movement.",
+              feedback: "Yes. High remains inside Clarity until later clean evidence earns High Maintenance and RI-OS allows movement.",
             },
             {
               key: "c",
               label: "Run a High Maintenance drill, then decide whether Structured Execution opens.",
-              feedback: "High Maintenance is the state earned from qualifying same-phase evidence, not a separate drill the Specialist chooses.",
+              feedback: "High Maintenance is the state earned from later clean same-phase evidence, not a separate drill the Specialist chooses.",
             },
             {
               key: "d",
               label: "Upgrade to High Maintenance manually because High already means the Clarity response is reliable.",
-              feedback: "High is strong within-phase evidence, but High Maintenance is a distinct confirmation state earned through later qualifying evidence.",
+              feedback: "High is strong within-phase evidence, but High Maintenance is a distinct confirmation state earned through later clean evidence.",
             },
             {
               key: "e",
@@ -483,7 +483,7 @@ export default function ResponseConditioningClarity() {
             },
           ]}
           correctOptionKey="b"
-          truth="High is not manual progression authority. The Specialist runs the same-phase drill, preserves the conditions, submits the evidence, and lets RI determine whether High Maintenance has been earned."
+          truth="High does not let the Specialist progress the topic manually. The Specialist runs the same-phase drill, preserves the conditions, submits the evidence, and lets RI determine whether High Maintenance has been earned."
         />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
