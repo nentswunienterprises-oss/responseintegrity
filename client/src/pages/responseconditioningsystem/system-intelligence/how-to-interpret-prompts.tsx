@@ -38,7 +38,7 @@ export default function ResponseConditioningHowToInterpretPrompts() {
           completion={<DeepDiveCapabilityCheck assessmentKey="how_to_interpret_prompts_mastery_v1" />}
         >
         <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">The runner is giving you operating instructions, not prose</h2>
+          <h2 className="text-2xl font-bold">The runner is telling you what to do next</h2>
           <p className="text-muted-foreground">
             Every prompt exists because the current session state, phase, set, evidence question, or constraint requires a specific action.
           </p>
@@ -65,7 +65,7 @@ export default function ResponseConditioningHowToInterpretPrompts() {
             DO THIS NOW tells the Specialist what to physically or operationally do. It is not text to read aloud.
           </p>
           <p className="text-muted-foreground">
-            Examples include presenting the prepared problem, observing without rescue, starting the correct condition, recording evidence, or preserving a support boundary.
+            Examples include presenting the prepared problem, observing without rescue, starting the correct condition, recording evidence, or preserving the active support rule.
           </p>
         </Card>
 
@@ -118,7 +118,7 @@ export default function ResponseConditioningHowToInterpretPrompts() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Why this opportunity exists explains system intent</h2>
           <p className="text-muted-foreground">
-            This text explains why RI-OS opened the current opportunity: cold exposure, constraint stripping, confirmation, baseline completion, conflict resolution, or continuity verification.
+            This text explains why RI-OS opened the current opportunity: a first clean exposure, removing pressure to check an earlier layer, confirmation, completing a baseline, resolving conflicting evidence, or checking Handover continuity.
           </p>
           <p className="text-muted-foreground">
             It helps you understand the system's reasoning so you can preserve the intended condition. It does not give you permission to change that condition.
@@ -169,16 +169,16 @@ export default function ResponseConditioningHowToInterpretPrompts() {
           ]}
           kind="multi_select"
           correctOptionKeys={["b","d"]}
-          truth="Observation prompts capture evidence; they do not authorize the Specialist to create missing evidence. A dimension that was not exposed remains not observed."
+          truth="Observation prompts capture evidence; they do not let the Specialist create missing evidence. A dimension that was not exposed remains not observed."
         />
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">System direction is evidence-derived</h2>
+          <h2 className="text-2xl font-bold">System direction comes from evidence</h2>
           <p className="text-muted-foreground">
             When the runner says continue checking, keep the state, require targeted re-diagnosis, run a specific drill, or preserve a state, RI-OS is applying the shared rules to the clean evidence that was recorded.
           </p>
           <p className="text-muted-foreground">
-            The point is consistency: the same evidence should produce the same operating decision regardless of which Specialist happens to be present. Specialist judgment still matters through accurate observation, condition preservation, truthful recording, and identifying a prompt or system defect that needs escalation.
+            The point is consistency: the same evidence should produce the same next action regardless of which Specialist happens to be present. Specialist judgment still matters through accurate observation, condition preservation, truthful recording, and identifying a prompt or system defect that needs escalation.
           </p>
           <p className="font-semibold">
             Follow the current direction because it comes from the recorded evidence, not because software is beyond question. Do not replace it with preference during the live flow; change the direction only when new clean evidence or a confirmed system correction supports it.
