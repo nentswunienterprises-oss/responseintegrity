@@ -17,11 +17,11 @@ const contexts = [
   },
   {
     title: "Active Training",
-    purpose: "Condition the phase-defining capability for the topic under the phase's prescribed sequence and constraints.",
+    purpose: "Train the behavior this phase is meant to build for the topic, using the phase's required sequence and conditions.",
     specialist:
       "Prepare the required problems, run the required Training sets, preserve the support, pressure, variation, and difficulty conditions, and record the actual behavior and intervention.",
     system:
-      "Evaluate evidence eligibility, resolve phase dimensions, update stability, preserve recovery rules, and authorize hold, High, High Maintenance, progression, or targeted re-diagnosis where the evidence warrants it.",
+      "Check what evidence can count, resolve the phase observations, update stability, preserve recovery rules, and decide whether the topic stays put, reaches High or High Maintenance, progresses, or needs targeted re-diagnosis.",
     notFor:
       "Do not select arbitrary drills, manually move the phase, rescue a weak response into stronger-looking evidence, or turn Training into fresh placement.",
   },
@@ -61,7 +61,7 @@ export default function ResponseConditioningSessionFlowControl() {
             <div>
               <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Response Integrity-OS Deep Dive</p>
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight mt-1">Session Flow Control</h1>
-              <p className="text-muted-foreground mt-1">Know which session context you are in, then execute only what that context authorizes.</p>
+              <p className="text-muted-foreground mt-1">Know which session context you are in, then do only what that context allows.</p>
             </div>
           </div>
         </div>
@@ -78,7 +78,7 @@ export default function ResponseConditioningSessionFlowControl() {
           <p className="text-muted-foreground">
             Phase and session context are different. The same phase can appear inside Diagnosis, Training, targeted re-diagnosis, or Handover, but the allowed support and conditions are not interchangeable.
           </p>
-          <p className="font-semibold">Identify the session context first. Then run the system-authorized drill behavior for that context.</p>
+          <p className="font-semibold">Identify the session context first. Then run the drill behavior RI-OS requires for that context.</p>
         </Card>
 
         <div className="space-y-5">
