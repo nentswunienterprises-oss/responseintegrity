@@ -252,7 +252,7 @@ export default function ResponseConditioningStructuredExecution() {
         <DeepDiveTeachingInteraction
           prompt="You are preparing a Required Structure set for a method the student already recognises. Which material is best?"
           options={[
-            { key: "a", label: "Use several comparable problems built on the already-known method so the Specialist can see whether the sequence repeats reliably.", feedback: "Yes. Required Structure needs repeated opportunities to observe the known method, not new-method learning or transfer." },
+            { key: "a", label: "Problems with enough working steps to make the student's method order visible, without introducing a new method or difficulty variable.", feedback: "Yes. Required Structure needs repeated opportunities to observe the known method, not new-method learning or transfer." },
             {
               key: "c",
               label: "A new method from the same topic, because successful execution would prove the student can generalise structure.",
@@ -260,7 +260,7 @@ export default function ResponseConditioningStructuredExecution() {
             },
             {
               key: "b",
-              label: "Several appropriate problems using the known method, so the sequence can be observed repeatedly.",
+              label: "Several comparable problems that all require the same known method, so the sequence can be observed more than once.",
               feedback: "Yes. The material should expose repeatable execution of the known method without silently turning the task into new-method learning.",
             },
             {
