@@ -148,7 +148,7 @@ export default function ResponseConditioningHowToInterpretPrompts() {
             },
             {
               key: "b",
-              label: "Record the recognition dimension as not observed for this opportunity.",
+              label: "Record recognition as not observed for this opportunity.",
               feedback: "The form records the response. It must not manufacture the response.",
             },
             {
@@ -158,7 +158,7 @@ export default function ResponseConditioningHowToInterpretPrompts() {
             },
             {
               key: "d",
-              label: "Keep the rest of the opportunity intact instead of adding a follow-up just to manufacture the missing dimension.",
+              label: "Keep the rest of the opportunity intact instead of adding a follow-up just to manufacture the missing behavior.",
               feedback: "Missing evidence is preferable to manufactured observability.",
             },
             {
@@ -169,7 +169,7 @@ export default function ResponseConditioningHowToInterpretPrompts() {
           ]}
           kind="multi_select"
           correctOptionKeys={["b","d"]}
-          truth="Observation prompts capture evidence; they do not let the Specialist create missing evidence. A dimension that was not exposed remains not observed."
+          truth="Observation prompts capture evidence; they do not let the Specialist create missing evidence. A behavior that was not exposed remains not observed."
         />
 
         <Card className="p-6 space-y-4">
