@@ -145,17 +145,17 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Diagnosis can establish the same baseline</h2>
           <p className="text-muted-foreground">
-            A topic can legitimately be placed above Structured Execution without first completing Structured Execution Training. RI-OS therefore allows eligible Diagnosis opportunities to establish the timing reference.
+            A topic can legitimately be placed above Structured Execution without first completing Structured Execution Training. RI-OS can therefore use clean Diagnosis opportunities to establish the timing reference.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>The eligible opportunities are normal, same-form, no-pressure independent execution.</li>
+            <li>The opportunities that can count are normal, same-form, no-pressure independent execution.</li>
             <li>The first clean comparable opportunity can become timing sample 1.</li>
             <li>The system gathers only the remaining samples required to reach three clean comparable intervals.</li>
             <li>If an earlier response layer breaks first, Diagnosis stops there instead of collecting timing for future use.</li>
             <li>If a valid current Timer Contract already exists, the system reuses it.</li>
           </ul>
           <p className="font-semibold">
-            This is evidence-complete Diagnosis, not a hidden three-rep calibration block.
+            Diagnosis stops when the evidence question is resolved. This is not a hidden three-rep calibration block.
           </p>
         </Card>
 
@@ -219,7 +219,7 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
               {
                 key: "e",
                 label: "Use 50 seconds only for one provisional rep, then replace it once a formal baseline exists.",
-                feedback: "A provisional invented timer is still an unauthorized pressure condition.",
+                feedback: "A provisional invented timer is still a pressure condition RI-OS did not allow.",
               },
           ]}
           correctOptionKey="c"
@@ -235,7 +235,7 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
             A fresh pre-prepared equivalent reserve may fill that unresolved slot under the same condition, while the failed attempt remains in the record.
           </p>
           <p className="font-semibold">
-            Timeout, panic, wrong method, slow work, incomplete work, or weak performance are student evidence. They never authorize a replacement attempt.
+            Timeout, panic, wrong method, slow work, incomplete work, or weak performance are student evidence. They never allow a replacement attempt.
           </p>
         </Card>
         </DeepDiveLessonRunner>
