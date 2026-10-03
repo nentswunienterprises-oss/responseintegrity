@@ -287,7 +287,7 @@ export default function ResponseConditioningTimePressureStability() {
             },
             {
               key: "d",
-              label: "Use the elapsed time but subtract the 20 seconds manually before the baseline is stored.",
+              label: "Yes. Use the elapsed time but subtract the 20 seconds manually before the baseline is stored.",
               feedback: "Manually changing the time cannot recreate the student's true execution interval. The timer must freeze at actual completion.",
             },
             { key: "e", label: "No. Freeze Student Finished when the mathematics ends; observation administration belongs after the execution interval.", feedback: "Yes. The Timer Contract must be built from the student's execution time, not post-response administration." },
