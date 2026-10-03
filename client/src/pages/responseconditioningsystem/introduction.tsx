@@ -366,7 +366,7 @@ export default function ResponseConditioningIntroduction() {
             </p>
           </div>
           <p className="text-muted-foreground">
-            The system then determines the appropriate state transition. This protects the methodology from
+            The system then determines the appropriate next state. This protects the methodology from
             individual preference, optimism, pressure from families, or inconsistent Specialist judgment.
           </p>
         </Card>
