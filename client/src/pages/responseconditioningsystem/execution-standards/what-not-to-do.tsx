@@ -110,8 +110,8 @@ export default function ResponseConditioningWhatNotToDo() {
               },
               {
                 key: "d",
-                label: "Keep the recognition dimension unresolved while preserving the rest of the rep exactly as observed.",
-                feedback: "Yes. One missing dimension does not erase the evidence that was actually observed.",
+                label: "Keep recognition unresolved while preserving the rest of the rep exactly as observed.",
+                feedback: "Yes. One missing observation does not erase the evidence that was actually observed.",
               },
               {
                 key: "e",
