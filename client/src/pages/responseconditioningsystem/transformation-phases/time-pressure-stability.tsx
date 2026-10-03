@@ -241,7 +241,7 @@ export default function ResponseConditioningTimePressureStability() {
             execution opportunities.
           </p>
           <p className="text-muted-foreground">
-            Diagnosis stays evidence-complete. The first eligible independent opportunity may become timing sample 1,
+            Diagnosis stops when the evidence question is resolved. The first clean independent opportunity may become timing sample 1,
             then RI-OS gathers only the remaining clean comparable samples required to reach three.
           </p>
           <p className="font-semibold">
@@ -268,7 +268,7 @@ export default function ResponseConditioningTimePressureStability() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="The student finishes the baseline problem, but the Specialist spends another 20 seconds completing observations before pressing Student Finished. Can that elapsed time authorize the Timer Contract?"
+          prompt="The student finishes the baseline problem, but the Specialist spends another 20 seconds completing observations before pressing Student Finished. Can that elapsed time count toward the Timer Contract?"
           options={[
             {
               key: "a",
@@ -394,17 +394,17 @@ export default function ResponseConditioningTimePressureStability() {
             {
               key: "a",
               label: "Yes, because the stopwatch still measured the student's real working speed from start to finish.",
-              feedback: "The clock may be accurate, but the response condition was supported. A supported time cannot stand in for independent eligible timing evidence.",
+              feedback: "The clock may be accurate, but the student received support. That time cannot stand in for the required independent timing evidence.",
             },
             {
               key: "b",
               label: "Yes, if the prompts did not reveal the actual next step and only kept the student focused.",
-              feedback: "Directional support can still change execution speed and continuity. Eligibility depends on preserving the required response condition, not on how subtle the prompt felt.",
+              feedback: "Directional support can still change execution speed and the student's response. Whether the timing can count depends on preserving the required independent condition, not on how subtle the prompt felt.",
             },
             {
               key: "c",
-              label: "No. The later timer needs timing evidence produced under the eligible independence condition.",
-              feedback: "Yes. Pressure must be derived from timing evidence that reflects the response RI intends to stress-test.",
+              label: "No. The later timer needs timing evidence produced under the required independent condition.",
+              feedback: "Yes. Pressure must be based on timing evidence that reflects the response RI intends to stress-test.",
             },
             {
               key: "d",
@@ -418,7 +418,7 @@ export default function ResponseConditioningTimePressureStability() {
             },
           ]}
           correctOptionKey="c"
-          truth="Timing evidence is only useful as a pressure baseline when the underlying execution condition is eligible. A precise stopwatch reading cannot repair a supported or contaminated response."
+          truth="Timing evidence can only set the pressure baseline when the underlying execution condition stayed independent and clean. A precise stopwatch reading cannot repair a supported or contaminated response."
         />
 
         <Card className="p-6 space-y-5">
@@ -621,7 +621,7 @@ export default function ResponseConditioningTimePressureStability() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="RI has assigned the active timer from eligible timing evidence. Mid-rep, the student starts losing structure and asks for more time. What should the Specialist do?"
+          prompt="RI has assigned the active timer from valid independent timing evidence. Mid-rep, the student starts losing structure and asks for more time. What should the Specialist do?"
           options={[
             {
               key: "a",
@@ -650,7 +650,7 @@ export default function ResponseConditioningTimePressureStability() {
             },
           ]}
           correctOptionKey="c"
-          truth="The system-derived timer is part of the evidence condition. Once the rep begins, the Specialist does not loosen or pause it to rescue performance; they preserve the condition and record what happens."
+          truth="The timer RI-OS set is part of the evidence condition. Once the rep begins, the Specialist does not loosen or pause it to rescue performance; they preserve the condition and record what happens."
         />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
