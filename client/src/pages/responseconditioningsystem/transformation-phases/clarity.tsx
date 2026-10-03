@@ -178,14 +178,14 @@ export default function ResponseConditioningClarity() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="During an Identification rep, the student immediately begins solving and reaches the correct answer. What should the Specialist do with the rep?"
+          prompt="During an Identification rep, the student skips the recognition response, solves the problem immediately, and reaches the correct answer. What should the Specialist do with that result?"
           options={[
             {
               key: "b",
-              label: "Stop the solve and return to identifying the type, method and reason without supplying them.",
+              label: "Do not treat the correct solve as recognition evidence; the required recognition response was never observed before execution.",
               feedback: "Yes. Identification isolates the mental map before execution, so the Specialist has to preserve recognition without solving.",
             },
-            { key: "a", label: "Return the rep to recognition: have the student identify the problem type, method and reason before solving, without supplying those answers.", feedback: "Yes. Identification must show recognition before execution; the Specialist can redirect the task without giving the recognition answer." },
+            { key: "a", label: "Use a fresh equivalent Identification opportunity and ask for the type, method and reason before any solving begins.", feedback: "Yes. Identification must show recognition before execution; the Specialist can redirect the task without giving the recognition answer." },
             {
               key: "c",
               label: "Allow only the first few steps, then ask the student to explain the method before finishing.",
