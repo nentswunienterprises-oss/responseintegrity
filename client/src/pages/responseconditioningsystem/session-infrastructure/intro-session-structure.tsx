@@ -8,7 +8,7 @@ const operatingRules = [
   "Intro is topic-entry placement, not a training lesson.",
   "Diagnosis stops when the evidence question is resolved, not after a fixed rep count.",
   "Every opportunity exists to answer a named evidence question.",
-  "The Specialist records concrete observed behavior; they do not choose the phase, stability, or next probe.",
+  "The Specialist records concrete observed behavior; they do not choose the phase, stability, or next check.",
   "A higher-constraint failure does not automatically prove an earlier capability failed.",
   "Teaching, correction, rescue, or first-step confirmation cannot determine clean baseline placement.",
   "Diagnosis may place Low, Medium, or High. High Maintenance remains training-earned.",
@@ -17,7 +17,7 @@ const operatingRules = [
 const specialistResponsibilities = [
   "Start from the selected topic and the available starting signal.",
   "Prepare the system-selected problem or example, but keep it hidden until Begin Opportunity.",
-  "Follow only the probe-specific words and actions shown by the runner.",
+  "Follow only the words and actions the runner shows for that check.",
   "Watch the complete student response before opening the observation runner.",
   "Click Student Finished at actual completion, then record the observations one at a time.",
   "Record only what the opportunity actually exposed. Do not use a retrospective walk-through to fill missing live evidence.",
@@ -34,7 +34,7 @@ const opportunityExecutionFlow = [
   },
   {
     stage: "Observe",
-    rule: "Click Begin Opportunity, immediately reveal the prepared problem or example, follow only the prescribed probe script, and watch the whole response.",
+    rule: "Click Begin Opportunity, immediately reveal the prepared problem or example, follow the exact wording shown, and watch the whole response.",
   },
   {
     stage: "Student Finished",
@@ -46,14 +46,14 @@ const opportunityExecutionFlow = [
   },
   {
     stage: "Confirm",
-    rule: "Record intervention or contamination honestly and submit the opportunity. The system decides whether another probe is needed.",
+    rule: "Record intervention or contamination honestly and submit the opportunity. RI-OS decides whether another check is needed.",
   },
 ];
 
 const systemResponsibilities = [
-  "Select the first probe from the starting signal, or use a neutral independent baseline when no trustworthy signal exists.",
+  "Select the first check from the starting signal, or use a neutral independent baseline when no trustworthy signal exists.",
   "Interpret concrete behavior into evidence state without asking the Specialist to select Weak, Partial, Clear, Low, Medium, or High.",
-  "Decide whether placement is complete, another named probe is needed, or the evidence must remain blocked rather than guessed.",
+  "Decide whether placement is complete, another specific check is needed, or the evidence must remain unresolved rather than guessed.",
   "Strip constraints when a higher-condition breakdown does not reveal which earlier layer actually failed.",
   "Require additional opportunities only when repeatability, recovery, consistency, contamination, or conflicting evidence genuinely remains unresolved.",
   "Derive the final topic entry phase and starting stability from clean evidence.",
@@ -101,7 +101,7 @@ const contaminationExamples = [
   {
     label: "Teaching, correction, or rescue",
     meaning:
-      "Preserved honestly, but excluded from baseline placement evidence. The engine must request clean evidence instead of crediting the post-support response as independent capability.",
+      "Preserved honestly, but excluded from baseline placement evidence. RI-OS must request clean evidence instead of treating the post-support response as independent capability.",
   },
 ];
 
@@ -176,7 +176,7 @@ export default function ResponseConditioningIntroSessionStructure() {
             <div className="rounded-xl border p-4">
               <p className="font-semibold">If a specific evidence question remains</p>
               <p className="text-sm text-muted-foreground">
-                The engine selects the smallest next probe needed to resolve that question.
+                RI-OS selects the smallest next check needed to resolve that question.
               </p>
             </div>
             <div className="rounded-xl border p-4">
@@ -246,7 +246,7 @@ export default function ResponseConditioningIntroSessionStructure() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Higher-Constraint Evidence and Constraint Stripping</h2>
+          <h2 className="text-2xl font-bold">When Higher Pressure Must Be Removed</h2>
           <p className="text-muted-foreground">
             Strong behavior under a higher constraint may support earlier layers when the
             earlier behaviors were directly observed. Failure under a higher constraint does
@@ -276,7 +276,7 @@ export default function ResponseConditioningIntroSessionStructure() {
             Medium, High, a phase, or a next action. The Specialist answers one question: <span className="font-medium text-foreground">what actually happened?</span>
           </p>
           <p className="text-muted-foreground">
-            Each exposed dimension presents concrete behavior choices. These include
+            Each behavior RI-OS asks you to observe presents concrete choices. These include
             decision-relevant breakdown, conditional, near-stable, and supported behavior,
             plus two critical escape states:
           </p>
@@ -371,7 +371,7 @@ export default function ResponseConditioningIntroSessionStructure() {
           </p>
           <p className="text-sm text-muted-foreground">
             When content exposure makes the response uninterpretable, record not-observed or
-            confounded evidence. The engine should remain unresolved rather than invent a
+            confounded evidence. RI-OS should keep the question unresolved rather than invent a
             response-conditioning placement from unavailable content.
           </p>
         </Card>
@@ -393,12 +393,12 @@ export default function ResponseConditioningIntroSessionStructure() {
             ))}
           </div>
           <p className="text-sm font-medium">
-            Independent Normal Probe does not deliberately ask for Vocabulary, Method, or Reason.
+            The neutral independent starting problem does not deliberately ask for Vocabulary, Method, or Reason.
             If those behaviors were not naturally exposed, record not-observed and let the system
             select Clarity Recognition when that evidence is still required.
           </p>
           <p className="text-sm text-muted-foreground">
-            Clarity Recognition is different because elicitation is the probe condition. Ask:
+            Clarity Recognition is different because the check deliberately asks for recognition. Ask:
             "What do you see here?", "Which method would you use?", "Why does that method fit?",
             then "Show me how you would start." Do not reuse that prompted first move as evidence
             of a cold Structured Execution start.
@@ -422,7 +422,7 @@ export default function ResponseConditioningIntroSessionStructure() {
             ))}
           </ul>
           <p className="font-medium">
-            The reason for the decision is the student's evidence. The engine exists to
+            The reason for the decision is the student's evidence. RI-OS exists to
             interpret that evidence consistently and preserve the diagnostic boundary.
           </p>
         </Card>
@@ -436,7 +436,7 @@ export default function ResponseConditioningIntroSessionStructure() {
           <p className="text-sm text-muted-foreground">
             Completing one topic does not assign that state to another topic and does not
             require every topic to use the same number of opportunities. The session shell
-            manages topic switching; the diagnosis engine resolves each topic independently.
+            manages topic switching; RI-OS resolves each topic independently.
           </p>
         </Card>
 
@@ -454,7 +454,7 @@ export default function ResponseConditioningIntroSessionStructure() {
             </li>
             <li>
               <span className="font-medium text-foreground">What behavior decided it:</span>{" "}
-              the exact dimension and concrete behavior label that created the entry state.
+              the exact behavior and concrete observation that created the entry state.
             </li>
             <li>
               <span className="font-medium text-foreground">What happens next:</span> the
@@ -470,7 +470,7 @@ export default function ResponseConditioningIntroSessionStructure() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Durable Evidence and Resume Integrity</h2>
           <p className="text-muted-foreground">
-            The diagnosis path is durable. The server validates the expected probe sequence,
+            The diagnosis path is durable. RI-OS validates the expected sequence of checks,
             persists partial runs, independently recomputes the decision, and finalizes the
             same topic placement from the submitted evidence history.
           </p>
