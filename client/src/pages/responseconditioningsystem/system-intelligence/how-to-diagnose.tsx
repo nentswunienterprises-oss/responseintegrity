@@ -121,7 +121,7 @@ export default function ResponseConditioningHowToDiagnose() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">When there is no trustworthy starting signal</h2>
           <p className="text-muted-foreground">
-            RI-OS begins with a neutral Independent Normal Probe: one normal, familiar-form problem with difficulty and time removed.
+            RI-OS begins with one neutral independent starting problem: a normal, familiar-form problem with difficulty and time pressure removed.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>No timer or urgency target.</li>
