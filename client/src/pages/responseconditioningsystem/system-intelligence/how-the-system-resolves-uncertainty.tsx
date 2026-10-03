@@ -170,14 +170,14 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>Clean Handover evidence can support keeping the inherited state.</li>
-            <li>A not-observed or confounded dimension can require another comparable Handover opportunity.</li>
+            <li>A behavior that was not observed or became confounded can require another comparable Handover opportunity.</li>
             <li>A confirmed breakdown in a behavior that defines the phase requires targeted re-diagnosis.</li>
             <li>Persistent conditional evidence can adjust stability within the same phase when the limited Handover check ends.</li>
           </ul>
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A Handover opportunity is clean except one dimension was not meaningfully observed. Should the Specialist mark the closest behavior so Handover can finish?"
+          prompt="A Handover opportunity is clean except one required behavior was not meaningfully observed. Should the Specialist mark the closest behavior so Handover can finish?"
           options={[
             {
               key: "a",
@@ -191,13 +191,13 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
             },
             {
               key: "c",
-              label: "Mark it supported if every other dimension was supported.",
-              feedback: "Strength in one dimension cannot be copied into another.",
+              label: "Mark it supported if every other required behavior was supported.",
+              feedback: "Strength in one observed behavior cannot be copied into a different one.",
             },
               {
                 key: "d",
-                label: "No. The missing dimension can remain unresolved while the already observed dimensions keep their own evidence.",
-                feedback: "Yes. Dimension-level truth should not be flattened into a forced overall conclusion.",
+                label: "No. The missing behavior can remain unresolved while the behaviors already observed keep their own evidence.",
+                feedback: "Yes. Each observed behavior keeps its own evidence; RI-OS should not flatten them into a forced overall conclusion.",
               },
               {
                 key: "e",
@@ -211,12 +211,12 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
 
         <Card className="p-6 space-y-4">
           <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Example</p>
-          <h2 className="text-2xl font-bold">Handover preserves what was proved and keeps the missing dimension open</h2>
+          <h2 className="text-2xl font-bold">Handover preserves what was proved and keeps the missing behavior open</h2>
           <p className="text-muted-foreground">
             A new Specialist inherits a student's Structured Execution state. In the first Handover opportunity, the student starts independently and follows the required steps, but the task does not meaningfully expose repeatability.
           </p>
           <p className="text-muted-foreground">
-            RI-OS keeps the supported start and step evidence, records repeatability as not observed, and can ask for another comparable Handover opportunity. It does not copy strength from the observed dimensions into the missing one just to finish Handover.
+            RI-OS keeps the supported start and step evidence, records repeatability as not observed, and can ask for another comparable Handover opportunity. It does not copy strength from the observed behaviors into the missing one just to finish Handover.
           </p>
           <p className="font-semibold">
             Handover closes from sufficient evidence, not from filling every field with a convenient answer.
