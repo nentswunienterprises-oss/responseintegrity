@@ -41,7 +41,8 @@ test("five-option banks with about eighty percent silent alternate-valid items p
   assert.equal(summary.alternateValidRate, 0.8);
   assert.equal(summary.acceptedClusterLongerBy20Pct, 0);
   assert.equal(summary.acceptedClusterShorterBy20Pct, 0);
-  assert.ok(summary.maxAcceptedKeyRate < 0.55);
+  assert.equal(summary.totalAcceptedKeyCount, 81);
+  assert.ok(summary.maxAcceptedKeyRate < 0.3);
 });
 
 test("systemic accepted-answer position leakage fails closed", () => {
@@ -49,16 +50,18 @@ test("systemic accepted-answer position leakage fails closed", () => {
     const second = KEYS[(index % 4) + 1];
     const correctKeys = (index + 1) % 5 === 0 ? ["a"] : ["a", second];
     return item(index, correctKeys, {
-      a: "Plausible response under matched condition alpha.",
-      b: "Plausible response under matched condition bravo.",
-      c: "Plausible response under matched condition charlie.",
-      d: "Plausible response under matched condition delta.",
-      e: "Plausible response under matched condition echo.",
+      a: "Preserve the current evidence state until the requested check resolves it.",
+      b: "Use a fresh comparable opportunity to answer the unresolved continuity question.",
+      c: "Keep the support boundary unchanged so the next response remains attributable.",
+      d: "Record the observed behavior without inferring a cause that was never exposed.",
+      e: "Follow the assigned state action unless later qualifying evidence changes it.",
     });
   });
 
   const summary = analyzeCapabilityOptionParity(items);
+  assert.equal(summary.totalAcceptedKeyCount, 81);
   assert.equal(summary.maxAcceptedKeyCount, 45);
+  assert.ok(summary.maxAcceptedKeyRate > 0.4);
   assert.throws(
     () => assertCapabilityOptionParity("position-leak", items),
     /leaks accepted answers by position/i,
@@ -193,6 +196,64 @@ test("answer grammatical shape must fit the prompt", () => {
   assert.equal(summary.promptShapeMismatches.length, 1);
   assert.throws(
     () => assertCapabilityOptionParity("prompt-shape", items),
+    /grammatical shape does not answer the prompt/i,
+  );
+});
+
+
+test("prompt grammar uses the final question rather than quoted scenario language", () => {
+  const items = balancedItems();
+  items[0] = {
+    ...items[0],
+    prompt:
+      'The student asks, "Why do I have to do this?" The Specialist gives no help. What should the Specialist record?',
+    options: items[0].options.map((option) =>
+      option.key === "a"
+        ? {
+            ...option,
+            label:
+              "Record the rescue-seeking statement and the fact that no support was given.",
+          }
+        : option,
+    ),
+  };
+
+  const summary = analyzeCapabilityOptionParity(items);
+  assert.equal(summary.promptShapeMismatches.length, 0);
+});
+
+test("yes-no prompts require direct yes or no answer grammar", () => {
+  const items = balancedItems();
+  items[0] = {
+    ...items[0],
+    prompt:
+      "Can that supported response prove clean Independent Execution?",
+    options: items[0].options.map((option) =>
+      option.key === "b"
+        ? {
+            ...option,
+            label:
+              "Material Specialist assistance prevents the response from proving the no-support condition.",
+          }
+        : {
+            ...option,
+            label:
+              option.key === "a"
+                ? "No. The response was materially supported."
+                : option.label,
+          },
+    ),
+  };
+
+  const summary = analyzeCapabilityOptionParity(items);
+  assert.equal(summary.promptShapeMismatches.length, 4);
+  assert.ok(
+    summary.promptShapeMismatches.some(
+      (entry) => entry.itemKey === "item-0" && entry.optionKey === "b",
+    ),
+  );
+  assert.throws(
+    () => assertCapabilityOptionParity("yes-no-shape", items),
     /grammatical shape does not answer the prompt/i,
   );
 });
