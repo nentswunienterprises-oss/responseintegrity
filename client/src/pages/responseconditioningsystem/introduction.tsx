@@ -252,7 +252,7 @@ export default function ResponseConditioningIntroduction() {
           <h2 className="text-2xl font-bold">The Specialist Is Not Simply Teaching Mathematics</h2>
           <p className="text-muted-foreground">
             As a Response Integrity Specialist, your role is different from that of a conventional tutor.
-            You are not free-form teaching until the student appears to understand. You are operating a
+            You are not free-form teaching until the student appears to understand. You are running a
             controlled conditioning system.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
@@ -279,7 +279,7 @@ export default function ResponseConditioningIntroduction() {
           </p>
           <div className="rounded-lg border bg-muted/40 p-4">
             <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-              Operating chain
+              What happens in order
             </p>
             <p className="font-medium leading-relaxed">{purposeChain.join(" -> ")}</p>
           </div>
