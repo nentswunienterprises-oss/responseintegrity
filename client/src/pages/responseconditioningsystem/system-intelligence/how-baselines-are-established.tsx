@@ -229,7 +229,7 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Technical failure is not student failure</h2>
           <p className="text-muted-foreground">
-            If the timer, runtime, or device itself fails, RI-OS keeps a record of the technical failure and that evidence slot remains unresolved.
+            If the timer, runtime, or device itself fails, RI-OS keeps a record of the technical failure and the missing timing evidence remains unresolved.
           </p>
           <p className="text-muted-foreground">
             A fresh pre-prepared equivalent reserve may fill that unresolved slot under the same condition, while the failed attempt remains in the record.
