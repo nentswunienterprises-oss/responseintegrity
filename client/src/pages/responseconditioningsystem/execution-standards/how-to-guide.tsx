@@ -78,9 +78,9 @@ export default function ResponseConditioningHowToGuide() {
           </Card>
 
           <Card className="p-6 space-y-5">
-            <h2 className="text-2xl font-bold">The Four Support Contracts</h2>
+            <h2 className="text-2xl font-bold">The Four Support Rules</h2>
             <p className="text-muted-foreground">
-              RI does not use one vague rule called "minimal help." The active set carries an explicit support contract.
+              RI does not use one vague rule called "minimal help." Each set has a clear rule for what support is allowed.
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-md border p-4">
@@ -176,7 +176,7 @@ export default function ResponseConditioningHowToGuide() {
               <h2 className="text-2xl font-bold mt-1">Controlled Discomfort</h2>
             </div>
             <p className="text-muted-foreground">
-              Controlled Discomfort is where guidance becomes a deliberately bounded pressure tool. The student must face meaningful difficulty without being carried out of it.
+              Controlled Discomfort is where guidance becomes deliberately limited. The student must face meaningful difficulty without being carried out of it.
             </p>
             <div className="space-y-3">
               <div className="rounded-md border p-4">
@@ -224,7 +224,7 @@ export default function ResponseConditioningHowToGuide() {
           <Card className="p-6 space-y-5">
             <h2 className="text-2xl font-bold">When the Student Stalls</h2>
             <p className="text-muted-foreground">
-              A stall is not automatically an instruction to help. First identify the active support contract.
+              A stall is not automatically an instruction to help. First check the support rule for the active set.
             </p>
             <div className="space-y-3">
               <div>
