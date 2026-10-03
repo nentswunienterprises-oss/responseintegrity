@@ -25,11 +25,11 @@ function balancedItems() {
     const second = KEYS[(index + 2) % KEYS.length];
     const correctKeys = (index + 1) % 5 === 0 ? [first] : [first, second];
     return item(index, correctKeys, {
-      a: "Plausible response under matched condition alpha.",
-      b: "Plausible response under matched condition bravo.",
-      c: "Plausible response under matched condition charlie.",
-      d: "Plausible response under matched condition delta.",
-      e: "Plausible response under matched condition echo.",
+      a: "Preserve the observed behavior and let the evidence path determine what happens next.",
+      b: "Use the current condition to answer the specific uncertainty before changing the task.",
+      c: "Keep the support boundary intact so the response remains attributable to the student.",
+      d: "Record only what the opportunity actually exposed instead of filling gaps by inference.",
+      e: "Follow the assigned next action unless new qualifying evidence changes the state.",
     });
   });
 }
@@ -101,4 +101,24 @@ test("isolated length variation does not fail a bank", () => {
   const summary = assertCapabilityOptionParity("isolated-variation", items);
   assert.equal(summary.acceptedClusterLongerBy20Pct, 10);
   assert.ok(summary.acceptedClusterLongerBy20PctRate < 0.25);
+});
+
+
+test("duplicative silent accepted answers fail closed", () => {
+  const items = balancedItems();
+  items[0] = item(0, ["a", "c"], {
+    a: "They provide context and may influence where to ask first, but direct RI evidence still determines placement.",
+    b: "High marks prove the later phase immediately.",
+    c: "Use reports and history only to choose where to check first; direct RI evidence still determines placement.",
+    d: "The Specialist can place from the report alone.",
+    e: "Recent marks outweigh one weak live response.",
+  });
+
+  const summary = analyzeCapabilityOptionParity(items);
+  assert.equal(summary.nearDuplicateAcceptedPairs, 1);
+  assert.deepEqual(summary.nearDuplicateAcceptedPairKeys, ["item-0"]);
+  assert.throws(
+    () => assertCapabilityOptionParity("duplicate-accepted-pair", items),
+    /genuinely distinct valid truth/i,
+  );
 });
