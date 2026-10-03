@@ -97,7 +97,7 @@ export default function ResponseConditioningTopicConditioning() {
             <li>Time Pressure Stability: does the trained response survive individualized urgency?</li>
           </ul>
           <p className="font-semibold">
-            Topic Conditioning exists to locate that layer precisely and run the system-owned condition required next.
+            Topic Conditioning exists to locate that layer precisely and run the condition RI-OS requires next.
           </p>
         </Card>
 
@@ -156,7 +156,7 @@ export default function ResponseConditioningTopicConditioning() {
             The entry signal only tells RI-OS where to ask first.
           </p>
           <p className="font-semibold">
-            Starting signal = routing hypothesis. Direct behavioral evidence = placement authority.
+            The starting signal tells RI-OS where to check first. Direct behavioral evidence determines placement.
           </p>
         </Card>
 
@@ -189,7 +189,7 @@ export default function ResponseConditioningTopicConditioning() {
             },
             {
               key: "b",
-              label: "Do not pre-place it. Run the system-selected neutral independent baseline and let the resulting evidence route the next question.",
+              label: "Do not pre-place it. Run the neutral independent baseline RI-OS selects and let the resulting evidence determine the next question.",
               feedback: "Yes. Uncertain entry is resolved by clean evidence, not by guessing a middle phase.",
             },
             {
@@ -313,7 +313,7 @@ export default function ResponseConditioningTopicConditioning() {
           <p className="text-muted-foreground">Now the same topic is tested under time.</p>
           <p className="text-muted-foreground">This means:</p>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-            <li>an individualized system-owned Timer Contract</li>
+            <li>an individualized Timer Contract set by RI-OS</li>
             <li>process and structure preserved under urgency</li>
             <li>repeated timed exposure at the same baseline condition</li>
             <li>the final defined tighter constraint only when the registered set requires it</li>
@@ -324,33 +324,33 @@ export default function ResponseConditioningTopicConditioning() {
         </Card>
 
         <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">Timing Authority Is Topic-Specific Too</h2>
+          <h2 className="text-2xl font-bold">The Timer Is Topic-Specific Too</h2>
           <p className="text-muted-foreground">
-            Time Pressure Stability is not just topic-specific in phase and stability. Its timing authority is also
-            bound to the individual student and topic.
+            Time Pressure Stability is not just topic-specific in phase and stability. Its timer is also
+            based on evidence from that individual student and topic.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>A Timer Contract from Algebra does not become the timer for Fractions.</li>
-            <li>The primary Training baseline comes from the current topic's qualifying Independent Execution evidence.</li>
+            <li>The primary Training baseline comes from clean Independent Execution evidence from the current topic.</li>
             <li>Diagnosis can establish equivalent clean no-pressure timing when the topic may enter above Structured Execution.</li>
-            <li>If timing authority is missing when the topic needs it, RI-OS resolves that readiness gap before authoritative timed work.</li>
+            <li>If the topic does not yet have a valid baseline, RI-OS establishes one before timed TPS work begins.</li>
           </ul>
           <p className="font-semibold">
-            Topic state and topic timing lineage travel together. The Specialist cannot borrow a timer from another arena.
+            Topic state and timing history stay attached to that topic. The Specialist cannot borrow a timer from another arena.
           </p>
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="Algebra has a valid 44-second Timer Contract. Fractions is newly diagnosed toward Time Pressure Stability but has no timing authority yet. May the Specialist use Algebra's 44 seconds for Fractions?"
+          prompt="Algebra has a valid 44-second Timer Contract. Fractions is newly diagnosed toward Time Pressure Stability but does not yet have its own valid baseline. May the Specialist use Algebra's 44 seconds for Fractions?"
           options={[
             {
               key: "a",
               label: "Yes. The Timer Contract belongs to the student, so one strong baseline can cover all topics.",
-              feedback: "Timing authority is student-and-topic specific. Different topics can have different normal independent execution durations.",
+              feedback: "The baseline is student-and-topic specific. Different topics can have different normal independent execution durations.",
             },
             {
               key: "b",
-              label: "No. Fractions needs its own valid timing authority through the system's qualifying evidence route.",
+              label: "No. Fractions needs its own valid baseline built from clean evidence from Fractions.",
               feedback: "Yes. The system cannot copy pressure from one topic into another.",
             },
             {
@@ -366,11 +366,11 @@ export default function ResponseConditioningTopicConditioning() {
             {
               key: "e",
               label: "Use 44 seconds if the Algebra and Fractions problems are both normal difficulty and same form.",
-              feedback: "Comparable problem design does not make execution speed interchangeable across topics. Timing authority remains student-and-topic specific.",
+              feedback: "Comparable problem design does not make execution speed interchangeable across topics. The baseline remains student-and-topic specific.",
             },
           ]}
           correctOptionKey="b"
-          truth="Every active topic carries its own evidence lineage, including individualized timing authority when TPS is relevant."
+          truth="Every active topic keeps its own evidence history, including its own individualized baseline when TPS is relevant."
         />
 
         <Card className="p-6 space-y-4">
@@ -448,7 +448,7 @@ export default function ResponseConditioningTopicConditioning() {
           options={[
             {
               key: "a",
-              label: "Run the ordinary Clarity drill again and let qualifying evidence decide whether High Maintenance is earned.",
+              label: "Run the ordinary Clarity drill again and let the required clean evidence determine whether High Maintenance is earned.",
               feedback: "Yes. High is strong evidence inside the phase, but repeatability still has to be demonstrated before the confirmation state is earned.",
             },
             {
@@ -464,7 +464,7 @@ export default function ResponseConditioningTopicConditioning() {
             {
               key: "d",
               label: "Mark High Maintenance once High has appeared more than once in the same session.",
-              feedback: "High Maintenance is earned through the defined later qualifying evidence, not by a Specialist counting strong moments inside one session.",
+              feedback: "High Maintenance is earned through later clean evidence that meets the progression rule, not by a Specialist counting strong moments inside one session.",
             },
             {
               key: "e",
@@ -473,7 +473,7 @@ export default function ResponseConditioningTopicConditioning() {
             },
           ]}
           correctOptionKey="a"
-          truth="At High, the topic remains in the same phase. The ordinary same-phase drill runs again; later qualifying evidence can earn High Maintenance and authorize progression."
+          truth="At High, the topic remains in the same phase. The ordinary same-phase drill runs again; later clean evidence can earn High Maintenance and allow progression."
         />
 
         <Card className="p-6 space-y-4">
@@ -571,11 +571,11 @@ export default function ResponseConditioningTopicConditioning() {
             {
               key: "a",
               label: "The evidence standard becomes lighter because the system will see the student more often.",
-              feedback: "More opportunities do not reduce what counts as qualifying evidence. Frequency changes how quickly opportunities arrive, not the standard they must meet.",
+              feedback: "More opportunities do not reduce the evidence standard. Frequency changes how quickly opportunities arrive, not what they must prove.",
             },
             {
               key: "b",
-              label: "The same evidence requirements remain, but qualifying opportunities can arrive sooner in calendar time.",
+              label: "The same evidence requirements remain, but valid opportunities can arrive sooner in calendar time.",
               feedback: "Yes. Cadence changes delivery frequency, not the educational rule for phase or stability movement.",
             },
             {
@@ -585,7 +585,7 @@ export default function ResponseConditioningTopicConditioning() {
             },
             {
               key: "d",
-              label: "Keep the same phase rules but require fewer qualifying reps because the evidence is arriving at a higher frequency.",
+              label: "Keep the same phase rules but require fewer valid reps because the evidence is arriving at a higher frequency.",
               feedback: "Frequency changes calendar spacing, not the amount or quality of evidence required for movement.",
             },
             {
@@ -657,7 +657,7 @@ export default function ResponseConditioningTopicConditioning() {
             <li>diagnosing the breakdown point in the topic</li>
             <li>running the correct Response Integrity phase in that topic</li>
             <li>logging the response patterns</li>
-            <li>following the system-authorized next action as evidence changes the topic state</li>
+            <li>following the next action RI-OS requires as evidence changes the topic state</li>
           </ul>
           <p className="text-muted-foreground">That means the Specialist must always know:</p>
           <ol className="space-y-2 pl-5 list-decimal text-muted-foreground">
@@ -684,15 +684,15 @@ export default function ResponseConditioningTopicConditioning() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What Topic Conditioning connects</h2>
           <p className="text-muted-foreground">
-            Topic Conditioning binds real school content to the operating state RI-OS can defend for that topic.
+            Topic Conditioning connects real school content to the current state RI-OS can support with evidence for that topic.
           </p>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
             <li>the student's active school topic</li>
             <li>the starting signal or inherited topic state</li>
             <li>direct behavioral evidence from Diagnosis, Training, or Handover</li>
             <li>the current phase and stability</li>
-            <li>the registered set, support, difficulty, variation, and timing condition</li>
-            <li>the next system-authorized action</li>
+            <li>the active set, allowed support, difficulty, variation, and timing condition</li>
+            <li>the next action RI-OS requires</li>
           </ul>
           <p className="font-semibold">
             The topic is the arena. The Response Integrity Operating System determines what capability is being conditioned inside it.
