@@ -624,6 +624,45 @@ test("missing prompts allow direct missing-content statements", () => {
   assert.equal(summary.promptShapeMismatches.length, 0);
 });
 
+test("phase-boundary questions allow boundary descriptions", () => {
+  const items = balancedItems();
+  items[0] = {
+    ...items[0],
+    prompt: "Which phase boundary is being blurred?",
+    options: [
+      {
+        key: "a",
+        label:
+          "The boundary between Structured Execution and Controlled Discomfort.",
+      },
+      {
+        key: "b",
+        label:
+          "No phase boundary; the condition remains inside Structured Execution.",
+      },
+      {
+        key: "c",
+        label:
+          "The boundary between Clarity and Structured Execution.",
+      },
+      {
+        key: "d",
+        label:
+          "The boundary between Controlled Discomfort and Time Pressure Stability.",
+      },
+      {
+        key: "e",
+        label:
+          "The boundary between Diagnosis and Training.",
+      },
+    ],
+    correctOptionKeys: ["a"],
+  };
+
+  const summary = analyzeCapabilityOptionParity(items);
+  assert.equal(summary.promptShapeMismatches.length, 0);
+});
+
 test("source-referential answer copy fails closed", () => {
   const items = balancedItems();
   items[0] = {
