@@ -143,7 +143,7 @@ export default function ResponseConditioningHowToModel() {
               It stays attached to that student-topic and remains available from the Topic Reference toggle during Clarity and every later training phase.
             </p>
             <p className="text-sm text-muted-foreground">
-              It is instructional context only. Saving it does not change phase, stability, evidence authority, or state movement.
+              It is instructional context only. Saving it does not change phase, stability, what the evidence can prove, or what happens next.
             </p>
           </div>
         </Card>
