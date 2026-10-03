@@ -302,6 +302,18 @@ export default function SpecialistCapabilityAssessment() {
     setHydratedFormId(form.formId);
   }, [form, hydratedFormId]);
 
+  useEffect(() => {
+    if (!form) return;
+
+    window.requestAnimationFrame(() => {
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: "smooth",
+      });
+    });
+  }, [currentIndex, form?.formId]);
+
   const currentQuestion = form?.questions[currentIndex];
   const currentConfirmation = currentQuestion
     ? confirmations[currentQuestion.key]
