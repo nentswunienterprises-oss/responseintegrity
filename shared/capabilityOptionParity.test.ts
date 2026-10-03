@@ -122,3 +122,32 @@ test("duplicative silent accepted answers fail closed", () => {
     /genuinely distinct valid truth/i,
   );
 });
+
+
+test("reused doctrine as a silent accepted answer fails closed", () => {
+  const items = balancedItems();
+  const reusableTruth =
+    "Strip away later pressures until RI-OS finds the earliest response layer that no longer holds cleanly.";
+
+  for (const index of [0, 1, 2]) {
+    items[index] = {
+      ...items[index],
+      correctOptionKeys: ["a", "e"],
+      options: items[index].options.map((option) =>
+        option.key === "e" ? { ...option, label: reusableTruth } : option,
+      ),
+    };
+  }
+
+  const summary = analyzeCapabilityOptionParity(items);
+  assert.equal(summary.reusedAcceptedTruths.length, 1);
+  assert.deepEqual(summary.reusedAcceptedTruths[0].itemKeys, [
+    "item-0",
+    "item-1",
+    "item-2",
+  ]);
+  assert.throws(
+    () => assertCapabilityOptionParity("reused-doctrine", items),
+    /specific prompt rather than act as reusable RI doctrine/i,
+  );
+});
