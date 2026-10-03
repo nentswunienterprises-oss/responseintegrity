@@ -18,7 +18,7 @@ const drillTypes = [
     title: "Diagnosis probes",
     use: "Intro Diagnosis and targeted re-diagnosis",
     authority:
-      "The evidence-complete diagnosis engine selects the smallest next probe needed to resolve the named evidence question.",
+      "Diagnosis asks only for the smallest next problem needed to resolve the current evidence question.",
     boundary:
       "Diagnosis is not a fixed phase block or fixed rep quota. Specialists do not choose the next probe or placement.",
   },
@@ -31,12 +31,12 @@ const drillTypes = [
       "Completing the required exposure is not the same as proving a stronger state. Finishing the drill does not force progress.",
   },
   {
-    title: "Handover continuity opportunities",
+    title: "Handover checks",
     use: "Specialist reassignment",
     authority:
-      "RI-OS asks only for enough clean continuity evidence to keep the inherited state, adjust stability within the same phase, or require targeted re-diagnosis.",
+      "RI-OS asks only for enough clean Handover evidence to keep the inherited state, adjust stability within the same phase, or require targeted re-diagnosis.",
     boundary:
-      "The reserve problem bank is not a completion target. Handover is evidence-complete, not fixed-rep.",
+      "The reserve problem bank is not a completion target. Handover ends when the evidence question is resolved, not after a fixed number of reps.",
   },
 ];
 
@@ -119,12 +119,12 @@ export default function ResponseConditioningDrillLibrary() {
           <h2 className="text-2xl font-bold">Preparation Boundary</h2>
           <ul className="space-y-2 pl-5 list-disc text-muted-foreground">
             <li>Prepare problems that satisfy the live set's topic, support, pressure, variation, and difficulty constraints.</li>
-            <li>Do not silently change the problem form, difficulty, support boundary, or timer and still treat the evidence as though the original condition held.</li>
+            <li>Do not silently change the problem form, difficulty, support rule, or timer and still treat the evidence as though the original condition held.</li>
             <li>TPS uses the timing already set for that student and topic. The Specialist does not invent or adjust the timer.</li>
             <li>For timing-sensitive Training, pre-session prep includes fresh equivalent reserve problems matched to the same set conditions. Reserve inventory is contingency only, not additional reps.</li>
             <li>If the timer, device, or session technology fails and the timed attempt can no longer be trusted, that attempt remains unresolved. Only then may a fresh pre-prepared equivalent reserve problem be used under the same conditions. The exposed problem is never reused.</li>
-            <li>Student timeout, panic, wrong method, incomplete work, or weak performance remains real evidence and does not authorize a replacement opportunity.</li>
-            <li>Diagnosis tells the Specialist what to check next. Training uses the required set for the current phase. Handover continues only until there is enough trustworthy evidence to confirm continuity.</li>
+            <li>Student timeout, panic, wrong method, incomplete work, or weak performance remains real evidence and does not allow a replacement opportunity.</li>
+            <li>Diagnosis tells the Specialist what to check next. Training uses the required set for the current phase. Handover continues only until there is enough trustworthy evidence to decide whether the inherited state still holds.</li>
           </ul>
         </Card>
 
@@ -149,7 +149,7 @@ export default function ResponseConditioningDrillLibrary() {
 
  <Card className="p-6 space-y-3">
           <h2 className="text-2xl font-bold">Specialist Standard</h2>
-          <p className="font-semibold">Use the authorized drill source. Preserve the condition. Record the real response. Let evidence decide what happens next.</p>
+          <p className="font-semibold">Use the drill RI-OS requires. Preserve the condition. Record the real response. Let evidence decide what happens next.</p>
         </Card>
         </DeepDiveLessonRunner>
       </div>
