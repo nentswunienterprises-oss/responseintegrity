@@ -1,104 +1,68 @@
-# Deep Dive Formative Interaction Audit - 29 September 2026
+# Deep Dive Formative Interaction Standard
 
-Status: **FORMATIVE INTERACTION STANDARD RECONCILED**
+Status: **RECONCILED - 2 October 2026**
 
-## Scope
+## Purpose
 
-This audit covers the piece-by-piece interactive learning checks inside the five Transformation Deep Dives:
+Deep Dive formative interactions teach Specialist thinking inside the lesson. They do not consume Capability attempts and they do not create formal Mastery evidence.
 
-- Topic Conditioning
-- Clarity
-- Structured Execution
-- Controlled Discomfort
-- Time Pressure Stability
-
-These checks are formative teaching interactions. They do not consume Capability attempts and they do not create Mastery evidence.
-
-## Problem found
-
-The first formative pass made the Deep Dives more interactive, but many distractors were too easy to eliminate.
-
-Common weaknesses included:
-
-- one obviously correct RI answer surrounded by simplistic alternatives;
-- distractors that represented exaggerated mistakes rather than plausible partial understanding;
-- repeated misconception patterns across different checks;
-- feedback that merely restated the rule instead of diagnosing why the selected reasoning failed;
-- correct-answer wording that was systematically more complete than the distractors;
-- answer-position concentration.
-
-That makes an interaction feel like a quiz rather than active teaching.
+The interaction should be difficult because the distinctions are close, not because the wording is confusing.
 
 ## Locked formative standard
 
-Every formative check must now satisfy all of the following:
+Every formative interaction must satisfy all of the following:
 
-1. **Plausible distractors**
+1. **Minimum five options**
+   - Five visible options is the minimum boundary.
+   - Three-option formative checks are no longer permitted.
+   - More than five may be used when the reasoning space genuinely requires it.
+
+2. **Intentional answer structure**
+   - Single-choice is used only when exactly one answer is defensible under the stated condition.
+   - When more than one conclusion is defensible, the interaction becomes multi-select and the learner is explicitly told to select every option that applies.
+   - Multiple defensible answers are a teaching feature when they are intentional; they are not hidden ambiguity inside a single-choice question.
+
+3. **Interaction variation**
+   - A Deep Dive should not rely on one-answer multiple choice from beginning to end.
+   - Multi-select should be used where several RI truths can coexist.
+   - Formal Capability may additionally use sequence questions where order itself is the capability being tested.
+
+4. **Plausible distractors**
    - Each wrong answer must be something a partially trained Specialist could reasonably believe.
    - Avoid joke answers, extreme strawmen and options that can be dismissed without RI understanding.
 
-2. **Unique misconception**
-   - Each distractor must represent a different reasoning error.
-   - Two distractors must not be paraphrases of the same mistake.
+5. **Unique misconception**
+   - Each wrong option must represent a distinct reasoning error.
+   - Wrong options should not be paraphrases of the same mistake.
 
-3. **Option-specific teaching**
-   - Wrong-answer feedback must identify why that exact line of reasoning fails.
-   - It must leave the Specialist with a reusable distinction, not merely say that the answer is wrong.
+6. **Option-specific teaching**
+   - Wrong-answer feedback identifies why that exact reasoning fails.
+   - In multi-select, feedback must also make missed defensible conclusions teachable rather than treating the entire selected set as one undifferentiated error.
 
-4. **Truth separation**
-   - Option feedback teaches the local mistake.
-   - Truth carries the complete RI rule.
+7. **Truth separation**
+   - Local feedback diagnoses the selected reasoning.
+   - Truth carries the complete RI rule when the response is incomplete or incorrect.
 
-5. **No answer-shape cue**
-   - The correct answer must not be systematically longer, shorter, more qualified or more polished than the distractors.
+8. **No answer-shape cue**
+   - The correct answer or correct set must not be systematically longer, more qualified or more polished than distractors.
    - Correct positions must not follow an obvious pattern.
 
-6. **Distinct interaction purpose**
-   - The five checks inside a Deep Dive should test different boundaries or misconceptions rather than repeatedly asking the same question in different words.
+9. **Distinct interaction purpose**
+   - Interactions inside a Deep Dive should test different boundaries or misconceptions rather than repeatedly asking the same question in different words.
 
-7. **Inevitable comprehensibility**
-   - The interaction should be difficult because the distinctions are close, not because the wording is confusing.
-   - Once feedback is shown, the difference should feel inevitable.
+10. **Inevitable comprehensibility**
+    - Once feedback is shown, the distinction should feel clear and reusable.
 
-## Rewrite completed
+## Current implementation
 
-All 25 formative interactions were manually rewritten.
+The current Transformation / Topic Conditioning formative layer contains **28 interactions**.
 
-The rewrite replaced obvious distractors with plausible partial models such as:
+All 28 now expose at least five options. The shared formative component enforces the five-option minimum and supports both:
 
-- carrying a strong state from one topic into another provisionally;
-- treating school performance and RI evidence as conflicting measures of the same thing;
-- interpreting High as enough authority to phase-progress;
-- treating increased service frequency as permission to weaken evidence requirements;
-- inferring recognition from a correct solve;
-- treating leading questions as harmless because the Specialist never states the answer;
-- treating a non-verbal cue as no support;
-- confusing changed form with Controlled Discomfort;
-- making No Rescue stricter or looser than the assigned support boundary;
-- treating one successful difficult exposure as stability;
-- using supported timing as a valid pressure baseline;
-- estimating through a timer failure;
-- treating learner non-completion under a valid timer as a technical failure;
-- loosening a system-derived timer when structure begins to collapse.
+- single-choice;
+- multi-select with multiple defensible answers.
 
-The option-specific feedback now diagnoses those distinct errors rather than repeating the general rule.
-
-## Post-audit checks
-
-Across the five Transformation Deep Dives:
-
-- **25 formative interactions**
-- **5 interactions per Deep Dive**
-- **50 wrong-option feedback entries**
-- **50/50 wrong-option feedback entries distinct**
-- **0 duplicate prompts**
-- **3 options per interaction**
-- **0 malformed interaction blocks**
-- correct visible positions: **8 / 9 / 8**
-- **0** correct answers uniquely longest
-- **0** correct answers uniquely shortest
-
-This does not prove pedagogical quality by arithmetic alone. The numerical checks only protect against obvious answer-shape and repetition cues; the main quality gate remains the manual distractor-feedback-Truth reread.
+Each currently interactive Deep Dive also includes at least one intentional multi-select interaction.
 
 ## Relationship to Capability
 
@@ -106,11 +70,25 @@ Formative Deep Dive interactions teach.
 
 Capability Checks prove.
 
-A Specialist can answer a formative check incorrectly, learn from the feedback and continue without consuming an attempt. The later Mastery, Retrieval and Transfer gates remain the formal evidence system.
+Capability already supports single-choice, multi-select and sequence question kinds. Bank authoring should use those forms intentionally instead of flattening every reasoning problem into one-answer multiple choice.
 
 ## Authority
 
-Founder correction: 29 September 2026.
+Founder correction: 2 October 2026.
 
 Implementation branch:
 `fix/preview-training-session-authority`
+
+
+## Multi-select interaction structure - 2 October 2026
+
+Multi-select is not a pile of plausible sentences. It must have a readable reasoning shape.
+
+- The stem defines one clear selection rule, such as **Which conclusions are supported?**, **Which responses preserve the condition?**, or **Which actions violate the boundary?**
+- Options are standalone claims. Do not mix a statement-selection stem with inherited Yes/No answers from an older binary question.
+- Correct options must express distinct truths, not several paraphrases of the same principle.
+- The component owns the instruction **Select all that apply.** Do not repeat that sentence inside the stem.
+- Before confirmation, the interface shows how many options are selected.
+- After confirmation, the interface separates missed required selections from selected options that do not apply.
+- Fully correct multi-select feedback is concise and does not print a stack of repeated "Yes" explanations.
+- The Core rule is always shown after a multi-select submission so the learner can compress the set back into one reusable RI principle.

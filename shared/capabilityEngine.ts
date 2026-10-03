@@ -222,6 +222,14 @@ export function validateCapabilityAssessmentDefinition(definition: CapabilityAss
     if (!question.correctOptionKeys.length) {
       throw new Error(`Capability question ${question.key} must define a correct answer.`);
     }
+    if (
+      question.kind === "single_choice" &&
+      question.correctOptionKeys.length > 2
+    ) {
+      throw new Error(
+        `Capability question ${question.key} single-choice must define one or two accepted answers.`,
+      );
+    }
     for (const optionKey of [...question.correctOptionKeys, ...(question.criticalFailOptionKeys || [])]) {
       if (!optionKeys.has(optionKey)) {
         throw new Error(`Capability question ${question.key} references unknown option ${optionKey}.`);
@@ -266,10 +274,18 @@ export function evaluateCapabilityAssessment(
       }
     }
 
+    if (question.kind === "single_choice" && selectedOptionKeys.length !== 1) {
+      throw new Error(
+        `Capability response ${question.key} must select exactly one option.`,
+      );
+    }
+
     const correct =
       question.kind === "sequence"
         ? isSequenceCorrect(selectedOptionKeys, question.correctOptionKeys)
-        : sameStringSet(selectedOptionKeys, question.correctOptionKeys);
+        : question.kind === "single_choice"
+          ? question.correctOptionKeys.includes(selectedOptionKeys[0])
+          : sameStringSet(selectedOptionKeys, question.correctOptionKeys);
 
     const criticalFail = selectedOptionKeys.some((optionKey) =>
       (question.criticalFailOptionKeys || []).includes(optionKey)

@@ -59,6 +59,12 @@ test("capability display copy removes learner-visible markdown asterisk artifact
     cleanCapabilityDisplayCopy("Make structure visible → remove support → test variation."),
     "Make structure visible, remove support, test variation.",
   );
+  assert.equal(
+    cleanCapabilityDisplayCopy(
+      "So this pattern tells us something useful: > **The response survives the earlier timed conditions.**",
+    ),
+    "So this pattern tells us something useful: The response survives the earlier timed conditions.",
+  );
 });
 
 test("Specialist assessment projection exposes prompts/options but no scoring or boundary secrets", () => {

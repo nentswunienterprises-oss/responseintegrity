@@ -38,7 +38,7 @@ export default function ResponseConditioningWhatNotToDo() {
           </Card>
 
           <Card className="p-6 space-y-4">
-            <h2 className="text-2xl font-bold">1. Do not rescue outside the support contract</h2>
+            <h2 className="text-2xl font-bold">1. Do not rescue outside the active support rule</h2>
             <p className="text-muted-foreground">
               Hesitation, rescue-seeking, a missing first step, loss of structure, and timeout can be the exact response RI-OS needs to observe.
             </p>
@@ -56,7 +56,7 @@ export default function ResponseConditioningWhatNotToDo() {
               Teaching, method prompting, step prompting, and full rescue can change what an opportunity is allowed to prove.
             </p>
             <p className="font-semibold">
-              Keep teaching inside the places the protocol authorizes. Do not smuggle modelling into an independent observation condition.
+              Teach only where the RI rules allow it. Do not smuggle modelling into an independent observation condition.
             </p>
           </Card>
 
@@ -108,9 +108,19 @@ export default function ResponseConditioningWhatNotToDo() {
                 label: "Infer the method recognition from the final answer.",
                 feedback: "A final answer cannot automatically prove the unobserved recognition process.",
               },
+              {
+                key: "d",
+                label: "Keep recognition unresolved while preserving the rest of the rep exactly as observed.",
+                feedback: "Yes. One missing observation does not erase the evidence that was actually observed.",
+              },
+              {
+                key: "e",
+                label: "Ask a leading follow-up that names the likely method, then use the answer to complete the original observation.",
+                feedback: "That manufactures recognition evidence and rewrites the original condition.",
+              },
             ]}
-            correctOptionKey="b"
-            truth="Completeness is system-owned. The Specialist owns truthful observation."
+            correctOptionKeys={["b","d"]}
+            truth="RI-OS decides when the evidence is complete. The Specialist owns truthful observation."
           />
 
           <Card className="p-6 space-y-4">
@@ -119,14 +129,14 @@ export default function ResponseConditioningWhatNotToDo() {
               A pause is behavior. It is not automatic permission to prompt.
             </p>
             <p className="font-semibold">
-              Check the active support contract first. In a no-support condition, continue observing rather than inserting a first-step cue.
+              Check the active support rule first. In a no-support condition, continue observing rather than inserting a first-step cue.
             </p>
           </Card>
 
           <Card className="p-6 space-y-4">
             <h2 className="text-2xl font-bold">7. Do not chase speed</h2>
             <p className="text-muted-foreground">
-              Structured Execution and Controlled Discomfort are not timed phases. TPS timing is individualized and system-owned.
+              Structured Execution and Controlled Discomfort are not timed phases. TPS timing is individualized and set by RI-OS.
             </p>
             <p className="font-semibold">
               Do not add hurry language, choose a faster target, pause the Timer Contract, or treat a fast guessed response as stable TPS evidence.
@@ -136,7 +146,7 @@ export default function ResponseConditioningWhatNotToDo() {
           <Card className="p-6 space-y-4">
             <h2 className="text-2xl font-bold">8. Do not use technical recovery as a student second chance</h2>
             <p className="text-muted-foreground">
-              Objective timer, runtime, or device failure may leave a timing slot unresolved and authorize a fresh pre-prepared equivalent reserve under the same condition.
+              Objective timer, runtime, or device failure may leave a timing slot unresolved and allow a fresh pre-prepared equivalent reserve under the same condition.
             </p>
             <p className="font-semibold">
               Timeout, panic, wrong method, incomplete work, weak performance, or ordinary timer expiry are real student evidence and never unlock replacement.
@@ -149,7 +159,7 @@ export default function ResponseConditioningWhatNotToDo() {
               Do not advance a strong-looking topic, move a weak-looking topic backward, invent starting stability, or replace a system-selected drill with a preferred one.
             </p>
             <p className="font-semibold">
-              The Specialist executes the condition and records the evidence. RI-OS owns the resulting operating decision.
+              The Specialist runs the condition and records the evidence. RI-OS decides what happens next.
             </p>
           </Card>
 
@@ -159,12 +169,12 @@ export default function ResponseConditioningWhatNotToDo() {
               Handover verifies whether inherited state remains trustworthy after reassignment. It does not restart placement and it does not teach forward.
             </p>
             <p className="font-semibold">
-              Hold inherited state until continuity evidence supports a hold, bounded same-phase adjustment, or targeted re-diagnosis route.
+              Keep the inherited state unchanged until continuity evidence supports keeping it, adjusting stability within the same phase, or targeted re-diagnosis.
             </p>
           </Card>
 
           <DeepDiveTeachingInteraction
-            prompt="A TPS rep times out with panic and incomplete work, but the timer and runtime worked correctly. What must the Specialist not do?"
+            prompt="A TPS rep times out with panic and incomplete work, but the timer worked correctly. Which actions would violate the evidence boundary?"
             options={[
               {
                 key: "a",
@@ -174,22 +184,33 @@ export default function ResponseConditioningWhatNotToDo() {
               {
                 key: "b",
                 label: "Start a replacement attempt so the student gets a fair chance to show a better response.",
-                feedback: "Yes. This must not happen. Student failure under a valid timer is real evidence, not a technical replacement condition.",
+                feedback: "Student failure under a valid timer is real evidence, not a technical replacement condition.",
               },
               {
                 key: "c",
                 label: "Continue to the observation questions after the execution boundary is frozen.",
                 feedback: "That is the correct post-response workflow.",
               },
+              {
+                key: "d",
+                label: "Classify the attempt as a technical timer failure because the student response broke down.",
+                feedback: "Student panic and timeout under a working timer are performance evidence, not technical failure.",
+              },
+              {
+                key: "e",
+                label: "Delete the attempt and reuse the same exposed problem so the student can show what they can really do.",
+                feedback: "A valid weak response must remain in the record and does not allow a second chance on the same problem.",
+              },
             ]}
-            correctOptionKey="b"
-            truth="Replacement authority exists for objective technical failure only, never for an undesirable student result."
+            kind="multi_select"
+            correctOptionKeys={["b","d","e"]}
+            truth="When timing works, the student's panic, timeout, wrong method or incomplete work are real evidence. Do not create a replacement, relabel the attempt as technical failure, or erase the valid response."
           />
 
           <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-            <h2 className="text-2xl font-bold">Final operating filter</h2>
+            <h2 className="text-2xl font-bold">Final check</h2>
             <p className="font-semibold">
-              Before changing anything live, ask: "Does the active RI-OS condition authorize this move?"
+              Before changing anything live, ask: "Does the active RI-OS condition allow this move?"
             </p>
             <p className="text-muted-foreground">
               If not, preserve the condition, record what happened, and follow the system result.

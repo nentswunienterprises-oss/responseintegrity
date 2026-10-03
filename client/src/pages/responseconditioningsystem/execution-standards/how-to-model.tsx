@@ -143,7 +143,7 @@ export default function ResponseConditioningHowToModel() {
               It stays attached to that student-topic and remains available from the Topic Reference toggle during Clarity and every later training phase.
             </p>
             <p className="text-sm text-muted-foreground">
-              It is instructional context only. Saving it does not change phase, stability, evidence authority, or state movement.
+              It is instructional context only. Saving it does not change phase, stability, what the evidence can prove, or what happens next.
             </p>
           </div>
         </Card>
@@ -293,7 +293,7 @@ export default function ResponseConditioningHowToModel() {
               The Modelling camera position is not the standing delivery mode for RI-OS. In the phases after Clarity, the phone moves upright into Observation mode. The student executes while the Specialist observes the response and records what actually happens on the laptop.
             </p>
             <p className="font-medium">
-              Showing the work and observing the student's work are different operating conditions. Do not carry demonstration behaviour into an observation condition.
+              Showing the work and observing the student's work are different session conditions. Do not carry demonstration behaviour into an observation condition.
             </p>
           </div>
           <div className="mx-auto w-full max-w-xl overflow-hidden rounded-none border bg-card shadow-sm">
@@ -386,7 +386,7 @@ export default function ResponseConditioningHowToModel() {
               The same delivery setup serves two different purposes. Modelling makes the Specialist's execution visible. Observation keeps the student executing while the Specialist watches, records, and intervenes only when the active drill condition requires it.
             </p>
             <p className="font-medium">
-              Camera position is part of the operating condition, not a cosmetic preference.
+              Camera position is part of the required setup, not a cosmetic preference.
             </p>
           </div>
           <div className="overflow-hidden rounded-none border bg-card shadow-sm">

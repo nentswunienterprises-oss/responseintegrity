@@ -38,7 +38,7 @@ export default function ResponseConditioningHowToInterpretPrompts() {
           completion={<DeepDiveCapabilityCheck assessmentKey="how_to_interpret_prompts_mastery_v1" />}
         >
         <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">The runner is giving you operating instructions, not prose</h2>
+          <h2 className="text-2xl font-bold">The runner is telling you what to do next</h2>
           <p className="text-muted-foreground">
             Every prompt exists because the current session state, phase, set, evidence question, or constraint requires a specific action.
           </p>
@@ -65,7 +65,7 @@ export default function ResponseConditioningHowToInterpretPrompts() {
             DO THIS NOW tells the Specialist what to physically or operationally do. It is not text to read aloud.
           </p>
           <p className="text-muted-foreground">
-            Examples include presenting the prepared problem, observing without rescue, starting the correct condition, recording evidence, or preserving a support boundary.
+            Examples include presenting the prepared problem, observing without rescue, starting the correct condition, recording evidence, or preserving the active support rule.
           </p>
         </Card>
 
@@ -87,8 +87,18 @@ export default function ResponseConditioningHowToInterpretPrompts() {
               label: "Paraphrase the instruction into encouragement.",
               feedback: "Paraphrasing can add unintended support. Preserve the written boundary.",
             },
+              {
+                key: "d",
+                label: "Use only any separate SAY wording that the runner provides for the student-facing instruction.",
+                feedback: "Yes. SAY is the student-facing channel; DO THIS NOW remains operator-facing.",
+              },
+              {
+                key: "e",
+                label: "Explain that the Specialist will not rescue so the student understands the rules before starting.",
+                feedback: "That reveals an operator condition to the student and can change how they respond.",
+              },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","d"]}
           truth="SAY and DO THIS NOW are different control channels. Mixing them can contaminate the condition."
         />
 
@@ -108,7 +118,7 @@ export default function ResponseConditioningHowToInterpretPrompts() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Why this opportunity exists explains system intent</h2>
           <p className="text-muted-foreground">
-            This text explains why RI-OS opened the current opportunity: cold exposure, constraint stripping, confirmation, baseline completion, conflict resolution, or continuity verification.
+            This text explains why RI-OS opened the current opportunity: a first clean exposure, removing pressure to check an earlier layer, confirmation, completing a baseline, resolving conflicting evidence, or checking Handover continuity.
           </p>
           <p className="text-muted-foreground">
             It helps you understand the system's reasoning so you can preserve the intended condition. It does not give you permission to change that condition.
@@ -129,35 +139,49 @@ export default function ResponseConditioningHowToInterpretPrompts() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="The observation form later asks how the student recognized the method. During the live independent opportunity, should the Specialist ask the student to explain the method so the field will be easier to complete?"
+          prompt="The observation form later asks how the student recognized the method, but the live independent opportunity never exposed that reasoning. Which responses preserve evidence integrity?"
           options={[
             {
               key: "a",
-              label: "Yes. Every field should be made observable before the opportunity ends.",
-              feedback: "That would change the opportunity. Missing evidence is allowed to remain not observed.",
+              label: "Ask before the opportunity ends so every observation field can be filled.",
+              feedback: "That changes the opportunity. Missing evidence is allowed to remain not observed.",
             },
             {
               key: "b",
-              label: "No. Preserve the live condition and record not observed if that behavior was never exposed.",
-              feedback: "Yes. The form records the response. It must not manufacture the response.",
+              label: "Record recognition as not observed for this opportunity.",
+              feedback: "The form records the response. It must not manufacture the response.",
             },
             {
               key: "c",
-              label: "Only if the Specialist asks neutrally.",
+              label: "Ask a neutral recognition question because neutral wording preserves independence.",
               feedback: "Even a neutral question can elicit evidence the opportunity was not designed to produce.",
             },
+            {
+              key: "d",
+              label: "Keep the rest of the opportunity intact instead of adding a follow-up just to manufacture the missing behavior.",
+              feedback: "Missing evidence is preferable to manufactured observability.",
+            },
+            {
+              key: "e",
+              label: "Ask after the student finishes, then backfill that answer into the original opportunity.",
+              feedback: "A later elicited answer is a different evidence event and cannot be backfilled into the original response.",
+            },
           ]}
-          correctOptionKey="b"
-          truth="Observation prompts are evidence capture, not a script for forcing every behavior to appear."
+          kind="multi_select"
+          correctOptionKeys={["b","d"]}
+          truth="Observation prompts capture evidence; they do not let the Specialist create missing evidence. A behavior that was not exposed remains not observed."
         />
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">System direction is an operating decision</h2>
+          <h2 className="text-2xl font-bold">System direction comes from evidence</h2>
           <p className="text-muted-foreground">
-            When the runner says continue verification, move to another evidence question, require targeted re-diagnosis, run a specific drill, or preserve a state, the system has already interpreted the evidence under its rules.
+            When the runner says continue checking, keep the state, require targeted re-diagnosis, run a specific drill, or preserve a state, RI-OS is applying the shared rules to the clean evidence that was recorded.
+          </p>
+          <p className="text-muted-foreground">
+            The point is consistency: the same evidence should produce the same next action regardless of which Specialist happens to be present. Specialist judgment still matters through accurate observation, condition preservation, truthful recording, and identifying a prompt or system defect that needs escalation.
           </p>
           <p className="font-semibold">
-            The Specialist follows the direction. They do not substitute a preferred phase, drill, timer, or result.
+            Follow the current direction because it comes from the recorded evidence, not because software is beyond question. Do not replace it with preference during the live flow; change the direction only when new clean evidence or a confirmed system correction supports it.
           </p>
         </Card>
         </DeepDiveLessonRunner>

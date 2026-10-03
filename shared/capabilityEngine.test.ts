@@ -163,3 +163,40 @@ test("ledger keeps mastery retrieval and transfer evidence independent", () => {
   assert.equal(structured.evidence.mastery.passedAttempts, 1);
   assert.equal(structured.evidence.transfer.passedAttempts, 1);
 });
+
+
+test("single-choice accepts either of two silent valid answers without requiring both", () => {
+  const definition = assessment({
+    key: "silent_alternate_fixture",
+    deepDiveKey: "clarity",
+  });
+  definition.questions[0] = {
+    ...definition.questions[0],
+    options: [...OPTIONS, { key: "e", label: "Synthetic alternate valid option" }],
+    correctOptionKeys: ["b", "e"],
+  };
+
+  const firstResponses = definition.questions.map((question, index) => ({
+    questionKey: question.key,
+    selectedOptionKeys: [index === 0 ? "b" : question.correctOptionKeys[0]],
+  }));
+  const firstResult = evaluateCapabilityAssessment(definition, firstResponses);
+  assert.equal(firstResult.questionResults[0].correct, true);
+
+  const secondResponses = definition.questions.map((question, index) => ({
+    questionKey: question.key,
+    selectedOptionKeys: [index === 0 ? "e" : question.correctOptionKeys[0]],
+  }));
+  const secondResult = evaluateCapabilityAssessment(definition, secondResponses);
+  assert.equal(secondResult.questionResults[0].correct, true);
+
+  const invalidResponses = definition.questions.map((question, index) => ({
+    questionKey: question.key,
+    selectedOptionKeys:
+      index === 0 ? ["b", "e"] : [question.correctOptionKeys[0]],
+  }));
+  assert.throws(
+    () => evaluateCapabilityAssessment(definition, invalidResponses),
+    /must select exactly one option/i,
+  );
+});

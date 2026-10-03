@@ -40,7 +40,7 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
         <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Baseline does not mean one thing</h2>
           <p className="text-muted-foreground">
-            RI-OS uses a neutral independent starting condition to orient uncertain topic entry, and it also uses clean independent execution timing to establish individualized Time Pressure Stability authority.
+            RI-OS uses a neutral independent starting condition when topic entry is uncertain, and it also uses clean independent execution timing to build the individualized baseline needed for Time Pressure Stability.
           </p>
           <p className="font-semibold">
             Both are baselines because they remove unnecessary pressure. They answer different questions.
@@ -75,17 +75,17 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Primary route: Structured Execution Training</h2>
+          <h2 className="text-2xl font-bold">Usual source: Structured Execution Training</h2>
           <p className="text-muted-foreground">
-            The canonical source is the Independent Execution set inside Structured Execution.
+            The usual source is the Independent Execution set inside Structured Execution.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>Exactly three canonical Independent Execution opportunities form one candidate set.</li>
+            <li>Exactly three clean Independent Execution opportunities form one complete set.</li>
             <li>The tasks are normal difficulty and same form.</li>
             <li>There is no time pressure or visible countdown.</li>
             <li>No help may supply the method, first move, or execution structure.</li>
-            <li>Each rep must preserve clean supported independent execution and technically valid timing.</li>
-            <li>The most recent complete qualifying set in the current Structured Execution conditioning epoch is the active source.</li>
+            <li>Each rep must show clean independent execution, and RI-OS must record the timing correctly.</li>
+            <li>RI-OS uses the most recent complete clean set from the current stretch of Structured Execution Training.</li>
           </ul>
           <p className="text-muted-foreground">
             RI-OS does not cherry-pick the three fastest or strongest reps across different sets.
@@ -101,7 +101,7 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
             Begin Rep or Begin Opportunity, student executes, Student Finished, then observation and admin continue afterward.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>The start timestamp is system-owned.</li>
+            <li>RI-OS records the start time automatically.</li>
             <li>Student Finished freezes the end of mathematical execution.</li>
             <li>Post-rep observation time is not added to the student's elapsed time.</li>
             <li>The running duration must not become a pacing cue.</li>
@@ -109,49 +109,60 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A Specialist waits until all observation fields are completed before pressing Student Finished on a passive baseline opportunity. Is that valid timing?"
+          prompt="A Specialist waits until all observation fields are completed before pressing Student Finished on a passive baseline opportunity. Which statements are supported?"
           options={[
             {
               key: "a",
-              label: "Yes. Confirming the form and ending the timer can happen together.",
+              label: "The timer can end when the observation form is complete because both belong to the same rep.",
               feedback: "That adds Specialist admin time to the student's execution interval and damages comparability.",
             },
             {
               key: "b",
-              label: "No. Freeze Student Finished at actual mathematical completion, then finish observation admin.",
-              feedback: "Yes. The baseline measures student execution, not Specialist form completion.",
+              label: "Student Finished should freeze at the student's actual mathematical completion.",
+              feedback: "The baseline measures student execution, not Specialist form completion.",
             },
             {
               key: "c",
-              label: "Yes, as long as the added time is similar on every rep.",
+              label: "Administration delay is acceptable if it is roughly the same on every rep.",
               feedback: "Artificial admin delay is not student execution and cannot become part of the baseline.",
             },
+            {
+              key: "d",
+              label: "Observation administration belongs after the execution interval has been frozen.",
+              feedback: "Student execution time and Specialist administration must remain separate.",
+            },
+            {
+              key: "e",
+              label: "Administration delay is acceptable if the Specialist completes the same number of fields on every rep.",
+              feedback: "Consistent admin delay is still not student execution and cannot become part of the baseline.",
+            },
           ]}
-          correctOptionKey="b"
-          truth="The execution boundary must be frozen before post-response administration."
+          kind="multi_select"
+          correctOptionKeys={["b","d"]}
+          truth="The baseline measures the student's execution interval. Freeze Student Finished at actual completion, then complete the post-response observation work."
         />
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Second route: Diagnosis can establish the same authority</h2>
+          <h2 className="text-2xl font-bold">Diagnosis can establish the same baseline</h2>
           <p className="text-muted-foreground">
-            A topic can legitimately be placed above Structured Execution without first completing Structured Execution Training. RI-OS therefore allows eligible Diagnosis opportunities to establish the timing reference.
+            A topic can legitimately be placed above Structured Execution without first completing Structured Execution Training. RI-OS can therefore use clean Diagnosis opportunities to establish the timing reference.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>The eligible opportunities are normal, same-form, no-pressure independent execution.</li>
+            <li>The opportunities that can count are normal, same-form, no-pressure independent execution.</li>
             <li>The first clean comparable opportunity can become timing sample 1.</li>
             <li>The system gathers only the remaining samples required to reach three clean comparable intervals.</li>
             <li>If an earlier response layer breaks first, Diagnosis stops there instead of collecting timing for future use.</li>
             <li>If a valid current Timer Contract already exists, the system reuses it.</li>
           </ul>
           <p className="font-semibold">
-            This is evidence-complete Diagnosis, not a hidden three-rep calibration block.
+            Diagnosis stops when the evidence question is resolved. This is not a hidden three-rep calibration block.
           </p>
         </Card>
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">How the final baseline becomes a Timer Contract</h2>
           <p className="text-muted-foreground">
-            RI-OS takes the median of the three qualifying elapsed times and freezes it into a versioned Timer Contract for that student and topic.
+            RI-OS takes the median of the three valid elapsed times and saves it as the Timer Contract for that student and topic.
           </p>
           <div className="grid gap-3 md:grid-cols-3">
             <div className="rounded-lg border p-4">
@@ -173,12 +184,12 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Missing timing authority is a readiness issue</h2>
+          <h2 className="text-2xl font-bold">When the required baseline is missing</h2>
           <p className="text-muted-foreground">
-            If an above-Structured-Execution topic does not have valid timing authority, ordinary TPS work does not invent a timer.
+            If a topic above Structured Execution does not have a valid baseline, ordinary TPS work does not invent a timer.
           </p>
           <p className="font-semibold">
-            The system routes targeted evidence-native re-diagnosis to establish the missing baseline under legitimate independent conditions.
+            RI-OS requires targeted re-diagnosis to establish the missing baseline under clean independent conditions.
           </p>
         </Card>
 
@@ -188,33 +199,43 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
             {
               key: "a",
               label: "Use 50 seconds so the session can continue.",
-              feedback: "A remembered estimate is not timing authority.",
+              feedback: "A remembered estimate is not a valid baseline.",
             },
             {
               key: "b",
-              label: "Use a generic one-minute timer until enough data accumulates.",
-              feedback: "Generic timing would create a pressure condition that is not individualized or evidence-authorized.",
+              label: "Use a generic one-minute timer until enough evidence is collected.",
+              feedback: "Generic timing would create a pressure condition that is not individualized or supported by evidence.",
             },
             {
               key: "c",
-              label: "Follow the readiness route so evidence-native independent timing establishes the missing authority before TPS timing is used.",
-              feedback: "Yes. Missing authority is resolved through the system, not by Specialist invention.",
+              label: "Establish the missing baseline through clean independent timing before TPS timing is used.",
+              feedback: "Yes. RI-OS establishes the missing baseline from evidence; the Specialist does not invent it.",
             },
+              {
+                key: "d",
+                label: "Do not run TPS timing until the missing student-topic baseline has been established.",
+                feedback: "Yes. TPS cannot use invented or borrowed urgency.",
+              },
+              {
+                key: "e",
+                label: "Use 50 seconds only for one provisional rep, then replace it once a formal baseline exists.",
+                feedback: "A provisional invented timer is still a pressure condition RI-OS did not allow.",
+              },
           ]}
-          correctOptionKey="c"
-          truth="No valid baseline means no invented timer. RI-OS must establish timing authority first."
+          correctOptionKeys={["c","d"]}
+          truth="No valid baseline means no invented timer. RI-OS must establish the baseline first."
         />
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Technical failure is not student failure</h2>
           <p className="text-muted-foreground">
-            If the timer, runtime, or device itself fails, the attempt remains durable technical-invalid lineage and the evidence slot stays unresolved.
+            If the timer, runtime, or device itself fails, RI-OS keeps a record of the technical failure and the missing timing evidence remains unresolved.
           </p>
           <p className="text-muted-foreground">
-            A fresh pre-prepared equivalent reserve may fill that unresolved slot under the same condition and lineage.
+            A fresh pre-prepared equivalent reserve may fill that unresolved slot under the same condition, while the failed attempt remains in the record.
           </p>
           <p className="font-semibold">
-            Timeout, panic, wrong method, slow work, incomplete work, or weak performance are student evidence. They never authorize a replacement attempt.
+            Timeout, panic, wrong method, slow work, incomplete work, or weak performance are student evidence. They never allow a replacement attempt.
           </p>
         </Card>
         </DeepDiveLessonRunner>

@@ -48,7 +48,7 @@ export default function ResponseConditioningHowToDiagnose() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The operating split</h2>
+          <h2 className="text-2xl font-bold">Diagnosis and Training do different jobs</h2>
           <div className="grid gap-3 md:grid-cols-2">
             <div className="rounded-lg border p-4">
               <p className="font-semibold">RI-OS owns</p>
@@ -64,7 +64,7 @@ export default function ResponseConditioningHowToDiagnose() {
               <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
                 <li>preparing the requested problem condition</li>
                 <li>following the live protocol exactly</li>
-                <li>preserving the support boundary</li>
+                <li>preserving the active support rule</li>
                 <li>recording only the behavior that actually occurred</li>
               </ul>
             </div>
@@ -85,32 +85,43 @@ export default function ResponseConditioningHowToDiagnose() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A parent says the student collapses in exams, so the starting signal points to Time Pressure Stability. Does that place the topic in Time Pressure Stability?"
+          prompt="A parent says the student collapses in exams. What can RI legitimately conclude from that starting signal?"
           options={[
             {
               key: "a",
-              label: "Yes. The parent symptom is enough because it names a pressure problem.",
-              feedback: "A symptom can route the first evidence question, but it cannot prove that Clarity, Structured Execution, and Controlled Discomfort are already intact.",
+              label: "The topic is placed in Time Pressure Stability because the symptom names exam pressure.",
+              feedback: "A symptom can tell RI-OS which evidence question to ask first, but it cannot prove that Clarity, Structured Execution, and Controlled Discomfort are already intact.",
             },
             {
               key: "b",
-              label: "No. It is a routing hypothesis. Behavioral evidence still has to establish the earliest unreliable response layer.",
-              feedback: "Yes. The system uses the signal to search efficiently without turning the signal into placement authority.",
+              label: "The report can determine which evidence question RI asks first.",
+              feedback: "The report can make Diagnosis more efficient by routing the first evidence question.",
             },
             {
               key: "c",
-              label: "Yes, but only if the Specialist personally agrees with the parent.",
-              feedback: "Specialist agreement does not create placement authority. Evidence does.",
+              label: "The Specialist can convert the report into placement evidence if they personally agree with it.",
+              feedback: "Specialist agreement does not determine placement. Evidence does.",
+            },
+            {
+              key: "d",
+              label: "The report is a routing hypothesis, not placement evidence.",
+              feedback: "Starting signals guide the search; they do not establish final phase.",
+            },
+            {
+              key: "e",
+              label: "Time Pressure Stability can own placement only after earlier required response layers are sufficiently supported.",
+              feedback: "A later-pressure placement must be supported by evidence that earlier required layers hold.",
             },
           ]}
-          correctOptionKey="b"
-          truth="Starting signals make Diagnosis efficient. They do not replace evidence-complete placement."
+          kind="multi_select"
+          correctOptionKeys={["b","d","e"]}
+          truth="Starting signals make Diagnosis efficient. They guide where RI asks first, but direct behavioral evidence still determines the earliest unreliable response layer and final placement."
         />
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">When there is no trustworthy starting signal</h2>
           <p className="text-muted-foreground">
-            RI-OS begins with a neutral Independent Normal Probe: one normal, familiar-form problem with difficulty and time removed.
+            RI-OS begins with one neutral independent starting problem: a normal, familiar-form problem with difficulty and time pressure removed.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>No timer or urgency target.</li>
@@ -146,7 +157,7 @@ export default function ResponseConditioningHowToDiagnose() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Evidence-complete, not rep-complete</h2>
+          <h2 className="text-2xl font-bold">Stop when the evidence question is resolved</h2>
           <p className="text-muted-foreground">
             Diagnosis does not run a fixed number of reps for every student. It stops when the current evidence question is resolved.
           </p>
@@ -169,25 +180,35 @@ export default function ResponseConditioningHowToDiagnose() {
             {
               key: "b",
               label: "No. Stop when the system has enough evidence and follow the resulting placement.",
-              feedback: "Yes. Diagnosis is evidence-complete, not volume-complete.",
+              feedback: "Yes. Diagnosis stops when the evidence question is resolved; it does not collect extra reps just for volume.",
             },
             {
               key: "c",
-              label: "Run them only if the Specialist wants more confidence in the decision.",
-              feedback: "Personal reassurance cannot add unauthorized evidence volume after the system has resolved the question.",
+              label: "Yes. Keep running them if the Specialist wants more confidence in the decision.",
+              feedback: "Personal reassurance cannot justify adding extra evidence after RI-OS has already resolved the question.",
             },
+              {
+                key: "d",
+                label: "No. Unused prepared problems remain reserve capacity for later unresolved evidence questions.",
+                feedback: "Yes. Preparation does not turn reserve material into a mandatory quota.",
+              },
+              {
+                key: "e",
+                label: "Yes. The Specialist should always finish the three prepared reps so every Diagnosis session has the same volume.",
+                feedback: "Standardized volume cannot replace evidence sufficiency. Diagnosis is complete when the active question is resolved.",
+              },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","d"]}
           truth="The system decides whether another opportunity is necessary. Prepared problems are reserve capacity, not a target."
         />
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What the final placement means</h2>
           <p className="text-muted-foreground">
-            The final phase is the first response layer with direct clean evidence that does not meet its support contract after earlier required layers are sufficiently supported.
+            The final phase is the first response layer where direct clean evidence shows the required behavior is not holding after earlier layers have been sufficiently supported.
           </p>
           <p className="text-muted-foreground">
-            Starting stability is derived from the behavior class of that decisive evidence. Diagnosis can establish Low, Medium, or High.
+            Starting stability is decided from the behavior shown in that decisive evidence. Diagnosis can establish Low, Medium, or High.
           </p>
           <p className="font-semibold">
             High Maintenance is never diagnosed. It is earned later through Training evidence.

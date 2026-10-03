@@ -89,7 +89,7 @@ const progressionBands = [
   "Low: run the Time Pressure Stability drill. Start with the defined timer condition and protect method before speed.",
   "Medium: remain in Time Pressure Stability and build consistency across repeated timed attempts.",
   "High: remain in Time Pressure Stability and prove repeatability. High does not finish the phase directly.",
-  "High Maintenance: qualifying evidence keeps this topic at final-phase High Maintenance. Maintenance remains topic-specific; other topics keep their own independently derived states.",
+  "High Maintenance: the required clean evidence keeps this topic at final-phase High Maintenance. Maintenance remains topic-specific; other topics keep their own evidence-based states.",
 ];
 
 const constraintLabel = (set: EvidenceSetDefinition) => {
@@ -198,7 +198,7 @@ export default function ResponseConditioningTimePressureStability() {
             <li>A fast or correct final answer does not excuse lost method structure, random execution, or renewed rescue dependence.</li>
             <li>If urgency exposes an earlier-layer break, record the layer that actually broke instead of calling every failure a time problem.</li>
             <li>An isolated calculation error does not automatically prove the inherited layers failed.</li>
-            <li>The Specialist records the evidence. RI-OS owns topic-state movement and any prerequisite verification route.</li>
+            <li>The Specialist records the evidence. RI-OS decides whether the topic state changes and whether an earlier prerequisite needs checking.</li>
           </ul>
         </Card>
 
@@ -209,45 +209,88 @@ export default function ResponseConditioningTimePressureStability() {
             RI-OS first establishes a clean no-pressure execution baseline for this student and this topic.
           </p>
           <p className="font-semibold">
-            The timer is individualized evidence authority, not a pacing preference.
+            The timer is the topic-specific time standard supported by the student's evidence, not a pacing preference.
           </p>
         </Card>
 
         <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">Primary Baseline Route: Structured Execution</h2>
+          <h2 className="text-2xl font-bold">Where the TPS Baseline Usually Comes From</h2>
           <p className="text-muted-foreground">
-            During Structured Execution Training, RI-OS passively measures the canonical Independent Execution set.
-            One qualifying set contains three canonical independent opportunities.
+            During Structured Execution Training, RI-OS quietly records how long the student takes in the Independent Execution set.
+            One complete clean set gives the system three timing samples.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>Normal difficulty.</li>
-            <li>Same-form execution.</li>
-            <li>No active timer or urgency target.</li>
-            <li>No help that supplies the method, first move, or execution structure.</li>
-            <li>Student execution is structurally supported by the evidence model.</li>
-            <li>Timing itself is technically valid.</li>
+            <li>The problems are normal difficulty.</li>
+            <li>The three attempts use the same form of problem.</li>
+            <li>There is no visible timer or urgency target.</li>
+            <li>No help may give the method, first move, or execution structure.</li>
+            <li>The student must execute independently enough for each attempt to count as clean evidence.</li>
+            <li>The system must have recorded the timing correctly.</li>
           </ul>
           <p className="text-muted-foreground">
-            If more than one complete qualifying Independent Execution set exists in the current Structured Execution
-            conditioning epoch, the most recent complete qualifying set is the source. RI-OS never cherry-picks
-            individual fast or strong reps across sets.
+            If the student completes more than one clean Independent Execution set during the current stretch of Structured Execution Training,
+            RI-OS uses the most recent complete set. It does not mix the fastest or strongest attempts from different sets.
           </p>
         </Card>
 
         <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">Diagnosis Can Establish the Same Timing Authority</h2>
+          <h2 className="text-2xl font-bold">A Casual Example</h2>
+          <p className="text-muted-foreground">
+            Imagine a student is in Structured Execution doing three normal Independent Execution problems. There is no visible timer and nobody is telling them to hurry.
+          </p>
+          <p className="text-muted-foreground">
+            They finish the three clean reps in 48 seconds, 52 seconds, and 50 seconds. Those timings came from one complete clean set, so RI-OS can use that set as the source for the student's TPS baseline.
+          </p>
+          <p className="text-muted-foreground">
+            Later, the student completes another full clean Independent Execution set in 45 seconds, 47 seconds, and 46 seconds. RI-OS uses that newer complete set. It does not pick 45 seconds from the newer set and combine it with the fastest timings from the older set.
+          </p>
+          <p className="font-semibold">
+            Think of the baseline as one clean snapshot of how this student normally executes this topic before time pressure is added, not a collection of their best-ever speeds.
+          </p>
+          <p className="text-muted-foreground">
+            Then, when the student later enters Time Pressure Stability, RI-OS uses that established baseline to set the timing condition for the timed work. The earlier no-pressure snapshot becomes the reference point for adding time pressure.
+          </p>
+          <p className="font-medium">
+            So the timer is not guessed and it is not borrowed from another student. It is built from how this student already demonstrated clean execution on this topic, then used to test whether that same response can stay intact when time pressure is added.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">Diagnosis Can Establish the Same Baseline</h2>
           <p className="text-muted-foreground">
             A topic can legitimately be placed above Structured Execution without first completing Structured Execution
-            Training. Diagnosis therefore has an equivalent route using normal, same-form, no-pressure independent
+            Training. Diagnosis can therefore establish the same baseline using normal, same-form, no-pressure independent
             execution opportunities.
           </p>
           <p className="text-muted-foreground">
-            Diagnosis stays evidence-complete. The first eligible independent opportunity may become timing sample 1,
+            Diagnosis stops when the evidence question is resolved. The first clean independent opportunity may become timing sample 1,
             then RI-OS gathers only the remaining clean comparable samples required to reach three.
           </p>
           <p className="font-semibold">
             If an earlier response layer breaks first, Diagnosis stops there. It does not keep collecting timing just
             because a three-sample baseline could be useful later.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">Another Casual Example</h2>
+          <p className="text-muted-foreground">
+            Imagine a new topic is being diagnosed and the student already shows that they understand the method and can execute it independently without pressure. They have not gone through Structured Execution Training for this topic because the Diagnosis evidence is showing that the topic may already belong further along the pathway.
+          </p>
+          <p className="text-muted-foreground">
+            On the first clean no-pressure independent opportunity, the student finishes in 54 seconds. That can become timing sample 1. RI-OS then gathers only the remaining comparable clean opportunities needed to complete the baseline, for example 51 seconds and 53 seconds.
+          </p>
+          <p className="text-muted-foreground">
+            Now the system has the same kind of three-sample no-pressure baseline it would normally have received from the Independent Execution set in Structured Execution Training.
+          </p>
+          <p className="font-semibold">
+            So Diagnosis is not inventing a different kind of baseline. It is another legitimate way to establish the same baseline when the student already demonstrates the earlier capability cleanly.
+          </p>
+          <p className="text-muted-foreground">
+            If the student had instead broken down on the independent execution itself, Diagnosis would stop at that earlier problem. RI-OS would not keep collecting timings just to manufacture a future TPS baseline.
+          </p>
+          <p className="font-medium">
+            Then, if the topic is later ready for Time Pressure Stability, those clean Diagnosis timings can supply the reference RI-OS uses to set the timed condition in exactly the same way.
           </p>
         </Card>
 
@@ -269,7 +312,7 @@ export default function ResponseConditioningTimePressureStability() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="The student finishes the baseline problem, but the Specialist spends another 20 seconds completing observations before pressing Student Finished. Can that elapsed time authorize the Timer Contract?"
+          prompt="The student finishes the baseline problem, but the Specialist spends another 20 seconds completing observations before pressing Student Finished. Can that elapsed time count toward the Timer Contract?"
           options={[
             {
               key: "a",
@@ -286,16 +329,51 @@ export default function ResponseConditioningTimePressureStability() {
               label: "Yes, if the Specialist adds roughly the same admin time to all three reps.",
               feedback: "Artificial admin delay is never part of the student's execution baseline.",
             },
+            {
+              key: "d",
+              label: "Yes. Use the elapsed time but subtract the 20 seconds manually before the baseline is stored.",
+              feedback: "Manually changing the time cannot recreate the student's true execution interval. The timer must freeze at actual completion.",
+            },
+            { key: "e", label: "No. Freeze Student Finished when the mathematics ends; observation administration belongs after the execution interval.", feedback: "Yes. The Timer Contract must be built from the student's execution time, not post-response administration." },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","e"]}
           truth="Measurement integrity depends on freezing the real student execution boundary before observation administration."
+        />
+
+        <DeepDiveTeachingInteraction
+          prompt="A baseline timing attempt is completed quickly, but the Specialist prompted the student twice to keep the method moving. Can that time anchor later pressure?"
+          options={[
+            {
+              key: "a",
+              label: "Yes, because the stopwatch still measured the student's real working speed from start to finish.",
+              feedback: "The clock may be accurate, but the student received support. That time cannot stand in for the required independent timing evidence.",
+            },
+            {
+              key: "b",
+              label: "Yes, if the prompts did not reveal the actual next step and only kept the student focused.",
+              feedback: "Directional support can still change execution speed and the student's response. Whether the timing can count depends on preserving the required independent condition, not on how subtle the prompt felt.",
+            },
+            {
+              key: "c",
+              label: "No. The later timer needs timing evidence produced under the required independent condition.",
+              feedback: "Yes. Pressure must be based on timing evidence that reflects the response RI intends to stress-test.",
+            },
+            {
+              key: "d",
+              label: "Yes, if the same prompts are used consistently across all three baseline reps.",
+              feedback: "Consistent contamination is still contamination. The baseline must represent independent execution, not standardized prompting.",
+            },
+            { key: "e", label: "No. Supported timing cannot establish the later pressure baseline, even if the stopwatch reading itself is precise.", feedback: "Yes. A valid timing sample must come from the required clean independent condition." },
+          ]}
+          correctOptionKeys={["c","e"]}
+          truth="Timing evidence can only set the pressure baseline when the underlying execution condition stayed independent and clean. A precise stopwatch reading cannot repair a supported or contaminated response."
         />
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">How Three Timings Become the Timer Contract</h2>
           <p className="text-muted-foreground">
-            RI-OS takes the median of the three qualifying elapsed times and freezes that value as the individualized
-            baseline for the current student, topic, and valid source lineage.
+            RI-OS takes the median of the three valid elapsed times and saves that value as the individualized
+            baseline for the current student and topic, while preserving where those timings came from.
           </p>
           <div className="grid gap-3 md:grid-cols-3">
             <div className="rounded-lg border p-4">
@@ -312,44 +390,55 @@ export default function ResponseConditioningTimePressureStability() {
             </div>
           </div>
           <p className="font-semibold">
-            The resulting Timer Contract is system-owned. The Specialist cannot enter, estimate, round, pause, restart,
+            RI-OS sets the resulting Timer Contract. The Specialist cannot enter, estimate, round, pause, restart,
             loosen, tighten, or replace it.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">What the Timer Contract Looks Like</h2>
+          <p className="text-muted-foreground">
+            Go back to the earlier example where the student's most recent clean Independent Execution set was 45 seconds, 47 seconds, and 46 seconds.
+          </p>
+          <p className="text-muted-foreground">
+            RI-OS takes the middle value, 46 seconds, as the baseline for that student and topic.
+          </p>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-lg border p-4">
+              <p className="font-semibold">Structure Under Timer</p>
+              <p className="mt-1 text-sm text-muted-foreground">46 seconds.</p>
+            </div>
+            <div className="rounded-lg border p-4">
+              <p className="font-semibold">Repeated Timed Execution</p>
+              <p className="mt-1 text-sm text-muted-foreground">46 seconds again.</p>
+            </div>
+            <div className="rounded-lg border p-4">
+              <p className="font-semibold">Full Constraint</p>
+              <p className="mt-1 text-sm text-muted-foreground">39 seconds, which is 85% of 46 seconds rounded by RI-OS.</p>
+            </div>
+          </div>
+          <p className="font-semibold">
+            That is the Timer Contract: first prove the student's normal clean execution time, then use that same personal baseline to create the defined levels of time pressure.
+          </p>
+          <p className="text-muted-foreground">
+            If the baseline came from Diagnosis instead of Structured Execution Training, the contract is built the same way. The source can differ; the Timer Contract rule does not.
           </p>
         </Card>
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">No Baseline Means No Invented Timer</h2>
           <p className="text-muted-foreground">
-            Missing timing authority is an explicit readiness condition. If a topic needs Time Pressure Stability but
+            A missing valid baseline means the topic is not ready for timed TPS work. If a topic needs Time Pressure Stability but
             does not have a valid current Timer Contract, ordinary timed work does not begin with a guessed value.
           </p>
           <p className="font-semibold">
-            RI-OS routes the evidence-native baseline work required to establish timing authority first.
+            RI-OS requires the clean baseline work needed before timed TPS work can begin.
           </p>
         </Card>
 
-        <DeepDiveTeachingInteraction
-          prompt="A student finishes inside the timer but skips the known method and guesses successfully. What does the timed result prove?"
-          options={[
-            {
-              key: "b",
-              label: "Unstable under time, because urgency displaced the trained method despite the successful outcome.",
-              feedback: "Yes. Time Pressure Stability requires the method to survive urgency; speed and correctness alone are not enough.",
-            },
-            {
-              key: "a",
-              label: "The student is stable under time because the deadline and answer were both achieved.",
-              feedback: "Meeting the deadline cannot substitute for preserving the response structure the timer is meant to stress-test.",
-            },
-            {
-              key: "c",
-              label: "The student is ready for a tighter timer because the successful guess shows unused speed capacity.",
-              feedback: "A tighter constraint is not earned from an attempt that already lost method integrity.",
-            },
-          ]}
-          correctOptionKey="b"
-          truth="The timer is an added constraint on an already-trained response. A fast or correct answer does not count as stability when urgency causes the method structure to disappear."
-        />
+
+
+
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Time Pressure Training Recipe</h2>
@@ -369,28 +458,7 @@ export default function ResponseConditioningTimePressureStability() {
           </p>
         </Card>
 
-        <DeepDiveTeachingInteraction
-          prompt="A baseline timing attempt is completed quickly, but the Specialist prompted the student twice to keep the method moving. Can that time anchor later pressure?"
-          options={[
-            {
-              key: "a",
-              label: "Yes, because the stopwatch still measured the student's real working speed from start to finish.",
-              feedback: "The clock may be accurate, but the response condition was supported. A supported time cannot stand in for independent eligible timing evidence.",
-            },
-            {
-              key: "b",
-              label: "Yes, if the prompts did not reveal the actual next step and only kept the student focused.",
-              feedback: "Directional support can still change execution speed and continuity. Eligibility depends on preserving the required response condition, not on how subtle the prompt felt.",
-            },
-            {
-              key: "c",
-              label: "No. The later timer needs timing evidence produced under the eligible independence condition.",
-              feedback: "Yes. Pressure must be derived from timing evidence that reflects the response RI intends to stress-test.",
-            },
-          ]}
-          correctOptionKey="c"
-          truth="Timing evidence is only useful as a pressure baseline when the underlying execution condition is eligible. A precise stopwatch reading cannot repair a supported or contaminated response."
-        />
+
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
@@ -432,6 +500,39 @@ export default function ResponseConditioningTimePressureStability() {
           </div>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="The timer freezes for several seconds halfway through a rep, then resumes. What should happen to that attempt?"
+          options={[
+            {
+              key: "c",
+              label: "Record the technical failure and use a fresh pre-prepared equivalent reserve under the same intended time condition.",
+              feedback: "Yes. The technical failure remains visible in the record, and the fresh pre-prepared equivalent reserve supplies the missing timing evidence without erasing the failed attempt.",
+            },
+            {
+              key: "a",
+              label: "Keep it and subtract the estimated frozen time afterward, because the student's method performance was still observable.",
+              feedback: "An estimate cannot recreate the intended continuous time condition. The rep may show useful behavior, but it cannot prove performance under the defined timer.",
+            },
+            {
+              key: "b",
+              label: "Treat it as a student timeout if the final completion exceeds the original limit.",
+              feedback: "The timing condition failed technically. The student cannot be assigned a timing failure from a timer that did not operate correctly.",
+            },
+            {
+              key: "d",
+              label: "Restart the same exposed problem from the beginning once the timer is working again.",
+              feedback: "The student has already seen and begun the problem. Reusing it would create a second chance rather than a fresh equivalent reserve.",
+            },
+            {
+              key: "e",
+              label: "Discard the failed attempt completely, then record only the replacement so the timing record stays clean.",
+              feedback: "Technical failure remains part of the evidence history. Recovery fills the unresolved slot without erasing the failed attempt.",
+            },
+          ]}
+          correctOptionKey="c"
+          truth="Objective timer failure invalidates the timed condition, not the student's response. Keep the failed attempt in the record and fill the unresolved slot only with a fresh pre-prepared equivalent reserve under the same Timer Contract."
+        />
+
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Run the Drill: Set by Set</h2>
           <p className="text-muted-foreground">
@@ -439,11 +540,11 @@ export default function ResponseConditioningTimePressureStability() {
           </p>
         </Card>
 
-        {trainingSchema.sets.map((set, setIndex) => {
+        {trainingSchema.sets.flatMap((set, setIndex) => {
           const execution = TIME_SET_EXECUTION[set.setId];
           const repPurposes = TIME_REP_PURPOSES[set.setId] || [];
 
-          return (
+          const setCard = (
             <Card key={set.setId} className="p-6 space-y-5">
               <div>
                 <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
@@ -494,30 +595,79 @@ export default function ResponseConditioningTimePressureStability() {
               </div>
             </Card>
           );
-        })}
 
-        <DeepDiveTeachingInteraction
-          prompt="The timer freezes for several seconds halfway through a rep, then resumes. What should happen to that attempt?"
-          options={[
-            {
-              key: "c",
-              label: "Record the technical failure and use a fresh pre-prepared equivalent reserve under the same intended time condition.",
-              feedback: "Yes. Technical lineage remains visible, and the fresh pre-prepared equivalent reserve fills the unresolved evidence slot without erasing the failed attempt.",
-            },
-            {
-              key: "a",
-              label: "Keep it and subtract the estimated frozen time afterward, because the student's method performance was still observable.",
-              feedback: "An estimate cannot recreate the intended continuous time condition. The rep may show useful behavior, but it cannot prove performance under the defined timer.",
-            },
-            {
-              key: "b",
-              label: "Treat it as a student timeout if the final completion exceeds the original limit.",
-              feedback: "The timing condition failed technically. The student cannot be assigned a timing failure from a timer that did not operate correctly.",
-            },
-          ]}
-          correctOptionKey="c"
-          truth="Objective timer failure invalidates the timed condition, not the student's response. Preserve the failed attempt in lineage and fill the unresolved slot only with a fresh pre-prepared equivalent reserve under the same Timer Contract."
-        />
+          if (set.setId === "time_pressure.structure_under_timer") {
+            return [
+              setCard,
+                    <DeepDiveTeachingInteraction
+                      key="time-pressure-structure-under-timer-check"
+                  prompt="A student finishes inside the timer but skips the known method and guesses successfully. What does the timed result prove?"
+                  options={[
+                    {
+                      key: "b",
+                      label: "The deadline was met, but the result does not prove TPS because the trained method collapsed under urgency.",
+                      feedback: "Yes. Time Pressure Stability requires the method to survive urgency; speed and correctness alone are not enough.",
+                    },
+                    {
+                      key: "a",
+                      label: "The student is stable under time because the deadline and answer were both achieved.",
+                      feedback: "Meeting the deadline cannot substitute for preserving the response structure the timer is meant to stress-test.",
+                    },
+                    {
+                      key: "c",
+                      label: "The student is ready for a tighter timer because the successful guess shows unused speed capacity.",
+                      feedback: "A tighter constraint is not earned from an attempt that already lost method integrity.",
+                    },
+                    {
+                      key: "d",
+                      label: "Count it as stable if the guess was a mathematically valid shortcut, because TPS only cares that the response stays functional.",
+                      feedback: "TPS pressures an already-trained response. Abandoning the trained method under urgency is itself instability.",
+                    },
+                    { key: "e", label: "The rep provides direct evidence of structure instability under time, even though the guessed final answer happened to be correct.", feedback: "Yes. TPS requires the trained method to survive urgency, not merely a correct answer before timeout." },
+                  ]}
+                  correctOptionKeys={["b","e"]}
+                  truth="The timer is an added constraint on an already-trained response. A fast or correct answer does not count as stability when urgency causes the method structure to disappear."
+            />
+            ];
+          }
+
+          if (set.setId === "time_pressure.full_constraint") {
+            return [
+              setCard,
+                    <DeepDiveTeachingInteraction
+                      key="time-pressure-full-constraint-check"
+                  prompt="RI has assigned the active timer from valid independent timing evidence. Mid-rep, the student starts losing structure and asks for more time. What should the Specialist do?"
+                  options={[
+                    {
+                      key: "a",
+                      label: "Add a small amount of time so the rep can show whether the student still knows the method once urgency is reduced.",
+                      feedback: "That would answer a different question. The active rep is testing whether the known response survives the assigned urgency.",
+                    },
+                    {
+                      key: "b",
+                      label: "Pause the timer until structure returns, then resume.",
+                      feedback: "Pausing removes part of the continuous pressure. The displayed total may look unchanged, but the condition is no longer the same.",
+                    },
+                    {
+                      key: "c",
+                      label: "Keep the assigned timer unchanged; do not extend, pause, or soften the Timer Contract because the student is struggling.",
+                      feedback: "Yes. The Specialist protects the timing contract rather than adjusting the condition to produce a cleaner-looking response.",
+                    },
+                    {
+                      key: "d",
+                      label: "Add the same amount of extra time to this and all future reps so the condition stays comparable.",
+                      feedback: "Repeating the same unallowed change does not restore the correct timed condition.",
+                    },
+                    { key: "e", label: "Record the structure loss and request for more time as separate response evidence from the rep rather than rescuing the timed condition.", feedback: "Yes. Loosening or pausing the timer would rescue performance by changing the evidence condition." },
+                  ]}
+                  correctOptionKeys={["c","e"]}
+                  truth="The timer RI-OS set is part of the evidence condition. Once the rep begins, the Specialist does not loosen or pause it to rescue performance; they preserve the condition and record what happens."
+            />
+            ];
+          }
+
+          return [setCard];
+        })}
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What You Observe</h2>
@@ -534,28 +684,7 @@ export default function ResponseConditioningTimePressureStability() {
           </p>
         </Card>
 
-        <DeepDiveTeachingInteraction
-          prompt="The timer works correctly, but the student freezes and does not finish. What is the correct evidence treatment?"
-          options={[
-            {
-              key: "a",
-              label: "Run a replacement, because incomplete attempts should not count.",
-              feedback: "Non-completion under a valid timer is itself evidence of the response under pressure. Replacement is not for undesirable learner outcomes.",
-            },
-            {
-              key: "b",
-              label: "Keep it. A valid timer makes the freeze learner evidence, not a reason to replace the attempt.",
-              feedback: "Yes. A working timer plus a weak response is still a valid observation of timed stability.",
-            },
-            {
-              key: "c",
-              label: "Mark the attempt as confounded, because freezing is an emotional response rather than mathematical performance.",
-              feedback: "RI is explicitly observing whether the student can remain functional under the condition. Freezing is part of that response, not a reason to erase it.",
-            },
-          ]}
-          correctOptionKey="b"
-          truth="When the timer is valid, timeout, freezing, wrong method or incomplete work are learner evidence. Replacement is reserved for objective failure of the timing condition itself."
-        />
+
 
  <Card className="p-6 space-y-5 ">
           <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
@@ -570,33 +699,46 @@ export default function ResponseConditioningTimePressureStability() {
           </p>
         </Card>
 
+
+
         <DeepDiveTeachingInteraction
-          prompt="RI has assigned the active timer from eligible timing evidence. Mid-rep, the student starts losing structure and asks for more time. What should the Specialist do?"
+          prompt="The timer works correctly, but the student freezes and does not finish. Which conclusions are supported?"
           options={[
             {
               key: "a",
-              label: "Add a small amount of time so the rep can show whether the student still knows the method once urgency is reduced.",
-              feedback: "That would answer a different question. The active rep is testing whether the known response survives the assigned urgency.",
+              label: "A replacement should run because incomplete timed attempts should not count.",
+              feedback: "Non-completion under a valid timer is itself evidence of the response under pressure. Replacement is not for undesirable learner outcomes.",
             },
             {
               key: "b",
-              label: "Pause the timer until structure returns, then resume.",
-              feedback: "Pausing removes part of the continuous pressure. The displayed total may look unchanged, but the condition is no longer the same.",
+              label: "The attempt remains a valid timed evidence event.",
+              feedback: "A working timer plus a weak response is still a valid observation of timed stability.",
             },
             {
               key: "c",
-              label: "Preserve the assigned timer and record the structure loss as learner evidence under that condition.",
-              feedback: "Yes. The Specialist protects the timing contract rather than adjusting the condition to produce a cleaner-looking response.",
+              label: "The attempt is confounded because freezing is emotional rather than mathematical.",
+              feedback: "RI is explicitly observing whether the student can remain functional under the condition. Freezing is part of that response, not a reason to erase it.",
+            },
+            {
+              key: "d",
+              label: "No technical replacement is unlocked because the timing condition itself did not fail.",
+              feedback: "A replacement is allowed only when the timing condition objectively fails, not because the learner performed weakly.",
+            },
+            {
+              key: "e",
+              label: "The freeze and non-completion are student-response evidence under urgency.",
+              feedback: "TPS is explicitly observing whether the trained response survives urgency.",
             },
           ]}
-          correctOptionKey="c"
-          truth="The system-derived timer is part of the evidence condition. Once the rep begins, the Specialist does not loosen or pause it to rescue performance; they preserve the condition and record what happens."
+          kind="multi_select"
+          correctOptionKeys={["b","d","e"]}
+          truth="When the timer is valid, timeout, freezing, wrong method or incomplete work are learner evidence. Replacement is reserved for objective failure of the timing condition itself."
         />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression Logic</h2>
           <p className="text-muted-foreground">
-            Time Pressure Stability does not complete because the student was fast once. The engine relies on qualifying evidence and stability state.
+            Time Pressure Stability does not complete because the student was fast once. RI-OS relies on the required clean evidence and stability state.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {progressionBands.map((band) => (

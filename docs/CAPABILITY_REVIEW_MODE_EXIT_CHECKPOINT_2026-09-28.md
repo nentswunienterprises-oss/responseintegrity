@@ -101,6 +101,17 @@ Additional rules:
 - **RI fidelity:** preserve phase boundaries, session-context boundaries, evidence eligibility, behaviour-versus-interpretation distinctions, state authority, and approved bank meaning.
 - **Quality over coverage:** coverage, uniqueness, and character counts are structural checks only. They are not acceptance criteria.
 
+### Founder Review corrections - 2 October 2026
+
+The How to Interpret Prompts review exposed two additional authoring rules that now apply to all Capability banks:
+
+- **No polarity traps:** a single-choice stem using words such as *avoid*, *wrong*, *not*, or *must not* is invalid if more than one option semantically describes an action the Specialist should avoid. Rewrite the stem positively, or use explicit multi-select when several actions are genuinely correct.
+- **Options must answer the same question:** do not mix a meta-answer such as "avoid doing X" with several concrete actions that also satisfy the stem. Grammatical form and decision level should remain parallel enough that the learner is choosing RI reasoning, not decoding test-writing structure.
+- **Context is not authority:** asking a student or parent for preference can be valid context. The error occurs when that preference is used to override an evidence-derived state or route. Feedback must name that distinction.
+- **System direction must be explained by evidence:** never teach "follow RI-OS because the system says so." The reason RI-OS owns state movement and next action is that it applies shared decision rules to the recorded qualifying evidence. Specialist judgment enters through clean execution, observation, recording, and defect escalation.
+- **Disagreement is not disobedience:** if a Specialist suspects a prompt or system defect, the correct route is to preserve the evidence boundary and escalate the defect separately, not to improvise a private state decision.
+
+
 The audit also used the correction pattern established across RI review history: preserve exact operating truth, remove drift, remove unnecessary machinery from learner-facing language, and prefer the clearest complete explanation over wording that merely sounds rigorous.
 
 ## Review Mode loop
@@ -145,3 +156,39 @@ This checkpoint remains **OPEN** until all of the following are true:
 ## Handoff rule
 
 If work continues in another chat, session, or by another contributor, start here. This document and GitHub issue #112 are the durable branch-level definition of done for Capability Review Mode. PR #108 is already merged; any follow-on PR from this branch must reference and satisfy this checkpoint before Review Mode is considered complete.
+
+
+## OS-wide Capability reconciliation - 2 October 2026
+
+Founder Review exposed that the ambiguity was not isolated to How to Interpret Prompts. The entire active private Capability estate was therefore treated as one authoring surface.
+
+The reconciliation standard is now:
+
+- **No polarity traps in single-choice.** Stems such as “What should the Specialist avoid?”, “What must not happen?”, “What is wrong?”, and “Why is that wrong?” are not permitted as single-choice when the option set can make several actions semantically defensible. Rewrite the question positively/diagnostically, or use explicit multi-select.
+- **Every bank contains deliberate interaction variation.** A private bank may not be single-choice only. Each bank must include at least one multi-select or sequence question.
+- **Multi-select is structured.** It has at least five options, at least two defensible answers, and teaching feedback for every option so missed truths and selected non-answers can both be explained.
+- **Sequence is real ordering.** It has at least four steps and the approved answer orders every option exactly once.
+- **System authority is evidence governance.** Any question teaching RI-OS state or next-action authority must explain the evidence basis: qualifying observations are recorded, shared RI rules interpret them, and the resulting operating state is therefore not a Specialist preference. Software is not authoritative merely because it is software.
+- **Human judgment remains necessary.** Specialist judgment belongs in accurate observation, preserving the active condition, truthful recording, and escalating a suspected prompt or system defect. It does not become private state-movement authority.
+- **Coverage is preserved when wording changes.** Reconciliation must not reduce competency-cell counts or critical-boundary coverage from the bank version it replaces.
+
+The private-bank importer now fails closed on these rules so future bank authoring cannot silently drift back to the pre-review pattern.
+
+## Transformation Phases Founder approval checkpoint - 4 October 2026
+
+The five Transformation Phases Mastery banks have now completed interactive Founder Review and are locked:
+
+- Topic Conditioning `topic_conditioning_mastery_v1` v17
+- Clarity `clarity_mastery_v1` v15
+- Structured Execution `structured_execution_mastery_v1` v14
+- Controlled Discomfort `controlled_discomfort_mastery_v1` v14
+- Time Pressure Stability `time_pressure_stability_mastery_v1` v14
+
+All five are active with Review Mode off.
+
+Their approved Deep Dive learning flows are also frozen under the teach-before-test structure established during review.
+
+This closes Founder acceptance for the five Transformation Mastery banks, but does **not** close this broader Capability checkpoint. Session Infrastructure and the cumulative Transformation Retrieval / Transfer gates remain separately governed by their own review status.
+
+Durable record: `docs/TRANSFORMATION_PHASES_FOUNDER_APPROVAL_CHECKPOINT_2026-10-04.md`.
+

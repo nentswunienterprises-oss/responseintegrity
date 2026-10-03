@@ -73,7 +73,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
               improvise support.
             </p>
             <p className="text-muted-foreground">
-              The phase is Controlled Discomfort. The live set determines the exact support boundary.
+              The phase is Controlled Discomfort. The active set determines exactly what support is allowed.
               The Boss Battle is the challenging problem condition used inside that system.
             </p>
           </Card>
@@ -85,45 +85,56 @@ export default function ResponseConditioningHowToUseBossBattles() {
               number of correct questions and then decide to add difficulty.
             </p>
             <p className="font-semibold">
-              RI-OS assigns Controlled Discomfort from the topic's evidence-derived state. The
+              RI-OS assigns Controlled Discomfort from the topic state supported by evidence. The
               Specialist prepares and runs the assigned Controlled Discomfort drill.
             </p>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>Clarity must not be replaced by difficulty.</li>
               <li>Structured Execution must not be replaced by difficulty.</li>
               <li>Difficulty is introduced because Controlled Discomfort is the correct active load.</li>
-              <li>Topic movement remains system-owned after the evidence is submitted.</li>
+              <li>RI-OS decides topic movement after the evidence is submitted.</li>
             </ul>
           </Card>
 
           <DeepDiveTeachingInteraction
-            prompt="The student has solved four easy problems correctly, but the topic is still assigned to Structured Execution. May the Specialist introduce a Boss Battle because the student now looks comfortable?"
+            prompt="The student has solved four easy problems correctly, but the topic is still assigned to Structured Execution. Which conclusions are supported?"
             options={[
               {
                 key: "a",
-                label: "Yes. Four correct answers are enough to unlock Boss Battles.",
-                feedback: "Correct-answer volume is not the authority for changing the active phase or pressure condition.",
+                label: "Four correct answers unlock Boss Battles.",
+                feedback: "Correct-answer volume does not decide whether the active phase or pressure condition should change.",
               },
               {
                 key: "b",
-                label: "No. Keep the assigned Structured Execution condition until RI-OS moves the topic from qualifying evidence.",
-                feedback: "Yes. Boss Battles are a Controlled Discomfort load, not a Specialist-selected reward for looking comfortable.",
+                label: "The Specialist should keep the assigned Structured Execution condition until RI-OS moves the topic.",
+                feedback: "Boss Battles are a Controlled Discomfort load, not a Specialist-selected reward for looking comfortable.",
               },
               {
                 key: "c",
-                label: "Yes, if the Specialist believes the student needs more confidence under challenge.",
-                feedback: "Specialist preference does not authorize a phase change.",
+                label: "The Specialist can add a Boss Battle when they believe the student needs confidence under challenge.",
+                feedback: "Specialist preference does not allow a phase change.",
+              },
+              {
+                key: "d",
+                label: "Boss Battle difficulty belongs to Controlled Discomfort, not Structured Execution.",
+                feedback: "The pressure load follows the system-assigned phase.",
+              },
+              {
+                key: "e",
+                label: "Keeping the same support rule makes a Boss Battle valid inside Structured Execution.",
+                feedback: "Preserving support does not allow the Specialist to add a new difficulty condition outside the assigned phase.",
               },
             ]}
-            correctOptionKey="b"
-            truth="Boss Battles appear because Controlled Discomfort is the system-assigned load, not because the Specialist decides the student has earned a harder question."
+            kind="multi_select"
+            correctOptionKeys={["b","d"]}
+            truth="Boss Battles are the difficult same-form load inside Controlled Discomfort. The Specialist does not introduce them before RI-OS moves the topic into that phase."
           />
 
           <Card className="p-6 space-y-5">
             <h2 className="text-2xl font-bold">The Controlled Discomfort sequence</h2>
             <p className="text-muted-foreground">
               The live Training registry defines three Controlled Discomfort sets. All use challenging,
-              same-form problems. What changes is the support boundary and the evidence question.
+              same-form problems. What changes is the support rule and the evidence question.
             </p>
             <div className="space-y-3">
               {trainingSchema.sets.map((set, index) => (
@@ -142,7 +153,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
                   <p className="text-sm text-muted-foreground">{set.purpose}</p>
                   <p className="text-sm font-medium">
                     {supportMeaning[set.constraints.supportLevel] ||
-                      `Use the registered ${set.constraints.supportLevel.replaceAll("_", " ")} support boundary.`}
+                      `Use the registered ${set.constraints.supportLevel.replaceAll("_", " ")} support rule.`}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Difficulty: {set.constraints.difficultyLevel.replaceAll("_", " ")} | Form:{" "}
@@ -158,7 +169,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
             <h2 className="text-2xl font-bold">Controlled Entry</h2>
             <p className="text-muted-foreground">
               Controlled Entry introduces the challenging condition while allowing only the registered
-              minimal support boundary.
+              minimal support rule.
             </p>
             <p className="font-semibold">
               The difficulty stays. Support may target the allowed boundary, but the Specialist does not
@@ -169,11 +180,11 @@ export default function ResponseConditioningHowToUseBossBattles() {
           <Card className="p-6 space-y-4">
             <h2 className="text-2xl font-bold">No Rescue</h2>
             <p className="text-muted-foreground">
-              No Rescue tightens the support boundary to first-step-only. The Specialist may not turn
+              No Rescue tightens the support rule to first-step-only. The Specialist may not turn
               uncertainty into a worked demonstration or method walkthrough.
             </p>
             <p className="font-semibold">
-              First-step-only is a specific set contract. It is not the universal rule for every Boss Battle.
+              First-step-only is a rule for a specific set. It is not the universal rule for every Boss Battle.
             </p>
           </Card>
 
@@ -207,8 +218,18 @@ export default function ResponseConditioningHowToUseBossBattles() {
                 label: "No support at all, because every Boss Battle is always no-help.",
                 feedback: "No-help belongs to Repeat Exposure. No Rescue is specifically first-step-only.",
               },
+              {
+                key: "d",
+                label: "Only the allowed first-step support; reassurance that confirms later steps would become additional support.",
+                feedback: "Yes. Support stops at the first-step boundary.",
+              },
+              {
+                key: "e",
+                label: "A full method explanation followed by another No Rescue attempt on the same problem.",
+                feedback: "That converts the rep into teaching and then gives a second chance on exposed material.",
+              },
             ]}
-            correctOptionKey="b"
+            correctOptionKeys={["b","d"]}
             truth="Boss Battle difficulty does not define support. The active Controlled Discomfort set does."
           />
 
@@ -216,7 +237,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
             <h2 className="text-2xl font-bold">What you actually observe</h2>
             <p className="text-muted-foreground">
               The goal is not to invent a psychological story about the student. Observe the response
-              dimensions the system can defend.
+              behaviors the evidence actually supports.
             </p>
             <ul className="space-y-2 text-sm text-muted-foreground">
               {controlledDiscomfortSignals.map((signal) => (
@@ -258,15 +279,25 @@ export default function ResponseConditioningHowToUseBossBattles() {
                 label: "Yes, but only if the easier problem remains in the same topic.",
                 feedback: "Same topic does not make a changed difficulty condition equivalent.",
               },
+              {
+                key: "d",
+                label: "No. The weak response is exactly the kind of valid difficulty evidence Controlled Discomfort is meant to expose.",
+                feedback: "Yes. A clean breakdown under the assigned load remains useful evidence.",
+              },
+              {
+                key: "e",
+                label: "Yes, if the easier version is only slightly easier and keeps the same method.",
+                feedback: "Any performance-dependent softening changes the intended difficulty condition and chases success.",
+              },
             ]}
-            correctOptionKey="b"
+            correctOptionKeys={["b","d"]}
             truth="Controlled Discomfort is valuable because valid difficulty reveals the response. The Specialist does not chase a preferred result."
           />
 
           <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-            <h2 className="text-2xl font-bold">Operating rule</h2>
+            <h2 className="text-2xl font-bold">Rule to follow</h2>
             <p className="font-semibold">
-              Controlled Discomfort chooses the load. The set chooses the support boundary. The Specialist
+              Controlled Discomfort chooses the load. The set chooses the support rule. The Specialist
               preserves both. Evidence decides what happens next.
             </p>
           </Card>

@@ -76,10 +76,10 @@ export default function ResponseConditioningLoggingSystem() {
             Logging is the evidence-capture layer between what the student actually did and what the system is allowed to conclude.
           </p>
           <p className="font-semibold">
-            Active condition → concrete observed behavior → evidence eligibility → dimension state → system decision → next action
+            Active condition → concrete observed behavior → what the evidence can prove → current state → system decision → next action
           </p>
           <p className="text-sm text-muted-foreground">
-            The Specialist owns truthful observation. The Response Evidence Model owns evidence interpretation and the resulting operating decision.
+            The Specialist owns truthful observation. RI-OS interprets the recorded evidence and decides what happens next.
           </p>
         </Card>
 
@@ -111,7 +111,7 @@ export default function ResponseConditioningLoggingSystem() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Intervention Is a Separate Fact</h2>
           <p className="text-muted-foreground">
-            Student behavior and Specialist intervention are not the same field. Training may contain legitimate support, but support changes what evidence remains eligible.
+            Student behavior and Specialist support are not the same fact. Training may contain legitimate support, but that support changes what the evidence can still prove.
           </p>
           <ul className="space-y-2 pl-5 list-disc text-muted-foreground">
             <li>No intervention</li>
@@ -132,17 +132,17 @@ export default function ResponseConditioningLoggingSystem() {
             <div className="rounded-xl border p-4 space-y-2">
               <h3 className="text-lg font-semibold">Intro Diagnosis</h3>
               <p className="text-sm text-muted-foreground">
-                Diagnosis is evidence-complete, not rep-complete. Present the system-selected probe, record concrete behavior and evidence status, record intervention separately, submit, then follow the next evidence question selected from that evidence.
+                Diagnosis stops when the evidence question is resolved, not after a fixed rep count. Present the problem RI-OS selects, record concrete behavior and evidence status, record Specialist support separately, submit, then follow the next evidence question.
               </p>
               <p className="text-sm font-medium">
-                The Specialist does not choose the phase, starting stability, next probe, or system decision.
+                The Specialist does not choose the phase, starting stability, next check, or system decision.
               </p>
             </div>
 
             <div className="rounded-xl border p-4 space-y-2">
               <h3 className="text-lg font-semibold">Training</h3>
               <p className="text-sm text-muted-foreground">
-                Training is exposure-complete and evidence-authorized. Completing required opportunities and proving capability are separate questions.
+                Training completes the required exposure, but state changes still depend on what the evidence proves. Completing the opportunities and proving capability are separate questions.
               </p>
               <p className="text-sm text-muted-foreground">
                 A genuine breakdown is not erased by one isolated later success. Recovery requires sufficient clean comparable evidence. High, High Maintenance, and phase progression remain temporally separated.
@@ -155,7 +155,7 @@ export default function ResponseConditioningLoggingSystem() {
                 Handover verifies inherited truth after Specialist reassignment. It is neither normal Training nor a restart of Intro.
               </p>
               <p className="text-sm text-muted-foreground">
-                Present one clean continuity opportunity at a time and stop when the evidence model can hold the inherited state, make a bounded same-phase stability adjustment, or require targeted evidence-complete re-diagnosis.
+                Present one clean continuity opportunity at a time and stop when RI-OS has enough evidence to keep the inherited state, adjust stability within the same phase, or require targeted re-diagnosis.
               </p>
             </div>
           </div>
@@ -164,7 +164,7 @@ export default function ResponseConditioningLoggingSystem() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Timing Evidence Integrity</h2>
           <p className="text-muted-foreground">
-            Passive baseline timing and TPS timed attempts are system-owned evidence. The Specialist does not choose, pause, round, estimate, or manually repair the timer.
+            RI-OS records passive baseline timing and TPS timed attempts automatically. The Specialist does not choose, pause, round, estimate, or manually repair the timer.
           </p>
           <ul className="space-y-2 pl-5 list-disc text-muted-foreground">
             <li>Structured Execution passive timing runs without a countdown or pacing cue.</li>
@@ -179,7 +179,7 @@ export default function ResponseConditioningLoggingSystem() {
  <Card className="p-6 space-y-4 ">
           <h2 className="text-2xl font-bold">Source Integrity</h2>
           <p className="text-muted-foreground">
-            Submitted evidence becomes part of the institutional record. A false observation can create a false capability claim, false state movement, false continuity decision, or misleading downstream report.
+            Submitted evidence becomes part of the institutional record. A false observation can create a false capability claim, move the topic incorrectly, create a wrong Handover decision, or produce a misleading downstream report.
           </p>
           <ul className="space-y-2 pl-5 list-disc text-muted-foreground">
             {sourceIntegrityRules.map((rule) => <li key={rule}>{rule}</li>)}
@@ -189,7 +189,7 @@ export default function ResponseConditioningLoggingSystem() {
         <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">What a Result Must Mean</h2>
           <p className="text-muted-foreground">
-            A result must be traceable to evidence: the behavior pattern that mattered, whether the evidence was eligible, the resulting phase/stability or continuity outcome, the reason for that decision, the next action, and the active condition.
+            A result must be traceable to evidence: the behavior pattern that mattered, whether the evidence could count, the resulting phase/stability or Handover outcome, the reason for that decision, the next action, and the active condition.
           </p>
         </Card>
 

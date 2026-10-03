@@ -37,6 +37,10 @@ type CapabilityQuestionConfirmation = {
   correct: boolean;
   feedback: string;
   truth?: string;
+  selectedCorrectOptionKeys?: string[];
+  selectedWrongOptionKeys?: string[];
+  missedCorrectOptionKeys?: string[];
+  requiredSelectionCount?: number;
   confirmedAt: string;
 };
 
@@ -188,6 +192,8 @@ function cleanCapabilityCopy(value: string) {
     .replace(/\*([^*\r\n]+)\*/g, "$1")
     .replace(/__/g, "")
     .replace(/`/g, "")
+    .replace(/^>\s*/g, "")
+    .replace(/:\s*>\s*/g, ": ")
     .replace(/\s*(?:\u2192|\u2190|\u2194|\u21D2|\u27F6|->)\s*/g, ", ")
     .replace(/\u2014/g, " - ")
     .replace(/\s*---\s*$/g, "")
@@ -295,6 +301,18 @@ export default function SpecialistCapabilityAssessment() {
     setCurrentIndex(firstUnconfirmed >= 0 ? firstUnconfirmed : 0);
     setHydratedFormId(form.formId);
   }, [form, hydratedFormId]);
+
+  useEffect(() => {
+    if (!form?.formId) return;
+
+    window.requestAnimationFrame(() => {
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: "smooth",
+      });
+    });
+  }, [currentIndex, form?.formId]);
 
   const currentQuestion = form?.questions[currentIndex];
   const currentConfirmation = currentQuestion
@@ -468,7 +486,24 @@ export default function SpecialistCapabilityAssessment() {
     }));
   };
 
-  const optionClasses = (optionKey: string, active: boolean) => {
+  const optionClasses = (
+    optionKey: string,
+    active: boolean,
+    kind: CapabilityQuestionKind = "single_choice",
+  ) => {
+    if (currentConfirmation && kind === "multi_select") {
+      if (currentConfirmation.selectedCorrectOptionKeys?.includes(optionKey)) {
+        return "border-emerald-700/60 bg-emerald-500/[0.06] ring-1 ring-emerald-500/15";
+      }
+      if (currentConfirmation.selectedWrongOptionKeys?.includes(optionKey)) {
+        return "border-destructive/70 bg-destructive/[0.06] ring-1 ring-destructive/15";
+      }
+      if (currentConfirmation.missedCorrectOptionKeys?.includes(optionKey)) {
+        return "border-amber-700/60 bg-amber-500/[0.05] ring-1 ring-amber-500/15";
+      }
+      return "opacity-55";
+    }
+
     const wasConfirmed = currentConfirmation?.selectedOptionKeys.includes(optionKey);
     if (wasConfirmed && currentConfirmation?.correct) {
       return "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/20";
@@ -785,7 +820,7 @@ export default function SpecialistCapabilityAssessment() {
                       onClick={() =>
                         selectSingle(currentQuestion.key, option.key)
                       }
-                      className={`flex w-full items-start gap-3 rounded-lg border p-4 text-left transition ${optionClasses(option.key, active)}`}
+                      className={`flex w-full items-start gap-3 rounded-lg border p-4 text-left transition ${optionClasses(option.key, active, currentQuestion.kind)}`}
                     >
                       <span
                         className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
@@ -819,6 +854,24 @@ export default function SpecialistCapabilityAssessment() {
                 </p>
                 {currentQuestion.options.map((option) => {
                   const active = selected.includes(option.key);
+                  const submittedState = !currentConfirmation
+                    ? null
+                    : currentConfirmation.selectedCorrectOptionKeys?.includes(option.key)
+                      ? "correct"
+                      : currentConfirmation.selectedWrongOptionKeys?.includes(option.key)
+                        ? "wrong"
+                        : currentConfirmation.missedCorrectOptionKeys?.includes(option.key)
+                          ? "missed"
+                          : "neutral";
+                  const stateLabel =
+                    submittedState === "correct"
+                      ? "Selected correctly"
+                      : submittedState === "wrong"
+                        ? "Does not apply"
+                        : submittedState === "missed"
+                          ? "Missed"
+                          : null;
+
                   return (
                     <button
                       type="button"
@@ -827,27 +880,31 @@ export default function SpecialistCapabilityAssessment() {
                       onClick={() =>
                         toggleMulti(currentQuestion.key, option.key)
                       }
-                      className={`flex w-full items-start gap-3 rounded-lg border p-4 text-left transition ${optionClasses(option.key, active)}`}
+                      className={`flex w-full items-start gap-3 rounded-lg border p-4 text-left transition ${optionClasses(option.key, active, currentQuestion.kind)}`}
                     >
                       <span
                         className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
                           active && !currentConfirmation
                             ? "border-primary bg-primary text-primary-foreground"
-                            : currentConfirmation?.selectedOptionKeys.includes(
-                                  option.key,
-                                )
-                              ? currentConfirmation.correct
-                                ? "border-emerald-500 bg-emerald-500 text-white"
-                                : "border-red-500 bg-red-500 text-white"
-                              : ""
+                            : submittedState === "correct"
+                              ? "border-emerald-700 bg-emerald-600 text-white"
+                              : submittedState === "wrong"
+                                ? "border-destructive bg-destructive text-destructive-foreground"
+                                : submittedState === "missed"
+                                  ? "border-amber-700 bg-amber-500/10 text-amber-700"
+                                  : "border-muted-foreground/40"
                         }`}
                       >
-                        {(active ||
-                          currentConfirmation?.selectedOptionKeys.includes(
-                            option.key,
-                          )) && <Check className="h-3 w-3" />}
+                        {(active || submittedState === "correct" || submittedState === "wrong") && (
+                          <Check className="h-3 w-3" />
+                        )}
                       </span>
-                      <span>{cleanCapabilityCopy(option.label)}</span>
+                      <span className="min-w-0 flex-1">{cleanCapabilityCopy(option.label)}</span>
+                      {stateLabel ? (
+                        <span className="shrink-0 text-[11px] uppercase tracking-wide text-muted-foreground">
+                          {stateLabel}
+                        </span>
+                      ) : null}
                     </button>
                   );
                 })}

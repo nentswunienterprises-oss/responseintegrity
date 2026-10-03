@@ -97,7 +97,7 @@ export default function ResponseConditioningTopicConditioning() {
             <li>Time Pressure Stability: does the trained response survive individualized urgency?</li>
           </ul>
           <p className="font-semibold">
-            Topic Conditioning exists to locate that layer precisely and run the system-owned condition required next.
+            Topic Conditioning exists to locate that layer precisely and run the condition RI-OS requires next.
           </p>
         </Card>
 
@@ -156,14 +156,14 @@ export default function ResponseConditioningTopicConditioning() {
             The entry signal only tells RI-OS where to ask first.
           </p>
           <p className="font-semibold">
-            Starting signal = routing hypothesis. Direct behavioral evidence = placement authority.
+            The starting signal tells RI-OS where to check first. Direct behavioral evidence determines placement.
           </p>
         </Card>
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">When the Entry Signal Is Uncertain</h2>
           <p className="text-muted-foreground">
-            If there is no trustworthy starting signal, RI-OS begins with a neutral Independent Normal Probe: one normal,
+            If there is no trustworthy starting signal, RI-OS begins with one neutral independent starting problem: one normal,
             familiar-form problem with difficulty and time pressure removed.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
@@ -184,44 +184,61 @@ export default function ResponseConditioningTopicConditioning() {
           options={[
             {
               key: "a",
-              label: "Structured Execution, because the neutral independent probe sits between Clarity and pressure work.",
-              feedback: "The neutral probe is an evidence condition, not a phase assignment.",
+              label: "Structured Execution, because the neutral independent starting problem sits between Clarity and pressure work.",
+              feedback: "The neutral starting problem creates clean evidence; it does not assign a phase by itself.",
             },
             {
               key: "b",
-              label: "Do not pre-place it. Run the system-selected neutral independent baseline and let the resulting evidence route the next question.",
+              label: "Do not pre-place it. Run the neutral independent baseline RI-OS selects and let the resulting evidence determine the next question.",
               feedback: "Yes. Uncertain entry is resolved by clean evidence, not by guessing a middle phase.",
             },
             {
               key: "c",
               label: "Clarity, because every new topic must always restart from the first phase.",
-              feedback: "A new topic needs evidence-complete placement. It is not automatically forced to Clarity.",
+              feedback: "A new topic needs enough clean evidence to support its placement. It is not automatically forced to Clarity.",
             },
+            {
+              key: "d",
+              label: "Structured Execution Low, because it is the least assumptive middle state.",
+              feedback: "Any pre-placement still assumes a state before this topic has produced the evidence needed to support it.",
+            },
+            { key: "e", label: "Start with the neutral independent opportunity rather than assigning a phase in advance; let that topic's evidence determine where RI checks next.", feedback: "Yes. A new topic without a trustworthy signal begins from clean evidence, not a guessed state." },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","e"]}
           truth="When the signal is uncertain, RI-OS starts neutral and lets the response reveal which earlier layer needs to be resolved."
         />
 
         <DeepDiveTeachingInteraction
-          prompt="A student scores 86% in a familiar class test, but in RI their structure repeatedly breaks when the same method appears in less familiar forms. How should the class-test mark be used?"
+          prompt="A student scores 86% in a familiar class test, but in RI their structure repeatedly breaks when the same method appears in less familiar forms. Which conclusions are supported?"
           options={[
             {
               key: "a",
-              label: "Treat the mark as evidence that the topic is at least High, because the student has already performed well academically.",
+              label: "The class-test mark proves the topic is at least High.",
               feedback: "The mark proves performance in that class-test setting. It does not prove the same response remains stable when familiarity and challenge change.",
             },
             {
               key: "b",
-              label: "Treat them as conflicting and wait for another class test before deciding the topic state.",
+              label: "The two sources conflict, so topic state should wait for another class test.",
               feedback: "The sources are not competing measurements of the same thing. The class test gives academic context; RI is observing the response under the condition being trained.",
             },
             {
               key: "c",
-              label: "Keep the mark as academic context, while letting direct RI evidence of how the student responds determine the topic's phase and stability.",
-              feedback: "Yes. Academic performance matters, but conditioned-response state comes from what the student actually does inside the RI condition.",
+              label: "The class-test mark remains academic context; direct RI response evidence determines phase and stability.",
+              feedback: "Academic performance remains useful context, while conditioned-response state comes from what the student actually does inside the RI condition.",
+            },
+            {
+              key: "d",
+              label: "Strong class-test performance can coexist with instability under changed form because the settings answer different questions.",
+              feedback: "School performance and RI response evidence can both be true without one cancelling the other.",
+            },
+            {
+              key: "e",
+              label: "Once direct RI evidence exists, the class-test mark becomes irrelevant.",
+              feedback: "RI does not discard school performance. It remains useful academic context even though it does not determine RI phase or stability.",
             },
           ]}
-          correctOptionKey="c"
+          kind="multi_select"
+          correctOptionKeys={["c","d"]}
           truth="A strong class-test result can coexist with a response that loses structure when familiarity or challenge changes. RI uses direct response evidence for phase and stability, while school performance remains useful context."
         />
 
@@ -229,108 +246,123 @@ export default function ResponseConditioningTopicConditioning() {
           <h2 className="text-2xl font-bold">How the OS works inside a topic</h2>
           <p className="text-muted-foreground">Response Integrity-OS does not float above schoolwork. It operates inside it.</p>
           <p className="text-muted-foreground">
-            That means every topic is governed by the same phase architecture, while Diagnosis establishes the correct entry point rather than forcing every topic to restart from Clarity.
+            Every topic is governed by the same four-phase architecture, while Diagnosis establishes the correct entry point rather than forcing every topic to restart from Clarity.
           </p>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li>Clarity establishes the usable mental map.</li>
+            <li>Structured Execution establishes independent, ordered execution.</li>
+            <li>Controlled Discomfort tests whether that response survives meaningful difficulty.</li>
+            <li>Time Pressure Stability tests whether the trained response survives individualized urgency.</li>
+          </ul>
+          <p className="font-semibold">
+            The phases are shared across topics. The student's evidence determines where this topic enters and what happens next.
+          </p>
+        </Card>
 
-          <div className="space-y-2">
-            <h3 className="text-xl font-semibold">Phase 1: Clarity</h3>
-            <p className="text-muted-foreground">The student learns to see the topic clearly.</p>
-            <p className="text-muted-foreground">This means:</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>naming the correct terms (Vocablary)</li>
-              <li>recognizing the problem type</li>
-              <li>knowing the steps (Method)</li>
-              <li>knowing why the steps work (Reason)</li>
-            </ul>
-            <p className="text-muted-foreground">Training sets: Modeling, Identification, then Light Apply.</p>
-            <p className="font-medium">Question: Can the student clearly see what they are dealing with in this topic?</p>
-            <p className="text-muted-foreground">If no, this topic starts at Clarity.</p>
-          </div>
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">Phase 1: Clarity</h2>
+          <p className="text-muted-foreground">The student learns to see the topic clearly.</p>
+          <p className="text-muted-foreground">This means:</p>
+          <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
+            <li>naming the correct terms (Vocabulary)</li>
+            <li>recognizing the problem type</li>
+            <li>knowing the steps (Method)</li>
+            <li>knowing why the steps work (Reason)</li>
+          </ul>
+          <p className="text-muted-foreground">Training sets: Modeling, Identification, then Light Apply.</p>
+          <p className="font-medium">Question: Can the student clearly see what they are dealing with in this topic?</p>
+          <p className="text-muted-foreground">If no, this topic starts at Clarity.</p>
+        </Card>
 
-          <div className="space-y-2">
-            <h3 className="text-xl font-semibold">Phase 2: Structured Execution</h3>
-            <p className="text-muted-foreground">The student must now execute inside the topic.</p>
-            <p className="text-muted-foreground">This means:</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>starting without delay</li>
-              <li>following steps in order</li>
-              <li>reducing guessing</li>
-              <li>repeating the method reliably</li>
-            </ul>
-            <p className="text-muted-foreground">Training sets: Required Structure, Independent Execution, then Variation Control.</p>
-            <p className="font-medium">Question: Can the student act reliably in this topic without being carried?</p>
-            <p className="text-muted-foreground">If no, this topic sits in Structured Execution.</p>
-          </div>
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">Phase 2: Structured Execution</h2>
+          <p className="text-muted-foreground">The student must now execute inside the topic.</p>
+          <p className="text-muted-foreground">This means:</p>
+          <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
+            <li>starting without delay</li>
+            <li>following steps in order</li>
+            <li>reducing guessing</li>
+            <li>repeating the method reliably</li>
+          </ul>
+          <p className="text-muted-foreground">Training sets: Required Structure, Independent Execution, then Variation Control.</p>
+          <p className="font-medium">Question: Can the student act reliably in this topic without being carried?</p>
+          <p className="text-muted-foreground">If no, this topic sits in Structured Execution.</p>
+        </Card>
 
-          <div className="space-y-2">
-            <h3 className="text-xl font-semibold">Phase 3: Controlled Discomfort</h3>
-            <p className="text-muted-foreground">Now difficulty is introduced inside the topic.</p>
-            <p className="text-muted-foreground">This means:</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>challenging, same-form problems</li>
-              <li>difficulty held as the active pressure variable</li>
-              <li>support tightened across the registered sets</li>
-              <li>repeated exposure without changing the topic-state manually</li>
-            </ul>
-            <p className="text-muted-foreground">Training sets: Controlled Entry, No Rescue, then Repeat Exposure. Boss Battles are the challenging problem load used inside this phase.</p>
-            <p className="font-medium">Question: Can the student stay stable in this topic when certainty disappears?</p>
-            <p className="text-muted-foreground">If no, this topic sits in Controlled Discomfort.</p>
-          </div>
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">Phase 3: Controlled Discomfort</h2>
+          <p className="text-muted-foreground">Now difficulty is introduced inside the topic.</p>
+          <p className="text-muted-foreground">This means:</p>
+          <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
+            <li>challenging, same-form problems</li>
+            <li>difficulty held as the active pressure variable</li>
+            <li>support tightened across the registered sets</li>
+            <li>repeated exposure without changing the topic-state manually</li>
+          </ul>
+          <p className="text-muted-foreground">Training sets: Controlled Entry, No Rescue, then Repeat Exposure. Boss Battles are the challenging problem load used inside this phase.</p>
+          <p className="font-medium">Question: Can the student stay stable in this topic when certainty disappears?</p>
+          <p className="text-muted-foreground">If no, this topic sits in Controlled Discomfort.</p>
+        </Card>
 
-          <div className="space-y-2">
-            <h3 className="text-xl font-semibold">Phase 4: Time Pressure Stability</h3>
-            <p className="text-muted-foreground">Now the same topic is tested under time.</p>
-            <p className="text-muted-foreground">This means:</p>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>an individualized system-owned Timer Contract</li>
-              <li>process and structure preserved under urgency</li>
-              <li>repeated timed exposure at the same baseline condition</li>
-              <li>the final defined tighter constraint only when the registered set requires it</li>
-            </ul>
-            <p className="text-muted-foreground">Training sets: Structure Under Timer, Repeated Timed Execution, then Full Constraint.</p>
-            <p className="font-medium">Question: Can the student stay structured in this topic when time pressure appears?</p>
-            <p className="text-muted-foreground">If no, this topic sits in Time Pressure Stability.</p>
-          </div>
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">Phase 4: Time Pressure Stability</h2>
+          <p className="text-muted-foreground">Now the same topic is tested under time.</p>
+          <p className="text-muted-foreground">This means:</p>
+          <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
+            <li>an individualized Timer Contract set by RI-OS</li>
+            <li>process and structure preserved under urgency</li>
+            <li>repeated timed exposure at the same baseline condition</li>
+            <li>the final defined tighter constraint only when the registered set requires it</li>
+          </ul>
+          <p className="text-muted-foreground">Training sets: Structure Under Timer, Repeated Timed Execution, then Full Constraint.</p>
+          <p className="font-medium">Question: Can the student stay structured in this topic when time pressure appears?</p>
+          <p className="text-muted-foreground">If no, this topic sits in Time Pressure Stability.</p>
         </Card>
 
         <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-          <h2 className="text-2xl font-bold">Timing Authority Is Topic-Specific Too</h2>
+          <h2 className="text-2xl font-bold">The Timer Is Topic-Specific Too</h2>
           <p className="text-muted-foreground">
-            Time Pressure Stability is not just topic-specific in phase and stability. Its timing authority is also
-            bound to the individual student and topic.
+            Time Pressure Stability is not just topic-specific in phase and stability. Its timer is also
+            based on evidence from that individual student and topic.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>A Timer Contract from Algebra does not become the timer for Fractions.</li>
-            <li>The primary Training baseline comes from the current topic's qualifying Independent Execution evidence.</li>
+            <li>The primary Training baseline comes from clean Independent Execution evidence from the current topic.</li>
             <li>Diagnosis can establish equivalent clean no-pressure timing when the topic may enter above Structured Execution.</li>
-            <li>If timing authority is missing when the topic needs it, RI-OS resolves that readiness gap before authoritative timed work.</li>
+            <li>If the topic does not yet have a valid baseline, RI-OS establishes one before timed TPS work begins.</li>
           </ul>
           <p className="font-semibold">
-            Topic state and topic timing lineage travel together. The Specialist cannot borrow a timer from another arena.
+            Topic state and timing history stay attached to that topic. The Specialist cannot borrow a timer from another arena.
           </p>
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="Algebra has a valid 44-second Timer Contract. Fractions is newly diagnosed toward Time Pressure Stability but has no timing authority yet. May the Specialist use Algebra's 44 seconds for Fractions?"
+          prompt="Algebra has a valid 44-second Timer Contract. Fractions is newly diagnosed toward Time Pressure Stability but does not yet have its own valid baseline. May the Specialist use Algebra's 44 seconds for Fractions?"
           options={[
             {
               key: "a",
               label: "Yes. The Timer Contract belongs to the student, so one strong baseline can cover all topics.",
-              feedback: "Timing authority is student-and-topic specific. Different topics can have different normal independent execution durations.",
+              feedback: "The baseline is student-and-topic specific. Different topics can have different normal independent execution durations.",
             },
             {
               key: "b",
-              label: "No. Fractions needs its own valid timing authority through the system's qualifying evidence route.",
+              label: "No. Fractions needs its own valid baseline built from clean evidence from Fractions.",
               feedback: "Yes. The system cannot copy pressure from one topic into another.",
             },
             {
               key: "c",
               label: "Yes, but only as a temporary timer until Fractions produces more evidence.",
-              feedback: "A temporary invented timer would still create unauthorized pressure evidence.",
+              feedback: "A temporary invented timer would still create a pressure condition RI-OS did not allow.",
             },
+            {
+              key: "d",
+              label: "Yes. Use 44 seconds for the first Fractions rep only, then replace it with the Fractions timing that appears.",
+              feedback: "The first rep would still be running under invented topic pressure. Temporary use does not make borrowed timing authoritative.",
+            },
+            { key: "e", label: "No. A Timer Contract is local to the student-topic pair, so Fractions must establish its own clean baseline.", feedback: "Yes. Timing authority cannot be borrowed from another topic." },
           ]}
-          correctOptionKey="b"
-          truth="Every active topic carries its own evidence lineage, including individualized timing authority when TPS is relevant."
+          correctOptionKeys={["b","e"]}
+          truth="Every active topic keeps its own evidence history, including its own individualized baseline when TPS is relevant."
         />
 
         <Card className="p-6 space-y-4">
@@ -370,8 +402,14 @@ export default function ResponseConditioningTopicConditioning() {
               label: "Start both topics from the lower state so the programme stays consistent.",
               feedback: "Consistency does not mean one shared state. RI preserves different topic histories when the evidence differs.",
             },
+            {
+              key: "d",
+              label: "Keep Fractions in Clarity but inherit High Maintenance stability from Algebra because stability reflects the student more generally.",
+              feedback: "Stability is attached to the active topic state. Strength in another topic cannot upgrade Fractions evidence.",
+            },
+            { key: "e", label: "Use Fractions' own Clarity Medium state; Algebra can remain context but cannot set Fractions' phase or stability.", feedback: "Yes. Topic state is local to the active topic." },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","e"]}
           truth="Topic state is local to the topic. Strength in Algebra can be useful context, but Fractions begins from the phase and stability supported by Fractions evidence."
         />
 
@@ -398,7 +436,7 @@ export default function ResponseConditioningTopicConditioning() {
           options={[
             {
               key: "a",
-              label: "Run the ordinary Clarity drill again and let qualifying evidence decide whether High Maintenance is earned.",
+              label: "Run the ordinary Clarity drill again and let the required clean evidence determine whether High Maintenance is earned.",
               feedback: "Yes. High is strong evidence inside the phase, but repeatability still has to be demonstrated before the confirmation state is earned.",
             },
             {
@@ -411,9 +449,19 @@ export default function ResponseConditioningTopicConditioning() {
               label: "Run a separate High Maintenance drill because that is the next state to confirm.",
               feedback: "High Maintenance is an earned stability state, not a separate drill the Specialist can choose in advance.",
             },
+            {
+              key: "d",
+              label: "Mark High Maintenance once High has appeared more than once in the same session.",
+              feedback: "High Maintenance is earned through later clean evidence that meets the progression rule, not by a Specialist counting strong moments inside one session.",
+            },
+            {
+              key: "e",
+              label: "Use the first Structured Execution set as a provisional confirmation of whether Clarity really deserved High Maintenance.",
+              feedback: "Crossing into the next phase before High Maintenance is earned bypasses the same-phase confirmation boundary.",
+            },
           ]}
           correctOptionKey="a"
-          truth="At High, the topic remains in the same phase. The ordinary same-phase drill runs again; later qualifying evidence can earn High Maintenance and authorize progression."
+          truth="At High, the topic remains in the same phase. The ordinary same-phase drill runs again; later clean evidence can earn High Maintenance and allow progression."
         />
 
         <Card className="p-6 space-y-4">
@@ -492,13 +540,13 @@ export default function ResponseConditioningTopicConditioning() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The operating sequence</h2>
+          <h2 className="text-2xl font-bold">The sequence to follow</h2>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
             <li>identify the active topic</li>
-            <li>establish or inherit its evidence-derived state</li>
-            <li>run the system-authorized phase, set, and constraint</li>
+            <li>establish or inherit the state supported by its evidence</li>
+            <li>run the phase, set, and condition RI-OS requires</li>
             <li>record concrete response evidence</li>
-            <li>follow the resulting hold, movement, readiness, or re-diagnosis direction</li>
+            <li>follow the next direction: stay, move, prepare, or re-diagnose</li>
           </ul>
           <p className="font-semibold">
             The Specialist does not replace this sequence with a preferred worksheet, phase, timer, or progression decision.
@@ -511,11 +559,11 @@ export default function ResponseConditioningTopicConditioning() {
             {
               key: "a",
               label: "The evidence standard becomes lighter because the system will see the student more often.",
-              feedback: "More opportunities do not reduce what counts as qualifying evidence. Frequency changes how quickly opportunities arrive, not the standard they must meet.",
+              feedback: "More opportunities do not reduce the evidence standard. Frequency changes how quickly opportunities arrive, not what they must prove.",
             },
             {
               key: "b",
-              label: "The same evidence requirements remain, but qualifying opportunities can arrive sooner in calendar time.",
+              label: "The same evidence requirements remain, but valid opportunities can arrive sooner in calendar time.",
               feedback: "Yes. Cadence changes delivery frequency, not the educational rule for phase or stability movement.",
             },
             {
@@ -523,8 +571,14 @@ export default function ResponseConditioningTopicConditioning() {
               label: "The topic should advance after fewer successful reps so the higher package frequency does not slow perceived progress.",
               feedback: "Package value cannot be protected by weakening the evidence gate. Progression still depends on the same response proof.",
             },
+            {
+              key: "d",
+              label: "Keep the same phase rules but require fewer valid reps because the evidence is arriving at a higher frequency.",
+              feedback: "Frequency changes calendar spacing, not the amount or quality of evidence required for movement.",
+            },
+            { key: "e", label: "Only the calendar speed changes: the same evidence gates remain, but four sessions per week create valid opportunities more quickly.", feedback: "Yes. Cadence changes how quickly opportunities arrive, not what progression requires." },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","e"]}
           truth="Package cadence and educational state are separate. More sessions create more opportunities to produce evidence, but they do not alter the evidence required for movement."
         />
 
@@ -564,8 +618,14 @@ export default function ResponseConditioningTopicConditioning() {
               label: "Preserve supported earlier layers and locate the first response behavior that becomes unsupported.",
               feedback: "Yes. RI follows the response chain rather than assigning the phase from the final answer or from where the error happened chronologically.",
             },
+            {
+              key: "d",
+              label: "Treat the whole response as a topic failure and restart Diagnosis because the final answer is wrong.",
+              feedback: "The final answer cannot erase directly supported recognition and execution behavior. RI keeps the earlier supported layers intact.",
+            },
+            { key: "e", label: "Keep the recognition and ordered execution that were actually supported, then locate the first behavior that the arithmetic slip makes unsupported.", feedback: "Yes. A wrong final answer does not erase earlier response layers that were directly observed to hold." },
           ]}
-          correctOptionKey="c"
+          correctOptionKeys={["c","e"]}
           truth="Topic Conditioning preserves supported earlier layers and locates the earliest unsupported response behavior. A wrong final answer does not automatically mean Clarity or Structured Execution failed."
         />
 
@@ -577,7 +637,7 @@ export default function ResponseConditioningTopicConditioning() {
             <li>diagnosing the breakdown point in the topic</li>
             <li>running the correct Response Integrity phase in that topic</li>
             <li>logging the response patterns</li>
-            <li>following the system-authorized next action as evidence changes the topic state</li>
+            <li>following the next action RI-OS requires as evidence changes the topic state</li>
           </ul>
           <p className="text-muted-foreground">That means the Specialist must always know:</p>
           <ol className="space-y-2 pl-5 list-decimal text-muted-foreground">
@@ -604,15 +664,15 @@ export default function ResponseConditioningTopicConditioning() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What Topic Conditioning connects</h2>
           <p className="text-muted-foreground">
-            Topic Conditioning binds real school content to the operating state RI-OS can defend for that topic.
+            Topic Conditioning connects real school content to the current state RI-OS can support with evidence for that topic.
           </p>
           <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
             <li>the student's active school topic</li>
             <li>the starting signal or inherited topic state</li>
             <li>direct behavioral evidence from Diagnosis, Training, or Handover</li>
             <li>the current phase and stability</li>
-            <li>the registered set, support, difficulty, variation, and timing condition</li>
-            <li>the next system-authorized action</li>
+            <li>the active set, allowed support, difficulty, variation, and timing condition</li>
+            <li>the next action RI-OS requires</li>
           </ul>
           <p className="font-semibold">
             The topic is the arena. The Response Integrity Operating System determines what capability is being conditioned inside it.

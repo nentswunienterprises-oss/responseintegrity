@@ -49,7 +49,7 @@ const whyTheyMatter = [
   "The smartphone is the live session camera and display. Its orientation changes with the active drill condition.",
   "The mini ring light protects visibility. In Modelling it lights the Specialist's work; in Observation it supports a clear live interaction view.",
   "Earphones or a headset keep two-way audio clear enough for instructions and student responses to be observed reliably.",
-  "The laptop or computer is the Response Integrity operating surface for running the drill and logging concrete observations as they happen.",
+  "The laptop or computer is the main device used to run the drill and log concrete observations as they happen.",
 ];
 
 const setupPrinciples = [

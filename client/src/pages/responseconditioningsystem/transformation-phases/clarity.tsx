@@ -41,7 +41,7 @@ const CLARITY_SET_EXECUTION: Record<
     specialistAction:
       "Model the topic through Vocabulary, Recognition, Method, Ordered Steps, and Reason. Make the language, applicable method, step order, and reason explicit, then require the student to explain it back.",
     preserve:
-      "This is teaching and preparation, not decision-eligible evidence. Build the map before asking the student to demonstrate it independently.",
+      "This is teaching and preparation, not evidence the system can use to judge independent performance. Build the map before asking the student to demonstrate it independently.",
     doNot: [
       "Do not turn Modeling into repeated solving practice.",
       "Do not teach Method without Reason.",
@@ -87,7 +87,7 @@ const progressionBands = [
   "Low: run the Clarity drill. No Boss Battles, no time pressure, no skipping the mental-map layers.",
   "Medium: remain in Clarity. Reduce unnecessary explanation and strengthen repeatable recognition and light execution.",
   "High: remain in Clarity and prove repeatability. High does not phase-progress directly.",
-  "High Maintenance: qualifying evidence can progress the topic into Structured Execution at Low. The engine owns that decision.",
+  "High Maintenance: the required clean evidence can progress the topic into Structured Execution at Low. RI-OS decides that from the evidence.",
 ];
 
 const constraintLabel = (set: EvidenceSetDefinition) => {
@@ -177,28 +177,7 @@ export default function ResponseConditioningClarity() {
           </ul>
         </Card>
 
-        <DeepDiveTeachingInteraction
-          prompt="During an Identification rep, the student immediately begins solving and reaches the correct answer. What should the Specialist do with the rep?"
-          options={[
-            {
-              key: "b",
-              label: "Stop the solve and return to identifying the type, method and reason without supplying them.",
-              feedback: "Yes. Identification isolates the mental map before execution, so the Specialist has to preserve recognition without solving.",
-            },
-            {
-              key: "a",
-              label: "Use the correct solve as stronger evidence, because it demonstrates more than simple recognition.",
-              feedback: "Doing more is not stronger evidence when the extra action removes the condition being tested. The solve hides whether recognition existed before execution.",
-            },
-            {
-              key: "c",
-              label: "Allow only the first few steps, then ask the student to explain the method before finishing.",
-              feedback: "Partial solving still changes the evidence condition. The rep is meant to show recognition before any execution begins.",
-            },
-          ]}
-          correctOptionKey="b"
-          truth="Identification is a recognition condition, not a shortened solve. The student must identify what they are looking at, the method and the reason before execution begins."
-        />
+
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Clarity Training Recipe</h2>
@@ -211,7 +190,7 @@ export default function ResponseConditioningClarity() {
             </p>
             <p className="text-sm text-muted-foreground mt-2">
               {requiredTrainingProblems} required opportunities in the live training drill. Modeling is preparation; the later reps
-              produce decision-eligible behavioral evidence.
+              produce clean behavioral evidence RI-OS can use.
             </p>
           </div>
           <p className="font-medium">
@@ -220,28 +199,7 @@ export default function ResponseConditioningClarity() {
           </p>
         </Card>
 
-        <DeepDiveTeachingInteraction
-          prompt="You are choosing problems for a recognition-focused Clarity set. Which set gives the cleanest evidence?"
-          options={[
-            {
-              key: "a",
-              label: "Several identical-looking examples, so the student can settle into the pattern before being checked.",
-              feedback: "Repeated surface sameness can turn recognition into pattern memory. The set should reveal the mental map, not familiarity with one presentation.",
-            },
-            {
-              key: "b",
-              label: "Very unfamiliar, high-difficulty examples, so guessing and memorisation are less likely.",
-              feedback: "That introduces a difficulty variable. A breakdown could then come from challenge rather than from recognition itself.",
-            },
-            {
-              key: "c",
-              label: "Examples with the same underlying structure but enough surface variation to require recognition.",
-              feedback: "Yes. The student has to recognise the underlying structure without the set becoming a difficulty test.",
-            },
-          ]}
-          correctOptionKey="c"
-          truth="Clarity material should expose the student's mental map cleanly. It should avoid both rote surface repetition and unnecessary difficulty that would introduce a different breakdown."
-        />
+
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
@@ -270,6 +228,35 @@ export default function ResponseConditioningClarity() {
           </div>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="You are choosing problems for a recognition-focused Clarity set. Which set gives the cleanest evidence?"
+          options={[
+            { key: "a", label: "Use problems that keep the known method and normal difficulty comparable, so recognition is not mixed with a new method or challenge variable.", feedback: "Yes. Keeping method and difficulty comparable prevents another capability demand from contaminating the recognition question." },
+            {
+              key: "b",
+              label: "Very unfamiliar, high-difficulty examples, so guessing and memorisation are less likely.",
+              feedback: "That introduces a difficulty variable. A breakdown could then come from challenge rather than from recognition itself.",
+            },
+            {
+              key: "c",
+              label: "Use surface presentations that differ enough to prevent layout pattern-matching, while preserving the same underlying structure.",
+              feedback: "Yes. Surface variation forces recognition of the underlying form instead of recognition by repeated layout.",
+            },
+            {
+              key: "d",
+              label: "Use the same visual layout each time but change the numbers, so recognition can be measured without adding difficulty.",
+              feedback: "Surface sameness can still let the student pattern-match the presentation instead of recognizing the underlying structure.",
+            },
+            {
+              key: "e",
+              label: "Use difficult unfamiliar examples but permit prompts when recognition stalls, so the Specialist can separate difficulty from knowledge.",
+              feedback: "That combines extra difficulty with support. The set would no longer isolate clean recognition.",
+            },
+          ]}
+          correctOptionKeys={["c","a"]}
+          truth="Clarity material should expose the student's mental map cleanly. It should avoid both rote surface repetition and unnecessary difficulty that would introduce a different breakdown."
+        />
+
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Run the Drill: Set by Set</h2>
           <p className="text-muted-foreground">
@@ -277,11 +264,11 @@ export default function ResponseConditioningClarity() {
           </p>
         </Card>
 
-        {trainingSchema.sets.map((set, setIndex) => {
+        {trainingSchema.sets.flatMap((set, setIndex) => {
           const execution = CLARITY_SET_EXECUTION[set.setId];
           const repPurposes = CLARITY_REP_PURPOSES[set.setId] || [];
 
-          return (
+          const setCard = (
             <Card key={set.setId} className="p-6 space-y-5">
               <div>
                 <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
@@ -332,16 +319,49 @@ export default function ResponseConditioningClarity() {
               </div>
             </Card>
           );
+
+          if (set.setId !== "clarity.identification") {
+            return [setCard];
+          }
+
+          return [
+            setCard,
+            <DeepDiveTeachingInteraction
+              key="clarity-identification-boundary-check"
+              prompt="During an Identification rep, the student skips the recognition response, solves the problem immediately, and reaches the correct answer. What should the Specialist do with that result?"
+              options={[
+                {
+                  key: "b",
+                  label: "Do not treat the correct solve as recognition evidence; the required recognition response was never observed before execution.",
+                  feedback: "Yes. Identification isolates the mental map before execution, so the Specialist has to preserve recognition without solving.",
+                },
+                { key: "a", label: "Use a fresh equivalent Identification opportunity and ask for the type, method and reason before any solving begins.", feedback: "Yes. Identification must show recognition before execution; the Specialist can redirect the task without giving the recognition answer." },
+                {
+                  key: "c",
+                  label: "Allow only the first few steps, then ask the student to explain the method before finishing.",
+                  feedback: "Partial solving still changes the evidence condition. The rep is meant to show recognition before any execution begins.",
+                },
+                {
+                  key: "d",
+                  label: "Let the solve finish, then infer that recognition must have been present because the method was used correctly.",
+                  feedback: "Execution can hide whether the student recognized the type, method and reason before solving. RI does not infer the missing recognition event.",
+                },
+                {
+                  key: "e",
+                  label: "Treat the solve as Light Apply and skip Identification because the student has already demonstrated a later response.",
+                  feedback: "A student drifting into a later task does not let the Specialist skip the condition RI assigned.",
+                },
+              ]}
+              correctOptionKeys={["b","a"]}
+              truth="Identification is a recognition condition, not a shortened solve. The student must identify what they are looking at, the method and the reason before execution begins."
+            />
+          ];
         })}
 
         <DeepDiveTeachingInteraction
           prompt="The Specialist asks leading questions at each step. The student supplies every answer and finishes correctly. What evidence was actually produced?"
           options={[
-            {
-              key: "a",
-              label: "Independent evidence, because the student still produced each step.",
-              feedback: "Producing the words is not the same as generating the path. The leading questions materially carried the response.",
-            },
+            { key: "a", label: "Supported evidence: the student produced the steps, but the leading questions carried the direction of the response.", feedback: "Yes. The student can supply each step while the Specialist still provides the execution path." },
             {
               key: "b",
               label: "Supported evidence; the Specialist's questions supplied directional structure.",
@@ -352,8 +372,18 @@ export default function ResponseConditioningClarity() {
               label: "High stability, because the student needed prompts but never needed the actual method explained.",
               feedback: "Prompt dependence is still dependence. Stability cannot be strengthened by support that the independent condition was meant to withhold.",
             },
+            {
+              key: "d",
+              label: "Mostly independent evidence, because the student still had to generate the words and calculations after each prompt.",
+              feedback: "The prompts carried the decision path. The student producing the response after directional help does not restore independence.",
+            },
+            {
+              key: "e",
+              label: "Clarity evidence only, because prompts affect execution but do not affect whether the student understood the method.",
+              feedback: "Leading questions can shape recognition and execution. Their functional effect must stay visible in the evidence.",
+            },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","a"]}
           truth="Support is defined by what it does to the task, not only by whether the Specialist gives the literal answer. Direction that carries the student must remain visible in the evidence."
         />
 
@@ -374,25 +404,36 @@ export default function ResponseConditioningClarity() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A correctly prepared Identification rep is run without contamination, and the student cannot name the method. What has failed?"
+          prompt="A correctly prepared Identification rep is run without contamination, and the student cannot name the method. Which conclusions are supported?"
           options={[
             {
-              key: "c",
-              label: "The student's recognition at that moment; the rep itself can still be valid evidence.",
-              feedback: "Yes. Specialist execution and learner performance are separate truths.",
-            },
-            {
               key: "a",
-              label: "The Specialist's execution, because a valid rep should produce the target behavior.",
+              label: "The Specialist executed the rep incorrectly because a valid rep should produce the target behavior.",
               feedback: "A well-run evidence condition does not guarantee a strong learner response. Its job is to reveal what is actually supported.",
             },
             {
               key: "b",
-              label: "The evidence event, because a rep that does not produce a correct response must be repeated before it can count.",
+              label: "The evidence event is invalid because incorrect responses do not count.",
               feedback: "A genuine breakdown is already useful evidence. Repeating until success would replace observation with outcome-chasing.",
             },
+            {
+              key: "c",
+              label: "The student's recognition broke down in that opportunity.",
+              feedback: "The learner did not produce the required recognition under the clean Identification condition.",
+            },
+            {
+              key: "d",
+              label: "The rep can still be valid evidence if the Specialist preserved the condition.",
+              feedback: "Correct Specialist execution and weak student performance can coexist.",
+            },
+            {
+              key: "e",
+              label: "The rep should be repeated until the student names the method.",
+              feedback: "Repeating until success would chase a preferred outcome. The first clean breakdown is already useful evidence.",
+            },
           ]}
-          correctOptionKey="c"
+          kind="multi_select"
+          correctOptionKeys={["c","d"]}
           truth="A weak learner response can come from a correctly executed rep. If the Specialist preserved the condition, the breakdown is valid evidence of what the student could not yet produce independently."
         />
 
@@ -413,7 +454,7 @@ export default function ResponseConditioningClarity() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="Clarity is at High and the next session is due. Which action preserves RI's progression authority?"
+          prompt="Clarity is at High and the next session is due. Which action preserves RI's progression rule?"
           options={[
             {
               key: "a",
@@ -423,16 +464,26 @@ export default function ResponseConditioningClarity() {
             {
               key: "b",
               label: "Run the ordinary Clarity drill again and submit the resulting evidence for RI to evaluate.",
-              feedback: "Yes. High remains inside Clarity until later qualifying evidence earns High Maintenance and the system authorizes movement.",
+              feedback: "Yes. High remains inside Clarity until later clean evidence earns High Maintenance and RI-OS allows movement.",
             },
             {
               key: "c",
               label: "Run a High Maintenance drill, then decide whether Structured Execution opens.",
-              feedback: "High Maintenance is the state earned from qualifying same-phase evidence, not a separate drill the Specialist chooses.",
+              feedback: "High Maintenance is the state earned from later clean same-phase evidence, not a separate drill the Specialist chooses.",
+            },
+            {
+              key: "d",
+              label: "Upgrade to High Maintenance manually because High already means the Clarity response is reliable.",
+              feedback: "High is strong within-phase evidence, but High Maintenance is a distinct confirmation state earned through later clean evidence.",
+            },
+            {
+              key: "e",
+              label: "Use the first Structured Execution rep as the confirmation of whether Clarity High was real.",
+              feedback: "The next phase cannot be used to manufacture the confirmation required before leaving the current phase.",
             },
           ]}
           correctOptionKey="b"
-          truth="High is not manual progression authority. The Specialist runs the same-phase drill, preserves the conditions, submits the evidence, and lets RI determine whether High Maintenance has been earned."
+          truth="High does not let the Specialist progress the topic manually. The Specialist runs the same-phase drill, preserves the conditions, submits the evidence, and lets RI determine whether High Maintenance has been earned."
         />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
@@ -452,7 +503,7 @@ export default function ResponseConditioningClarity() {
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Diagnosis Is a Different Recipe</h2>
           <p className="text-muted-foreground">
-            Clarity diagnosis is separate from the Clarity training drill. Diagnosis uses separate probes to establish the entry
+            Clarity diagnosis is separate from the Clarity training drill. Diagnosis uses separate checks to establish the entry
             point before normal training.
           </p>
           <div className="space-y-3">

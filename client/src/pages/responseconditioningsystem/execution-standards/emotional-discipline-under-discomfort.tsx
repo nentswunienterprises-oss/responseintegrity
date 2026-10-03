@@ -40,7 +40,7 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
           </Card>
 
           <Card className="p-6 space-y-4">
-            <h2 className="text-2xl font-bold">The active support boundary comes first</h2>
+            <h2 className="text-2xl font-bold">The active support rule comes first</h2>
             <p className="text-muted-foreground">
               Emotional discipline does not mean "never help." It means never letting your own discomfort decide how much help to give.
             </p>
@@ -53,26 +53,37 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
           </Card>
 
           <DeepDiveTeachingInteraction
-            prompt="During a no-support TPS rep, the student freezes and says, 'I don't know what to do.' The Specialist feels an urge to ask, 'What's the first step?' What is the correct move?"
+            prompt="During a no-support TPS rep, the student freezes and says, 'I don't know what to do.' Which responses preserve the condition?"
             options={[
               {
                 key: "a",
-                label: "Ask the first-step question because it is neutral and keeps the student calm.",
-                feedback: "The question supplies response control inside a no-support condition. The Specialist's discomfort cannot authorize that intervention.",
+                label: "Ask a first-step question because neutral wording does not count as support.",
+                feedback: "The question supplies help inside a no-support condition. The Specialist's discomfort does not make that help allowed.",
               },
               {
                 key: "b",
-                label: "Preserve the no-support timed condition, observe what happens, and record the response after the execution boundary.",
-                feedback: "Yes. The freeze may be exactly the evidence the timed condition is designed to expose.",
+                label: "Do not add first-step or confirmation support; preserve the no-support timed condition.",
+                feedback: "The Specialist must not rescue the response away from the condition being observed.",
               },
               {
                 key: "c",
                 label: "Pause the timer, settle the student, then restart the same problem.",
-                feedback: "Pausing and restarting changes timing authority and can turn real student evidence into an unauthorized second chance.",
+                feedback: "Pausing and restarting changes the timed condition and can turn real student evidence into a second chance the drill did not allow.",
+              },
+              {
+                key: "d",
+                label: "Treat the freeze as evidence of the response under urgency and record it after the execution boundary.",
+                feedback: "The valid timed condition is allowed to reveal whether the trained response survives urgency.",
+              },
+              {
+                key: "e",
+                label: "Give reassurance that confirms the student's current direction without naming the next step.",
+                feedback: "Confirmation can still steer the response and therefore changes the no-support condition.",
               },
             ]}
-            correctOptionKey="b"
-            truth="Emotional discipline means the Specialist does not convert personal discomfort into extra support."
+            kind="multi_select"
+            correctOptionKeys={["b","d"]}
+            truth="Emotional discipline means preserving the assigned no-support timed condition even when the student's struggle creates an urge to rescue."
           />
 
           <Card className="p-6 space-y-4">
@@ -117,11 +128,11 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
               {
                 key: "a",
                 label: "How upset the student looks.",
-                feedback: "Visible frustration does not rewrite the set contract.",
+                feedback: "Visible frustration does not change the support rule for the active set.",
               },
               {
                 key: "b",
-                label: "The Controlled Entry support boundary: minimal support only, without carrying the method or execution.",
+                label: "The Controlled Entry support rule: minimal support only, without carrying the method or execution.",
                 feedback: "Yes. The set, not the emotional intensity of the moment, determines what support is allowed.",
               },
               {
@@ -129,18 +140,28 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
                 label: "Whether the Specialist thinks a successful finish would build confidence.",
                 feedback: "A preferred emotional outcome cannot replace condition integrity.",
               },
+              {
+                key: "d",
+                label: "The allowed support remains minimal even if the student's visible frustration increases.",
+                feedback: "Yes. Emotional intensity does not expand the registered support condition.",
+              },
+              {
+                key: "e",
+                label: "Whether the full method would help the student end the rep feeling successful.",
+                feedback: "A preferred emotional outcome cannot replace the active support rule.",
+              },
             ]}
-            correctOptionKey="b"
+            correctOptionKeys={["b","d"]}
             truth="The Specialist regulates themselves so the registered condition remains intact."
           />
 
           <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-            <h2 className="text-2xl font-bold">Operating check</h2>
+            <h2 className="text-2xl font-bold">Before you intervene</h2>
             <p className="font-semibold">
-              Before intervening, ask: "Is this support authorized by the active set, or am I reacting to the student's discomfort?"
+              Before intervening, ask: "Does the active set allow this support, or am I reacting to the student's discomfort?"
             </p>
             <p className="text-muted-foreground">
-              If the set does not authorize the move, do not make it. Preserve the response and let RI-OS interpret the evidence.
+              If the set does not allow the move, do not make it. Preserve the response and let RI-OS interpret the evidence.
             </p>
           </Card>
         </DeepDiveLessonRunner>
