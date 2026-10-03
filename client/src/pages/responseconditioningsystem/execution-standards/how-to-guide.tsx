@@ -62,7 +62,7 @@ export default function ResponseConditioningHowToGuide() {
                   Direction supplied while the current opportunity is still live.
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Because it changes what the student had to produce alone, it must stay inside the set's support boundary.
+                  Because it changes what the student had to produce alone, it must stay inside the support rule for that set.
                 </p>
               </div>
               <div className="rounded-md border border-primary/15 bg-muted/20 p-4 space-y-2">
@@ -98,7 +98,7 @@ export default function ResponseConditioningHowToGuide() {
               <div className="rounded-md border p-4">
                 <p className="font-semibold">First-step only</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  The permitted intervention stops at the opening step. The Specialist does not carry the remaining execution.
+                  The allowed help stops at the opening step. The Specialist does not carry the remaining execution.
                 </p>
               </div>
               <div className="rounded-md border p-4">
@@ -116,7 +116,7 @@ export default function ResponseConditioningHowToGuide() {
               <h2 className="text-2xl font-bold mt-1">Clarity</h2>
             </div>
             <p className="text-muted-foreground">
-              Clarity is where explicit modelling and light application are permitted, but the support boundary still changes by set.
+              Clarity is where explicit modelling and light application are allowed, but the support rule still changes by set.
             </p>
             <div className="space-y-3">
               <div className="rounded-md border p-4">
@@ -230,7 +230,7 @@ export default function ResponseConditioningHowToGuide() {
               <div>
                 <p className="font-semibold">1. Preserve the condition</p>
                 <p className="text-sm text-muted-foreground">
-                  Do not change difficulty, supply structure, relax a timer, or answer a support request unless the set explicitly permits that intervention.
+                  Do not change difficulty, supply structure, relax a timer, or answer a support request unless the active set explicitly allows it.
                 </p>
               </div>
               <div>
@@ -255,7 +255,7 @@ export default function ResponseConditioningHowToGuide() {
           </Card>
 
           <Card className="p-6 space-y-5">
-            <h2 className="text-2xl font-bold">Intervention Changes Evidence</h2>
+            <h2 className="text-2xl font-bold">Support Changes What the Evidence Can Prove</h2>
             <p className="text-muted-foreground">
               RI records what the Specialist supplied because support can change what an opportunity is allowed to prove.
             </p>
@@ -314,12 +314,12 @@ export default function ResponseConditioningHowToGuide() {
           </Card>
 
           <Card className="p-6 space-y-5 border-primary/25 bg-primary/5">
-            <h2 className="text-2xl font-bold">The RI Intervention Loop</h2>
+            <h2 className="text-2xl font-bold">The RI Support Loop</h2>
             <div className="space-y-2 font-medium">
               <p>Establish the map.</p>
               <p>Expose the student under the assigned condition.</p>
               <p>Observe the response without changing the condition.</p>
-              <p>Intervene only inside the support boundary.</p>
+              <p>Give support only inside the active set's rule.</p>
               <p>Record what actually happened.</p>
               <p>Correct outside the evidence window when required.</p>
               <p>Expose again under the next assigned condition.</p>
