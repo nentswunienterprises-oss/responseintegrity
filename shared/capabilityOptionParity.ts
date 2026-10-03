@@ -120,6 +120,12 @@ function hasIndirectOptionCopy(label: string) {
 const IMPERATIVE_OPTION_START =
   /^(?:use|keep|record|run|leave|treat|start|stop|preserve|follow|remove|ask|give|mark|move|return|continue|begin|hold|apply|collect|present|watch|finish|freeze|route|strip|allow|do not|don't|take|choose|write|click|say|speak|let|stay|end|wait)\b/i;
 
+const SUBJECT_INSTRUCTION_START =
+  /^(?:the specialist|specialists|they|you|the student|the learner)\s+(?:should|must|need(?:s)? to|has to|have to|is required to|are required to)\b/i;
+
+const CAPABILITY_IDENTITY_START =
+  /^(?:a\s+)?(?:clarity|structured execution|controlled discomfort|time pressure stability|tps)\b/i;
+
 type PromptShape =
   | "action"
   | "reason"
