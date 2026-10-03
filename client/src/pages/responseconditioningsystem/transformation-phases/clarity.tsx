@@ -177,34 +177,7 @@ export default function ResponseConditioningClarity() {
           </ul>
         </Card>
 
-        <DeepDiveTeachingInteraction
-          prompt="During an Identification rep, the student skips the recognition response, solves the problem immediately, and reaches the correct answer. What should the Specialist do with that result?"
-          options={[
-            {
-              key: "b",
-              label: "Do not treat the correct solve as recognition evidence; the required recognition response was never observed before execution.",
-              feedback: "Yes. Identification isolates the mental map before execution, so the Specialist has to preserve recognition without solving.",
-            },
-            { key: "a", label: "Use a fresh equivalent Identification opportunity and ask for the type, method and reason before any solving begins.", feedback: "Yes. Identification must show recognition before execution; the Specialist can redirect the task without giving the recognition answer." },
-            {
-              key: "c",
-              label: "Allow only the first few steps, then ask the student to explain the method before finishing.",
-              feedback: "Partial solving still changes the evidence condition. The rep is meant to show recognition before any execution begins.",
-            },
-            {
-              key: "d",
-              label: "Let the solve finish, then infer that recognition must have been present because the method was used correctly.",
-              feedback: "Execution can hide whether the student recognized the type, method and reason before solving. RI does not infer the missing recognition event.",
-            },
-            {
-              key: "e",
-              label: "Treat the solve as Light Apply and skip Identification because the student has already demonstrated a later response.",
-              feedback: "A student drifting into a later task does not let the Specialist skip the condition RI assigned.",
-            },
-          ]}
-          correctOptionKeys={["b","a"]}
-          truth="Identification is a recognition condition, not a shortened solve. The student must identify what they are looking at, the method and the reason before execution begins."
-        />
+
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Clarity Training Recipe</h2>
@@ -289,11 +262,11 @@ export default function ResponseConditioningClarity() {
           </p>
         </Card>
 
-        {trainingSchema.sets.map((set, setIndex) => {
+        {trainingSchema.sets.flatMap((set, setIndex) => {
           const execution = CLARITY_SET_EXECUTION[set.setId];
           const repPurposes = CLARITY_REP_PURPOSES[set.setId] || [];
 
-          return (
+          const setCard = (
             <Card key={set.setId} className="p-6 space-y-5">
               <div>
                 <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
@@ -344,6 +317,42 @@ export default function ResponseConditioningClarity() {
               </div>
             </Card>
           );
+
+          if (set.setId !== "clarity.identification") {
+            return [setCard];
+          }
+
+          return [
+            setCard,
+                    <DeepDiveTeachingInteraction
+                      prompt="During an Identification rep, the student skips the recognition response, solves the problem immediately, and reaches the correct answer. What should the Specialist do with that result?"
+                      options={[
+                        {
+                          key: "b",
+                          label: "Do not treat the correct solve as recognition evidence; the required recognition response was never observed before execution.",
+                          feedback: "Yes. Identification isolates the mental map before execution, so the Specialist has to preserve recognition without solving.",
+                        },
+                        { key: "a", label: "Use a fresh equivalent Identification opportunity and ask for the type, method and reason before any solving begins.", feedback: "Yes. Identification must show recognition before execution; the Specialist can redirect the task without giving the recognition answer." },
+                        {
+                          key: "c",
+                          label: "Allow only the first few steps, then ask the student to explain the method before finishing.",
+                          feedback: "Partial solving still changes the evidence condition. The rep is meant to show recognition before any execution begins.",
+                        },
+                        {
+                          key: "d",
+                          label: "Let the solve finish, then infer that recognition must have been present because the method was used correctly.",
+                          feedback: "Execution can hide whether the student recognized the type, method and reason before solving. RI does not infer the missing recognition event.",
+                        },
+                        {
+                          key: "e",
+                          label: "Treat the solve as Light Apply and skip Identification because the student has already demonstrated a later response.",
+                          feedback: "A student drifting into a later task does not let the Specialist skip the condition RI assigned.",
+                        },
+                      ]}
+                      correctOptionKeys={["b","a"]}
+                      truth="Identification is a recognition condition, not a shortened solve. The student must identify what they are looking at, the method and the reason before execution begins."
+                    />
+          ];
         })}
 
         <DeepDiveTeachingInteraction
