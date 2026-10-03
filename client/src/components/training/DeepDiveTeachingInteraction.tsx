@@ -135,16 +135,47 @@ export function DeepDiveTeachingInteraction({
       ? cleanFeedback(selectedOptions[0].feedback)
       : "";
 
+  const ordinalLabel = (index: number) =>
+    ["first", "second", "third", "fourth", "fifth", "sixth"][index] ??
+    `#${index + 1}`;
+
+  const naturalJoin = (values: string[]) => {
+    if (values.length <= 1) return values[0] ?? "";
+    if (values.length === 2) return `${values[0]} and ${values[1]}`;
+    return `${values.slice(0, -1).join(", ")}, and ${values.at(-1)}`;
+  };
+
+  const selectedCorrectPositions = selectedKeys
+    .map((key, index) => (answerKeys.includes(key) ? ordinalLabel(index) : null))
+    .filter((value): value is string => Boolean(value));
+
+  const selectedWrongPositions = selectedKeys
+    .map((key, index) => (!answerKeys.includes(key) ? ordinalLabel(index) : null))
+    .filter((value): value is string => Boolean(value));
+
+  const countWord = (count: number) =>
+    ["zero", "one", "two", "three", "four", "five", "six"][count] ??
+    String(count);
+
   const multiSelectSummary = correct
-    ? `All ${answerKeys.length} required selections identified.`
+    ? `You got all ${countWord(answerKeys.length)} right.`
     : [
-        `${selectedCorrectOptions.length} of ${answerKeys.length} required selections identified`,
-        selectedWrongOptions.length > 0
-          ? `${selectedWrongOptions.length} selection${selectedWrongOptions.length === 1 ? "" : "s"} does not apply`
-          : null,
+        selectedCorrectPositions.length === 0
+          ? "None of your selections are right."
+          : `You got the ${naturalJoin(selectedCorrectPositions)} right.`,
+        selectedWrongPositions.length === 0
+          ? null
+          : selectedWrongPositions.length === 1
+            ? `The ${selectedWrongPositions[0]} does not apply.`
+            : `The ${naturalJoin(selectedWrongPositions)} do not apply.`,
+        missedCorrectOptions.length === 0
+          ? null
+          : missedCorrectOptions.length === 1
+            ? "There is one more option that also applies."
+            : `There are ${countWord(missedCorrectOptions.length)} more options that also apply.`,
       ]
         .filter(Boolean)
-        .join(" · ") + ".";
+        .join(" ");
 
   return (
     <Card className="ri-teaching-interaction p-6 space-y-5 border-primary/20 bg-primary/[0.025]">
@@ -281,7 +312,7 @@ export function DeepDiveTeachingInteraction({
               </div>
             ) : null}
             <div>
-              <p className="font-medium">{correct ? "Yes" : "Review the set"}</p>
+              <p className="font-medium">{correct ? "Yes" : "Not quite"}</p>
               <p className="mt-1 text-sm text-muted-foreground">{multiSelectSummary}</p>
             </div>
           </div>
