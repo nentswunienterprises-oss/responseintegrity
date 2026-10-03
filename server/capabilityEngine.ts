@@ -216,15 +216,36 @@ function resolveQuestionFeedback(
 
   if (question.kind === "multi_select") {
     const state = resolveMultiSelectSelectionState(question, selectedOptionKeys);
-    const summary =
-      [
-        `${state.selectedCorrectOptionKeys.length} of ${state.requiredSelectionCount} required selections identified`,
-        state.selectedWrongOptionKeys.length > 0
-          ? `${state.selectedWrongOptionKeys.length} selection${state.selectedWrongOptionKeys.length === 1 ? "" : "s"} does not apply`
-          : null,
-      ]
-        .filter(Boolean)
-        .join(" · ") + ".";
+    const correctSelected = state.selectedCorrectOptionKeys.length;
+    const wrongSelected = state.selectedWrongOptionKeys.length;
+    const missed = state.missedCorrectOptionKeys.length;
+
+    const correctPart =
+      correctSelected === 0
+        ? "None of your selections are supported"
+        : correctSelected === 1
+          ? "You got one selection right"
+          : wrongSelected === 0 && correctSelected === selectedOptionKeys.length
+            ? "You got all of your selections right"
+            : `You got ${correctSelected} selections right`;
+
+    const wrongPart =
+      wrongSelected === 0
+        ? null
+        : wrongSelected === 1
+          ? "one of your selections does not apply"
+          : `${wrongSelected} of your selections do not apply`;
+
+    const missedPart =
+      missed === 0
+        ? null
+        : missed === 1
+          ? "there is one more option that also applies"
+          : `there are ${missed} more options that also apply`;
+
+    const summary = [correctPart, wrongPart, missedPart]
+      .filter(Boolean)
+      .join(", but ") + ".";
 
     const feedback = [
       ...state.selectedWrongOptionKeys.map((key) => question.optionFeedback?.[key]),
