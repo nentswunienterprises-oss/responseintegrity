@@ -169,15 +169,15 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
             Handover does not re-place a student because a Specialist changed. It tests whether the inherited state is still trustworthy.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>Clean supported continuity evidence can hold the inherited state.</li>
-            <li>Not-observed or confounded dimensions can require another comparable continuity opportunity.</li>
-            <li>A confirmed phase-defining breakdown requires targeted re-diagnosis.</li>
+            <li>Clean Handover evidence can support keeping the inherited state.</li>
+            <li>A not-observed or confounded dimension can require another comparable Handover opportunity.</li>
+            <li>A confirmed breakdown in a behavior that defines the phase requires targeted re-diagnosis.</li>
             <li>Persistent conditional evidence can adjust stability within the same phase when the limited Handover check ends.</li>
           </ul>
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="A continuity opportunity is clean except one dimension was not meaningfully observed. Should the Specialist mark the closest behavior so Handover can finish?"
+          prompt="A Handover opportunity is clean except one dimension was not meaningfully observed. Should the Specialist mark the closest behavior so Handover can finish?"
           options={[
             {
               key: "a",
@@ -213,10 +213,10 @@ export default function ResponseConditioningHowSystemResolvesUncertainty() {
           <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">Example</p>
           <h2 className="text-2xl font-bold">Handover preserves what was proved and keeps the missing dimension open</h2>
           <p className="text-muted-foreground">
-            A new Specialist inherits a student's Structured Execution state. In the first continuity opportunity, the student starts independently and follows the required steps, but the task does not meaningfully expose repeatability.
+            A new Specialist inherits a student's Structured Execution state. In the first Handover opportunity, the student starts independently and follows the required steps, but the task does not meaningfully expose repeatability.
           </p>
           <p className="text-muted-foreground">
-            RI-OS keeps the supported start and step evidence, records repeatability as not observed, and can ask for another comparable continuity opportunity. It does not copy strength from the observed dimensions into the missing one just to finish Handover.
+            RI-OS keeps the supported start and step evidence, records repeatability as not observed, and can ask for another comparable Handover opportunity. It does not copy strength from the observed dimensions into the missing one just to finish Handover.
           </p>
           <p className="font-semibold">
             Handover closes from sufficient evidence, not from filling every field with a convenient answer.
