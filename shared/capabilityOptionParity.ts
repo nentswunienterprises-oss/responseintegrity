@@ -16,6 +16,8 @@ export interface CapabilityOptionParitySummary {
   acceptedKeyCounts: Record<string, number>;
   maxAcceptedKeyCount: number;
   maxAcceptedKeyRate: number;
+  nearDuplicateAcceptedPairs: number;
+  nearDuplicateAcceptedPairKeys: string[];
 }
 
 export const CAPABILITY_OPTION_PARITY_MAX_SHORTCUT_RATE = 0.25;
@@ -30,6 +32,45 @@ function visibleLength(value: string) {
     .length;
 }
 
+function normalizedWords(value: string) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function longestSharedWordRun(a: string[], b: string[]) {
+  let longest = 0;
+  const previous = new Array(b.length + 1).fill(0);
+
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = new Array(b.length + 1).fill(0);
+    for (let j = 1; j <= b.length; j += 1) {
+      if (a[i - 1] === b[j - 1]) {
+        current[j] = previous[j - 1] + 1;
+        longest = Math.max(longest, current[j]);
+      }
+    }
+    for (let j = 0; j < current.length; j += 1) {
+      previous[j] = current[j];
+    }
+  }
+
+  return longest;
+}
+
+function acceptedPairLooksDuplicative(labels: string[]) {
+  if (labels.length !== 2) return false;
+
+  const left = normalizedWords(labels[0]);
+  const right = normalizedWords(labels[1]);
+  const shorter = Math.max(1, Math.min(left.length, right.length));
+  const sharedRun = longestSharedWordRun(left, right);
+
+  return sharedRun >= 5 && sharedRun / shorter >= 0.35;
+}
+
 export function analyzeCapabilityOptionParity(
   items: CapabilityOptionParityItem[],
 ): CapabilityOptionParitySummary {
@@ -37,6 +78,8 @@ export function analyzeCapabilityOptionParity(
   let alternateValidItems = 0;
   let acceptedClusterLongerBy20Pct = 0;
   let acceptedClusterShorterBy20Pct = 0;
+  let nearDuplicateAcceptedPairs = 0;
+  const nearDuplicateAcceptedPairKeys: string[] = [];
   const acceptedKeyCounts: Record<string, number> = {};
 
   for (const item of items) {
@@ -50,9 +93,12 @@ export function analyzeCapabilityOptionParity(
     }
 
     const acceptedKeys = new Set(item.correctOptionKeys);
-    const acceptedLengths = item.options
-      .filter((option) => acceptedKeys.has(option.key))
-      .map((option) => visibleLength(option.label));
+    const acceptedOptions = item.options.filter((option) =>
+      acceptedKeys.has(option.key),
+    );
+    const acceptedLengths = acceptedOptions.map((option) =>
+      visibleLength(option.label),
+    );
     const distractorLengths = item.options
       .filter((option) => !acceptedKeys.has(option.key))
       .map((option) => visibleLength(option.label));
@@ -60,7 +106,17 @@ export function analyzeCapabilityOptionParity(
     if (!acceptedLengths.length || !distractorLengths.length) continue;
 
     eligibleSingleChoiceItems += 1;
-    if (item.correctOptionKeys.length === 2) alternateValidItems += 1;
+    if (item.correctOptionKeys.length === 2) {
+      alternateValidItems += 1;
+      if (
+        acceptedPairLooksDuplicative(
+          acceptedOptions.map((option) => option.label),
+        )
+      ) {
+        nearDuplicateAcceptedPairs += 1;
+        nearDuplicateAcceptedPairKeys.push(item.key);
+      }
+    }
 
     for (const key of item.correctOptionKeys) {
       acceptedKeyCounts[key] = (acceptedKeyCounts[key] || 0) + 1;
@@ -93,6 +149,8 @@ export function analyzeCapabilityOptionParity(
     acceptedKeyCounts,
     maxAcceptedKeyCount,
     maxAcceptedKeyRate: maxAcceptedKeyCount / divisor,
+    nearDuplicateAcceptedPairs,
+    nearDuplicateAcceptedPairKeys,
   };
 }
 
@@ -112,6 +170,12 @@ export function assertCapabilityOptionParity(
   ) {
     throw new Error(
       `Capability assessment ${assessmentKey} must keep silent alternate-valid single-choice questions around 80% of eligible items. Found ${summary.alternateValidItems}/${summary.eligibleSingleChoiceItems} (${(summary.alternateValidRate * 100).toFixed(1)}%).`,
+    );
+  }
+
+  if (summary.nearDuplicateAcceptedPairs > 0) {
+    throw new Error(
+      `Capability assessment ${assessmentKey} contains ${summary.nearDuplicateAcceptedPairs} silent alternate-valid item${summary.nearDuplicateAcceptedPairs === 1 ? "" : "s"} where the two accepted answers substantially repeat the same wording: ${summary.nearDuplicateAcceptedPairKeys.join(", ")}. Re-author the second accepted answer as a genuinely distinct valid truth.`,
     );
   }
 
