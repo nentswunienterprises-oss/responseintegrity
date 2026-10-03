@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 
 const operatingRules = [
   "Intro is topic-entry placement, not a training lesson.",
-  "Diagnosis is evidence-complete, not rep-complete.",
+  "Diagnosis stops when the evidence question is resolved, not after a fixed rep count.",
   "Every opportunity exists to answer a named evidence question.",
   "The Specialist records concrete observed behavior; they do not choose the phase, stability, or next probe.",
   "A higher-constraint failure does not automatically prove an earlier capability failed.",
@@ -154,13 +154,13 @@ export default function ResponseConditioningIntroSessionStructure() {
           </p>
           <p className="text-muted-foreground">
             Intro is diagnostic, not a teaching cycle. The Specialist observes. The
-            evidence-complete diagnosis engine resolves the placement from what the
+            Diagnosis resolves the placement from what the
             student actually does.
           </p>
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The Core Law: Evidence-Complete, Not Rep-Complete</h2>
+          <h2 className="text-2xl font-bold">The Core Law: Stop When the Evidence Question Is Resolved</h2>
           <p className="text-muted-foreground">
             Intro does not require a fixed number of reps or one complete phase block
             before the system is allowed to decide. Every diagnostic opportunity exists
@@ -215,7 +215,7 @@ export default function ResponseConditioningIntroSessionStructure() {
             When Diagnosis is collecting passive baseline timing for an unresolved placement above Structured Execution, the measurement condition must remain clean. If the timer, device, or session technology fails, that failed attempt is not treated as student weakness and does not create a second chance after weak student performance.
           </p>
           <p className="text-muted-foreground">
-            Before a timing-eligible opportunity begins, keep one fresh equivalent reserve problem available for that same evidence question. Only a genuine technical failure may leave the attempt unresolved and allow that reserve problem to be used under the same no-pressure condition.
+            Before an opportunity whose timing may count toward the baseline begins, keep one fresh equivalent reserve problem available for that same evidence question. Only a genuine technical failure may leave the attempt unresolved and allow that reserve problem to be used under the same no-pressure condition.
           </p>
           <p className="font-semibold">
             Never reuse the exposed problem or improvise a replacement. If no clean reserve exists, leave the evidence question unresolved and return when the condition can be prepared properly.
@@ -340,9 +340,9 @@ export default function ResponseConditioningIntroSessionStructure() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">How Starting Stability Is Derived</h2>
+          <h2 className="text-2xl font-bold">How Starting Stability Is Decided</h2>
           <p className="text-muted-foreground">
-            Diagnosis stability is derived from the decisive clean behavior inside the entry
+            Diagnosis stability is decided from the decisive clean behavior inside the entry
             phase. The Specialist records what happened; RI-OS determines the
             starting stability.
           </p>
