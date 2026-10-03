@@ -124,10 +124,64 @@ type PromptShape =
   | "action"
   | "reason"
   | "who"
+  | "missing"
+  | "capability_identity"
   | "interpretation"
   | "target"
   | "yes_no"
   | "other";
+
+type OptionFrame =
+  | "causal"
+  | "yes_no"
+  | "capability_identity"
+  | "imperative"
+  | "wh_complement"
+  | "other";
+
+const SUBJECT_INSTRUCTION_START =
+  /^(?:the specialist|specialists|they|you|the student|the learner)\s+(?:should|must|need(?:s)? to|has to|have to|is required to|are required to)\b/i;
+
+const CAPABILITY_IDENTITY_START =
+  /^(?:a\s+)?(?:clarity|structured execution|controlled discomfort|time pressure stability|tps)\b/i;
+
+const WH_COMPLEMENT_START =
+  /^(?:how|which|what|where|when|who|whether)\b/i;
+
+const MISSING_ANSWER_START =
+  /^(?:a\b|an\b|the missing\b|evidence\b|confirmation\b|proof\b|observation\b|demonstration\b|support\b|knowledge\b|understanding\b|whether\b|direct evidence\b|repeated evidence\b|clear evidence\b|specific evidence\b)/i;
+
+function optionFrame(label: string): OptionFrame {
+  const normalized = String(label || "").replace(/\s+/g, " ").trim();
+
+  if (/^(?:because|since)\b/i.test(normalized)) return "causal";
+  if (/^(?:yes|no)\b/i.test(normalized)) return "yes_no";
+  if (CAPABILITY_IDENTITY_START.test(normalized)) {
+    return "capability_identity";
+  }
+  if (IMPERATIVE_OPTION_START.test(normalized)) return "imperative";
+  if (WH_COMPLEMENT_START.test(normalized)) return "wh_complement";
+  return "other";
+}
+
+function dominantOptionFrame(
+  options: Array<{ key: string; label: string }>,
+): OptionFrame | null {
+  if (options.length !== 5) return null;
+
+  const counts = new Map<OptionFrame, number>();
+  for (const option of options) {
+    const frame = optionFrame(option.label);
+    if (frame === "other") continue;
+    counts.set(frame, (counts.get(frame) || 0) + 1);
+  }
+
+  for (const [frame, count] of counts.entries()) {
+    if (count >= 4) return frame;
+  }
+
+  return null;
+}
 
 function finalQuestionClause(prompt: string) {
   const normalized = String(prompt || "").replace(/\s+/g, " ").trim();
@@ -150,6 +204,26 @@ function classifyPromptShape(prompt: string): PromptShape {
   const question = finalQuestionClause(prompt).toLowerCase();
 
   if (
+    /^(?:what (?:is|was)(?: still)? missing|what information is still needed|what information is missing)\b/.test(
+      question,
+    )
+  ) {
+    return "missing";
+  }
+
+  if (
+    /^(?:which capability\b|which phase\b|where is .*\bbreakdown\b|where does .*\bbreakdown\b)/.test(
+      question,
+    )
+  ) {
+    return "capability_identity";
+  }
+
+  if (/^what should .*\bmean\b/.test(question)) {
+    return "interpretation";
+  }
+
+  if (
     /^(?:what should|how should|what happens next|what should happen|what must|which .* should)\b/.test(
       question,
     )
@@ -170,7 +244,7 @@ function classifyPromptShape(prompt: string): PromptShape {
   }
 
   if (
-    /^(?:what (?:is|was) (?:the )?(?:risk|concern|problem|issue|purpose|role|boundary|evidence|signal|difference|meaning|definition)|what (?:does|did).*\b(?:mean|show|prove|reveal|indicate)\b|what (?:changed|happened)\b|what is (?:missing|lost)\b)/.test(
+    /^(?:what (?:is|was) (?:the )?(?:risk|concern|problem|issue|purpose|role|boundary|evidence|signal|difference|meaning|definition)|what (?:does|did).*\b(?:mean|show|prove|reveal|indicate|isolate|tell)\b|what (?:changed|happened)\b|what is (?:missing|lost)\b|how should .*\bbe interpreted\b)/.test(
       question,
     )
   ) {
@@ -201,13 +275,41 @@ function optionShapeMatchesPrompt(prompt: string, label: string) {
   if (!String(prompt || "").trim() || !normalizedLabel) return true;
 
   const shape = classifyPromptShape(prompt);
+  const instructionShaped =
+    IMPERATIVE_OPTION_START.test(normalizedLabel) ||
+    SUBJECT_INSTRUCTION_START.test(normalizedLabel);
 
   if (
     (shape === "reason" ||
       shape === "who" ||
+      shape === "missing" ||
+      shape === "capability_identity" ||
       shape === "interpretation" ||
       shape === "target") &&
-    IMPERATIVE_OPTION_START.test(normalizedLabel)
+    instructionShaped
+  ) {
+    return false;
+  }
+
+  if (
+    shape === "reason" &&
+    (/^(?:if|when|that is\b|that\b)/i.test(normalizedLabel) ||
+      (/\btherefore\b/i.test(normalizedLabel) &&
+        !/^(?:because|since)\b/i.test(normalizedLabel)))
+  ) {
+    return false;
+  }
+
+  if (
+    shape === "missing" &&
+    !MISSING_ANSWER_START.test(normalizedLabel)
+  ) {
+    return false;
+  }
+
+  if (
+    shape === "capability_identity" &&
+    !CAPABILITY_IDENTITY_START.test(normalizedLabel)
   ) {
     return false;
   }
@@ -250,6 +352,8 @@ export function analyzeCapabilityOptionParity(
       continue;
     }
 
+    const dominantFrame = dominantOptionFrame(item.options);
+
     for (const option of item.options) {
       if (hasIndirectOptionCopy(option.label)) {
         indirectOptionCopy.push({
@@ -258,14 +362,18 @@ export function analyzeCapabilityOptionParity(
           label: option.label,
         });
       }
-      if (
-        item.prompt &&
-        !optionShapeMatchesPrompt(item.prompt, option.label)
-      ) {
+
+      const promptMismatch =
+        Boolean(item.prompt) &&
+        !optionShapeMatchesPrompt(item.prompt || "", option.label);
+      const frameMismatch =
+        Boolean(dominantFrame) && optionFrame(option.label) !== dominantFrame;
+
+      if (promptMismatch || frameMismatch) {
         promptShapeMismatches.push({
           itemKey: item.key,
           optionKey: option.key,
-          prompt: item.prompt,
+          prompt: item.prompt || "",
           label: option.label,
         });
       }
