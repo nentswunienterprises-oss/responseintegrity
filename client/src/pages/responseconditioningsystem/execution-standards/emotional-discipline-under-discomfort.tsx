@@ -68,7 +68,7 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
               {
                 key: "c",
                 label: "Pause the timer, settle the student, then restart the same problem.",
-                feedback: "Pausing and restarting changes timing authority and can turn real student evidence into an unauthorized second chance.",
+                feedback: "Pausing and restarting changes the timed condition and can turn real student evidence into a second chance the drill did not allow.",
               },
               {
                 key: "d",
@@ -128,7 +128,7 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
               {
                 key: "a",
                 label: "How upset the student looks.",
-                feedback: "Visible frustration does not rewrite the set contract.",
+                feedback: "Visible frustration does not change the support rule for the active set.",
               },
               {
                 key: "b",
