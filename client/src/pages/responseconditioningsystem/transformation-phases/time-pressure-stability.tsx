@@ -273,6 +273,28 @@ export default function ResponseConditioningTimePressureStability() {
         </Card>
 
         <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">Another Casual Example</h2>
+          <p className="text-muted-foreground">
+            Imagine a new topic is being diagnosed and the student already shows that they understand the method and can execute it independently without pressure. They have not gone through Structured Execution Training for this topic because the Diagnosis evidence is showing that the topic may already belong further along the pathway.
+          </p>
+          <p className="text-muted-foreground">
+            On the first clean no-pressure independent opportunity, the student finishes in 54 seconds. That can become timing sample 1. RI-OS then gathers only the remaining comparable clean opportunities needed to complete the baseline, for example 51 seconds and 53 seconds.
+          </p>
+          <p className="text-muted-foreground">
+            Now the system has the same kind of three-sample no-pressure baseline it would normally have received from the Independent Execution set in Structured Execution Training.
+          </p>
+          <p className="font-semibold">
+            So Diagnosis is not inventing a different kind of baseline. It is another legitimate way to establish the same baseline when the student already demonstrates the earlier capability cleanly.
+          </p>
+          <p className="text-muted-foreground">
+            If the student had instead broken down on the independent execution itself, Diagnosis would stop at that earlier problem. RI-OS would not keep collecting timings just to manufacture a future TPS baseline.
+          </p>
+          <p className="font-medium">
+            Then, if the topic is later ready for Time Pressure Stability, those clean Diagnosis timings can supply the reference RI-OS uses to set the timed condition in exactly the same way.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Passive Timing Does Not Create Pressure</h2>
           <p className="text-muted-foreground">
             Baseline timing is invisible as a target. The student is not told to hurry and the Specialist does not run a
