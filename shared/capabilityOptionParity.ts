@@ -16,6 +16,7 @@ export interface CapabilityOptionParitySummary {
   acceptedClusterShorterBy20PctRate: number;
   acceptedKeyCounts: Record<string, number>;
   maxAcceptedKeyCount: number;
+  totalAcceptedKeyCount: number;
   maxAcceptedKeyRate: number;
   nearDuplicateAcceptedPairs: number;
   nearDuplicateAcceptedPairKeys: string[];
@@ -37,7 +38,7 @@ export interface CapabilityOptionParitySummary {
 }
 
 export const CAPABILITY_OPTION_PARITY_MAX_SHORTCUT_RATE = 0.25;
-export const CAPABILITY_OPTION_PARITY_MAX_KEY_CONCENTRATION = 0.55;
+export const CAPABILITY_OPTION_PARITY_MAX_KEY_CONCENTRATION = 0.4;
 export const CAPABILITY_SILENT_ALTERNATE_MIN_RATE = 0.7;
 export const CAPABILITY_SILENT_ALTERNATE_MAX_RATE = 0.9;
 
@@ -102,28 +103,96 @@ function hasIndirectOptionCopy(label: string) {
 const IMPERATIVE_OPTION_START =
   /^(?:use|keep|record|run|leave|treat|start|stop|preserve|follow|remove|ask|give|mark|move|return|continue|begin|hold|apply|collect|present|watch|finish|freeze|route|strip|allow|do not|don't|take|choose|write|click|say|speak|let|stay|end|wait)\b/i;
 
-const NON_ACTION_PROMPT =
-  /(?:what prevents|what authority|what (?:does|did) .*\b(?:mean|show|prove|reveal)\b|what (?:is|was) the (?:risk|concern|problem|issue|purpose|role|boundary|evidence|signal)|who (?:decides|owns|determines))/i;
+type PromptShape =
+  | "action"
+  | "reason"
+  | "who"
+  | "interpretation"
+  | "yes_no"
+  | "other";
 
-const ACTION_PROMPT =
-  /(?:what should|how should|what happens next|what should happen|which .* should)/i;
+function finalQuestionClause(prompt: string) {
+  const normalized = String(prompt || "").replace(/\s+/g, " ").trim();
+  const questionEnd = normalized.lastIndexOf("?");
+  if (questionEnd < 0) return normalized;
 
-function optionShapeMatchesPrompt(prompt: string, label: string) {
-  const normalizedPrompt = String(prompt || "").replace(/\s+/g, " ").trim();
-  const normalizedLabel = String(label || "").replace(/\s+/g, " ").trim();
-  if (!normalizedPrompt || !normalizedLabel) return true;
+  const throughQuestion = normalized.slice(0, questionEnd + 1);
+  let start = 0;
+  const sentenceBoundary = /[.!?][”"'’)]?\s+/g;
+  let match: RegExpExecArray | null;
+  while ((match = sentenceBoundary.exec(throughQuestion))) {
+    if (match.index >= questionEnd) break;
+    start = sentenceBoundary.lastIndex;
+  }
+
+  return throughQuestion.slice(start).trim();
+}
+
+function classifyPromptShape(prompt: string): PromptShape {
+  const question = finalQuestionClause(prompt).toLowerCase();
 
   if (
-    NON_ACTION_PROMPT.test(normalizedPrompt) &&
+    /^(?:what should|how should|what happens next|what should happen|what must|which .* should)\b/.test(
+      question,
+    )
+  ) {
+    return "action";
+  }
+
+  if (
+    /^(?:why|what prevents|what makes|which explanation|what is the reason)\b/.test(
+      question,
+    )
+  ) {
+    return "reason";
+  }
+
+  if (/^who\b/.test(question)) {
+    return "who";
+  }
+
+  if (
+    /^(?:what (?:is|was) (?:the )?(?:risk|concern|problem|issue|purpose|role|boundary|evidence|signal|difference|meaning|definition)|what (?:does|did).*\b(?:mean|show|prove|reveal|indicate)\b|what (?:changed|happened)\b|what is (?:missing|lost)\b)/.test(
+      question,
+    )
+  ) {
+    return "interpretation";
+  }
+
+  if (
+    /^(?:can|should|is|are|does|do|did|has|have|will|would|could|may)\b/.test(
+      question,
+    )
+  ) {
+    return "yes_no";
+  }
+
+  return "other";
+}
+
+function optionShapeMatchesPrompt(prompt: string, label: string) {
+  const normalizedLabel = String(label || "").replace(/\s+/g, " ").trim();
+  if (!String(prompt || "").trim() || !normalizedLabel) return true;
+
+  const shape = classifyPromptShape(prompt);
+
+  if (
+    (shape === "reason" ||
+      shape === "who" ||
+      shape === "interpretation") &&
     IMPERATIVE_OPTION_START.test(normalizedLabel)
   ) {
     return false;
   }
 
   if (
-    ACTION_PROMPT.test(normalizedPrompt) &&
+    shape === "action" &&
     /^(?:because|since)\b/i.test(normalizedLabel)
   ) {
+    return false;
+  }
+
+  if (shape === "yes_no" && !/^(?:yes|no)\b/i.test(normalizedLabel)) {
     return false;
   }
 
@@ -235,6 +304,10 @@ export function analyzeCapabilityOptionParity(
 
   const divisor = eligibleSingleChoiceItems || 1;
   const maxAcceptedKeyCount = Math.max(0, ...Object.values(acceptedKeyCounts));
+  const totalAcceptedKeyCount = Object.values(acceptedKeyCounts).reduce(
+    (sum, count) => sum + count,
+    0,
+  );
   const reusedAcceptedTruths = [...acceptedLabelItems.values()]
     .filter((entry) => entry.itemKeys.length >= 3)
     .sort((a, b) => b.itemKeys.length - a.itemKeys.length);
@@ -249,7 +322,9 @@ export function analyzeCapabilityOptionParity(
     acceptedClusterShorterBy20PctRate: acceptedClusterShorterBy20Pct / divisor,
     acceptedKeyCounts,
     maxAcceptedKeyCount,
-    maxAcceptedKeyRate: maxAcceptedKeyCount / divisor,
+    totalAcceptedKeyCount,
+    maxAcceptedKeyRate:
+      maxAcceptedKeyCount / (totalAcceptedKeyCount || 1),
     nearDuplicateAcceptedPairs,
     nearDuplicateAcceptedPairKeys,
     reusedAcceptedTruths,
@@ -327,7 +402,7 @@ export function assertCapabilityOptionParity(
     CAPABILITY_OPTION_PARITY_MAX_KEY_CONCENTRATION
   ) {
     throw new Error(
-      `Capability assessment ${assessmentKey} leaks accepted answers by position: one option key is accepted in ${summary.maxAcceptedKeyCount}/${summary.eligibleSingleChoiceItems} single-choice items. Rebalance accepted-answer positions before release.`,
+      `Capability assessment ${assessmentKey} leaks accepted answers by position: one option key holds ${summary.maxAcceptedKeyCount}/${summary.totalAcceptedKeyCount} accepted-key slots. Rebalance accepted-answer positions before release.`,
     );
   }
 
