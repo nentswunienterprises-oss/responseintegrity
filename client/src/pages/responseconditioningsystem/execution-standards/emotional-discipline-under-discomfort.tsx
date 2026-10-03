@@ -40,7 +40,7 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
           </Card>
 
           <Card className="p-6 space-y-4">
-            <h2 className="text-2xl font-bold">The active support boundary comes first</h2>
+            <h2 className="text-2xl font-bold">The active support rule comes first</h2>
             <p className="text-muted-foreground">
               Emotional discipline does not mean "never help." It means never letting your own discomfort decide how much help to give.
             </p>
@@ -58,7 +58,7 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
               {
                 key: "a",
                 label: "Ask a first-step question because neutral wording does not count as support.",
-                feedback: "The question supplies response control inside a no-support condition. The Specialist's discomfort cannot authorize that intervention.",
+                feedback: "The question supplies help inside a no-support condition. The Specialist's discomfort does not make that help allowed.",
               },
               {
                 key: "b",
@@ -132,7 +132,7 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
               },
               {
                 key: "b",
-                label: "The Controlled Entry support boundary: minimal support only, without carrying the method or execution.",
+                label: "The Controlled Entry support rule: minimal support only, without carrying the method or execution.",
                 feedback: "Yes. The set, not the emotional intensity of the moment, determines what support is allowed.",
               },
               {
@@ -142,13 +142,13 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
               },
               {
                 key: "d",
-                label: "The support boundary remains minimal even if the student's visible frustration increases.",
+                label: "The allowed support remains minimal even if the student's visible frustration increases.",
                 feedback: "Yes. Emotional intensity does not expand the registered support condition.",
               },
               {
                 key: "e",
                 label: "Whether the full method would help the student end the rep feeling successful.",
-                feedback: "A preferred emotional outcome cannot replace the active support boundary.",
+                feedback: "A preferred emotional outcome cannot replace the active support rule.",
               },
             ]}
             correctOptionKey="b"
@@ -156,12 +156,12 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
           />
 
           <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-            <h2 className="text-2xl font-bold">Operating check</h2>
+            <h2 className="text-2xl font-bold">Before you intervene</h2>
             <p className="font-semibold">
-              Before intervening, ask: "Is this support authorized by the active set, or am I reacting to the student's discomfort?"
+              Before intervening, ask: "Does the active set allow this support, or am I reacting to the student's discomfort?"
             </p>
             <p className="text-muted-foreground">
-              If the set does not authorize the move, do not make it. Preserve the response and let RI-OS interpret the evidence.
+              If the set does not allow the move, do not make it. Preserve the response and let RI-OS interpret the evidence.
             </p>
           </Card>
         </DeepDiveLessonRunner>
