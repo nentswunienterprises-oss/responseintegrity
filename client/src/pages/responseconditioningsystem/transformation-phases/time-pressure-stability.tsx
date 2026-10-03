@@ -296,6 +296,35 @@ export default function ResponseConditioningTimePressureStability() {
           truth="Measurement integrity depends on freezing the real student execution boundary before observation administration."
         />
 
+        <DeepDiveTeachingInteraction
+          prompt="A baseline timing attempt is completed quickly, but the Specialist prompted the student twice to keep the method moving. Can that time anchor later pressure?"
+          options={[
+            {
+              key: "a",
+              label: "Yes, because the stopwatch still measured the student's real working speed from start to finish.",
+              feedback: "The clock may be accurate, but the student received support. That time cannot stand in for the required independent timing evidence.",
+            },
+            {
+              key: "b",
+              label: "Yes, if the prompts did not reveal the actual next step and only kept the student focused.",
+              feedback: "Directional support can still change execution speed and the student's response. Whether the timing can count depends on preserving the required independent condition, not on how subtle the prompt felt.",
+            },
+            {
+              key: "c",
+              label: "No. The later timer needs timing evidence produced under the required independent condition.",
+              feedback: "Yes. Pressure must be based on timing evidence that reflects the response RI intends to stress-test.",
+            },
+            {
+              key: "d",
+              label: "Yes, if the same prompts are used consistently across all three baseline reps.",
+              feedback: "Consistent contamination is still contamination. The baseline must represent independent execution, not standardized prompting.",
+            },
+            { key: "e", label: "No. Supported timing cannot establish the later pressure baseline, even if the stopwatch reading itself is precise.", feedback: "Yes. A valid timing sample must come from the required clean independent condition." },
+          ]}
+          correctOptionKeys={["c","e"]}
+          truth="Timing evidence can only set the pressure baseline when the underlying execution condition stayed independent and clean. A precise stopwatch reading cannot repair a supported or contaminated response."
+        />
+
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">How Three Timings Become the Timer Contract</h2>
           <p className="text-muted-foreground">
@@ -333,34 +362,7 @@ export default function ResponseConditioningTimePressureStability() {
           </p>
         </Card>
 
-        <DeepDiveTeachingInteraction
-          prompt="A student finishes inside the timer but skips the known method and guesses successfully. What does the timed result prove?"
-          options={[
-            {
-              key: "b",
-              label: "The deadline was met, but the result does not prove TPS because the trained method collapsed under urgency.",
-              feedback: "Yes. Time Pressure Stability requires the method to survive urgency; speed and correctness alone are not enough.",
-            },
-            {
-              key: "a",
-              label: "The student is stable under time because the deadline and answer were both achieved.",
-              feedback: "Meeting the deadline cannot substitute for preserving the response structure the timer is meant to stress-test.",
-            },
-            {
-              key: "c",
-              label: "The student is ready for a tighter timer because the successful guess shows unused speed capacity.",
-              feedback: "A tighter constraint is not earned from an attempt that already lost method integrity.",
-            },
-            {
-              key: "d",
-              label: "Count it as stable if the guess was a mathematically valid shortcut, because TPS only cares that the response stays functional.",
-              feedback: "TPS pressures an already-trained response. Abandoning the trained method under urgency is itself instability.",
-            },
-            { key: "e", label: "The rep provides direct evidence of structure instability under time, even though the guessed final answer happened to be correct.", feedback: "Yes. TPS requires the trained method to survive urgency, not merely a correct answer before timeout." },
-          ]}
-          correctOptionKeys={["b","e"]}
-          truth="The timer is an added constraint on an already-trained response. A fast or correct answer does not count as stability when urgency causes the method structure to disappear."
-        />
+
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Time Pressure Training Recipe</h2>
@@ -380,34 +382,7 @@ export default function ResponseConditioningTimePressureStability() {
           </p>
         </Card>
 
-        <DeepDiveTeachingInteraction
-          prompt="A baseline timing attempt is completed quickly, but the Specialist prompted the student twice to keep the method moving. Can that time anchor later pressure?"
-          options={[
-            {
-              key: "a",
-              label: "Yes, because the stopwatch still measured the student's real working speed from start to finish.",
-              feedback: "The clock may be accurate, but the student received support. That time cannot stand in for the required independent timing evidence.",
-            },
-            {
-              key: "b",
-              label: "Yes, if the prompts did not reveal the actual next step and only kept the student focused.",
-              feedback: "Directional support can still change execution speed and the student's response. Whether the timing can count depends on preserving the required independent condition, not on how subtle the prompt felt.",
-            },
-            {
-              key: "c",
-              label: "No. The later timer needs timing evidence produced under the required independent condition.",
-              feedback: "Yes. Pressure must be based on timing evidence that reflects the response RI intends to stress-test.",
-            },
-            {
-              key: "d",
-              label: "Yes, if the same prompts are used consistently across all three baseline reps.",
-              feedback: "Consistent contamination is still contamination. The baseline must represent independent execution, not standardized prompting.",
-            },
-            { key: "e", label: "No. Supported timing cannot establish the later pressure baseline, even if the stopwatch reading itself is precise.", feedback: "Yes. A valid timing sample must come from the required clean independent condition." },
-          ]}
-          correctOptionKeys={["c","e"]}
-          truth="Timing evidence can only set the pressure baseline when the underlying execution condition stayed independent and clean. A precise stopwatch reading cannot repair a supported or contaminated response."
-        />
+
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
@@ -449,6 +424,39 @@ export default function ResponseConditioningTimePressureStability() {
           </div>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="The timer freezes for several seconds halfway through a rep, then resumes. What should happen to that attempt?"
+          options={[
+            {
+              key: "c",
+              label: "Record the technical failure and use a fresh pre-prepared equivalent reserve under the same intended time condition.",
+              feedback: "Yes. The technical failure remains visible in the record, and the fresh pre-prepared equivalent reserve supplies the missing timing evidence without erasing the failed attempt.",
+            },
+            {
+              key: "a",
+              label: "Keep it and subtract the estimated frozen time afterward, because the student's method performance was still observable.",
+              feedback: "An estimate cannot recreate the intended continuous time condition. The rep may show useful behavior, but it cannot prove performance under the defined timer.",
+            },
+            {
+              key: "b",
+              label: "Treat it as a student timeout if the final completion exceeds the original limit.",
+              feedback: "The timing condition failed technically. The student cannot be assigned a timing failure from a timer that did not operate correctly.",
+            },
+            {
+              key: "d",
+              label: "Restart the same exposed problem from the beginning once the timer is working again.",
+              feedback: "The student has already seen and begun the problem. Reusing it would create a second chance rather than a fresh equivalent reserve.",
+            },
+            {
+              key: "e",
+              label: "Discard the failed attempt completely, then record only the replacement so the timing record stays clean.",
+              feedback: "Technical failure remains part of the evidence history. Recovery fills the unresolved slot without erasing the failed attempt.",
+            },
+          ]}
+          correctOptionKey="c"
+          truth="Objective timer failure invalidates the timed condition, not the student's response. Keep the failed attempt in the record and fill the unresolved slot only with a fresh pre-prepared equivalent reserve under the same Timer Contract."
+        />
+
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Run the Drill: Set by Set</h2>
           <p className="text-muted-foreground">
@@ -456,11 +464,11 @@ export default function ResponseConditioningTimePressureStability() {
           </p>
         </Card>
 
-        {trainingSchema.sets.map((set, setIndex) => {
+        {trainingSchema.sets.flatMap((set, setIndex) => {
           const execution = TIME_SET_EXECUTION[set.setId];
           const repPurposes = TIME_REP_PURPOSES[set.setId] || [];
 
-          return (
+          const setCard = (
             <Card key={set.setId} className="p-6 space-y-5">
               <div>
                 <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
@@ -511,40 +519,79 @@ export default function ResponseConditioningTimePressureStability() {
               </div>
             </Card>
           );
-        })}
 
-        <DeepDiveTeachingInteraction
-          prompt="The timer freezes for several seconds halfway through a rep, then resumes. What should happen to that attempt?"
-          options={[
-            {
-              key: "c",
-              label: "Record the technical failure and use a fresh pre-prepared equivalent reserve under the same intended time condition.",
-              feedback: "Yes. The technical failure remains visible in the record, and the fresh pre-prepared equivalent reserve supplies the missing timing evidence without erasing the failed attempt.",
-            },
-            {
-              key: "a",
-              label: "Keep it and subtract the estimated frozen time afterward, because the student's method performance was still observable.",
-              feedback: "An estimate cannot recreate the intended continuous time condition. The rep may show useful behavior, but it cannot prove performance under the defined timer.",
-            },
-            {
-              key: "b",
-              label: "Treat it as a student timeout if the final completion exceeds the original limit.",
-              feedback: "The timing condition failed technically. The student cannot be assigned a timing failure from a timer that did not operate correctly.",
-            },
-            {
-              key: "d",
-              label: "Restart the same exposed problem from the beginning once the timer is working again.",
-              feedback: "The student has already seen and begun the problem. Reusing it would create a second chance rather than a fresh equivalent reserve.",
-            },
-            {
-              key: "e",
-              label: "Discard the failed attempt completely, then record only the replacement so the timing record stays clean.",
-              feedback: "Technical failure remains part of the evidence history. Recovery fills the unresolved slot without erasing the failed attempt.",
-            },
-          ]}
-          correctOptionKey="c"
-          truth="Objective timer failure invalidates the timed condition, not the student's response. Keep the failed attempt in the record and fill the unresolved slot only with a fresh pre-prepared equivalent reserve under the same Timer Contract."
-        />
+          if (set.setId === "time_pressure.structure_under_timer") {
+            return [
+              setCard,
+                    <DeepDiveTeachingInteraction
+                      key="time-pressure-structure-under-timer-check"
+                  prompt="A student finishes inside the timer but skips the known method and guesses successfully. What does the timed result prove?"
+                  options={[
+                    {
+                      key: "b",
+                      label: "The deadline was met, but the result does not prove TPS because the trained method collapsed under urgency.",
+                      feedback: "Yes. Time Pressure Stability requires the method to survive urgency; speed and correctness alone are not enough.",
+                    },
+                    {
+                      key: "a",
+                      label: "The student is stable under time because the deadline and answer were both achieved.",
+                      feedback: "Meeting the deadline cannot substitute for preserving the response structure the timer is meant to stress-test.",
+                    },
+                    {
+                      key: "c",
+                      label: "The student is ready for a tighter timer because the successful guess shows unused speed capacity.",
+                      feedback: "A tighter constraint is not earned from an attempt that already lost method integrity.",
+                    },
+                    {
+                      key: "d",
+                      label: "Count it as stable if the guess was a mathematically valid shortcut, because TPS only cares that the response stays functional.",
+                      feedback: "TPS pressures an already-trained response. Abandoning the trained method under urgency is itself instability.",
+                    },
+                    { key: "e", label: "The rep provides direct evidence of structure instability under time, even though the guessed final answer happened to be correct.", feedback: "Yes. TPS requires the trained method to survive urgency, not merely a correct answer before timeout." },
+                  ]}
+                  correctOptionKeys={["b","e"]}
+                  truth="The timer is an added constraint on an already-trained response. A fast or correct answer does not count as stability when urgency causes the method structure to disappear."
+            />
+            ];
+          }
+
+          if (set.setId === "time_pressure.full_constraint") {
+            return [
+              setCard,
+                    <DeepDiveTeachingInteraction
+                      key="time-pressure-full-constraint-check"
+                  prompt="RI has assigned the active timer from valid independent timing evidence. Mid-rep, the student starts losing structure and asks for more time. What should the Specialist do?"
+                  options={[
+                    {
+                      key: "a",
+                      label: "Add a small amount of time so the rep can show whether the student still knows the method once urgency is reduced.",
+                      feedback: "That would answer a different question. The active rep is testing whether the known response survives the assigned urgency.",
+                    },
+                    {
+                      key: "b",
+                      label: "Pause the timer until structure returns, then resume.",
+                      feedback: "Pausing removes part of the continuous pressure. The displayed total may look unchanged, but the condition is no longer the same.",
+                    },
+                    {
+                      key: "c",
+                      label: "Keep the assigned timer unchanged; do not extend, pause, or soften the Timer Contract because the student is struggling.",
+                      feedback: "Yes. The Specialist protects the timing contract rather than adjusting the condition to produce a cleaner-looking response.",
+                    },
+                    {
+                      key: "d",
+                      label: "Add the same amount of extra time to this and all future reps so the condition stays comparable.",
+                      feedback: "Repeating the same unallowed change does not restore the correct timed condition.",
+                    },
+                    { key: "e", label: "Record the structure loss and request for more time as separate response evidence from the rep rather than rescuing the timed condition.", feedback: "Yes. Loosening or pausing the timer would rescue performance by changing the evidence condition." },
+                  ]}
+                  correctOptionKeys={["c","e"]}
+                  truth="The timer RI-OS set is part of the evidence condition. Once the rep begins, the Specialist does not loosen or pause it to rescue performance; they preserve the condition and record what happens."
+            />
+            ];
+          }
+
+          return [setCard];
+        })}
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What You Observe</h2>
@@ -560,6 +607,23 @@ export default function ResponseConditioningTimePressureStability() {
             Observe before you interpret. Record the start, structure, pace, and completion integrity that actually appeared under the timer.
           </p>
         </Card>
+
+
+
+ <Card className="p-6 space-y-5 ">
+          <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
+          <p className="text-muted-foreground">
+            A student can freeze, rush, lose structure, work unevenly, or fail to complete inside a correctly executed timed drill. That is evidence.
+          </p>
+          <p className="font-semibold">
+            The Specialist must not loosen the timer or coach through the timed attempt to manufacture stronger-looking evidence. Correct Specialist execution means the timer and no-help boundary were preserved.
+          </p>
+          <p className="text-muted-foreground">
+            Failed Specialist execution is different: changing the timer, helping during the rep, ignoring lost structure because the answer was fast, or logging stable pace when the response was panic-driven.
+          </p>
+        </Card>
+
+
 
         <DeepDiveTeachingInteraction
           prompt="The timer works correctly, but the student freezes and does not finish. Which conclusions are supported?"
@@ -593,48 +657,6 @@ export default function ResponseConditioningTimePressureStability() {
           kind="multi_select"
           correctOptionKeys={["b","d","e"]}
           truth="When the timer is valid, timeout, freezing, wrong method or incomplete work are learner evidence. Replacement is reserved for objective failure of the timing condition itself."
-        />
-
- <Card className="p-6 space-y-5 ">
-          <h2 className="text-2xl font-bold">Weak Student Performance Is Not Failed Execution</h2>
-          <p className="text-muted-foreground">
-            A student can freeze, rush, lose structure, work unevenly, or fail to complete inside a correctly executed timed drill. That is evidence.
-          </p>
-          <p className="font-semibold">
-            The Specialist must not loosen the timer or coach through the timed attempt to manufacture stronger-looking evidence. Correct Specialist execution means the timer and no-help boundary were preserved.
-          </p>
-          <p className="text-muted-foreground">
-            Failed Specialist execution is different: changing the timer, helping during the rep, ignoring lost structure because the answer was fast, or logging stable pace when the response was panic-driven.
-          </p>
-        </Card>
-
-        <DeepDiveTeachingInteraction
-          prompt="RI has assigned the active timer from valid independent timing evidence. Mid-rep, the student starts losing structure and asks for more time. What should the Specialist do?"
-          options={[
-            {
-              key: "a",
-              label: "Add a small amount of time so the rep can show whether the student still knows the method once urgency is reduced.",
-              feedback: "That would answer a different question. The active rep is testing whether the known response survives the assigned urgency.",
-            },
-            {
-              key: "b",
-              label: "Pause the timer until structure returns, then resume.",
-              feedback: "Pausing removes part of the continuous pressure. The displayed total may look unchanged, but the condition is no longer the same.",
-            },
-            {
-              key: "c",
-              label: "Keep the assigned timer unchanged; do not extend, pause, or soften the Timer Contract because the student is struggling.",
-              feedback: "Yes. The Specialist protects the timing contract rather than adjusting the condition to produce a cleaner-looking response.",
-            },
-            {
-              key: "d",
-              label: "Add the same amount of extra time to this and all future reps so the condition stays comparable.",
-              feedback: "Repeating the same unallowed change does not restore the correct timed condition.",
-            },
-            { key: "e", label: "Record the structure loss and request for more time as separate response evidence from the rep rather than rescuing the timed condition.", feedback: "Yes. Loosening or pausing the timer would rescue performance by changing the evidence condition." },
-          ]}
-          correctOptionKeys={["c","e"]}
-          truth="The timer RI-OS set is part of the evidence condition. Once the rep begins, the Specialist does not loosen or pause it to rescue performance; they preserve the condition and record what happens."
         />
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
