@@ -109,6 +109,8 @@ const INDIRECT_OPTION_PATTERNS = [
   /\bThe Specialist(?:'|’)?s live judgment can integrate nuance better\b/i,
   /\bA default stability level keeps initial placement consistent\b/i,
   /\bA fixed number of reps makes Diagnosis more objective\b/i,
+  /\b(?:the )?(?:live|current) (?:RI )?(?:Deep Dive|site)\b/i,
+  /\b(?:this|the) (?:Deep Dive|training material|module|page|course) (?:says|describes|states|frames|explains)\b/i,
 ] as const;
 
 function hasIndirectOptionCopy(label: string) {
