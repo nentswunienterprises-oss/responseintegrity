@@ -223,7 +223,7 @@ export default function ResponseConditioningControlledDiscomfort() {
             {
               key: "d",
               label: "Keep the difficulty but add extra hints so the student can remain inside the problem without feeling stranded.",
-              feedback: "Extra help changes the support boundary. Controlled Discomfort requires the assigned difficulty and the assigned support condition together.",
+              feedback: "Extra help changes the support rule. Controlled Discomfort requires the assigned difficulty and the assigned support condition together.",
             },
             {
               key: "e",
@@ -318,7 +318,7 @@ export default function ResponseConditioningControlledDiscomfort() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Run the Drill: Set by Set</h2>
           <p className="text-muted-foreground">
-            Each set is its own learning step. Preserve the difficulty and support boundary before moving to the next exposure.
+            Each set is its own learning step. Preserve the difficulty and support rule before moving to the next exposure.
           </p>
         </Card>
 
@@ -428,7 +428,7 @@ export default function ResponseConditioningControlledDiscomfort() {
         </Card>
 
         <DeepDiveTeachingInteraction
-          prompt="The Specialist preserves the difficulty and support boundary, but the student eventually stops and cannot continue. Which conclusions are supported?"
+          prompt="The Specialist preserves the difficulty and support rule, but the student eventually stops and cannot continue. Which conclusions are supported?"
           options={[
             {
               key: "a",
@@ -467,7 +467,7 @@ export default function ResponseConditioningControlledDiscomfort() {
             A student can freeze, hesitate, ask for rescue, rush randomly, or collapse under difficulty inside a correctly executed drill. That is evidence.
           </p>
           <p className="font-semibold">
-            The Specialist must not remove the discomfort to manufacture stronger-looking evidence. Correct Specialist execution means the difficulty and support boundary were preserved.
+            The Specialist must not remove the discomfort to manufacture stronger-looking evidence. Correct Specialist execution means the difficulty and support rule were preserved.
           </p>
           <p className="text-muted-foreground">
             Failed Specialist execution is different: making the problem easier mid-rep, giving full rescue, hiding coaching inside reassurance, skipping repeated exposure, or logging composure that was manufactured.
@@ -499,7 +499,7 @@ export default function ResponseConditioningControlledDiscomfort() {
             },
             {
               key: "e",
-              label: "Move to a harder problem while keeping the same support boundary, because stability is best confirmed by escalation.",
+              label: "Move to a harder problem while keeping the same support rule, because stability is best confirmed by escalation.",
               feedback: "Escalating difficulty changes the demand. Stability at the current condition is shown by comparable repetition first.",
             },
           ]}
