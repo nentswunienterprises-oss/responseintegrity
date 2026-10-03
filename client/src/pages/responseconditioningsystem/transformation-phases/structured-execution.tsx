@@ -202,34 +202,7 @@ export default function ResponseConditioningStructuredExecution() {
           </ul>
         </Card>
 
-        <DeepDiveTeachingInteraction
-          prompt="A student reaches the correct answer but skips two required steps and cannot explain how they moved between them. What does the result show?"
-          options={[
-            {
-              key: "a",
-              label: "Structured Execution is strong enough, because the correct outcome proves the missing steps were mentally understood.",
-              feedback: "The missing structure cannot be inferred from the correct answer. RI needs the execution chain to be observable and repeatable.",
-            },
-            {
-              key: "b",
-              label: "The correct result proves the outcome, not that the student can reliably execute the required sequence.",
-              feedback: "Yes. This phase asks whether the known method can be carried in order, not whether one answer happened to land correctly.",
-            },
-            {
-              key: "c",
-              label: "Return to Clarity, because skipped steps mean the method is no longer understood.",
-              feedback: "Skipped execution does not automatically prove a recognition failure. RI preserves earlier supported layers unless the evidence actually contradicts them.",
-            },
-            {
-              key: "d",
-              label: "Treat the skipped steps as an arithmetic detail and keep Structured Execution strong because the outcome was correct.",
-              feedback: "The phase is about carrying the method structure visibly and repeatably. Missing required steps are not repaired by the final answer.",
-            },
-            { key: "e", label: "The answer can be correct while the required execution chain is still unproven because the skipped steps were never shown.", feedback: "Yes. Outcome correctness cannot replace observable, repeatable structure." },
-          ]}
-          correctOptionKeys={["b","e"]}
-          truth="Structured Execution requires visible, repeatable method use. A correct answer cannot substitute for evidence that the student can carry the known structure independently."
-        />
+
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Structured Execution Training Recipe</h2>
@@ -249,34 +222,7 @@ export default function ResponseConditioningStructuredExecution() {
           </p>
         </Card>
 
-        <DeepDiveTeachingInteraction
-          prompt="You are preparing a Required Structure set for a method the student already recognises. Which material is best?"
-          options={[
-            { key: "a", label: "Problems with enough working steps to make the student's method order visible, without introducing a new method or difficulty variable.", feedback: "Yes. Required Structure needs repeated opportunities to observe the known method, not new-method learning or transfer." },
-            {
-              key: "c",
-              label: "A new method from the same topic, because successful execution would prove the student can generalise structure.",
-              feedback: "A new method changes the prerequisite. The Specialist would no longer know whether a breakdown came from recognition or execution.",
-            },
-            {
-              key: "b",
-              label: "Several comparable problems that all require the same known method, so the sequence can be observed more than once.",
-              feedback: "Yes. The material should expose repeatable execution of the known method without silently turning the task into new-method learning.",
-            },
-            {
-              key: "d",
-              label: "Mix familiar and changed forms in the same set so the Specialist can test structure and transfer at once.",
-              feedback: "Required Structure and Variation Control answer different questions. Mixing them makes the source of breakdown less clear.",
-            },
-            {
-              key: "e",
-              label: "Use one long complex problem instead of repeated comparable opportunities, because one problem can expose the entire sequence.",
-              feedback: "One complex opportunity gives less repeatability evidence and can add difficulty that the set is not meant to test.",
-            },
-          ]}
-          correctOptionKeys={["b","a"]}
-          truth="Structured Execution assumes the method is already known. Preparation should create repeated opportunities to observe whether the student can carry that method reliably under the intended set condition."
-        />
+
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Before the Session: What to Prepare</h2>
@@ -313,6 +259,35 @@ export default function ResponseConditioningStructuredExecution() {
           </div>
         </Card>
 
+        <DeepDiveTeachingInteraction
+          prompt="You are preparing a Required Structure set for a method the student already recognises. Which material is best?"
+          options={[
+            { key: "a", label: "Problems with enough working steps to make the student's method order visible, without introducing a new method or difficulty variable.", feedback: "Yes. Required Structure needs repeated opportunities to observe the known method, not new-method learning or transfer." },
+            {
+              key: "c",
+              label: "A new method from the same topic, because successful execution would prove the student can generalise structure.",
+              feedback: "A new method changes the prerequisite. The Specialist would no longer know whether a breakdown came from recognition or execution.",
+            },
+            {
+              key: "b",
+              label: "Several comparable problems that all require the same known method, so the sequence can be observed more than once.",
+              feedback: "Yes. The material should expose repeatable execution of the known method without silently turning the task into new-method learning.",
+            },
+            {
+              key: "d",
+              label: "Mix familiar and changed forms in the same set so the Specialist can test structure and transfer at once.",
+              feedback: "Required Structure and Variation Control answer different questions. Mixing them makes the source of breakdown less clear.",
+            },
+            {
+              key: "e",
+              label: "Use one long complex problem instead of repeated comparable opportunities, because one problem can expose the entire sequence.",
+              feedback: "One complex opportunity gives less repeatability evidence and can add difficulty that the set is not meant to test.",
+            },
+          ]}
+          correctOptionKeys={["b","a"]}
+          truth="Structured Execution assumes the method is already known. Preparation should create repeated opportunities to observe whether the student can carry that method reliably under the intended set condition."
+        />
+
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Run the Drill: Set by Set</h2>
           <p className="text-muted-foreground">
@@ -320,11 +295,11 @@ export default function ResponseConditioningStructuredExecution() {
           </p>
         </Card>
 
-        {trainingSchema.sets.map((set, setIndex) => {
+        {trainingSchema.sets.flatMap((set, setIndex) => {
           const execution = STRUCTURED_SET_EXECUTION[set.setId];
           const repPurposes = STRUCTURED_REP_PURPOSES[set.setId] || [];
 
-          return (
+          const setCard = (
             <Card key={set.setId} className="p-6 space-y-5">
               <div>
                 <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
@@ -375,6 +350,43 @@ export default function ResponseConditioningStructuredExecution() {
               </div>
             </Card>
           );
+
+          if (set.setId !== "structured_execution.required_structure") {
+            return [setCard];
+          }
+
+          return [
+            setCard,
+                    <DeepDiveTeachingInteraction
+                      key="structured-execution-required-structure-check"
+                  prompt="A student reaches the correct answer but skips two required steps and cannot explain how they moved between them. What does the result show?"
+                  options={[
+                    {
+                      key: "a",
+                      label: "Structured Execution is strong enough, because the correct outcome proves the missing steps were mentally understood.",
+                      feedback: "The missing structure cannot be inferred from the correct answer. RI needs the execution chain to be observable and repeatable.",
+                    },
+                    {
+                      key: "b",
+                      label: "The correct result proves the outcome, not that the student can reliably execute the required sequence.",
+                      feedback: "Yes. This phase asks whether the known method can be carried in order, not whether one answer happened to land correctly.",
+                    },
+                    {
+                      key: "c",
+                      label: "Return to Clarity, because skipped steps mean the method is no longer understood.",
+                      feedback: "Skipped execution does not automatically prove a recognition failure. RI preserves earlier supported layers unless the evidence actually contradicts them.",
+                    },
+                    {
+                      key: "d",
+                      label: "Treat the skipped steps as an arithmetic detail and keep Structured Execution strong because the outcome was correct.",
+                      feedback: "The phase is about carrying the method structure visibly and repeatably. Missing required steps are not repaired by the final answer.",
+                    },
+                    { key: "e", label: "The answer can be correct while the required execution chain is still unproven because the skipped steps were never shown.", feedback: "Yes. Outcome correctness cannot replace observable, repeatable structure." },
+                  ]}
+                  correctOptionKeys={["b","e"]}
+                  truth="Structured Execution requires visible, repeatable method use. A correct answer cannot substitute for evidence that the student can carry the known structure independently."
+            />
+          ];
         })}
 
         <DeepDiveTeachingInteraction
