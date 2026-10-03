@@ -92,7 +92,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
               <li>Clarity must not be replaced by difficulty.</li>
               <li>Structured Execution must not be replaced by difficulty.</li>
               <li>Difficulty is introduced because Controlled Discomfort is the correct active load.</li>
-              <li>Topic movement remains system-owned after the evidence is submitted.</li>
+              <li>RI-OS decides topic movement after the evidence is submitted.</li>
             </ul>
           </Card>
 
@@ -102,7 +102,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
               {
                 key: "a",
                 label: "Four correct answers unlock Boss Battles.",
-                feedback: "Correct-answer volume is not the authority for changing the active phase or pressure condition.",
+                feedback: "Correct-answer volume does not decide whether the active phase or pressure condition should change.",
               },
               {
                 key: "b",
@@ -184,7 +184,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
               uncertainty into a worked demonstration or method walkthrough.
             </p>
             <p className="font-semibold">
-              First-step-only is a specific set contract. It is not the universal rule for every Boss Battle.
+              First-step-only is a rule for a specific set. It is not the universal rule for every Boss Battle.
             </p>
           </Card>
 
