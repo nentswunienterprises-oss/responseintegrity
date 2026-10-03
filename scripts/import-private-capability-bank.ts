@@ -9,6 +9,7 @@ import {
 } from "../shared/capabilityBankCoverage";
 import { getRequiredCapabilityEvidenceCells } from "../shared/capabilityBlueprint";
 import { buildCapabilityCriticalBoundaryRequirements } from "../shared/capabilityCriticalCoverage";
+import { assertCapabilityOptionParity } from "../shared/capabilityOptionParity";
 
 const optionSchema = z.object({
   key: z.string().trim().min(1),
@@ -420,6 +421,10 @@ function validateAssessment(assessment: ParsedAssessment) {
     }
   }
 
+  const optionParity = assertCapabilityOptionParity(
+    assessment.assessmentKey,
+    assessment.items,
+  );
   const blueprintCoverage = validateCapabilityAssessmentAgainstBlueprint(validationShape(assessment));
   const criticalBoundaryRequirements = buildCapabilityCriticalBoundaryRequirements(assessment.assessmentKey);
 
