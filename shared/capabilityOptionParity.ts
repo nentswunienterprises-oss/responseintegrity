@@ -1,5 +1,6 @@
 export interface CapabilityOptionParityItem {
   key: string;
+  prompt?: string;
   kind: "single_choice" | "multi_select" | "sequence";
   options: Array<{ key: string; label: string }>;
   correctOptionKeys: string[];
@@ -21,6 +22,11 @@ export interface CapabilityOptionParitySummary {
   reusedAcceptedTruths: Array<{
     label: string;
     itemKeys: string[];
+  }>;
+  indirectOptionCopy: Array<{
+    itemKey: string;
+    optionKey: string;
+    label: string;
   }>;
 }
 
@@ -75,6 +81,16 @@ function acceptedPairLooksDuplicative(labels: string[]) {
   return sharedRun >= 5 && sharedRun / shorter >= 0.35;
 }
 
+const INDIRECT_OPTION_PATTERNS = [
+  /\bThat can seem reasonable\b/i,
+  /^What matters is that\b/i,
+  /^The key is that\b/i,
+] as const;
+
+function hasIndirectOptionCopy(label: string) {
+  return INDIRECT_OPTION_PATTERNS.some((pattern) => pattern.test(label));
+}
+
 export function analyzeCapabilityOptionParity(
   items: CapabilityOptionParityItem[],
 ): CapabilityOptionParitySummary {
@@ -86,6 +102,7 @@ export function analyzeCapabilityOptionParity(
   const nearDuplicateAcceptedPairKeys: string[] = [];
   const acceptedKeyCounts: Record<string, number> = {};
   const acceptedLabelItems = new Map<string, { label: string; itemKeys: string[] }>();
+  const indirectOptionCopy: CapabilityOptionParitySummary["indirectOptionCopy"] = [];
 
   for (const item of items) {
     if (
@@ -95,6 +112,16 @@ export function analyzeCapabilityOptionParity(
       item.correctOptionKeys.length > 2
     ) {
       continue;
+    }
+
+    for (const option of item.options) {
+      if (hasIndirectOptionCopy(option.label)) {
+        indirectOptionCopy.push({
+          itemKey: item.key,
+          optionKey: option.key,
+          label: option.label,
+        });
+      }
     }
 
     const acceptedKeys = new Set(item.correctOptionKeys);
@@ -175,6 +202,7 @@ export function analyzeCapabilityOptionParity(
     nearDuplicateAcceptedPairs,
     nearDuplicateAcceptedPairKeys,
     reusedAcceptedTruths,
+    indirectOptionCopy,
   };
 }
 
@@ -213,6 +241,19 @@ export function assertCapabilityOptionParity(
       .join("; ");
     throw new Error(
       `Capability assessment ${assessmentKey} reuses long accepted-answer truths across multiple prompts. Silent alternate-valid answers must answer the specific prompt rather than act as reusable RI doctrine. ${examples}`,
+    );
+  }
+
+  if (summary.indirectOptionCopy.length > 0) {
+    const examples = summary.indirectOptionCopy
+      .slice(0, 5)
+      .map(
+        (entry) =>
+          `${entry.itemKey}/${entry.optionKey}: "${entry.label}"`,
+      )
+      .join("; ");
+    throw new Error(
+      `Capability assessment ${assessmentKey} contains answer-option copy that comments on the option instead of answering the prompt directly. Remove meta phrasing such as "That can seem reasonable", "What matters is that", and "The key is that". ${examples}`,
     );
   }
 
