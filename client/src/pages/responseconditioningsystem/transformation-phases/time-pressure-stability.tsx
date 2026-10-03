@@ -247,6 +247,12 @@ export default function ResponseConditioningTimePressureStability() {
           <p className="font-semibold">
             Think of the baseline as one clean snapshot of how this student normally executes this topic before time pressure is added, not a collection of their best-ever speeds.
           </p>
+          <p className="text-muted-foreground">
+            Then, when the student later enters Time Pressure Stability, RI-OS uses that established baseline to set the timing condition for the timed work. The earlier no-pressure snapshot becomes the reference point for adding time pressure.
+          </p>
+          <p className="font-medium">
+            So the timer is not guessed and it is not borrowed from another student. It is built from how this student already demonstrated clean execution on this topic, then used to test whether that same response can stay intact when time pressure is added.
+          </p>
         </Card>
 
         <Card className="p-6 space-y-5">
