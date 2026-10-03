@@ -18,6 +18,10 @@ export interface CapabilityOptionParitySummary {
   maxAcceptedKeyRate: number;
   nearDuplicateAcceptedPairs: number;
   nearDuplicateAcceptedPairKeys: string[];
+  reusedAcceptedTruths: Array<{
+    label: string;
+    itemKeys: string[];
+  }>;
 }
 
 export const CAPABILITY_OPTION_PARITY_MAX_SHORTCUT_RATE = 0.25;
@@ -81,6 +85,7 @@ export function analyzeCapabilityOptionParity(
   let nearDuplicateAcceptedPairs = 0;
   const nearDuplicateAcceptedPairKeys: string[] = [];
   const acceptedKeyCounts: Record<string, number> = {};
+  const acceptedLabelItems = new Map<string, { label: string; itemKeys: string[] }>();
 
   for (const item of items) {
     if (
@@ -122,6 +127,21 @@ export function analyzeCapabilityOptionParity(
       acceptedKeyCounts[key] = (acceptedKeyCounts[key] || 0) + 1;
     }
 
+    for (const option of acceptedOptions) {
+      const normalizedLabel = option.label.replace(/\s+/g, " ").trim();
+      const wordCount = normalizedWords(normalizedLabel).length;
+      if (wordCount < 8) continue;
+      const lookupKey = normalizedLabel.toLowerCase();
+      const existing = acceptedLabelItems.get(lookupKey) || {
+        label: normalizedLabel,
+        itemKeys: [],
+      };
+      if (!existing.itemKeys.includes(item.key)) {
+        existing.itemKeys.push(item.key);
+      }
+      acceptedLabelItems.set(lookupKey, existing);
+    }
+
     const shortestAccepted = Math.min(...acceptedLengths);
     const longestAccepted = Math.max(...acceptedLengths);
     const longestDistractor = Math.max(...distractorLengths);
@@ -137,6 +157,9 @@ export function analyzeCapabilityOptionParity(
 
   const divisor = eligibleSingleChoiceItems || 1;
   const maxAcceptedKeyCount = Math.max(0, ...Object.values(acceptedKeyCounts));
+  const reusedAcceptedTruths = [...acceptedLabelItems.values()]
+    .filter((entry) => entry.itemKeys.length >= 3)
+    .sort((a, b) => b.itemKeys.length - a.itemKeys.length);
 
   return {
     eligibleSingleChoiceItems,
@@ -151,6 +174,7 @@ export function analyzeCapabilityOptionParity(
     maxAcceptedKeyRate: maxAcceptedKeyCount / divisor,
     nearDuplicateAcceptedPairs,
     nearDuplicateAcceptedPairKeys,
+    reusedAcceptedTruths,
   };
 }
 
@@ -176,6 +200,19 @@ export function assertCapabilityOptionParity(
   if (summary.nearDuplicateAcceptedPairs > 0) {
     throw new Error(
       `Capability assessment ${assessmentKey} contains ${summary.nearDuplicateAcceptedPairs} silent alternate-valid item${summary.nearDuplicateAcceptedPairs === 1 ? "" : "s"} where the two accepted answers substantially repeat the same wording: ${summary.nearDuplicateAcceptedPairKeys.join(", ")}. Re-author the second accepted answer as a genuinely distinct valid truth.`,
+    );
+  }
+
+  if (summary.reusedAcceptedTruths.length > 0) {
+    const examples = summary.reusedAcceptedTruths
+      .slice(0, 5)
+      .map(
+        (entry) =>
+          `"${entry.label}" reused by ${entry.itemKeys.join(", ")}`,
+      )
+      .join("; ");
+    throw new Error(
+      `Capability assessment ${assessmentKey} reuses long accepted-answer truths across multiple prompts. Silent alternate-valid answers must answer the specific prompt rather than act as reusable RI doctrine. ${examples}`,
     );
   }
 
