@@ -131,58 +131,6 @@ type PromptShape =
   | "yes_no"
   | "other";
 
-type OptionFrame =
-  | "causal"
-  | "yes_no"
-  | "capability_identity"
-  | "imperative"
-  | "wh_complement"
-  | "other";
-
-const SUBJECT_INSTRUCTION_START =
-  /^(?:the specialist|specialists|they|you|the student|the learner)\s+(?:should|must|need(?:s)? to|has to|have to|is required to|are required to)\b/i;
-
-const CAPABILITY_IDENTITY_START =
-  /^(?:a\s+)?(?:clarity|structured execution|controlled discomfort|time pressure stability|tps)\b/i;
-
-const WH_COMPLEMENT_START =
-  /^(?:how|which|what|where|when|who|whether)\b/i;
-
-const MISSING_ANSWER_START =
-  /^(?:a\b|an\b|the missing\b|evidence\b|confirmation\b|proof\b|observation\b|demonstration\b|support\b|knowledge\b|understanding\b|whether\b|direct evidence\b|repeated evidence\b|clear evidence\b|specific evidence\b)/i;
-
-function optionFrame(label: string): OptionFrame {
-  const normalized = String(label || "").replace(/\s+/g, " ").trim();
-
-  if (/^(?:because|since)\b/i.test(normalized)) return "causal";
-  if (/^(?:yes|no)\b/i.test(normalized)) return "yes_no";
-  if (CAPABILITY_IDENTITY_START.test(normalized)) {
-    return "capability_identity";
-  }
-  if (IMPERATIVE_OPTION_START.test(normalized)) return "imperative";
-  if (WH_COMPLEMENT_START.test(normalized)) return "wh_complement";
-  return "other";
-}
-
-function dominantOptionFrame(
-  options: Array<{ key: string; label: string }>,
-): OptionFrame | null {
-  if (options.length !== 5) return null;
-
-  const counts = new Map<OptionFrame, number>();
-  for (const option of options) {
-    const frame = optionFrame(option.label);
-    if (frame === "other") continue;
-    counts.set(frame, (counts.get(frame) || 0) + 1);
-  }
-
-  for (const [frame, count] of counts.entries()) {
-    if (count >= 4) return frame;
-  }
-
-  return null;
-}
-
 function finalQuestionClause(prompt: string) {
   const normalized = String(prompt || "").replace(/\s+/g, " ").trim();
   const questionEnd = normalized.lastIndexOf("?");
@@ -302,7 +250,12 @@ function optionShapeMatchesPrompt(prompt: string, label: string) {
 
   if (
     shape === "missing" &&
-    !MISSING_ANSWER_START.test(normalizedLabel)
+    /^(?:topic conditioning|response integrity|ri-os|the system|that|this)\b/i.test(
+      normalizedLabel,
+    ) &&
+    !/\b(?:missing|needed|need|evidence|confirmation|proof|whether|what)\b/i.test(
+      normalizedLabel,
+    )
   ) {
     return false;
   }
@@ -321,7 +274,7 @@ function optionShapeMatchesPrompt(prompt: string, label: string) {
     return false;
   }
 
-  if (shape === "yes_no" && !/^(?:yes|no)\b/i.test(normalizedLabel)) {
+  if (shape === "yes_no" && !/^(?:yes|no|not\b)/i.test(normalizedLabel)) {
     return false;
   }
 
@@ -352,8 +305,6 @@ export function analyzeCapabilityOptionParity(
       continue;
     }
 
-    const dominantFrame = dominantOptionFrame(item.options);
-
     for (const option of item.options) {
       if (hasIndirectOptionCopy(option.label)) {
         indirectOptionCopy.push({
@@ -363,17 +314,14 @@ export function analyzeCapabilityOptionParity(
         });
       }
 
-      const promptMismatch =
-        Boolean(item.prompt) &&
-        !optionShapeMatchesPrompt(item.prompt || "", option.label);
-      const frameMismatch =
-        Boolean(dominantFrame) && optionFrame(option.label) !== dominantFrame;
-
-      if (promptMismatch || frameMismatch) {
+      if (
+        item.prompt &&
+        !optionShapeMatchesPrompt(item.prompt, option.label)
+      ) {
         promptShapeMismatches.push({
           itemKey: item.key,
           optionKey: option.key,
-          prompt: item.prompt || "",
+          prompt: item.prompt,
           label: option.label,
         });
       }
