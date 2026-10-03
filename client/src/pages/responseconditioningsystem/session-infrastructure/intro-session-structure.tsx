@@ -343,7 +343,7 @@ export default function ResponseConditioningIntroSessionStructure() {
           <h2 className="text-2xl font-bold">How Starting Stability Is Derived</h2>
           <p className="text-muted-foreground">
             Diagnosis stability is derived from the decisive clean behavior inside the entry
-            phase. The Specialist records what happened; the evidence model derives the
+            phase. The Specialist records what happened; RI-OS determines the
             starting stability.
           </p>
           <div className="grid gap-3 md:grid-cols-2">
