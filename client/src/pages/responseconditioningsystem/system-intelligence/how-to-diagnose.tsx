@@ -184,7 +184,7 @@ export default function ResponseConditioningHowToDiagnose() {
             },
             {
               key: "c",
-              label: "Run them only if the Specialist wants more confidence in the decision.",
+              label: "Yes. Keep running them if the Specialist wants more confidence in the decision.",
               feedback: "Personal reassurance cannot justify adding extra evidence after RI-OS has already resolved the question.",
             },
               {
