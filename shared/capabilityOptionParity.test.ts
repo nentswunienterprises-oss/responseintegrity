@@ -170,3 +170,29 @@ test("meta commentary inside answer options fails closed", () => {
     /comments on the option instead of answering the prompt directly/i,
   );
 });
+
+
+test("answer grammatical shape must fit the prompt", () => {
+  const items = balancedItems();
+  items[0] = {
+    ...items[0],
+    prompt:
+      "A difficult timed response breaks badly. What prevents the system from calling it a TPS problem immediately?",
+    options: items[0].options.map((option) =>
+      option.key === "b"
+        ? {
+            ...option,
+            label:
+              "Strip away later pressures until RI-OS finds the earliest response layer that no longer holds cleanly.",
+          }
+        : option,
+    ),
+  };
+
+  const summary = analyzeCapabilityOptionParity(items);
+  assert.equal(summary.promptShapeMismatches.length, 1);
+  assert.throws(
+    () => assertCapabilityOptionParity("prompt-shape", items),
+    /grammatical shape does not answer the prompt/i,
+  );
+});
