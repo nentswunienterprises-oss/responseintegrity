@@ -396,19 +396,6 @@ export default function ResponseConditioningTimePressureStability() {
         </Card>
 
         <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">No Baseline Means No Invented Timer</h2>
-          <p className="text-muted-foreground">
-            A missing valid baseline means the topic is not ready for timed TPS work. If a topic needs Time Pressure Stability but
-            does not have a valid current Timer Contract, ordinary timed work does not begin with a guessed value.
-          </p>
-          <p className="font-semibold">
-            RI-OS requires the clean baseline work needed before timed TPS work can begin.
-          </p>
-        </Card>
-
-
-
-        <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">What the Timer Contract Looks Like</h2>
           <p className="text-muted-foreground">
             Go back to the earlier example where the student's most recent clean Independent Execution set was 45 seconds, 47 seconds, and 46 seconds.
@@ -437,6 +424,21 @@ export default function ResponseConditioningTimePressureStability() {
             If the baseline came from Diagnosis instead of Structured Execution Training, the contract is built the same way. The source can differ; the Timer Contract rule does not.
           </p>
         </Card>
+
+        <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">No Baseline Means No Invented Timer</h2>
+          <p className="text-muted-foreground">
+            A missing valid baseline means the topic is not ready for timed TPS work. If a topic needs Time Pressure Stability but
+            does not have a valid current Timer Contract, ordinary timed work does not begin with a guessed value.
+          </p>
+          <p className="font-semibold">
+            RI-OS requires the clean baseline work needed before timed TPS work can begin.
+          </p>
+        </Card>
+
+
+
+
 
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Time Pressure Training Recipe</h2>
