@@ -225,13 +225,9 @@ export default function ResponseConditioningStructuredExecution() {
               label: "Treat the skipped steps as an arithmetic detail and keep Structured Execution strong because the outcome was correct.",
               feedback: "The phase is about carrying the method structure visibly and repeatably. Missing required steps are not repaired by the final answer.",
             },
-            {
-              key: "e",
-              label: "Move to Variation Control because skipping steps shows the familiar form is already fluent enough.",
-              feedback: "Variation Control requires the base execution structure to be reliable first; skipped required steps do not prove that.",
-            },
+            { key: "e", label: "The answer can be correct while the required execution chain is still unproven because the skipped steps were never shown.", feedback: "Yes. Outcome correctness cannot replace observable, repeatable structure." },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","e"]}
           truth="Structured Execution requires visible, repeatable method use. A correct answer cannot substitute for evidence that the student can carry the known structure independently."
         />
 
@@ -256,11 +252,7 @@ export default function ResponseConditioningStructuredExecution() {
         <DeepDiveTeachingInteraction
           prompt="You are preparing a Required Structure set for a method the student already recognises. Which material is best?"
           options={[
-            {
-              key: "a",
-              label: "One identical form repeated until the student can complete it without hesitation.",
-              feedback: "That can produce fluency with one surface pattern without showing whether the execution structure itself is reliable.",
-            },
+            { key: "a", label: "Use several comparable problems built on the already-known method so the Specialist can see whether the sequence repeats reliably.", feedback: "Yes. Required Structure needs repeated opportunities to observe the known method, not new-method learning or transfer." },
             {
               key: "c",
               label: "A new method from the same topic, because successful execution would prove the student can generalise structure.",
@@ -282,7 +274,7 @@ export default function ResponseConditioningStructuredExecution() {
               feedback: "One complex opportunity gives less repeatability evidence and can add difficulty that the set is not meant to test.",
             },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","a"]}
           truth="Structured Execution assumes the method is already known. Preparation should create repeated opportunities to observe whether the student can carry that method reliably under the intended set condition."
         />
 
@@ -408,13 +400,9 @@ export default function ResponseConditioningStructuredExecution() {
               label: "Say nothing but nod if the step is correct, because non-verbal confirmation does not count as help.",
               feedback: "A nod still resolves uncertainty for the student and can direct the next action. No-help includes non-verbal confirmation.",
             },
-            {
-              key: "e",
-              label: "End the rep and reteach immediately, then record only the corrected execution.",
-              feedback: "The support request and stalled response are already evidence. Teaching before recording would overwrite the condition that produced them.",
-            },
+            { key: "e", label: "Leave the uncertainty unresolved and observe what the student does next; answering the support request would change the no-help condition.", feedback: "Yes. The request itself is evidence, and resolving it would supply direction." },
           ]}
-          correctOptionKey="c"
+          correctOptionKeys={["c","e"]}
           truth="No-help execution must remain no-help when the student becomes uncertain. The request for support is evidence; answering it would change what the rep measures."
         />
 

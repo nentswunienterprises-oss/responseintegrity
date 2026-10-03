@@ -229,7 +229,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
                 feedback: "That converts the rep into teaching and then gives a second chance on exposed material.",
               },
             ]}
-            correctOptionKey="b"
+            correctOptionKeys={["b","d"]}
             truth="Boss Battle difficulty does not define support. The active Controlled Discomfort set does."
           />
 
@@ -290,7 +290,7 @@ export default function ResponseConditioningHowToUseBossBattles() {
                 feedback: "Any performance-dependent softening changes the intended difficulty condition and chases success.",
               },
             ]}
-            correctOptionKey="b"
+            correctOptionKeys={["b","d"]}
             truth="Controlled Discomfort is valuable because valid difficulty reveals the response. The Specialist does not chase a preferred result."
           />
 

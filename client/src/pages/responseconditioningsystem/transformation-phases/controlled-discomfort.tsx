@@ -225,13 +225,9 @@ export default function ResponseConditioningControlledDiscomfort() {
               label: "Keep the difficulty but add extra hints so the student can remain inside the problem without feeling stranded.",
               feedback: "Extra help changes the support rule. Controlled Discomfort requires the assigned difficulty and the assigned support condition together.",
             },
-            {
-              key: "e",
-              label: "Replace it with an equally hard changed-form problem so the challenge stays high while the frustration resets.",
-              feedback: "Changing form introduces a Structured Execution transfer variable. Controlled Discomfort should keep the underlying form comparable.",
-            },
+            { key: "e", label: "Keep the appropriate challenge in place and judge whether the student can regain and maintain a controlled response without changing the condition.", feedback: "Yes. Discomfort is the condition being trained; the Specialist protects the accessible difficulty rather than removing it." },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","e"]}
           truth="Controlled Discomfort keeps difficulty present when the task is still appropriate and accessible. The Specialist neither removes the challenge nor adds a later pressure variable just because discomfort appears."
         />
 
@@ -276,13 +272,9 @@ export default function ResponseConditioningControlledDiscomfort() {
               label: "A changed-form problem using the same method but no extra difficulty, because unfamiliarity creates the right discomfort.",
               feedback: "Changed form belongs to Variation Control. Controlled Discomfort should load difficulty while preserving same-form comparability.",
             },
-            {
-              key: "e",
-              label: "A normal same-form problem with no support, because removing help is enough to create Controlled Discomfort.",
-              feedback: "No support by itself does not create the difficult problem load this phase is meant to condition.",
-            },
+            { key: "e", label: "Choose a problem that is mathematically accessible to the student but difficult enough to create genuine uncertainty.", feedback: "Yes. Controlled Discomfort isolates response to accessible difficulty, not new content, variation, or time pressure." },
           ]}
-          correctOptionKey="a"
+          correctOptionKeys={["a","e"]}
           truth="The difficulty must be controlled: challenging enough to create uncertainty, but still within the student's existing mathematical capability so the response under challenge can be observed cleanly."
         />
 
@@ -402,13 +394,9 @@ export default function ResponseConditioningControlledDiscomfort() {
               label: "Give encouragement that clearly confirms the student's proposed first step, because encouragement is not method support.",
               feedback: "Confirmation can still steer the response. The Specialist must stay inside the exact support the set permits.",
             },
-            {
-              key: "e",
-              label: "Move back to Controlled Entry because asking for help shows the student needs a more supportive set.",
-              feedback: "A support request is evidence inside the current condition, not automatic permission for the Specialist to change the set.",
-            },
+            { key: "e", label: "Stay inside the set's exact support limit; do not expand help because the student asks, and do not make the rep harsher than assigned.", feedback: "Yes. The Specialist preserves the registered support boundary in both directions." },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","e"]}
           truth="No Rescue means no support beyond the set's defined boundary. The Specialist neither expands the support because the student is uncomfortable nor makes the condition harsher than RI assigned."
         />
 

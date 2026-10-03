@@ -151,7 +151,7 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
                 feedback: "A preferred emotional outcome cannot replace the active support rule.",
               },
             ]}
-            correctOptionKey="b"
+            correctOptionKeys={["b","d"]}
             truth="The Specialist regulates themselves so the registered condition remains intact."
           />
 

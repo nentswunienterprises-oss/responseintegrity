@@ -119,7 +119,7 @@ export default function ResponseConditioningWhatNotToDo() {
                 feedback: "That manufactures recognition evidence and rewrites the original condition.",
               },
             ]}
-            correctOptionKey="b"
+            correctOptionKeys={["b","d"]}
             truth="RI-OS decides when the evidence is complete. The Specialist owns truthful observation."
           />
 

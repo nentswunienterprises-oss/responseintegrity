@@ -290,13 +290,9 @@ export default function ResponseConditioningTimePressureStability() {
               label: "Use the elapsed time but subtract the 20 seconds manually before the baseline is stored.",
               feedback: "Manually changing the time cannot recreate the student's true execution interval. The timer must freeze at actual completion.",
             },
-            {
-              key: "e",
-              label: "Average the extra administration time across the three baseline reps before taking the median.",
-              feedback: "Consistent administration delay is still not student execution and must not enter the baseline.",
-            },
+            { key: "e", label: "No. Freeze Student Finished when the mathematics ends; observation administration belongs after the execution interval.", feedback: "Yes. The Timer Contract must be built from the student's execution time, not post-response administration." },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","e"]}
           truth="Measurement integrity depends on freezing the real student execution boundary before observation administration."
         />
 
@@ -360,13 +356,9 @@ export default function ResponseConditioningTimePressureStability() {
               label: "Count it as stable if the guess was a mathematically valid shortcut, because TPS only cares that the response stays functional.",
               feedback: "TPS pressures an already-trained response. Abandoning the trained method under urgency is itself instability.",
             },
-            {
-              key: "e",
-              label: "Keep the timing as valid but mark structure as not observed because the student reached the answer too quickly to inspect it.",
-              feedback: "The method loss was observed: the student guessed instead of preserving the known response. It should not be converted into missing evidence.",
-            },
+            { key: "e", label: "The response is not stable under time: the deadline was met, but urgency displaced the trained method.", feedback: "Yes. TPS requires the trained method to survive urgency, not merely a correct answer before timeout." },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","e"]}
           truth="The timer is an added constraint on an already-trained response. A fast or correct answer does not count as stability when urgency causes the method structure to disappear."
         />
 
@@ -411,13 +403,9 @@ export default function ResponseConditioningTimePressureStability() {
               label: "Yes, if the same prompts are used consistently across all three baseline reps.",
               feedback: "Consistent contamination is still contamination. The baseline must represent independent execution, not standardized prompting.",
             },
-            {
-              key: "e",
-              label: "Use only the unsupported portions of the rep and subtract the time spent responding to the prompts.",
-              feedback: "The execution interval cannot be reconstructed into an independent rep by manually removing supported moments.",
-            },
+            { key: "e", label: "No. Supported timing cannot establish the later pressure baseline, even if the stopwatch reading itself is precise.", feedback: "Yes. A valid timing sample must come from the required clean independent condition." },
           ]}
-          correctOptionKey="c"
+          correctOptionKeys={["c","e"]}
           truth="Timing evidence can only set the pressure baseline when the underlying execution condition stayed independent and clean. A precise stopwatch reading cannot repair a supported or contaminated response."
         />
 
@@ -643,13 +631,9 @@ export default function ResponseConditioningTimePressureStability() {
               label: "Add the same amount of extra time to this and all future reps so the condition stays comparable.",
               feedback: "Repeating the same unallowed change does not restore the correct timed condition.",
             },
-            {
-              key: "e",
-              label: "Stop the timer and finish the problem untimed inside the same rep so the Specialist can separate knowledge from pressure.",
-              feedback: "That turns one timed evidence opportunity into two different conditions. The timed response should be preserved first; any later lower-pressure check is a separate system-directed action.",
-            },
+            { key: "e", label: "Keep the assigned timer unchanged and preserve the structure loss as the student's response under that urgency.", feedback: "Yes. Loosening or pausing the timer would rescue performance by changing the evidence condition." },
           ]}
-          correctOptionKey="c"
+          correctOptionKeys={["c","e"]}
           truth="The timer RI-OS set is part of the evidence condition. Once the rep begins, the Specialist does not loosen or pause it to rescue performance; they preserve the condition and record what happens."
         />
 

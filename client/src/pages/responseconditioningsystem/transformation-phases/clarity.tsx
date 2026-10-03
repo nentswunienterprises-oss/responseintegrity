@@ -185,11 +185,7 @@ export default function ResponseConditioningClarity() {
               label: "Stop the solve and return to identifying the type, method and reason without supplying them.",
               feedback: "Yes. Identification isolates the mental map before execution, so the Specialist has to preserve recognition without solving.",
             },
-            {
-              key: "a",
-              label: "Use the correct solve as stronger evidence, because it demonstrates more than simple recognition.",
-              feedback: "Doing more is not stronger evidence when the extra action removes the condition being tested. The solve hides whether recognition existed before execution.",
-            },
+            { key: "a", label: "Return the rep to recognition: have the student identify the problem type, method and reason before solving, without supplying those answers.", feedback: "Yes. Identification must show recognition before execution; the Specialist can redirect the task without giving the recognition answer." },
             {
               key: "c",
               label: "Allow only the first few steps, then ask the student to explain the method before finishing.",
@@ -206,7 +202,7 @@ export default function ResponseConditioningClarity() {
               feedback: "A student drifting into a later task does not let the Specialist skip the condition RI assigned.",
             },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","a"]}
           truth="Identification is a recognition condition, not a shortened solve. The student must identify what they are looking at, the method and the reason before execution begins."
         />
 
@@ -233,11 +229,7 @@ export default function ResponseConditioningClarity() {
         <DeepDiveTeachingInteraction
           prompt="You are choosing problems for a recognition-focused Clarity set. Which set gives the cleanest evidence?"
           options={[
-            {
-              key: "a",
-              label: "Several identical-looking examples, so the student can settle into the pattern before being checked.",
-              feedback: "Repeated surface sameness can turn recognition into pattern memory. The set should reveal the mental map, not familiarity with one presentation.",
-            },
+            { key: "a", label: "Use problems that share the same underlying structure but vary enough in presentation that the student has to recognise the form.", feedback: "Yes. Surface variation prevents pattern matching while keeping difficulty from becoming the active variable." },
             {
               key: "b",
               label: "Very unfamiliar, high-difficulty examples, so guessing and memorisation are less likely.",
@@ -259,7 +251,7 @@ export default function ResponseConditioningClarity() {
               feedback: "That combines extra difficulty with support. The set would no longer isolate clean recognition.",
             },
           ]}
-          correctOptionKey="c"
+          correctOptionKeys={["c","a"]}
           truth="Clarity material should expose the student's mental map cleanly. It should avoid both rote surface repetition and unnecessary difficulty that would introduce a different breakdown."
         />
 
@@ -357,11 +349,7 @@ export default function ResponseConditioningClarity() {
         <DeepDiveTeachingInteraction
           prompt="The Specialist asks leading questions at each step. The student supplies every answer and finishes correctly. What evidence was actually produced?"
           options={[
-            {
-              key: "a",
-              label: "Independent evidence, because the student still produced each step.",
-              feedback: "Producing the words is not the same as generating the path. The leading questions materially carried the response.",
-            },
+            { key: "a", label: "Supported evidence: the student produced the steps, but the leading questions carried the direction of the response.", feedback: "Yes. The student can supply each step while the Specialist still provides the execution path." },
             {
               key: "b",
               label: "Supported evidence; the Specialist's questions supplied directional structure.",
@@ -383,7 +371,7 @@ export default function ResponseConditioningClarity() {
               feedback: "Leading questions can shape recognition and execution. Their functional effect must stay visible in the evidence.",
             },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","a"]}
           truth="Support is defined by what it does to the task, not only by whether the Specialist gives the literal answer. Direction that carries the student must remain visible in the evidence."
         />
 

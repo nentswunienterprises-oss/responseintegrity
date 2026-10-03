@@ -202,13 +202,9 @@ export default function ResponseConditioningTopicConditioning() {
               label: "Structured Execution Low, because it is the least assumptive middle state.",
               feedback: "Any pre-placement still assumes a state before this topic has produced the evidence needed to support it.",
             },
-            {
-              key: "e",
-              label: "Use the strongest nearby topic as the provisional state until this topic produces enough evidence.",
-              feedback: "Topic state does not transfer from another arena. The neutral baseline exists precisely because this topic has no reliable starting signal.",
-            },
+            { key: "e", label: "Start with the neutral independent opportunity rather than assigning a phase in advance; let that topic's evidence determine where RI checks next.", feedback: "Yes. A new topic without a trustworthy signal begins from clean evidence, not a guessed state." },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","e"]}
           truth="When the signal is uncertain, RI-OS starts neutral and lets the response reveal which earlier layer needs to be resolved."
         />
 
@@ -363,13 +359,9 @@ export default function ResponseConditioningTopicConditioning() {
               label: "Use 44 seconds for the first Fractions rep only, then replace it with the Fractions timing that appears.",
               feedback: "The first rep would still be running under invented topic pressure. Temporary use does not make borrowed timing authoritative.",
             },
-            {
-              key: "e",
-              label: "Use 44 seconds if the Algebra and Fractions problems are both normal difficulty and same form.",
-              feedback: "Comparable problem design does not make execution speed interchangeable across topics. The baseline remains student-and-topic specific.",
-            },
+            { key: "e", label: "No. A Timer Contract is local to the student-topic pair, so Fractions must establish its own clean baseline.", feedback: "Yes. Timing authority cannot be borrowed from another topic." },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","e"]}
           truth="Every active topic keeps its own evidence history, including its own individualized baseline when TPS is relevant."
         />
 
@@ -415,13 +407,9 @@ export default function ResponseConditioningTopicConditioning() {
               label: "Keep Fractions in Clarity but inherit High Maintenance stability from Algebra because stability reflects the student more generally.",
               feedback: "Stability is attached to the active topic state. Strength in another topic cannot upgrade Fractions evidence.",
             },
-            {
-              key: "e",
-              label: "Start Fractions in Structured Execution Medium because Algebra already proves the student can execute independently.",
-              feedback: "Independent execution in one topic does not prove the same response layer in another. Fractions begins from its own supported state.",
-            },
+            { key: "e", label: "Use Fractions' own Clarity Medium state; Algebra can remain context but cannot set Fractions' phase or stability.", feedback: "Yes. Topic state is local to the active topic." },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","e"]}
           truth="Topic state is local to the topic. Strength in Algebra can be useful context, but Fractions begins from the phase and stability supported by Fractions evidence."
         />
 
@@ -588,13 +576,9 @@ export default function ResponseConditioningTopicConditioning() {
               label: "Keep the same phase rules but require fewer valid reps because the evidence is arriving at a higher frequency.",
               feedback: "Frequency changes calendar spacing, not the amount or quality of evidence required for movement.",
             },
-            {
-              key: "e",
-              label: "Increase difficulty and time pressure sooner because a higher package cadence should accelerate the transformation sequence.",
-              feedback: "More sessions do not allow earlier pressure. Phase conditions still change only when RI-OS has the required evidence.",
-            },
+            { key: "e", label: "Only the calendar speed changes: the same evidence gates remain, but four sessions per week create valid opportunities more quickly.", feedback: "Yes. Cadence changes how quickly opportunities arrive, not what progression requires." },
           ]}
-          correctOptionKey="b"
+          correctOptionKeys={["b","e"]}
           truth="Package cadence and educational state are separate. More sessions create more opportunities to produce evidence, but they do not alter the evidence required for movement."
         />
 
@@ -639,13 +623,9 @@ export default function ResponseConditioningTopicConditioning() {
               label: "Treat the whole response as a topic failure and restart Diagnosis because the final answer is wrong.",
               feedback: "The final answer cannot erase directly supported recognition and execution behavior. RI keeps the earlier supported layers intact.",
             },
-            {
-              key: "e",
-              label: "Treat it as Time Pressure Stability because arithmetic errors usually appear when execution is rushed.",
-              feedback: "No time-pressure condition is established by the prompt. RI does not assign a later phase from an assumed cause.",
-            },
+            { key: "e", label: "Keep the recognition and ordered execution that were actually supported, then locate the first behavior that the arithmetic slip makes unsupported.", feedback: "Yes. A wrong final answer does not erase earlier response layers that were directly observed to hold." },
           ]}
-          correctOptionKey="c"
+          correctOptionKeys={["c","e"]}
           truth="Topic Conditioning preserves supported earlier layers and locates the earliest unsupported response behavior. A wrong final answer does not automatically mean Clarity or Structured Execution failed."
         />
 
