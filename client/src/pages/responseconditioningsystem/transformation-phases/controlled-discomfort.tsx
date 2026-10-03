@@ -89,7 +89,7 @@ const progressionBands = [
   "Low: run the Controlled Discomfort drill. Keep the difficulty controlled and do not add timers yet.",
   "Medium: remain in Controlled Discomfort and strengthen stability under repeated difficult exposure.",
   "High: remain in Controlled Discomfort and prove repeatability. High does not phase-progress directly.",
-  "High Maintenance: qualifying evidence can progress the topic into Time Pressure Stability at Low. The engine owns that decision.",
+  "High Maintenance: the required clean evidence can progress the topic into Time Pressure Stability at Low. RI-OS decides that from the evidence.",
 ];
 
 const constraintLabel = (set: EvidenceSetDefinition) => {
@@ -198,7 +198,7 @@ export default function ResponseConditioningControlledDiscomfort() {
             <li>Calmness or persistence cannot turn a wrong method, abandoned structure, or random execution into strong evidence.</li>
             <li>When something goes wrong, locate the earliest visible break: mental map, execution, or response under difficulty.</li>
             <li>A local calculation error can change the final answer without proving an inherited layer collapsed.</li>
-            <li>Record the actual break without manually changing the student's phase; RI-OS owns movement and any verification route.</li>
+            <li>Record the actual break without manually changing the student's phase; RI-OS decides movement and whether an earlier layer needs checking.</li>
           </ul>
         </Card>
 
@@ -385,12 +385,12 @@ export default function ResponseConditioningControlledDiscomfort() {
             {
               key: "a",
               label: "Give the full first step and then withdraw, because the rep only prohibits support after the student has started.",
-              feedback: "No Rescue has a defined support boundary. Expanding it whenever the student asks would turn rescue-seeking into a route to extra help.",
+              feedback: "No Rescue has a defined support limit. Expanding it whenever the student asks would make asking for rescue a way to get extra help.",
             },
             {
               key: "b",
               label: "Use only the support the set explicitly allows, then hold the boundary and observe what the student does next.",
-              feedback: "Yes. The point is not absolute silence; it is preserving the exact support contract so dependence and recovery remain observable.",
+              feedback: "Yes. The point is not absolute silence; it is preserving the exact support rule so dependence and recovery remain observable.",
             },
             {
               key: "c",
@@ -405,7 +405,7 @@ export default function ResponseConditioningControlledDiscomfort() {
             {
               key: "e",
               label: "Move back to Controlled Entry because asking for help shows the student needs a more supportive set.",
-              feedback: "A support request is evidence inside the current condition, not automatic authority for the Specialist to change the set.",
+              feedback: "A support request is evidence inside the current condition, not automatic permission for the Specialist to change the set.",
             },
           ]}
           correctOptionKey="b"
@@ -510,7 +510,7 @@ export default function ResponseConditioningControlledDiscomfort() {
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression Logic</h2>
           <p className="text-muted-foreground">
-            Controlled Discomfort does not progress because the Specialist thinks the student is brave. The engine advances only from qualifying evidence and stability state.
+            Controlled Discomfort does not progress because the Specialist thinks the student is brave. RI-OS advances only when the required clean evidence and stability state support it.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {progressionBands.map((band) => (
