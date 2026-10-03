@@ -363,6 +363,150 @@ test("target questions reject instruction-shaped answers", () => {
 });
 
 
+test("reason prompts reject adjacent truths that do not answer why", () => {
+  const items = balancedItems();
+  items[0] = {
+    ...items[0],
+    prompt:
+      "Why is another Structured Execution drill still appropriate?",
+    options: [
+      {
+        key: "a",
+        label:
+          "Because the current evidence still supports Structured Execution.",
+      },
+      {
+        key: "b",
+        label:
+          "If the recorded evidence and displayed state conflict, that should be investigated.",
+      },
+      {
+        key: "c",
+        label:
+          "Because every topic must spend a minimum number of sessions in each phase.",
+      },
+      {
+        key: "d",
+        label:
+          "Because Controlled Discomfort begins only when the student feels ready.",
+      },
+      {
+        key: "e",
+        label:
+          "Because the Specialist should follow whatever phase the platform displays.",
+      },
+    ],
+    correctOptionKeys: ["a"],
+  };
+
+  const summary = analyzeCapabilityOptionParity(items);
+  assert.ok(
+    summary.promptShapeMismatches.some(
+      (entry) => entry.itemKey === "item-0" && entry.optionKey === "b",
+    ),
+  );
+  assert.throws(
+    () => assertCapabilityOptionParity("reason-directness", items),
+    /grammatical shape does not answer the prompt/i,
+  );
+});
+
+test("missing-information prompts reject conclusion statements", () => {
+  const items = balancedItems();
+  items[0] = {
+    ...items[0],
+    prompt:
+      "The student seems more confident now. What is still missing from that conclusion?",
+    options: [
+      {
+        key: "a",
+        label:
+          "Evidence showing that the response is holding reliably under the current phase conditions.",
+      },
+      {
+        key: "b",
+        label:
+          "Topic Conditioning keeps the map tied to observed response rather than impression.",
+      },
+      {
+        key: "c",
+        label:
+          "Confirmation that the student feels more confident in another topic.",
+      },
+      {
+        key: "d",
+        label:
+          "A school assessment showing improved marks.",
+      },
+      {
+        key: "e",
+        label:
+          "Evidence that the Specialist used less support overall.",
+      },
+    ],
+    correctOptionKeys: ["a"],
+  };
+
+  const summary = analyzeCapabilityOptionParity(items);
+  assert.ok(
+    summary.promptShapeMismatches.some(
+      (entry) => entry.itemKey === "item-0" && entry.optionKey === "b",
+    ),
+  );
+  assert.throws(
+    () => assertCapabilityOptionParity("missing-directness", items),
+    /grammatical shape does not answer the prompt/i,
+  );
+});
+
+test("capability identity prompts reject doctrine statements", () => {
+  const items = balancedItems();
+  items[0] = {
+    ...items[0],
+    prompt:
+      "The student knows the method but repeatedly waits for help to begin. Which capability is failing?",
+    options: [
+      {
+        key: "a",
+        label:
+          "Structured Execution.",
+      },
+      {
+        key: "b",
+        label:
+          "Topic Conditioning should locate the earliest demonstrated break rather than collapse every struggle into Clarity.",
+      },
+      {
+        key: "c",
+        label:
+          "Clarity.",
+      },
+      {
+        key: "d",
+        label:
+          "Controlled Discomfort.",
+      },
+      {
+        key: "e",
+        label:
+          "Time Pressure Stability.",
+      },
+    ],
+    correctOptionKeys: ["a"],
+  };
+
+  const summary = analyzeCapabilityOptionParity(items);
+  assert.ok(
+    summary.promptShapeMismatches.some(
+      (entry) => entry.itemKey === "item-0" && entry.optionKey === "b",
+    ),
+  );
+  assert.throws(
+    () => assertCapabilityOptionParity("capability-identity", items),
+    /grammatical shape does not answer the prompt/i,
+  );
+});
+
 test("source-referential answer copy fails closed", () => {
   const items = balancedItems();
   items[0] = {
