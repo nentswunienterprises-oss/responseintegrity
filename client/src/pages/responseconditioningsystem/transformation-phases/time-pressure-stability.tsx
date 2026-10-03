@@ -198,7 +198,7 @@ export default function ResponseConditioningTimePressureStability() {
             <li>A fast or correct final answer does not excuse lost method structure, random execution, or renewed rescue dependence.</li>
             <li>If urgency exposes an earlier-layer break, record the layer that actually broke instead of calling every failure a time problem.</li>
             <li>An isolated calculation error does not automatically prove the inherited layers failed.</li>
-            <li>The Specialist records the evidence. RI-OS decides topic-state movement and whether an earlier prerequisite needs checking.</li>
+            <li>The Specialist records the evidence. RI-OS decides whether the topic state changes and whether an earlier prerequisite needs checking.</li>
           </ul>
         </Card>
 
@@ -531,7 +531,7 @@ export default function ResponseConditioningTimePressureStability() {
             {
               key: "c",
               label: "Record the technical failure and use a fresh pre-prepared equivalent reserve under the same intended time condition.",
-              feedback: "Yes. The technical failure remains visible in the record, and the fresh pre-prepared equivalent reserve fills the unresolved evidence slot without erasing the failed attempt.",
+              feedback: "Yes. The technical failure remains visible in the record, and the fresh pre-prepared equivalent reserve supplies the missing timing evidence without erasing the failed attempt.",
             },
             {
               key: "a",
