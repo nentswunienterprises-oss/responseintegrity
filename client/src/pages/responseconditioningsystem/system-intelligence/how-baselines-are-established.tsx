@@ -40,7 +40,7 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
         <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Baseline does not mean one thing</h2>
           <p className="text-muted-foreground">
-            RI-OS uses a neutral independent starting condition to orient uncertain topic entry, and it also uses clean independent execution timing to establish individualized Time Pressure Stability authority.
+            RI-OS uses a neutral independent starting condition when topic entry is uncertain, and it also uses clean independent execution timing to build the individualized baseline needed for Time Pressure Stability.
           </p>
           <p className="font-semibold">
             Both are baselines because they remove unnecessary pressure. They answer different questions.
@@ -75,17 +75,17 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Primary route: Structured Execution Training</h2>
+          <h2 className="text-2xl font-bold">Usual source: Structured Execution Training</h2>
           <p className="text-muted-foreground">
-            The canonical source is the Independent Execution set inside Structured Execution.
+            The usual source is the Independent Execution set inside Structured Execution.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>Exactly three canonical Independent Execution opportunities form one candidate set.</li>
+            <li>Exactly three clean Independent Execution opportunities form one complete set.</li>
             <li>The tasks are normal difficulty and same form.</li>
             <li>There is no time pressure or visible countdown.</li>
             <li>No help may supply the method, first move, or execution structure.</li>
-            <li>Each rep must preserve clean supported independent execution and technically valid timing.</li>
-            <li>The most recent complete qualifying set in the current Structured Execution conditioning epoch is the active source.</li>
+            <li>Each rep must show clean independent execution, and RI-OS must record the timing correctly.</li>
+            <li>RI-OS uses the most recent complete clean set from the current stretch of Structured Execution Training.</li>
           </ul>
           <p className="text-muted-foreground">
             RI-OS does not cherry-pick the three fastest or strongest reps across different sets.
@@ -101,7 +101,7 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
             Begin Rep or Begin Opportunity, student executes, Student Finished, then observation and admin continue afterward.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>The start timestamp is system-owned.</li>
+            <li>RI-OS records the start time automatically.</li>
             <li>Student Finished freezes the end of mathematical execution.</li>
             <li>Post-rep observation time is not added to the student's elapsed time.</li>
             <li>The running duration must not become a pacing cue.</li>
@@ -143,7 +143,7 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
         />
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Second route: Diagnosis can establish the same authority</h2>
+          <h2 className="text-2xl font-bold">Diagnosis can establish the same baseline</h2>
           <p className="text-muted-foreground">
             A topic can legitimately be placed above Structured Execution without first completing Structured Execution Training. RI-OS therefore allows eligible Diagnosis opportunities to establish the timing reference.
           </p>
@@ -162,7 +162,7 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">How the final baseline becomes a Timer Contract</h2>
           <p className="text-muted-foreground">
-            RI-OS takes the median of the three qualifying elapsed times and freezes it into a versioned Timer Contract for that student and topic.
+            RI-OS takes the median of the three valid elapsed times and saves it as the Timer Contract for that student and topic.
           </p>
           <div className="grid gap-3 md:grid-cols-3">
             <div className="rounded-lg border p-4">
@@ -184,12 +184,12 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Missing timing authority is a readiness issue</h2>
+          <h2 className="text-2xl font-bold">When the required baseline is missing</h2>
           <p className="text-muted-foreground">
-            If an above-Structured-Execution topic does not have valid timing authority, ordinary TPS work does not invent a timer.
+            If a topic above Structured Execution does not have a valid baseline, ordinary TPS work does not invent a timer.
           </p>
           <p className="font-semibold">
-            The system routes targeted evidence-native re-diagnosis to establish the missing baseline under legitimate independent conditions.
+            RI-OS requires targeted re-diagnosis to establish the missing baseline under clean independent conditions.
           </p>
         </Card>
 
@@ -199,21 +199,21 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
             {
               key: "a",
               label: "Use 50 seconds so the session can continue.",
-              feedback: "A remembered estimate is not timing authority.",
+              feedback: "A remembered estimate is not a valid baseline.",
             },
             {
               key: "b",
-              label: "Use a generic one-minute timer until enough data accumulates.",
-              feedback: "Generic timing would create a pressure condition that is not individualized or evidence-authorized.",
+              label: "Use a generic one-minute timer until enough evidence is collected.",
+              feedback: "Generic timing would create a pressure condition that is not individualized or supported by evidence.",
             },
             {
               key: "c",
-              label: "Follow the readiness route so evidence-native independent timing establishes the missing authority before TPS timing is used.",
-              feedback: "Yes. Missing authority is resolved through the system, not by Specialist invention.",
+              label: "Establish the missing baseline through clean independent timing before TPS timing is used.",
+              feedback: "Yes. RI-OS establishes the missing baseline from evidence; the Specialist does not invent it.",
             },
               {
                 key: "d",
-                label: "Do not run authoritative TPS timing until the missing student-topic timing authority has been established.",
+                label: "Do not run TPS timing until the missing student-topic baseline has been established.",
                 feedback: "Yes. TPS cannot use invented or borrowed urgency.",
               },
               {
@@ -223,16 +223,16 @@ export default function ResponseConditioningHowBaselinesAreEstablished() {
               },
           ]}
           correctOptionKey="c"
-          truth="No valid baseline means no invented timer. RI-OS must establish timing authority first."
+          truth="No valid baseline means no invented timer. RI-OS must establish the baseline first."
         />
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Technical failure is not student failure</h2>
           <p className="text-muted-foreground">
-            If the timer, runtime, or device itself fails, the attempt remains durable technical-invalid lineage and the evidence slot stays unresolved.
+            If the timer, runtime, or device itself fails, RI-OS keeps a record of the technical failure and that evidence slot remains unresolved.
           </p>
           <p className="text-muted-foreground">
-            A fresh pre-prepared equivalent reserve may fill that unresolved slot under the same condition and lineage.
+            A fresh pre-prepared equivalent reserve may fill that unresolved slot under the same condition, while the failed attempt remains in the record.
           </p>
           <p className="font-semibold">
             Timeout, panic, wrong method, slow work, incomplete work, or weak performance are student evidence. They never authorize a replacement attempt.
