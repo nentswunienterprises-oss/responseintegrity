@@ -408,6 +408,36 @@ export default function ResponseConditioningTimePressureStability() {
 
 
 
+        <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">What the Timer Contract Looks Like</h2>
+          <p className="text-muted-foreground">
+            Go back to the earlier example where the student's most recent clean Independent Execution set was 45 seconds, 47 seconds, and 46 seconds.
+          </p>
+          <p className="text-muted-foreground">
+            RI-OS takes the middle value, 46 seconds, as the baseline for that student and topic.
+          </p>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-lg border p-4">
+              <p className="font-semibold">Structure Under Timer</p>
+              <p className="mt-1 text-sm text-muted-foreground">46 seconds.</p>
+            </div>
+            <div className="rounded-lg border p-4">
+              <p className="font-semibold">Repeated Timed Execution</p>
+              <p className="mt-1 text-sm text-muted-foreground">46 seconds again.</p>
+            </div>
+            <div className="rounded-lg border p-4">
+              <p className="font-semibold">Full Constraint</p>
+              <p className="mt-1 text-sm text-muted-foreground">39 seconds, which is 85% of 46 seconds rounded by RI-OS.</p>
+            </div>
+          </div>
+          <p className="font-semibold">
+            That is the Timer Contract: first prove the student's normal clean execution time, then use that same personal baseline to create the defined levels of time pressure.
+          </p>
+          <p className="text-muted-foreground">
+            If the baseline came from Diagnosis instead of Structured Execution Training, the contract is built the same way. The source can differ; the Timer Contract rule does not.
+          </p>
+        </Card>
+
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">The Time Pressure Training Recipe</h2>
           <p className="text-muted-foreground">
