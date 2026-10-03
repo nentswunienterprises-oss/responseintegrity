@@ -89,7 +89,7 @@ const progressionBands = [
   "Low: run the Structured Execution drill. No Boss Battles, no timer, and no premature pressure escalation.",
   "Medium: remain in Structured Execution and strengthen repeatable method use across multiple problems.",
   "High: remain in Structured Execution and prove repeatability. High does not phase-progress directly.",
-  "High Maintenance: qualifying evidence can progress the topic into Controlled Discomfort at Low. The engine owns that decision.",
+  "High Maintenance: the required clean evidence can progress the topic into Controlled Discomfort at Low. RI-OS decides that from the evidence.",
 ];
 
 const constraintLabel = (set: EvidenceSetDefinition) => {
@@ -198,7 +198,7 @@ export default function ResponseConditioningStructuredExecution() {
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li>If Vocabulary, Method, ordered steps, or Reason visibly breaks, record that break instead of letting a correct answer hide it.</li>
             <li>An isolated calculation error does not automatically mean the mental map broke; locate where the error actually occurred.</li>
-            <li>The Specialist records the evidence. RI-OS owns topic-state movement and any prerequisite verification route.</li>
+            <li>The Specialist records the evidence. RI-OS decides topic-state movement and whether an earlier prerequisite needs checking.</li>
           </ul>
         </Card>
 
@@ -245,7 +245,7 @@ export default function ResponseConditioningStructuredExecution() {
               {trainingSchema.sets.map((set) => `${set.setName} (${set.reps})`).join(", ")}
             </p>
             <p className="text-sm text-muted-foreground mt-2">
-              {requiredTrainingProblems} required opportunities in the live training drill. Every set produces decision-eligible execution evidence.
+              {requiredTrainingProblems} required opportunities in the live training drill. Every set produces execution evidence RI-OS can use.
             </p>
           </div>
           <p className="font-medium">
@@ -520,8 +520,7 @@ export default function ResponseConditioningStructuredExecution() {
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression Logic</h2>
           <p className="text-muted-foreground">
-            Structured Execution does not progress because the Specialist feels satisfied. The engine advances only from qualifying
-            qualifying evidence and stability state.
+            Structured Execution does not progress because the Specialist feels satisfied. RI-OS advances only when the required clean evidence and stability state support it.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {progressionBands.map((band) => (
