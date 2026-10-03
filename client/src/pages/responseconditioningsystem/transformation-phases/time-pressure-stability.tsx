@@ -89,7 +89,7 @@ const progressionBands = [
   "Low: run the Time Pressure Stability drill. Start with the defined timer condition and protect method before speed.",
   "Medium: remain in Time Pressure Stability and build consistency across repeated timed attempts.",
   "High: remain in Time Pressure Stability and prove repeatability. High does not finish the phase directly.",
-  "High Maintenance: qualifying evidence keeps this topic at final-phase High Maintenance. Maintenance remains topic-specific; other topics keep their own independently derived states.",
+  "High Maintenance: the required clean evidence keeps this topic at final-phase High Maintenance. Maintenance remains topic-specific; other topics keep their own evidence-based states.",
 ];
 
 const constraintLabel = (set: EvidenceSetDefinition) => {
@@ -198,7 +198,7 @@ export default function ResponseConditioningTimePressureStability() {
             <li>A fast or correct final answer does not excuse lost method structure, random execution, or renewed rescue dependence.</li>
             <li>If urgency exposes an earlier-layer break, record the layer that actually broke instead of calling every failure a time problem.</li>
             <li>An isolated calculation error does not automatically prove the inherited layers failed.</li>
-            <li>The Specialist records the evidence. RI-OS owns topic-state movement and any prerequisite verification route.</li>
+            <li>The Specialist records the evidence. RI-OS decides topic-state movement and whether an earlier prerequisite needs checking.</li>
           </ul>
         </Card>
 
@@ -209,7 +209,7 @@ export default function ResponseConditioningTimePressureStability() {
             RI-OS first establishes a clean no-pressure execution baseline for this student and this topic.
           </p>
           <p className="font-semibold">
-            The timer is individualized evidence authority, not a pacing preference.
+            The timer is the topic-specific time standard supported by the student's evidence, not a pacing preference.
           </p>
         </Card>
 
@@ -234,10 +234,10 @@ export default function ResponseConditioningTimePressureStability() {
         </Card>
 
         <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">Diagnosis Can Establish the Same Timing Authority</h2>
+          <h2 className="text-2xl font-bold">Diagnosis Can Establish the Same Baseline</h2>
           <p className="text-muted-foreground">
             A topic can legitimately be placed above Structured Execution without first completing Structured Execution
-            Training. Diagnosis therefore has an equivalent route using normal, same-form, no-pressure independent
+            Training. Diagnosis can therefore establish the same baseline using normal, same-form, no-pressure independent
             execution opportunities.
           </p>
           <p className="text-muted-foreground">
@@ -288,7 +288,7 @@ export default function ResponseConditioningTimePressureStability() {
             {
               key: "d",
               label: "Use the elapsed time but subtract the 20 seconds manually before the baseline is stored.",
-              feedback: "Manual correction cannot recreate the system-owned execution boundary. The timer must freeze at actual completion.",
+              feedback: "Manually changing the time cannot recreate the student's true execution interval. The timer must freeze at actual completion.",
             },
             {
               key: "e",
@@ -303,8 +303,8 @@ export default function ResponseConditioningTimePressureStability() {
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">How Three Timings Become the Timer Contract</h2>
           <p className="text-muted-foreground">
-            RI-OS takes the median of the three qualifying elapsed times and freezes that value as the individualized
-            baseline for the current student, topic, and valid source lineage.
+            RI-OS takes the median of the three valid elapsed times and saves that value as the individualized
+            baseline for the current student and topic, while preserving where those timings came from.
           </p>
           <div className="grid gap-3 md:grid-cols-3">
             <div className="rounded-lg border p-4">
@@ -321,7 +321,7 @@ export default function ResponseConditioningTimePressureStability() {
             </div>
           </div>
           <p className="font-semibold">
-            The resulting Timer Contract is system-owned. The Specialist cannot enter, estimate, round, pause, restart,
+            RI-OS sets the resulting Timer Contract. The Specialist cannot enter, estimate, round, pause, restart,
             loosen, tighten, or replace it.
           </p>
         </Card>
@@ -329,11 +329,11 @@ export default function ResponseConditioningTimePressureStability() {
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">No Baseline Means No Invented Timer</h2>
           <p className="text-muted-foreground">
-            Missing timing authority is an explicit readiness condition. If a topic needs Time Pressure Stability but
+            A missing valid baseline means the topic is not ready for timed TPS work. If a topic needs Time Pressure Stability but
             does not have a valid current Timer Contract, ordinary timed work does not begin with a guessed value.
           </p>
           <p className="font-semibold">
-            RI-OS routes the evidence-native baseline work required to establish timing authority first.
+            RI-OS requires the clean baseline work needed before timed TPS work can begin.
           </p>
         </Card>
 
@@ -531,7 +531,7 @@ export default function ResponseConditioningTimePressureStability() {
             {
               key: "c",
               label: "Record the technical failure and use a fresh pre-prepared equivalent reserve under the same intended time condition.",
-              feedback: "Yes. Technical lineage remains visible, and the fresh pre-prepared equivalent reserve fills the unresolved evidence slot without erasing the failed attempt.",
+              feedback: "Yes. The technical failure remains visible in the record, and the fresh pre-prepared equivalent reserve fills the unresolved evidence slot without erasing the failed attempt.",
             },
             {
               key: "a",
@@ -555,7 +555,7 @@ export default function ResponseConditioningTimePressureStability() {
             },
           ]}
           correctOptionKey="c"
-          truth="Objective timer failure invalidates the timed condition, not the student's response. Preserve the failed attempt in lineage and fill the unresolved slot only with a fresh pre-prepared equivalent reserve under the same Timer Contract."
+          truth="Objective timer failure invalidates the timed condition, not the student's response. Keep the failed attempt in the record and fill the unresolved slot only with a fresh pre-prepared equivalent reserve under the same Timer Contract."
         />
 
         <Card className="p-6 space-y-5">
@@ -594,7 +594,7 @@ export default function ResponseConditioningTimePressureStability() {
             {
               key: "d",
               label: "No technical replacement is unlocked because the timing condition itself did not fail.",
-              feedback: "Replacement authority comes from objective failure of the timing condition, not weak learner performance.",
+              feedback: "A replacement is allowed only when the timing condition objectively fails, not because the learner performed weakly.",
             },
             {
               key: "e",
@@ -641,7 +641,7 @@ export default function ResponseConditioningTimePressureStability() {
             {
               key: "d",
               label: "Add the same amount of extra time to this and all future reps so the condition stays comparable.",
-              feedback: "Making the same unauthorized change repeatedly does not restore the system-owned timing condition.",
+              feedback: "Repeating the same unallowed change does not restore the correct timed condition.",
             },
             {
               key: "e",
@@ -656,7 +656,7 @@ export default function ResponseConditioningTimePressureStability() {
         <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
           <h2 className="text-2xl font-bold">Progression Logic</h2>
           <p className="text-muted-foreground">
-            Time Pressure Stability does not complete because the student was fast once. The engine relies on qualifying evidence and stability state.
+            Time Pressure Stability does not complete because the student was fast once. RI-OS relies on the required clean evidence and stability state.
           </p>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {progressionBands.map((band) => (
