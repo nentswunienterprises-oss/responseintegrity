@@ -356,7 +356,7 @@ export default function ResponseConditioningTopicConditioning() {
             },
             {
               key: "d",
-              label: "Use 44 seconds for the first Fractions rep only, then replace it with the Fractions timing that appears.",
+              label: "Yes. Use 44 seconds for the first Fractions rep only, then replace it with the Fractions timing that appears.",
               feedback: "The first rep would still be running under invented topic pressure. Temporary use does not make borrowed timing authoritative.",
             },
             { key: "e", label: "No. A Timer Contract is local to the student-topic pair, so Fractions must establish its own clean baseline.", feedback: "Yes. Timing authority cannot be borrowed from another topic." },
