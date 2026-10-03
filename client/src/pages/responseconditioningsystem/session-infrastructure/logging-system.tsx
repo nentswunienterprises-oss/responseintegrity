@@ -76,7 +76,7 @@ export default function ResponseConditioningLoggingSystem() {
             Logging is the evidence-capture layer between what the student actually did and what the system is allowed to conclude.
           </p>
           <p className="font-semibold">
-            Active condition → concrete observed behavior → evidence eligibility → dimension state → system decision → next action
+            Active condition → concrete observed behavior → what the evidence can prove → current state → system decision → next action
           </p>
           <p className="text-sm text-muted-foreground">
             The Specialist owns truthful observation. RI-OS interprets the recorded evidence and decides what happens next.
@@ -135,7 +135,7 @@ export default function ResponseConditioningLoggingSystem() {
                 Diagnosis stops when the evidence question is resolved, not after a fixed rep count. Present the problem RI-OS selects, record concrete behavior and evidence status, record Specialist support separately, submit, then follow the next evidence question.
               </p>
               <p className="text-sm font-medium">
-                The Specialist does not choose the phase, starting stability, next probe, or system decision.
+                The Specialist does not choose the phase, starting stability, next check, or system decision.
               </p>
             </div>
 
@@ -179,7 +179,7 @@ export default function ResponseConditioningLoggingSystem() {
  <Card className="p-6 space-y-4 ">
           <h2 className="text-2xl font-bold">Source Integrity</h2>
           <p className="text-muted-foreground">
-            Submitted evidence becomes part of the institutional record. A false observation can create a false capability claim, false state movement, a wrong Handover decision, or a misleading downstream report.
+            Submitted evidence becomes part of the institutional record. A false observation can create a false capability claim, move the topic incorrectly, create a wrong Handover decision, or produce a misleading downstream report.
           </p>
           <ul className="space-y-2 pl-5 list-disc text-muted-foreground">
             {sourceIntegrityRules.map((rule) => <li key={rule}>{rule}</li>)}
