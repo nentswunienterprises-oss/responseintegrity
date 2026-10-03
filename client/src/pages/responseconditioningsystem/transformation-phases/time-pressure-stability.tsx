@@ -234,6 +234,22 @@ export default function ResponseConditioningTimePressureStability() {
         </Card>
 
         <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">A Casual Example</h2>
+          <p className="text-muted-foreground">
+            Imagine a student is in Structured Execution doing three normal Independent Execution problems. There is no visible timer and nobody is telling them to hurry.
+          </p>
+          <p className="text-muted-foreground">
+            They finish the three clean reps in 48 seconds, 52 seconds, and 50 seconds. Those timings came from one complete clean set, so RI-OS can use that set as the source for the student's TPS baseline.
+          </p>
+          <p className="text-muted-foreground">
+            Later, the student completes another full clean Independent Execution set in 45 seconds, 47 seconds, and 46 seconds. RI-OS uses that newer complete set. It does not pick 45 seconds from the newer set and combine it with the fastest timings from the older set.
+          </p>
+          <p className="font-semibold">
+            Think of the baseline as one clean snapshot of how this student normally executes this topic before time pressure is added, not a collection of their best-ever speeds.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">Diagnosis Can Establish the Same Baseline</h2>
           <p className="text-muted-foreground">
             A topic can legitimately be placed above Structured Execution without first completing Structured Execution
