@@ -27,6 +27,10 @@ export interface CapabilityQuestionConfirmationPublic {
   selectedOptionKeys: string[];
   correct: boolean;
   feedback: string;
+  selectedCorrectOptionKeys?: string[];
+  selectedWrongOptionKeys?: string[];
+  missedCorrectOptionKeys?: string[];
+  requiredSelectionCount?: number;
   confirmedAt: unknown;
 }
 
@@ -165,6 +169,30 @@ function projectStoredAttempt(row: any) {
   };
 }
 
+function resolveMultiSelectSelectionState(
+  question: CapabilityQuestionDefinition,
+  selectedOptionKeys: string[],
+) {
+  if (question.kind !== "multi_select") {
+    return {
+      selectedCorrectOptionKeys: [] as string[],
+      selectedWrongOptionKeys: [] as string[],
+      missedCorrectOptionKeys: [] as string[],
+      requiredSelectionCount: 0,
+    };
+  }
+
+  const selected = new Set(selectedOptionKeys);
+  const correctKeys = new Set(question.correctOptionKeys);
+
+  return {
+    selectedCorrectOptionKeys: selectedOptionKeys.filter((key) => correctKeys.has(key)),
+    selectedWrongOptionKeys: selectedOptionKeys.filter((key) => !correctKeys.has(key)),
+    missedCorrectOptionKeys: question.correctOptionKeys.filter((key) => !selected.has(key)),
+    requiredSelectionCount: question.correctOptionKeys.length,
+  };
+}
+
 function resolveQuestionFeedback(
   question: CapabilityQuestionDefinition,
   selectedOptionKeys: string[],
@@ -187,21 +215,26 @@ function resolveQuestionFeedback(
   }
 
   if (question.kind === "multi_select") {
-    const selected = new Set(selectedOptionKeys);
-    const correctKeys = new Set(question.correctOptionKeys);
-    const selectedWrongKeys = selectedOptionKeys.filter((key) => !correctKeys.has(key));
-    const missedCorrectKeys = question.correctOptionKeys.filter((key) => !selected.has(key));
+    const state = resolveMultiSelectSelectionState(question, selectedOptionKeys);
+    const summary =
+      [
+        `${state.selectedCorrectOptionKeys.length} of ${state.requiredSelectionCount} required selections identified`,
+        state.selectedWrongOptionKeys.length > 0
+          ? `${state.selectedWrongOptionKeys.length} selection${state.selectedWrongOptionKeys.length === 1 ? "" : "s"} does not apply`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · ") + ".";
+
     const feedback = [
-      ...selectedWrongKeys.map((key) => question.optionFeedback?.[key]),
-      ...missedCorrectKeys.map((key) => question.optionFeedback?.[key]),
+      ...state.selectedWrongOptionKeys.map((key) => question.optionFeedback?.[key]),
+      ...state.missedCorrectOptionKeys.map((key) => question.optionFeedback?.[key]),
     ]
       .filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
       .map((value) => cleanCapabilityDisplayCopy(value.trim()))
       .filter((value, index, values) => values.indexOf(value) === index);
 
-    if (feedback.length > 0) {
-      return feedback.join(" ");
-    }
+    return [summary, ...feedback].filter(Boolean).join(" ");
   }
 
   return "That answer does not match the condition being tested. Continue to see the Truth.";
@@ -428,6 +461,10 @@ export function confirmCapabilityQuestionStateless(input: {
     input.selectedOptionKeys,
     oneQuestionResult.correct,
   );
+  const multiSelectState = resolveMultiSelectSelectionState(
+    question,
+    input.selectedOptionKeys,
+  );
   const confirmedAt = Date.now();
 
   const receipt = createCapabilityQuestionReceipt({
@@ -450,6 +487,7 @@ export function confirmCapabilityQuestionStateless(input: {
       selectedOptionKeys: input.selectedOptionKeys,
       correct: oneQuestionResult.correct,
       feedback,
+      ...(question.kind === "multi_select" ? multiSelectState : {}),
       truth: cleanCapabilityDisplayCopy(question.explanation),
       confirmedAt: new Date(confirmedAt).toISOString(),
     },
