@@ -28,13 +28,13 @@ const drillTypes = [
     authority:
       "Each phase has required sets, rep opportunities, purposes, and conditions. The Specialist runs that sequence as assigned and records what the student actually does.",
     boundary:
-      "Required exposure is not the same thing as evidence authority. Completing the drill does not force a stronger state.",
+      "Completing the required exposure is not the same as proving a stronger state. Finishing the drill does not force progress.",
   },
   {
     title: "Handover continuity opportunities",
     use: "Specialist reassignment",
     authority:
-      "The Response Evidence Model asks only for enough clean continuity evidence to hold the inherited state, make a bounded same-phase stability adjustment, or require targeted re-diagnosis.",
+      "RI-OS asks only for enough clean continuity evidence to keep the inherited state, adjust stability within the same phase, or require targeted re-diagnosis.",
     boundary:
       "The reserve problem bank is not a completion target. Handover is evidence-complete, not fixed-rep.",
   },
@@ -75,7 +75,7 @@ export default function ResponseConditioningDrillLibrary() {
         <Card className="p-6 space-y-4 border-2 border-primary/20 bg-primary/5">
           <h2 className="text-2xl font-bold">A Drill Is a Controlled Evidence Condition</h2>
           <p className="text-muted-foreground">
-            A drill is not a worksheet label and not something the Specialist chooses because it feels appropriate. The active session context and student-topic state determine which drill authority is allowed to run.
+            A drill is not a worksheet label and not something the Specialist chooses because it feels appropriate. The active session context and student-topic state determine which drill should run.
           </p>
           <p className="font-semibold">The Specialist prepares and executes the condition. The system owns drill selection where selection is system-authoritative.</p>
         </Card>
@@ -134,7 +134,7 @@ export default function ResponseConditioningDrillLibrary() {
             Progression adds a condition; it does not erase earlier capabilities. A breakdown under difficulty or time may expose an earlier Clarity or Structured Execution problem.
           </p>
           <p className="font-semibold">
-            Record the layer that actually broke. Do not manually move the topic backward. The system may verify the prerequisite or route to targeted evidence-complete re-diagnosis.
+            Record the layer that actually broke. Do not manually move the topic backward. RI-OS may check the prerequisite or require targeted re-diagnosis.
           </p>
         </Card>
 
