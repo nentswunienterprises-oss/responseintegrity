@@ -338,7 +338,7 @@ export default function ResponseConditioningTimePressureStability() {
           options={[
             {
               key: "b",
-              label: "Unstable under time, because urgency displaced the trained method despite the successful outcome.",
+              label: "The deadline was met, but the result does not prove TPS because the trained method collapsed under urgency.",
               feedback: "Yes. Time Pressure Stability requires the method to survive urgency; speed and correctness alone are not enough.",
             },
             {
@@ -356,7 +356,7 @@ export default function ResponseConditioningTimePressureStability() {
               label: "Count it as stable if the guess was a mathematically valid shortcut, because TPS only cares that the response stays functional.",
               feedback: "TPS pressures an already-trained response. Abandoning the trained method under urgency is itself instability.",
             },
-            { key: "e", label: "The response is not stable under time: the deadline was met, but urgency displaced the trained method.", feedback: "Yes. TPS requires the trained method to survive urgency, not merely a correct answer before timeout." },
+            { key: "e", label: "The rep provides direct evidence of structure instability under time, even though the guessed final answer happened to be correct.", feedback: "Yes. TPS requires the trained method to survive urgency, not merely a correct answer before timeout." },
           ]}
           correctOptionKeys={["b","e"]}
           truth="The timer is an added constraint on an already-trained response. A fast or correct answer does not count as stability when urgency causes the method structure to disappear."
@@ -623,7 +623,7 @@ export default function ResponseConditioningTimePressureStability() {
             },
             {
               key: "c",
-              label: "Preserve the assigned timer and record the structure loss as learner evidence under that condition.",
+              label: "Keep the assigned timer unchanged; do not extend, pause, or soften the Timer Contract because the student is struggling.",
               feedback: "Yes. The Specialist protects the timing contract rather than adjusting the condition to produce a cleaner-looking response.",
             },
             {
@@ -631,7 +631,7 @@ export default function ResponseConditioningTimePressureStability() {
               label: "Add the same amount of extra time to this and all future reps so the condition stays comparable.",
               feedback: "Repeating the same unallowed change does not restore the correct timed condition.",
             },
-            { key: "e", label: "Keep the assigned timer unchanged and preserve the structure loss as the student's response under that urgency.", feedback: "Yes. Loosening or pausing the timer would rescue performance by changing the evidence condition." },
+            { key: "e", label: "Record the structure loss and request for more time as separate response evidence from the rep rather than rescuing the timed condition.", feedback: "Yes. Loosening or pausing the timer would rescue performance by changing the evidence condition." },
           ]}
           correctOptionKeys={["c","e"]}
           truth="The timer RI-OS set is part of the evidence condition. Once the rep begins, the Specialist does not loosen or pause it to rescue performance; they preserve the condition and record what happens."
