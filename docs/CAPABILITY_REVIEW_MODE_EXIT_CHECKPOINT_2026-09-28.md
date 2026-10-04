@@ -188,7 +188,7 @@ All five are active with Review Mode off.
 
 Their approved Deep Dive learning flows are also frozen under the teach-before-test structure established during review.
 
-This closes Founder acceptance for the five Transformation Mastery banks, but does **not** close this broader Capability checkpoint. Transformation Retention / Delayed Retrieval remains Founder-approved and is active as v10 after a narrow answer-length parity correction. Transformation Interleaved Transfer is active as v11 in Founder Review Mode after option/feedback, grammar-directness and answer-length parity passes. Session Infrastructure remains separately governed by its own review status.
+This closes Founder acceptance for the five Transformation Mastery banks, but does **not** close this broader Capability checkpoint. Transformation Retention v10 and Transformation Interleaved Transfer v11 are now both Founder-approved and locked. Both cumulative banks are active in Proof with Review Mode off and have been promoted to The Hub with exact hash equality. Session Infrastructure remains separately governed by its own review status.
 
 Durable record: `docs/TRANSFORMATION_PHASES_FOUNDER_APPROVAL_CHECKPOINT_2026-10-04.md`.
 
@@ -204,9 +204,9 @@ Current v10 narrow-correction full content hash:
 
 `cf403ed87fd55343398cf77d21ffa31c`
 
-Before Review Mode exit, the remaining v9 review attempt was cleared so it cannot become lifecycle evidence. Proof now has Retrieval v10 active with Review Mode off and zero v10 review attempts/confirmations. Transfer v11 remains in Review Mode after its answer-length parity pass.
+Before Review Mode exit, the remaining v9 review attempt was cleared so it cannot become lifecycle evidence. Proof now has Retrieval v10 and Transfer v11 active with Review Mode off. Both current versions have zero review attempts/confirmations.
 
-Production has not yet received Retrieval. Promotion remains gated on Transfer approval so the cumulative pair can be promoted and verified together.
+Production now contains Retrieval v10 and Transfer v11. Both are active with Review Mode off, and Production hashes match Proof exactly.
 
 Durable record: `docs/TRANSFORMATION_CUMULATIVE_CAPABILITY_REVIEW_CHECKPOINT_2026-09-29.md`.
 
@@ -264,7 +264,42 @@ Final current-bank checks for both gates show:
 
 Production still contains no Retrieval or Transfer config.
 
-Founder acceptance remains open only for Transfer v11.
+Founder acceptance is complete for both cumulative Transformation gates.
+
+## Transformation cumulative Founder approval and Production promotion - 4 October 2026
+
+Transformation Application / Interleaved Transfer v11 completed interactive Founder Review and is approved.
+
+Final cumulative authorities:
+
+- Retrieval `transformation_phases_retrieval_v1` v10
+  - authority hash: `ac0bfcc5232eb414b6aa955e10fac21e`
+  - full content hash: `cf403ed87fd55343398cf77d21ffa31c`
+- Transfer `transformation_state_transfer_v1` v11
+  - authority hash: `44395571b335fd38706f923de3ae9327`
+  - full content hash: `272cc32a44436657352fdd42308ac12a`
+
+Proof closure:
+
+- both configs active;
+- Review Mode off for both;
+- zero review attempts/confirmations on the current versions.
+
+Production promotion:
+
+- both approved configs inserted transactionally into The Hub;
+- 25 active items per bank;
+- 24 single-choice + 1 multi-select per bank;
+- 16 critical-boundary items and 16 critical-fail items per bank;
+- both configs active;
+- Review Mode off;
+- Production content and authority hashes equal Proof exactly.
+
+The remaining cumulative proof is the real non-review lifecycle transition:
+
+`five Transformation Masteries -> Retrieval -> Transfer -> Sandbox unlock`.
+
+Durable record: `docs/TRANSFORMATION_CUMULATIVE_CAPABILITY_REVIEW_CHECKPOINT_2026-09-29.md`.
 
 ## Transformation Transfer grammar-directness pass - 4 October 2026
 
