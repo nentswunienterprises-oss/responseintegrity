@@ -2,12 +2,12 @@
 
 **Opened:** 29 September 2026  
 **Reconciled to current active banks:** 4 October 2026  
-**Status:** **RETRIEVAL v9 FOUNDER-APPROVED AND LOCKED; TRANSFER v10 REVIEW OPEN**
+**Status:** **RETRIEVAL v10 FOUNDER-APPROVED NARROW CORRECTION; TRANSFER v11 REVIEW OPEN**
 
 This checkpoint governs the two cumulative Transformation Capability gates in the approved Training architecture:
 
-- `transformation_phases_retrieval_v1` v9
-- `transformation_state_transfer_v1` v10
+- `transformation_phases_retrieval_v1` v10
+- `transformation_state_transfer_v1` v11
 
 The earlier v2 review record was the original pre-Founder editorial checkpoint. Those banks later went through OS-wide Capability authoring and directness reconciliations. Transfer received the same pre-Founder option-quality pass, then a dedicated prompt-to-option grammar pass. Because v9 already had a review attempt, the grammar corrections were versioned immutably to v10 rather than editing v9 in place. During Founder review, Delayed Retrieval received a second full option-quality pass and was versioned to v9. Retrieval v9 and Transfer v8 are now the active private-bank authorities that must receive Founder acceptance.
 
@@ -19,8 +19,8 @@ On 4 October 2026 the active cumulative configs were explicitly returned to Revi
 
 | Gate | Version | Form size | Pass threshold | Review Mode | Current structure |
 | --- | ---: | ---: | ---: | --- | --- |
-| Transformation Delayed Retrieval | v9 | 25 | 96% | off | 24 single-choice + 1 multi-select |
-| Transformation Interleaved Transfer | v10 | 25 | 96% | on | 24 single-choice + 1 multi-select |
+| Transformation Delayed Retrieval | v10 | 25 | 96% | off | 24 single-choice + 1 multi-select |
+| Transformation Interleaved Transfer | v11 | 25 | 96% | on | 24 single-choice + 1 multi-select |
 
 Current structural read-back for each bank:
 
@@ -34,10 +34,10 @@ Current structural read-back for each bank:
 
 Current content hashes:
 
-- Retrieval v9: `7b797e2b54d0ff4529b603161e7d68c6`
-- Transfer v10: `c75df5ea8cbaf3cf852e0f6b3f787ef4`
+- Retrieval v10: `cf403ed87fd55343398cf77d21ffa31c`
+- Transfer v11: `272cc32a44436657352fdd42308ac12a`
 
-Production was checked during Founder review. **The Hub contains no Retrieval or Transfer configs for these assessment keys.** Retrieval v9 is now Founder-approved in Proof, but it remains intentionally unpromoted until Transfer is also Founder-approved.
+Production was checked during Founder review. **The Hub contains no Retrieval or Transfer configs for these assessment keys.** Retrieval remains Founder-approved. v10 is the narrow answer-length correction authorized after approval; it changes option wording only and preserves the approved scoring/Truth authority. It remains intentionally unpromoted until Transfer is also Founder-approved.
 
 ## Governing standard
 
@@ -199,6 +199,45 @@ Structural read-back remains:
 
 Transfer v9 is retired in Proof. Transfer v10 is active with Review Mode on. Production remains untouched and still contains no Transfer config.
 
+## Cumulative answer-length parity pass - 4 October 2026
+
+The Founder explicitly extended the answer-length audit to **both Retrieval and Transfer**.
+
+The pass treats length as a test-writing signal: options do not need identical character counts, but correctness must not be inferable because accepted answers are consistently longer or shorter than distractors.
+
+### Retrieval
+
+Founder-approved Retrieval v9 contained visible length cues. The strongest examples included items 10 and 17, where accepted answers were substantially longer than distractors.
+
+Because this was a concrete presentation defect inside already-approved content, Retrieval was versioned immutably to v10 rather than editing v9 in place.
+
+- all 25 option sets were measured and reviewed for answer-length cues;
+- 18 option sets were rebalanced;
+- prompts, correct keys, critical-fail keys, critical-boundary keys, Truths and option-specific feedback were preserved;
+- the approved Retrieval authority hash is unchanged from v9 to v10: `ac0bfcc5232eb414b6aa955e10fac21e`;
+- current full Retrieval v10 hash: `cf403ed87fd55343398cf77d21ffa31c`;
+- Retrieval v10 is active with Review Mode off;
+- Retrieval v9 is retired;
+- the narrow defect correction does not reopen unrelated Founder-approved Retrieval doctrine.
+
+### Transfer
+
+Transfer v10 also contained visible length cues, including cases where all accepted answers were longer than all distractors and cases where the accepted answer was the conspicuously shortest option.
+
+Transfer was versioned to v11.
+
+- all 25 option sets were measured and reviewed for answer-length cues;
+- 20 option sets were rebalanced from v10;
+- prompts, correct keys, critical-fail keys, critical-boundary keys, Truths and option-specific feedback were preserved;
+- the Transfer authority hash is unchanged from v10 to v11: `44395571b335fd38706f923de3ae9327`;
+- current full Transfer v11 hash: `272cc32a44436657352fdd42308ac12a`;
+- Transfer v11 is active with Review Mode on;
+- Transfer v10 is retired.
+
+Final cue check on both current banks found **zero** items where all correct options were longer than all distractors, zero where all correct options were shorter than all distractors, zero items with correct/wrong average-length ratio outside 0.80-1.25, and zero items with max/min option-length ratio above 1.70.
+
+Production remains untouched and contains no Retrieval or Transfer configs.
+
 ## Retrieval vs Transfer distinction
 
 **Delayed Retrieval** tests whether the Specialist can recover Transformation doctrine and distinctions after the individual Deep Dive context has gone.
@@ -241,34 +280,34 @@ Outside Review Mode, the approved sequencing remains unchanged: five Transformat
 
 The current exit gate is:
 
-- [x] Active Retrieval bank reconciled to v9 after the Founder option-quality pass.
-- [x] Active Transfer bank reconciled to v10 after the prompt-to-option grammar pass.
+- [x] Active Retrieval bank reconciled to v10 after the answer-length parity correction.
+- [x] Active Transfer bank reconciled to v11 after the answer-length parity pass.
 - [x] Structural integrity read back from Proof.
 - [x] Critical-boundary / critical-fail consistency read back.
 - [x] Required option-feedback coverage read back.
-- [x] Retrieval v9 Review Mode was used for Founder review.
-- [x] Transfer v10 Review Mode active in Proof.
+- [x] Retrieval Founder review completed on v9; v10 is the narrow length-parity correction with authority unchanged.
+- [x] Transfer v11 Review Mode active in Proof.
 - [x] Production confirmed untouched by the review-mode reopen.
-- [x] Retrieval v9 reviewed interactively by Founder and accepted.
-- [x] Founder corrections from Retrieval v9 applied and verified.
-- [x] Retrieval v9 review attempt cleared and Review Mode exited.
-- [ ] Transfer v10 reviewed interactively by Founder and accepted.
-- [ ] Founder corrections from Transfer v10, if any, applied.
-- [ ] Transfer v10 Review Mode exited.
+- [x] Retrieval reviewed interactively by Founder and accepted; v10 preserves that approved authority.
+- [x] Retrieval v10 answer-length correction applied and verified.
+- [x] Retrieval v10 active with Review Mode off and zero review attempts/confirmations.
+- [ ] Transfer v11 reviewed interactively by Founder and accepted.
+- [ ] Founder corrections from Transfer v11, if any, applied.
+- [ ] Transfer v11 Review Mode exited.
 - [ ] Approved Retrieval + Transfer versions promoted to The Hub.
 - [ ] Production content read-back matches the approved Proof hashes.
 - [ ] End-to-end non-review sequence proven: five Transformation Masteries -> Retrieval -> Transfer -> Sandbox unlock.
 
-Retrieval v9 is Founder-approved and locked. Do not describe Transfer as Founder-approved until its active-version interactive review is complete.
+Retrieval v10 remains Founder-approved as a narrow presentation correction to approved v9. Do not describe Transfer as Founder-approved until its active-version interactive review is complete.
 
 Do not promote either gate to The Hub merely because its structural checks are green.
 
 ## Next review order
 
-1. Founder reviews **Transformation Interleaved Transfer v10**.
+1. Founder reviews **Transformation Interleaved Transfer v11**.
 2. Apply and verify any Founder corrections.
 3. Founder explicitly locks Transfer.
-4. Promote Retrieval v9 + the accepted Transfer version to Production.
+4. Promote Retrieval v10 + the accepted Transfer version to Production.
 5. Verify Production content hashes against approved Proof.
 6. Prove the real Transformation Capability -> Sandbox transition.
 
