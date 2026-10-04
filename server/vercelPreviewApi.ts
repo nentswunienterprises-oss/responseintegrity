@@ -7,6 +7,7 @@ import { registerTpsTimingRoutes } from "./tpsTimingRoutes";
 import { registerCapabilityEngineRoutes } from "./routes/capabilityEngine";
 import { registerSandboxSimulationRoutes } from "./routes/sandboxSimulation";
 import { registerSandboxEnvironmentRoutes } from "./routes/sandboxEnvironment";
+import { registerSpecialistDevelopmentRoutes } from "./routes/specialistDevelopment";
 import { setupAuth } from "./supabaseAuth";
 
 let appPromise: Promise<Express> | null = null;
@@ -79,6 +80,7 @@ async function initializeApp(): Promise<Express> {
   registerCapabilityEngineRoutes(app);
   registerSandboxSimulationRoutes(app);
   registerSandboxEnvironmentRoutes(app);
+  registerSpecialistDevelopmentRoutes(app);
   await registerRoutes(app);
 
   app.use((req, res) => {
