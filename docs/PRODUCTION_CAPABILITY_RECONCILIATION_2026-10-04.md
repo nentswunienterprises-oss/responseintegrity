@@ -2,7 +2,7 @@
 
 **Production project:** The Hub (`yzcnavucvwgmulcxgxvw`)  
 **Proof project:** Response Integrity Capability Proof (`jftlxeacphvbnhbsbpxc`)  
-**Status:** **TRANSFORMATION MASTERY CONTENT PROMOTED AND VERIFIED; ONE ADDITIVE SCHEMA GUARD PENDING AUTHORIZED PRODUCTION WORKFLOW**
+**Status:** **COMPLETE FOR THE CURRENTLY FOUNDER-APPROVED TRANSFORMATION CAPABILITY SURFACE**
 
 ## Scope
 
@@ -39,7 +39,7 @@ The current repository also contains:
 
 That migration was present in code but was not yet listed in the production authority manifest. This reconciliation adds it to `managedMigrations` as an additive change.
 
-It must still be applied through the manual **Production DB Promotion** workflow. Do not bypass that workflow merely to make Proof and Production look identical.
+It was applied through the manual **Production DB Promotion** workflow on 4 October 2026 and recorded in the production migration ledger. The live The Hub read-back confirms the constraint is present with the same `NOT VALID` definition as Proof.
 
 ## Founder-approved Transformation Mastery content
 
@@ -84,11 +84,19 @@ The target is:
 
 > same approved application code + same approved application-owned schema + same approved static/private content, while preserving environment-specific operational data and excluding Proof-only experiments.
 
-## Remaining action
+## Final production verification
 
-Run the manual **Production DB Promotion** workflow in `apply` mode with confirmation `THE_HUB` after this manifest change reaches `main`.
+The manual **Production DB Promotion** workflow completed successfully.
 
-After that run, verify the new constraint exists on:
+The Hub production ledger records:
+
+- migration: `migrations/2026-10-03_guard_capability_critical_boundary_requires_fail.sql`
+- source commit: `d1d4e48cf410718f39a75cde1ad3c4f876f56209`
+- kind: `migration`
+- applied by: `github:nentswunienterprises-oss`
+- applied at: `2026-10-04 00:25:09 UTC`
+
+Live read-back confirms the constraint exists on:
 
 `private.specialist_capability_assessment_items`
 
@@ -96,4 +104,8 @@ Constraint:
 
 `specialist_capability_boundary_requires_critical_fail`
 
-Once verified, the currently approved Transformation Capability surface is reconciled between Proof and Production.
+Its definition matches Proof exactly and remains intentionally `NOT VALID`, so it enforces future inserts and updates without retroactively validating historical retired content.
+
+A final Proof versus Production read-back also reconfirmed all five Founder-approved Transformation Mastery banks have identical content hashes, 45/45 active items, unique item keys, Review Mode off, and zero critical-boundary items missing a critical-fail option.
+
+The currently Founder-approved Transformation Capability surface is therefore reconciled between Proof and Production.
