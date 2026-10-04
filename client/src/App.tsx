@@ -86,6 +86,7 @@ import TutorProfile from "@/pages/operational/tutor/profile";
 import TDNoPod from "@/pages/operational/td/no-pod";
 import TDDashboard from "@/pages/operational/td/dashboard";
 import TDOverview from "@/pages/operational/td/overview";
+import SpecialistDevelopmentRecordPage from "@/pages/operational/td/specialist-development";
 import TDTutors from "@/pages/operational/td/tutors";
 import TDReports from "@/pages/operational/td/reports";
 import TDUpdates from "@/pages/operational/td/updates";
@@ -530,6 +531,7 @@ function Router() {
       <Route path="/operational/td/no-pod" element={<TdGatewayGuard><TDNoPod /></TdGatewayGuard>} />
       <Route path="/operational/td/my-pods" element={<TdGatewayGuard><DashboardLayout><TDOverview /></DashboardLayout></TdGatewayGuard>} />
       <Route path="/operational/td/my-pods/:podId" element={<TdGatewayGuard><DashboardLayout><TDOverview /></DashboardLayout></TdGatewayGuard>} />
+      <Route path="/operational/td/my-pods/:podId/specialists/:tutorId/development" element={<TdGatewayGuard><DashboardLayout><SpecialistDevelopmentRecordPage /></DashboardLayout></TdGatewayGuard>} />
       <Route path="/operational/td/reports" element={<TdGatewayGuard><DashboardLayout><TDReports /></DashboardLayout></TdGatewayGuard>} />
       <Route path="/operational/td/updates" element={<TdGatewayGuard><DashboardLayout><TDUpdates /></DashboardLayout></TdGatewayGuard>} />
 
