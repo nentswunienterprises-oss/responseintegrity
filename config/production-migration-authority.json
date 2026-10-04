@@ -91,6 +91,11 @@
       "path": "migrations/2026-10-02_add_capability_review_mode.sql",
       "description": "Add the optional Capability review-mode flag used by Specialist Capability sequencing and isolated Proof review controls.",
       "risk": "additive"
+    },
+    {
+      "path": "migrations/2026-10-03_guard_capability_critical_boundary_requires_fail.sql",
+      "description": "Add a fail-closed database guard requiring any Capability item tagged with a critical boundary to include at least one critical-fail option.",
+      "risk": "additive"
     }
   ]
 }
