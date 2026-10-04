@@ -2627,6 +2627,8 @@ The outer shell must wrap the engine, not replace it.
 
 > **Authority boundary, 28 September 2026:** the Capability Training Engine is now the Training -> Sandbox graduation authority. The Battle Testing subsystem below remains a legacy/manual alignment, drift, and health-audit surface. Its historical streak scoring and TD-led forms must not be used to mark current Capability Mastery complete or to promote a Specialist from Training into Sandbox. Current Training authority is defined in `docs/CAPABILITY_TRAINING_ARCHITECTURE_2026-09-28.md`, `shared/capabilityTrainingSequencing.ts`, and `server/capabilitySequencing.ts`.
 
+Current Session Infrastructure review preparation is recorded in `docs/SESSION_INFRASTRUCTURE_FOUNDER_REVIEW_CHECKPOINT_2026-10-04.md`. The six lesson sequences use v3 progress keys and non-evidentiary formative practice before private Mastery checks. A configured Session Infrastructure Review Mode bank is repeatably available without completing real prerequisites; review passes cannot satisfy prerequisite completion, and review-configured versions are excluded from the Capability ledger. This is review access, not graduation authority. Staged bank activation and Founder acceptance remain separate recorded steps.
+
 Implementation:
 
 - `shared/battleTesting.ts`

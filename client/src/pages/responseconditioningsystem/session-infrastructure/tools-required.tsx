@@ -1,3 +1,5 @@
+import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
+import { SESSION_INFRASTRUCTURE_TEACHING } from "@/lib/sessionInfrastructureTeaching";
 import { useNavigate } from "react-router-dom";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
@@ -55,7 +57,7 @@ const whyTheyMatter = [
 const setupPrinciples = [
   "Response Integrity uses the same phone across two distinct camera modes rather than one permanent teaching angle.",
   "Clarity Modelling is Specialist-led demonstration: the camera and light face the work so the student can see the method being executed.",
-  "After Clarity, the phone moves to Observation mode: the student executes while the Specialist observes the response and logs evidence on the laptop.",
+  "During student execution, including Clarity Identification and Light Apply, the phone moves to Observation mode: the student executes while the Specialist observes the response and logs evidence on the laptop.",
   "Camera position is part of the drill condition. It is not a cosmetic preference.",
 ];
 
@@ -76,7 +78,7 @@ const deliveryModes = [
   {
     title: "Observation",
     camera: "Camera in selfie mode",
-    used: "Used in all phases after Clarity to observe the student and log observations.",
+    used: "Used in Clarity Identification and Light Apply, and all phases after Clarity, to observe the student and log observations.",
     description:
       "The Specialist positions the smartphone vertically in selfie mode and keeps the student visible during the live session. The phone maintains the student-Specialist connection while the laptop is used to run the drill and record the student's observable responses as they happen.",
     bullets: [
@@ -135,7 +137,7 @@ export default function ResponseConditioningToolsRequired() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
         <DeepDiveLessonRunner
-          lessonKey="tools-required-v2"
+          lessonKey="tools-required-v3"
           title="Tools Required"
           completion={<DeepDiveCapabilityCheck assessmentKey="tools_required_mastery_v1" />}
         >
@@ -164,6 +166,10 @@ export default function ResponseConditioningToolsRequired() {
             ))}
           </div>
 
+        </Card>
+
+        <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">Prepare the Live Workspace</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {requiredWorkspace.map((item) => (
               <div key={item.title} className="rounded-xl border bg-muted/20 p-4">
@@ -190,6 +196,10 @@ export default function ResponseConditioningToolsRequired() {
             </ul>
           </div>
 
+        </Card>
+
+        <Card className="p-6 space-y-5">
+          <h2 className="text-2xl font-bold">Physical Setup Reference</h2>
           <div className="space-y-3">
             <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">
               Actual setup reference
@@ -280,6 +290,8 @@ export default function ResponseConditioningToolsRequired() {
           </div>
         </Card>
 
+        <DeepDiveTeachingInteraction {...SESSION_INFRASTRUCTURE_TEACHING.tools_required[0]} />
+
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Pre-session mode check</h2>
           <p className="text-muted-foreground">
@@ -347,10 +359,11 @@ export default function ResponseConditioningToolsRequired() {
           </p>
           <p className="font-semibold">
             In Clarity Modelling, the student must be able to see the Specialist's real execution clearly.
-            After Clarity, the student must be the one executing while the Specialist stays connected,
+            During student-execution sets, including Identification and Light Apply in Clarity, the student must be the one executing while the Specialist stays connected,
             observes concrete behaviour, and records it on the Response Integrity platform.
           </p>
         </Card>
+        <DeepDiveTeachingInteraction {...SESSION_INFRASTRUCTURE_TEACHING.tools_required[1]} />
         </DeepDiveLessonRunner>
       </div>
     </div>

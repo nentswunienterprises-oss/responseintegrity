@@ -1,3 +1,5 @@
+import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
+import { SESSION_INFRASTRUCTURE_TEACHING } from "@/lib/sessionInfrastructureTeaching";
 import { useNavigate } from "react-router-dom";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
@@ -137,7 +139,7 @@ export default function ResponseConditioningIntroSessionStructure() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
         <DeepDiveLessonRunner
-          lessonKey="intro-session-structure-v2"
+          lessonKey="intro-session-structure-v3"
           title="Intro Session Structure"
           completion={<DeepDiveCapabilityCheck assessmentKey="intro_session_structure_mastery_v1" />}
         >
@@ -440,6 +442,8 @@ export default function ResponseConditioningIntroSessionStructure() {
           </p>
         </Card>
 
+        <DeepDiveTeachingInteraction {...SESSION_INFRASTRUCTURE_TEACHING.intro_session_structure[0]} />
+
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What a Completed Intro Must Explain</h2>
           <ol className="space-y-2 pl-5 list-decimal text-muted-foreground">
@@ -511,6 +515,7 @@ export default function ResponseConditioningIntroSessionStructure() {
             from the state that the evidence supports.
           </p>
         </Card>
+        <DeepDiveTeachingInteraction {...SESSION_INFRASTRUCTURE_TEACHING.intro_session_structure[1]} />
         </DeepDiveLessonRunner>
       </div>
     </div>

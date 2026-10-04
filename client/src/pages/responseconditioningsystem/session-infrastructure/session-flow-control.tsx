@@ -1,3 +1,5 @@
+import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
+import { SESSION_INFRASTRUCTURE_TEACHING } from "@/lib/sessionInfrastructureTeaching";
 import { useNavigate } from "react-router-dom";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
@@ -69,7 +71,7 @@ export default function ResponseConditioningSessionFlowControl() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
         <DeepDiveLessonRunner
-          lessonKey="session-flow-control-v2"
+          lessonKey="session-flow-control-v3"
           title="Session Flow Control"
           completion={<DeepDiveCapabilityCheck assessmentKey="session_flow_control_mastery_v1" />}
         >
@@ -81,7 +83,6 @@ export default function ResponseConditioningSessionFlowControl() {
           <p className="font-semibold">Identify the session context first. Then run the drill behavior RI-OS requires for that context.</p>
         </Card>
 
-        <div className="space-y-5">
           {contexts.map((context) => (
             <Card key={context.title} className="p-6 space-y-4">
               <h2 className="text-2xl font-bold">{context.title}</h2>
@@ -102,7 +103,7 @@ export default function ResponseConditioningSessionFlowControl() {
               </div>
             </Card>
           ))}
-        </div>
+
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Routing Rules</h2>
@@ -110,6 +111,14 @@ export default function ResponseConditioningSessionFlowControl() {
             {routingRules.map((rule) => <li key={rule}>{rule}</li>)}
           </ul>
         </Card>
+
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">A Requirement Raised During Training</h2>
+          <p className="text-muted-foreground">If Training reveals a requirement for targeted re-diagnosis, today’s prepared session remains Training. Preserve its actual exposure, support, and observations. The next scheduled session opens in the required diagnosis context; do not relabel today’s reps as diagnosis.</p>
+          <p className="text-muted-foreground">Training follows its prescribed structure. A genuine interruption preserves valid partial evidence; it does not create automatic leftover-rep debt. Intro and Handover instead stop as soon as their evidence question is resolved.</p>
+        </Card>
+
+        <DeepDiveTeachingInteraction {...SESSION_INFRASTRUCTURE_TEACHING.session_flow_control[0]} />
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">What Never Changes</h2>
@@ -128,6 +137,7 @@ export default function ResponseConditioningSessionFlowControl() {
             Do not improvise a fourth session context between the defined ones, and do not use one context's rules to solve another context's problem.
           </p>
         </Card>
+        <DeepDiveTeachingInteraction {...SESSION_INFRASTRUCTURE_TEACHING.session_flow_control[1]} />
         </DeepDiveLessonRunner>
       </div>
     </div>
