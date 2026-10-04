@@ -188,19 +188,23 @@ All five are active with Review Mode off.
 
 Their approved Deep Dive learning flows are also frozen under the teach-before-test structure established during review.
 
-This closes Founder acceptance for the five Transformation Mastery banks, but does **not** close this broader Capability checkpoint. Transformation Retention / Delayed Retrieval v9 is now also Founder-approved and locked. Transformation Interleaved Transfer is active as v10 in Founder Review Mode after its pre-review option/feedback pass and dedicated prompt-to-option grammar pass. Session Infrastructure remains separately governed by its own review status.
+This closes Founder acceptance for the five Transformation Mastery banks, but does **not** close this broader Capability checkpoint. Transformation Retention / Delayed Retrieval remains Founder-approved and is active as v10 after a narrow answer-length parity correction. Transformation Interleaved Transfer is active as v11 in Founder Review Mode after option/feedback, grammar-directness and answer-length parity passes. Session Infrastructure remains separately governed by its own review status.
 
 Durable record: `docs/TRANSFORMATION_PHASES_FOUNDER_APPROVAL_CHECKPOINT_2026-10-04.md`.
 
 ## Transformation Retention Founder approval - 4 October 2026
 
-`transformation_phases_retrieval_v1` v9 completed interactive Founder Review and is locked.
+`transformation_phases_retrieval_v1` v9 completed interactive Founder Review and was locked. A later narrow answer-length defect correction produced v10 without changing scoring/Truth authority.
 
-Final approved content hash:
+Founder-reviewed v9 full content hash:
 
 `7b797e2b54d0ff4529b603161e7d68c6`
 
-Before Review Mode exit, the remaining v9 review attempt was cleared so it cannot become lifecycle evidence. Proof now has Retrieval v9 active with Review Mode off and zero v9 review attempts/confirmations. Transfer v10 remains in Review Mode after its prompt-to-option grammar pass.
+Current v10 narrow-correction full content hash:
+
+`cf403ed87fd55343398cf77d21ffa31c`
+
+Before Review Mode exit, the remaining v9 review attempt was cleared so it cannot become lifecycle evidence. Proof now has Retrieval v10 active with Review Mode off and zero v10 review attempts/confirmations. Transfer v11 remains in Review Mode after its answer-length parity pass.
 
 Production has not yet received Retrieval. Promotion remains gated on Transfer approval so the cumulative pair can be promoted and verified together.
 
@@ -220,6 +224,47 @@ Durable record: `docs/TRANSFORMATION_CUMULATIVE_CAPABILITY_REVIEW_CHECKPOINT_202
 - Production contains no Transfer config.
 
 Founder acceptance is still open.
+
+## Cumulative answer-length parity pass - 4 October 2026
+
+The Founder explicitly required answer-length quality to be checked across **both Retrieval and Transfer**.
+
+Retrieval v9 and Transfer v10 were measured item by item for visible correctness cues created by option length. The correction standard was not identical character count. It was that length must not make the right answer inferable.
+
+### Retrieval
+
+Retrieval was rotated from v9 to v10 as a narrow presentation correction inside already-approved doctrine.
+
+- all 25 option sets measured;
+- 18 option sets rebalanced;
+- authority hash unchanged: `ac0bfcc5232eb414b6aa955e10fac21e`;
+- current full v10 hash: `cf403ed87fd55343398cf77d21ffa31c`;
+- v10 active, Review Mode off;
+- v9 retired.
+
+### Transfer
+
+Transfer was rotated from v10 to v11.
+
+- all 25 option sets measured;
+- 20 option sets rebalanced;
+- authority hash unchanged: `44395571b335fd38706f923de3ae9327`;
+- current full v11 hash: `272cc32a44436657352fdd42308ac12a`;
+- v11 active in Review Mode;
+- v10 retired.
+
+Final current-bank checks for both gates show:
+
+- zero items where all correct options are longer than every distractor;
+- zero items where all correct options are shorter than every distractor;
+- zero items with correct/wrong average-length ratio outside 0.80-1.25;
+- zero items with max/min option-length ratio above 1.70;
+- zero single-choice wrong-option feedback gaps;
+- zero single-choice correct options carrying wrong-answer feedback.
+
+Production still contains no Retrieval or Transfer config.
+
+Founder acceptance remains open only for Transfer v11.
 
 ## Transformation Transfer grammar-directness pass - 4 October 2026
 
