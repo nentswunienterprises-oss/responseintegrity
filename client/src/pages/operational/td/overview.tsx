@@ -867,7 +867,7 @@ export default function TDOverview() {
                         ) : (
                           <div className="space-y-2">
                             {tutors.map((tutor) => {
-                              const tutorName = tutor.name || tutor.firstName || "Unknown Tutor";
+                              const tutorName = tutor.name || tutor.firstName || "Unknown Specialist";
                               const tutorAudit = battleTestingSummary.tutorSummaries.find(
                                 (entry) =>
                                   entry.assignmentId === tutor.assignment.id ||
@@ -1257,7 +1257,7 @@ export default function TDOverview() {
             ? `Alignment Audit History - ${activeTutorHistory.tutorName}`
             : "Alignment Audit History"
         }
-        description="Stored tutor battle-test runs and rep-level logging."
+        description="Stored Specialist alignment-audit runs and rep-level evidence."
         historyQueryKey={
           activeTutorHistory
             ? `battle-test-runs-${activeTutorHistory.podId}`
