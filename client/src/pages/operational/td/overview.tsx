@@ -138,20 +138,18 @@ function getStatusColor(status: string) {
     : "bg-blue-100 text-blue-800 border-blue-200";
 }
 
-function getOperationalModeBadge(mode?: string | null) {
-  const normalized = String(mode || "").toLowerCase();
-  if (normalized === "certified_live") return "default";
-  if (normalized === "suspended") return "destructive";
-  return "secondary";
-}
-
 function formatOperationalModeLabel(mode?: string | null) {
-  const normalized = String(mode || "").toLowerCase();
+  const normalized = String(mode || "").trim().toLowerCase();
   if (normalized === "certified_live") return "Certified Live";
-  if (normalized === "sandbox") return "Sandbox Mode";
+  if (normalized === "sandbox") return "Sandbox";
+  if (normalized === "trial") return "Trial";
   if (normalized === "suspended") return "Suspended";
   if (normalized === "applicant") return "Applicant";
-  return "Training Mode";
+  if (normalized === "training") return "Training";
+  if (!normalized) return "Not recorded";
+  return normalized
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function formatDevelopmentStageLabel(stage?: string | null) {
@@ -166,30 +164,19 @@ function formatDevelopmentStageLabel(stage?: string | null) {
 }
 
 function SpecialistDevelopmentCardSummary({
-  podId,
-  tutorId,
+  summary,
   operationalMode,
+  isLoading,
+  isUnavailable,
+  onOpen,
 }: {
-  podId: string;
-  tutorId: string;
+  summary?: SpecialistDevelopmentCardRecord;
   operationalMode: string;
+  isLoading: boolean;
+  isUnavailable: boolean;
+  onOpen: () => void;
 }) {
-  const navigate = useNavigate();
-  const recordQuery = useQuery<SpecialistDevelopmentCardRecord>({
-    queryKey: ["/api/td/tutors", tutorId, "development-record"],
-    enabled: Boolean(tutorId),
-    retry: false,
-    queryFn: async () => {
-      const response = await apiRequest(
-        "GET",
-        `/api/td/tutors/${encodeURIComponent(tutorId)}/development-record`,
-      );
-      return response.json();
-    },
-  });
-
-  const record = recordQuery.data;
-  const permissionMode = record?.assignment?.operationalMode || operationalMode;
+  const permissionMode = summary?.assignment?.operationalMode || operationalMode;
 
   return (
     <div className="border-y border-border/60 py-3">
@@ -200,21 +187,21 @@ function SpecialistDevelopmentCardSummary({
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <p className="text-sm font-semibold text-foreground">
-              {recordQuery.isLoading
+              {isLoading
                 ? "Loading stage..."
-                : recordQuery.isError
+                : isUnavailable || !summary
                   ? "Record unavailable"
-                  : formatDevelopmentStageLabel(record?.currentStage)}
+                  : formatDevelopmentStageLabel(summary.currentStage)}
             </p>
             <Badge variant="outline">
               Permission: {formatOperationalModeLabel(permissionMode)}
             </Badge>
           </div>
-          {record?.pathway ? (
+          {summary?.pathway ? (
             <p className="mt-1 text-xs text-muted-foreground">
-              Day {record.pathway.timeline.elapsedDays} · {record.pathway.timeline.daysRemaining} days remaining in the current development window
+              Day {summary.pathway.timeline.elapsedDays} · {summary.pathway.timeline.daysRemaining} days remaining in the current development window
             </p>
-          ) : recordQuery.isError ? (
+          ) : isUnavailable ? (
             <p className="mt-1 text-xs text-muted-foreground">
               Open the record to inspect the latest development evidence.
             </p>
@@ -224,11 +211,7 @@ function SpecialistDevelopmentCardSummary({
           size="sm"
           variant="outline"
           className="shrink-0"
-          onClick={() =>
-            navigate(
-              `/operational/td/my-pods/${podId}/specialists/${tutorId}/development`,
-            )
-          }
+          onClick={onOpen}
         >
           Development Record
         </Button>
@@ -381,6 +364,23 @@ export default function TDOverview() {
     enabled: isAuthenticated && !authLoading && !!podId,
     queryFn: async () => {
       const response = await apiRequest("GET", `/api/battle-tests/pods/${podId}/runs`);
+      return response.json();
+    },
+  });
+
+  const {
+    data: specialistDevelopmentSummaries = {},
+    isLoading: specialistDevelopmentSummariesLoading,
+    isError: specialistDevelopmentSummariesError,
+  } = useQuery<Record<string, SpecialistDevelopmentCardRecord>>({
+    queryKey: ["/api/td/pods", podId, "specialist-development-summaries"],
+    enabled: isAuthenticated && !authLoading && !!podId,
+    retry: false,
+    queryFn: async () => {
+      const response = await apiRequest(
+        "GET",
+        `/api/td/pods/${encodeURIComponent(String(podId || ""))}/specialist-development-summaries`,
+      );
       return response.json();
     },
   });
@@ -907,9 +907,15 @@ export default function TDOverview() {
                                     </div>
                                       <div className="flex flex-col gap-3">
                                         <SpecialistDevelopmentCardSummary
-                                          podId={pod.id}
-                                          tutorId={tutor.id}
+                                          summary={specialistDevelopmentSummaries[tutor.id]}
                                           operationalMode={operationalMode}
+                                          isLoading={specialistDevelopmentSummariesLoading}
+                                          isUnavailable={specialistDevelopmentSummariesError}
+                                          onOpen={() =>
+                                            navigate(
+                                              `/operational/td/my-pods/${pod.id}/specialists/${tutor.id}/development`,
+                                            )
+                                          }
                                         />
 
                                         <div className="flex items-center justify-between gap-3">
