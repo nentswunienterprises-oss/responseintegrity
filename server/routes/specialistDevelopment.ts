@@ -86,6 +86,7 @@ function deriveCurrentStage(input: {
   }
 
   if (mode === "sandbox") return "sandbox";
+  if (mode === "trial") return "trial";
   if (mode === "training") return "training";
   return "application";
 }
