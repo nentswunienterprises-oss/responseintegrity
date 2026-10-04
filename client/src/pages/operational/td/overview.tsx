@@ -999,6 +999,17 @@ export default function TDOverview() {
                                                 </Button>
                                                 <Button
                                                   size="sm"
+                                                  variant="outline"
+                                                  onClick={() =>
+                                                    navigate(
+                                                      `/operational/td/my-pods/${pod.id}/specialists/${tutor.id}/development`,
+                                                    )
+                                                  }
+                                                >
+                                                  Development Record
+                                                </Button>
+                                                <Button
+                                                  size="sm"
                                                   onClick={() => {
                                                     const tutorAudit = battleTestingSummary?.tutorSummaries.find(
                                                       (audit) =>
