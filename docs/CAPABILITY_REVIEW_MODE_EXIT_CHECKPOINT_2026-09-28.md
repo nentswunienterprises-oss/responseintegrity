@@ -188,7 +188,22 @@ All five are active with Review Mode off.
 
 Their approved Deep Dive learning flows are also frozen under the teach-before-test structure established during review.
 
-This closes Founder acceptance for the five Transformation Mastery banks, but does **not** close this broader Capability checkpoint. Session Infrastructure and the cumulative Transformation Retrieval / Transfer gates remain separately governed by their own review status.
+This closes Founder acceptance for the five Transformation Mastery banks, but does **not** close this broader Capability checkpoint. Transformation Retention / Delayed Retrieval v9 is now also Founder-approved and locked. Transformation Interleaved Transfer and Session Infrastructure remain separately governed by their own review status.
 
 Durable record: `docs/TRANSFORMATION_PHASES_FOUNDER_APPROVAL_CHECKPOINT_2026-10-04.md`.
+
+## Transformation Retention Founder approval - 4 October 2026
+
+`transformation_phases_retrieval_v1` v9 completed interactive Founder Review and is locked.
+
+Final approved content hash:
+
+`7b797e2b54d0ff4529b603161e7d68c6`
+
+Before Review Mode exit, the remaining v9 review attempt was cleared so it cannot become lifecycle evidence. Proof now has Retrieval v9 active with Review Mode off and zero v9 review attempts/confirmations. Transfer v8 remains in Review Mode.
+
+Production has not yet received Retrieval. Promotion remains gated on Transfer approval so the cumulative pair can be promoted and verified together.
+
+Durable record: `docs/TRANSFORMATION_CUMULATIVE_CAPABILITY_REVIEW_CHECKPOINT_2026-09-29.md`.
+
 
