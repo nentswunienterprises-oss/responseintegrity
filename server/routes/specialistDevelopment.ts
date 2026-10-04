@@ -121,6 +121,92 @@ function stageSummary(assessments: any[], stage: string) {
 
 export function registerSpecialistDevelopmentRoutes(app: Express) {
   app.get(
+    "/api/td/pods/:podId/specialist-development-summaries",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const td = requireTd(req, res);
+        if (!td) return;
+
+        const podId = String(req.params.podId || "").trim();
+        if (!podId) {
+          return res.status(400).json({ message: "podId is required." });
+        }
+
+        const assignmentsResult = await pool.query(
+          `SELECT ta.id,
+                  ta.tutor_id,
+                  ta.operational_mode,
+                  ta.certification_status,
+                  p.td_id
+             FROM public.tutor_assignments ta
+             JOIN public.pods p ON p.id = ta.pod_id
+            WHERE ta.pod_id = $1
+            ORDER BY ta.created_at ASC`,
+          [podId],
+        );
+
+        if (assignmentsResult.rows.some((row) => String(row.td_id || "") !== String(td.id))) {
+          return res.status(403).json({ message: "This Pod is not assigned to you." });
+        }
+
+        const summaries = await Promise.all(
+          assignmentsResult.rows.map(async (assignment) => {
+            const tutorId = String(assignment.tutor_id);
+            const assignmentId = String(assignment.id);
+            const [pathway, latestSandboxAssessment, trialIdResult] = await Promise.all([
+              loadPathwayForDevelopmentRecord(tutorId),
+              getLatestSandboxReadinessAssessment(assignmentId),
+              pool.query(
+                `SELECT id
+                   FROM public.tutor_trial_cases
+                  WHERE tutor_id = $1
+                  ORDER BY started_at DESC
+                  LIMIT 1`,
+                [tutorId],
+              ),
+            ]);
+
+            const trialId = trialIdResult.rows[0]?.id
+              ? String(trialIdResult.rows[0].id)
+              : null;
+            const trial = trialId ? await getTrialCaseById(trialId) : null;
+            const currentStage = deriveCurrentStage({
+              operationalMode: String(assignment.operational_mode || ""),
+              latestSandboxDecision: latestSandboxAssessment?.decision || null,
+              trial,
+            });
+
+            return [
+              tutorId,
+              {
+                currentStage,
+                assignment: {
+                  operationalMode: String(assignment.operational_mode || ""),
+                  certificationStatus: String(assignment.certification_status || ""),
+                },
+                pathway: pathway
+                  ? {
+                      status: pathway.status,
+                      timeline: pathway.timeline,
+                    }
+                  : null,
+              },
+            ] as const;
+          }),
+        );
+
+        return res.json(Object.fromEntries(summaries));
+      } catch (error: any) {
+        console.error("Failed to load Specialist development summaries:", error);
+        return res.status(500).json({
+          message: error?.message || "Failed to load Specialist development summaries.",
+        });
+      }
+    },
+  );
+
+  app.get(
     "/api/td/tutors/:tutorId/development-record",
     isAuthenticated,
     async (req: Request, res: Response) => {
