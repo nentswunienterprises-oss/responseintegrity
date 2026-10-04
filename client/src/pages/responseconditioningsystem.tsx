@@ -140,11 +140,20 @@ const modules = [
 
 type MasteryAvailability = {
   assessmentKey: string;
+  title: string;
   evidenceKind: "mastery" | "retrieval" | "transfer";
   coveredDeepDiveKeys: string[];
   status: "unavailable" | "locked" | "available" | "complete";
-  reason: "bank_unavailable" | "attempt_limit" | "retry_cooldown" | null;
+  reason:
+    | "bank_unavailable"
+    | "attempt_limit"
+    | "retry_cooldown"
+    | "prerequisite_incomplete"
+    | "spacing_interval"
+    | null;
   unlockAt: string | null;
+  formSize: number;
+  reviewMode?: boolean;
 };
 
 type PodData = {
@@ -174,6 +183,14 @@ export default function ResponseConditioningSystem() {
   const capabilityAssessments = capabilityPlanQuery.data?.assessments || [];
   const masteryAssessments = capabilityAssessments.filter(
     (assessment) => assessment.evidenceKind === "mastery",
+  );
+  const cumulativeAssessments = capabilityAssessments.filter(
+    (assessment) =>
+      assessment.evidenceKind === "retrieval" ||
+      assessment.evidenceKind === "transfer",
+  );
+  const showCumulativeAssessments = cumulativeAssessments.some(
+    (assessment) => assessment.status !== "unavailable",
   );
   const completedCapabilityChecks = masteryAssessments.filter(
     (assessment) => assessment.status === "complete",
@@ -264,6 +281,94 @@ export default function ResponseConditioningSystem() {
             );
           })}
         </div>
+
+        {showCumulativeAssessments ? (
+          <Card
+            id="transformation-gates"
+            className="ri-focus-card border border-primary/15 bg-card shadow-sm"
+          >
+            <div className="p-6 space-y-5">
+              <div className="space-y-2">
+                <Badge>Transformation Gate</Badge>
+                <h2 className="text-xl font-bold">Retention + Application</h2>
+                <p className="text-sm text-muted-foreground max-w-3xl">
+                  After the five Transformation Masteries, Retention checks whether the
+                  system can still be retrieved without the immediate Deep Dive context.
+                  Application then checks whether the right RI response can be selected
+                  across mixed situations.
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                {cumulativeAssessments.map((assessment) => {
+                  const isRetrieval = assessment.evidenceKind === "retrieval";
+                  const title = isRetrieval
+                    ? "Transformation Retention"
+                    : "Transformation Application";
+
+                  const detail = assessment.reviewMode
+                    ? "Review Mode is open in Proof. This review run does not create lifecycle evidence."
+                    : assessment.status === "complete"
+                      ? isRetrieval
+                        ? "Retention is evidenced for the active bank."
+                        : "Application is evidenced for the active bank."
+                      : assessment.status === "available"
+                        ? isRetrieval
+                          ? "The Retention Check is ready."
+                          : "The Application Check is ready."
+                        : assessment.reason === "spacing_interval"
+                          ? assessment.unlockAt
+                            ? `Retention opens ${new Date(assessment.unlockAt).toLocaleString()}.`
+                            : "The delayed Retrieval interval is still running."
+                          : assessment.reason === "prerequisite_incomplete"
+                            ? isRetrieval
+                              ? "Complete all five Transformation Masteries first."
+                              : "Pass Transformation Retention first."
+                            : "This gate is currently locked.";
+
+                  return (
+                    <div
+                      key={assessment.assessmentKey}
+                      className="border border-border/70 p-5 space-y-4"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                            {isRetrieval ? "Retention" : "Application"}
+                          </p>
+                          {assessment.reviewMode ? (
+                            <Badge variant="outline">Review Mode</Badge>
+                          ) : null}
+                        </div>
+                        <h3 className="font-semibold">{title}</h3>
+                        <p className="text-sm text-muted-foreground">{detail}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {assessment.formSize} questions
+                        </p>
+                      </div>
+
+                      {assessment.status === "available" ? (
+                        <Button asChild>
+                          <Link
+                            to={`/operational/specialist/capability/${assessment.assessmentKey}`}
+                          >
+                            {assessment.reviewMode
+                              ? isRetrieval
+                                ? "Review Retention"
+                                : "Review Application"
+                              : isRetrieval
+                                ? "Take Retention Check"
+                                : "Take Application Check"}
+                          </Link>
+                        </Button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </Card>
+        ) : null}
 
         <Card className="ri-focus-card border border-primary/15 bg-card shadow-sm">
           <div className="p-6 space-y-4">

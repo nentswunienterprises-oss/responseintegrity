@@ -93,6 +93,19 @@ The original v2 banks received a full pre-Founder editorial audit on 29 Septembe
 
 Later OS-wide authoring work produced the current v8 banks. The v2 measurements are historical evidence of the editorial process, not current-version acceptance. Founder approval must therefore be given against v8 itself.
 
+## Founder review access
+
+When either cumulative bank is in Review Mode in the isolated Proof environment:
+
+- the Training hub surfaces **Transformation Retention** and **Transformation Application**;
+- the review assessment may open without satisfying lifecycle prerequisites or the 24-hour Retrieval spacing interval;
+- the bypass exists only to make Founder content review possible;
+- Review Mode attempts are excluded from Capability sequencing and cannot issue Sandbox authority while Review Mode remains active;
+- the review page resets the current review session in Proof before preparing a fresh form;
+- before Review Mode is exited for an accepted bank, the review session must be reset once more so review attempts are not carried into normal lifecycle evidence.
+
+Outside Review Mode, the approved sequencing remains unchanged: five Transformation Masteries, then delayed Retention, then Application, then Sandbox.
+
 ## Founder Review Mode exit
 
 The current exit gate is:

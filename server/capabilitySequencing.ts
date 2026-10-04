@@ -129,6 +129,7 @@ export async function getSpecialistCapabilityTrainingState(input: {
       ) as CapabilityTrainingActiveBank["evidenceKind"],
       maxAttempts: Number(row.max_attempts),
       retryCooldownHours: Number(row.retry_cooldown_hours),
+      reviewMode: Boolean(row.review_mode),
     }),
   );
 
