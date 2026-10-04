@@ -2,7 +2,7 @@
 
 **Opened:** 29 September 2026  
 **Reconciled to current active banks:** 4 October 2026  
-**Status:** **RETRIEVAL v10 + TRANSFER v11 FOUNDER-APPROVED; PRODUCTION PROMOTED; E2E SANDBOX PROOF OPEN**
+**Status:** **CLOSED: RETRIEVAL v10 + TRANSFER v11 FOUNDER-APPROVED; PRODUCTION PROMOTED; NON-REVIEW SANDBOX LIFECYCLE PROVEN**
 
 This checkpoint governs the two cumulative Transformation Capability gates in the approved Training architecture:
 
@@ -279,6 +279,48 @@ The remaining open gate is the real non-review lifecycle proof:
 
 `five Transformation Masteries -> Retrieval -> Transfer -> Sandbox unlock`.
 
+## Non-review Transformation Capability -> Sandbox lifecycle proof - 4 October 2026
+
+The cumulative lifecycle was proven against the live **Response Integrity Capability Proof** backend using persisted production-shape Capability evidence and the real sequencing / Sandbox-authority code path. Review Mode was off for both cumulative banks.
+
+The proof used isolated synthetic assignments owned by the existing Proof Specialist identity. The assessment rows were prevalidated current-bank pass evidence; this proof therefore validates **sequencing and authority consumption of persisted evidence**, not a claim that a human manually answered all seven assessments during the proof run.
+
+Observed gates:
+
+| Persisted state | Retrieval v10 | Transfer v11 | Sandbox ready |
+| --- | --- | --- | --- |
+| Four Transformation Masteries complete | locked: `prerequisite_incomplete` | locked | no |
+| All five Masteries complete, delay not elapsed | locked: `spacing_interval` | locked | no |
+| All five Masteries complete, delay elapsed | available | locked: `prerequisite_incomplete` | no |
+| Retrieval v10 complete | complete | available | no |
+| Retrieval v10 + Transfer v11 complete | complete | complete | yes |
+
+The final authority reconciliation used the actual `reconcileCapabilitySandboxAuthority` path. It changed the isolated proof assignment from `training` to `sandbox` and wrote matching Sandbox lifecycle authority. A repeated reconciliation preserved `sandbox` without issuing a second promotion, proving idempotence.
+
+After Sandbox readiness, all six Session Infrastructure Mastery gates were available:
+
+- Intro Session Structure v14;
+- Logging System v13;
+- Session Flow Control v13;
+- Drill Library v8;
+- Handover Verification v9;
+- Tools Required v9.
+
+The live preview proved it was connected to Proof project `jftlxeacphvbnhbsbpxc`. Production was not mutated by this lifecycle test.
+
+Cleanup was completed immediately after evidence capture. Verification returned:
+
+- synthetic assignments: 0;
+- synthetic Capability attempts: 0;
+- synthetic question confirmations: 0;
+- synthetic lifecycle-status rows: 0.
+
+**Conclusion:** the approved non-review Transformation sequence is now proven end to end at the persisted-evidence / authority layer:
+
+`five Transformation Masteries -> 24-hour Retention spacing -> Retrieval v10 -> Transfer v11 -> Sandbox readiness -> Sandbox authority`.
+
+This closes the cumulative Transformation Capability checkpoint. It does **not** close the broader Capability Review checkpoint or complete Session Infrastructure review.
+
 ## Retrieval vs Transfer distinction
 
 **Delayed Retrieval** tests whether the Specialist can recover Transformation doctrine and distinctions after the individual Deep Dive context has gone.
@@ -337,17 +379,17 @@ The current exit gate is:
 - [x] Transfer v11 Review Mode exited with zero review attempts/confirmations.
 - [x] Retrieval v10 + Transfer v11 promoted transactionally to The Hub.
 - [x] Production content read-back matches the approved Proof hashes exactly.
-- [ ] End-to-end non-review sequence proven: five Transformation Masteries -> Retrieval -> Transfer -> Sandbox unlock.
+- [x] End-to-end non-review sequence proven: five Transformation Masteries -> Retrieval -> Transfer -> Sandbox unlock.
 
 Retrieval v10 and Transfer v11 are Founder-approved and locked.
 
 Do not promote either gate to The Hub merely because its structural checks are green.
 
-## Next proof step
+## Checkpoint closure
 
-1. Prove the real non-review sequence: **five Transformation Masteries -> Retrieval -> Transfer -> Sandbox unlock**.
-2. Record the observed lifecycle evidence and Sandbox authority result.
-3. Close this cumulative checkpoint only after that end-to-end proof is complete.
+All cumulative Transformation content, Production promotion, and non-review lifecycle gates governed by this checkpoint are complete.
+
+The next Capability work belongs to the broader Capability checkpoint, including Session Infrastructure review.
 
 ## Related authority
 
