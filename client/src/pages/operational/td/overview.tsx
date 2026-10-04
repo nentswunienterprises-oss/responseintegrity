@@ -83,6 +83,30 @@ interface StudentActionRecord {
   concept_mastery?: any;
 }
 
+type SpecialistDevelopmentCardRecord = {
+  currentStage:
+    | "application"
+    | "training"
+    | "sandbox"
+    | "practicals"
+    | "trial"
+    | "certification"
+    | "certified_live";
+  assignment: {
+    operationalMode: string;
+    certificationStatus: string;
+  };
+  pathway: {
+    timeline: {
+      state: string;
+      elapsedDays: number;
+      daysRemaining: number;
+      effectiveEndsAt: string;
+      canContinue: boolean;
+    };
+  } | null;
+};
+
 type TutorAuditGroupKey = "transformation_phases" | "session_infrastructure";
 
 const EMPTY_BATTLE_TESTING_SUMMARY: PodBattleTestingSummary = {
@@ -114,20 +138,86 @@ function getStatusColor(status: string) {
     : "bg-blue-100 text-blue-800 border-blue-200";
 }
 
-function getOperationalModeBadge(mode?: string | null) {
-  const normalized = String(mode || "").toLowerCase();
-  if (normalized === "certified_live") return "default";
-  if (normalized === "suspended") return "destructive";
-  return "secondary";
-}
-
 function formatOperationalModeLabel(mode?: string | null) {
-  const normalized = String(mode || "").toLowerCase();
+  const normalized = String(mode || "").trim().toLowerCase();
   if (normalized === "certified_live") return "Certified Live";
-  if (normalized === "sandbox") return "Sandbox Mode";
+  if (normalized === "sandbox") return "Sandbox";
+  if (normalized === "trial") return "Trial";
   if (normalized === "suspended") return "Suspended";
   if (normalized === "applicant") return "Applicant";
-  return "Training Mode";
+  if (normalized === "training") return "Training";
+  if (!normalized) return "Not recorded";
+  return normalized
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatDevelopmentStageLabel(stage?: string | null) {
+  const normalized = String(stage || "").trim().toLowerCase();
+  if (normalized === "certified_live") return "Certified Live";
+  if (normalized === "practicals") return "Practicals";
+  if (normalized === "certification") return "Certification";
+  if (normalized === "trial") return "Trial";
+  if (normalized === "sandbox") return "Sandbox";
+  if (normalized === "training") return "Training";
+  return "Application";
+}
+
+function SpecialistDevelopmentCardSummary({
+  summary,
+  operationalMode,
+  isLoading,
+  isUnavailable,
+  onOpen,
+}: {
+  summary?: SpecialistDevelopmentCardRecord;
+  operationalMode: string;
+  isLoading: boolean;
+  isUnavailable: boolean;
+  onOpen: () => void;
+}) {
+  const permissionMode = summary?.assignment?.operationalMode || operationalMode;
+
+  return (
+    <div className="border-y border-border/60 py-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+            Development
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold text-foreground">
+              {isLoading
+                ? "Loading stage..."
+                : isUnavailable || !summary
+                  ? "Record unavailable"
+                  : formatDevelopmentStageLabel(summary.currentStage)}
+            </p>
+            <Badge variant="outline">
+              Permission: {formatOperationalModeLabel(permissionMode)}
+            </Badge>
+          </div>
+          {summary?.pathway ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Day {summary.pathway.timeline.elapsedDays} · {summary.pathway.timeline.daysRemaining} days remaining in the current development window
+            </p>
+          ) : isUnavailable ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Open the record to inspect the latest development evidence.
+            </p>
+          ) : null}
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="shrink-0"
+          onClick={onOpen}
+        >
+          Development Record
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 function getTutorAuditGroupMeta(groupKey: TutorAuditGroupKey) {
@@ -274,6 +364,23 @@ export default function TDOverview() {
     enabled: isAuthenticated && !authLoading && !!podId,
     queryFn: async () => {
       const response = await apiRequest("GET", `/api/battle-tests/pods/${podId}/runs`);
+      return response.json();
+    },
+  });
+
+  const {
+    data: specialistDevelopmentSummaries = {},
+    isLoading: specialistDevelopmentSummariesLoading,
+    isError: specialistDevelopmentSummariesError,
+  } = useQuery<Record<string, SpecialistDevelopmentCardRecord>>({
+    queryKey: ["/api/td/pods", podId, "specialist-development-summaries"],
+    enabled: isAuthenticated && !authLoading && !!podId,
+    retry: false,
+    queryFn: async () => {
+      const response = await apiRequest(
+        "GET",
+        `/api/td/pods/${encodeURIComponent(String(podId || ""))}/specialist-development-summaries`,
+      );
       return response.json();
     },
   });
@@ -551,7 +658,7 @@ export default function TDOverview() {
                         </div>
                         <div className="grid grid-cols-3 gap-3">
                           <div>
-                            <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Tutors</p>
+                            <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Specialists</p>
                             <p className="mt-1 text-2xl font-semibold">{tutors.length}</p>
                           </div>
                           <div>
@@ -619,7 +726,7 @@ export default function TDOverview() {
               <div className="coo-pod-stats grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <Card className="border-primary/15 bg-background shadow-sm">
                   <div className="px-4 py-4 sm:px-5 sm:py-5">
-                    <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Tutors</p>
+                    <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Specialists</p>
                     <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
                       {tutors.length}
                     </p>
@@ -692,11 +799,11 @@ export default function TDOverview() {
                             <p className="mt-1 text-lg font-semibold">{battleTestingSummary.driftIncidents}</p>
                           </div>
                           <div>
-                            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">At Risk Tutors</p>
+                            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">At Risk Specialists</p>
                             <p className="mt-1 text-lg font-semibold">{battleTestingSummary.watchlistTutors + battleTestingSummary.failTutors}</p>
                           </div>
                           <div>
-                            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Locked Tutors</p>
+                            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Locked Specialists</p>
                             <p className="mt-1 text-lg font-semibold">{battleTestingSummary.lockedTutors}</p>
                           </div>
                         </div>
@@ -710,7 +817,7 @@ export default function TDOverview() {
                                 <p key={flag.phaseKey} className="text-sm text-amber-950">
                                   <span className="font-medium">{flag.title}</span>
                                   <span className="ml-2 text-amber-900">
-                                    {flag.affectedTutors} tutors drifted in the last {flag.windowDays} days.
+                                    {flag.affectedTutors} Specialists drifted in the last {flag.windowDays} days.
                                   </span>
                                 </p>
                               ))}
@@ -730,7 +837,7 @@ export default function TDOverview() {
                       <div className="flex items-center justify-between border-b pb-3 sm:pb-4">
                         <div className="flex items-center gap-2">
                           <Users className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                          <h2 className="font-semibold text-sm sm:text-base">Assigned Tutors</h2>
+                          <h2 className="font-semibold text-sm sm:text-base">Assigned Specialists</h2>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs sm:text-sm text-muted-foreground">
@@ -755,12 +862,12 @@ export default function TDOverview() {
                       {expandedTutorsSection[pod.id] === false ? null : (
                         tutors.length === 0 ? (
                           <div className="text-center py-8 text-muted-foreground">
-                            <p className="text-sm">No tutors assigned yet</p>
+                            <p className="text-sm">No Specialists assigned yet</p>
                           </div>
                         ) : (
                           <div className="space-y-2">
                             {tutors.map((tutor) => {
-                              const tutorName = tutor.name || tutor.firstName || "Unknown Tutor";
+                              const tutorName = tutor.name || tutor.firstName || "Unknown Specialist";
                               const tutorAudit = battleTestingSummary.tutorSummaries.find(
                                 (entry) =>
                                   entry.assignmentId === tutor.assignment.id ||
@@ -795,15 +902,25 @@ export default function TDOverview() {
                                         <div className="flex-1 min-w-0">
                                           <p className="font-semibold text-sm sm:text-base truncate">{tutorName}</p>
                                           <p className="text-xs sm:text-sm text-muted-foreground truncate">{tutor.email || "No email"}</p>
-                                          <div className="mt-2 flex flex-wrap gap-2">
-                                            {((tutor.assignment as any)?.certification_status || "").toLowerCase() !== "pending" && (
-                                              <Badge variant="outline">
-                                                {(tutor.assignment as any)?.certification_status}
-                                              </Badge>
-                                            )}
-                                            <Badge variant={getOperationalModeBadge(operationalMode)}>
-                                              {formatOperationalModeLabel(operationalMode)}
-                                            </Badge>
+                                        </div>
+                                      </div>
+                                    </div>
+                                      <div className="flex flex-col gap-3">
+                                        <SpecialistDevelopmentCardSummary
+                                          summary={specialistDevelopmentSummaries[tutor.id]}
+                                          operationalMode={operationalMode}
+                                          isLoading={specialistDevelopmentSummariesLoading}
+                                          isUnavailable={specialistDevelopmentSummariesError}
+                                          onOpen={() =>
+                                            navigate(
+                                              `/operational/td/my-pods/${pod.id}/specialists/${tutor.id}/development`,
+                                            )
+                                          }
+                                        />
+
+                                        <div className="flex items-center justify-between gap-3">
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <p className="text-sm font-medium text-muted-foreground">Specialist Alignment</p>
                                             <Badge className={getBattleTestStateBadgeClass(tutorAudit?.state)}>
                                               {getBattleTestStateLabel(tutorAudit?.state)}
                                             </Badge>
@@ -813,12 +930,6 @@ export default function TDOverview() {
                                                 : `Audit ${Math.round(tutorAudit.alignmentPercent)}%`}
                                             </Badge>
                                           </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                      <div className="flex flex-col gap-3">
-                                        <div className="flex items-center justify-between gap-3">
-                                          <p className="text-sm font-medium text-muted-foreground">Specialist Alignment</p>
                                           <Button
                                             variant="ghost"
                                             size="sm"
@@ -833,7 +944,7 @@ export default function TDOverview() {
                                           <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
                                             <div className="rounded-xl border border-border/60 bg-muted/20 p-3 sm:p-4">
                                               <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                                Tutor Audit
+                                                Alignment Audit
                                               </p>
                                               <div className="mt-3 space-y-3">
                                                 {(["transformation_phases", "session_infrastructure"] as TutorAuditGroupKey[]).map((groupKey) => {
@@ -981,7 +1092,7 @@ export default function TDOverview() {
                                             </div>
                                             <div className="rounded-xl border border-border/60 bg-muted/20 p-3 sm:p-4">
                                               <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                                Tutor Controls
+                                                Controls
                                               </p>
                                               <div className="mt-3 flex flex-wrap gap-2">
                                                 <Button
@@ -996,17 +1107,6 @@ export default function TDOverview() {
                                                   }
                                                 >
                                                   Audit History
-                                                </Button>
-                                                <Button
-                                                  size="sm"
-                                                  variant="outline"
-                                                  onClick={() =>
-                                                    navigate(
-                                                      `/operational/td/my-pods/${pod.id}/specialists/${tutor.id}/development`,
-                                                    )
-                                                  }
-                                                >
-                                                  Development Record
                                                 </Button>
                                                 <Button
                                                   size="sm"
@@ -1034,7 +1134,7 @@ export default function TDOverview() {
                                                     });
                                                   }}
                                                 >
-                                                  Run Tutor Audit
+                                                  Run Alignment Audit
                                                 </Button>
                                               </div>
                                               <p className="mt-3 text-sm text-muted-foreground">
@@ -1053,7 +1153,7 @@ export default function TDOverview() {
                                           </div>
                                         ) : (
                                           <p className="text-sm leading-6 text-muted-foreground">
-                                            Expand to view audit summaries, risk details, and tutor controls.
+                                            Expand to view alignment evidence, risk details, and controls.
                                           </p>
                                         )}
 
@@ -1154,10 +1254,10 @@ export default function TDOverview() {
         }}
         title={
           activeTutorHistory
-            ? `Tutor Audit History - ${activeTutorHistory.tutorName}`
-            : "Tutor Audit History"
+            ? `Alignment Audit History - ${activeTutorHistory.tutorName}`
+            : "Alignment Audit History"
         }
-        description="Stored tutor battle-test runs and rep-level logging."
+        description="Stored Specialist alignment-audit runs and rep-level evidence."
         historyQueryKey={
           activeTutorHistory
             ? `battle-test-runs-${activeTutorHistory.podId}`
