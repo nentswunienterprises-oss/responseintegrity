@@ -38,6 +38,13 @@ const capabilityReviewResetSchema = z.object({
   tutorAssignmentId: z.string().trim().min(1),
 });
 
+const capabilityLifecycleProofSchema = z.object({
+  tutorAssignmentId: z
+    .string()
+    .trim()
+    .startsWith("proof-capability-lifecycle-"),
+});
+
 function requireSpecialistUser(req: Request, res: Response) {
   const dbUser = (req as any).dbUser;
   if (!dbUser?.id) {
@@ -85,6 +92,41 @@ export function registerCapabilityEngineRoutes(app: Express) {
         return res.json(state);
       } catch (error) {
         return respondError(res, error, "Failed to load capability assessment plan.");
+      }
+    },
+  );
+
+  app.post(
+    "/api/tutor/capability-proof/reconcile-sandbox",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        if (process.env.VERCEL_ENV !== "preview") {
+          return res.status(404).json({ message: "Not found." });
+        }
+
+        let proofProjectRef = "";
+        try {
+          proofProjectRef = new URL(String(process.env.SUPABASE_URL || "")).hostname.split(".")[0] || "";
+        } catch {
+          proofProjectRef = "";
+        }
+        if (proofProjectRef !== "jftlxeacphvbnhbsbpxc") {
+          return res.status(404).json({ message: "Not found." });
+        }
+
+        const dbUser = requireSpecialistUser(req, res);
+        if (!dbUser) return;
+
+        const payload = capabilityLifecycleProofSchema.parse(req.body);
+        const result = await reconcileCapabilitySandboxAuthority({
+          tutorAssignmentId: payload.tutorAssignmentId,
+          tutorId: String(dbUser.id),
+        });
+
+        return res.json(result);
+      } catch (error) {
+        return respondError(res, error, "Failed to reconcile Capability Sandbox proof.");
       }
     },
   );
