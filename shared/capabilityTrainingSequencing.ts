@@ -30,6 +30,7 @@ export interface CapabilityTrainingActiveBank {
   evidenceKind: CapabilityEvidenceKind;
   maxAttempts: number;
   retryCooldownHours: number;
+  reviewMode?: boolean;
 }
 
 export interface CapabilityTrainingAttempt {
@@ -54,6 +55,7 @@ export interface CapabilityTrainingAvailability {
   maxAttempts: number | null;
   passThresholdPercent: number;
   formSize: number;
+  reviewMode?: boolean;
   stage:
     | "transformation_mastery"
     | "transformation_retrieval"
@@ -263,6 +265,31 @@ export function buildCapabilityTrainingAvailability(input: {
     }
 
     const attempts = currentAttemptsFor(entry);
+
+    const cumulativeReviewMode =
+      Boolean(bank.reviewMode) &&
+      (entry.assessmentKey === TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY ||
+        entry.assessmentKey === TRANSFORMATION_TRANSFER_ASSESSMENT_KEY);
+
+    if (cumulativeReviewMode) {
+      return {
+        assessmentKey: entry.assessmentKey,
+        title: entry.title,
+        evidenceKind: entry.evidenceKind,
+        coveredDeepDiveKeys: [...entry.coveredDeepDiveKeys],
+        status: "available",
+        reason: null,
+        unlockAt: null,
+        bankVersion: bank.bankVersion,
+        attemptCount: attempts.length,
+        maxAttempts: bank.maxAttempts,
+        passThresholdPercent: entry.passThresholdPercent,
+        formSize: entry.formSize,
+        reviewMode: true,
+        stage,
+      };
+    }
+
     if (attempts.some((attempt) => attempt.passed)) {
       return {
         assessmentKey: entry.assessmentKey,
