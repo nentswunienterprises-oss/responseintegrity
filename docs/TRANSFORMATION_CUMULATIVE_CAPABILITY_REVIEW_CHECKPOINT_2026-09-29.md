@@ -2,14 +2,14 @@
 
 **Opened:** 29 September 2026  
 **Reconciled to current active banks:** 4 October 2026  
-**Status:** **RETRIEVAL v9 FOUNDER-APPROVED AND LOCKED; TRANSFER v9 REVIEW OPEN**
+**Status:** **RETRIEVAL v9 FOUNDER-APPROVED AND LOCKED; TRANSFER v10 REVIEW OPEN**
 
 This checkpoint governs the two cumulative Transformation Capability gates in the approved Training architecture:
 
 - `transformation_phases_retrieval_v1` v9
-- `transformation_state_transfer_v1` v9
+- `transformation_state_transfer_v1` v10
 
-The earlier v2 review record was the original pre-Founder editorial checkpoint. Those banks later went through OS-wide Capability authoring and directness reconciliations. Transfer has now received the same pre-Founder option-quality pass and is active as v9. During Founder review, Delayed Retrieval received a second full option-quality pass and was versioned to v9. Retrieval v9 and Transfer v8 are now the active private-bank authorities that must receive Founder acceptance.
+The earlier v2 review record was the original pre-Founder editorial checkpoint. Those banks later went through OS-wide Capability authoring and directness reconciliations. Transfer received the same pre-Founder option-quality pass, then a dedicated prompt-to-option grammar pass. Because v9 already had a review attempt, the grammar corrections were versioned immutably to v10 rather than editing v9 in place. During Founder review, Delayed Retrieval received a second full option-quality pass and was versioned to v9. Retrieval v9 and Transfer v8 are now the active private-bank authorities that must receive Founder acceptance.
 
 ## Current Proof authority
 
@@ -20,7 +20,7 @@ On 4 October 2026 the active cumulative configs were explicitly returned to Revi
 | Gate | Version | Form size | Pass threshold | Review Mode | Current structure |
 | --- | ---: | ---: | ---: | --- | --- |
 | Transformation Delayed Retrieval | v9 | 25 | 96% | off | 24 single-choice + 1 multi-select |
-| Transformation Interleaved Transfer | v9 | 25 | 96% | on | 24 single-choice + 1 multi-select |
+| Transformation Interleaved Transfer | v10 | 25 | 96% | on | 24 single-choice + 1 multi-select |
 
 Current structural read-back for each bank:
 
@@ -35,7 +35,7 @@ Current structural read-back for each bank:
 Current content hashes:
 
 - Retrieval v9: `7b797e2b54d0ff4529b603161e7d68c6`
-- Transfer v9: `7097bf67528e90d921977c8d8ff175cf`
+- Transfer v10: `c75df5ea8cbaf3cf852e0f6b3f787ef4`
 
 Production was checked during Founder review. **The Hub contains no Retrieval or Transfer configs for these assessment keys.** Retrieval v9 is now Founder-approved in Proof, but it remains intentionally unpromoted until Transfer is also Founder-approved.
 
@@ -113,7 +113,7 @@ Closure actions completed in Proof before Review Mode exit:
 - v9 question confirmations were confirmed at zero;
 - Retrieval v9 Review Mode was turned off;
 - active Retrieval authority remains v9;
-- Transfer v8 remains in Review Mode;
+- Transfer v10 remains in Review Mode;
 - Production remains untouched.
 
 **Freeze rule:** do not change Retrieval v9 prompts, options, scoring keys, feedback, Truths, critical-boundary logic or assessment sequencing unless the Founder explicitly reopens Retrieval or a concrete defect is discovered and documented. A narrow defect correction does not reopen unrelated approved content.
@@ -152,6 +152,53 @@ Current full Transfer v9 content hash:
 
 Transfer v8 is retired in Proof. Transfer v9 is active with Review Mode on. Production remains untouched and still contains no Transfer config.
 
+## Transfer v10 prompt-to-option grammar pass
+
+After the v9 pre-Founder quality pass, the Founder explicitly challenged whether the answer options were **grammatically direct to the prompt**, not merely semantically correct.
+
+A second item-by-item review found seven v9 questions where the option meaning was acceptable but the grammatical form still did not answer the stem cleanly enough:
+
+- 02: "What should control the next action?"
+- 06: "What is the problem?"
+- 10: "What is the most useful distinction?"
+- 14: "What should the next evidence preserve?"
+- 19: "What should control the record?"
+- 22: "Which explanation best identifies the evidence problem?"
+- 25: "What should happen?"
+
+Those seven option sets were rewritten so every option now answers in the grammatical form requested by its prompt. The remaining 18 items passed the stricter prompt-to-option grammar audit without changes.
+
+Because Transfer v9 already had one Review Mode attempt, it was **not edited in place**. The corrected bank was rotated immutably to v10.
+
+v10 preserves:
+
+- all prompts/questions;
+- all correct-answer keys;
+- all critical-fail keys;
+- all critical-boundary keys;
+- all Truth/explanation copy;
+- all option-specific feedback.
+
+The scoring/content authority hash is unchanged from v9 to v10:
+
+`44395571b335fd38706f923de3ae9327`
+
+Current full Transfer v10 content hash:
+
+`c75df5ea8cbaf3cf852e0f6b3f787ef4`
+
+Structural read-back remains:
+
+- 25 active items;
+- exactly five options per item;
+- 24 single-choice + 1 multi-select;
+- 16 critical-boundary items;
+- 16 critical-fail items;
+- 0 single-choice wrong-option feedback gaps;
+- 0 single-choice correct options carrying wrong-answer feedback.
+
+Transfer v9 is retired in Proof. Transfer v10 is active with Review Mode on. Production remains untouched and still contains no Transfer config.
+
 ## Retrieval vs Transfer distinction
 
 **Delayed Retrieval** tests whether the Specialist can recover Transformation doctrine and distinctions after the individual Deep Dive context has gone.
@@ -175,7 +222,7 @@ The original v2 banks received a full pre-Founder editorial audit on 29 Septembe
 - answer-length cues and visible answer-position cues;
 - generic feedback and implementation language.
 
-Later OS-wide authoring work produced v8. Retrieval was subsequently versioned to v9 during Founder review; Transfer remains on v8. The v2 measurements are historical evidence of the editorial process, not current-version acceptance.
+Later OS-wide authoring work produced v8. Retrieval was subsequently versioned to v9 during Founder review. Transfer was versioned to v9 for its pre-Founder option and feedback pass, then to v10 for the dedicated prompt-to-option grammar pass. The v2 measurements are historical evidence of the editorial process, not current-version acceptance.
 
 ## Founder review access
 
@@ -195,19 +242,19 @@ Outside Review Mode, the approved sequencing remains unchanged: five Transformat
 The current exit gate is:
 
 - [x] Active Retrieval bank reconciled to v9 after the Founder option-quality pass.
-- [x] Active Transfer bank reconciled to v9 after the pre-Founder option-quality pass.
+- [x] Active Transfer bank reconciled to v10 after the prompt-to-option grammar pass.
 - [x] Structural integrity read back from Proof.
 - [x] Critical-boundary / critical-fail consistency read back.
 - [x] Required option-feedback coverage read back.
 - [x] Retrieval v9 Review Mode was used for Founder review.
-- [x] Transfer v9 Review Mode active in Proof.
+- [x] Transfer v10 Review Mode active in Proof.
 - [x] Production confirmed untouched by the review-mode reopen.
 - [x] Retrieval v9 reviewed interactively by Founder and accepted.
 - [x] Founder corrections from Retrieval v9 applied and verified.
 - [x] Retrieval v9 review attempt cleared and Review Mode exited.
-- [ ] Transfer v9 reviewed interactively by Founder and accepted.
-- [ ] Founder corrections from Transfer v9, if any, applied.
-- [ ] Transfer v9 Review Mode exited.
+- [ ] Transfer v10 reviewed interactively by Founder and accepted.
+- [ ] Founder corrections from Transfer v10, if any, applied.
+- [ ] Transfer v10 Review Mode exited.
 - [ ] Approved Retrieval + Transfer versions promoted to The Hub.
 - [ ] Production content read-back matches the approved Proof hashes.
 - [ ] End-to-end non-review sequence proven: five Transformation Masteries -> Retrieval -> Transfer -> Sandbox unlock.
@@ -218,7 +265,7 @@ Do not promote either gate to The Hub merely because its structural checks are g
 
 ## Next review order
 
-1. Founder reviews **Transformation Interleaved Transfer v9**.
+1. Founder reviews **Transformation Interleaved Transfer v10**.
 2. Apply and verify any Founder corrections.
 3. Founder explicitly locks Transfer.
 4. Promote Retrieval v9 + the accepted Transfer version to Production.

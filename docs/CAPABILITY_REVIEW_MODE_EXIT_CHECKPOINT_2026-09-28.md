@@ -188,7 +188,7 @@ All five are active with Review Mode off.
 
 Their approved Deep Dive learning flows are also frozen under the teach-before-test structure established during review.
 
-This closes Founder acceptance for the five Transformation Mastery banks, but does **not** close this broader Capability checkpoint. Transformation Retention / Delayed Retrieval v9 is now also Founder-approved and locked. Transformation Interleaved Transfer is active as v9 in Founder Review Mode after its pre-review option and feedback quality pass. Session Infrastructure remains separately governed by its own review status.
+This closes Founder acceptance for the five Transformation Mastery banks, but does **not** close this broader Capability checkpoint. Transformation Retention / Delayed Retrieval v9 is now also Founder-approved and locked. Transformation Interleaved Transfer is active as v10 in Founder Review Mode after its pre-review option/feedback pass and dedicated prompt-to-option grammar pass. Session Infrastructure remains separately governed by its own review status.
 
 Durable record: `docs/TRANSFORMATION_PHASES_FOUNDER_APPROVAL_CHECKPOINT_2026-10-04.md`.
 
@@ -200,7 +200,7 @@ Final approved content hash:
 
 `7b797e2b54d0ff4529b603161e7d68c6`
 
-Before Review Mode exit, the remaining v9 review attempt was cleared so it cannot become lifecycle evidence. Proof now has Retrieval v9 active with Review Mode off and zero v9 review attempts/confirmations. Transfer v9 remains in Review Mode after its pre-Founder quality pass.
+Before Review Mode exit, the remaining v9 review attempt was cleared so it cannot become lifecycle evidence. Proof now has Retrieval v9 active with Review Mode off and zero v9 review attempts/confirmations. Transfer v10 remains in Review Mode after its prompt-to-option grammar pass.
 
 Production has not yet received Retrieval. Promotion remains gated on Transfer approval so the cumulative pair can be promoted and verified together.
 
@@ -218,6 +218,24 @@ Durable record: `docs/TRANSFORMATION_CUMULATIVE_CAPABILITY_REVIEW_CHECKPOINT_202
 - current full v9 hash: `7097bf67528e90d921977c8d8ff175cf`;
 - Transfer v9 is active in Proof with Review Mode on;
 - Production contains no Transfer config.
+
+Founder acceptance is still open.
+
+## Transformation Transfer grammar-directness pass - 4 October 2026
+
+A stricter prompt-to-option audit identified seven v9 items whose answer meaning was acceptable but whose grammatical form did not answer the stem directly enough: 02, 06, 10, 14, 19, 22 and 25.
+
+Because v9 already had one Review Mode attempt, it was not edited in place. The corrected bank was rotated to v10.
+
+- all 25 prompt-to-option relationships were reviewed;
+- 7 option sets were rewritten for grammatical directness;
+- the other 18 passed unchanged;
+- prompts, scoring keys, critical boundaries, Truths and option-specific feedback were preserved;
+- scoring/content authority hash remains `44395571b335fd38706f923de3ae9327`;
+- current full v10 hash: `c75df5ea8cbaf3cf852e0f6b3f787ef4`;
+- Transfer v9 is retired;
+- Transfer v10 is active in Proof with Review Mode on;
+- Production still contains no Transfer config.
 
 Founder acceptance is still open.
 
