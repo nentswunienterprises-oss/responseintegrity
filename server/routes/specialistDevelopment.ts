@@ -133,22 +133,31 @@ export function registerSpecialistDevelopmentRoutes(app: Express) {
           return res.status(400).json({ message: "podId is required." });
         }
 
-        const assignmentsResult = await pool.query(
-          `SELECT ta.id,
-                  ta.tutor_id,
-                  ta.operational_mode,
-                  ta.certification_status,
-                  p.td_id
-             FROM public.tutor_assignments ta
-             JOIN public.pods p ON p.id = ta.pod_id
-            WHERE ta.pod_id = $1
-            ORDER BY ta.created_at ASC`,
+        const podResult = await pool.query(
+          `SELECT td_id
+             FROM public.pods
+            WHERE id = $1
+            LIMIT 1`,
           [podId],
         );
-
-        if (assignmentsResult.rows.some((row) => String(row.td_id || "") !== String(td.id))) {
+        const pod = podResult.rows[0];
+        if (!pod) {
+          return res.status(404).json({ message: "Pod not found." });
+        }
+        if (String(pod.td_id || "") !== String(td.id)) {
           return res.status(403).json({ message: "This Pod is not assigned to you." });
         }
+
+        const assignmentsResult = await pool.query(
+          `SELECT id,
+                  tutor_id,
+                  operational_mode,
+                  certification_status
+             FROM public.tutor_assignments
+            WHERE pod_id = $1
+            ORDER BY created_at ASC`,
+          [podId],
+        );
 
         const summaries = await Promise.all(
           assignmentsResult.rows.map(async (assignment) => {
