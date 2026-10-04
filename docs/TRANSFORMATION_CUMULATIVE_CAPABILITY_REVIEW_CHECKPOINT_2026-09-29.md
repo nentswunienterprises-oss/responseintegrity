@@ -2,14 +2,14 @@
 
 **Opened:** 29 September 2026  
 **Reconciled to current active banks:** 4 October 2026  
-**Status:** **RETRIEVAL v9 FOUNDER-APPROVED AND LOCKED; TRANSFER v8 REVIEW OPEN**
+**Status:** **RETRIEVAL v9 FOUNDER-APPROVED AND LOCKED; TRANSFER v9 REVIEW OPEN**
 
 This checkpoint governs the two cumulative Transformation Capability gates in the approved Training architecture:
 
 - `transformation_phases_retrieval_v1` v9
-- `transformation_state_transfer_v1` v8
+- `transformation_state_transfer_v1` v9
 
-The earlier v2 review record was the original pre-Founder editorial checkpoint. Those banks later went through OS-wide Capability authoring and directness reconciliations. Transfer remains on v8. During Founder review, Delayed Retrieval received a second full option-quality pass and was versioned to v9. Retrieval v9 and Transfer v8 are now the active private-bank authorities that must receive Founder acceptance.
+The earlier v2 review record was the original pre-Founder editorial checkpoint. Those banks later went through OS-wide Capability authoring and directness reconciliations. Transfer has now received the same pre-Founder option-quality pass and is active as v9. During Founder review, Delayed Retrieval received a second full option-quality pass and was versioned to v9. Retrieval v9 and Transfer v8 are now the active private-bank authorities that must receive Founder acceptance.
 
 ## Current Proof authority
 
@@ -20,7 +20,7 @@ On 4 October 2026 the active cumulative configs were explicitly returned to Revi
 | Gate | Version | Form size | Pass threshold | Review Mode | Current structure |
 | --- | ---: | ---: | ---: | --- | --- |
 | Transformation Delayed Retrieval | v9 | 25 | 96% | off | 24 single-choice + 1 multi-select |
-| Transformation Interleaved Transfer | v8 | 25 | 96% | on | 24 single-choice + 1 multi-select |
+| Transformation Interleaved Transfer | v9 | 25 | 96% | on | 24 single-choice + 1 multi-select |
 
 Current structural read-back for each bank:
 
@@ -35,7 +35,7 @@ Current structural read-back for each bank:
 Current content hashes:
 
 - Retrieval v9: `7b797e2b54d0ff4529b603161e7d68c6`
-- Transfer v8: `e4a77f5e69a6f26f19c04014a2b2da96`
+- Transfer v9: `7097bf67528e90d921977c8d8ff175cf`
 
 Production was checked during Founder review. **The Hub contains no Retrieval or Transfer configs for these assessment keys.** Retrieval v9 is now Founder-approved in Proof, but it remains intentionally unpromoted until Transfer is also Founder-approved.
 
@@ -118,6 +118,40 @@ Closure actions completed in Proof before Review Mode exit:
 
 **Freeze rule:** do not change Retrieval v9 prompts, options, scoring keys, feedback, Truths, critical-boundary logic or assessment sequencing unless the Founder explicitly reopens Retrieval or a concrete defect is discovered and documented. A narrow defect correction does not reopen unrelated approved content.
 
+## Transfer v9 pre-Founder quality pass
+
+Before putting Interleaved Transfer in front of the Founder, v8 was read item by item against the same option-quality standard used for the five Transformation Mastery banks and Retrieval v9.
+
+The pass audited:
+
+- whether alternate-valid answers add different truths rather than restating one another;
+- whether every option answers the prompt at the same grammatical and decision level;
+- whether distractors represent credible RI misconceptions instead of obvious filler;
+- whether general RI truths are rejected when they do not answer the question asked;
+- whether mixed-situation discrimination remains the point of Transfer rather than collapsing back into simple recall;
+- whether state authority, support, evidence, variation, discomfort and timing boundaries remain exact.
+
+Result:
+
+- all 25 Transfer items were manually reviewed;
+- **22 of 25 option sets were rewritten**;
+- items 16, 24 and 25 passed the option audit unchanged;
+- all prompts were preserved unchanged;
+- all correct-answer keys, critical-fail keys, critical-boundary keys and Truth/explanation copy were preserved unchanged;
+- option-specific feedback was audited separately and nine feedback entries were tightened across items 10, 15, 20 and 21;
+- the multi-select feedback on item 20 no longer uses the old "Supported." phrasing;
+- the scoring/content authority hash excluding option surface and feedback remained identical between v8 and v9: `44395571b335fd38706f923de3ae9327`;
+- v9 contains 25 active items, exactly five options per item, 24 single-choice + 1 multi-select;
+- all single-choice wrong options retain option-specific feedback;
+- no single-choice correct option carries wrong-answer feedback;
+- all 16 critical-boundary items retain critical-fail coverage.
+
+Current full Transfer v9 content hash:
+
+`7097bf67528e90d921977c8d8ff175cf`
+
+Transfer v8 is retired in Proof. Transfer v9 is active with Review Mode on. Production remains untouched and still contains no Transfer config.
+
 ## Retrieval vs Transfer distinction
 
 **Delayed Retrieval** tests whether the Specialist can recover Transformation doctrine and distinctions after the individual Deep Dive context has gone.
@@ -161,19 +195,19 @@ Outside Review Mode, the approved sequencing remains unchanged: five Transformat
 The current exit gate is:
 
 - [x] Active Retrieval bank reconciled to v9 after the Founder option-quality pass.
-- [x] Active Transfer bank reconciled to v8.
+- [x] Active Transfer bank reconciled to v9 after the pre-Founder option-quality pass.
 - [x] Structural integrity read back from Proof.
 - [x] Critical-boundary / critical-fail consistency read back.
 - [x] Required option-feedback coverage read back.
 - [x] Retrieval v9 Review Mode was used for Founder review.
-- [x] Transfer v8 Review Mode reopened in Proof.
+- [x] Transfer v9 Review Mode active in Proof.
 - [x] Production confirmed untouched by the review-mode reopen.
 - [x] Retrieval v9 reviewed interactively by Founder and accepted.
 - [x] Founder corrections from Retrieval v9 applied and verified.
 - [x] Retrieval v9 review attempt cleared and Review Mode exited.
-- [ ] Transfer v8 reviewed interactively by Founder and accepted.
-- [ ] Founder corrections from Transfer v8, if any, applied.
-- [ ] Transfer v8 Review Mode exited.
+- [ ] Transfer v9 reviewed interactively by Founder and accepted.
+- [ ] Founder corrections from Transfer v9, if any, applied.
+- [ ] Transfer v9 Review Mode exited.
 - [ ] Approved Retrieval + Transfer versions promoted to The Hub.
 - [ ] Production content read-back matches the approved Proof hashes.
 - [ ] End-to-end non-review sequence proven: five Transformation Masteries -> Retrieval -> Transfer -> Sandbox unlock.
@@ -184,7 +218,7 @@ Do not promote either gate to The Hub merely because its structural checks are g
 
 ## Next review order
 
-1. Founder reviews **Transformation Interleaved Transfer v8**.
+1. Founder reviews **Transformation Interleaved Transfer v9**.
 2. Apply and verify any Founder corrections.
 3. Founder explicitly locks Transfer.
 4. Promote Retrieval v9 + the accepted Transfer version to Production.
