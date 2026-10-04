@@ -96,6 +96,75 @@ export function registerCapabilityEngineRoutes(app: Express) {
     },
   );
 
+  app.get(
+    "/api/tutor/capability-proof/lifecycle",
+    async (_req: Request, res: Response) => {
+      try {
+        if (process.env.VERCEL_ENV !== "preview") {
+          return res.status(404).json({ message: "Not found." });
+        }
+
+        let proofProjectRef = "";
+        try {
+          proofProjectRef = new URL(String(process.env.SUPABASE_URL || "")).hostname.split(".")[0] || "";
+        } catch {
+          proofProjectRef = "";
+        }
+        if (proofProjectRef !== "jftlxeacphvbnhbsbpxc") {
+          return res.status(404).json({ message: "Not found." });
+        }
+
+        const tutorId = "77977298-7ac9-41f9-a726-9d5fd634540f";
+        const ids = {
+          four: "proof-capability-lifecycle-four-20261004",
+          spacing: "proof-capability-lifecycle-spacing-20261004",
+          retrieval: "proof-capability-lifecycle-retrieval-20261004",
+          transfer: "proof-capability-lifecycle-transfer-20261004",
+          sandbox: "proof-capability-lifecycle-sandbox-20261004",
+        } as const;
+
+        const load = (tutorAssignmentId: string) =>
+          getSpecialistCapabilityTrainingState({ tutorAssignmentId, tutorId });
+
+        const [four, spacing, retrieval, transfer, beforeSandbox] = await Promise.all([
+          load(ids.four),
+          load(ids.spacing),
+          load(ids.retrieval),
+          load(ids.transfer),
+          load(ids.sandbox),
+        ]);
+
+        const firstReconcile = await reconcileCapabilitySandboxAuthority({
+          tutorAssignmentId: ids.sandbox,
+          tutorId,
+        });
+        const secondReconcile = await reconcileCapabilitySandboxAuthority({
+          tutorAssignmentId: ids.sandbox,
+          tutorId,
+        });
+        const afterSandbox = await load(ids.sandbox);
+
+        return res.json({
+          proofProjectRef,
+          fixtures: {
+            four,
+            spacing,
+            retrieval,
+            transfer,
+            beforeSandbox,
+            afterSandbox,
+          },
+          reconciliation: {
+            first: firstReconcile,
+            second: secondReconcile,
+          },
+        });
+      } catch (error) {
+        return respondError(res, error, "Failed to run Capability lifecycle proof.");
+      }
+    },
+  );
+
   app.post(
     "/api/tutor/capability-proof/reconcile-sandbox",
     isAuthenticated,
