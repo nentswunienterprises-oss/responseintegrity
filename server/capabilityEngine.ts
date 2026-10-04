@@ -193,7 +193,7 @@ function resolveMultiSelectSelectionState(
   };
 }
 
-function resolveQuestionFeedback(
+export function resolveQuestionFeedback(
   question: CapabilityQuestionDefinition,
   selectedOptionKeys: string[],
   correct: boolean,
@@ -247,14 +247,16 @@ function resolveQuestionFeedback(
       .filter(Boolean)
       .join(", but ") + ".";
 
-    const feedback = [
-      ...state.selectedWrongOptionKeys.map((key) => question.optionFeedback?.[key]),
-      ...state.missedCorrectOptionKeys.map((key) => question.optionFeedback?.[key]),
-    ]
+    const feedback = state.selectedWrongOptionKeys
+      .map((key) => question.optionFeedback?.[key])
       .filter((value): value is string => typeof value === "string" && Boolean(value.trim()))
       .map((value) => cleanCapabilityDisplayCopy(value.trim()))
       .filter((value, index, values) => values.indexOf(value) === index);
 
+    // The first-stage "Not quite" response should explain only what the learner
+    // actually selected incorrectly. Missed correct options are intentionally not
+    // expanded here: the summary already tells the learner that more selections
+    // apply, and the separate Truth stage teaches the complete rule.
     return [summary, ...feedback].filter(Boolean).join(" ");
   }
 
