@@ -301,6 +301,29 @@ The remaining cumulative proof is the real non-review lifecycle transition:
 
 Durable record: `docs/TRANSFORMATION_CUMULATIVE_CAPABILITY_REVIEW_CHECKPOINT_2026-09-29.md`.
 
+## Transformation cumulative lifecycle proof closure - 4 October 2026
+
+The cumulative Transformation Capability checkpoint is now **closed**.
+
+The live Proof backend consumed persisted current-bank evidence through the real non-review sequencing and Sandbox-authority path and proved:
+
+- four Transformation Masteries do not unlock Retrieval;
+- all five Masteries still enforce the 24-hour Retention spacing interval;
+- after spacing, Retrieval v10 becomes available while Transfer remains locked;
+- a current-version Retrieval v10 pass unlocks Transfer v11;
+- a current-version Transfer v11 pass makes Sandbox ready;
+- the real Sandbox reconciliation changes an eligible Training assignment to Sandbox authority;
+- repeating reconciliation is idempotent;
+- Session Infrastructure Mastery gates become available after the Transformation gate.
+
+The test used isolated synthetic Proof assignments and prevalidated persisted pass evidence. It proved sequencing / authority behavior, not a claim that a human manually answered all seven assessments during the proof run.
+
+All synthetic proof assignments, attempts, question confirmations and lifecycle-status rows were deleted after evidence capture and verified at zero.
+
+This closes only the cumulative Transformation checkpoint. **This broader Capability Review Mode Exit Checkpoint remains OPEN**, including Session Infrastructure and any other unresolved Founder-review work.
+
+Durable record: `docs/TRANSFORMATION_CUMULATIVE_CAPABILITY_REVIEW_CHECKPOINT_2026-09-29.md`.
+
 ## Transformation Transfer grammar-directness pass - 4 October 2026
 
 A stricter prompt-to-option audit identified seven v9 items whose answer meaning was acceptable but whose grammatical form did not answer the stem directly enough: 02, 06, 10, 14, 19, 22 and 25.
