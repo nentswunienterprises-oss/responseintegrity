@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { supabase } from "./storage";
+import { pool } from "./db";
 import {
   SPECIALIST_PATHWAY_MAXIMUM_DAYS,
   SPECIALIST_PATHWAY_STANDARD_DAYS,
@@ -42,17 +42,27 @@ function mapPathway(row: any): SpecialistDevelopmentPathwayOverview {
   };
 }
 
-export async function getSpecialistDevelopmentPathway(tutorId: string) {
-  const { data, error } = await supabase
-    .from("specialist_development_pathways")
-    .select("*")
-    .eq("tutor_id", tutorId)
-    .order("started_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+function databaseErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
 
-  if (error) throw new Error(`Failed to load Specialist Development Pathway: ${error.message}`);
-  return data ? mapPathway(data) : null;
+export async function getSpecialistDevelopmentPathway(tutorId: string) {
+  try {
+    const result = await pool.query(
+      `SELECT *
+         FROM public.specialist_development_pathways
+        WHERE tutor_id = $1
+        ORDER BY started_at DESC
+        LIMIT 1`,
+      [tutorId],
+    );
+    const row = result.rows[0];
+    return row ? mapPathway(row) : null;
+  } catch (error) {
+    throw new Error(
+      `Failed to load Specialist Development Pathway: ${databaseErrorMessage(error)}`,
+    );
+  }
 }
 
 export async function ensureSpecialistDevelopmentPathway(input: {
@@ -67,32 +77,53 @@ export async function ensureSpecialistDevelopmentPathway(input: {
   if (Number.isNaN(startDate.getTime())) throw new Error("A valid pathway start date is required.");
   const startedAt = startDate.toISOString();
 
-  const { data, error } = await supabase
-    .from("specialist_development_pathways")
-    .insert({
-      id: uuidv4(),
-      tutor_id: input.tutorId,
-      application_id: input.applicationId,
-      status: "active",
-      started_at: startedAt,
-      standard_ends_at: addUtcDays(startedAt, SPECIALIST_PATHWAY_STANDARD_DAYS),
-      maximum_ends_at: addUtcDays(startedAt, SPECIALIST_PATHWAY_MAXIMUM_DAYS),
-      updated_at: new Date().toISOString(),
-    })
-    .select("*")
-    .single();
-
-  if (error) throw new Error(`Failed to start Specialist Development Pathway: ${error.message}`);
-  return mapPathway(data);
+  try {
+    const result = await pool.query(
+      `INSERT INTO public.specialist_development_pathways (
+         id,
+         tutor_id,
+         application_id,
+         status,
+         started_at,
+         standard_ends_at,
+         maximum_ends_at,
+         updated_at
+       )
+       VALUES ($1, $2, $3, 'active', $4, $5, $6, $7)
+       RETURNING *`,
+      [
+        uuidv4(),
+        input.tutorId,
+        input.applicationId,
+        startedAt,
+        addUtcDays(startedAt, SPECIALIST_PATHWAY_STANDARD_DAYS),
+        addUtcDays(startedAt, SPECIALIST_PATHWAY_MAXIMUM_DAYS),
+        new Date().toISOString(),
+      ],
+    );
+    return mapPathway(result.rows[0]);
+  } catch (error) {
+    throw new Error(
+      `Failed to start Specialist Development Pathway: ${databaseErrorMessage(error)}`,
+    );
+  }
 }
 
 export async function linkSpecialistPathwayAssignment(tutorId: string, tutorAssignmentId: string) {
-  const { error } = await supabase
-    .from("specialist_development_pathways")
-    .update({ tutor_assignment_id: tutorAssignmentId, updated_at: new Date().toISOString() })
-    .eq("tutor_id", tutorId)
-    .eq("status", "active");
-  if (error) throw new Error(`Failed to link Specialist pathway assignment: ${error.message}`);
+  try {
+    await pool.query(
+      `UPDATE public.specialist_development_pathways
+          SET tutor_assignment_id = $2,
+              updated_at = $3
+        WHERE tutor_id = $1
+          AND status = 'active'`,
+      [tutorId, tutorAssignmentId, new Date().toISOString()],
+    );
+  } catch (error) {
+    throw new Error(
+      `Failed to link Specialist pathway assignment: ${databaseErrorMessage(error)}`,
+    );
+  }
 }
 
 export async function approveSpecialistPathwayExtension(input: {
@@ -107,19 +138,28 @@ export async function approveSpecialistPathwayExtension(input: {
   if (!reason) throw new Error("A documented extension reason is required.");
 
   const nowIso = new Date().toISOString();
-  const { data, error } = await supabase
-    .from("specialist_development_pathways")
-    .update({
-      extension_approved_at: nowIso,
-      extension_approved_by_user_id: input.approvedByUserId,
-      extension_reason: reason,
-      updated_at: nowIso,
-    })
-    .eq("id", pathway.id)
-    .eq("status", "active")
-    .select("*")
-    .single();
 
-  if (error) throw new Error(`Failed to approve Specialist pathway extension: ${error.message}`);
-  return mapPathway(data);
+  try {
+    const result = await pool.query(
+      `UPDATE public.specialist_development_pathways
+          SET extension_approved_at = $2,
+              extension_approved_by_user_id = $3,
+              extension_reason = $4,
+              updated_at = $2
+        WHERE id = $1
+          AND status = 'active'
+        RETURNING *`,
+      [pathway.id, nowIso, input.approvedByUserId, reason],
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error("No active Specialist Development Pathway was found.");
+    }
+    return mapPathway(row);
+  } catch (error) {
+    throw new Error(
+      `Failed to approve Specialist pathway extension: ${databaseErrorMessage(error)}`,
+    );
+  }
 }
