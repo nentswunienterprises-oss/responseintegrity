@@ -7,6 +7,26 @@ import { getLatestSandboxReadinessAssessment } from "../sandboxReadiness";
 import { getSpecialistDevelopmentPathway } from "../specialistDevelopmentPathway";
 import { getTrialCaseById } from "../trialCertification";
 
+function isMissingSpecialistDevelopmentPathwayTable(error: unknown) {
+  const candidate = error as { code?: unknown; message?: unknown };
+  const code = String(candidate?.code || "").trim().toUpperCase();
+  const message = String(candidate?.message || "").toLowerCase();
+  return (
+    code === "PGRST205" ||
+    (message.includes("specialist_development_pathways") &&
+      message.includes("schema cache"))
+  );
+}
+
+async function loadPathwayForDevelopmentRecord(tutorId: string) {
+  try {
+    return await getSpecialistDevelopmentPathway(tutorId);
+  } catch (error) {
+    if (isMissingSpecialistDevelopmentPathwayTable(error)) return null;
+    throw error;
+  }
+}
+
 function requireTd(req: Request, res: Response) {
   const dbUser = (req as any).dbUser;
   if (!dbUser?.id) {
@@ -166,7 +186,7 @@ export function registerSpecialistDevelopmentRoutes(app: Express) {
 
         const [pathway, trainingState, sandboxReadiness, latestSandboxAssessment] =
           await Promise.all([
-            getSpecialistDevelopmentPathway(tutorId),
+            loadPathwayForDevelopmentRecord(tutorId),
             getSpecialistCapabilityTrainingState({
               tutorAssignmentId: String(assignment.id),
               tutorId,

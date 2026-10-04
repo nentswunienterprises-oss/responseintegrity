@@ -96,6 +96,11 @@
       "path": "migrations/2026-10-03_guard_capability_critical_boundary_requires_fail.sql",
       "description": "Add a fail-closed database guard requiring any Capability item tagged with a critical boundary to include at least one critical-fail option.",
       "risk": "additive"
+    },
+    {
+      "path": "migrations/20261004_specialist_development_pathway_authority.sql",
+      "description": "Restore the public Specialist Development Pathway table required by the longitudinal development record and existing Trial governance, with server-only Data API access and non-retroactive backfill inside the current 90-day maximum window.",
+      "risk": "additive"
     }
   ]
 }
