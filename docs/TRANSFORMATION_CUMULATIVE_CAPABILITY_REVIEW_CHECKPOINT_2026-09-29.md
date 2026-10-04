@@ -2,7 +2,7 @@
 
 **Opened:** 29 September 2026  
 **Reconciled to current active banks:** 4 October 2026  
-**Status:** **RETRIEVAL v10 FOUNDER-APPROVED NARROW CORRECTION; TRANSFER v11 REVIEW OPEN**
+**Status:** **RETRIEVAL v10 + TRANSFER v11 FOUNDER-APPROVED; PRODUCTION PROMOTED; E2E SANDBOX PROOF OPEN**
 
 This checkpoint governs the two cumulative Transformation Capability gates in the approved Training architecture:
 
@@ -20,7 +20,7 @@ On 4 October 2026 the active cumulative configs were explicitly returned to Revi
 | Gate | Version | Form size | Pass threshold | Review Mode | Current structure |
 | --- | ---: | ---: | ---: | --- | --- |
 | Transformation Delayed Retrieval | v10 | 25 | 96% | off | 24 single-choice + 1 multi-select |
-| Transformation Interleaved Transfer | v11 | 25 | 96% | on | 24 single-choice + 1 multi-select |
+| Transformation Interleaved Transfer | v11 | 25 | 96% | off | 24 single-choice + 1 multi-select |
 
 Current structural read-back for each bank:
 
@@ -37,7 +37,7 @@ Current content hashes:
 - Retrieval v10: `cf403ed87fd55343398cf77d21ffa31c`
 - Transfer v11: `272cc32a44436657352fdd42308ac12a`
 
-Production was checked during Founder review. **The Hub contains no Retrieval or Transfer configs for these assessment keys.** Retrieval remains Founder-approved. v10 is the narrow answer-length correction authorized after approval; it changes option wording only and preserves the approved scoring/Truth authority. It remains intentionally unpromoted until Transfer is also Founder-approved.
+Production promotion is complete. **The Hub now contains the exact approved cumulative banks: Retrieval v10 and Transfer v11, both active with Review Mode off.** Production read-back matches the approved Proof hashes exactly.
 
 ## Governing standard
 
@@ -236,7 +236,48 @@ Transfer was versioned to v11.
 
 Final cue check on both current banks found **zero** items where all correct options were longer than all distractors, zero where all correct options were shorter than all distractors, zero items with correct/wrong average-length ratio outside 0.80-1.25, and zero items with max/min option-length ratio above 1.70.
 
-Production remains untouched and contains no Retrieval or Transfer configs.
+Production now contains the approved cumulative pair after Founder acceptance and exact hash verification.
+
+## Transfer v11 Founder approval and cumulative production promotion - 4 October 2026
+
+The Founder completed the **Transformation Application / Interleaved Transfer v11** review and explicitly approved the bank.
+
+Final approved Transfer v11 full content hash:
+
+`272cc32a44436657352fdd42308ac12a`
+
+Closure actions in Proof:
+
+- Transfer v11 review attempts: 0;
+- Transfer v11 question confirmations: 0;
+- Review Mode turned off;
+- Transfer v11 remains the active Proof authority;
+- Retrieval v10 remains active with Review Mode off.
+
+The cumulative pair was then promoted transactionally to **The Hub**:
+
+- Retrieval `transformation_phases_retrieval_v1` v10;
+- Transfer `transformation_state_transfer_v1` v11;
+- 25 active items per bank;
+- 24 single-choice + 1 multi-select per bank;
+- 16 critical-boundary items and 16 critical-fail items per bank;
+- both configs active;
+- Review Mode off in Production.
+
+Production hash verification:
+
+| Gate | Authority hash | Full content hash |
+| --- | --- | --- |
+| Retrieval v10 | `ac0bfcc5232eb414b6aa955e10fac21e` | `cf403ed87fd55343398cf77d21ffa31c` |
+| Transfer v11 | `44395571b335fd38706f923de3ae9327` | `272cc32a44436657352fdd42308ac12a` |
+
+These hashes match Proof exactly.
+
+**Freeze rule:** Retrieval v10 and Transfer v11 are now the approved cumulative Transformation banks. Do not change their prompts, options, scoring keys, feedback, Truths, critical-boundary logic or sequencing unless the Founder explicitly reopens the bank or a concrete defect is discovered and documented.
+
+The remaining open gate is the real non-review lifecycle proof:
+
+`five Transformation Masteries -> Retrieval -> Transfer -> Sandbox unlock`.
 
 ## Retrieval vs Transfer distinction
 
@@ -286,30 +327,27 @@ The current exit gate is:
 - [x] Critical-boundary / critical-fail consistency read back.
 - [x] Required option-feedback coverage read back.
 - [x] Retrieval Founder review completed on v9; v10 is the narrow length-parity correction with authority unchanged.
-- [x] Transfer v11 Review Mode active in Proof.
+- [x] Transfer v11 Review Mode was used for Founder review and is now off.
 - [x] Production confirmed untouched by the review-mode reopen.
 - [x] Retrieval reviewed interactively by Founder and accepted; v10 preserves that approved authority.
 - [x] Retrieval v10 answer-length correction applied and verified.
 - [x] Retrieval v10 active with Review Mode off and zero review attempts/confirmations.
-- [ ] Transfer v11 reviewed interactively by Founder and accepted.
-- [ ] Founder corrections from Transfer v11, if any, applied.
-- [ ] Transfer v11 Review Mode exited.
-- [ ] Approved Retrieval + Transfer versions promoted to The Hub.
-- [ ] Production content read-back matches the approved Proof hashes.
+- [x] Transfer v11 reviewed interactively by Founder and accepted.
+- [x] No further Transfer v11 corrections required after final Founder review.
+- [x] Transfer v11 Review Mode exited with zero review attempts/confirmations.
+- [x] Retrieval v10 + Transfer v11 promoted transactionally to The Hub.
+- [x] Production content read-back matches the approved Proof hashes exactly.
 - [ ] End-to-end non-review sequence proven: five Transformation Masteries -> Retrieval -> Transfer -> Sandbox unlock.
 
-Retrieval v10 remains Founder-approved as a narrow presentation correction to approved v9. Do not describe Transfer as Founder-approved until its active-version interactive review is complete.
+Retrieval v10 and Transfer v11 are Founder-approved and locked.
 
 Do not promote either gate to The Hub merely because its structural checks are green.
 
-## Next review order
+## Next proof step
 
-1. Founder reviews **Transformation Interleaved Transfer v11**.
-2. Apply and verify any Founder corrections.
-3. Founder explicitly locks Transfer.
-4. Promote Retrieval v10 + the accepted Transfer version to Production.
-5. Verify Production content hashes against approved Proof.
-6. Prove the real Transformation Capability -> Sandbox transition.
+1. Prove the real non-review sequence: **five Transformation Masteries -> Retrieval -> Transfer -> Sandbox unlock**.
+2. Record the observed lifecycle evidence and Sandbox authority result.
+3. Close this cumulative checkpoint only after that end-to-end proof is complete.
 
 ## Related authority
 
