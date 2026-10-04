@@ -34,7 +34,7 @@ Current structural read-back for each bank:
 
 Current content hashes:
 
-- Retrieval v9: `5f00ef8a56ca8acb912091705085ebf0`
+- Retrieval v9: `7b797e2b54d0ff4529b603161e7d68c6`
 - Transfer v8: `e4a77f5e69a6f26f19c04014a2b2da96`
 
 Production was checked when Review Mode was reopened. **The Hub contains no Retrieval or Transfer configs for these assessment keys.** Founder review therefore remains isolated to Proof and does not alter production lifecycle authority.
@@ -88,7 +88,7 @@ Result:
 - items 07, 22 and 24 passed the option audit without changes;
 - all prompts were preserved unchanged;
 - all correct-answer keys, critical-fail keys, critical-boundary keys and Truth/explanation copy were preserved unchanged;
-- one wrong-option feedback line on item 06 was updated only because its distractor was made more specific;
+- the option-specific feedback was then audited independently; nine feedback entries across items 05, 06, 08, 12, 19 and 21 were tightened for directness, RI fidelity and separation from the Truth stage;
 - the scoring/content authority hash excluding the option surface remained identical between v8 and v9: `ac0bfcc5232eb414b6aa955e10fac21e`;
 - v9 contains 25 active items, exactly five options per item, 24 single-choice + 1 multi-select;
 - all single-choice wrong options retain option-specific feedback;
