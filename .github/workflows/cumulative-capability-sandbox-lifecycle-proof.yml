@@ -1,0 +1,200 @@
+name: Cumulative Capability Sandbox Lifecycle Proof
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Proof preview deployment URL
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SMOKE_BASE_URL: ${{ inputs.base_url }}
+      PROOF_EXPECTED_APP_SHA: ${{ github.sha }}
+      RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+      RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Prove Mastery to Retrieval to Transfer to Sandbox
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { chromium } from "playwright";
+
+          const baseUrl = String(process.env.SMOKE_BASE_URL || "").replace(/\/$/, "");
+          const email = String(process.env.RI_PROOF_EMAIL || "").trim();
+          const password = String(process.env.RI_PROOF_PASSWORD || "");
+          const bypass = String(process.env.VERCEL_AUTOMATION_BYPASS_SECRET || "").trim();
+          const expectedCommit = String(process.env.PROOF_EXPECTED_APP_SHA || "").trim();
+          assert.ok(baseUrl && email && password && expectedCommit, "Proof runtime inputs are required");
+
+          const ids = {
+            four: "proof-capability-lifecycle-four-20261004",
+            spacing: "proof-capability-lifecycle-spacing-20261004",
+            retrieval: "proof-capability-lifecycle-retrieval-20261004",
+            transfer: "proof-capability-lifecycle-transfer-20261004",
+            sandbox: "proof-capability-lifecycle-sandbox-20261004",
+          };
+
+          const browser = await chromium.launch({ headless: true });
+          const context = await browser.newContext({
+            ...(bypass ? { extraHTTPHeaders: { "x-vercel-protection-bypass": bypass } } : {}),
+          });
+          const page = await context.newPage();
+
+          const proof = await page.request.get(baseUrl + "/api/proof-environment", { timeout: 60000 });
+          const proofText = await proof.text();
+          assert.ok(proof.ok(), "Proof environment failed: " + proof.status() + " " + proofText);
+          const proofBody = JSON.parse(proofText);
+          assert.equal(proofBody.vercelEnv, "preview");
+          assert.equal(proofBody.supabaseProjectRef, "jftlxeacphvbnhbsbpxc");
+          assert.equal(proofBody.commitSha, expectedCommit);
+
+          const signin = await page.request.post(baseUrl + "/api/auth/signin", {
+            data: { email, password, expectedRole: "tutor" },
+            timeout: 60000,
+          });
+          const signinText = await signin.text();
+          assert.ok(signin.ok(), "Login failed: " + signin.status() + " " + signinText);
+          const signinBody = JSON.parse(signinText);
+          assert.equal(String(signinBody?.dbUser?.role || "").toLowerCase(), "tutor");
+
+          async function plan(assignmentId) {
+            const response = await page.request.get(
+              baseUrl + "/api/tutor/capability-plan?tutorAssignmentId=" + encodeURIComponent(assignmentId),
+              { timeout: 60000 },
+            );
+            const text = await response.text();
+            assert.ok(response.ok(), "Capability plan failed for " + assignmentId + ": " + response.status() + " " + text);
+            return JSON.parse(text);
+          }
+
+          function row(body, assessmentKey) {
+            const found = (body.assessments || []).find((entry) => entry.assessmentKey === assessmentKey);
+            assert.ok(found, "Missing plan row " + assessmentKey);
+            return found;
+          }
+
+          const retrievalKey = "transformation_phases_retrieval_v1";
+          const transferKey = "transformation_state_transfer_v1";
+
+          const four = await plan(ids.four);
+          assert.equal(row(four, retrievalKey).status, "locked");
+          assert.equal(row(four, retrievalKey).reason, "prerequisite_incomplete");
+          assert.equal(row(four, transferKey).status, "locked");
+          assert.equal(four.sandboxReady, false);
+
+          const spacing = await plan(ids.spacing);
+          assert.equal(row(spacing, retrievalKey).status, "locked");
+          assert.equal(row(spacing, retrievalKey).reason, "spacing_interval");
+          assert.equal(row(spacing, transferKey).status, "locked");
+          assert.equal(spacing.sandboxReady, false);
+
+          const retrieval = await plan(ids.retrieval);
+          assert.equal(row(retrieval, retrievalKey).status, "available");
+          assert.equal(row(retrieval, retrievalKey).bankVersion, 10);
+          assert.equal(row(retrieval, transferKey).status, "locked");
+          assert.equal(row(retrieval, transferKey).reason, "prerequisite_incomplete");
+          assert.equal(retrieval.sandboxReady, false);
+
+          const transfer = await plan(ids.transfer);
+          assert.equal(row(transfer, retrievalKey).status, "complete");
+          assert.equal(row(transfer, retrievalKey).bankVersion, 10);
+          assert.equal(row(transfer, transferKey).status, "available");
+          assert.equal(row(transfer, transferKey).bankVersion, 11);
+          assert.equal(transfer.sandboxReady, false);
+
+          const beforeSandbox = await plan(ids.sandbox);
+          assert.equal(row(beforeSandbox, retrievalKey).status, "complete");
+          assert.equal(row(beforeSandbox, transferKey).status, "complete");
+          assert.equal(beforeSandbox.sandboxReady, true);
+
+          const reconcile = await page.request.post(
+            baseUrl + "/api/tutor/capability-proof/reconcile-sandbox",
+            {
+              data: { tutorAssignmentId: ids.sandbox },
+              timeout: 60000,
+            },
+          );
+          const reconcileText = await reconcile.text();
+          assert.ok(reconcile.ok(), "Sandbox reconciliation failed: " + reconcile.status() + " " + reconcileText);
+          const reconcileBody = JSON.parse(reconcileText);
+          assert.equal(reconcileBody.sandboxReady, true);
+          assert.equal(reconcileBody.promoted, true);
+          assert.equal(reconcileBody.mode, "sandbox");
+
+          const repeat = await page.request.post(
+            baseUrl + "/api/tutor/capability-proof/reconcile-sandbox",
+            {
+              data: { tutorAssignmentId: ids.sandbox },
+              timeout: 60000,
+            },
+          );
+          const repeatText = await repeat.text();
+          assert.ok(repeat.ok(), "Idempotent reconciliation failed: " + repeat.status() + " " + repeatText);
+          const repeatBody = JSON.parse(repeatText);
+          assert.equal(repeatBody.sandboxReady, true);
+          assert.equal(repeatBody.promoted, false);
+          assert.equal(repeatBody.mode, "sandbox");
+
+          const afterSandbox = await plan(ids.sandbox);
+          assert.equal(afterSandbox.sandboxReady, true);
+          const sessionInfrastructure = (afterSandbox.assessments || []).filter(
+            (entry) => entry.stage === "session_infrastructure_mastery",
+          );
+          assert.equal(sessionInfrastructure.length, 6);
+          assert.equal(
+            sessionInfrastructure.every((entry) => entry.status === "available" || entry.status === "complete"),
+            true,
+            "Session Infrastructure did not open after the Transformation gate",
+          );
+
+          console.log("CUMULATIVE_CAPABILITY_SANDBOX_LIFECYCLE_PASS=" + JSON.stringify({
+            projectRef: proofBody.supabaseProjectRef,
+            commitSha: proofBody.commitSha,
+            fourMasteries: {
+              retrieval: row(four, retrievalKey).reason,
+              sandboxReady: four.sandboxReady,
+            },
+            fiveMasteries: {
+              retrieval: row(spacing, retrievalKey).reason,
+              sandboxReady: spacing.sandboxReady,
+            },
+            retentionOpen: {
+              bankVersion: row(retrieval, retrievalKey).bankVersion,
+              status: row(retrieval, retrievalKey).status,
+            },
+            applicationOpen: {
+              retentionStatus: row(transfer, retrievalKey).status,
+              bankVersion: row(transfer, transferKey).bankVersion,
+              applicationStatus: row(transfer, transferKey).status,
+            },
+            sandboxAuthority: {
+              readyBeforeReconcile: beforeSandbox.sandboxReady,
+              promoted: reconcileBody.promoted,
+              mode: reconcileBody.mode,
+              idempotent: repeatBody.promoted === false && repeatBody.mode === "sandbox",
+              sessionInfrastructureOpened: true,
+            },
+          }));
+
+          await browser.close();
+          NODE
