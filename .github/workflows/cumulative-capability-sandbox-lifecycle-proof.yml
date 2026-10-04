@@ -1,12 +1,13 @@
 name: Cumulative Capability Sandbox Lifecycle Proof
 
 on:
+  push:
+    branches:
+      - proof/cumulative-sandbox-lifecycle-20261004
+    paths:
+      - '.github/workflows/cumulative-capability-sandbox-lifecycle-proof.yml'
+      - 'server/routes/capabilityEngine.ts'
   workflow_dispatch:
-    inputs:
-      base_url:
-        description: Proof preview deployment URL
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -16,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      SMOKE_BASE_URL: ${{ inputs.base_url }}
+      SMOKE_BASE_URL: https://tt-confidence-hub-git-proof-cu-0ee8df-relief-works-technologies.vercel.app
       PROOF_EXPECTED_APP_SHA: ${{ github.sha }}
       RI_PROOF_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
       RI_PROOF_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
@@ -60,13 +61,32 @@ jobs:
           });
           const page = await context.newPage();
 
-          const proof = await page.request.get(baseUrl + "/api/proof-environment", { timeout: 60000 });
-          const proofText = await proof.text();
-          assert.ok(proof.ok(), "Proof environment failed: " + proof.status() + " " + proofText);
-          const proofBody = JSON.parse(proofText);
-          assert.equal(proofBody.vercelEnv, "preview");
-          assert.equal(proofBody.supabaseProjectRef, "jftlxeacphvbnhbsbpxc");
-          assert.equal(proofBody.commitSha, expectedCommit);
+          let proofBody = null;
+          let proofFailure = "";
+          for (let attempt = 1; attempt <= 40; attempt += 1) {
+            try {
+              const proof = await page.request.get(baseUrl + "/api/proof-environment", { timeout: 30000 });
+              const proofText = await proof.text();
+              if (proof.ok()) {
+                const candidate = JSON.parse(proofText);
+                if (
+                  candidate.vercelEnv === "preview" &&
+                  candidate.supabaseProjectRef === "jftlxeacphvbnhbsbpxc" &&
+                  candidate.commitSha === expectedCommit
+                ) {
+                  proofBody = candidate;
+                  break;
+                }
+                proofFailure = "waiting for expected commit; got " + String(candidate.commitSha || "unknown");
+              } else {
+                proofFailure = "status " + proof.status() + " " + proofText.slice(0, 300);
+              }
+            } catch (error) {
+              proofFailure = error instanceof Error ? error.message : String(error);
+            }
+            if (attempt < 40) await page.waitForTimeout(15000);
+          }
+          assert.ok(proofBody, "Proof deployment did not reach expected commit " + expectedCommit + ": " + proofFailure);
 
           const signin = await page.request.post(baseUrl + "/api/auth/signin", {
             data: { email, password, expectedRole: "tutor" },
