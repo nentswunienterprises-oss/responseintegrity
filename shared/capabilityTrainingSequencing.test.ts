@@ -120,6 +120,34 @@ test("Transformation Retrieval waits for all five Mastery passes and the spacing
   assert.equal(status?.status, "available");
 });
 
+test("cumulative Review Mode opens Retrieval and Transfer without lifecycle prerequisites", () => {
+  const reviewBanks = activeBanks.map((entry) =>
+    entry.assessmentKey === TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY ||
+    entry.assessmentKey === TRANSFORMATION_TRANSFER_ASSESSMENT_KEY
+      ? { ...entry, reviewMode: true }
+      : entry,
+  );
+
+  const assessments = buildCapabilityTrainingAvailability({
+    now: "2026-09-28T06:00:00Z",
+    activeBanks: reviewBanks,
+    attempts: [],
+  });
+
+  const retrieval = assessments.find(
+    (entry) => entry.assessmentKey === TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
+  );
+  const transfer = assessments.find(
+    (entry) => entry.assessmentKey === TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
+  );
+
+  assert.equal(retrieval?.status, "available");
+  assert.equal(retrieval?.reviewMode, true);
+  assert.equal(transfer?.status, "available");
+  assert.equal(transfer?.reviewMode, true);
+  assert.equal(isCapabilityTransformationSandboxReady(assessments), false);
+});
+
 test("one current-version clean pass completes a Mastery gate", () => {
   const attempts = [pass(transformationMasteryKeys[0], "2026-09-28T08:00:00Z")];
   const status = buildCapabilityTrainingAvailability({
