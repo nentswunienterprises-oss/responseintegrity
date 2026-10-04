@@ -2,7 +2,7 @@
 
 **Opened:** 29 September 2026  
 **Reconciled to current active banks:** 4 October 2026  
-**Status:** **FOUNDER REVIEW MODE OPEN: RETRIEVAL v9 + TRANSFER v8**
+**Status:** **RETRIEVAL v9 FOUNDER-APPROVED AND LOCKED; TRANSFER v8 REVIEW OPEN**
 
 This checkpoint governs the two cumulative Transformation Capability gates in the approved Training architecture:
 
@@ -19,7 +19,7 @@ On 4 October 2026 the active cumulative configs were explicitly returned to Revi
 
 | Gate | Version | Form size | Pass threshold | Review Mode | Current structure |
 | --- | ---: | ---: | ---: | --- | --- |
-| Transformation Delayed Retrieval | v9 | 25 | 96% | on | 24 single-choice + 1 multi-select |
+| Transformation Delayed Retrieval | v9 | 25 | 96% | off | 24 single-choice + 1 multi-select |
 | Transformation Interleaved Transfer | v8 | 25 | 96% | on | 24 single-choice + 1 multi-select |
 
 Current structural read-back for each bank:
@@ -37,7 +37,7 @@ Current content hashes:
 - Retrieval v9: `7b797e2b54d0ff4529b603161e7d68c6`
 - Transfer v8: `e4a77f5e69a6f26f19c04014a2b2da96`
 
-Production was checked when Review Mode was reopened. **The Hub contains no Retrieval or Transfer configs for these assessment keys.** Founder review therefore remains isolated to Proof and does not alter production lifecycle authority.
+Production was checked during Founder review. **The Hub contains no Retrieval or Transfer configs for these assessment keys.** Retrieval v9 is now Founder-approved in Proof, but it remains intentionally unpromoted until Transfer is also Founder-approved.
 
 ## Governing standard
 
@@ -97,7 +97,26 @@ Result:
 
 The three unchanged items were deliberately retained because their options were already distinct, prompt-direct and semantically credible.
 
-Production remains untouched. **The Hub still contains no Retrieval config.** Retrieval v9 remains a Proof-only Review Mode bank until Founder acceptance.
+Production remains untouched. **The Hub still contains no Retrieval config.** Retrieval v9 is Founder-approved and locked in Proof, with Review Mode off, and is awaiting paired promotion after Transfer approval.
+
+## Retrieval v9 Founder approval - 4 October 2026
+
+The Founder completed the **Transformation Retention / Delayed Retrieval** interactive review and explicitly approved the current v9 bank.
+
+Final approved Retrieval v9 content hash:
+
+`7b797e2b54d0ff4529b603161e7d68c6`
+
+Closure actions completed in Proof before Review Mode exit:
+
+- the remaining v9 review attempt was deleted so review activity cannot become lifecycle evidence;
+- v9 question confirmations were confirmed at zero;
+- Retrieval v9 Review Mode was turned off;
+- active Retrieval authority remains v9;
+- Transfer v8 remains in Review Mode;
+- Production remains untouched.
+
+**Freeze rule:** do not change Retrieval v9 prompts, options, scoring keys, feedback, Truths, critical-boundary logic or assessment sequencing unless the Founder explicitly reopens Retrieval or a concrete defect is discovered and documented. A narrow defect correction does not reopen unrelated approved content.
 
 ## Retrieval vs Transfer distinction
 
@@ -122,7 +141,7 @@ The original v2 banks received a full pre-Founder editorial audit on 29 Septembe
 - answer-length cues and visible answer-position cues;
 - generic feedback and implementation language.
 
-Later OS-wide authoring work produced the current v8 banks. The v2 measurements are historical evidence of the editorial process, not current-version acceptance. Founder approval must therefore be given against v8 itself.
+Later OS-wide authoring work produced v8. Retrieval was subsequently versioned to v9 during Founder review; Transfer remains on v8. The v2 measurements are historical evidence of the editorial process, not current-version acceptance.
 
 ## Founder review access
 
@@ -146,12 +165,12 @@ The current exit gate is:
 - [x] Structural integrity read back from Proof.
 - [x] Critical-boundary / critical-fail consistency read back.
 - [x] Required option-feedback coverage read back.
-- [x] Retrieval v9 Review Mode active in Proof.
+- [x] Retrieval v9 Review Mode was used for Founder review.
 - [x] Transfer v8 Review Mode reopened in Proof.
 - [x] Production confirmed untouched by the review-mode reopen.
-- [ ] Retrieval v9 reviewed interactively by Founder and accepted.
-- [ ] Founder corrections from Retrieval v9, if any, applied.
-- [ ] Retrieval v9 Review Mode exited.
+- [x] Retrieval v9 reviewed interactively by Founder and accepted.
+- [x] Founder corrections from Retrieval v9 applied and verified.
+- [x] Retrieval v9 review attempt cleared and Review Mode exited.
 - [ ] Transfer v8 reviewed interactively by Founder and accepted.
 - [ ] Founder corrections from Transfer v8, if any, applied.
 - [ ] Transfer v8 Review Mode exited.
@@ -159,20 +178,18 @@ The current exit gate is:
 - [ ] Production content read-back matches the approved Proof hashes.
 - [ ] End-to-end non-review sequence proven: five Transformation Masteries -> Retrieval -> Transfer -> Sandbox unlock.
 
-Do not describe Retrieval or Transfer as Founder-approved until the corresponding active-version interactive review is complete.
+Retrieval v9 is Founder-approved and locked. Do not describe Transfer as Founder-approved until its active-version interactive review is complete.
 
 Do not promote either gate to The Hub merely because its structural checks are green.
 
 ## Next review order
 
-1. Founder reviews **Transformation Delayed Retrieval v9**.
+1. Founder reviews **Transformation Interleaved Transfer v8**.
 2. Apply and verify any Founder corrections.
-3. Founder explicitly locks Retrieval.
-4. Founder reviews **Transformation Interleaved Transfer v8**.
-5. Apply and verify any Founder corrections.
-6. Founder explicitly locks Transfer.
-7. Promote only the accepted versions to Production.
-8. Prove the real Transformation Capability -> Sandbox transition.
+3. Founder explicitly locks Transfer.
+4. Promote Retrieval v9 + the accepted Transfer version to Production.
+5. Verify Production content hashes against approved Proof.
+6. Prove the real Transformation Capability -> Sandbox transition.
 
 ## Related authority
 
