@@ -293,7 +293,7 @@ export default function ExecutiveHRTraffic() {
           id: tutorUserId,
           fullNames: app.fullNames || app.full_names,
           full_names: app.full_names || app.fullNames,
-          username: app.fullNames || app.full_names || "Tutor",
+          username: app.fullNames || app.full_names || "Specialist",
           email: app.email,
         },
         verificationDoc: {
@@ -318,7 +318,7 @@ export default function ExecutiveHRTraffic() {
           id: tutorUserId,
           fullNames: app.fullNames || app.full_names,
           full_names: app.full_names || app.fullNames,
-          username: app.fullNames || app.full_names || "Tutor",
+          username: app.fullNames || app.full_names || "Specialist",
           email: app.email,
         },
         verificationDoc: {
@@ -419,13 +419,13 @@ export default function ExecutiveHRTraffic() {
       queryClient.invalidateQueries({ queryKey: ["/api/hr/enrollments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/hr/stats"] });
       toast({
-        title: "Tutor unassigned",
-        description: "Student record was preserved and removed from tutor pod view.",
+        title: "Specialist unassigned",
+        description: "Student record was preserved and removed from the Specialist Pod view.",
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Failed to unassign tutor",
+        title: "Failed to unassign Specialist",
         description: error?.message || "Please try again.",
         variant: "destructive",
       });
@@ -438,7 +438,7 @@ export default function ExecutiveHRTraffic() {
   const handleUnassignTutor = (enrollment: ParentEnrollment) => {
     if (!enrollment.assigned_tutor_id) return;
     const confirmed = window.confirm(
-      `Unassign ${enrollment.student_full_name} from ${enrollment.assigned_tutor_name || "this tutor"}?\n\nStudent data will be preserved for reassignment.`
+      `Unassign ${enrollment.student_full_name} from ${enrollment.assigned_tutor_name || "this Specialist"}?\n\nStudent data will be preserved for reassignment.`
     );
     if (!confirmed) return;
     setUnassigningEnrollmentId(enrollment.id);
@@ -450,12 +450,12 @@ export default function ExecutiveHRTraffic() {
   const getStatusBadge = (status: ParentEnrollment["status"] | string) => {
     const statusConfig: Record<string, { label: string; color: string }> = {
       awaiting_assignment: { label: "Awaiting Assignment", color: "bg-yellow-100 text-yellow-800" },
-      awaiting_tutor_acceptance: { label: "Awaiting Tutor Acceptance", color: "bg-indigo-100 text-indigo-800" },
+      awaiting_tutor_acceptance: { label: "Awaiting Specialist Acceptance", color: "bg-indigo-100 text-indigo-800" },
       assigned: { label: "Assigned", color: "bg-blue-100 text-blue-800" },
       proposal_sent: { label: "Proposal Sent", color: "bg-cyan-100 text-cyan-800" },
       session_booked: { label: "Session Booked", color: "bg-purple-100 text-purple-800" },
       report_received: { label: "Report Received", color: "bg-orange-100 text-orange-800" },
-      confirmed: { label: "Confirmed", color: "bg-green-100 text-green-800" },
+      confirmed: { label: "Confirmed", color: "bg-emerald-500/10 text-foreground" },
       not_enrolled: { label: "Not Enrolled", color: "bg-gray-100 text-gray-800" },
     };
     const config = statusConfig[String(status)] || {
@@ -476,7 +476,7 @@ export default function ExecutiveHRTraffic() {
             </CardDescription>
             {enrollment.assigned_tutor_name && (
               <CardDescription>
-                Tutor: {enrollment.assigned_tutor_name}
+                Specialist: {enrollment.assigned_tutor_name}
                 {enrollment.assigned_pod_name ? ` • Pod: ${enrollment.assigned_pod_name}` : ""}
               </CardDescription>
             )}
@@ -552,7 +552,7 @@ export default function ExecutiveHRTraffic() {
             className="w-full mt-4"
             onClick={() => handleOpenAssignModal(enrollment.id)}
           >
-            Assign Tutor
+            Assign Specialist
           </Button>
         )}
 
@@ -569,7 +569,7 @@ export default function ExecutiveHRTraffic() {
                 Unassigning...
               </>
             ) : (
-              "Unassign Tutor"
+              "Unassign Specialist"
             )}
           </Button>
         )}
@@ -594,31 +594,31 @@ export default function ExecutiveHRTraffic() {
         : topicSymptoms;
 
     return (
-      <Card className="overflow-hidden border-[#e8dcc2] bg-gradient-to-br from-[#fffaf0] via-white to-[#fff7e8] shadow-sm">
-        <CardHeader className="border-b border-[#eadfca] bg-[#fff8ea]/80 pb-5">
+      <Card className="overflow-hidden rounded-none border border-border/70 bg-background shadow-none">
+        <CardHeader className="border-b border-border/70 bg-muted/20 pb-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-3">
               <div>
-                <CardTitle className="text-2xl font-semibold tracking-tight text-slate-950">
+                <CardTitle className="text-2xl font-semibold tracking-tight text-foreground">
                   {enrollment.student_full_name}
                 </CardTitle>
-                <CardDescription className="mt-1 text-base text-slate-600">
+                <CardDescription className="mt-1 text-base text-muted-foreground">
                   Parent: {enrollment.parent_full_name}
                 </CardDescription>
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Badge variant="outline" className="border-[#e7d7b3] bg-white/80 text-slate-700">
+                <Badge variant="outline" className="border-border/70 bg-background text-muted-foreground">
                   <BookOpen className="mr-1 h-3.5 w-3.5" />
                   {enrollment.student_grade || "Grade not provided"}
                 </Badge>
                 {enrollment.assigned_tutor_name ? (
-                  <Badge variant="outline" className="border-[#d7e7d0] bg-[#f4fbf1] text-[#335c2e]">
-                    Tutor: {enrollment.assigned_tutor_name}
+                  <Badge variant="outline" className="border-emerald-500/25 bg-emerald-500/10 text-foreground">
+                    Specialist: {enrollment.assigned_tutor_name}
                   </Badge>
                 ) : null}
                 {enrollment.assigned_pod_name ? (
-                  <Badge variant="outline" className="border-[#d8e3f4] bg-[#f6f9ff] text-[#274472]">
+                  <Badge variant="outline" className="border-sky-500/25 bg-sky-500/10 text-foreground">
                     Pod: {enrollment.assigned_pod_name}
                   </Badge>
                 ) : null}
@@ -627,7 +627,7 @@ export default function ExecutiveHRTraffic() {
 
             <div className="flex flex-wrap items-center gap-2">
               {getStatusBadge(enrollment.status)}
-              <Badge variant="outline" className="border-[#eadfca] bg-white/80 text-slate-600">
+              <Badge variant="outline" className="border-border/70 bg-muted/10 text-muted-foreground">
                 <CalendarDays className="mr-1 h-3.5 w-3.5" />
                 {format(new Date(enrollment.created_at), "PPP")}
               </Badge>
@@ -637,80 +637,80 @@ export default function ExecutiveHRTraffic() {
 
         <CardContent className="space-y-6 p-6">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-xl border border-[#eadfca] bg-white/80 p-4">
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+            <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                 <Mail className="h-3.5 w-3.5" />
                 Email
               </div>
-              <p className="mt-2 break-all text-sm font-medium text-slate-900">{enrollment.parent_email || "Not provided"}</p>
+              <p className="mt-2 break-all text-sm font-medium text-foreground">{enrollment.parent_email || "Not provided"}</p>
             </div>
-            <div className="rounded-xl border border-[#eadfca] bg-white/80 p-4">
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+            <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                 <Phone className="h-3.5 w-3.5" />
                 Phone
               </div>
-              <p className="mt-2 text-sm font-medium text-slate-900">{enrollment.parent_phone || "Not provided"}</p>
+              <p className="mt-2 text-sm font-medium text-foreground">{enrollment.parent_phone || "Not provided"}</p>
             </div>
-            <div className="rounded-xl border border-[#eadfca] bg-white/80 p-4">
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+            <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                 <MapPin className="h-3.5 w-3.5" />
                 Location
               </div>
-              <p className="mt-2 text-sm font-medium text-slate-900">{enrollment.parent_city || "Not provided"}</p>
+              <p className="mt-2 text-sm font-medium text-foreground">{enrollment.parent_city || "Not provided"}</p>
             </div>
-            <div className="rounded-xl border border-[#eadfca] bg-white/80 p-4">
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+            <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                 <School className="h-3.5 w-3.5" />
                 School
               </div>
-              <p className="mt-2 text-sm font-medium text-slate-900">{enrollment.school_name || "Not provided"}</p>
+              <p className="mt-2 text-sm font-medium text-foreground">{enrollment.school_name || "Not provided"}</p>
             </div>
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[1.15fr,0.85fr]">
-            <div className="rounded-2xl border border-[#eadfca] bg-white/85 p-5">
+            <div className="rounded-2xl border border-border/70 bg-muted/10 p-5">
               <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-[#946c16]" />
-                <p className="text-sm font-semibold text-slate-900">Enrollment Focus</p>
+                <Target className="h-4 w-4 text-primary" />
+                <p className="text-sm font-semibold text-foreground">Enrollment Focus</p>
               </div>
 
               <div className="mt-4 space-y-4">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Topics</p>
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Topics</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {topics.length > 0 ? (
                       topics.map((topic) => (
-                        <Badge key={topic} variant="secondary" className="bg-[#f6edd7] text-[#6a4d0b] hover:bg-[#f6edd7]">
+                        <Badge key={topic} variant="secondary" className="bg-secondary text-secondary-foreground hover:bg-secondary">
                           {topic}
                         </Badge>
                       ))
                     ) : (
-                      <span className="text-sm text-slate-500">No topics recorded</span>
+                      <span className="text-sm text-muted-foreground">No topics recorded</span>
                     )}
                   </div>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-xl border border-dashed border-[#eadfca] bg-[#fffaf2] p-3">
-                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Previous Tutoring</p>
-                    <p className="mt-2 text-sm font-medium text-slate-900">{enrollment.previous_tutoring || "Not provided"}</p>
+                  <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-3">
+                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Previous Tutoring</p>
+                    <p className="mt-2 text-sm font-medium text-foreground">{enrollment.previous_tutoring || "Not provided"}</p>
                   </div>
-                  <div className="rounded-xl border border-dashed border-[#eadfca] bg-[#fffaf2] p-3">
-                    <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                  <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-3">
+                    <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                       <Wifi className="h-3.5 w-3.5" />
                       Internet Access
                     </p>
-                    <p className="mt-2 text-sm font-medium text-slate-900">{enrollment.internet_access || "Not provided"}</p>
+                    <p className="mt-2 text-sm font-medium text-foreground">{enrollment.internet_access || "Not provided"}</p>
                   </div>
                 </div>
 
               </div>
             </div>
 
-            <div className="rounded-2xl border border-[#eadfca] bg-white/85 p-5">
+            <div className="rounded-2xl border border-border/70 bg-muted/10 p-5">
               <div className="flex items-center gap-2">
-                <CircleAlert className="h-4 w-4 text-[#946c16]" />
-                <p className="text-sm font-semibold text-slate-900">Parent Intake Signal</p>
+                <CircleAlert className="h-4 w-4 text-primary" />
+                <p className="text-sm font-semibold text-foreground">Parent Intake Signal</p>
               </div>
 
               <div className="mt-4 space-y-3">
@@ -719,35 +719,35 @@ export default function ExecutiveHRTraffic() {
                     const symptoms = derivedTopicSymptoms[topic] || [];
                     const recommendation = topicRecommendations[topic];
                     return (
-                      <div key={topic} className="rounded-xl border border-[#eadfca] bg-[#fffdf8] p-4">
-                        <p className="text-sm font-semibold text-slate-900">{topic}</p>
+                      <div key={topic} className="rounded-xl border border-border/70 bg-background p-4">
+                        <p className="text-sm font-semibold text-foreground">{topic}</p>
                         {recommendation?.phase ? (
-                          <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+                          <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                             Suggested diagnostic start: {formatPhaseLabel(recommendation.phase)}
                           </p>
                         ) : null}
 
                         <div className="mt-3">
-                          <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Observed Signals</p>
+                          <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Observed Signals</p>
                           <div className="mt-2 flex flex-wrap gap-2">
                             {symptoms.length > 0 ? (
                               symptoms.map((symptom) => (
                                 <Badge
                                   key={`${topic}-${symptom}`}
                                   variant="outline"
-                                  className="h-auto max-w-full whitespace-normal break-words border-[#ecdcb7] bg-white px-2 py-1 text-left leading-snug text-slate-700"
+                                  className="h-auto max-w-full whitespace-normal break-words border-border/70 bg-background px-2 py-1 text-left leading-snug text-muted-foreground"
                                 >
                                   {symptom}
                                 </Badge>
                               ))
                             ) : (
-                              <span className="text-sm text-slate-500">No topic-specific symptom map recorded yet.</span>
+                              <span className="text-sm text-muted-foreground">No topic-specific symptom map recorded yet.</span>
                             )}
                           </div>
                         </div>
 
                         {recommendation?.rationale ? (
-                          <div className="mt-3 rounded-lg bg-[#faf4e5] p-3 text-sm text-slate-700">
+                          <div className="mt-3 rounded-lg bg-muted/30 p-3 text-sm text-muted-foreground">
                             {recommendation.rationale}
                           </div>
                         ) : null}
@@ -755,14 +755,14 @@ export default function ExecutiveHRTraffic() {
                     );
                   })
                 ) : fallbackSymptoms.length > 0 ? (
-                  <div className="rounded-xl border border-[#eadfca] bg-[#fffdf8] p-4">
-                    <p className="text-sm font-semibold text-slate-900">Observed Signals</p>
+                  <div className="rounded-xl border border-border/70 bg-background p-4">
+                    <p className="text-sm font-semibold text-foreground">Observed Signals</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {fallbackSymptoms.map((symptom) => (
                         <Badge
                           key={symptom}
                           variant="outline"
-                          className="h-auto max-w-full whitespace-normal break-words border-[#ecdcb7] bg-white px-2 py-1 text-left leading-snug text-slate-700"
+                          className="h-auto max-w-full whitespace-normal break-words border-border/70 bg-background px-2 py-1 text-left leading-snug text-muted-foreground"
                         >
                           {symptom}
                         </Badge>
@@ -770,7 +770,7 @@ export default function ExecutiveHRTraffic() {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-dashed border-[#eadfca] bg-[#fffdf8] p-4 text-sm text-slate-500">
+                  <div className="rounded-xl border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
                     No symptom mapping was captured for this enrollment.
                   </div>
                 )}
@@ -778,15 +778,15 @@ export default function ExecutiveHRTraffic() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 border-t border-[#eadfca] pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm text-slate-600">
-              <span className="font-medium text-slate-800">Submitted:</span> {format(new Date(enrollment.created_at), "PPp")}
+          <div className="flex flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Submitted:</span> {format(new Date(enrollment.created_at), "PPp")}
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row">
               {enrollment.status === "awaiting_assignment" && (
                 <Button onClick={() => handleOpenAssignModal(enrollment.id)}>
-                  Assign Tutor
+                  Assign Specialist
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               )}
@@ -803,7 +803,7 @@ export default function ExecutiveHRTraffic() {
                       Unassigning...
                     </>
                   ) : (
-                    "Unassign Tutor"
+                    "Unassign Specialist"
                   )}
                 </Button>
               )}
@@ -903,21 +903,21 @@ export default function ExecutiveHRTraffic() {
           ) : (
             <Tabs value={tutorAppSubTab} onValueChange={setTutorAppSubTab} className="w-full">
               <div className="grid gap-3 md:grid-cols-3">
-                <Card className="border-amber-200 bg-amber-50">
+                <Card className="border-amber-500/25 bg-amber-500/10">
                   <CardContent className="p-4">
-                    <p className="text-xs uppercase tracking-wide text-amber-800">Needs Review</p>
+                    <p className="text-xs uppercase tracking-wide text-foreground">Needs Review</p>
                     <p className="mt-1 text-2xl font-semibold text-amber-950">{verificationUnderReviewApplications.length}</p>
-                    <p className="text-xs text-amber-900/80">COO action required right now</p>
+                    <p className="text-xs text-foreground/80">COO action required right now</p>
                   </CardContent>
                 </Card>
                 <Card className="border-slate-200">
                   <CardContent className="p-4">
-                    <p className="text-xs uppercase tracking-wide text-slate-700">Waiting On Tutor</p>
-                    <p className="mt-1 text-2xl font-semibold text-slate-950">{verificationWaitingOnTutorApplications.length}</p>
-                    <p className="text-xs text-slate-600">Tutor still needs to upload or finish a step</p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Waiting On Specialist</p>
+                    <p className="mt-1 text-2xl font-semibold text-foreground">{verificationWaitingOnTutorApplications.length}</p>
+                    <p className="text-xs text-muted-foreground">Specialist still needs to upload or finish a step</p>
                   </CardContent>
                 </Card>
-                <Card className="border-green-200 bg-green-50">
+                <Card className="border-emerald-500/25 bg-emerald-500/10">
                   <CardContent className="p-4">
                     <p className="text-xs uppercase tracking-wide text-green-800">Complete</p>
                     <p className="mt-1 text-2xl font-semibold text-green-950">{verificationVerifiedApplications.length}</p>
@@ -963,10 +963,10 @@ export default function ExecutiveHRTraffic() {
                 <TabsTrigger value="waiting-on-tutor" className="text-xs sm:text-sm py-2 px-2 sm:px-3 justify-between sm:justify-center gap-2">
                   <span className="inline-flex items-center gap-1.5">
                     <FileCheck className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                    <span>Waiting On Tutor</span>
+                    <span>Waiting On Specialist</span>
                   </span>
                   {verificationWaitingOnTutorApplications.length > 0 ? (
-                    <Badge className="h-5 min-w-5 bg-amber-100 px-1.5 text-[10px] text-amber-900 border border-amber-200">
+                    <Badge className="h-5 min-w-5 bg-amber-500/10 px-1.5 text-[10px] text-foreground border border-amber-500/25">
                       {verificationWaitingOnTutorApplications.length > 99 ? "99+" : verificationWaitingOnTutorApplications.length}
                     </Badge>
                   ) : (
@@ -1030,7 +1030,7 @@ export default function ExecutiveHRTraffic() {
                   {verificationUnderReviewApplications.length === 0 ? (
                     <Card className="p-12 text-center">
                       <FileCheck className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-                      <p className="text-muted-foreground">No tutor uploads currently need COO review.</p>
+                      <p className="text-muted-foreground">No Specialist uploads currently need COO review.</p>
                     </Card>
                   ) : (
                     <div className="grid gap-4">
@@ -1052,7 +1052,7 @@ export default function ExecutiveHRTraffic() {
                   {verificationWaitingOnTutorApplications.length === 0 ? (
                     <Card className="p-12 text-center">
                       <FileCheck className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-                      <p className="text-muted-foreground">No tutors are currently waiting on tutor-side onboarding action.</p>
+                      <p className="text-muted-foreground">No Specialists are currently waiting on Specialist-side onboarding action.</p>
                     </Card>
                   ) : (
                     <div className="grid gap-4">
@@ -1295,8 +1295,8 @@ function TutorApplicationCard({
 
   const statusColors: Record<string, string> = {
     pending: "bg-yellow-100 text-yellow-800",
-    approved: "bg-green-100 text-green-800",
-    rejected: "bg-red-100 text-red-800",
+    approved: "bg-emerald-500/10 text-foreground",
+    rejected: "bg-destructive/10 text-destructive",
   };
 
   return (
