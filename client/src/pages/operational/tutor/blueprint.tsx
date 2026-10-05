@@ -64,7 +64,7 @@ export default function TutorBlueprint() {
             <h1 className="text-xl sm:text-4xl font-bold">Your Transformation Formula</h1>
           </div>
           <p className="text-sm sm:text-lg opacity-95 max-w-2xl mb-4 sm:mb-6">
-            Master the 7 modules that transform tutors into confidence-building leaders. 
+            Master the 7 modules that develop Specialists into disciplined response-training operators. 
           </p>
           
           {/* Progress Bar */}
@@ -281,7 +281,7 @@ function ModuleOne({ expandedSections, toggleSection, onComplete, isComplete }: 
                 <div className="min-w-0 flex-1">
                   <h4 className="font-bold text-sm sm:text-lg mb-1 sm:mb-2">Step 1: MODEL - "Get them READY."</h4>
                   <ul className="space-y-1 sm:space-y-2 text-muted-foreground list-disc pl-4 sm:pl-5 text-xs sm:text-base">
-                    <li>The tutor solves a full problem out loud</li>
+                    <li>The Specialist models a full problem out loud</li>
                     <li>Uses all 3 layers - calls out terms, follows steps, explains logic</li>
                     <li>Student watches and listens</li>
                     <li className="italic font-semibold">"This is what it looks like when it's done right."</li>
@@ -423,7 +423,7 @@ function ModuleTwo({ expandedSections, toggleSection, onComplete, isComplete }: 
         <CardContent className="p-3 sm:p-6 space-y-4 sm:space-y-6">
           <SectionCard
             id="module2-doctor"
-            title="1. The Tutor is a Doctor"
+            title="1. The Specialist Diagnoses Before Training"
             expanded={expandedSections["module2-doctor"] || false}
             onToggle={() => toggleSection("module2-doctor")}
             gradient="from-primary to-primary/80"
@@ -438,7 +438,7 @@ function ModuleTwo({ expandedSections, toggleSection, onComplete, isComplete }: 
               </ul>
               
               <div className="bg-accent p-3 sm:p-4 rounded-lg mt-3 sm:mt-4 border border-primary/10">
-                <p className="font-bold mb-2">The Response Integrity Tutor's job:</p>
+                <p className="font-bold mb-2">The Response Integrity Specialist's job:</p>
                 <ul className="space-y-1 list-disc pl-5">
                   <li>Diagnose the pain</li>
                   <li>Prescribe the system</li>
@@ -488,8 +488,8 @@ function ModuleTwo({ expandedSections, toggleSection, onComplete, isComplete }: 
               </div>
 
               <div className="bg-accent p-3 sm:p-4 rounded-lg mt-3 sm:mt-4 border border-primary/10">
-                <p className="font-bold text-center text-sm sm:text-base">This system works whether the tutor is a genius or not.</p>
-                <p className="text-center mt-2 text-xs sm:text-base">The tutor doesn't need to feel confident - they need to trust the process.</p>
+                <p className="font-bold text-center text-sm sm:text-base">This system works because execution is governed by the process, not personal brilliance.</p>
+                <p className="text-center mt-2 text-xs sm:text-base">The Specialist does not need to improvise confidence. They need to execute the process accurately.</p>
               </div>
             </div>
           </SectionCard>
@@ -562,7 +562,7 @@ function ModuleTwo({ expandedSections, toggleSection, onComplete, isComplete }: 
                 <thead className="bg-muted">
                   <tr>
                     <th className="p-2 sm:p-3 text-left">Phase</th>
-                    <th className="p-2 sm:p-3 text-left">Tutor Does</th>
+                    <th className="p-2 sm:p-3 text-left">Specialist Does</th>
                     <th className="p-2 sm:p-3 text-left">Student Does</th>
                   </tr>
                 </thead>
@@ -579,7 +579,7 @@ function ModuleTwo({ expandedSections, toggleSection, onComplete, isComplete }: 
                   </tr>
                   <tr className="border-t">
                     <td className="p-2 sm:p-3 font-bold">Aim</td>
-                    <td className="p-2 sm:p-3">Tutor gives feedback using the lens</td>
+                    <td className="p-2 sm:p-3">Specialist gives feedback using the lens</td>
                     <td className="p-2 sm:p-3">Reflect, correct, grow</td>
                   </tr>
                 </tbody>
@@ -590,7 +590,7 @@ function ModuleTwo({ expandedSections, toggleSection, onComplete, isComplete }: 
 
           <SectionCard
             id="module2-learn"
-            title="6. Even the Tutor Can Learn While Tutoring"
+            title="6. The Specialist Keeps Learning While Delivering"
             expanded={expandedSections["module2-learn"] || false}
             onToggle={() => toggleSection("module2-learn")}
             gradient="from-primary/90 to-primary"
@@ -609,7 +609,7 @@ function ModuleTwo({ expandedSections, toggleSection, onComplete, isComplete }: 
                 <p className="font-bold text-center italic">
                   "If I can learn it through the system, I can teach it through the system."
                 </p>
-                <p className="text-center mt-2">That's how every Response Integrity tutor stays coachable, adaptable, and sharp.</p>
+                <p className="text-center mt-2">That is how every Response Integrity Specialist stays coachable, adaptable, and sharp.</p>
               </div>
             </div>
           </SectionCard>
@@ -621,7 +621,7 @@ function ModuleTwo({ expandedSections, toggleSection, onComplete, isComplete }: 
             <p className="font-bold mt-2">They leave knowing how to find answers, fix mistakes, and trust their minds again.</p>
             
             <div className="mt-6 pt-6 border-t border-white/20">
-              <h4 className="font-bold mb-3">Response Integrity Tutor Code:</h4>
+              <h4 className="font-bold mb-3">Response Integrity Specialist Code:</h4>
               <ul className="space-y-2 list-disc pl-5">
                 <li>"I don't give knowledge. I build understanding."</li>
                 <li>"I don't need to be perfect. I need to rely on systems."</li>
@@ -893,8 +893,8 @@ function ModuleThree({ expandedSections, toggleSection, onComplete, isComplete }
               <div className="mt-4 bg-muted p-4 rounded-lg">
                 <p className="font-bold mb-2">KPI</p>
                 <ul className="space-y-1 text-sm">
-                  <li>Tutor correctly identifies if fracture is Vocabulary, Method, or Reason</li>
-                  <li>Tutor can explain in 1-2 sentences why the student struggles</li>
+                  <li>Specialist correctly identifies whether the breakdown is Vocabulary, Method, or Reason</li>
+                  <li>Specialist can explain in 1-2 sentences where the response breaks down</li>
                 </ul>
               </div>
 
@@ -1042,7 +1042,7 @@ function ModuleFour({ expandedSections, toggleSection, onComplete, isComplete }:
 
           <SectionCard
             id="module4-prep"
-            title="Pre-Session Tutor Responsibilities"
+            title="Pre-Session Specialist Responsibilities"
             expanded={expandedSections["module4-prep"] || false}
             onToggle={() => toggleSection("module4-prep")}
             gradient="from-primary to-primary/80"
@@ -1052,7 +1052,7 @@ function ModuleFour({ expandedSections, toggleSection, onComplete, isComplete }:
               
               <div className="bg-muted p-4 rounded-lg">
                 <p className="font-bold mb-2">KPI</p>
-                <p className="text-sm">Tutor has student's trackers ready</p>
+                <p className="text-sm">Specialist has the student's trackers ready</p>
               </div>
 
               <div className="bg-accent p-4 rounded-lg border border-primary/10">
@@ -1128,7 +1128,7 @@ function ModuleFour({ expandedSections, toggleSection, onComplete, isComplete }:
               <div className="bg-muted p-4 rounded-lg mt-4">
                 <p className="font-bold mb-2">KPI</p>
                 <ul className="space-y-1 text-sm">
-                  <li>Tutor and student successfully completes 1 micro-win activity</li>
+                  <li>Specialist and student successfully complete 1 micro-win activity</li>
                   <li>Student shows increased confidence or reduced fear with the step-by-step process</li>
                 </ul>
               </div>
@@ -1328,7 +1328,7 @@ function ModuleFive({ expandedSections, toggleSection, onComplete, isComplete }:
             <div className="space-y-4">
               <div className="bg-card p-4 rounded-lg border border-primary/20">
                 <p className="font-bold mb-2">Goal:</p>
-                <p className="text-sm">Enter every session fully equipped. No guesswork. No improvising. A well-prepared tutor inspires trust, delivers more value, and uses time efficiently.</p>
+                <p className="text-sm">Enter every session fully equipped. No guesswork. No improvising. A well-prepared Specialist protects session quality, evidence integrity and time.</p>
               </div>
 
               <div className="bg-accent p-4 rounded-lg border border-primary/10">
@@ -1391,7 +1391,7 @@ function ModuleFive({ expandedSections, toggleSection, onComplete, isComplete }:
               <div className="bg-muted p-4 rounded-lg mt-4">
                 <p className="font-bold mb-2">KPI</p>
                 <ul className="space-y-1 text-sm">
-                  <li>Tutor enters with 1 clear mission/skill pre-planned</li>
+                  <li>Specialist enters with 1 clear mission or skill pre-planned</li>
                   <li>Trackers are opened and reviewed before session starts</li>
                   <li>Backup problems and metaphors written out</li>
                 </ul>
@@ -1472,7 +1472,7 @@ function ModuleFive({ expandedSections, toggleSection, onComplete, isComplete }:
                 </ul>
                 <p className="text-sm mt-3 italic">you're building a lawyer who should defend every statement with a valid reason (see how you can make the student tie math to real life?)</p>
                 <p className="text-sm mt-2">After the student masters all 3 layers of the lesson, track it down as/under "Solutions Unlocked".</p>
-                <p className="text-sm mt-2">To test and strengthen the third layer (Reasoning), the student should be able to answer any "Why?" asked by the tutor.</p>
+                <p className="text-sm mt-2">To test and strengthen the third layer (Reasoning), the student should be able to answer any "Why?" asked by the Specialist.</p>
               </div>
 
               <div className="bg-accent p-4 rounded-lg border border-primary/10 mt-4">
@@ -1593,7 +1593,7 @@ function ModuleFive({ expandedSections, toggleSection, onComplete, isComplete }:
                 <p className="font-bold mb-2">KPI</p>
                 <ul className="space-y-1 text-sm">
                   <li>Student verbalizes mistake using 3-Layer Lens</li>
-                  <li>Tutor logs learning correction in Challenge Tracker</li>
+                  <li>Specialist logs the learning correction in Challenge Tracker</li>
                   <li>Student shows 1 visible "aha" moment</li>
                 </ul>
               </div>
@@ -1652,7 +1652,7 @@ function ModuleFive({ expandedSections, toggleSection, onComplete, isComplete }:
                       <li>Notes on errors or progress</li>
                       <li>Add a confidence score if possible (1-5)</li>
                     </ul>
-                    <p className="text-sm mt-2 italic">"Response Integrity tutors never guess - they track. Data builds decisions."</p>
+                    <p className="text-sm mt-2 italic">"Response Integrity Specialists do not guess. They track. Evidence drives decisions."</p>
                   </div>
 
                   <div>
@@ -1689,7 +1689,7 @@ function ModuleFive({ expandedSections, toggleSection, onComplete, isComplete }:
 
           <div className="bg-gradient-to-r from-primary to-primary/80 text-white p-4 sm:p-6 rounded-lg shadow-md">
             <h4 className="font-bold text-lg sm:text-xl mb-3 sm:mb-4">LEXICON SNAP-IN</h4>
-            <p className="mb-3 sm:mb-4 text-xs sm:text-sm">Embed these phrases across tutor culture:</p>
+            <p className="mb-3 sm:mb-4 text-xs sm:text-sm">Embed these phrases across Specialist culture:</p>
             <div className="overflow-x-auto -mx-4 sm:mx-0">
               <table className="w-full min-w-[300px] text-xs sm:text-base">
                 <thead>
@@ -1850,13 +1850,13 @@ function ModuleSix({ expandedSections, toggleSection, onComplete, isComplete }: 
 
           <SectionCard
             id="module6-formula"
-            title="The Student-Tutor Reality Formula"
+            title="The Student-Specialist Reality Formula"
             expanded={expandedSections["module6-formula"] || false}
             onToggle={() => toggleSection("module6-formula")}
             gradient="from-primary/80 to-primary"
           >
             <div className="space-y-4">
-              <p>You're not building a "tutor identity" and a "student identity."</p>
+              <p>You are not building a separate "Specialist identity" and "student identity."</p>
               <p className="font-semibold">You're building one identity that carries both.</p>
               
               <div className="bg-accent p-4 rounded-lg border border-primary/10 mt-4">
@@ -1918,7 +1918,7 @@ function ModuleSix({ expandedSections, toggleSection, onComplete, isComplete }: 
               <p className="font-bold text-lg">The Final Truth:</p>
               <p className="mt-2">If you build consistency here, you'll carry it into school.</p>
               <p className="mt-2 italic">Structure is structure. Discipline is discipline. Character is character.</p>
-              <p className="mt-3">The difference between a tutor who thrives and a tutor who burns out? One trusts the system. The other trusts their mood.</p>
+              <p className="mt-3">The difference between stable delivery and drift is whether the Specialist follows the system or their mood.</p>
             </div>
           </div>
 
@@ -1949,7 +1949,7 @@ function ModuleSeven({ expandedSections, toggleSection, onComplete, isComplete }
             <div className="min-w-0">
               <CardTitle className="text-lg sm:text-2xl leading-tight">Module 7: Time Mastery for Soul-Led Teachers</CardTitle>
               <CardDescription className="text-white/95 text-sm sm:text-lg mt-1 sm:mt-2">
-                "You're not just a tutor. You're a presence."
+                "You are not just delivering content. Your presence affects execution."
               </CardDescription>
             </div>
           </div>
@@ -1958,7 +1958,7 @@ function ModuleSeven({ expandedSections, toggleSection, onComplete, isComplete }
           <div className="bg-accent p-4 sm:p-6 rounded-lg border border-primary/10">
             <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Main Problem</h3>
             <p className="text-muted-foreground text-sm sm:text-base mb-3 sm:mb-4">
-              Most student-tutors think teaching is about technique.
+              Many new Specialists initially think delivery is mainly about technique.
             </p>
             <p className="font-semibold text-sm sm:text-base">But in reality? They're mastered by urgency, guilt, and grind.</p>
             <p className="mt-2 sm:mt-3 text-sm sm:text-base">They burn out. They resent their students. They dread sessions. They disappear before the semester ends.</p>
@@ -1972,10 +1972,10 @@ function ModuleSeven({ expandedSections, toggleSection, onComplete, isComplete }
             gradient="from-primary to-primary/80"
           >
             <div className="space-y-4">
-              <p className="font-bold text-lg">Training tutors not just to manage time  but to hold space with rhythm, calm, and inner clarity.</p>
+              <p className="font-bold text-lg">Training Specialists not just to manage time, but to hold structure with rhythm, calm and clarity.</p>
               
               <div className="bg-muted p-4 rounded-lg border border-primary/10 mt-4">
-                <p className="font-bold mb-3">Outcome - Response Integrity Tutors will know how to:</p>
+                <p className="font-bold mb-3">Outcome - Response Integrity Specialists will know how to:</p>
                 <ul className="space-y-2 ml-4">
                   <li>Work in flow blocks, not panic hours</li>
                   <li>Maintain emotional peace before, during, and after sessions</li>
@@ -2020,7 +2020,7 @@ function ModuleSeven({ expandedSections, toggleSection, onComplete, isComplete }
 
               <div className="bg-card p-3 sm:p-4 rounded-lg border-l-4 border-primary mt-3 sm:mt-4">
                 <p className="font-bold text-center text-sm sm:text-base">Calm mentors create confident students.</p>
-                <p className="text-muted-foreground text-center mt-1 sm:mt-2 text-xs sm:text-base">Dysregulated tutors create anxious learners.</p>
+                <p className="text-muted-foreground text-center mt-1 sm:mt-2 text-xs sm:text-base">Dysregulated delivery creates anxious learners.</p>
               </div>
             </div>
           </SectionCard>
@@ -2133,7 +2133,7 @@ function ModuleSeven({ expandedSections, toggleSection, onComplete, isComplete }
             
             <div className="mt-6 pt-6 border-t border-white/20">
               <p className="font-bold text-lg">Final Truth:</p>
-              <p className="mt-2 italic">A dysregulated tutor can't regulate a student.</p>
+              <p className="mt-2 italic">A dysregulated Specialist cannot reliably regulate the session.</p>
               <p className="mt-2">Your nervous system is your teaching technology.</p>
               <p className="mt-3 font-semibold">The most powerful tool you have isn't your lesson plan. It's your capacity for self-regulation.</p>
             </div>
