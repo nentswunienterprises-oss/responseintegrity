@@ -935,7 +935,7 @@ function ModuleThree({ expandedSections, toggleSection, onComplete, isComplete }
 
               <div className="bg-card p-4 rounded-lg border-l-4 border-primary mt-4">
                 <p className="font-bold mb-2">Power Line:</p>
-                <p className="italic">"We don't tutor. We train minds. And this? This is just your journey's beginning."</p>
+                <p className="italic">"We help them know what to do when they feel stuck."</p>
                 <p className="mt-3">Say something like: "These trackers are your map. Every hero needs one. We're not just going to guess if you're improving - we'll prove it."</p>
                 <ul className="mt-2 space-y-1">
                   <li>Walk through how the system works</li>
