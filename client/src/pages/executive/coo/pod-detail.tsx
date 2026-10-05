@@ -111,7 +111,7 @@ function getBattleTestStateBadgeClass(state: string | null | undefined) {
   if (state === "locked") return "bg-emerald-100 text-emerald-800 border-emerald-200";
   if (state === "watchlist") return "bg-amber-100 text-amber-900 border-amber-200";
   if (state === "fail") return "bg-rose-100 text-rose-800 border-rose-200";
-  return "bg-slate-100 text-slate-700 border-slate-200";
+  return "bg-muted text-muted-foreground border-border";
 }
 
 function getOperationalModeBadge(mode?: string | null) {
@@ -176,7 +176,7 @@ function getOperatingStateBadgeClass(stateKey?: string | null) {
   if (stateKey === "certified_live") return "bg-emerald-100 text-emerald-800 border-emerald-200";
   if (stateKey === "trial_validation") return "bg-amber-100 text-amber-900 border-amber-200";
   if (stateKey === "sandbox_training") return "bg-sky-100 text-sky-800 border-sky-200";
-  if (stateKey === "training_plant") return "bg-slate-100 text-slate-800 border-slate-200";
+  if (stateKey === "training_plant") return "bg-muted text-foreground border-border";
   if (stateKey === "misaligned") return "bg-rose-100 text-rose-800 border-rose-200";
   return "bg-muted text-muted-foreground border-border";
 }
@@ -288,7 +288,7 @@ function getTutorAuditGroupKey(phaseKey: string): TutorAuditGroupKey {
 function getDeepDiveProgressView(entry?: TutorBattleTestDeepDiveProgress | null) {
   if (!entry || entry.attemptsCount === 0) {
     return {
-      badgeClass: "bg-slate-100 text-slate-700 border-slate-200",
+      badgeClass: "bg-muted text-muted-foreground border-border",
       badgeLabel: "Not started",
       detail: "0/3 clean passes",
     };
@@ -2376,7 +2376,7 @@ function TutorStudentsSection({
                   {awaitingAssignments.map((enrollment) => (
                     <Card
                       key={enrollment.id}
-                      className="overflow-hidden border-[#e8dcc2] bg-gradient-to-br from-[#fffaf0] via-white to-[#fff7e8] shadow-sm"
+                      className="overflow-hidden rounded-none border border-border/70 bg-background shadow-none"
                     >
                       {(() => {
                         const topics = Array.from(
@@ -2403,20 +2403,20 @@ function TutorStudentsSection({
 
                         return (
                           <>
-                            <div className="border-b border-[#eadfca] bg-[#fff8ea]/80 px-5 pb-5 pt-5">
+                            <div className="border-b border-border/70 bg-muted/20 px-5 pb-5 pt-5">
                               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                 <div className="space-y-3">
                                   <div>
-                                    <p className="text-2xl font-semibold tracking-tight text-slate-950">
+                                    <p className="text-2xl font-semibold tracking-tight text-foreground">
                                       {enrollment.student_full_name}
                                     </p>
-                                    <p className="mt-1 text-base text-slate-600">
+                                    <p className="mt-1 text-base text-muted-foreground">
                                       Parent: {enrollment.parent_full_name || "Unknown"}
                                     </p>
                                   </div>
 
                                   <div className="flex flex-wrap gap-2">
-                                    <Badge variant="outline" className="border-[#e7d7b3] bg-white/80 text-slate-700">
+                                    <Badge variant="outline" className="border-border/70 bg-background text-muted-foreground">
                                       <BookOpen className="mr-1 h-3.5 w-3.5" />
                                       {enrollment.student_grade || "Grade not provided"}
                                     </Badge>
@@ -2427,7 +2427,7 @@ function TutorStudentsSection({
                                   <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100">
                                     Awaiting Assignment
                                   </Badge>
-                                  <Badge variant="outline" className="border-[#eadfca] bg-white/80 text-slate-600">
+                                  <Badge variant="outline" className="border-border/70 bg-muted/10 text-muted-foreground">
                                     <CalendarDays className="mr-1 h-3.5 w-3.5" />
                                     {enrollment.created_at ? new Date(enrollment.created_at).toLocaleDateString() : "Unknown"}
                                   </Badge>
@@ -2437,80 +2437,80 @@ function TutorStudentsSection({
 
                             <div className="space-y-6 p-5">
                               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                                <div className="rounded-xl border border-[#eadfca] bg-white/80 p-4">
-                                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                                <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
+                                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                                     <Mail className="h-3.5 w-3.5" />
                                     Email
                                   </div>
-                                  <p className="mt-2 break-all text-sm font-medium text-slate-900">
+                                  <p className="mt-2 break-all text-sm font-medium text-foreground">
                                     {enrollment.parent_email || "Not provided"}
                                   </p>
                                 </div>
-                                <div className="rounded-xl border border-[#eadfca] bg-white/80 p-4">
-                                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                                <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
+                                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                                     <Phone className="h-3.5 w-3.5" />
                                     Phone
                                   </div>
-                                  <p className="mt-2 text-sm font-medium text-slate-900">
+                                  <p className="mt-2 text-sm font-medium text-foreground">
                                     {enrollment.parent_phone || "Not provided"}
                                   </p>
                                 </div>
-                                <div className="rounded-xl border border-[#eadfca] bg-white/80 p-4">
-                                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                                <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
+                                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                                     <MapPin className="h-3.5 w-3.5" />
                                     Location
                                   </div>
-                                  <p className="mt-2 text-sm font-medium text-slate-900">
+                                  <p className="mt-2 text-sm font-medium text-foreground">
                                     {enrollment.parent_city || "Not provided"}
                                   </p>
                                 </div>
-                                <div className="rounded-xl border border-[#eadfca] bg-white/80 p-4">
-                                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                                <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
+                                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                                     <School className="h-3.5 w-3.5" />
                                     School
                                   </div>
-                                  <p className="mt-2 text-sm font-medium text-slate-900">
+                                  <p className="mt-2 text-sm font-medium text-foreground">
                                     {enrollment.school_name || "Not provided"}
                                   </p>
                                 </div>
                               </div>
 
                               <div className="grid gap-4 2xl:grid-cols-[1.15fr,0.85fr]">
-                                <div className="rounded-2xl border border-[#eadfca] bg-white/85 p-5">
+                                <div className="rounded-2xl border border-border/70 bg-muted/10 p-5">
                                   <div className="flex items-center gap-2">
-                                    <Target className="h-4 w-4 text-[#946c16]" />
-                                    <p className="text-sm font-semibold text-slate-900">Enrollment Focus</p>
+                                    <Target className="h-4 w-4 text-primary" />
+                                    <p className="text-sm font-semibold text-foreground">Enrollment Focus</p>
                                   </div>
 
                                   <div className="mt-4 space-y-4">
                                     <div>
-                                      <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Topics</p>
+                                      <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Topics</p>
                                       <div className="mt-2 flex flex-wrap gap-2">
                                         {topics.length > 0 ? (
                                           topics.map((topic) => (
-                                            <Badge key={topic} variant="secondary" className="bg-[#f6edd7] text-[#6a4d0b] hover:bg-[#f6edd7]">
+                                            <Badge key={topic} variant="secondary" className="bg-secondary text-secondary-foreground hover:bg-secondary">
                                               {topic}
                                             </Badge>
                                           ))
                                         ) : (
-                                          <span className="text-sm text-slate-500">No topics recorded</span>
+                                          <span className="text-sm text-muted-foreground">No topics recorded</span>
                                         )}
                                       </div>
                                     </div>
 
                                     <div className="grid gap-3 sm:grid-cols-2">
-                                      <div className="rounded-xl border border-dashed border-[#eadfca] bg-[#fffaf2] p-3">
-                                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Previous Tutoring</p>
-                                        <p className="mt-2 text-sm font-medium text-slate-900">
+                                      <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-3">
+                                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Previous Tutoring</p>
+                                        <p className="mt-2 text-sm font-medium text-foreground">
                                           {enrollment.previous_tutoring || "Not provided"}
                                         </p>
                                       </div>
-                                      <div className="rounded-xl border border-dashed border-[#eadfca] bg-[#fffaf2] p-3">
-                                        <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                                      <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-3">
+                                        <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                                           <Wifi className="h-3.5 w-3.5" />
                                           Internet Access
                                         </p>
-                                        <p className="mt-2 text-sm font-medium text-slate-900">
+                                        <p className="mt-2 text-sm font-medium text-foreground">
                                           {enrollment.internet_access || "Not provided"}
                                         </p>
                                       </div>
@@ -2518,10 +2518,10 @@ function TutorStudentsSection({
                                   </div>
                                 </div>
 
-                                <div className="rounded-2xl border border-[#eadfca] bg-white/85 p-5">
+                                <div className="rounded-2xl border border-border/70 bg-muted/10 p-5">
                                   <div className="flex items-center gap-2">
-                                    <CircleAlert className="h-4 w-4 text-[#946c16]" />
-                                    <p className="text-sm font-semibold text-slate-900">Parent Intake Signal</p>
+                                    <CircleAlert className="h-4 w-4 text-primary" />
+                                    <p className="text-sm font-semibold text-foreground">Parent Intake Signal</p>
                                   </div>
 
                                   <div className="mt-4 space-y-3">
@@ -2530,31 +2530,31 @@ function TutorStudentsSection({
                                         const symptoms = derivedTopicSymptoms[topic] || [];
                                         const recommendation = topicRecommendations[topic];
                                         return (
-                                          <div key={topic} className="rounded-xl border border-[#eadfca] bg-[#fffdf8] p-4">
-                                            <p className="text-sm font-semibold text-slate-900">{topic}</p>
+                                          <div key={topic} className="rounded-xl border border-border/70 bg-background p-4">
+                                            <p className="text-sm font-semibold text-foreground">{topic}</p>
                                             {recommendation?.phase ? (
-                                              <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+                                              <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                                                 Suggested diagnostic start: {formatPhaseLabel(recommendation.phase)}
                                               </p>
                                             ) : null}
 
                                             <div className="mt-3">
-                                              <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Observed Signals</p>
+                                              <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Observed Signals</p>
                                               <div className="mt-2 flex flex-wrap gap-2">
                                                 {symptoms.length > 0 ? (
                                                   symptoms.map((symptom) => (
-                                                    <Badge key={`${topic}-${symptom}`} variant="outline" className="border-[#ecdcb7] bg-white text-slate-700">
+                                                    <Badge key={`${topic}-${symptom}`} variant="outline" className="border-border/70 bg-background text-muted-foreground">
                                                       {symptom}
                                                     </Badge>
                                                   ))
                                                 ) : (
-                                                  <span className="text-sm text-slate-500">No topic-specific symptom map recorded yet.</span>
+                                                  <span className="text-sm text-muted-foreground">No topic-specific symptom map recorded yet.</span>
                                                 )}
                                               </div>
                                             </div>
 
                                             {recommendation?.rationale ? (
-                                              <div className="mt-3 rounded-lg bg-[#faf4e5] p-3 text-sm text-slate-700">
+                                              <div className="mt-3 rounded-lg bg-muted/30 p-3 text-sm text-muted-foreground">
                                                 {recommendation.rationale}
                                               </div>
                                             ) : null}
@@ -2562,18 +2562,18 @@ function TutorStudentsSection({
                                         );
                                       })
                                     ) : fallbackSymptoms.length > 0 ? (
-                                      <div className="rounded-xl border border-[#eadfca] bg-[#fffdf8] p-4">
-                                        <p className="text-sm font-semibold text-slate-900">Observed Signals</p>
+                                      <div className="rounded-xl border border-border/70 bg-background p-4">
+                                        <p className="text-sm font-semibold text-foreground">Observed Signals</p>
                                         <div className="mt-3 flex flex-wrap gap-2">
                                           {fallbackSymptoms.map((symptom) => (
-                                            <Badge key={symptom} variant="outline" className="border-[#ecdcb7] bg-white text-slate-700">
+                                            <Badge key={symptom} variant="outline" className="border-border/70 bg-background text-muted-foreground">
                                               {symptom}
                                             </Badge>
                                           ))}
                                         </div>
                                       </div>
                                     ) : (
-                                      <div className="rounded-xl border border-dashed border-[#eadfca] bg-[#fffdf8] p-4 text-sm text-slate-500">
+                                      <div className="rounded-xl border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
                                         No symptom mapping was captured for this enrollment.
                                       </div>
                                     )}
@@ -2581,9 +2581,9 @@ function TutorStudentsSection({
                                 </div>
                               </div>
 
-                              <div className="flex flex-col gap-3 border-t border-[#eadfca] pt-5 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="text-sm text-slate-600">
-                                  <span className="font-medium text-slate-800">Submitted:</span>{" "}
+                              <div className="flex flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="text-sm text-muted-foreground">
+                                  <span className="font-medium text-foreground">Submitted:</span>{" "}
                                   {enrollment.created_at ? new Date(enrollment.created_at).toLocaleString() : "Unknown"}
                                 </div>
 
