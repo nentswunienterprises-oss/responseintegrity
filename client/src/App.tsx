@@ -1,6 +1,6 @@
 import IntroSessionRoute from "@/components/tutor/IntroSessionRoute";
 import ExecutiveCOOTrackLeads from "@/pages/executive/coo/track-leads";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import { useEffect, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
@@ -235,12 +235,21 @@ function RedirectWithSearch({ to }: { to: string }) {
   return <Navigate to={`${to}${location.search}${location.hash}`} replace />;
 }
 
+function LegacyTutorIntroSessionRedirect() {
+  const { studentId } = useParams<{ studentId: string }>();
+  const location = useLocation();
+  const target = studentId
+    ? `/specialist/intro-session/${encodeURIComponent(studentId)}`
+    : "/specialist/pod";
+  return <Navigate to={`${target}${location.search}${location.hash}`} replace />;
+}
+
 function Router() {
   return (
     <Routes>
       {/* General Routes */}
       {/* Intro Session Drill Runner */}
-      <Route path="/tutor/intro-session/:studentId" element={<TutorGatewayGuard><IntroSessionRoute /></TutorGatewayGuard>} />
+      <Route path="/tutor/intro-session/:studentId" element={<TutorGatewayGuard><LegacyTutorIntroSessionRedirect /></TutorGatewayGuard>} />
       <Route path="/specialist/intro-session/:studentId" element={<TutorGatewayGuard>{withSpecialistTheme(<IntroSessionRoute />)}</TutorGatewayGuard>} />
       <Route path="/" element={<PortalLanding />} />
       <Route path="/portal-landing" element={<Navigate to="/" replace />} />
