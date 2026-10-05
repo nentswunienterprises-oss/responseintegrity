@@ -75,3 +75,9 @@ Intro is accepted. Logging, Session Flow, Drill Library, Handover and Tools rema
 The Founder explicitly stated “Logging System Approved.” at 10:59 SAST on 5 October 2026. Acceptance covers the reviewed Logging lesson (`logging-system-v3`) at review branch commit `572b7c04120729c017999bf12b12c1b8a653352c` and Logging Mastery bank v14 (`logging_system_mastery_v1`). Proof read-back confirms 45 items and content hash `012cff8049a67a303a0de637b73e29e3`, matching the review package. The bank remains active in Proof Review Mode.
 
 Intro and Logging are accepted (2 of 6 modules). Session Flow, Drill Library, Handover and Tools remain awaiting Founder acceptance. Next review: Session Flow Control. This records content acceptance only; it does not disable Review Mode, promote to Production, claim non-review authority proof, or close the broader Capability Review.
+
+## Founder acceptance: Session Flow Control, 5 October
+
+The Founder explicitly stated “Session Flow Control approved.” at 11:01 SAST on 5 October 2026. Acceptance covers the reviewed Session Flow lesson (`session-flow-control-v3`) at review branch commit `b39a0a94ce69611fb3628871266cbe405b726aa1` and Session Flow Mastery bank v14 (`session_flow_control_mastery_v1`). Proof read-back confirms 45 items and content hash `9a976b6464e3784bf6df11dc8e0b1195`, matching the review package. The bank remains active in Proof Review Mode.
+
+Intro, Logging and Session Flow are accepted (3 of 6 modules). Drill Library, Handover and Tools remain awaiting Founder acceptance. Next review: Drill Library. This records content acceptance only; it does not disable Review Mode, promote to Production, claim non-review authority proof, or close the broader Capability Review.
