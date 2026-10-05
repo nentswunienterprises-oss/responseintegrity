@@ -105,7 +105,7 @@ for (const [key, [version, hash]] of Object.entries(expected)) {
   for (const question of form.questions) {
     const selectedOptionKeys=banks.get(key).get(question.key); assert.ok(selectedOptionKeys, 'Approved item mapping missing');
     const confirmation=await request(path+'/question-confirmation', { interactionToken: form.interactionToken, priorReceipts: receipts, questionKey: question.key, selectedOptionKeys });
-    assert.equal(confirmation.status, 201); assert.equal(confirmation.data.confirmation.correct, true);
+    assert.equal(confirmation.status, 201, 'Confirmation failed for '+key+': '+String(confirmation.data.message || 'no server message')); assert.equal(confirmation.data.confirmation.correct, true);
     receipts.push(confirmation.data.receipt);
   }
   const payload={ tutorAssignmentId: assignment, interactionToken: form.interactionToken, receipts };
