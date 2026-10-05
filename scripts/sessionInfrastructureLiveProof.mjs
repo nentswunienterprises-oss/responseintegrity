@@ -103,7 +103,8 @@ for (const [key, [version, hash]] of Object.entries(expected)) {
   assert.deepEqual(repeat.data.questions, form.questions);
   const receipts=[];
   for (const question of form.questions) {
-    const selectedOptionKeys=banks.get(key).get(question.key); assert.ok(selectedOptionKeys, 'Approved item mapping missing');
+    const acceptedKeys=banks.get(key).get(question.key); assert.ok(acceptedKeys?.length, 'Approved item mapping missing');
+    const selectedOptionKeys=question.kind==='single_choice' ? [acceptedKeys[0]] : acceptedKeys;
     const confirmation=await request(path+'/question-confirmation', { interactionToken: form.interactionToken, priorReceipts: receipts, questionKey: question.key, selectedOptionKeys });
     assert.equal(confirmation.status, 201, 'Confirmation failed for '+key+': '+String(confirmation.data.message || 'no server message')); assert.equal(confirmation.data.confirmation.correct, true);
     receipts.push(confirmation.data.receipt);
