@@ -144,7 +144,7 @@ function passedAttemptFor(
   bank: CapabilityTrainingActiveBank | null,
   attempts: CapabilityTrainingAttempt[],
 ) {
-  if (!bank) return null;
+  if (!bank || bank.reviewMode) return null;
   return (
     attempts
       .filter(
@@ -266,12 +266,13 @@ export function buildCapabilityTrainingAvailability(input: {
 
     const attempts = currentAttemptsFor(entry);
 
-    const cumulativeReviewMode =
+    const founderReviewMode =
       Boolean(bank.reviewMode) &&
       (entry.assessmentKey === TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY ||
-        entry.assessmentKey === TRANSFORMATION_TRANSFER_ASSESSMENT_KEY);
+        entry.assessmentKey === TRANSFORMATION_TRANSFER_ASSESSMENT_KEY ||
+        stage === "session_infrastructure_mastery");
 
-    if (cumulativeReviewMode) {
+    if (founderReviewMode) {
       return {
         assessmentKey: entry.assessmentKey,
         title: entry.title,

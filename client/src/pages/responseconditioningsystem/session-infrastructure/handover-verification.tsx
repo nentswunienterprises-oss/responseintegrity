@@ -1,3 +1,5 @@
+import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
+import { SESSION_INFRASTRUCTURE_TEACHING } from "@/lib/sessionInfrastructureTeaching";
 import { Link, useNavigate } from "react-router-dom";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
@@ -74,7 +76,7 @@ export default function ResponseConditioningHandoverVerification() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
         <DeepDiveLessonRunner
-          lessonKey="handover-verification-v2"
+          lessonKey="handover-verification-v3"
           title="Handover Verification"
           completion={<DeepDiveCapabilityCheck assessmentKey="handover_verification_mastery_v1" />}
         >
@@ -120,6 +122,8 @@ export default function ResponseConditioningHandoverVerification() {
           <p className="text-sm font-semibold">Missing or contaminated evidence must stay missing or contaminated. It must never be converted into weakness or strength.</p>
         </Card>
 
+        <DeepDiveTeachingInteraction {...SESSION_INFRASTRUCTURE_TEACHING.handover_verification[0]} />
+
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Recovery And Contradiction</h2>
           <p className="text-muted-foreground">One difficult opportunity does not automatically rewrite inherited truth, and one later clean opportunity does not automatically erase a real breakdown.</p>
@@ -159,6 +163,7 @@ export default function ResponseConditioningHandoverVerification() {
           <p className="font-semibold">Preserve history. Hold the inherited phase conditions. Record behavior exactly. Let RI-OS decide from the evidence.</p>
           <p className="text-sm text-muted-foreground">A reliable Handover should feel continuous to the student while remaining independently defensible to the next Specialist, the institution, and any later audit.</p>
         </Card>
+        <DeepDiveTeachingInteraction {...SESSION_INFRASTRUCTURE_TEACHING.handover_verification[1]} />
         </DeepDiveLessonRunner>
       </div>
     </div>

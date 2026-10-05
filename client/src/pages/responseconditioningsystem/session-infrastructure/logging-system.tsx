@@ -1,3 +1,5 @@
+import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
+import { SESSION_INFRASTRUCTURE_TEACHING } from "@/lib/sessionInfrastructureTeaching";
 import { Link, useNavigate } from "react-router-dom";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
@@ -66,7 +68,7 @@ export default function ResponseConditioningLoggingSystem() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
         <DeepDiveLessonRunner
-          lessonKey="logging-system-v2"
+          lessonKey="logging-system-v3"
           title="Logging System"
           completion={<DeepDiveCapabilityCheck assessmentKey="logging_system_mastery_v1" />}
         >
@@ -125,6 +127,8 @@ export default function ResponseConditioningLoggingSystem() {
             Record what the student did and what support actually occurred. Do not rewrite one fact to compensate for the other.
           </p>
         </Card>
+
+        <DeepDiveTeachingInteraction {...SESSION_INFRASTRUCTURE_TEACHING.logging_system[0]} />
 
         <Card className="p-6 space-y-5">
           <h2 className="text-2xl font-bold">How Logging Changes by Session Context</h2>
@@ -206,6 +210,7 @@ export default function ResponseConditioningLoggingSystem() {
           <h2 className="text-2xl font-bold">Specialist Standard</h2>
           <p className="font-semibold">Observe accurately. Preserve the condition. Record intervention honestly. Keep missing evidence missing. Let evidence determine the decision.</p>
         </Card>
+        <DeepDiveTeachingInteraction {...SESSION_INFRASTRUCTURE_TEACHING.logging_system[1]} />
         </DeepDiveLessonRunner>
       </div>
     </div>

@@ -241,3 +241,30 @@ test("three failed attempts exhaust the configured allowance", () => {
   assert.equal(status?.reason, "attempt_limit");
   assert.equal(status?.attemptCount, 3);
 });
+
+test("Session Infrastructure Founder review opens all six banks without completing real gates", () => {
+  const keys = ["intro_session_structure", "logging_system", "session_flow_control", "drill_library", "handover_verification", "tools_required"].map(key => `${key}_mastery_v1`);
+  const assessments = buildCapabilityTrainingAvailability({
+    now: "2026-10-04T12:00:00Z",
+    activeBanks: [...activeBanks.filter(b => !keys.includes(b.assessmentKey)), ...keys.map(key => ({ ...bank(key, "mastery"), reviewMode: true }))],
+    attempts: keys.flatMap(key => [1, 2, 3].map(attemptNumber => ({ ...pass(key, "2026-10-04T09:00:00Z"), attemptNumber }))),
+  });
+  for (const key of keys) {
+    const gate = assessments.find(entry => entry.assessmentKey === key);
+    assert.equal(gate?.status, "available");
+    assert.equal(gate?.reviewMode, true);
+  }
+  assert.equal(isCapabilityTransformationSandboxReady(assessments), false);
+});
+
+test("a Review Mode Retrieval pass cannot open real Transfer", () => {
+  const assessments = buildCapabilityTrainingAvailability({
+    now: "2026-10-04T12:00:00Z",
+    activeBanks: activeBanks.map(b => b.assessmentKey === TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY ? { ...b, reviewMode: true } : b),
+    attempts: [...transformationMasteryKeys.map(key => pass(key, "2026-10-03T09:00:00Z")), pass(TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY, "2026-10-04T09:00:00Z", "retrieval")],
+  });
+  const transfer = assessments.find(entry => entry.assessmentKey === TRANSFORMATION_TRANSFER_ASSESSMENT_KEY);
+  assert.equal(transfer?.status, "locked");
+  assert.equal(transfer?.reason, "prerequisite_incomplete");
+  assert.equal(isCapabilityTransformationSandboxReady(assessments), false);
+});

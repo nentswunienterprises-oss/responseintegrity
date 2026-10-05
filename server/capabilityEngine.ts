@@ -1077,9 +1077,15 @@ export async function getSpecialistCapabilityLedger(input: {
             passed,
             question_results,
             completed_at
-       FROM specialist_capability_assessment_attempts
+       FROM specialist_capability_assessment_attempts AS attempt
       WHERE tutor_assignment_id = $1
         AND tutor_id = $2
+        AND NOT EXISTS (
+          SELECT 1 FROM private.specialist_capability_assessment_configs AS config
+          WHERE config.assessment_key = attempt.assessment_key
+            AND config.bank_version = attempt.bank_version
+            AND COALESCE((to_jsonb(config)->>'review_mode')::boolean, false) = true
+        )
       ORDER BY completed_at ASC`,
     [input.tutorAssignmentId, input.tutorId],
   );

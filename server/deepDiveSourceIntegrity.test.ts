@@ -29,11 +29,44 @@ const deepDivePaths = [
   "client/src/pages/responseconditioningsystem/session-infrastructure/tools-required.tsx",
 ];
 
-test("live Deep Dive modules load through the TSX runtime", async () => {
-  for (const sourcePath of deepDivePaths) {
-    const moduleUrl = new URL(`../${sourcePath}`, import.meta.url);
-    const loaded = await import(moduleUrl.href);
-    assert.equal(typeof loaded.default, "function", sourcePath);
+test("live Deep Dive modules load through the bundled browser runtime", async () => {
+  const { build } = await import("esbuild");
+  const { createRequire } = await import("node:module");
+  const temporaryDirectory = fs.mkdtempSync(path.join(process.cwd(), "node_modules/.deep-dive-load-"));
+  const previousWindow = globalThis.window;
+  const values = new Map<string, string>();
+  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value), removeItem: (key: string) => values.delete(key) };
+  globalThis.window = { localStorage: storage, sessionStorage: storage, location: { hostname: "localhost", origin: "http://localhost", protocol: "http:", port: "" } } as any;
+  try {
+    const outfile = path.join(temporaryDirectory, "lessons.cjs");
+    await build({
+      stdin: {
+        contents: deepDivePaths.map((sourcePath, index) =>
+          `export { default as Page${index} } from ${JSON.stringify("./" + sourcePath)};`
+        ).join("\n"),
+        resolveDir: process.cwd(),
+        loader: "tsx",
+      },
+      bundle: true,
+      platform: "node",
+      format: "cjs",
+      packages: "external",
+      outfile,
+      define: { "import.meta.env": JSON.stringify({
+        VITE_SUPABASE_URL: "http://127.0.0.1:54321",
+        VITE_SUPABASE_PUBLISHABLE_KEY: "test-publishable-key",
+        VITE_SUPABASE_ANON_KEY: "test-publishable-key",
+      }) },
+      logLevel: "silent",
+    });
+    const loaded = createRequire(import.meta.url)(outfile);
+    for (const [index, sourcePath] of deepDivePaths.entries()) {
+      assert.equal(typeof loaded[`Page${index}`], "function", sourcePath);
+    }
+  } finally {
+    if (previousWindow === undefined) delete (globalThis as any).window;
+    else globalThis.window = previousWindow;
+    fs.rmSync(temporaryDirectory, { recursive: true, force: true });
   }
 });
 
@@ -70,7 +103,7 @@ test("Tools Required preserves the locked Modelling and Observation setup distin
   assert.match(source, /rear camera and attached ring light face the notebook and hands/i);
   assert.match(source, /record the student's observable responses as they happen/i);
   assert.match(source, /modelling-vs-observation-locked\.png/);
-  assert.match(source, /Canonical setup reference/);
+  assert.match(source, /Setup reference/);
   assert.doesNotMatch(source, /smartphone camera is the main delivery tool for the top-down teaching view/i);
   assert.equal(
     (source.match(/modelling-vs-observation-locked\.png/g) ?? []).length,
@@ -98,8 +131,18 @@ test("live Deep Dives do not restore legacy score-authority mechanics", () => {
 
   for (const sourcePath of deepDivePaths) {
     const source = read(sourcePath);
+    // Wrong-answer labels may name a prohibited action to test its rejection.
+    // Keep scanning doctrine, accepted-answer labels and corrective feedback.
+    const wrongAnswerLabels = [...source.matchAll(/<DeepDiveTeachingInteraction([\s\S]*?)\/>/g)]
+      .flatMap((match) => {
+        const correctKey = match[1].match(/correctOptionKey="([^"]+)"/)?.[1];
+        return [...match[1].matchAll(/key: "([^"]+)",\s*label: "((?:[^"\\]|\\.)*)"/g)]
+          .filter((option) => correctKey && option[1] !== correctKey)
+          .map((option) => option[0]);
+      });
+    const authoritySource = wrongAnswerLabels.reduce((text, label) => text.replace(label, ""), source);
     for (const pattern of prohibited) {
-      assert.doesNotMatch(source, pattern, `${sourcePath}: ${pattern}`);
+      assert.doesNotMatch(authoritySource, pattern, `${sourcePath}: ${pattern}`);
     }
   }
 });

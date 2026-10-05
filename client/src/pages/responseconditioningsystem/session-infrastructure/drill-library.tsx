@@ -1,3 +1,5 @@
+import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
+import { SESSION_INFRASTRUCTURE_TEACHING } from "@/lib/sessionInfrastructureTeaching";
 import { useMemo } from "react";
 import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
@@ -5,6 +7,20 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getDrillSchemaDefinition } from "@shared/responseIntegrityDrillRegistry";
+
+const supportDescriptions = {
+  modeled: "The Specialist demonstrates and explains; this is exposure, not independent student execution.",
+  minimal: "Only minimal support is permitted; record any intervention separately from behavior.",
+  first_step_only: "Only the opening step may be supported; do not supply the remaining method.",
+  none: "The student responds without Specialist help.",
+};
+const conditionDescriptions = {
+  none: "No added pressure.",
+  difficulty: "Preserve the assigned challenging difficulty.",
+  light_timer: "Use the full individualized normal execution time.",
+  repeated_timer: "Repeat under that same full individualized time.",
+  full_constraint: "Use the defined tighter percentage of that same baseline, without changing it locally.",
+};
 
 const PHASES = [
   "Clarity",
@@ -68,7 +84,7 @@ export default function ResponseConditioningDrillLibrary() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
         <DeepDiveLessonRunner
-          lessonKey="drill-library-v2"
+          lessonKey="drill-library-v3"
           title="Drill Library"
           completion={<DeepDiveCapabilityCheck assessmentKey="drill_library_mastery_v1" />}
         >
@@ -80,7 +96,6 @@ export default function ResponseConditioningDrillLibrary() {
           <p className="font-semibold">The Specialist prepares and executes the condition. The system owns drill selection where selection is system-authoritative.</p>
         </Card>
 
-        <div className="space-y-5">
           {drillTypes.map((drill) => (
             <Card key={drill.title} className="p-6 space-y-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -91,29 +106,21 @@ export default function ResponseConditioningDrillLibrary() {
               <p className="text-sm font-medium">{drill.boundary}</p>
             </Card>
           ))}
-        </div>
 
-        <Card className="p-6 space-y-5">
-          <h2 className="text-2xl font-bold">Required Training Drills</h2>
-          <p className="text-muted-foreground">
-            The Training sets below are the required sets for each phase.
-          </p>
-          <div className="space-y-4">
-            {trainingSchemas.map(({ phase, schema }) => (
-              <div key={phase} className="rounded-xl border p-4 space-y-3">
-                <h3 className="text-lg font-semibold">{phase}</h3>
-                <div className="space-y-2">
-                  {schema.sets.map((set, index) => (
-                    <div key={set.setId} className="rounded-lg bg-muted/40 p-3">
-                      <p className="font-medium">Set {index + 1}: {set.setName} ({set.reps})</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{set.purpose}</p>
-                    </div>
-                  ))}
-                </div>
+        {trainingSchemas.map(({ phase, schema }) => (
+          <Card key={phase} className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">Required Training: {phase}</h2>
+            <p className="text-muted-foreground">Run these sets in order. A completed exposure does not automatically prove a stronger state.</p>
+            {schema.sets.map((set, index) => (
+              <div key={set.setId} className="border p-4 space-y-2">
+                <h3 className="font-semibold">Set {index + 1}: {set.setName} ({set.reps})</h3>
+                <p className="text-sm text-muted-foreground">{set.purpose}</p>
+                <p className="text-sm">{supportDescriptions[set.constraints.supportLevel]} {conditionDescriptions[set.constraints.pressureLevel]} {set.constraints.variationLevel === "changed_form" ? "Use a changed problem form." : "Keep the same problem form."}</p>
               </div>
             ))}
-          </div>
-        </Card>
+          </Card>
+        ))}
+
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">Preparation Boundary</h2>
@@ -127,6 +134,8 @@ export default function ResponseConditioningDrillLibrary() {
             <li>Diagnosis tells the Specialist what to check next. Training uses the required set for the current phase. Handover continues only until there is enough trustworthy evidence to decide whether the inherited state still holds.</li>
           </ul>
         </Card>
+
+        <DeepDiveTeachingInteraction {...SESSION_INFRASTRUCTURE_TEACHING.drill_library[0]} />
 
         <Card className="p-6 space-y-4">
           <h2 className="text-2xl font-bold">When a Drill Exposes an Earlier-Layer Problem</h2>
@@ -151,6 +160,7 @@ export default function ResponseConditioningDrillLibrary() {
           <h2 className="text-2xl font-bold">Specialist Standard</h2>
           <p className="font-semibold">Use the drill RI-OS requires. Preserve the condition. Record the real response. Let evidence decide what happens next.</p>
         </Card>
+        <DeepDiveTeachingInteraction {...SESSION_INFRASTRUCTURE_TEACHING.drill_library[1]} />
         </DeepDiveLessonRunner>
       </div>
     </div>

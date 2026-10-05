@@ -153,20 +153,24 @@ test("single deep-dive battle-test lookup materializes exactly 15 questions", ()
 test("phase banks preserve live drill constraints and evidence doctrine", () => {
   assert.match(textFor("clarity", 3), /modeling/);
   assert.match(textFor("clarity", 3), /not scored|unscored|instruction/);
-  assert.match(textFor("clarity", 4), /no support|no tutor support|without support|without tutor support/);
+  assert.match(textFor("clarity", 4), /no support|no tutor support|no specialist support|without support|without tutor support|without specialist support/);
   assert.match(textFor("clarity", 5), /minimal support/);
 
   assert.match(textFor("structured_execution", 3), /minimal support/);
-  assert.match(textFor("structured_execution", 4), /no support|no tutor support|without support|without tutor support/);
-  assert.match(textFor("structured_execution", 5), /no support|no tutor support|without support|without tutor support/);
+  assert.match(textFor("structured_execution", 4), /no support|no tutor support|no specialist support|without support|without tutor support|without specialist support/);
+  assert.match(textFor("structured_execution", 5), /no support|no tutor support|no specialist support|without support|without tutor support|without specialist support/);
 
   assert.match(textFor("controlled_discomfort", 4), /minimal support/);
   assert.match(textFor("controlled_discomfort", 5), /first-step only|first step only|only first-step support/);
-  assert.match(textFor("controlled_discomfort", 6), /no support|no tutor support|without support|without tutor support/);
+  assert.match(textFor("controlled_discomfort", 6), /no support|no tutor support|no specialist support|without support|without tutor support|without specialist support/);
 
-  assert.match(textFor("time_pressure_stability", 4), /light timer|timer/);
-  assert.match(textFor("time_pressure_stability", 5), /repeated timed|repeated/);
-  assert.match(textFor("time_pressure_stability", 6), /full constraint|tight timer|tight/);
+  assert.match(textFor("time_pressure_stability", 4), /normal difficulty, same form, no time pressure/);
+  assert.match(textFor("time_pressure_stability", 4), /real execution start to student finished/);
+  assert.match(textFor("time_pressure_stability", 5), /median/);
+  assert.match(textFor("time_pressure_stability", 5), /100 percent/);
+  assert.match(textFor("time_pressure_stability", 5), /85 percent/);
+  assert.match(textFor("time_pressure_stability", 6), /remaining clean comparable samples required to reach three/);
+  assert.match(textFor("time_pressure_stability", 8), /structure under timer.*repeated timed execution.*full constraint/);
 
   assert.match(textFor("handover_verification", 1), /tutor replacement|replacement tutor|continuity/);
   assert.match(textFor("handover_verification", 2), /timer contract|timing authority/);
