@@ -23,6 +23,7 @@ import {
   resolveEvidenceSelection,
 } from "./responseIntegrityDrillRegistry";
 import type { TopicPhase } from "./topicConditioningEngine";
+import { resolveSandboxBehaviorProfile, sandboxBehaviorProfileMultiplier } from "./sandboxBehaviorProfiles";
 import {
   getLegacyStatefulSandboxV1ScenarioTruthAudit,
 } from "./statefulSandboxV1ScenarioTruthAudit";
@@ -303,6 +304,44 @@ test("constrained shuffle is deterministic and can target the earliest unsupport
     context: { ...context, recentOutcomeKeys: ["b"] },
   });
   assert.notEqual(withoutRepeat.key, "b");
+});
+
+test("Sandbox student behavior profile is deterministic and changes phase tendencies without suppressing evidence anomalies", () => {
+  const seed = "student-profile-seed";
+  const first = resolveSandboxBehaviorProfile(seed);
+  const second = resolveSandboxBehaviorProfile(seed);
+  assert.equal(first, second);
+
+  const decisionMultipliers = [
+    sandboxBehaviorProfileMultiplier({
+      seed,
+      phase: "Clarity",
+      trajectoryClass: "supported",
+    }),
+    sandboxBehaviorProfileMultiplier({
+      seed,
+      phase: "Clarity",
+      trajectoryClass: "conditional",
+    }),
+  ];
+  assert.ok(decisionMultipliers.some((value) => value !== 1));
+
+  assert.equal(
+    sandboxBehaviorProfileMultiplier({
+      seed,
+      phase: "Clarity",
+      trajectoryClass: "not_observed",
+    }),
+    1,
+  );
+  assert.equal(
+    sandboxBehaviorProfileMultiplier({
+      seed,
+      phase: "Clarity",
+      trajectoryClass: "confounded",
+    }),
+    1,
+  );
 });
 
 test("continuity tags persist across turns while outcomes can clear stale conditions", () => {
