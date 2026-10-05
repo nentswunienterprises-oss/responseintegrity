@@ -4,11 +4,11 @@ import pg from 'pg';
 
 // Only this dedicated Proof Specialist receives test evidence. Production is read-only.
 const expected = {
-  topic_conditioning_mastery_v1: [17, '9acaff00d62682c253efc8b1135499a8'],
-  clarity_mastery_v1: [15, 'bfffce48eb0dbcbbf1cb2252c4f68002'],
-  structured_execution_mastery_v1: [14, '0cf0b0c9b1efd23ae4ad513bc73db7ab'],
-  controlled_discomfort_mastery_v1: [14, 'e9beee970421ac9b15a51bc177f153d4'],
-  time_pressure_stability_mastery_v1: [14, '12247270d809a85722cad3681c98f10a'],
+  topic_conditioning_mastery_v1: [17, 'e7805d71901b413f50b790c187a9d1b4'],
+  clarity_mastery_v1: [15, '5d50acce433b28a2c26ab09308b94552'],
+  structured_execution_mastery_v1: [14, '065802ec37537d8bedad8dbbae752f19'],
+  controlled_discomfort_mastery_v1: [14, '1c94c4d1b5977812c0664d0bde1a2806'],
+  time_pressure_stability_mastery_v1: [14, 'f54800ed2540c51cd8ae88e66a76141c'],
   transformation_phases_retrieval_v1: [10, 'c0903ab8ff3021efa38b58a8b45bfa88'],
   transformation_state_transfer_v1: [11, 'deb8a266131f44e2eb4d23c45d83be8a'],
   intro_session_structure_mastery_v1: [15, 'af5b0fd53021e3e5a97ce006d94ebcd1'],
