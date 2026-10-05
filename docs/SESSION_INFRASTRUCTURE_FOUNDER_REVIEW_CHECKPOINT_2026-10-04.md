@@ -63,3 +63,9 @@ The Intro lesson now follows its starting-signal explanation with the phase mean
 Validation for this correction: frontend Vite build passed; offline rendering of all six lessons passed with two practice interactions each; Intro ordering verified with phase explanation immediately after slide 3 and timing after diagnosis execution teaching. No authenticated browser review is claimed.
 
 Founder correction, 5 October: removed displayed Intro slide 22, “Durable Evidence and Resume Integrity” (counting the practice interaction as a lesson step). Intro progress key is now v5; the remaining lesson renders with both practice interactions. This removes teaching copy only.
+
+## Founder acceptance: Intro Session Structure, 5 October
+
+The Founder explicitly stated “Intro session review complete. Approved” at 05:16 SAST on 5 October 2026. Acceptance covers the reviewed Intro lesson (`intro-session-structure-v5`, with slide 22 removed), at review branch commit `04ad9c47746216a7db868eea50ae114117043ea3`, and Intro Mastery bank v15 (`intro_session_structure_mastery_v1`). Proof read-back confirms 45 items and content hash `af5b0fd53021e3e5a97ce006d94ebcd1`, matching the review package. The bank remains active in Proof Review Mode.
+
+Intro is accepted. Logging, Session Flow, Drill Library, Handover and Tools remain awaiting Founder acceptance. Next review: Logging System. This records content acceptance only; it does not disable Review Mode, promote to Production, claim non-review authority proof, or close the broader Capability Review.
