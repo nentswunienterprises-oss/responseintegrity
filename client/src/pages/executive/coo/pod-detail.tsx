@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "./pod-detail.mobile.css";
-import { useParams, useNavigate } from "react-router-dom";
+import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -73,6 +73,30 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+type SpecialistDevelopmentCardRecord = {
+  currentStage:
+    | "application"
+    | "training"
+    | "sandbox"
+    | "practicals"
+    | "trial"
+    | "certification"
+    | "certified_live";
+  assignment: {
+    operationalMode: string;
+    certificationStatus: string;
+  };
+  pathway: {
+    timeline: {
+      state: string;
+      elapsedDays: number;
+      daysRemaining: number;
+      effectiveEndsAt: string;
+      canContinue: boolean;
+    };
+  } | null;
+};
+
 type TutorAuditGroupKey = "transformation_phases" | "session_infrastructure";
 
 function formatPhaseLabel(value: string | null | undefined) {
@@ -106,6 +130,17 @@ function formatOperationalModeLabel(mode?: string | null) {
   if (normalized === "suspended") return "Suspended";
   if (normalized === "applicant") return "Applicant";
   return "Training";
+}
+
+function formatDevelopmentStageLabel(stage?: string | null) {
+  const normalized = String(stage || "").trim().toLowerCase();
+  if (normalized === "certified_live") return "Certified Live";
+  if (normalized === "practicals") return "Practicals";
+  if (normalized === "certification") return "Certification";
+  if (normalized === "trial") return "Trial";
+  if (normalized === "sandbox") return "Sandbox";
+  if (normalized === "training") return "Training";
+  return "Application";
 }
 
 function resolveTutorMode(assignmentMode?: string | null) {
@@ -415,6 +450,10 @@ interface ParentEnrollment {
 export default function PodDetail() {
   const { podId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const cooPodsBasePath = location.pathname.startsWith("/executive/coo/")
+    ? "/executive/coo/pods"
+    : "/coo/pods";
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [addTutorsOpen, setAddTutorsOpen] = useState(false);
@@ -490,6 +529,23 @@ export default function PodDetail() {
     enabled: isAuthenticated && !authLoading && !!podId,
     refetchInterval: 5000,
     refetchOnWindowFocus: true,
+  });
+
+  const {
+    data: specialistDevelopmentSummaries = {},
+    isLoading: specialistDevelopmentSummariesLoading,
+    isError: specialistDevelopmentSummariesError,
+  } = useQuery<Record<string, SpecialistDevelopmentCardRecord>>({
+    queryKey: ["/api/coo/pods", podId, "specialist-development-summaries"],
+    enabled: isAuthenticated && !authLoading && !!podId,
+    retry: false,
+    queryFn: async () => {
+      const response = await apiRequest(
+        "GET",
+        `/api/coo/pods/${encodeURIComponent(String(podId || ""))}/specialist-development-summaries`,
+      );
+      return response.json();
+    },
   });
 
   const {
@@ -935,7 +991,7 @@ export default function PodDetail() {
         <div className="coo-pod-stats grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <Card className="border-primary/15 bg-background shadow-sm">
             <div className="px-4 py-4 sm:px-5 sm:py-5">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Tutors</p>
+              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Specialists</p>
               <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
                 {podStats?.totalTutors || 0}
               </p>
@@ -1060,11 +1116,11 @@ export default function PodDetail() {
                       <p className="mt-1 text-lg font-semibold">{battleTestingSummary.driftIncidents}</p>
                     </div>
                     <div>
-                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">At Risk Tutors</p>
+                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">At Risk Specialists</p>
                       <p className="mt-1 text-lg font-semibold">{battleTestingSummary.watchlistTutors + battleTestingSummary.failTutors}</p>
                     </div>
                     <div>
-                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Locked Tutors</p>
+                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Locked Specialists</p>
                       <p className="mt-1 text-lg font-semibold">{battleTestingSummary.lockedTutors}</p>
                     </div>
                   </div>
@@ -1079,7 +1135,7 @@ export default function PodDetail() {
                           <p key={flag.phaseKey} className="text-sm text-amber-950">
                             <span className="font-medium">{flag.title}</span>
                             <span className="ml-2 text-amber-900">
-                              {flag.affectedTutors} tutors drifted in the last {flag.windowDays} days.
+                              {flag.affectedTutors} Specialists drifted in the last {flag.windowDays} days.
                             </span>
                           </p>
                         ))}
@@ -1128,7 +1184,7 @@ export default function PodDetail() {
                 <div className="flex items-center justify-between border-b pb-3 sm:pb-4">
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                    <h2 className="font-semibold text-sm sm:text-base">Assigned Tutors</h2>
+                    <h2 className="font-semibold text-sm sm:text-base">Assigned Specialists</h2>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs sm:text-sm text-muted-foreground">
@@ -1158,7 +1214,7 @@ export default function PodDetail() {
                     </div>
                   ) : !podTutors || podTutors.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
-                      <p className="text-sm">No tutors assigned yet</p>
+                      <p className="text-sm">No Specialists assigned yet</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -1171,13 +1227,8 @@ export default function PodDetail() {
                             assignment,
                             tutorAudit?.mode
                           );
-                          const isWatchlistState = tutorAudit?.state === "watchlist";
-                          const transformationProgress = (assignment.module_progress || []).find(
-                            (entry: any) => entry.moduleKey === "transformation_phases"
-                          );
-                          const sessionInfrastructureProgress = (assignment.module_progress || []).find(
-                            (entry: any) => entry.moduleKey === "session_infrastructure"
-                          );
+                          const developmentSummary =
+                            specialistDevelopmentSummaries[String(assignment.tutorId)];
                           const responsibilityView = getTutorResponsibilityView(operationalMode, {
                             sandboxParentCount: assignment.sandbox_parent_count,
                             trialParentCount: assignment.trial_parent_count,
@@ -1204,29 +1255,6 @@ export default function PodDetail() {
                                     <div className="flex-1 min-w-0">
                                       <p className="font-semibold text-sm sm:text-base truncate">{assignment.tutorName}</p>
                                       <p className="text-xs sm:text-sm text-muted-foreground truncate">{assignment.tutorEmail}</p>
-                                      <div className="mt-2 flex flex-wrap gap-2">
-                                        {(assignment.certification_status && assignment.certification_status !== "pending") && (
-                                          <Badge className={`${getCertificationColor(assignment.certification_status)} border`}>
-                                            {assignment.certification_status}
-                                          </Badge>
-                                        )}
-                                        <Badge variant={getOperationalModeBadge(operationalMode)}>
-                                          {formatOperationalModeLabel(operationalMode)}
-                                        </Badge>
-                                        {isWatchlistState ? (
-                                          <Badge className="bg-amber-100 text-amber-900 border-amber-200">
-                                            Watchlist state
-                                          </Badge>
-                                        ) : null}
-                                        <Badge className={getBattleTestStateBadgeClass(tutorAudit?.state)}>
-                                          {getBattleTestStateLabel(tutorAudit?.state)}
-                                        </Badge>
-                                        <Badge variant="outline">
-                                          {tutorAudit?.alignmentPercent == null
-                                            ? "Audit N/A"
-                                            : `Audit ${Math.round(tutorAudit.alignmentPercent)}%`}
-                                        </Badge>
-                                      </div>
                                     </div>
                                   </div>
 
@@ -1244,9 +1272,9 @@ export default function PodDetail() {
                                       </AlertDialogTrigger>
                                       <AlertDialogContent>
                                         <AlertDialogHeader>
-                                          <AlertDialogTitle>Remove Tutor?</AlertDialogTitle>
+                                          <AlertDialogTitle>Remove Specialist?</AlertDialogTitle>
                                           <AlertDialogDescription>
-                                            Are you sure you want to remove {assignment.tutorName} from this pod?
+                                            Are you sure you want to remove {assignment.tutorName} from this Pod?
                                           </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -1262,8 +1290,63 @@ export default function PodDetail() {
                                   </div>
                                 </div>
 
+                                <div className="border-y border-border/60 py-3">
+                                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="min-w-0">
+                                      <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                                        Development
+                                      </p>
+                                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                                        <p className="text-sm font-semibold text-foreground">
+                                          {specialistDevelopmentSummariesLoading
+                                            ? "Loading stage..."
+                                            : specialistDevelopmentSummariesError || !developmentSummary
+                                              ? "Record unavailable"
+                                              : formatDevelopmentStageLabel(developmentSummary.currentStage)}
+                                        </p>
+                                        <Badge variant="outline">
+                                          Permission: {formatOperationalModeLabel(
+                                            developmentSummary?.assignment?.operationalMode || operationalMode,
+                                          )}
+                                        </Badge>
+                                      </div>
+                                      {developmentSummary?.pathway ? (
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                          Day {developmentSummary.pathway.timeline.elapsedDays} · {developmentSummary.pathway.timeline.daysRemaining} days remaining in the current development window
+                                        </p>
+                                      ) : specialistDevelopmentSummariesError ? (
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                          Open the record to inspect the latest development evidence.
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="shrink-0"
+                                      onClick={() =>
+                                        navigate(
+                                          `${cooPodsBasePath}/${podId}/specialists/${assignment.tutorId}/development`,
+                                        )
+                                      }
+                                    >
+                                      Development Record
+                                    </Button>
+                                  </div>
+                                </div>
+
                                 <div className="flex items-center justify-between gap-3">
-                                  <p className="text-sm font-medium text-muted-foreground">Specialist Alignment</p>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-sm font-medium text-muted-foreground">Specialist Alignment</p>
+                                    <Badge className={getBattleTestStateBadgeClass(tutorAudit?.state)}>
+                                      {getBattleTestStateLabel(tutorAudit?.state)}
+                                    </Badge>
+                                    <Badge variant="outline">
+                                      {tutorAudit?.alignmentPercent == null
+                                        ? "Audit N/A"
+                                        : `Audit ${Math.round(tutorAudit.alignmentPercent)}%`}
+                                    </Badge>
+                                  </div>
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -1278,7 +1361,7 @@ export default function PodDetail() {
                                   <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
                                     <div className="rounded-xl border border-border/60 bg-muted/20 p-3 sm:p-4">
                                       <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                        Tutor Audit
+                                        Alignment Audit
                                       </p>
                                       <div className="mt-3 space-y-3">
                                         {(["transformation_phases", "session_infrastructure"] as TutorAuditGroupKey[]).map((groupKey) => {
@@ -1379,10 +1462,21 @@ export default function PodDetail() {
                                           Last audit: Not yet recorded
                                         </p>
                                       )}
+                                      {Array.isArray(assignment.next_battle_tests) && assignment.next_battle_tests.length > 0 ? (
+                                        <div className="mt-3 rounded-lg border border-border/60 bg-background/80 p-3">
+                                          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Next Alignment Audits</p>
+                                          <p className="mt-1 text-sm text-foreground">
+                                            {assignment.next_battle_tests
+                                              .slice(0, 3)
+                                              .map((entry: any) => entry.title)
+                                              .join(" • ")}
+                                          </p>
+                                        </div>
+                                      ) : null}
                                     </div>
                                     <div className="rounded-xl border border-border/60 bg-muted/20 p-3 sm:p-4">
                                       <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                        Tutor Journey
+                                        Operating Responsibility
                                       </p>
                                       <div className="mt-3 grid gap-3">
                                         <div className="rounded-lg border border-border/60 bg-background/80 p-3">
@@ -1390,60 +1484,6 @@ export default function PodDetail() {
                                           <p className="mt-1 text-sm font-medium text-foreground">
                                             {formatModeCapability(operationalMode)}
                                           </p>
-                                        </div>
-                                        <div className="grid gap-3">
-                                          <div className="rounded-lg border border-border/60 bg-background/80 p-3">
-                                            <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Transformation Deep Dives</p>
-                                            <p className="mt-1 text-sm font-medium text-foreground">
-                                              {transformationProgress
-                                                ? `${transformationProgress.completedCount}/${transformationProgress.totalCount} reached 3/3`
-                                                : "Not started"}
-                                            </p>
-                                            <p className="mt-1 text-xs text-muted-foreground">
-                                              {(() => {
-                                                const summary = summarizeModuleDeepDiveProgress(
-                                                  tutorAudit?.deepDiveProgress,
-                                                  "transformation_phases"
-                                                );
-                                                if (summary.onePassAwayCount > 0) {
-                                                  return `${summary.onePassAwayCount} one pass away`;
-                                                }
-                                                if (summary.buildingCount > 0) {
-                                                  return `${summary.buildingCount} building streak`;
-                                                }
-                                                if (summary.retestCount > 0) {
-                                                  return `${summary.retestCount} need streak rebuild`;
-                                                }
-                                                return "Module status is derived from phase streaks";
-                                              })()}
-                                            </p>
-                                          </div>
-                                          <div className="rounded-lg border border-border/60 bg-background/80 p-3">
-                                            <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Session Infrastructure Deep Dives</p>
-                                            <p className="mt-1 text-sm font-medium text-foreground">
-                                              {sessionInfrastructureProgress
-                                                ? `${sessionInfrastructureProgress.completedCount}/${sessionInfrastructureProgress.totalCount} reached 3/3`
-                                                : "Not started"}
-                                            </p>
-                                            <p className="mt-1 text-xs text-muted-foreground">
-                                              {(() => {
-                                                const summary = summarizeModuleDeepDiveProgress(
-                                                  tutorAudit?.deepDiveProgress,
-                                                  "session_infrastructure"
-                                                );
-                                                if (summary.onePassAwayCount > 0) {
-                                                  return `${summary.onePassAwayCount} one pass away`;
-                                                }
-                                                if (summary.buildingCount > 0) {
-                                                  return `${summary.buildingCount} building streak`;
-                                                }
-                                                if (summary.retestCount > 0) {
-                                                  return `${summary.retestCount} need streak rebuild`;
-                                                }
-                                                return "Module status is derived from phase streaks";
-                                              })()}
-                                            </p>
-                                          </div>
                                         </div>
                                         <div className={`rounded-lg border p-3 ${responsibilityView.toneClass}`}>
                                           <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
@@ -1459,7 +1499,7 @@ export default function PodDetail() {
                                         <div className="rounded-lg border border-border/60 bg-background/80 p-3">
                                           <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Reassignment / Acceptance Pressure</p>
                                           <p className="mt-1 text-sm font-medium text-foreground">
-                                            Awaiting tutor acceptance: {assignment.awaiting_tutor_acceptance_count || 0}
+                                            Awaiting Specialist acceptance: {assignment.awaiting_tutor_acceptance_count || 0}
                                           </p>
                                           {assignment.certification_recovery_note ? (
                                             <p className="mt-2 text-xs text-amber-900">
@@ -1472,24 +1512,14 @@ export default function PodDetail() {
                                         {assignment.student_count || 0}/{maxStudentsPerTutor} students assigned.
                                       </p>
                                       <p className="mt-2 text-xs text-muted-foreground">
-                                        Certification owns mode progression. COO sees the journey here, but mode switching stays system-driven.
+                                        Development progression remains system-driven. Use the Development Record for the evidence behind the current stage.
                                       </p>
-                                      {Array.isArray(assignment.next_battle_tests) && assignment.next_battle_tests.length > 0 ? (
-                                        <div className="mt-3 rounded-lg border border-border/60 bg-background/80 p-3">
-                                          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Next Certification Reps</p>
-                                          <p className="mt-1 text-sm text-foreground">
-                                            {assignment.next_battle_tests
-                                              .slice(0, 3)
-                                              .map((entry: any) => entry.title)
-                                              .join(" • ")}
-                                          </p>
-                                        </div>
-                                      ) : null}
+
                                     </div>
                                   </div>
                                 ) : (
                                   <p className="text-sm text-muted-foreground">
-                                    {formatOperationalModeLabel(operationalMode)}. {responsibilityView.primary}. {responsibilityView.secondary}.
+                                    Expand to view alignment evidence and current operating responsibility.
                                   </p>
                                 )}
 
@@ -1555,16 +1585,16 @@ export default function PodDetail() {
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>Add Tutors to Pod</DialogTitle>
+                            <DialogTitle>Add Specialists to Pod</DialogTitle>
                             <DialogDescription>
-                              Select tutors to add. You can add {availableSlots} more tutor{availableSlots !== 1 ? "s" : ""}.
+                              Select Specialists to add. You can add {availableSlots} more tutor{availableSlots !== 1 ? "s" : ""}.
                             </DialogDescription>
                           </DialogHeader>
 
                           <div className="space-y-3">
                             {availableTutors.length === 0 ? (
                               <p className="text-sm text-muted-foreground py-4 text-center">
-                                No available tutors
+                                No available Specialists
                               </p>
                             ) : (
                               <div className="space-y-2 max-h-96 overflow-y-auto">

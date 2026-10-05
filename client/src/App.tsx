@@ -577,6 +577,7 @@ function Router() {
       <Route path="/executive/coo/traffic" element={<ExecutiveSeatGuard role="coo"><DashboardLayout><ExecutiveHRTraffic /></DashboardLayout></ExecutiveSeatGuard>} />
       <Route path="/executive/coo/applications" element={<Navigate to="/executive/coo/traffic" replace />} />
       <Route path="/executive/coo/pods" element={<ExecutiveSeatGuard role="coo"><COOPods /></ExecutiveSeatGuard>} />
+      <Route path="/executive/coo/pods/:podId/specialists/:tutorId/development" element={<ExecutiveSeatGuard role="coo"><DashboardLayout><SpecialistDevelopmentRecordPage /></DashboardLayout></ExecutiveSeatGuard>} />
       <Route path="/executive/coo/brain" element={<ExecutiveSeatGuard role="coo"><COOBrain /></ExecutiveSeatGuard>} />
       <Route path="/executive/coo/broadcast" element={<ExecutiveSeatGuard role="coo"><COOBroadcast /></ExecutiveSeatGuard>} />
       <Route path="/executive/coo/track-leads" element={<ExecutiveSeatGuard role="coo"><ExecutiveCOOTrackLeads /></ExecutiveSeatGuard>} />
@@ -635,6 +636,7 @@ function Router() {
       <Route path="/coo/tutor-applications" element={<Navigate to="/coo/traffic" replace />} />
       <Route path="/coo/pods" element={<COOPods />} />
       <Route path="/coo/pods/:podId" element={<COOPodDetail />} />
+      <Route path="/coo/pods/:podId/specialists/:tutorId/development" element={<DashboardLayout><SpecialistDevelopmentRecordPage /></DashboardLayout>} />
       <Route path="/coo/verification" element={<COOVerification />} />
       <Route path="/coo/brain" element={<COOBrain />} />
       <Route path="/coo/broadcast" element={<COOBroadcast />} />
