@@ -215,7 +215,7 @@ export function COOAffiliateApplicationsPanel() {
             <CardContent className="p-4">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Waiting On EGP</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">{waitingOnEgpApplications.length}</p>
-              <p className="text-xs text-slate-600">EGP still needs to upload or finish a step</p>
+              <p className="text-xs text-muted-foreground">EGP still needs to upload or finish a step</p>
             </CardContent>
           </Card>
           <Card className="border-emerald-500/25 bg-emerald-500/10">
@@ -280,7 +280,7 @@ export function COOAffiliateApplicationsPanel() {
                 <span>Waiting On EGP</span>
               </span>
               {waitingOnEgpApplications.length > 0 ? (
-                <Badge className="h-5 min-w-5 bg-amber-100 px-1.5 text-[10px] text-amber-900 border border-amber-500/25">
+                <Badge className="h-5 min-w-5 bg-amber-500/10 px-1.5 text-[10px] text-foreground border border-amber-500/25">
                   {waitingOnEgpApplications.length > 99 ? "99+" : waitingOnEgpApplications.length}
                 </Badge>
               ) : (
@@ -653,7 +653,7 @@ export function COOTdApplicationsPanel() {
             <CardContent className="p-4">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Waiting On TD</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">{waitingOnTdApplications.length}</p>
-              <p className="text-xs text-slate-600">Approved but still moving through onboarding</p>
+              <p className="text-xs text-muted-foreground">Approved but still moving through onboarding</p>
             </CardContent>
           </Card>
           <Card className="border-emerald-500/25 bg-emerald-500/10">
@@ -696,7 +696,7 @@ export function COOTdApplicationsPanel() {
                 <span>Waiting On TD</span>
               </span>
               {waitingOnTdApplications.length > 0 ? (
-                <Badge className="h-5 min-w-5 bg-amber-100 px-1.5 text-[10px] text-amber-900 border border-amber-500/25">
+                <Badge className="h-5 min-w-5 bg-amber-500/10 px-1.5 text-[10px] text-foreground border border-amber-500/25">
                   {waitingOnTdApplications.length > 99 ? "99+" : waitingOnTdApplications.length}
                 </Badge>
               ) : (
@@ -1191,7 +1191,7 @@ function CompletedEgpApplicationCard({
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-medium">{egpStepMeta[step].code}</p>
-                      <Badge className="bg-green-100 text-foreground border-green-200">Accepted</Badge>
+                      <Badge className="bg-emerald-500/10 text-foreground border-emerald-500/25">Accepted</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">{egpStepMeta[step].shortTitle}</p>
                     <p className="text-xs text-muted-foreground">
@@ -1215,7 +1215,7 @@ function CompletedEgpApplicationCard({
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-medium">Response Integrity-EGP-005</p>
-                  <Badge className="bg-green-100 text-foreground border-green-200">Approved</Badge>
+                  <Badge className="bg-emerald-500/10 text-foreground border-emerald-500/25">Approved</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">Certified ID Copy</p>
                 {application.doc_5_submission_uploaded_at ? (
