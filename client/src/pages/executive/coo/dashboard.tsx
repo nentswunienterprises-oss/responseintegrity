@@ -60,22 +60,22 @@ const OPERATING_POD_SECTIONS = [
   {
     key: "training_plant",
     title: "Training Plant Pods",
-    description: "Pods containing only tutors still in pre-sandbox conditioning states.",
+    description: "Pods containing only Specialists still in pre-sandbox development states.",
   },
   {
     key: "sandbox_training",
     title: "Sandbox Training Pods",
-    description: "Pods containing only sandbox tutors training on sandbox parents.",
+    description: "Pods containing only Sandbox Specialists working with synthetic Sandbox families.",
   },
   {
     key: "trial_validation",
     title: "Trial Validation Pods",
-    description: "Pods containing tutors delivering bounded live validation to exactly two Trial families.",
+    description: "Pods containing Specialists delivering bounded live validation to exactly two Trial families.",
   },
   {
     key: "certified_live",
     title: "Certified Live Pods",
-    description: "Pods containing only certified live tutors carrying real operating responsibility.",
+    description: "Pods containing only Certified Live Specialists carrying real operating responsibility.",
   },
   {
     key: "misaligned",
@@ -574,7 +574,7 @@ export default function COODashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground text-sm">Protect institutional credibility, maintain tutor standards, automate compliance actions, and maintain trust with schools. Full compliance engine for academic review.</p>
+              <p className="text-muted-foreground text-sm">Protect institutional credibility, maintain Specialist standards, automate compliance actions, and maintain trust with schools.</p>
             </CardContent>
           </Card>
         </section>}
@@ -757,7 +757,7 @@ export default function COODashboard() {
                                 {operatingOverview && (
                                   <>
                                     <div className="flex justify-between">
-                                      <span className="font-medium">Tutor Mix:</span>
+                                      <span className="font-medium">Specialist Mix:</span>
                                       <span className="text-right text-muted-foreground">
                                         Live {operatingOverview.tutorModeCounts?.certified_live || 0} • Trial {operatingOverview.tutorModeCounts?.trial || 0} • Sandbox {operatingOverview.tutorModeCounts?.sandbox || 0} • Training {((operatingOverview.tutorModeCounts?.training || 0) + (operatingOverview.tutorModeCounts?.applicant || 0) + (operatingOverview.tutorModeCounts?.watchlist || 0) + (operatingOverview.tutorModeCounts?.suspended || 0))}
                                       </span>
@@ -770,7 +770,7 @@ export default function COODashboard() {
                                     </div>
                                     {section.key === "misaligned" ? (
                                       <p className="rounded-lg border border-rose-200 bg-white/70 px-3 py-2 text-xs text-rose-800">
-                                        This pod is mixing operating states. Split tutors into state-pure pods.
+                                        This Pod is mixing operating states. Split Specialists into state-pure Pods.
                                       </p>
                                     ) : null}
                                   </>
@@ -845,7 +845,7 @@ export default function COODashboard() {
                           {operatingOverview && (
                             <>
                               <div className="flex justify-between">
-                                <span className="font-medium">Tutor Mix:</span>
+                                <span className="font-medium">Specialist Mix:</span>
                                 <span className="text-right text-muted-foreground">
                                   Live {operatingOverview.tutorModeCounts?.certified_live || 0} • Trial {operatingOverview.tutorModeCounts?.trial || 0} • Sandbox {operatingOverview.tutorModeCounts?.sandbox || 0} • Training {((operatingOverview.tutorModeCounts?.training || 0) + (operatingOverview.tutorModeCounts?.applicant || 0) + (operatingOverview.tutorModeCounts?.watchlist || 0) + (operatingOverview.tutorModeCounts?.suspended || 0))}
                                 </span>
