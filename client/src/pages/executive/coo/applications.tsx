@@ -360,7 +360,7 @@ export function COOAffiliateApplicationsPanel() {
             ) : null}
 
             {(selectedApplication.documents_status?.["5"] || selectedApplication.documentsStatus?.["5"]) === "pending_review" ? (
-              <div className="space-y-4 rounded-2xl border border-[#E7D5C8] bg-[#FFF8F4] p-4">
+              <div className="space-y-4 border border-border/70 bg-muted/20 p-4">
                 <div>
                   <p className="font-semibold">Response Integrity-EGP-005 review</p>
                   <p className="text-sm text-muted-foreground">Review the certified ID copy and approve or reject the upload.</p>
@@ -370,7 +370,7 @@ export function COOAffiliateApplicationsPanel() {
                     href={selectedApplication.doc_5_submission_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex text-sm font-medium text-[#9F1D2B] underline underline-offset-2"
+                    className="inline-flex text-sm font-medium text-primary underline underline-offset-2"
                   >
                     Open certified ID copy
                   </a>
@@ -777,7 +777,7 @@ export function COOTdApplicationsPanel() {
             ) : null}
 
             {(selectedApplication.documents_status?.["7"] || selectedApplication.documentsStatus?.["7"]) === "pending_review" ? (
-              <div className="space-y-4 rounded-2xl border border-[#E7D5C8] bg-[#FFF8F4] p-4">
+              <div className="space-y-4 border border-border/70 bg-muted/20 p-4">
                 <div>
                   <p className="font-semibold">Response Integrity-TDI-007 review</p>
                   <p className="text-sm text-muted-foreground">Review the certified identification copy and approve or reject the upload.</p>
@@ -787,7 +787,7 @@ export function COOTdApplicationsPanel() {
                     href={selectedApplication.doc_7_submission_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex text-sm font-medium text-[#9F1D2B] underline underline-offset-2"
+                    className="inline-flex text-sm font-medium text-primary underline underline-offset-2"
                   >
                     Open certified identification copy
                   </a>
@@ -935,9 +935,9 @@ function AffiliateApplicationDetails({ application }: { application: any }) {
         <h3 className="border-b pb-2 text-lg font-semibold">Application Answers</h3>
         <div className="space-y-4">
           {questions.map(([label, value]) => (
-            <div key={label} className="rounded-xl border border-[#E7D5C8] bg-[#FFF8F4] p-4">
-              <p className="text-sm font-semibold text-[#1A1A1A]">{label}</p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[#5A5A5A]">{value || "Not provided"}</p>
+            <div key={label} className="border border-border/70 bg-muted/20 p-4">
+              <p className="text-sm font-semibold text-foreground">{label}</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{value || "Not provided"}</p>
             </div>
           ))}
         </div>
@@ -965,7 +965,7 @@ function AffiliateApplicationDetails({ application }: { application: any }) {
           label="Certified ID copy"
           value={
             application.doc_5_submission_url ? (
-              <a href={application.doc_5_submission_url} target="_blank" rel="noreferrer" className="text-[#9F1D2B] underline underline-offset-2">
+              <a href={application.doc_5_submission_url} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">
                 Open uploaded file
               </a>
             ) : "Not uploaded"
@@ -1013,23 +1013,23 @@ function TdApplicationDetails({ application }: { application: any }) {
             const acceptance = acceptanceMap[String(document.step)];
             const documentFileUrl = document.step === 7 ? (application.doc_7_submission_url || application.doc7SubmissionUrl) : null;
             return (
-              <div key={document.step} className="rounded-xl border border-[#E7D5C8] bg-[#FFF8F4] p-4">
+              <div key={document.step} className="border border-border/70 bg-muted/20 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-[#1A1A1A]">{document.code}</p>
-                    <p className="mt-1 text-sm text-[#5A5A5A]">{document.title}</p>
+                    <p className="text-sm font-semibold text-foreground">{document.code}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{document.title}</p>
                   </div>
                   <Badge variant={status === "approved" ? "default" : "secondary"}>
                     {formatTdStepStatus(status)}
                   </Badge>
                 </div>
-                <div className="mt-3 space-y-1 text-xs text-[#6B5B52]">
+                <div className="mt-3 space-y-1 text-xs text-muted-foreground">
                   <p>Step {document.step} of 7</p>
                   <p>Accepted at: {formatTdDateTime(acceptance?.accepted_at || acceptance?.acceptedAt)}</p>
                   <p>Accepted by: {acceptance?.typed_full_name || acceptance?.typedFullName || "Not yet accepted"}</p>
                   {documentFileUrl ? (
                     <p>
-                      File: <a href={String(documentFileUrl)} target="_blank" rel="noreferrer" className="text-[#9F1D2B] underline underline-offset-2">Open upload</a>
+                      File: <a href={String(documentFileUrl)} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">Open upload</a>
                     </p>
                   ) : null}
                 </div>
@@ -1097,9 +1097,9 @@ function TdApplicationDetails({ application }: { application: any }) {
         <h3 className="border-b pb-2 text-lg font-semibold">Application Answers</h3>
         <div className="space-y-4">
           {tdQuestionPrompts.map(({ key, label }) => (
-            <div key={key} className="rounded-xl border border-[#E7D5C8] bg-[#FFF8F4] p-4">
-              <p className="text-sm font-semibold text-[#1A1A1A]">{label}</p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[#5A5A5A]">{responses[key] || "Not provided"}</p>
+            <div key={key} className="border border-border/70 bg-muted/20 p-4">
+              <p className="text-sm font-semibold text-foreground">{label}</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{responses[key] || "Not provided"}</p>
             </div>
           ))}
         </div>
