@@ -196,8 +196,8 @@ export default function COOPods() {
 
   const getStatusColor = (status: string) =>
     status === "active"
-      ? "bg-green-100 text-green-800 border-green-200"
-      : "bg-blue-100 text-blue-800 border-blue-200";
+      ? "bg-emerald-500/10 text-foreground border-emerald-500/25"
+      : "bg-sky-500/10 text-foreground border-sky-500/25";
 
   const getTDName = (tdId: string | null) => {
     if (!tdId) return "Not assigned";
