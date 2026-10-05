@@ -42,15 +42,15 @@ import { Link } from "react-router-dom";
 function getOperatingStateBadgeClass(stateKey?: string) {
   switch (stateKey) {
     case "certified_live":
-      return "bg-emerald-100 text-emerald-800 border-emerald-200";
+      return "bg-emerald-500/10 text-foreground border-emerald-500/25";
     case "sandbox_training":
-      return "bg-sky-100 text-sky-800 border-sky-200";
+      return "bg-sky-500/10 text-foreground border-sky-500/25";
     case "trial_validation":
-      return "bg-amber-100 text-amber-900 border-amber-200";
+      return "bg-amber-500/10 text-foreground border-amber-500/25";
     case "training_plant":
       return "bg-muted text-foreground border-border";
     case "misaligned":
-      return "bg-rose-100 text-rose-800 border-rose-200";
+      return "bg-rose-500/10 text-foreground border-rose-500/25";
     default:
       return "bg-muted text-muted-foreground border-border";
   }
@@ -488,7 +488,7 @@ export default function COODashboard() {
                     <h3 className="font-semibold text-sm">Leads ({leads.length})</h3>
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {leads.map((lead: any) => (
-                        <div key={lead.id} className="p-3 bg-blue-50 rounded text-sm">
+                        <div key={lead.id} className="border border-border/60 bg-muted/20 p-3 text-sm">
                           <p className="font-medium">Lead #{lead.id?.slice(0, 8)}</p>
                           {lead.tracking_source && (
                             <Badge variant="secondary" className="text-xs">
@@ -510,7 +510,7 @@ export default function COODashboard() {
                     <h3 className="font-semibold text-sm">Closes ({closes.length})</h3>
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {closes.map((close: any) => (
-                        <div key={close.id} className="p-3 bg-green-50 rounded text-sm">
+                        <div key={close.id} className="border border-border/60 bg-muted/20 p-3 text-sm">
                           <p className="font-medium">Close #{close.id?.slice(0, 8)}</p>
                           <Badge className="bg-green-600 text-xs">Converted</Badge>
                           <p className="text-xs text-muted-foreground mt-2">
@@ -712,7 +712,7 @@ export default function COODashboard() {
                           <Card
                             data-testid={`card-pod-${pod.id}`}
                             className={`transition-all hover:border-primary/50 hover:shadow-md ${
-                              section.key === "misaligned" ? "border-rose-200 bg-rose-50/30" : ""
+                              section.key === "misaligned" ? "border-rose-500/25 bg-rose-500/10" : ""
                             }`}
                           >
                             <CardHeader>
@@ -769,7 +769,7 @@ export default function COODashboard() {
                                       </span>
                                     </div>
                                     {section.key === "misaligned" ? (
-                                      <p className="border border-rose-300/50 bg-background/70 px-3 py-2 text-xs text-rose-700 dark:text-rose-300">
+                                      <p className="border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
                                         This Pod is mixing operating states. Split Specialists into state-pure Pods.
                                       </p>
                                     ) : null}
