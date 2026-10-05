@@ -199,30 +199,30 @@ export function COOAffiliateApplicationsPanel() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-end">
-        <Badge className="bg-amber-100 text-amber-900">{pendingApplications.length} Pending</Badge>
+        <Badge className="bg-amber-500/10 text-foreground">{pendingApplications.length} Pending</Badge>
       </div>
 
       {!isLoading ? (
         <div className="grid gap-4 md:grid-cols-3">
-          <Card className="border-amber-200 bg-amber-50">
+          <Card className="border-amber-500/25 bg-amber-500/10">
             <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-amber-800">Needs Review</p>
-              <p className="mt-1 text-2xl font-semibold text-amber-950">{reviewQueueApplications.length}</p>
-              <p className="text-xs text-amber-900/80">COO action required right now</p>
+              <p className="text-xs uppercase tracking-wide text-foreground">Needs Review</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{reviewQueueApplications.length}</p>
+              <p className="text-xs text-muted-foreground">COO action required right now</p>
             </CardContent>
           </Card>
-          <Card className="border-slate-200">
+          <Card className="border-border">
             <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-slate-700">Waiting On EGP</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-950">{waitingOnEgpApplications.length}</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Waiting On EGP</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{waitingOnEgpApplications.length}</p>
               <p className="text-xs text-slate-600">EGP still needs to upload or finish a step</p>
             </CardContent>
           </Card>
-          <Card className="border-green-200 bg-green-50">
+          <Card className="border-emerald-500/25 bg-emerald-500/10">
             <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-green-800">Complete</p>
-              <p className="mt-1 text-2xl font-semibold text-green-950">{completedApplications.length}</p>
-              <p className="text-xs text-green-900/80">Ready for the next operational stage</p>
+              <p className="text-xs uppercase tracking-wide text-foreground">Complete</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{completedApplications.length}</p>
+              <p className="text-xs text-muted-foreground">Ready for the next operational stage</p>
             </CardContent>
           </Card>
         </div>
@@ -280,7 +280,7 @@ export function COOAffiliateApplicationsPanel() {
                 <span>Waiting On EGP</span>
               </span>
               {waitingOnEgpApplications.length > 0 ? (
-                <Badge className="h-5 min-w-5 bg-amber-100 px-1.5 text-[10px] text-amber-900 border border-amber-200">
+                <Badge className="h-5 min-w-5 bg-amber-100 px-1.5 text-[10px] text-amber-900 border border-amber-500/25">
                   {waitingOnEgpApplications.length > 99 ? "99+" : waitingOnEgpApplications.length}
                 </Badge>
               ) : (
@@ -375,7 +375,7 @@ export function COOAffiliateApplicationsPanel() {
                     Open certified ID copy
                   </a>
                 ) : (
-                  <p className="text-sm text-red-700">No certified ID upload URL was found for this step.</p>
+                  <p className="text-sm text-destructive">No certified ID upload URL was found for this step.</p>
                 )}
                 <div className="space-y-2">
                   <Label htmlFor="egp-doc-review-reason">Rejection reason</Label>
@@ -637,30 +637,30 @@ export function COOTdApplicationsPanel() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-end">
-        <Badge className="bg-amber-100 text-amber-900">{pendingApplications.length} Pending</Badge>
+        <Badge className="bg-amber-500/10 text-foreground">{pendingApplications.length} Pending</Badge>
       </div>
 
       {!isLoading ? (
         <div className="grid gap-4 md:grid-cols-3">
-          <Card className="border-amber-200 bg-amber-50">
+          <Card className="border-amber-500/25 bg-amber-500/10">
             <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-amber-800">Needs Review</p>
-              <p className="mt-1 text-2xl font-semibold text-amber-950">{tdReviewQueueApplications.length}</p>
-              <p className="text-xs text-amber-900/80">COO action required right now</p>
+              <p className="text-xs uppercase tracking-wide text-foreground">Needs Review</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{tdReviewQueueApplications.length}</p>
+              <p className="text-xs text-muted-foreground">COO action required right now</p>
             </CardContent>
           </Card>
-          <Card className="border-slate-200">
+          <Card className="border-border">
             <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-slate-700">Waiting On TD</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-950">{waitingOnTdApplications.length}</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Waiting On TD</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{waitingOnTdApplications.length}</p>
               <p className="text-xs text-slate-600">Approved but still moving through onboarding</p>
             </CardContent>
           </Card>
-          <Card className="border-green-200 bg-green-50">
+          <Card className="border-emerald-500/25 bg-emerald-500/10">
             <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-green-800">Completed</p>
-              <p className="mt-1 text-2xl font-semibold text-green-950">{completedApplications.length}</p>
-              <p className="text-xs text-green-900/80">All seven TD onboarding steps completed</p>
+              <p className="text-xs uppercase tracking-wide text-foreground">Completed</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{completedApplications.length}</p>
+              <p className="text-xs text-muted-foreground">All seven TD onboarding steps completed</p>
             </CardContent>
           </Card>
         </div>
@@ -696,7 +696,7 @@ export function COOTdApplicationsPanel() {
                 <span>Waiting On TD</span>
               </span>
               {waitingOnTdApplications.length > 0 ? (
-                <Badge className="h-5 min-w-5 bg-amber-100 px-1.5 text-[10px] text-amber-900 border border-amber-200">
+                <Badge className="h-5 min-w-5 bg-amber-100 px-1.5 text-[10px] text-amber-900 border border-amber-500/25">
                   {waitingOnTdApplications.length > 99 ? "99+" : waitingOnTdApplications.length}
                 </Badge>
               ) : (
@@ -792,7 +792,7 @@ export function COOTdApplicationsPanel() {
                     Open certified identification copy
                   </a>
                 ) : (
-                  <p className="text-sm text-red-700">No identification upload URL was found for this step.</p>
+                  <p className="text-sm text-destructive">No identification upload URL was found for this step.</p>
                 )}
                 <div className="space-y-2">
                   <Label htmlFor="td-doc-review-reason">Rejection reason</Label>
@@ -1141,12 +1141,12 @@ function CompletedEgpApplicationCard({
   };
 
   return (
-    <Card className="border border-emerald-200 bg-emerald-50/40">
+    <Card className="border border-emerald-500/25 bg-emerald-500/10">
       <CardHeader className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <CardTitle className="flex items-center gap-2 text-xl">
-              <ShieldCheck className="h-5 w-5 text-emerald-700" />
+              <ShieldCheck className="h-5 w-5 text-foreground" />
               <span>{application.full_name || application.fullName}</span>
             </CardTitle>
             <CardDescription className="mt-1">
@@ -1154,7 +1154,7 @@ function CompletedEgpApplicationCard({
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge className="bg-emerald-100 text-emerald-900 border border-emerald-200">Onboarding Complete</Badge>
+            <Badge className="bg-emerald-500/10 text-foreground border border-emerald-500/25">Onboarding Complete</Badge>
             <Badge variant="outline">
               Completed {completedAt ? format(new Date(completedAt), "PPP") : "Not available"}
             </Badge>
@@ -1163,20 +1163,20 @@ function CompletedEgpApplicationCard({
 
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
           {[1, 2, 3, 4, 5].map((step) => (
-            <div key={step} className="rounded-xl border border-emerald-200 bg-white p-3">
-              <p className="text-[11px] uppercase tracking-wide text-emerald-800">{egpStepMeta[step].code}</p>
-              <p className="mt-1 text-sm font-semibold text-emerald-900">{getEgpProgressLabel(step, String(statuses[String(step)] || "not_started"))}</p>
+            <div key={step} className="rounded-xl border border-emerald-500/25 bg-background p-3">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{egpStepMeta[step].code}</p>
+              <p className="mt-1 text-sm font-semibold text-foreground">{getEgpProgressLabel(step, String(statuses[String(step)] || "not_started"))}</p>
               <p className="mt-1 text-xs text-muted-foreground">{egpStepMeta[step].shortTitle}</p>
             </div>
           ))}
         </div>
 
-        <details className="rounded-xl border border-emerald-200 bg-white p-4">
+        <details className="rounded-xl border border-emerald-500/25 bg-background p-4">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-emerald-700" />
+              <ShieldCheck className="h-4 w-4 text-foreground" />
               <div>
-                <p className="font-medium text-emerald-950">Evidence</p>
+                <p className="font-medium text-foreground">Evidence</p>
                 <p className="text-sm text-muted-foreground">Accepted agreements, timestamps, and uploaded proof.</p>
               </div>
             </div>
@@ -1191,7 +1191,7 @@ function CompletedEgpApplicationCard({
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-medium">{egpStepMeta[step].code}</p>
-                      <Badge className="bg-green-100 text-green-800 border-green-200">Accepted</Badge>
+                      <Badge className="bg-green-100 text-foreground border-green-200">Accepted</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">{egpStepMeta[step].shortTitle}</p>
                     <p className="text-xs text-muted-foreground">
@@ -1215,7 +1215,7 @@ function CompletedEgpApplicationCard({
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-medium">Response Integrity-EGP-005</p>
-                  <Badge className="bg-green-100 text-green-800 border-green-200">Approved</Badge>
+                  <Badge className="bg-green-100 text-foreground border-green-200">Approved</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">Certified ID Copy</p>
                 {application.doc_5_submission_uploaded_at ? (
