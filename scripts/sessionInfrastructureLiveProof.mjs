@@ -18,7 +18,8 @@ const expected = {
   handover_verification_mastery_v1: [10, '389bd5799ed96ce1e4d5c4efba624b10'],
   tools_required_mastery_v1: [10, '2bab6216926114ae5a99fcf343faea72'],
 };
-const base = 'https://tt-confidence-hub-git-fix-prev-504b23-relief-works-technologies.vercel.app';
+// Pin the verified app deployment so later documentation commits cannot move the proof target.
+const base = 'https://tt-confidence-fwkeqdx53-relief-works-technologies.vercel.app';
 const assignment = '836a839f-2f29-45c7-b8c2-aa501c95e1b0';
 const tutor = '77977298-7ac9-41f9-a726-9d5fd634540f';
 const email = process.env.RI_PROOF_SPECIALIST_EMAIL;
@@ -56,11 +57,8 @@ async function request(path, body) {
   const data = await response.json();
   return { status: response.status, data };
 }
-// These commits differ from the green approved app only in proof scripts/workflow/docs.
-const approvedAppShas = [process.env.GITHUB_SHA, process.env.RELEASE_APP_SHA,
-  'c6684e33b1a168f6afeb5f9c374865174868c191',
-  '80eb358de21542df1cfacb5871b2b198e61e7a9e',
-  'd2a48086c941edc2438d54cd916063ffa9049f23'];
+// This immutable deployment has the approved release app plus proof-only changes.
+const approvedAppShas = ['af31d2b5cb2daf894d0e731ec7ea3a1d30fff05d'];
 let environment;
 for (let count=0; count<40; count++) {
   try {
