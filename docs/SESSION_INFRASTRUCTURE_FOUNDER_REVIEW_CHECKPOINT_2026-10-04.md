@@ -93,3 +93,11 @@ Intro, Logging, Session Flow and Drill Library are accepted (4 of 6 modules). Ha
 The Founder explicitly stated “Approved.” at 11:55 SAST on 5 October 2026, in response to the next-review handoff for Handover Verification. Acceptance covers the reviewed Handover lesson (`handover-verification-v3`) at review branch commit `ef62cfc4540957a38b7b2ca76ae301890ee37311` and Handover Mastery bank v10 (`handover_verification_mastery_v1`). Proof read-back confirms 45 items and content hash `389bd5799ed96ce1e4d5c4efba624b10`, matching the review package. The bank remains active in Proof Review Mode.
 
 Intro, Logging, Session Flow, Drill Library and Handover are accepted (5 of 6 modules). Tools remains awaiting Founder acceptance. Next review: Tools Required. This records content acceptance only; it does not disable Review Mode, promote to Production, claim non-review authority proof, or close the broader Capability Review.
+
+## Founder acceptance: Tools Required, 5 October
+
+The Founder explicitly stated “Approved.” at 12:30 SAST on 5 October 2026, in response to the final-review handoff for Tools Required. Acceptance covers the reviewed Tools lesson (`tools-required-v3`) at review branch commit `b31f56dfe331d99a8db4b6c56e620dfc5a02874f` and Tools Mastery bank v10 (`tools_required_mastery_v1`). Proof read-back confirms 45 items and content hash `2bab6216926114ae5a99fcf343faea72`, matching the review package. The bank remains active in Proof Review Mode.
+
+All six Session Infrastructure modules have explicit Founder content acceptance: Intro v15, Logging v14, Session Flow v14, Drill Library v9, Handover v10 and Tools v10. The lesson corrections above are included in the reviewed package. This completes the Founder content review for the six lessons and their Mastery banks.
+
+Production promotion with matching Proof/Production hashes, review-state cleanup and exit from Review Mode, and real non-review authority proof remain outstanding. Planned Session Infrastructure retrieval and transfer evidence is not implemented or approved by these six Mastery acceptances. The cumulative Session Infrastructure Capability gate and broader Capability Review are not closed by this content-acceptance record.
