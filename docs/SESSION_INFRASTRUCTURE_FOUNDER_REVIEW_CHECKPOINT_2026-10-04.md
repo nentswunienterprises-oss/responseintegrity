@@ -81,3 +81,9 @@ Intro and Logging are accepted (2 of 6 modules). Session Flow, Drill Library, Ha
 The Founder explicitly stated “Session Flow Control approved.” at 11:01 SAST on 5 October 2026. Acceptance covers the reviewed Session Flow lesson (`session-flow-control-v3`) at review branch commit `b39a0a94ce69611fb3628871266cbe405b726aa1` and Session Flow Mastery bank v14 (`session_flow_control_mastery_v1`). Proof read-back confirms 45 items and content hash `9a976b6464e3784bf6df11dc8e0b1195`, matching the review package. The bank remains active in Proof Review Mode.
 
 Intro, Logging and Session Flow are accepted (3 of 6 modules). Drill Library, Handover and Tools remain awaiting Founder acceptance. Next review: Drill Library. This records content acceptance only; it does not disable Review Mode, promote to Production, claim non-review authority proof, or close the broader Capability Review.
+
+## Founder acceptance: Drill Library, 5 October
+
+The Founder explicitly stated “Drill Library approved.” at 11:24 SAST on 5 October 2026. Acceptance covers the reviewed Drill Library lesson (`drill-library-v3`) at review branch commit `52208312c3316da626e1134a80089f8fc6fe3fa5` and Drill Library Mastery bank v9 (`drill_library_mastery_v1`). Proof read-back confirms 45 items and content hash `a73ab327219589907e03a159f55d3351`, matching the review package. The bank remains active in Proof Review Mode.
+
+Intro, Logging, Session Flow and Drill Library are accepted (4 of 6 modules). Handover and Tools remain awaiting Founder acceptance. Next review: Handover Verification. This records content acceptance only; it does not disable Review Mode, promote to Production, claim non-review authority proof, or close the broader Capability Review.
