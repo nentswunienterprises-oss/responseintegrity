@@ -1227,13 +1227,8 @@ export default function PodDetail() {
                             assignment,
                             tutorAudit?.mode
                           );
-                          const isWatchlistState = tutorAudit?.state === "watchlist";
-                          const transformationProgress = (assignment.module_progress || []).find(
-                            (entry: any) => entry.moduleKey === "transformation_phases"
-                          );
-                          const sessionInfrastructureProgress = (assignment.module_progress || []).find(
-                            (entry: any) => entry.moduleKey === "session_infrastructure"
-                          );
+                          const developmentSummary =
+                            specialistDevelopmentSummaries[String(assignment.tutorId)];
                           const responsibilityView = getTutorResponsibilityView(operationalMode, {
                             sandboxParentCount: assignment.sandbox_parent_count,
                             trialParentCount: assignment.trial_parent_count,
@@ -1260,29 +1255,6 @@ export default function PodDetail() {
                                     <div className="flex-1 min-w-0">
                                       <p className="font-semibold text-sm sm:text-base truncate">{assignment.tutorName}</p>
                                       <p className="text-xs sm:text-sm text-muted-foreground truncate">{assignment.tutorEmail}</p>
-                                      <div className="mt-2 flex flex-wrap gap-2">
-                                        {(assignment.certification_status && assignment.certification_status !== "pending") && (
-                                          <Badge className={`${getCertificationColor(assignment.certification_status)} border`}>
-                                            {assignment.certification_status}
-                                          </Badge>
-                                        )}
-                                        <Badge variant={getOperationalModeBadge(operationalMode)}>
-                                          {formatOperationalModeLabel(operationalMode)}
-                                        </Badge>
-                                        {isWatchlistState ? (
-                                          <Badge className="bg-amber-100 text-amber-900 border-amber-200">
-                                            Watchlist state
-                                          </Badge>
-                                        ) : null}
-                                        <Badge className={getBattleTestStateBadgeClass(tutorAudit?.state)}>
-                                          {getBattleTestStateLabel(tutorAudit?.state)}
-                                        </Badge>
-                                        <Badge variant="outline">
-                                          {tutorAudit?.alignmentPercent == null
-                                            ? "Audit N/A"
-                                            : `Audit ${Math.round(tutorAudit.alignmentPercent)}%`}
-                                        </Badge>
-                                      </div>
                                     </div>
                                   </div>
 
@@ -1318,8 +1290,63 @@ export default function PodDetail() {
                                   </div>
                                 </div>
 
+                                <div className="border-y border-border/60 py-3">
+                                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="min-w-0">
+                                      <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                                        Development
+                                      </p>
+                                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                                        <p className="text-sm font-semibold text-foreground">
+                                          {specialistDevelopmentSummariesLoading
+                                            ? "Loading stage..."
+                                            : specialistDevelopmentSummariesError || !developmentSummary
+                                              ? "Record unavailable"
+                                              : formatDevelopmentStageLabel(developmentSummary.currentStage)}
+                                        </p>
+                                        <Badge variant="outline">
+                                          Permission: {formatOperationalModeLabel(
+                                            developmentSummary?.assignment?.operationalMode || operationalMode,
+                                          )}
+                                        </Badge>
+                                      </div>
+                                      {developmentSummary?.pathway ? (
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                          Day {developmentSummary.pathway.timeline.elapsedDays} · {developmentSummary.pathway.timeline.daysRemaining} days remaining in the current development window
+                                        </p>
+                                      ) : specialistDevelopmentSummariesError ? (
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                          Open the record to inspect the latest development evidence.
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="shrink-0"
+                                      onClick={() =>
+                                        navigate(
+                                          `${cooPodsBasePath}/${podId}/specialists/${assignment.tutorId}/development`,
+                                        )
+                                      }
+                                    >
+                                      Development Record
+                                    </Button>
+                                  </div>
+                                </div>
+
                                 <div className="flex items-center justify-between gap-3">
-                                  <p className="text-sm font-medium text-muted-foreground">Specialist Alignment</p>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-sm font-medium text-muted-foreground">Specialist Alignment</p>
+                                    <Badge className={getBattleTestStateBadgeClass(tutorAudit?.state)}>
+                                      {getBattleTestStateLabel(tutorAudit?.state)}
+                                    </Badge>
+                                    <Badge variant="outline">
+                                      {tutorAudit?.alignmentPercent == null
+                                        ? "Audit N/A"
+                                        : `Audit ${Math.round(tutorAudit.alignmentPercent)}%`}
+                                    </Badge>
+                                  </div>
                                   <Button
                                     variant="ghost"
                                     size="sm"
