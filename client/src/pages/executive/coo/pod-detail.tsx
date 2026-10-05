@@ -237,7 +237,7 @@ function getTutorResponsibilityView(
     return {
       title: "Current Responsibility",
       primary: "No active responsibility",
-      secondary: "Tutor is suspended from assignment-bearing work",
+      secondary: "Specialist is suspended from assignment-bearing work",
       toneClass: "border-rose-200/70 bg-rose-50/40",
     };
   }
@@ -254,7 +254,7 @@ function getTutorResponsibilityView(
   return {
     title: "Current Responsibility",
     primary: "No parent responsibility yet",
-    secondary: awaitingCount > 0 ? `${awaitingCount} acceptance item${awaitingCount === 1 ? "" : "s"} pending` : "Tutor is still in pre-sandbox training",
+    secondary: awaitingCount > 0 ? `${awaitingCount} acceptance item${awaitingCount === 1 ? "" : "s"} pending` : "Specialist is still in pre-sandbox training",
     toneClass: "border-slate-200/70 bg-slate-50/50",
   };
 }
@@ -654,13 +654,13 @@ export default function PodDetail() {
       setTutorToRemove(null);
       toast({
         title: "Success",
-        description: "Tutor removed from pod.",
+        description: "Specialist removed from Pod.",
       });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to remove tutor from pod.",
+        description: "Failed to remove Specialist from Pod.",
         variant: "destructive",
       });
     },
@@ -705,14 +705,14 @@ export default function PodDetail() {
       toast({
         title: variables.assignmentLane === "trial" ? "Trial family placed" : "Parent assigned",
         description: variables.assignmentLane === "trial"
-          ? "The family was bound to the tutor's governed Trial case."
+          ? "The family was bound to the Specialist's governed Trial case."
           : "The parent was assigned as an ordinary commercial family.",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Assignment failed",
-        description: error?.message || "Failed to assign parent to tutor.",
+        description: error?.message || "Failed to assign parent to Specialist.",
         variant: "destructive",
       });
     },
@@ -729,13 +729,13 @@ export default function PodDetail() {
       setSelectedTutorIds([]);
       toast({
         title: "Success",
-        description: "Tutors added to pod.",
+        description: "Specialists added to Pod.",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to add tutors to pod.",
+        description: error.message || "Failed to add Specialists to Pod.",
         variant: "destructive",
       });
     },
@@ -1052,7 +1052,7 @@ export default function PodDetail() {
                 {operatingOverview ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-lg border bg-muted/20 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Tutor Mix</p>
+                      <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Mix</p>
                       <p className="mt-1 text-sm font-medium">
                         Live {operatingOverview.tutorModeCounts?.certified_live || 0} • Trial {operatingOverview.tutorModeCounts?.trial || 0} • Sandbox {operatingOverview.tutorModeCounts?.sandbox || 0}
                       </p>
@@ -1177,7 +1177,7 @@ export default function PodDetail() {
             )}
           </div>
 
-          {/* Right Column - Tutors */}
+          {/* Right Column - Specialists */}
           <div>
             <Card className="p-4 sm:p-6 border">
               <div className="space-y-3 sm:space-y-4">
@@ -1205,7 +1205,7 @@ export default function PodDetail() {
                   </div>
                 </div>
 
-                {/* Tutors List */}
+                {/* Specialists List */}
                 {tutorsSectionExpanded ? (
                   podTutorsLoading ? (
                     <div className="space-y-2">
@@ -1574,7 +1574,7 @@ export default function PodDetail() {
                   )
                 ) : null}
 
-                    {/* Add Tutors Button */}
+                    {/* Add Specialists Button */}
                     {availableSlots > 0 && (
                       <Dialog open={addTutorsOpen} onOpenChange={setAddTutorsOpen}>
                         <DialogTrigger asChild>
@@ -1587,7 +1587,7 @@ export default function PodDetail() {
                           <DialogHeader>
                             <DialogTitle>Add Specialists to Pod</DialogTitle>
                             <DialogDescription>
-                              Select Specialists to add. You can add {availableSlots} more tutor{availableSlots !== 1 ? "s" : ""}.
+                              Select Specialists to add. You can add {availableSlots} more Specialist{availableSlots !== 1 ? "s" : ""}.
                             </DialogDescription>
                           </DialogHeader>
 
@@ -1611,7 +1611,7 @@ export default function PodDetail() {
                                           if (selectedTutorIds.length >= availableSlots) {
                                             toast({
                                               title: "Slot limit reached",
-                                              description: `You can only add ${availableSlots} more tutor${availableSlots !== 1 ? "s" : ""}.`,
+                                              description: `You can only add ${availableSlots} more Specialist${availableSlots !== 1 ? "s" : ""}.`,
                                               variant: "destructive",
                                             });
                                             return;
@@ -1860,7 +1860,7 @@ function TrialCertificationPanel({
       toast({
         title: finalDecision === "certified" ? "Certified Live approved" : "Trial decision recorded",
         description: finalDecision === "certified"
-          ? "The tutor was promoted only after explicit COO approval."
+          ? "The Specialist was promoted only after explicit COO approval."
           : "The Trial case was closed without live certification.",
       });
     },
@@ -2205,7 +2205,7 @@ function TutorStudentsSection({
           </div>
         ) : !students || students.length === 0 ? (
           <p className="text-sm text-muted-foreground py-3 text-center bg-muted/30 rounded-lg">
-            No students assigned to this tutor yet
+            No students assigned to this Specialist yet
           </p>
         ) : (
           <div className="space-y-3">
@@ -2338,7 +2338,7 @@ function TutorStudentsSection({
             </p>
             {tutorAtCapacity && (
               <p className="mt-1 text-xs text-amber-700">
-                This tutor is at vehicle capacity and cannot receive more students from quick actions.
+                This Specialist is at student capacity and cannot receive more students from quick actions.
               </p>
             )}
           </div>
@@ -2622,7 +2622,7 @@ function TutorStudentsSection({
             </Dialog>
             {!canAssignParents ? (
               <p className="mt-2 text-xs text-rose-900 break-words sm:text-right">
-                Parent assignment is blocked until this tutor enters Trial or Certified Live. Sandbox accepts synthetic accounts only.
+                Parent assignment is blocked until this Specialist enters Trial or Certified Live. Sandbox accepts synthetic accounts only.
               </p>
             ) : null}
           </div>
