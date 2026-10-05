@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "./pod-detail.mobile.css";
-import { useParams, useNavigate } from "react-router-dom";
+import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -73,6 +73,30 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+type SpecialistDevelopmentCardRecord = {
+  currentStage:
+    | "application"
+    | "training"
+    | "sandbox"
+    | "practicals"
+    | "trial"
+    | "certification"
+    | "certified_live";
+  assignment: {
+    operationalMode: string;
+    certificationStatus: string;
+  };
+  pathway: {
+    timeline: {
+      state: string;
+      elapsedDays: number;
+      daysRemaining: number;
+      effectiveEndsAt: string;
+      canContinue: boolean;
+    };
+  } | null;
+};
+
 type TutorAuditGroupKey = "transformation_phases" | "session_infrastructure";
 
 function formatPhaseLabel(value: string | null | undefined) {
@@ -106,6 +130,17 @@ function formatOperationalModeLabel(mode?: string | null) {
   if (normalized === "suspended") return "Suspended";
   if (normalized === "applicant") return "Applicant";
   return "Training";
+}
+
+function formatDevelopmentStageLabel(stage?: string | null) {
+  const normalized = String(stage || "").trim().toLowerCase();
+  if (normalized === "certified_live") return "Certified Live";
+  if (normalized === "practicals") return "Practicals";
+  if (normalized === "certification") return "Certification";
+  if (normalized === "trial") return "Trial";
+  if (normalized === "sandbox") return "Sandbox";
+  if (normalized === "training") return "Training";
+  return "Application";
 }
 
 function resolveTutorMode(assignmentMode?: string | null) {
@@ -415,6 +450,10 @@ interface ParentEnrollment {
 export default function PodDetail() {
   const { podId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const cooPodsBasePath = location.pathname.startsWith("/executive/coo/")
+    ? "/executive/coo/pods"
+    : "/coo/pods";
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [addTutorsOpen, setAddTutorsOpen] = useState(false);
@@ -490,6 +529,23 @@ export default function PodDetail() {
     enabled: isAuthenticated && !authLoading && !!podId,
     refetchInterval: 5000,
     refetchOnWindowFocus: true,
+  });
+
+  const {
+    data: specialistDevelopmentSummaries = {},
+    isLoading: specialistDevelopmentSummariesLoading,
+    isError: specialistDevelopmentSummariesError,
+  } = useQuery<Record<string, SpecialistDevelopmentCardRecord>>({
+    queryKey: ["/api/coo/pods", podId, "specialist-development-summaries"],
+    enabled: isAuthenticated && !authLoading && !!podId,
+    retry: false,
+    queryFn: async () => {
+      const response = await apiRequest(
+        "GET",
+        `/api/coo/pods/${encodeURIComponent(String(podId || ""))}/specialist-development-summaries`,
+      );
+      return response.json();
+    },
   });
 
   const {
