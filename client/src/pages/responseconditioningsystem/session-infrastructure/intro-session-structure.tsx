@@ -139,7 +139,7 @@ export default function ResponseConditioningIntroSessionStructure() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
         <DeepDiveLessonRunner
-          lessonKey="intro-session-structure-v3"
+          lessonKey="intro-session-structure-v4"
           title="Intro Session Structure"
           completion={<DeepDiveCapabilityCheck assessmentKey="intro_session_structure_mastery_v1" />}
         >
@@ -212,20 +212,13 @@ export default function ResponseConditioningIntroSessionStructure() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Diagnosis Timing Contingency</h2>
+          <h2 className="text-2xl font-bold">How Entry Placement Connects to the Phases</h2>
           <p className="text-muted-foreground">
-            When Diagnosis is collecting passive baseline timing for an unresolved placement above Structured Execution, the measurement condition must remain clean. If the timer, device, or session technology fails, that failed attempt is not treated as student weakness and does not create a second chance after weak student performance.
+            Entry placement is the phase where Training should begin for this topic.
+            Diagnosis looks for the earliest response capability that clean evidence
+            shows is not yet sufficiently supported. The four phases describe what
+            that capability is.
           </p>
-          <p className="text-muted-foreground">
-            Before an opportunity whose timing may count toward the baseline begins, keep one fresh equivalent reserve problem available for that same evidence question. Only a genuine technical failure may leave the attempt unresolved and allow that reserve problem to be used under the same no-pressure condition.
-          </p>
-          <p className="font-semibold">
-            Never reuse the exposed problem or improvise a replacement. If no clean reserve exists, leave the evidence question unresolved and return when the condition can be prepared properly.
-          </p>
-        </Card>
-
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">The Response Stack</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {[
               ["Clarity", "Can the student identify the problem, method, reason, and usable mental map?"],
@@ -244,6 +237,109 @@ export default function ResponseConditioningIntroSessionStructure() {
             behaviors were actually observed. The phases remain the Training architecture
             and final placement language; they are not artificial walls that force four
             separate mini-diagnoses.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">Example: Entry at Clarity</h2>
+          <p className="text-muted-foreground">
+            The selected topic is linear equations, which the student has already
+            learned. With no trustworthy starting signal, RI-OS begins with normal
+            independent work, without added difficulty or time pressure.
+          </p>
+          <p className="text-muted-foreground">
+            On a problem such as 3x + 5 = 20, the clean observations show that the
+            student does not recognise how to isolate x. They choose operations
+            without a usable method or reason. These are symptoms of a Clarity
+            breakdown: the student does not yet have a reliable map of what to do.
+          </p>
+          <p className="font-semibold">
+            When that breakdown is sufficiently established, RI-OS places this topic
+            at Clarity. Training begins by building the missing understanding.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            If the content has never been learned, or the opportunity did not expose
+            the student's understanding, that is not proof of a Clarity breakdown.
+            Diagnosis keeps the evidence question unresolved.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">Example: Entry at Structured Execution</h2>
+          <p className="text-muted-foreground">
+            For the same topic, clean evidence now supports Clarity. The student
+            recognises the equation and understands why they must subtract 5 and
+            then divide by 3 to isolate x.
+          </p>
+          <p className="text-muted-foreground">
+            During independent work, however, they correctly reach 3x = 15 and then
+            stop, unable to carry out the known next step without a cue. Further clean
+            evidence, where needed,
+            establishes that independent execution is not repeatable. Knowing the
+            method and executing it independently are different capabilities.
+          </p>
+          <p className="font-semibold">
+            RI-OS places this topic at Structured Execution because understanding is
+            supported, but independent execution is not. Training begins with
+            establishing a reliable sequence the student can carry through alone.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Completing the problem after the Specialist supplies a step does not
+            prove independent execution. That intervention is recorded separately.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">Example: Entry at Controlled Discomfort</h2>
+          <p className="text-muted-foreground">
+            Clean evidence supports both understanding and repeatable independent
+            execution of ordinary linear equations. RI-OS then selects a check that
+            introduces difficulty or uncertainty, without adding time pressure.
+          </p>
+          <p className="text-muted-foreground">
+            On 2(x + 3) = 18, using brackets the student has already learned, they
+            correctly write 2x + 6 = 18. Then uncertainty makes them cross out their
+            working and wait for reassurance instead of continuing with their known
+            method. Diagnosis removes the added difficulty where needed
+            to check whether the earlier capabilities remain intact.
+          </p>
+          <p className="font-semibold">
+            If the clean evidence confirms that the breakdown is under difficulty
+            while the earlier capabilities remain supported, RI-OS places this topic
+            at Controlled Discomfort. Training begins with keeping the response
+            usable when the work feels difficult or uncertain.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            A harder problem going wrong does not, by itself, prove this placement.
+            Diagnosis must establish which capability actually broke.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">Example: Entry at Time Pressure Stability</h2>
+          <p className="text-muted-foreground">
+            Clean evidence supports understanding, independent execution and a usable
+            response under difficulty. The system then introduces urgency under the
+            required timing conditions.
+          </p>
+          <p className="text-muted-foreground">
+            Under urgency, the student correctly reaches 3x = 15 but rushes to
+            x = 15, skipping the division they reliably perform without pressure.
+            When urgency is removed,
+            clean evidence confirms that the earlier capabilities remain intact.
+            The symptoms point to keeping the trained response stable under time pressure.
+          </p>
+          <p className="font-semibold">
+            Once that evidence question is resolved, RI-OS places this topic at Time
+            Pressure Stability. Training begins with preserving structure and
+            completion under urgency.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            These examples explain the evidence behind placement; they are not four
+            compulsory tests or a fixed rep sequence. A starting signal chooses
+            where diagnosis looks first. Observed behavior determines the next check
+            and final placement. The Specialist records the behavior; RI-OS resolves
+            the phase and starting stability for this topic, not for the student as a whole.
           </p>
         </Card>
 
@@ -468,6 +564,19 @@ export default function ResponseConditioningIntroSessionStructure() {
           </ol>
           <p className="text-sm text-muted-foreground">
             A phase name or internal supported flag by itself is not enough explanation.
+          </p>
+        </Card>
+
+        <Card className="p-6 space-y-4">
+          <h2 className="text-2xl font-bold">Diagnosis Timing Contingency</h2>
+          <p className="text-muted-foreground">
+            When Diagnosis is collecting passive baseline timing for an unresolved placement above Structured Execution, the measurement condition must remain clean. If the timer, device, or session technology fails, that failed attempt is not treated as student weakness and does not create a second chance after weak student performance.
+          </p>
+          <p className="text-muted-foreground">
+            Before an opportunity whose timing may count toward the baseline begins, keep one fresh equivalent reserve problem available for that same evidence question. Only a genuine technical failure may leave the attempt unresolved and allow that reserve problem to be used under the same no-pressure condition.
+          </p>
+          <p className="font-semibold">
+            Never reuse the exposed problem or improvise a replacement. If no clean reserve exists, leave the evidence question unresolved and return when the condition can be prepared properly.
           </p>
         </Card>
 

@@ -55,3 +55,9 @@ The initial push and activation were blocked by automatic approval review. The F
 5. Run the real non-review authority sequence relevant to the accepted scope and retain its evidence. No Session Infrastructure non-review lifecycle proof is claimed here.
 
 The active architecture currently exposes six Session Infrastructure Mastery banks. Planned Session Infrastructure retrieval and cross-module transfer evidence in the [Capability architecture](CAPABILITY_TRAINING_ARCHITECTURE_2026-09-28.md) is not implemented or approved by this package. This checkpoint does not create those gates, change Transformation graduation policy, or close the broader Capability Review.
+
+## Founder review correction: Intro placement explanation, 5 October
+
+The Intro lesson now follows its starting-signal explanation with the phase meanings and four concrete linear-equation placement examples. Each connects observed symptoms, supported earlier capabilities, the remaining evidence question, and the resulting Training entry phase. They preserve content-exposure protection, clean-evidence requirements, system decision authority, and the absence of a compulsory four-test or fixed-rep sequence. Diagnosis timing contingency moves after the placement and opportunity-flow teaching. The Intro progress key is v4 so saved indices cannot skip the added explanation. This is a teaching correction; assessment banks and approval status are unchanged.
+
+Validation for this correction: frontend Vite build passed; offline rendering of all six lessons passed with two practice interactions each; Intro ordering verified with phase explanation immediately after slide 3 and timing after diagnosis execution teaching. No authenticated browser review is claimed.
