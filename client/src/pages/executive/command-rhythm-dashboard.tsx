@@ -275,7 +275,7 @@ function getWeekStart(value: Date) {
 }
 
 function getRiskBadgeClass(riskLevel: "low" | "medium" | "high") {
-  if (riskLevel === "high") return "bg-rose-500/100/10 text-foreground";
+  if (riskLevel === "high") return "bg-rose-500/10 text-foreground";
   if (riskLevel === "medium") return "bg-amber-500/10 text-foreground";
   return "bg-emerald-500/10 text-foreground";
 }
@@ -289,7 +289,7 @@ function getStatusBadgeClass(status: TaskStatus) {
     case "blocked":
       return "bg-orange-100 text-orange-700";
     case "missed":
-      return "bg-rose-500/100/10 text-foreground";
+      return "bg-rose-500/10 text-foreground";
     case "in_progress":
       return "bg-amber-500/10 text-foreground";
     default:
@@ -795,7 +795,7 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
               </p>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <Card className="border-slate-200 shadow-none">
+              <Card className="border-border/70 shadow-none">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
@@ -808,7 +808,7 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-200 shadow-none">
+              <Card className="border-border/70 shadow-none">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <Flag className="h-4 w-4 text-muted-foreground" />
@@ -819,7 +819,7 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-200 shadow-none">
+              <Card className="border-border/70 shadow-none">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <ShieldCheck className="h-4 w-4 text-muted-foreground" />
@@ -832,7 +832,7 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-200 shadow-none">
+              <Card className="border-border/70 shadow-none">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
@@ -847,7 +847,7 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
             </CardContent>
           </Card>
 
-          <Card className="border-slate-200">
+          <Card className="border-border/70">
             <CardHeader>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -875,7 +875,7 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
                 </div>
                 <div className="rounded-xl bg-rose-500/10 p-3">
                   <div className="text-xs uppercase tracking-wide text-rose-500">Missed</div>
-                  <div className="mt-2 text-2xl font-semibold text-rose-700">{stableOverview?.companySummary.missedTasks || 0}</div>
+                  <div className="mt-2 text-2xl font-semibold text-destructive">{stableOverview?.companySummary.missedTasks || 0}</div>
                 </div>
                 <div className="rounded-xl bg-orange-50 p-3">
                   <div className="text-xs uppercase tracking-wide text-orange-500">Blocked</div>
@@ -911,7 +911,7 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
                 </Card>
               ) : (
                 relevantTasks.map((task) => (
-                  <Card key={task.id} className="border-slate-200">
+                  <Card key={task.id} className="border-border/70">
                     <CardHeader className="space-y-3">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
@@ -1044,7 +1044,7 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
 
             <div className="grid gap-4 lg:grid-cols-2">
               {stableOverview?.tasks.map((task) => (
-                <Card key={task.id} className="border-slate-200">
+                <Card key={task.id} className="border-border/70">
                   <CardHeader className="space-y-2">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -1604,7 +1604,7 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
             <div className="flex items-start gap-3">
               <AlertTriangle className="mt-0.5 h-5 w-5 text-rose-600" />
               <div>
-                <div className="font-semibold text-rose-700">Missed responsibilities detected</div>
+                <div className="font-semibold text-destructive">Missed responsibilities detected</div>
                 <div className="mt-1 text-sm text-muted-foreground">
                   {stableOverview?.companySummary.missedTasks} task{stableOverview?.companySummary.missedTasks === 1 ? "" : "s"} missed the deadline without completion sign-off.
                 </div>
