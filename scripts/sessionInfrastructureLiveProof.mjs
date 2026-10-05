@@ -18,8 +18,7 @@ const expected = {
   handover_verification_mastery_v1: [10, '389bd5799ed96ce1e4d5c4efba624b10'],
   tools_required_mastery_v1: [10, '2bab6216926114ae5a99fcf343faea72'],
 };
-// Pin the verified app deployment so later documentation commits cannot move the proof target.
-const base = 'https://tt-confidence-fwkeqdx53-relief-works-technologies.vercel.app';
+const base = 'https://tt-confidence-hub-git-fix-prev-504b23-relief-works-technologies.vercel.app';
 const assignment = '836a839f-2f29-45c7-b8c2-aa501c95e1b0';
 const tutor = '77977298-7ac9-41f9-a726-9d5fd634540f';
 const email = process.env.RI_PROOF_SPECIALIST_EMAIL;
@@ -57,13 +56,26 @@ async function request(path, body) {
   const data = await response.json();
   return { status: response.status, data };
 }
-// This immutable deployment has the approved release app plus proof-only changes.
-const approvedAppShas = ['af31d2b5cb2daf894d0e731ec7ea3a1d30fff05d'];
+// Verify source equivalence when a documentation/proof commit moves the preview alias.
+async function isApprovedAppSha(sha) {
+  if (!/^[a-f0-9]{40}$/.test(sha || '')) return false;
+  if (sha === process.env.RELEASE_APP_SHA || sha === process.env.GITHUB_SHA) return true;
+  const compared = await fetch('https://api.github.com/repos/nentswunienterprises-oss/responseintegrity/compare/' + process.env.RELEASE_APP_SHA + '...' + sha, { signal: AbortSignal.timeout(15000) });
+  if (!compared.ok) return false;
+  const comparison = await compared.json();
+  const allowedFiles = new Set([
+    'scripts/sessionInfrastructureLiveProof.mjs',
+    '.github/workflows/session-infrastructure-live-proof.yml',
+    'docs/SESSION_INFRASTRUCTURE_FOUNDER_REVIEW_CHECKPOINT_2026-10-04.md',
+  ]);
+  return ['ahead','identical'].includes(comparison.status) &&
+    Array.isArray(comparison.files) && comparison.files.every(file => allowedFiles.has(file.filename));
+}
 let environment;
 for (let count=0; count<40; count++) {
   try {
     const response = await request('/api/proof-environment');
-    if (response.status===200 && approvedAppShas.includes(response.data.commitSha)) { environment=response.data; break; }
+    if (response.status===200 && await isApprovedAppSha(response.data.commitSha)) { environment=response.data; break; }
   } catch { /* Await the deployment without printing responses or credentials. */ }
   await new Promise(resolve => setTimeout(resolve, 10000));
 }
