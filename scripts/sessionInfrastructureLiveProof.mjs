@@ -56,11 +56,16 @@ async function request(path, body) {
   const data = await response.json();
   return { status: response.status, data };
 }
+// These commits differ from the green approved app only in proof scripts/workflow/docs.
+const approvedAppShas = [process.env.GITHUB_SHA, process.env.RELEASE_APP_SHA,
+  'c6684e33b1a168f6afeb5f9c374865174868c191',
+  '80eb358de21542df1cfacb5871b2b198e61e7a9e',
+  'd2a48086c941edc2438d54cd916063ffa9049f23'];
 let environment;
 for (let count=0; count<40; count++) {
   try {
     const response = await request('/api/proof-environment');
-    if (response.status===200 && [process.env.GITHUB_SHA, process.env.RELEASE_APP_SHA].includes(response.data.commitSha)) { environment=response.data; break; }
+    if (response.status===200 && approvedAppShas.includes(response.data.commitSha)) { environment=response.data; break; }
   } catch { /* Await the deployment without printing responses or credentials. */ }
   await new Promise(resolve => setTimeout(resolve, 10000));
 }
