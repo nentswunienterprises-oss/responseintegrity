@@ -275,25 +275,25 @@ function getWeekStart(value: Date) {
 }
 
 function getRiskBadgeClass(riskLevel: "low" | "medium" | "high") {
-  if (riskLevel === "high") return "bg-rose-100 text-rose-700";
-  if (riskLevel === "medium") return "bg-amber-100 text-amber-700";
-  return "bg-emerald-100 text-emerald-700";
+  if (riskLevel === "high") return "bg-rose-500/100/10 text-foreground";
+  if (riskLevel === "medium") return "bg-amber-500/10 text-foreground";
+  return "bg-emerald-500/10 text-foreground";
 }
 
 function getStatusBadgeClass(status: TaskStatus) {
   switch (status) {
     case "approved":
-      return "bg-emerald-100 text-emerald-700";
+      return "bg-emerald-500/10 text-foreground";
     case "submitted":
-      return "bg-sky-100 text-sky-700";
+      return "bg-sky-500/10 text-foreground";
     case "blocked":
       return "bg-orange-100 text-orange-700";
     case "missed":
-      return "bg-rose-100 text-rose-700";
+      return "bg-rose-500/100/10 text-foreground";
     case "in_progress":
-      return "bg-amber-100 text-amber-700";
+      return "bg-amber-500/10 text-foreground";
     default:
-      return "bg-slate-100 text-slate-700";
+      return "bg-muted text-muted-foreground";
   }
 }
 
@@ -306,7 +306,7 @@ function getPriorityBadgeClass(priority: HydratedExecutiveTask["priority"]) {
     case "normal":
       return "bg-slate-900 text-white";
     default:
-      return "bg-slate-100 text-slate-700";
+      return "bg-muted text-muted-foreground";
   }
 }
 
@@ -774,23 +774,23 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
     <ExecutivePortalGuard role={role}>
       <div className="space-y-8">
         {isUsingCachedSnapshot ? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="border border-amber-500/25 bg-amber-500/10 p-4 text-sm text-foreground">
             Showing last known command rhythm snapshot while live data is temporarily unavailable.
           </div>
         ) : null}
         <section className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-          <Card className="border-slate-200 bg-gradient-to-br from-[#FFF8F0] via-white to-[#F5F7FA]">
+          <Card className="rounded-none border-border/70 bg-background">
             <CardHeader className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm uppercase tracking-[0.22em] text-muted-foreground">Weekly Command Rhythm OS</p>
-                  <h1 className="text-3xl font-bold tracking-tight text-slate-950">
+                  <h1 className="text-3xl font-bold tracking-tight text-foreground">
                     {stableOverview?.myProfile?.title || ROLE_LABELS[role]}
                   </h1>
                 </div>
                 <Badge className="bg-slate-900 text-white">{ROLE_LABELS[role]}</Badge>
               </div>
-              <p className="max-w-2xl text-sm leading-6 text-slate-600">
+              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
                 CEO direction becomes recorded work, recorded work becomes owned tasks, and tasks only become complete when proof is accepted.
               </p>
             </CardHeader>
@@ -798,50 +798,50 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
               <Card className="border-slate-200 shadow-none">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
-                    <CheckCircle2 className="h-4 w-4 text-slate-500" />
-                    <span className="text-xs text-slate-500">My completed</span>
+                    <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">My completed</span>
                   </div>
-                  <div className="mt-4 text-2xl font-semibold text-slate-950">
+                  <div className="mt-4 text-2xl font-semibold text-foreground">
                     {relevantTasks.filter((task) => task.effectiveStatus === "approved").length}
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">Tasks marked complete with accepted proof</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Tasks marked complete with accepted proof</p>
                 </CardContent>
               </Card>
 
               <Card className="border-slate-200 shadow-none">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
-                    <Flag className="h-4 w-4 text-slate-500" />
-                    <span className="text-xs text-slate-500">My queue</span>
+                    <Flag className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">My queue</span>
                   </div>
-                  <div className="mt-4 text-2xl font-semibold text-slate-950">{relevantTasks.length}</div>
-                  <p className="mt-1 text-xs text-slate-500">Tasks owned or supported by you</p>
+                  <div className="mt-4 text-2xl font-semibold text-foreground">{relevantTasks.length}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">Tasks owned or supported by you</p>
                 </CardContent>
               </Card>
 
               <Card className="border-slate-200 shadow-none">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
-                    <ShieldCheck className="h-4 w-4 text-slate-500" />
-                    <span className="text-xs text-slate-500">Onboarding</span>
+                    <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Onboarding</span>
                   </div>
-                  <div className="mt-4 text-lg font-semibold capitalize text-slate-950">
+                  <div className="mt-4 text-lg font-semibold capitalize text-foreground">
                     {stableOverview?.myProfile?.onboardingStatus.replaceAll("_", " ") || "not started"}
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">Role understanding tracked separately from output</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Role understanding tracked separately from output</p>
                 </CardContent>
               </Card>
 
               <Card className="border-slate-200 shadow-none">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
-                    <CheckCircle2 className="h-4 w-4 text-slate-500" />
-                    <span className="text-xs text-slate-500">Contribution</span>
+                    <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Contribution</span>
                   </div>
-                  <div className="mt-4 text-lg font-semibold capitalize text-slate-950">
+                  <div className="mt-4 text-lg font-semibold capitalize text-foreground">
                     {stableOverview?.myProfile?.contributionStatus.replaceAll("_", " ") || "not contributing"}
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">Proof-backed contribution state</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Proof-backed contribution state</p>
                 </CardContent>
               </Card>
             </CardContent>
@@ -852,12 +852,12 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <CardTitle className="text-lg">Institution Signal</CardTitle>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     Today is {formatLongDate(today)}. Current week began {formatLongDate(currentWeekStart)}.
                   </p>
                 </div>
                 {overviewFetching ? (
-                  <Badge variant="outline" className="border-slate-300 text-slate-600">
+                  <Badge variant="outline" className="border-border/70 text-muted-foreground">
                     Refreshing...
                   </Badge>
                 ) : null}
@@ -865,15 +865,15 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <div className="text-xs uppercase tracking-wide text-slate-500">Active Tasks</div>
-                  <div className="mt-2 text-2xl font-semibold text-slate-950">{stableOverview?.companySummary.activeTasks || 0}</div>
+                <div className="rounded-xl bg-muted/20 p-3">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Active Tasks</div>
+                  <div className="mt-2 text-2xl font-semibold text-foreground">{stableOverview?.companySummary.activeTasks || 0}</div>
                 </div>
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <div className="text-xs uppercase tracking-wide text-slate-500">Awaiting Completion Review</div>
-                  <div className="mt-2 text-2xl font-semibold text-slate-950">{stableOverview?.companySummary.awaitingReview || 0}</div>
+                <div className="rounded-xl bg-muted/20 p-3">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Awaiting Completion Review</div>
+                  <div className="mt-2 text-2xl font-semibold text-foreground">{stableOverview?.companySummary.awaitingReview || 0}</div>
                 </div>
-                <div className="rounded-xl bg-rose-50 p-3">
+                <div className="rounded-xl bg-rose-500/10 p-3">
                   <div className="text-xs uppercase tracking-wide text-rose-500">Missed</div>
                   <div className="mt-2 text-2xl font-semibold text-rose-700">{stableOverview?.companySummary.missedTasks || 0}</div>
                 </div>
@@ -933,9 +933,9 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div className="rounded-xl bg-slate-50 p-4 text-sm">
-                        <div className="font-medium text-slate-950">Required proof</div>
-                        <div className="mt-1 text-slate-600">{task.requiredProof}</div>
+                      <div className="rounded-xl bg-muted/20 p-4 text-sm">
+                        <div className="font-medium text-foreground">Required proof</div>
+                        <div className="mt-1 text-muted-foreground">{task.requiredProof}</div>
                         {task.blockerSummary ? (
                           <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-orange-800">
                             <div className="font-medium">Blocker</div>
@@ -1076,7 +1076,7 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
                       <span>{task.proofCount}</span>
                     </div>
                     {task.directionSource ? (
-                      <div className="rounded-lg bg-slate-50 p-3 text-slate-700">
+                      <div className="rounded-lg bg-muted/20 p-3 text-muted-foreground">
                         <div className="font-medium">Direction source</div>
                         <div className="mt-1">{task.directionSource}</div>
                       </div>
@@ -1119,15 +1119,15 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
                       <div className="text-sm text-muted-foreground">
                         Week of {formatShortDate(record.weekStartDate)} • Stored {formatDate(record.createdAt)}
                       </div>
-                      <div className="text-sm leading-6 text-slate-700">{record.summary}</div>
+                      <div className="text-sm leading-6 text-muted-foreground">{record.summary}</div>
                       {record.keyDecisions ? (
-                        <div className="rounded-lg bg-slate-50 p-3 text-sm">
-                          <div className="font-medium text-slate-950">Key decisions</div>
-                          <div className="mt-1 text-slate-700">{record.keyDecisions}</div>
+                        <div className="rounded-lg bg-muted/20 p-3 text-sm">
+                          <div className="font-medium text-foreground">Key decisions</div>
+                          <div className="mt-1 text-muted-foreground">{record.keyDecisions}</div>
                         </div>
                       ) : null}
                       {record.needsAttention ? (
-                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                        <div className="rounded-lg border border-amber-500/25 bg-amber-500/10 p-3 text-sm text-foreground">
                           <div className="font-medium">Needs CEO attention</div>
                           <div className="mt-1">{record.needsAttention}</div>
                         </div>
@@ -1514,7 +1514,7 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
                       )}
                     </div>
                   </div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-muted-foreground">
                     {proofForm.proofType === "link"
                       ? "Use a direct link to the evidence."
                       : proofForm.proofType === "doc"
@@ -1600,12 +1600,12 @@ export default function ExecutiveCommandRhythmDashboard(props: { hideTabs?: bool
         </Dialog>
 
         {(stableOverview?.companySummary.missedTasks || 0) > 0 ? (
-          <div className="fixed bottom-24 right-4 z-40 max-w-sm rounded-2xl border border-rose-200 bg-white p-4 shadow-xl">
+          <div className="fixed bottom-24 right-4 z-40 max-w-sm border border-rose-500/25 bg-card p-4 shadow-none">
             <div className="flex items-start gap-3">
               <AlertTriangle className="mt-0.5 h-5 w-5 text-rose-600" />
               <div>
                 <div className="font-semibold text-rose-700">Missed responsibilities detected</div>
-                <div className="mt-1 text-sm text-slate-600">
+                <div className="mt-1 text-sm text-muted-foreground">
                   {stableOverview?.companySummary.missedTasks} task{stableOverview?.companySummary.missedTasks === 1 ? "" : "s"} missed the deadline without completion sign-off.
                 </div>
               </div>
