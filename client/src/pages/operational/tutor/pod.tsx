@@ -141,7 +141,7 @@ function formatTutorGradeLabel(grade?: string | null) {
 function formatSessionStatus(status?: string | null) {
   const raw = String(status || "").trim().toLowerCase();
   if (raw === "pending_parent_confirmation") return "Awaiting Parent";
-  if (raw === "pending_tutor_confirmation") return "Awaiting Tutor";
+  if (raw === "pending_tutor_confirmation") return "Awaiting Specialist";
   if (raw === "confirmed") return "Confirmed";
   if (raw === "ready") return "Ready";
   if (raw === "live") return "Live";
@@ -454,7 +454,7 @@ export default function TutorPod() {
                   <p className="text-sm text-muted-foreground sm:text-base">
                     {hasPendingApplication
                       ? "Your application is under review. Once approved, this space becomes your operating view for student training and pod work."
-                      : "You do not have any students assigned yet. Pod assignment will unlock your live tutor operating view."}
+                      : "You do not have any students assigned yet. Pod assignment will unlock your live Specialist operating view."}
                   </p>
                 </div>
 
@@ -671,7 +671,7 @@ export default function TutorPod() {
                 </div>
               ) : (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  No tutor audit has been recorded for you yet.
+                  No Specialist audit has been recorded for you yet.
                 </p>
               )}
             </div>
@@ -784,7 +784,7 @@ export default function TutorPod() {
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Team Capacity</p>
                 <p className="mt-2 text-sm text-foreground">Pod Members ({podMemberCount}/{podCapacity})</p>
               </div>
-              <p className="text-sm text-muted-foreground">Use this to review the TD layer and the tutors operating in your pod.</p>
+              <p className="text-sm text-muted-foreground">Use this to review the TD layer and the Specialists operating in your Pod.</p>
               <Button
                 className="w-full justify-start text-sm"
                 variant="outline"
@@ -995,7 +995,7 @@ export default function TutorPod() {
           onOpenChange={setProposalOpen}
           studentId={selectedStudentId}
           studentName={selectedStudentName}
-          tutorName={user?.name || "Your Tutor"}
+          tutorName={user?.name || "Your Specialist"}
           identitySheetData={studentIdentitySheets[selectedStudentId]}
           parentTopics={
             (((podData?.students as any[]) ?? []).find((s: any) => s.id === selectedStudentId)?.parentInfo?.reported_topics as string[] | undefined)?.join(", ") ||
@@ -1111,7 +1111,7 @@ export default function TutorPod() {
                         <Badge variant="outline" className="h-5 px-1.5 text-[10px] leading-none">You</Badge>
                       ) : null}
                     </div>
-                    <p className="text-sm text-muted-foreground">Role: Tutor</p>
+                    <p className="text-sm text-muted-foreground">Role: Specialist</p>
                     <p className="text-sm text-muted-foreground">Email: {selectedTeamMember.email || "Not provided"}</p>
                     <p className="text-sm text-muted-foreground">Phone: {selectedTeamMember.phone || "Not provided"}</p>
                     <p className="text-sm text-muted-foreground">School: {selectedTeamMember.school || "Not provided"}</p>
