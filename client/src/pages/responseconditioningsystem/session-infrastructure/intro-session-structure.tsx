@@ -139,7 +139,7 @@ export default function ResponseConditioningIntroSessionStructure() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
         <DeepDiveLessonRunner
-          lessonKey="intro-session-structure-v4"
+          lessonKey="intro-session-structure-v5"
           title="Intro Session Structure"
           completion={<DeepDiveCapabilityCheck assessmentKey="intro_session_structure_mastery_v1" />}
         >
@@ -577,20 +577,6 @@ export default function ResponseConditioningIntroSessionStructure() {
           </p>
           <p className="font-semibold">
             Never reuse the exposed problem or improvise a replacement. If no clean reserve exists, leave the evidence question unresolved and return when the condition can be prepared properly.
-          </p>
-        </Card>
-
-        <Card className="p-6 space-y-4">
-          <h2 className="text-2xl font-bold">Durable Evidence and Resume Integrity</h2>
-          <p className="text-muted-foreground">
-            The diagnosis path is durable. RI-OS validates the expected sequence of checks,
-            persists partial runs, independently recomputes the decision, and finalizes the
-            same topic placement from the submitted evidence history.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            If a downstream finalization step fails after the evidence history has been
-            stored, the run can resume from that durable history instead of creating duplicate
-            evidence or restarting the student from zero.
           </p>
         </Card>
 
