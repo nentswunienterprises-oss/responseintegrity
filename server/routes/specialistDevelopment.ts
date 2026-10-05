@@ -554,5 +554,5 @@ export function registerSpecialistDevelopmentRoutes(app: Express) {
         });
       }
     },
-
+  );
 }
