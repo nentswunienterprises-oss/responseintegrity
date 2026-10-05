@@ -511,7 +511,7 @@ function Router() {
       <Route path="/operational/tutor/gateway" element={<RedirectWithSearch to="/operational/specialist/gateway" />} />
       <Route path="/operational/tutor/dashboard" element={<TutorGatewayGuard><Navigate to="/specialist/pod" replace /></TutorGatewayGuard>} />
       <Route path="/operational/tutor/my-pod" element={<TutorGatewayGuard><Navigate to="/specialist/pod" replace /></TutorGatewayGuard>} />
-      <Route path="/tutor/blueprint" element={<TutorGatewayGuard><DashboardLayout><TutorBlueprint /></DashboardLayout></TutorGatewayGuard>} />
+      <Route path="/tutor/blueprint" element={<RedirectWithSearch to="/specialist/blueprint" />} />
       <Route path="/specialist/blueprint" element={<TutorGatewayGuard><DashboardLayout><TutorBlueprint /></DashboardLayout></TutorGatewayGuard>} />
       <Route path="/operational/tutor/response-integrity-os" element={<RedirectWithSearch to="/operational/specialist/response-integrity-os" />} />
       <Route path="/operational/tutor/capability" element={<RedirectWithSearch to="/responseconditioningsystem" />} />
@@ -610,12 +610,12 @@ function Router() {
       <Route path="/specialist/sessions" element={<TutorGatewayGuard><TutorSessions /></TutorGatewayGuard>} />
       <Route path="/specialist/profile" element={<TutorGatewayGuard><TutorProfile /></TutorGatewayGuard>} />
       <Route path="/specialist/updates" element={<TutorGatewayGuard><DashboardLayout><TutorUpdates /></DashboardLayout></TutorGatewayGuard>} />
-      <Route path="/tutor/pod" element={<TutorGatewayGuard><TutorPod /></TutorGatewayGuard>} />
-      <Route path="/tutor/growth" element={<TutorGatewayGuard><TutorGrowth /></TutorGatewayGuard>} />
-      <Route path="/tutor/academics" element={<TutorGatewayGuard><TutorAcademics /></TutorGatewayGuard>} />
-      <Route path="/tutor/sessions" element={<TutorGatewayGuard><TutorSessions /></TutorGatewayGuard>} />
-      <Route path="/tutor/profile" element={<TutorGatewayGuard><TutorProfile /></TutorGatewayGuard>} />
-      <Route path="/tutor/updates" element={<TutorGatewayGuard><DashboardLayout><TutorUpdates /></DashboardLayout></TutorGatewayGuard>} />
+      <Route path="/tutor/pod" element={<RedirectWithSearch to="/specialist/pod" />} />
+      <Route path="/tutor/growth" element={<RedirectWithSearch to="/specialist/growth" />} />
+      <Route path="/tutor/academics" element={<RedirectWithSearch to="/specialist/academics" />} />
+      <Route path="/tutor/sessions" element={<RedirectWithSearch to="/specialist/sessions" />} />
+      <Route path="/tutor/profile" element={<RedirectWithSearch to="/specialist/profile" />} />
+      <Route path="/tutor/updates" element={<RedirectWithSearch to="/specialist/updates" />} />
 
       {/* Legacy TD Routes */}
       <Route path="/tutor/landing" element={<RedirectWithSearch to="/operational/specialist/landing" />} />
