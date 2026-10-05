@@ -48,7 +48,7 @@ function getOperatingStateBadgeClass(stateKey?: string) {
     case "trial_validation":
       return "bg-amber-100 text-amber-900 border-amber-200";
     case "training_plant":
-      return "bg-slate-100 text-slate-800 border-slate-200";
+      return "bg-muted text-foreground border-border";
     case "misaligned":
       return "bg-rose-100 text-rose-800 border-rose-200";
     default:
@@ -537,7 +537,7 @@ export default function COODashboard() {
       <div className="space-y-8">
         {/* Contribution Integrity quick launch */}
         <section>
-          <Card className="border-slate-200 bg-gradient-to-br from-[#F9FAFB] via-white to-[#FFF8F0]">
+          <Card className="rounded-none border-border/70 bg-background">
             <CardHeader>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -769,7 +769,7 @@ export default function COODashboard() {
                                       </span>
                                     </div>
                                     {section.key === "misaligned" ? (
-                                      <p className="rounded-lg border border-rose-200 bg-white/70 px-3 py-2 text-xs text-rose-800">
+                                      <p className="border border-rose-300/50 bg-background/70 px-3 py-2 text-xs text-rose-700 dark:text-rose-300">
                                         This Pod is mixing operating states. Split Specialists into state-pure Pods.
                                       </p>
                                     ) : null}
