@@ -633,7 +633,7 @@ export default function StudentIdentitySheet({
                 </div>
 
                 <div>
-                  <Label htmlFor="tutorNotes">Tutor Notes</Label>
+                  <Label htmlFor="tutorNotes">Specialist Notes</Label>
                   <Textarea
                     id="tutorNotes"
                     value={formData.tutorNotes}

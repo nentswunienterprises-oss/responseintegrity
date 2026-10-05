@@ -462,10 +462,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     !!effectiveUser && (isAffiliate(effectiveUser) || isOD(effectiveUser));
   const useSpecialistTheme = !!effectiveUser && isTutor(effectiveUser);
   const useTDTheme = !!effectiveUser && isTD(effectiveUser);
-  const useRIThemeWorld = useSpecialistTheme || useTDTheme;
+  const useCOOTheme = !!effectiveUser && isCOO(effectiveUser);
+  const useRIThemeWorld = useSpecialistTheme || useTDTheme || useCOOTheme;
   const useSpecialistSurface =
     useSpecialistTheme && location.pathname !== "/specialist/pod";
-  const useRIThemeSurface = useSpecialistSurface || useTDTheme;
+  const useRIThemeSurface = useSpecialistSurface || useTDTheme || useCOOTheme;
 
   return (
     <div className={`min-h-screen bg-background${useRIThemeWorld ? " ri-world-page ri-specialist-world" : ""}`}>

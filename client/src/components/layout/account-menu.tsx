@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogOut, Palette, Shield } from "lucide-react";
-import { getRoleName, isTD, isTutor } from "@/lib/roles";
+import { getRoleName, isCOO, isTD, isTutor } from "@/lib/roles";
 import { logout } from "@/lib/auth";
 import { useRITheme } from "@/lib/riTheme";
 
@@ -62,7 +62,7 @@ export function AccountMenu({
   showIssueAction = false,
 }: AccountMenuProps) {
   const { theme, setTheme } = useRITheme();
-  const showAppearance = isTutor(user) || isTD(user);
+  const showAppearance = isTutor(user) || isTD(user) || isCOO(user);
 
   return (
     <DropdownMenu>

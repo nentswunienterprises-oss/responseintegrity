@@ -698,17 +698,17 @@ export default function COOBrain() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        <div className="rounded-2xl border border-[#E7D5C8] bg-[#FFF8F4] p-4 sm:p-5">
+                        <div className="border border-border/70 bg-muted/20 p-4 sm:p-5">
                           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="space-y-1">
-                              <p className="text-sm font-semibold text-[#1A1A1A]">Document reader</p>
-                              <p className="text-sm text-[#6B5B52]">
+                              <p className="text-sm font-semibold text-foreground">Document reader</p>
+                              <p className="text-sm text-muted-foreground">
                                 Open this Library document in a dedicated reader, then close it when you are done.
                               </p>
                             </div>
                             <Button
                               type="button"
-                              className="w-full bg-[#E63946] text-white hover:bg-[#cf2e3c] sm:w-auto"
+                              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto"
                               onClick={() => setReaderOpen(true)}
                             >
                               <Expand className="mr-2 h-4 w-4" />
@@ -735,11 +735,11 @@ export default function COOBrain() {
 
         {selectedItem?.kind === "rich_text" ? (
           <Dialog open={readerOpen} onOpenChange={setReaderOpen}>
-            <DialogContent className="left-1/2 top-1/2 h-[92dvh] w-[calc(100vw-1rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[#E7D5C8] p-0 shadow-2xl sm:h-[88dvh] sm:w-[calc(100vw-3rem)]">
-              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-[#FFF5ED] text-[#1A1A1A]">
-                <DialogHeader className="shrink-0 border-b border-[#E7D5C8] bg-white px-4 py-4 text-left sm:px-6 sm:py-5">
+            <DialogContent className="left-1/2 top-1/2 h-[92dvh] w-[calc(100vw-1rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 rounded-none border border-border/70 p-0 shadow-none sm:h-[88dvh] sm:w-[calc(100vw-3rem)]">
+              <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground">
+                <DialogHeader className="shrink-0 border-b border-border/70 bg-card px-4 py-4 text-left sm:px-6 sm:py-5">
                   <DialogTitle className="pr-8 text-xl sm:text-2xl">{selectedItem.name}</DialogTitle>
-                  <p className="text-sm text-[#6B5B52]">
+                  <p className="text-sm text-muted-foreground">
                     COO Library document
                     {selectedItem.createdAt
                       ? ` • Added ${format(new Date(selectedItem.createdAt), "MMM d, yyyy 'at' h:mm a")}`
@@ -747,12 +747,12 @@ export default function COOBrain() {
                   </p>
                 </DialogHeader>
 
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#FFF5ED] px-3 py-4 touch-pan-y sm:px-6 sm:py-6">
-                  <div className="mx-auto max-w-4xl rounded-2xl border border-[#E7D5C8] bg-white px-4 py-6 shadow-[0_18px_50px_rgba(230,57,70,0.08)] sm:px-10 sm:py-10">
-                    <div className="border-b border-[#E7D5C8] pb-5">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E63946]">COO Brain</p>
-                      <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[#1A1A1A] sm:text-3xl">{selectedItem.name}</h1>
-                      <p className="mt-2 text-xs text-[#6B5B52] sm:text-sm">Library rich-text document</p>
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background px-3 py-4 touch-pan-y sm:px-6 sm:py-6">
+                  <div className="mx-auto max-w-4xl border border-border/70 bg-card px-4 py-6 shadow-none sm:px-10 sm:py-10">
+                    <div className="border-b border-border/70 pb-5">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary">COO Brain</p>
+                      <h1 className="mt-3 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{selectedItem.name}</h1>
+                      <p className="mt-2 text-xs text-muted-foreground sm:text-sm">Library rich-text document</p>
                     </div>
 
                     <div
@@ -762,7 +762,7 @@ export default function COOBrain() {
                   </div>
                 </div>
 
-                <div className="shrink-0 border-t border-[#E7D5C8] bg-white px-4 py-4 sm:px-6">
+                <div className="shrink-0 border-t border-border/70 bg-card px-4 py-4 sm:px-6">
                   <div className="flex justify-end">
                     <Button type="button" variant="outline" onClick={() => setReaderOpen(false)}>
                       Close

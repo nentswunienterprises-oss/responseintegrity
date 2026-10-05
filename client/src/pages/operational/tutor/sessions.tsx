@@ -107,7 +107,7 @@ function getObservedResponseDisplay(log: SessionLogResponse["sessionLogs"][numbe
 function statusLabel(status?: string | null) {
   const raw = String(status || "").trim().toLowerCase();
   if (raw === "pending_parent_confirmation") return "Awaiting Parent";
-  if (raw === "pending_tutor_confirmation") return "Awaiting Tutor";
+  if (raw === "pending_tutor_confirmation") return "Awaiting Specialist";
   if (raw === "confirmed") return "Confirmed";
   if (raw === "ready") return "Ready";
   if (raw === "live") return "Live";
@@ -206,7 +206,7 @@ export default function TutorSessions() {
                   ? "Sandbox mode mirrors the family scheduling workflow without Google Meet delivery requirements."
                   : operationalMode === "training"
                     ? "Training mode is active. Live scheduling and Google Meet lesson windows are hidden for you."
-                    : "Weekly tutor schedule from the live Response Integrity planning table."}
+                    : "Weekly Specialist schedule from the live Response Integrity planning table."}
             </p>
           </div>
           <div className="flex items-center gap-2">

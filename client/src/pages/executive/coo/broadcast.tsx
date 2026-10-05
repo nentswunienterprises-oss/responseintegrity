@@ -198,7 +198,7 @@ export default function COOBroadcast() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Everyone (All users)</SelectItem>
-                  <SelectItem value="tutors">Tutors Only</SelectItem>
+                  <SelectItem value="tutors">Specialists Only</SelectItem>
                   <SelectItem value="tds">Territory Directors Only</SelectItem>
                   <SelectItem value="parents">Parents Only</SelectItem>
                   <SelectItem value="students">Students Only</SelectItem>
@@ -232,7 +232,7 @@ export default function COOBroadcast() {
                 {visibility === "all"
                   ? "all users"
                   : visibility === "tutors"
-                  ? "all tutors"
+                  ? "all Specialists"
                   : visibility === "tds"
                   ? "all territory directors"
                   : visibility === "parents"

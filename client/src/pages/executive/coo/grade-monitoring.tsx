@@ -113,16 +113,16 @@ export default function GradeMonitoring() {
         </Card>
         <Card className="border-2">
           <CardHeader>
-            <CardTitle>Quarterly Grade Submission (Tutor)</CardTitle>
+            <CardTitle>Quarterly Grade Submission (Specialist)</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>At the start of each quarter, tutor must submit overall average, percentage for each subject, and upload official school report. All fields required.</p>
+            <p>At the start of each quarter, the Specialist must submit the overall average, each subject percentage and the official school report. All fields are required.</p>
             {/* TODO: Implement grade input, validation, report upload, and submission logic */}
           </CardContent>
         </Card>
         <Card className="border-2">
           <CardHeader>
-            <CardTitle>Subject Declaration (Tutor)</CardTitle>
+            <CardTitle>Subject Declaration (Specialist)</CardTitle>
           </CardHeader>
           <CardContent>
             <SubjectDeclarationForm />
@@ -133,7 +133,7 @@ export default function GradeMonitoring() {
             <CardTitle>Grade Monitoring & Academic Compliance System</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>This page will implement the full compliance engine for tutor grade submissions, subject locking, COO verification, automated checks, and academic review.</p>
+            <p>This page will implement the full compliance engine for Specialist grade submissions, subject locking, COO verification, automated checks, and academic review.</p>
             {/* TODO: Implement full system logic and UI */}
           </CardContent>
         </Card>

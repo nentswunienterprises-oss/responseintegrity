@@ -8,10 +8,17 @@ const source = fs.readFileSync(
   "utf8",
 );
 
-test("TD dashboard surfaces receive the shared RI appearance theme scope", () => {
+test("Specialist, TD and COO dashboard surfaces receive the shared RI appearance theme scope", () => {
   assert.match(source, /const useTDTheme = !!effectiveUser && isTD\(effectiveUser\)/);
-  assert.match(source, /const useRIThemeWorld = useSpecialistTheme \|\| useTDTheme/);
-  assert.match(source, /const useRIThemeSurface = useSpecialistSurface \|\| useTDTheme/);
+  assert.match(source, /const useCOOTheme = !!effectiveUser && isCOO\(effectiveUser\)/);
+  assert.match(
+    source,
+    /const useRIThemeWorld = useSpecialistTheme \|\| useTDTheme \|\| useCOOTheme/,
+  );
+  assert.match(
+    source,
+    /const useRIThemeSurface = useSpecialistSurface \|\| useTDTheme \|\| useCOOTheme/,
+  );
   assert.match(source, /useRIThemeWorld \? " ri-world-page ri-specialist-world"/);
   assert.match(source, /useRIThemeSurface \? " ri-specialist-surface"/);
 });

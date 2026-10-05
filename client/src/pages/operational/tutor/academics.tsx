@@ -107,7 +107,7 @@ export default function TutorGradeMonitoring() {
       <div className="space-y-8">
         <Card className="border-2">
           <CardHeader>
-            <CardTitle>Subject Declaration (Tutor)</CardTitle>
+            <CardTitle>Subject Declaration (Specialist)</CardTitle>
           </CardHeader>
           <CardContent>
             <SubjectDeclarationForm />
@@ -115,7 +115,7 @@ export default function TutorGradeMonitoring() {
         </Card>
         <Card className="border-2">
           <CardHeader>
-            <CardTitle>Grade Submission (Tutor)</CardTitle>
+            <CardTitle>Grade Submission (Specialist)</CardTitle>
           </CardHeader>
           <CardContent>
             <GradeSubmissionForm />

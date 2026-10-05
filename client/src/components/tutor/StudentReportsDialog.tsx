@@ -426,7 +426,7 @@ export default function StudentReportsDialog({
 
             <div className="rounded-xl border border-primary/15 bg-muted/20 px-4 py-3 text-xs text-muted-foreground flex items-center gap-2">
               <Calendar className="w-3.5 h-3.5" />
-              Internal tutor notes are stored but remain hidden from parent-facing output.
+              Internal Specialist notes are stored but remain hidden from parent-facing output.
             </div>
           </div>
         )}
