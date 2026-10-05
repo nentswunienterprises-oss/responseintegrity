@@ -108,9 +108,9 @@ function formatPhaseLabel(value: string | null | undefined) {
 }
 
 function getBattleTestStateBadgeClass(state: string | null | undefined) {
-  if (state === "locked") return "bg-emerald-100 text-emerald-800 border-emerald-200";
-  if (state === "watchlist") return "bg-amber-100 text-amber-900 border-amber-200";
-  if (state === "fail") return "bg-rose-100 text-rose-800 border-rose-200";
+  if (state === "locked") return "bg-emerald-500/10 text-foreground border-emerald-500/25";
+  if (state === "watchlist") return "bg-amber-500/10 text-foreground border-amber-500/25";
+  if (state === "fail") return "bg-rose-500/10 text-foreground border-rose-500/25";
   return "bg-muted text-muted-foreground border-border";
 }
 
@@ -173,11 +173,11 @@ function isTutorEligibleForParentAssignment(mode?: string | null) {
 }
 
 function getOperatingStateBadgeClass(stateKey?: string | null) {
-  if (stateKey === "certified_live") return "bg-emerald-100 text-emerald-800 border-emerald-200";
-  if (stateKey === "trial_validation") return "bg-amber-100 text-amber-900 border-amber-200";
-  if (stateKey === "sandbox_training") return "bg-sky-100 text-sky-800 border-sky-200";
+  if (stateKey === "certified_live") return "bg-emerald-500/10 text-foreground border-emerald-500/25";
+  if (stateKey === "trial_validation") return "bg-amber-500/10 text-foreground border-amber-500/25";
+  if (stateKey === "sandbox_training") return "bg-sky-500/10 text-foreground border-sky-500/25";
   if (stateKey === "training_plant") return "bg-muted text-foreground border-border";
-  if (stateKey === "misaligned") return "bg-rose-100 text-rose-800 border-rose-200";
+  if (stateKey === "misaligned") return "bg-rose-500/10 text-foreground border-rose-500/25";
   return "bg-muted text-muted-foreground border-border";
 }
 
@@ -211,7 +211,7 @@ function getTutorResponsibilityView(
       title: "Current Responsibility",
       primary: `${liveCount} live parent${liveCount === 1 ? "" : "s"}`,
       secondary: sandboxCount > 0 ? `${sandboxCount} sandbox assignment${sandboxCount === 1 ? "" : "s"} should be reviewed` : "Sandbox lane inactive",
-      toneClass: "border-emerald-200/70 bg-emerald-50/40",
+      toneClass: "border-emerald-500/25 bg-emerald-500/10",
     };
   }
 
@@ -220,7 +220,7 @@ function getTutorResponsibilityView(
       title: "Current Trial Responsibility",
       primary: `${trialCount}/2 trial famil${trialCount === 1 ? "y" : "ies"}`,
       secondary: liveCount > 0 ? `${liveCount} commercial assignment${liveCount === 1 ? "" : "s"} must be removed` : "Commercial assignments remain blocked",
-      toneClass: "border-amber-200/70 bg-amber-50/40",
+      toneClass: "border-amber-500/25 bg-amber-500/10",
     };
   }
 
@@ -229,7 +229,7 @@ function getTutorResponsibilityView(
       title: "Current Responsibility",
       primary: `${sandboxCount} sandbox parent${sandboxCount === 1 ? "" : "s"}`,
       secondary: liveCount > 0 ? `${liveCount} live assignment${liveCount === 1 ? "" : "s"} should not be here` : "Live parent assignments blocked",
-      toneClass: "border-sky-200/70 bg-sky-50/40",
+      toneClass: "border-sky-500/25 bg-sky-500/10",
     };
   }
 
@@ -238,7 +238,7 @@ function getTutorResponsibilityView(
       title: "Current Responsibility",
       primary: "No active responsibility",
       secondary: "Specialist is suspended from assignment-bearing work",
-      toneClass: "border-rose-200/70 bg-rose-50/40",
+      toneClass: "border-rose-500/25 bg-rose-500/10",
     };
   }
 
@@ -247,7 +247,7 @@ function getTutorResponsibilityView(
       title: "Current Responsibility",
       primary: "No parent responsibility yet",
       secondary: "Onboarding must complete before training assignments open",
-      toneClass: "border-slate-200/70 bg-slate-50/50",
+      toneClass: "border-border/70 bg-muted/20",
     };
   }
 
@@ -255,7 +255,7 @@ function getTutorResponsibilityView(
     title: "Current Responsibility",
     primary: "No parent responsibility yet",
     secondary: awaitingCount > 0 ? `${awaitingCount} acceptance item${awaitingCount === 1 ? "" : "s"} pending` : "Specialist is still in pre-sandbox training",
-    toneClass: "border-slate-200/70 bg-slate-50/50",
+    toneClass: "border-border/70 bg-muted/20",
   };
 }
 
@@ -296,7 +296,7 @@ function getDeepDiveProgressView(entry?: TutorBattleTestDeepDiveProgress | null)
 
   if (entry.historicalState === "completed") {
     return {
-      badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      badgeClass: "bg-emerald-500/10 text-foreground border-emerald-500/25",
       badgeLabel: "Completed",
       detail: "3/3 clean passes",
     };
@@ -304,7 +304,7 @@ function getDeepDiveProgressView(entry?: TutorBattleTestDeepDiveProgress | null)
 
   if (entry.currentHealthState === "drift" || entry.criticalFlag) {
     return {
-      badgeClass: "bg-rose-100 text-rose-800 border-rose-200",
+      badgeClass: "bg-rose-500/10 text-foreground border-rose-500/25",
       badgeLabel: "Drift",
       detail: `${entry.currentStreak}/3 clean passes`,
     };
@@ -312,7 +312,7 @@ function getDeepDiveProgressView(entry?: TutorBattleTestDeepDiveProgress | null)
 
   if (entry.currentStreak === 2) {
     return {
-      badgeClass: "bg-sky-100 text-sky-800 border-sky-200",
+      badgeClass: "bg-sky-500/10 text-foreground border-sky-500/25",
       badgeLabel: "One pass away",
       detail: "2/3 clean passes",
     };
@@ -320,14 +320,14 @@ function getDeepDiveProgressView(entry?: TutorBattleTestDeepDiveProgress | null)
 
   if (entry.currentStreak === 1) {
     return {
-      badgeClass: "bg-amber-100 text-amber-900 border-amber-200",
+      badgeClass: "bg-amber-500/10 text-foreground border-amber-500/25",
       badgeLabel: "Building streak",
       detail: "1/3 clean passes",
     };
   }
 
   return {
-    badgeClass: "bg-amber-100 text-amber-900 border-amber-200",
+    badgeClass: "bg-amber-500/10 text-foreground border-amber-500/25",
     badgeLabel: "Retest needed",
     detail: "0/3 clean passes",
   };
@@ -791,18 +791,18 @@ export default function PodDetail() {
 
   const getStatusColor = (status: string) => {
     return status === "active"
-      ? "bg-green-100 text-green-800 border-green-200"
-      : "bg-blue-100 text-blue-800 border-blue-200";
+      ? "bg-emerald-500/10 text-foreground border-emerald-500/25"
+      : "bg-sky-500/10 text-foreground border-sky-500/25";
   };
 
   const getCertificationColor = (status: string) => {
     switch (status) {
       case "passed":
-        return "bg-emerald-100 text-emerald-700 border border-emerald-300";
+        return "bg-emerald-500/10 text-foreground border border-emerald-500/30";
       case "failed":
-        return "bg-red-100 text-red-700 border border-red-300";
+        return "bg-destructive/10 text-destructive border border-destructive/30";
       default:
-        return "bg-amber-100 text-amber-700 border border-amber-300";
+        return "bg-amber-500/10 text-foreground border border-amber-500/30";
     }
   };
 
@@ -963,7 +963,7 @@ export default function PodDetail() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 sm:h-10 sm:w-10 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                className="h-8 w-8 sm:h-10 sm:w-10 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               >
                 <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
@@ -1126,15 +1126,15 @@ export default function PodDetail() {
                   </div>
 
                   {battleTestingSummary.tdOperationalFlags.length ? (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
-                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-amber-900">
+                    <div className="border border-amber-500/25 bg-amber-500/10 px-4 py-3">
+                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-foreground">
                         TD Accountability Flags
                       </p>
                       <div className="mt-2 space-y-1">
                         {battleTestingSummary.tdOperationalFlags.map((flag) => (
-                          <p key={flag.phaseKey} className="text-sm text-amber-950">
+                          <p key={flag.phaseKey} className="text-sm text-foreground">
                             <span className="font-medium">{flag.title}</span>
-                            <span className="ml-2 text-amber-900">
+                            <span className="ml-2 text-foreground">
                               {flag.affectedTutors} Specialists drifted in the last {flag.windowDays} days.
                             </span>
                           </p>
@@ -1264,7 +1264,7 @@ export default function PodDetail() {
                                         <Button
                                           variant="ghost"
                                           size="sm"
-                                          className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                                          className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                           onClick={() => setTutorToRemove(assignment.id)}
                                         >
                                           <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -1436,16 +1436,16 @@ export default function PodDetail() {
                                           );
                                         })}
                                       </div>
-                                      <div className="mt-3 rounded-lg border border-sky-200/70 bg-sky-50/50 px-3 py-2 text-xs text-sky-950">
+                                      <div className="mt-3 border border-sky-500/25 bg-sky-500/10 px-3 py-2 text-xs text-foreground">
                                         Certification progress is earned deep dive by deep dive. A phase only counts as complete after 3 clean passes in a row.
                                       </div>
                                       {tutorAudit?.actionRequired ? (
                                         <p className="mt-3 text-sm text-muted-foreground">{tutorAudit.actionRequired}</p>
                                       ) : null}
                                       {tutorAudit?.deepDiveProgress?.some((entry) => entry.consecutiveDriftCount > 0) ? (
-                                        <div className="mt-3 rounded-lg border border-amber-200/70 bg-amber-50/50 px-3 py-2">
-                                          <p className="text-[10px] uppercase tracking-[0.08em] text-amber-900">Drift Pressure</p>
-                                          <p className="mt-1 text-xs text-amber-950">
+                                        <div className="mt-3 border border-amber-500/25 bg-amber-500/10 px-3 py-2">
+                                          <p className="text-[10px] uppercase tracking-[0.08em] text-foreground">Drift Pressure</p>
+                                          <p className="mt-1 text-xs text-foreground">
                                             {tutorAudit.deepDiveProgress
                                               .filter((entry) => entry.consecutiveDriftCount > 0)
                                               .map((entry) => `${entry.title} ${entry.consecutiveDriftCount}/3`)
@@ -1502,7 +1502,7 @@ export default function PodDetail() {
                                             Awaiting Specialist acceptance: {assignment.awaiting_tutor_acceptance_count || 0}
                                           </p>
                                           {assignment.certification_recovery_note ? (
-                                            <p className="mt-2 text-xs text-amber-900">
+                                            <p className="mt-2 text-xs text-foreground">
                                               {assignment.certification_recovery_note}
                                             </p>
                                           ) : null}
@@ -1919,7 +1919,7 @@ function TrialCertificationPanel({
   return (
     <div className="space-y-4">
       {trialLoading ? (
-        <Card className="border-amber-200 bg-amber-50/30 p-4">
+        <Card className="border-amber-500/25 bg-amber-500/10 p-4">
           <Skeleton className="h-5 w-40" />
           <Skeleton className="mt-3 h-20 w-full" />
         </Card>
@@ -1933,7 +1933,7 @@ function TrialCertificationPanel({
           variant="outline"
           disabled={startCaseMutation.isPending}
           onClick={() => startCaseMutation.mutate()}
-          className="border-amber-300 text-amber-900"
+          className="border-amber-500/30 text-foreground"
         >
           {startCaseMutation.isPending ? "Opening Trial case..." : "Open Trial case"}
         </Button>
@@ -1942,7 +1942,7 @@ function TrialCertificationPanel({
       {trialCase ? (
         <div className="space-y-3">
           {trialCase.window.isExpired && !trialCase.window.extensionEndsAt ? (
-            <Card className="border-rose-200 bg-rose-50/30 p-4">
+            <Card className="border-rose-500/25 bg-rose-500/10 p-4">
               <p className="text-sm font-semibold text-foreground">Document a Trial exception</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 The 14-day clock does not replace the 9 x 2 evidence requirement. Extend only for a justified, recorded interruption; the final date can never exceed pathway day 90.
@@ -1991,7 +1991,7 @@ function TrialCertificationPanel({
             const reviewBlocked = !placement.progress.evidenceComplete || placement.feedbackState === "pending";
 
             return (
-              <Card key={placement.id} className="border-amber-200 p-4">
+              <Card key={placement.id} className="border-amber-500/25 p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold text-foreground">{placement.studentName}</p>
@@ -2073,7 +2073,7 @@ function TrialCertificationPanel({
                   {reviewMutation.isPending ? "Saving review..." : "Save outcome review"}
                 </Button>
                 {reviewBlocked ? (
-                  <p className="mt-2 text-xs text-amber-900">
+                  <p className="mt-2 text-xs text-foreground">
                     Review opens only after nine qualifying sessions, required reports, and family feedback received or declined.
                   </p>
                 ) : null}
@@ -2081,7 +2081,7 @@ function TrialCertificationPanel({
             );
           })}
 
-          <Card className="border-emerald-200 p-4">
+          <Card className="border-emerald-500/25 p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-sm font-semibold text-foreground">Final COO decision</p>
@@ -2240,10 +2240,10 @@ function TutorStudentsSection({
                         <Badge
                           className={
                             student.isSandboxAssignment
-                              ? "bg-sky-100 text-sky-800 border-sky-200"
+                              ? "bg-sky-500/10 text-foreground border-sky-500/25"
                               : student.isTrialAssignment
-                                ? "bg-amber-100 text-amber-900 border-amber-200"
-                              : "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                ? "bg-amber-500/10 text-foreground border-amber-500/25"
+                              : "bg-emerald-500/10 text-foreground border-emerald-500/25"
                           }
                         >
                           {student.isSandboxAssignment
@@ -2253,7 +2253,7 @@ function TutorStudentsSection({
                               : "Commercial Family"}
                         </Badge>
                         {student.isReassignmentPreserved ? (
-                          <Badge className="bg-amber-100 text-amber-900 border-amber-200">
+                          <Badge className="bg-amber-500/10 text-foreground border-amber-500/25">
                             Reassignment State
                           </Badge>
                         ) : null}
@@ -2307,7 +2307,7 @@ function TutorStudentsSection({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-xs h-7 text-red-600 border-red-200 hover:bg-red-50"
+                      className="text-xs h-7 text-destructive border-destructive/30 hover:bg-destructive/10"
                       disabled={!student.assignedEnrollmentId || unassignStudentMutation.isPending}
                       onClick={() => {
                         if (!student.assignedEnrollmentId) return;
@@ -2337,7 +2337,7 @@ function TutorStudentsSection({
               Assign directly from the unassigned parent queue without leaving this pod.
             </p>
             {tutorAtCapacity && (
-              <p className="mt-1 text-xs text-amber-700">
+              <p className="mt-1 text-xs text-muted-foreground">
                 This Specialist is at student capacity and cannot receive more students from quick actions.
               </p>
             )}
@@ -2424,7 +2424,7 @@ function TutorStudentsSection({
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100">
+                                  <Badge className="bg-amber-500/10 text-foreground hover:bg-amber-500/15">
                                     Awaiting Assignment
                                   </Badge>
                                   <Badge variant="outline" className="border-border/70 bg-muted/10 text-muted-foreground">
@@ -2621,7 +2621,7 @@ function TutorStudentsSection({
             </DialogContent>
             </Dialog>
             {!canAssignParents ? (
-              <p className="mt-2 text-xs text-rose-900 break-words sm:text-right">
+              <p className="mt-2 text-xs text-destructive break-words sm:text-right">
                 Parent assignment is blocked until this Specialist enters Trial or Certified Live. Sandbox accepts synthetic accounts only.
               </p>
             ) : null}
