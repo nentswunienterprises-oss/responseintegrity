@@ -93,10 +93,11 @@ test("Vercel preview auth health survives session-store failures", () => {
   const dbSource = readFileSync(resolve(process.cwd(), "server/db.ts"), "utf8");
 
   const modeRouteIndex = authSource.indexOf('app.get("/api/auth/mode"');
-  const sessionMiddlewareIndex = authSource.indexOf("app.use(getSession())");
+  const sessionMiddlewareIndex = authSource.indexOf("const sessionMiddleware = getSession()");
 
   assert.ok(modeRouteIndex >= 0, "auth mode route must exist");
   assert.ok(sessionMiddlewareIndex > modeRouteIndex, "auth mode must be registered before session middleware");
+  assert.match(authSource, /return sessionMiddleware\(req, res, next\)/);
   assert.match(authSource, /pruneSessionInterval: isVercelRuntime \? false : 900/);
   assert.match(authSource, /SESSION_STORE_UNAVAILABLE/);
   assert.match(authSource, /describeRuntimeDatabaseTarget\(process\.env\.DATABASE_URL\)/);

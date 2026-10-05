@@ -1034,12 +1034,10 @@ test("rep narratives do not omit decision-eligible evidence dimensions", () => {
   const mixedRep = formatSnapshotRepResult(lightApply.sets[0].reps[0]);
 
   assert.match(mixedRep, /named the decision-relevant mathematical features without help/i);
-  assert.match(mixedRep, /right method was present/i);
+  assert.match(mixedRep, /selected the correct method only after visible uncertainty/i);
   assert.match(mixedRep, /explanation contained some correct structure/i);
   assert.match(mixedRep, /avoided, stalled completely, or had no usable response/i);
-  assert.match(mixedRep, /near-stable/i);
-  assert.match(mixedRep, /conditional/i);
-  assert.match(mixedRep, /breakdown/i);
+  assert.doesNotMatch(mixedRep, /near-stable|conditional|breakdown/i);
 });
 
 test("rep narratives state behavior directly instead of announcing evidence-class buckets", () => {
