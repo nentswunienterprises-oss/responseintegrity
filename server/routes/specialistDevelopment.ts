@@ -443,66 +443,45 @@ export function registerSpecialistDevelopmentRoutes(app: Express) {
           return res.status(403).json({ message: "This Pod is not assigned to you." });
         }
 
-        const assignmentsResult = await pool.query(
-          `SELECT id,
-                  tutor_id,
-                  operational_mode,
-                  certification_status
-             FROM public.tutor_assignments
-            WHERE pod_id = $1
-            ORDER BY created_at ASC`,
-          [podId],
-        );
-
-        const summaries = await Promise.all(
-          assignmentsResult.rows.map(async (assignment) => {
-            const tutorId = String(assignment.tutor_id);
-            const assignmentId = String(assignment.id);
-            const [pathway, latestSandboxAssessment, trialIdResult] = await Promise.all([
-              loadPathwayForDevelopmentRecord(tutorId),
-              getLatestSandboxReadinessAssessment(assignmentId),
-              pool.query(
-                `SELECT id
-                   FROM public.tutor_trial_cases
-                  WHERE tutor_id = $1
-                  ORDER BY started_at DESC
-                  LIMIT 1`,
-                [tutorId],
-              ),
-            ]);
-
-            const trialId = trialIdResult.rows[0]?.id
-              ? String(trialIdResult.rows[0].id)
-              : null;
-            const trial = trialId ? await getTrialCaseById(trialId) : null;
-            const currentStage = deriveCurrentStage({
-              operationalMode: String(assignment.operational_mode || ""),
-              latestSandboxDecision: latestSandboxAssessment?.decision || null,
-              trial,
-            });
-
-            return [
-              tutorId,
-              {
-                currentStage,
-                assignment: {
-                  operationalMode: String(assignment.operational_mode || ""),
-                  certificationStatus: String(assignment.certification_status || ""),
-                },
-                pathway: pathway
-                  ? {
-                      status: pathway.status,
-                      timeline: pathway.timeline,
-                    }
-                  : null,
-              },
-            ] as const;
-          }),
-        );
-
-        return res.json(Object.fromEntries(summaries));
+        const summaries = await loadPodDevelopmentSummaries(podId);
+        return res.json(summaries);
       } catch (error: any) {
         console.error("Failed to load Specialist development summaries:", error);
+        return res.status(500).json({
+          message: error?.message || "Failed to load Specialist development summaries.",
+        });
+      }
+    },
+  );
+
+  app.get(
+    "/api/coo/pods/:podId/specialist-development-summaries",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const coo = requireCoo(req, res);
+        if (!coo) return;
+
+        const podId = String(req.params.podId || "").trim();
+        if (!podId) {
+          return res.status(400).json({ message: "podId is required." });
+        }
+
+        const podResult = await pool.query(
+          `SELECT id
+             FROM public.pods
+            WHERE id = $1
+            LIMIT 1`,
+          [podId],
+        );
+        if (!podResult.rows[0]) {
+          return res.status(404).json({ message: "Pod not found." });
+        }
+
+        const summaries = await loadPodDevelopmentSummaries(podId);
+        return res.json(summaries);
+      } catch (error: any) {
+        console.error("Failed to load COO Specialist development summaries:", error);
         return res.status(500).json({
           message: error?.message || "Failed to load Specialist development summaries.",
         });
@@ -523,225 +502,15 @@ export function registerSpecialistDevelopmentRoutes(app: Express) {
           return res.status(400).json({ message: "tutorId is required." });
         }
 
-        const assignmentResult = await pool.query(
-          `SELECT ta.id,
-                  ta.tutor_id,
-                  ta.pod_id,
-                  ta.operational_mode,
-                  ta.certification_status,
-                  ta.created_at,
-                  u.name,
-                  u.email,
-                  u.first_name,
-                  u.last_name,
-                  p.pod_name,
-                  p.td_id
-             FROM public.tutor_assignments ta
-             JOIN public.users u ON u.id = ta.tutor_id
-             JOIN public.pods p ON p.id = ta.pod_id
-            WHERE ta.tutor_id = $1
-            ORDER BY ta.created_at DESC
-            LIMIT 1`,
-          [tutorId],
-        );
-
-        const assignment = assignmentResult.rows[0];
-        if (!assignment) {
+        const record = await loadSpecialistDevelopmentRecordPayload(tutorId);
+        if (!record) {
           return res.status(404).json({ message: "Specialist assignment not found." });
         }
-        if (String(assignment.td_id || "") !== String(td.id)) {
+        if (record.tdId !== String(td.id)) {
           return res.status(403).json({ message: "This Specialist is not assigned to your Pod." });
         }
 
-        const applicationResult = await pool.query(
-          `SELECT id,
-                  status,
-                  reviewed_at,
-                  onboarding_completed_at,
-                  documents_status,
-                  doc_1_submission_verified,
-                  doc_2_submission_verified,
-                  doc_3_submission_verified,
-                  doc_4_submission_verified,
-                  doc_5_submission_verified,
-                  doc_6_submission_verified,
-                  created_at
-             FROM public.tutor_applications
-            WHERE user_id = $1
-            ORDER BY created_at DESC
-            LIMIT 1`,
-          [tutorId],
-        );
-        const applicationRow = applicationResult.rows[0] || null;
-
-        const [pathway, trainingState, sandboxReadiness, latestSandboxAssessment] =
-          await Promise.all([
-            loadPathwayForDevelopmentRecord(tutorId),
-            getSpecialistCapabilityTrainingState({
-              tutorAssignmentId: String(assignment.id),
-              tutorId,
-            }),
-            getSandboxCapabilityReadiness({
-              tutorAssignmentId: String(assignment.id),
-              tutorId,
-            }),
-            getLatestSandboxReadinessAssessment(String(assignment.id)),
-          ]);
-
-        const latestAttemptsResult = await pool.query(
-          `SELECT DISTINCT ON (assessment_key)
-                  assessment_key,
-                  bank_version,
-                  attempt_number,
-                  total_questions,
-                  correct_questions,
-                  percent,
-                  has_critical_fail,
-                  passed,
-                  completed_at
-             FROM public.specialist_capability_assessment_attempts
-            WHERE tutor_assignment_id = $1
-              AND tutor_id = $2
-            ORDER BY assessment_key, completed_at DESC`,
-          [String(assignment.id), tutorId],
-        );
-        const latestAttemptByKey = Object.fromEntries(
-          latestAttemptsResult.rows.map((row) => [
-            String(row.assessment_key),
-            {
-              bankVersion: Number(row.bank_version),
-              attemptNumber: Number(row.attempt_number),
-              totalQuestions: Number(row.total_questions),
-              correctQuestions: Number(row.correct_questions),
-              percent: Number(row.percent),
-              hasCriticalFail: Boolean(row.has_critical_fail),
-              passed: Boolean(row.passed),
-              completedAt: row.completed_at ? String(row.completed_at) : null,
-            },
-          ]),
-        );
-
-        const trialIdResult = await pool.query(
-          `SELECT id
-             FROM public.tutor_trial_cases
-            WHERE tutor_id = $1
-            ORDER BY started_at DESC
-            LIMIT 1`,
-          [tutorId],
-        );
-        const trialId = trialIdResult.rows[0]?.id
-          ? String(trialIdResult.rows[0].id)
-          : null;
-        const trial = trialId ? await getTrialCaseById(trialId) : null;
-
-        const certificationResult = await pool.query(
-          `SELECT mode, updated_at, last_synced_at
-             FROM public.tutor_portable_certification_snapshots
-            WHERE tutor_id = $1
-            LIMIT 1`,
-          [tutorId],
-        );
-        const certificationRow = certificationResult.rows[0] || null;
-
-        const assessments = trainingState.assessments.map((assessment) => ({
-          ...assessment,
-          latestAttempt:
-            latestAttemptByKey[String(assessment.assessmentKey)] || null,
-        }));
-
-        const currentStage = deriveCurrentStage({
-          operationalMode: String(assignment.operational_mode || ""),
-          latestSandboxDecision: latestSandboxAssessment?.decision || null,
-          trial,
-        });
-
-        return res.json({
-          specialist: {
-            id: tutorId,
-            name:
-              String(assignment.name || "").trim() ||
-              [assignment.first_name, assignment.last_name]
-                .map((value) => String(value || "").trim())
-                .filter(Boolean)
-                .join(" ") ||
-              "Specialist",
-            email: String(assignment.email || ""),
-          },
-          assignment: {
-            id: String(assignment.id),
-            podId: String(assignment.pod_id),
-            podName: String(assignment.pod_name || "Pod"),
-            operationalMode: String(assignment.operational_mode || "training"),
-            certificationStatus: String(assignment.certification_status || "pending"),
-            createdAt: assignment.created_at ? String(assignment.created_at) : null,
-          },
-          currentStage,
-          pathway,
-          application: applicationRow
-            ? {
-                id: String(applicationRow.id),
-                status: String(applicationRow.status || "pending"),
-                reviewedAt: applicationRow.reviewed_at
-                  ? String(applicationRow.reviewed_at)
-                  : null,
-                onboardingCompletedAt: applicationRow.onboarding_completed_at
-                  ? String(applicationRow.onboarding_completed_at)
-                  : null,
-                documentsComplete: documentsComplete(applicationRow),
-                createdAt: applicationRow.created_at
-                  ? String(applicationRow.created_at)
-                  : null,
-              }
-            : null,
-          training: {
-            sandboxReady: trainingState.sandboxReady,
-            assessments,
-            summary: {
-              transformation: stageSummary(assessments, "transformation_mastery"),
-              cumulative: {
-                complete: assessments.filter(
-                  (assessment) =>
-                    (assessment.stage === "transformation_retrieval" ||
-                      assessment.stage === "transformation_transfer") &&
-                    assessment.status === "complete",
-                ).length,
-                total: assessments.filter(
-                  (assessment) =>
-                    assessment.stage === "transformation_retrieval" ||
-                    assessment.stage === "transformation_transfer",
-                ).length,
-              },
-              executionStandards: stageSummary(
-                assessments,
-                "execution_standards_mastery",
-              ),
-              systemIntelligence: stageSummary(
-                assessments,
-                "system_intelligence_mastery",
-              ),
-              sessionInfrastructure: stageSummary(
-                assessments,
-                "session_infrastructure_mastery",
-              ),
-            },
-          },
-          sandbox: {
-            readiness: sandboxReadiness,
-            latestAssessment: latestSandboxAssessment,
-          },
-          trial,
-          certification: certificationRow
-            ? {
-                mode: String(certificationRow.mode || ""),
-                updatedAt: certificationRow.updated_at
-                  ? String(certificationRow.updated_at)
-                  : null,
-                lastSyncedAt: certificationRow.last_synced_at
-                  ? String(certificationRow.last_synced_at)
-                  : null,
-              }
-            : null,
-        });
+        return res.json(record.payload);
       } catch (error) {
         console.error("Failed to load Specialist development record", error);
         const status = Number((error as any)?.status || 500);
@@ -754,4 +523,36 @@ export function registerSpecialistDevelopmentRoutes(app: Express) {
       }
     },
   );
+
+  app.get(
+    "/api/coo/tutors/:tutorId/development-record",
+    isAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const coo = requireCoo(req, res);
+        if (!coo) return;
+
+        const tutorId = String(req.params.tutorId || "").trim();
+        if (!tutorId) {
+          return res.status(400).json({ message: "tutorId is required." });
+        }
+
+        const record = await loadSpecialistDevelopmentRecordPayload(tutorId);
+        if (!record) {
+          return res.status(404).json({ message: "Specialist assignment not found." });
+        }
+
+        return res.json(record.payload);
+      } catch (error) {
+        console.error("Failed to load COO Specialist development record", error);
+        const status = Number((error as any)?.status || 500);
+        return res.status(status).json({
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to load Specialist development record.",
+        });
+      }
+    },
+
 }
