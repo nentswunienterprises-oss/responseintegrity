@@ -451,7 +451,7 @@ export default function ExecutiveHRTraffic() {
     const statusConfig: Record<string, { label: string; color: string }> = {
       awaiting_assignment: { label: "Awaiting Assignment", color: "bg-yellow-100 text-yellow-800" },
       awaiting_tutor_acceptance: { label: "Awaiting Specialist Acceptance", color: "bg-indigo-100 text-indigo-800" },
-      assigned: { label: "Assigned", color: "bg-blue-100 text-blue-800" },
+      assigned: { label: "Assigned", color: "bg-sky-500/10 text-foreground" },
       proposal_sent: { label: "Proposal Sent", color: "bg-cyan-100 text-cyan-800" },
       session_booked: { label: "Session Booked", color: "bg-purple-100 text-purple-800" },
       report_received: { label: "Report Received", color: "bg-orange-100 text-orange-800" },
@@ -906,11 +906,11 @@ export default function ExecutiveHRTraffic() {
                 <Card className="border-amber-500/25 bg-amber-500/10">
                   <CardContent className="p-4">
                     <p className="text-xs uppercase tracking-wide text-foreground">Needs Review</p>
-                    <p className="mt-1 text-2xl font-semibold text-amber-950">{verificationUnderReviewApplications.length}</p>
+                    <p className="mt-1 text-2xl font-semibold text-foreground">{verificationUnderReviewApplications.length}</p>
                     <p className="text-xs text-foreground/80">COO action required right now</p>
                   </CardContent>
                 </Card>
-                <Card className="border-slate-200">
+                <Card className="border-border">
                   <CardContent className="p-4">
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">Waiting On Specialist</p>
                     <p className="mt-1 text-2xl font-semibold text-foreground">{verificationWaitingOnTutorApplications.length}</p>
@@ -919,9 +919,9 @@ export default function ExecutiveHRTraffic() {
                 </Card>
                 <Card className="border-emerald-500/25 bg-emerald-500/10">
                   <CardContent className="p-4">
-                    <p className="text-xs uppercase tracking-wide text-green-800">Complete</p>
-                    <p className="mt-1 text-2xl font-semibold text-green-950">{verificationVerifiedApplications.length}</p>
-                    <p className="text-xs text-green-900/80">Ready for the next operational stage</p>
+                    <p className="text-xs uppercase tracking-wide text-foreground">Complete</p>
+                    <p className="mt-1 text-2xl font-semibold text-foreground">{verificationVerifiedApplications.length}</p>
+                    <p className="text-xs text-muted-foreground">Ready for the next operational stage</p>
                   </CardContent>
                 </Card>
               </div>
