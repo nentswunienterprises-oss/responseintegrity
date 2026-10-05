@@ -31,6 +31,7 @@ import {
   type ResponseEvidenceDimensionState,
 } from "./responseEvidenceModel";
 import type { TrainingDimensionId } from "./trainingEvidenceContract";
+import { sandboxBehaviorProfileMultiplier } from "./sandboxBehaviorProfiles";
 import {
   getLegacyStatefulSandboxV1RequiredStructureStepPlanAudit,
   getLegacyStatefulSandboxV1ScenarioTruthAudit,
@@ -569,7 +570,15 @@ export function selectSandboxOutcome(input: {
           definition.key,
           definition.version,
         ].join(":"),
-      ) / Math.max(0.05, definition.weight);
+      ) / Math.max(
+        0.05,
+        definition.weight *
+          sandboxBehaviorProfileMultiplier({
+            seed: input.seed,
+            phase: definition.phase,
+            trajectoryClass: definition.trajectoryClass,
+          }),
+      );
     return scoreFor(a) - scoreFor(b) || a.key.localeCompare(b.key);
   })[0];
 }
