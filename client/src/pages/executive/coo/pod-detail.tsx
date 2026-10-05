@@ -1580,7 +1580,7 @@ export default function PodDetail() {
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm" className="w-full gap-2 mt-4">
                             <Plus className="w-4 h-4" />
-                            Add Tutor
+                            Add Specialist
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
