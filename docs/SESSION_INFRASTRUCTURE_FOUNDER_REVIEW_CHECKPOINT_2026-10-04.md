@@ -1,8 +1,10 @@
-# Session Infrastructure: pre-Founder review checkpoint
+# Session Infrastructure: Founder acceptance and release checkpoint
 
 **Date:** 4 October 2026  
 **Branch:** `fix/preview-training-session-authority`, fast-forwarded from main at `bfbc6400f9fff02ca89e6cb36921e4476d62a023`  
-**Status:** editorial and technical preparation complete; revised banks active in Proof Review Mode after explicit activation approval on 5 October; awaiting Founder review.
+**Status:** all six lessons and Mastery banks Founder-approved, promoted and active in Proof/The Hub with matching hashes and Review Mode off. Real non-review proof is paused at the dedicated fixture’s genuine Transformation Retrieval spacing gate. The cumulative Session Infrastructure gate and broader Capability Review remain open.
+
+Earlier sections below preserve the preparation and review checkpoints as historical records. The latest release and proof sections govern current status.
 
 Transformation’s cumulative acceptance is closed under [PR #140](https://github.com/nentswunienterprises-oss/responseintegrity/pull/140) and [issue #113](https://github.com/nentswunienterprises-oss/responseintegrity/issues/113). Its approved banks remain frozen. The [broader Capability Review](CAPABILITY_REVIEW_MODE_EXIT_CHECKPOINT_2026-09-28.md) remains open.
 
@@ -111,3 +113,16 @@ After all six content approvals, the Founder authorized proceeding with promotio
 PR #147 merged at `5ade620801edc2f98b9d1fe46aa35d93a72b8bf6` after final release commit `33008c4f7ed5473b458d3b21e4943b1fa5ba2aad` passed Capability Engine, Demand Production and Response Snapshot CI. All six approved banks were copied to The Hub, staged inactive under exact-hash guards, and then activated with Review Mode off. Post-activation read-backs show identical approved item hashes and 45 items per bank in Proof and Production, with zero current-version attempts in both. Four Proof review attempts were removed before Review Mode was disabled; no Production operational/user data was copied.
 
 The new `Session Infrastructure Non-review Live Proof` workflow tests the existing dedicated Proof Specialist through authenticated API forms, ordered signed confirmations, persisted attempts, duplicate rejection, disabled review reset and the Capability ledger. The Hub bank source is read under a READ ONLY transaction; no bank answers or credentials are emitted or committed. The job uses the protected `production-db` environment and existing encrypted Proof credentials. This workflow is prepared; success is not yet claimed. Planned additional Session Infrastructure Retrieval/Transfer authority is not supplied by the six Mastery approvals, and the broader Capability Review remains open.
+
+
+## Actual non-review prerequisite proof and spacing block, 5 October
+
+Production deployment `dpl_48LuydXzwsHsy3226WAzuE7CXD48` is READY at merged main commit `5ade620801edc2f98b9d1fe46aa35d93a72b8bf6`, aliased to `app.responseintegrity.co.za`. This verifies deployment promotion; it is not a Production learner lifecycle claim.
+
+[Live proof run 37302318250](https://github.com/nentswunienterprises-oss/responseintegrity/actions/runs/37302318250), on verified Proof app commit `af31d2b5cb2daf894d0e731ec7ea3a1d30fff05d`, submitted genuine current-version Topic Conditioning v17 and Clarity v15 attempts through authenticated API forms and ordered signed confirmations. Both scored 15/15, rejected duplicate submission and refused review reset. Attempt IDs are `b0c1e9a0-edbc-44e4-aafd-081df7614bea` and `250eecba-a2af-40b3-bfcd-77d0c37e4ea7`. Existing current-version Structured Execution, Controlled Discomfort and TPS passes were retained.
+
+The dedicated fixture's earlier Transformation evidence was on outdated versions. The current Retrieval v10 gate now correctly reports `spacing_interval`, unlocking at **6 October 2026, 11:25:04.651 UTC / 13:25:04.651 SAST**. No timestamps, prerequisites or authority checks were changed. This does not reopen Transformation's already-closed Founder acceptance; it is the fixture's own current-version learning sequence. The run captures a sanitized BLOCKED artifact. No Session Infrastructure non-review attempt was submitted before its prerequisite opened.
+
+Initial confirmation failures came from the proof runner selecting all accepted alternatives on single-choice questions. The runner now selects exactly one accepted alternative for single-choice questions and retains complete selections for multi-select/sequence questions. Approved app and bank content did not change. Continuation targets the immutable verified Proof deployment so subsequent documentation commits cannot move the test's runtime target.
+
+Next: after the genuine unlock, rerun the pinned live proof workflow; complete current Transformation Retrieval/Transfer and all six approved Session Infrastructure Mastery gates, verify the non-review ledger, and retain the result. PR #148 remains draft pending that proof. Planned Session Infrastructure cumulative Retrieval/Transfer remains outside these six Mastery approvals and is not declared implemented or closed.
