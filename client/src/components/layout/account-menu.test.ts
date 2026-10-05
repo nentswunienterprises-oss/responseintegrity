@@ -8,9 +8,10 @@ const source = fs.readFileSync(
   "utf8",
 );
 
-test("TD account menu exposes the shared RI Appearance control", () => {
+test("Specialist, TD and COO account menus expose the shared RI Appearance control", () => {
   assert.match(source, /isTD/);
-  assert.match(source, /showAppearance = isTutor\(user\) \|\| isTD\(user\)/);
+  assert.match(source, /isCOO/);
+  assert.match(source, /showAppearance = isTutor\(user\) \|\| isTD\(user\) \|\| isCOO\(user\)/);
   assert.match(source, /Appearance/);
   assert.match(source, /Warm Dark/);
   assert.match(source, /value="dark"/);
