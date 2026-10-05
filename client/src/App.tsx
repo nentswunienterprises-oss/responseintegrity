@@ -580,7 +580,7 @@ function Router() {
       <Route path="/executive/coo/pods/:podId/specialists/:tutorId/development" element={<ExecutiveSeatGuard role="coo"><DashboardLayout><SpecialistDevelopmentRecordPage /></DashboardLayout></ExecutiveSeatGuard>} />
       <Route path="/executive/coo/brain" element={<ExecutiveSeatGuard role="coo"><COOBrain /></ExecutiveSeatGuard>} />
       <Route path="/executive/coo/broadcast" element={<ExecutiveSeatGuard role="coo"><COOBroadcast /></ExecutiveSeatGuard>} />
-      <Route path="/executive/coo/track-leads" element={<ExecutiveSeatGuard role="coo"><ExecutiveCOOTrackLeads /></ExecutiveSeatGuard>} />
+      <Route path="/executive/coo/track-leads" element={<ExecutiveSeatGuard role="coo"><DashboardLayout><ExecutiveCOOTrackLeads /></DashboardLayout></ExecutiveSeatGuard>} />
 
       {/* HR Routes */}
       <Route path="/executive/hr/dashboard" element={<ExecutiveSeatGuard role="hr"><DashboardLayout><ExecutiveHRDashboard /></DashboardLayout></ExecutiveSeatGuard>} />
