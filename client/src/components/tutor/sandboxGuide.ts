@@ -12,7 +12,7 @@ export function getSandboxGuideSteps(studentName = "this sandbox student"): Sand
   return [
     {
       id: "review-assignment",
-      title: "1. Review the assignment as the tutor",
+      title: "1. Review the assignment as the Specialist",
       detail: `Open ${studentLabel}’s card, read the case notes, and confirm you understand the family’s request before you move the workflow forward.`,
       actionLabel: "Open assignment review",
       action: "assignment",
@@ -36,8 +36,8 @@ export function getSandboxGuideSteps(studentName = "this sandbox student"): Sand
     },
     {
       id: "return-as-tutor",
-      title: "5. Log back in as the tutor and accept the booking",
-      detail: "Return to the tutor view, open the intro-session flow, and accept the parent’s proposed slot so the session can move forward.",
+      title: "5. Log back in as the Specialist and accept the booking",
+      detail: "Return to the Specialist view, open the intro-session flow, and accept the parent’s proposed slot so the session can move forward.",
       actionLabel: "Open intro flow",
       action: "intro-drill",
     },
