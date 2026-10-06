@@ -69,7 +69,7 @@ test("canonical COO Pod links resolve to the guarded Pod detail surface", () => 
     app.includes('path="/executive/coo/pods/:podId" element={<ExecutiveSeatGuard role="coo"><COOPodDetail /></ExecutiveSeatGuard>}'),
   );
   assert.match(pods, /cooPodsBasePath/);
-  assert.ok(pods.includes('navigate(\`\$\{cooPodsBasePath\}/\$\{pod.id\}\`)'));
+  assert.ok(pods.includes("navigate(`${cooPodsBasePath}/${pod.id}`)"));
 });
 
 test("COO and Specialist source folders have no competing JSX twins", () => {
