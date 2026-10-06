@@ -289,7 +289,7 @@ export function StudentCard({
     String(student?.parentContact || student?.parent_contact || "").toLowerCase().includes("sandbox") ||
     String(operationalMode || "").toLowerCase() === "sandbox";
   const quotaSnapshot = student.parentInfo?.monthlyQuota || student.monthlyQuota || null;
-  const progressLabel = "Program Progress";
+  const progressLabel = isSandboxStudent ? "Sandbox Progress" : "Program Progress";
   const progressTotal = Math.max(1, Number(quotaSnapshot?.session_quota ?? 8));
   const countedProgramProgress = (() => {
     const completedSessions = Math.max(0, Number(student.sessionProgress || 0));
@@ -858,7 +858,7 @@ export function StudentCard({
         {workflow?.proposalAccepted && (
           <div className="space-y-3">
             <div className="ri-student-info-card rounded-xl border border-primary/20 bg-muted/20 px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Program Progress</p>
+              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{progressLabel}</p>
               <p className="mt-2 text-2xl font-semibold text-foreground tabular-nums">{sessionProgress} of {progressTotal}</p>
             </div>
             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -868,8 +868,15 @@ export function StudentCard({
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              {sessionsRemaining} sessions remaining
+              {isSandboxStudent
+                ? `${sessionsRemaining} Sandbox session${sessionsRemaining === 1 ? "" : "s"} remaining in this progression cycle`
+                : `${sessionsRemaining} package session${sessionsRemaining === 1 ? "" : "s"} remaining`}
             </p>
+            {isSandboxStudent && quotaSnapshot ? (
+              <p className="text-xs text-muted-foreground">
+                Current package: {Math.max(0, Number(quotaSnapshot.sessions_remaining ?? 0))} session{Math.max(0, Number(quotaSnapshot.sessions_remaining ?? 0)) === 1 ? "" : "s"} remaining
+              </p>
+            ) : null}
             {/* --- END TOPIC SUMMARY ROW --- */}
           </div>
         )}
