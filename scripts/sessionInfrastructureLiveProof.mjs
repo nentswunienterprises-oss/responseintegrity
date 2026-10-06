@@ -60,7 +60,7 @@ async function request(path, body) {
 // Reviewed preview 5684837 adds only independent Sandbox/scheduling work; this proof
 // does not accept that work or claim Sandbox simulation readiness.
 const proofCapabilitySourceSha = '5684837b91a0ab4eceb73b076ca6c75916b017fa';
-// Descendants may differ only in the three proof/documentation files below.
+// Descendants may differ only in the proof/documentation files below.
 async function isApprovedAppSha(sha) {
   if (!/^[a-f0-9]{40}$/.test(sha || '')) return false;
   if (sha === proofCapabilitySourceSha) return true;
@@ -71,6 +71,7 @@ async function isApprovedAppSha(sha) {
     'scripts/sessionInfrastructureLiveProof.mjs',
     '.github/workflows/session-infrastructure-live-proof.yml',
     'docs/SESSION_INFRASTRUCTURE_FOUNDER_REVIEW_CHECKPOINT_2026-10-04.md',
+    'docs/SESSION_INFRASTRUCTURE_MASTERY_PROOF_RESULT_2026-10-06.md',
   ]);
   return ['ahead','identical'].includes(comparison.status) &&
     Array.isArray(comparison.files) && comparison.files.every(file => allowedFiles.has(file.filename) && (!file.previous_filename || allowedFiles.has(file.previous_filename)));
