@@ -4,6 +4,8 @@ import {
   EXECUTION_STANDARDS_DEEP_DIVE_KEYS,
   SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS,
   SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
+  OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY,
+  OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY,
   TRANSFORMATION_DEEP_DIVE_KEYS,
   TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
   TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
@@ -62,7 +64,9 @@ export interface CapabilityTrainingAvailability {
     | "transformation_transfer"
     | "execution_standards_mastery"
     | "system_intelligence_mastery"
-    | "session_infrastructure_mastery";
+    | "session_infrastructure_mastery"
+    | "operating_system_retrieval"
+    | "operating_system_transfer";
 }
 
 const transformationMasteryKeys = TRANSFORMATION_DEEP_DIVE_KEYS.map(
@@ -91,6 +95,12 @@ function stageFor(entry: CapabilityAssessmentPlanEntry): CapabilityTrainingAvail
   }
   if (entry.assessmentKey === TRANSFORMATION_TRANSFER_ASSESSMENT_KEY) {
     return "transformation_transfer";
+  }
+  if (entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY) {
+    return "operating_system_retrieval";
+  }
+  if (entry.assessmentKey === OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY) {
+    return "operating_system_transfer";
   }
   if (
     entry.evidenceKind === "mastery" &&
@@ -133,6 +143,8 @@ export function getCapabilityTrainingAssessmentPlan() {
     ...executionStandardsMasteryKeys,
     ...systemIntelligenceMasteryKeys,
     ...sessionInfrastructureMasteryKeys,
+    OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY,
+    OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY,
   ];
   return orderedKeys
     .map((key) => byKey.get(key))
@@ -200,6 +212,12 @@ export function buildCapabilityTrainingAvailability(input: {
 
   const transformationMasteryComplete = () =>
     transformationMasteryKeys.every(isCurrentComplete);
+  const postSandboxMasteryComplete = () =>
+    [
+      ...executionStandardsMasteryKeys,
+      ...systemIntelligenceMasteryKeys,
+      ...sessionInfrastructureMasteryKeys,
+    ].every(isCurrentComplete);
 
   const prerequisiteComplete = (entry: CapabilityAssessmentPlanEntry) => {
     if (entry.assessmentKey === TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY) {
@@ -207,6 +225,12 @@ export function buildCapabilityTrainingAvailability(input: {
     }
     if (entry.assessmentKey === TRANSFORMATION_TRANSFER_ASSESSMENT_KEY) {
       return isCurrentComplete(TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY);
+    }
+    if (entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY) {
+      return postSandboxMasteryComplete();
+    }
+    if (entry.assessmentKey === OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY) {
+      return isCurrentComplete(OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY);
     }
     if (
       entry.evidenceKind === "mastery" &&
@@ -235,6 +259,32 @@ export function buildCapabilityTrainingAvailability(input: {
       const attempt = passedAttemptFor(
         TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
         activeBanks.get(TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY) || null,
+        input.attempts,
+      );
+      return attempt ? timestamp(attempt.completedAt) : null;
+    }
+    if (entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY) {
+      const passedTimes = [
+        ...executionStandardsMasteryKeys,
+        ...systemIntelligenceMasteryKeys,
+        ...sessionInfrastructureMasteryKeys,
+      ]
+        .map((key) =>
+          passedAttemptFor(key, activeBanks.get(key) || null, input.attempts),
+        )
+        .filter((attempt): attempt is CapabilityTrainingAttempt => Boolean(attempt))
+        .map((attempt) => timestamp(attempt.completedAt));
+      return passedTimes.length ===
+        executionStandardsMasteryKeys.length +
+          systemIntelligenceMasteryKeys.length +
+          sessionInfrastructureMasteryKeys.length
+        ? Math.max(...passedTimes)
+        : null;
+    }
+    if (entry.assessmentKey === OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY) {
+      const attempt = passedAttemptFor(
+        OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY,
+        activeBanks.get(OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY) || null,
         input.attempts,
       );
       return attempt ? timestamp(attempt.completedAt) : null;
@@ -270,6 +320,8 @@ export function buildCapabilityTrainingAvailability(input: {
       Boolean(bank.reviewMode) &&
       (entry.assessmentKey === TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY ||
         entry.assessmentKey === TRANSFORMATION_TRANSFER_ASSESSMENT_KEY ||
+        entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY ||
+        entry.assessmentKey === OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY ||
         stage === "session_infrastructure_mastery");
 
     if (founderReviewMode) {
