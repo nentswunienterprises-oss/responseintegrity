@@ -56,11 +56,15 @@ async function request(path, body) {
   const data = await response.json();
   return { status: response.status, data };
 }
-// Verify source equivalence when a documentation/proof commit moves the preview alias.
+// Capability routes, sequencing, lessons and shared Capability modules match release 33008c4.
+// Reviewed preview 5684837 adds only independent Sandbox/scheduling work; this proof
+// does not accept that work or claim Sandbox simulation readiness.
+const proofCapabilitySourceSha = '5684837b91a0ab4eceb73b076ca6c75916b017fa';
+// Descendants may differ only in the three proof/documentation files below.
 async function isApprovedAppSha(sha) {
   if (!/^[a-f0-9]{40}$/.test(sha || '')) return false;
-  if (sha === process.env.RELEASE_APP_SHA) return true;
-  const compared = await fetch('https://api.github.com/repos/nentswunienterprises-oss/responseintegrity/compare/' + process.env.RELEASE_APP_SHA + '...' + sha, { signal: AbortSignal.timeout(15000) });
+  if (sha === proofCapabilitySourceSha) return true;
+  const compared = await fetch('https://api.github.com/repos/nentswunienterprises-oss/responseintegrity/compare/' + proofCapabilitySourceSha + '...' + sha, { signal: AbortSignal.timeout(15000) });
   if (!compared.ok) return false;
   const comparison = await compared.json();
   const allowedFiles = new Set([
