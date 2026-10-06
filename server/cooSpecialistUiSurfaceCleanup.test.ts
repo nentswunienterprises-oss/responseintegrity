@@ -61,6 +61,17 @@ test("legacy Tutor routes resolve into canonical Specialist surfaces", () => {
   assert.match(app, /LegacyTutorIntroSessionRedirect/);
 });
 
+test("canonical COO Pod links resolve to the guarded Pod detail surface", () => {
+  const app = read("client/src/App.tsx");
+  const pods = read("client/src/pages/executive/coo/pods.tsx");
+
+  assert.ok(
+    app.includes('path="/executive/coo/pods/:podId" element={<ExecutiveSeatGuard role="coo"><COOPodDetail /></ExecutiveSeatGuard>}'),
+  );
+  assert.match(pods, /cooPodsBasePath/);
+  assert.ok(pods.includes('to={`${cooPodsBasePath}/${pod.id}`}'));
+});
+
 test("COO and Specialist source folders have no competing JSX twins", () => {
   const roots = [
     "client/src/pages/executive/coo",
