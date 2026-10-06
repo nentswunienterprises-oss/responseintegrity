@@ -586,6 +586,7 @@ function Router() {
       <Route path="/executive/coo/traffic" element={<ExecutiveSeatGuard role="coo"><DashboardLayout><ExecutiveHRTraffic /></DashboardLayout></ExecutiveSeatGuard>} />
       <Route path="/executive/coo/applications" element={<Navigate to="/executive/coo/traffic" replace />} />
       <Route path="/executive/coo/pods" element={<ExecutiveSeatGuard role="coo"><COOPods /></ExecutiveSeatGuard>} />
+      <Route path="/executive/coo/pods/:podId" element={<ExecutiveSeatGuard role="coo"><COOPodDetail /></ExecutiveSeatGuard>} />
       <Route path="/executive/coo/pods/:podId/specialists/:tutorId/development" element={<ExecutiveSeatGuard role="coo"><DashboardLayout><SpecialistDevelopmentRecordPage /></DashboardLayout></ExecutiveSeatGuard>} />
       <Route path="/executive/coo/brain" element={<ExecutiveSeatGuard role="coo"><COOBrain /></ExecutiveSeatGuard>} />
       <Route path="/executive/coo/broadcast" element={<ExecutiveSeatGuard role="coo"><COOBroadcast /></ExecutiveSeatGuard>} />
