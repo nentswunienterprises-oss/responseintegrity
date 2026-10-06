@@ -69,8 +69,8 @@ const FULL_CAPABILITY_EVIDENCE: CapabilityBlueprintEvidenceKind[] = [
   "transfer",
 ];
 
-const MASTERY_ONLY_CAPABILITY_EVIDENCE: CapabilityBlueprintEvidenceKind[] = [
-  "mastery",
+const POST_SANDBOX_CAPABILITY_EVIDENCE: CapabilityBlueprintEvidenceKind[] = [
+  ...FULL_CAPABILITY_EVIDENCE,
 ];
 
 export const CAPABILITY_MODULE_BLUEPRINTS: CapabilityModuleBlueprint[] = [
@@ -348,7 +348,7 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
         description: "Modelling behaviour cannot silently continue into a later observation condition.",
       },
     ],
-    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    requiredEvidenceKinds: [...POST_SANDBOX_CAPABILITY_EVIDENCE],
     transferPartners: ["clarity", "how_to_intervene", "tools_required"],
   },
   {
@@ -381,7 +381,7 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
         description: "Later correction cannot strengthen what the student independently demonstrated in the completed opportunity.",
       },
     ],
-    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    requiredEvidenceKinds: [...POST_SANDBOX_CAPABILITY_EVIDENCE],
     transferPartners: ["how_to_model", "controlled_discomfort", "logging_system"],
   },
   {
@@ -414,7 +414,7 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
         description: "Boss Battle difficulty never overrides the active Controlled Discomfort support contract.",
       },
     ],
-    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    requiredEvidenceKinds: [...POST_SANDBOX_CAPABILITY_EVIDENCE],
     transferPartners: ["controlled_discomfort", "how_to_intervene", "drill_library"],
   },
   {
@@ -447,7 +447,7 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
         description: "The Specialist cannot manually advance, regress, or replace an RI-OS topic-state decision.",
       },
     ],
-    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    requiredEvidenceKinds: [...POST_SANDBOX_CAPABILITY_EVIDENCE],
     transferPartners: ["how_to_intervene", "logging_system", "session_flow_control"],
   },
   {
@@ -480,7 +480,7 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
         description: "The Specialist cannot loosen valid difficulty or timing merely to reduce discomfort.",
       },
     ],
-    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    requiredEvidenceKinds: [...POST_SANDBOX_CAPABILITY_EVIDENCE],
     transferPartners: ["how_to_intervene", "controlled_discomfort", "time_pressure_stability"],
   },
   {
@@ -514,7 +514,7 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
         description: "The Specialist cannot substitute personal phase or stability judgment for RI-OS placement.",
       },
     ],
-    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    requiredEvidenceKinds: [...POST_SANDBOX_CAPABILITY_EVIDENCE],
     transferPartners: ["intro_session_structure", "topic_conditioning", "how_baselines_are_established"],
   },
   {
@@ -547,7 +547,7 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
         description: "Observation prompts cannot be used to manufacture evidence that the live opportunity never exposed.",
       },
     ],
-    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    requiredEvidenceKinds: [...POST_SANDBOX_CAPABILITY_EVIDENCE],
     transferPartners: ["how_to_diagnose", "logging_system", "session_flow_control"],
   },
   {
@@ -581,7 +581,7 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
         description: "Student timeout, panic, wrong method, incomplete work, or weak performance cannot authorize technical replacement.",
       },
     ],
-    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    requiredEvidenceKinds: [...POST_SANDBOX_CAPABILITY_EVIDENCE],
     transferPartners: ["time_pressure_stability", "how_to_diagnose", "logging_system"],
   },
   {
@@ -615,7 +615,7 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
         description: "The Specialist cannot fill unresolved evidence gaps from intuition merely to finish Diagnosis, Training, or Handover.",
       },
     ],
-    requiredEvidenceKinds: [...MASTERY_ONLY_CAPABILITY_EVIDENCE],
+    requiredEvidenceKinds: [...POST_SANDBOX_CAPABILITY_EVIDENCE],
     transferPartners: ["how_to_diagnose", "handover_verification", "logging_system"],
   },
   {
