@@ -289,22 +289,27 @@ export function StudentCard({
     String(student?.parentContact || student?.parent_contact || "").toLowerCase().includes("sandbox") ||
     String(operationalMode || "").toLowerCase() === "sandbox";
   const quotaSnapshot = student.parentInfo?.monthlyQuota || student.monthlyQuota || null;
-  const progressLabel = isSandboxStudent ? "Sandbox Progress" : "Program Progress";
-  const progressTotal = Math.max(1, Number(quotaSnapshot?.session_quota ?? 8));
+  const progressLabel = quotaSnapshot ? "Current Package" : "Program Progress";
+  const progressTotal = Math.max(
+    1,
+    Number(
+      quotaSnapshot?.session_quota ??
+        student.parentInfo?.package_sessions ??
+        8,
+    ),
+  );
   const countedProgramProgress = (() => {
     const completedSessions = Math.max(0, Number(student.sessionProgress || 0));
     return completedSessions > 0 ? (((completedSessions - 1) % progressTotal) + 1) : 0;
   })();
-  const sessionProgress = isSandboxStudent
-    ? countedProgramProgress
-    : quotaSnapshot
-      ? Math.max(0, Number(quotaSnapshot.sessions_used ?? 0))
-      : countedProgramProgress;
-  const sessionsRemaining = isSandboxStudent
-    ? (sessionProgress === 0 ? progressTotal : Math.max(0, progressTotal - sessionProgress))
-    : quotaSnapshot
-      ? Math.max(0, Number(quotaSnapshot.sessions_remaining ?? progressTotal))
-      : (sessionProgress === 0 ? progressTotal : Math.max(0, progressTotal - sessionProgress));
+  const sessionProgress = quotaSnapshot
+    ? Math.max(0, Number(quotaSnapshot.sessions_used ?? 0))
+    : countedProgramProgress;
+  const sessionsRemaining = quotaSnapshot
+    ? Math.max(0, Number(quotaSnapshot.sessions_remaining ?? progressTotal))
+    : sessionProgress === 0
+      ? progressTotal
+      : Math.max(0, progressTotal - sessionProgress);
   const initials = student.name
     .split(" ")
     .map((n) => n[0])
@@ -868,15 +873,10 @@ export function StudentCard({
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              {isSandboxStudent
-                ? `${sessionsRemaining} Sandbox session${sessionsRemaining === 1 ? "" : "s"} remaining in this progression cycle`
-                : `${sessionsRemaining} package session${sessionsRemaining === 1 ? "" : "s"} remaining`}
+              {quotaSnapshot
+                ? `${sessionsRemaining} package session${sessionsRemaining === 1 ? "" : "s"} remaining`
+                : `${sessionsRemaining} session${sessionsRemaining === 1 ? "" : "s"} remaining`}
             </p>
-            {isSandboxStudent && quotaSnapshot ? (
-              <p className="text-xs text-muted-foreground">
-                Current package: {Math.max(0, Number(quotaSnapshot.sessions_remaining ?? 0))} session{Math.max(0, Number(quotaSnapshot.sessions_remaining ?? 0)) === 1 ? "" : "s"} remaining
-              </p>
-            ) : null}
             {/* --- END TOPIC SUMMARY ROW --- */}
           </div>
         )}
