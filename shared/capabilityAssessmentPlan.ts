@@ -183,6 +183,11 @@ export const TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY =
   "transformation_phases_retrieval_v1";
 export const TRANSFORMATION_TRANSFER_ASSESSMENT_KEY =
   "transformation_state_transfer_v1";
+export const SESSION_INFRASTRUCTURE_CUMULATIVE_ASSESSMENT_KEYS = [
+  "session_infrastructure_retrieval_v1",
+  "session_operation_transfer_v1",
+  "continuity_delivery_transfer_v1",
+] as const;
 
 export const CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1 =
   CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter(

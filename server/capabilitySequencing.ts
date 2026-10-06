@@ -7,7 +7,7 @@ import {
   type CapabilityTrainingAttempt,
   type CapabilityTrainingAvailability,
 } from "@shared/capabilityTrainingSequencing";
-import { assertCapabilityTutorAssignmentOwnership } from "./capabilityEngine";
+import { assertCapabilityTutorAssignmentOwnership, isProofCapabilityReviewEnvironment } from "./capabilityEngine";
 
 function httpError(status: number, message: string, data?: Record<string, unknown>) {
   const error = new Error(message) as Error & {
@@ -155,6 +155,7 @@ export async function getSpecialistCapabilityTrainingState(input: {
     now: input.now || new Date(),
     activeBanks,
     attempts,
+    plan: getCapabilityTrainingAssessmentPlan({ includeSessionInfrastructureCumulative: isProofCapabilityReviewEnvironment() }),
   });
 
   return {
@@ -177,7 +178,7 @@ export async function assertCapabilityAssessmentAvailable(input: {
   tutorId: string;
   assessmentKey: string;
 }) {
-  const isPlannedAssessment = getCapabilityTrainingAssessmentPlan().some(
+  const isPlannedAssessment = getCapabilityTrainingAssessmentPlan({ includeSessionInfrastructureCumulative: isProofCapabilityReviewEnvironment() }).some(
     (entry) => entry.assessmentKey === input.assessmentKey,
   );
   if (!isPlannedAssessment) {
