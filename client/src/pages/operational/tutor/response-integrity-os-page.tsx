@@ -63,10 +63,10 @@ export default function ResponseIntegrityOS() {
               Response Integrity-OS is a <span className="font-semibold text-foreground">response-conditioning system</span>. Not a curriculum. Not a teaching method. A system for training how students respond when certainty disappears.
             </p>
             <p className="text-base leading-relaxed mb-4">
-              Most tutors teach content. You train response patterns. When a student sees a problem they don't immediately recognize, we want them to stay calm, identify what they know, and execute. That response doesn't happen naturally. It gets trained.
+              Most teaching systems focus on content. You train response patterns. When a student sees a problem they don't immediately recognize, we want them to stay calm, identify what they know, and execute. That response doesn't happen naturally. It gets trained.
             </p>
             <p className="text-base leading-relaxed">
-              The system has three tools: <span className="font-semibold">3-Layer Lens</span>, <span className="font-semibold">Boss Battles</span>, and <span className="font-semibold">Model → Apply → Guide</span>. Use them correctly, students transform. Skip them, you're just another tutor explaining fractions.
+              The system has three tools: <span className="font-semibold">3-Layer Lens</span>, <span className="font-semibold">Boss Battles</span>, and <span className="font-semibold">Model → Apply → Guide</span>. Use them correctly, students transform. Skip them, you're just explaining fractions instead of training response.
             </p>
           </Card>
         </div>

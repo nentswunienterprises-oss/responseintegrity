@@ -9,28 +9,30 @@ import {
   TRANSFORMATION_DEEP_DIVE_KEYS,
   TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
   TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
+  OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY,
+  OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY,
   getCapabilityMvpPlannedEvidenceCells,
 } from "./capabilityAssessmentPlan";
 
 const requiredCells = getRequiredCapabilityEvidenceCells().map((cell) => cell.code).sort();
 
-test("assessment plan uses 25 digital proof events for the 20 Deep Dive architecture", () => {
-  assert.equal(CAPABILITY_MVP_ASSESSMENT_PLAN_V1.length, 25);
+test("assessment plan uses 27 digital proof events for the 20 Deep Dive architecture", () => {
+  assert.equal(CAPABILITY_MVP_ASSESSMENT_PLAN_V1.length, 27);
   assert.equal(
     CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter((entry) => entry.evidenceKind === "mastery").length,
     20,
   );
   assert.equal(
     CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter((entry) => entry.evidenceKind === "retrieval").length,
-    2,
+    3,
   );
   assert.equal(
     CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter((entry) => entry.evidenceKind === "transfer").length,
-    3,
+    4,
   );
 });
 
-test("the planned assessments cover every one of the 42 required capability evidence cells", () => {
+test("the planned assessments cover every one of the 60 required capability evidence cells", () => {
   assert.deepEqual(getCapabilityMvpPlannedEvidenceCells(), requiredCells);
 });
 
@@ -43,22 +45,41 @@ test("Mastery remains one Deep Dive at a time", () => {
   }
 });
 
-test("legacy cumulative Retrieval and Transfer remain scoped to their approved 11 Deep Dives", () => {
+test("legacy cumulative Retrieval and Transfer remain scoped while final OS gates close the remaining Deep Dives", () => {
   const cumulative = CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter(
     (entry) => entry.evidenceKind !== "mastery",
   );
-  assert.equal(cumulative.length, 5);
+  assert.equal(cumulative.length, 7);
   assert.ok(cumulative.every((entry) => entry.minimumItemPoolSize >= entry.formSize));
   assert.ok(cumulative.every((entry) => entry.passThresholdPercent === 96));
 
-  const cumulativeCovered = new Set(cumulative.flatMap((entry) => entry.coveredDeepDiveKeys));
-  const expected = new Set([
+  const legacy = cumulative.filter(
+    (entry) =>
+      entry.assessmentKey !== OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY &&
+      entry.assessmentKey !== OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY,
+  );
+  assert.equal(legacy.length, 5);
+  const legacyCovered = new Set(legacy.flatMap((entry) => entry.coveredDeepDiveKeys));
+  const legacyExpected = new Set([
     ...TRANSFORMATION_DEEP_DIVE_KEYS,
     ...SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS,
   ]);
-  assert.deepEqual([...cumulativeCovered].sort(), [...expected].sort());
-  assert.ok(EXECUTION_STANDARDS_DEEP_DIVE_KEYS.every((key) => !cumulativeCovered.has(key)));
-  assert.ok(SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS.every((key) => !cumulativeCovered.has(key)));
+  assert.deepEqual([...legacyCovered].sort(), [...legacyExpected].sort());
+
+  const osGates = cumulative.filter(
+    (entry) =>
+      entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY ||
+      entry.assessmentKey === OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY,
+  );
+  assert.equal(osGates.length, 2);
+  const postSandbox = [
+    ...EXECUTION_STANDARDS_DEEP_DIVE_KEYS,
+    ...SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
+    ...SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS,
+  ].sort();
+  assert.ok(osGates.every((entry) =>
+    JSON.stringify([...entry.coveredDeepDiveKeys].sort()) === JSON.stringify(postSandbox)
+  ));
 });
 
 test("Transformation Retrieval and Transfer keep their existing timing and form contracts", () => {

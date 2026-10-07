@@ -656,7 +656,7 @@ export function StudentCard({
           lastUpdated: activatedAt || null,
           lastSession: activatedAt ? formatRelativeTime(new Date(activatedAt)) : "Activated",
           trend: "Stable",
-          entryDiagnosis: "Activated by tutor.",
+          entryDiagnosis: "Activated by Specialist.",
           recentLogs: [],
           timeline: [],
         });
@@ -1099,7 +1099,7 @@ export function StudentCard({
         {workflow?.proposalAccepted && handoverVerificationActive && (
           <div className="pt-4 border-t border-border/60 space-y-2">
             <p className="text-xs text-muted-foreground text-center">
-              Core training systems stay gated until the continuity check is completed. This keeps inherited topic-state intact while the new tutor verifies where work should resume.
+              Core training systems stay gated until the continuity check is completed. This keeps inherited topic-state intact while the new Specialist verifies where work should resume.
             </p>
           </div>
         )}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "./pod-detail.mobile.css";
-import { useParams, useNavigate } from "react-router-dom";
+import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -73,6 +73,30 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+type SpecialistDevelopmentCardRecord = {
+  currentStage:
+    | "application"
+    | "training"
+    | "sandbox"
+    | "practicals"
+    | "trial"
+    | "certification"
+    | "certified_live";
+  assignment: {
+    operationalMode: string;
+    certificationStatus: string;
+  };
+  pathway: {
+    timeline: {
+      state: string;
+      elapsedDays: number;
+      daysRemaining: number;
+      effectiveEndsAt: string;
+      canContinue: boolean;
+    };
+  } | null;
+};
+
 type TutorAuditGroupKey = "transformation_phases" | "session_infrastructure";
 
 function formatPhaseLabel(value: string | null | undefined) {
@@ -84,10 +108,10 @@ function formatPhaseLabel(value: string | null | undefined) {
 }
 
 function getBattleTestStateBadgeClass(state: string | null | undefined) {
-  if (state === "locked") return "bg-emerald-100 text-emerald-800 border-emerald-200";
-  if (state === "watchlist") return "bg-amber-100 text-amber-900 border-amber-200";
-  if (state === "fail") return "bg-rose-100 text-rose-800 border-rose-200";
-  return "bg-slate-100 text-slate-700 border-slate-200";
+  if (state === "locked") return "bg-emerald-500/10 text-foreground border-emerald-500/25";
+  if (state === "watchlist") return "bg-amber-500/10 text-foreground border-amber-500/25";
+  if (state === "fail") return "bg-rose-500/10 text-foreground border-rose-500/25";
+  return "bg-muted text-muted-foreground border-border";
 }
 
 function getOperationalModeBadge(mode?: string | null) {
@@ -106,6 +130,17 @@ function formatOperationalModeLabel(mode?: string | null) {
   if (normalized === "suspended") return "Suspended";
   if (normalized === "applicant") return "Applicant";
   return "Training";
+}
+
+function formatDevelopmentStageLabel(stage?: string | null) {
+  const normalized = String(stage || "").trim().toLowerCase();
+  if (normalized === "certified_live") return "Certified Live";
+  if (normalized === "practicals") return "Practicals";
+  if (normalized === "certification") return "Certification";
+  if (normalized === "trial") return "Trial";
+  if (normalized === "sandbox") return "Sandbox";
+  if (normalized === "training") return "Training";
+  return "Application";
 }
 
 function resolveTutorMode(assignmentMode?: string | null) {
@@ -138,11 +173,11 @@ function isTutorEligibleForParentAssignment(mode?: string | null) {
 }
 
 function getOperatingStateBadgeClass(stateKey?: string | null) {
-  if (stateKey === "certified_live") return "bg-emerald-100 text-emerald-800 border-emerald-200";
-  if (stateKey === "trial_validation") return "bg-amber-100 text-amber-900 border-amber-200";
-  if (stateKey === "sandbox_training") return "bg-sky-100 text-sky-800 border-sky-200";
-  if (stateKey === "training_plant") return "bg-slate-100 text-slate-800 border-slate-200";
-  if (stateKey === "misaligned") return "bg-rose-100 text-rose-800 border-rose-200";
+  if (stateKey === "certified_live") return "bg-emerald-500/10 text-foreground border-emerald-500/25";
+  if (stateKey === "trial_validation") return "bg-amber-500/10 text-foreground border-amber-500/25";
+  if (stateKey === "sandbox_training") return "bg-sky-500/10 text-foreground border-sky-500/25";
+  if (stateKey === "training_plant") return "bg-muted text-foreground border-border";
+  if (stateKey === "misaligned") return "bg-rose-500/10 text-foreground border-rose-500/25";
   return "bg-muted text-muted-foreground border-border";
 }
 
@@ -176,7 +211,7 @@ function getTutorResponsibilityView(
       title: "Current Responsibility",
       primary: `${liveCount} live parent${liveCount === 1 ? "" : "s"}`,
       secondary: sandboxCount > 0 ? `${sandboxCount} sandbox assignment${sandboxCount === 1 ? "" : "s"} should be reviewed` : "Sandbox lane inactive",
-      toneClass: "border-emerald-200/70 bg-emerald-50/40",
+      toneClass: "border-emerald-500/25 bg-emerald-500/10",
     };
   }
 
@@ -185,7 +220,7 @@ function getTutorResponsibilityView(
       title: "Current Trial Responsibility",
       primary: `${trialCount}/2 trial famil${trialCount === 1 ? "y" : "ies"}`,
       secondary: liveCount > 0 ? `${liveCount} commercial assignment${liveCount === 1 ? "" : "s"} must be removed` : "Commercial assignments remain blocked",
-      toneClass: "border-amber-200/70 bg-amber-50/40",
+      toneClass: "border-amber-500/25 bg-amber-500/10",
     };
   }
 
@@ -194,7 +229,7 @@ function getTutorResponsibilityView(
       title: "Current Responsibility",
       primary: `${sandboxCount} sandbox parent${sandboxCount === 1 ? "" : "s"}`,
       secondary: liveCount > 0 ? `${liveCount} live assignment${liveCount === 1 ? "" : "s"} should not be here` : "Live parent assignments blocked",
-      toneClass: "border-sky-200/70 bg-sky-50/40",
+      toneClass: "border-sky-500/25 bg-sky-500/10",
     };
   }
 
@@ -202,8 +237,8 @@ function getTutorResponsibilityView(
     return {
       title: "Current Responsibility",
       primary: "No active responsibility",
-      secondary: "Tutor is suspended from assignment-bearing work",
-      toneClass: "border-rose-200/70 bg-rose-50/40",
+      secondary: "Specialist is suspended from assignment-bearing work",
+      toneClass: "border-rose-500/25 bg-rose-500/10",
     };
   }
 
@@ -212,15 +247,15 @@ function getTutorResponsibilityView(
       title: "Current Responsibility",
       primary: "No parent responsibility yet",
       secondary: "Onboarding must complete before training assignments open",
-      toneClass: "border-slate-200/70 bg-slate-50/50",
+      toneClass: "border-border/70 bg-muted/20",
     };
   }
 
   return {
     title: "Current Responsibility",
     primary: "No parent responsibility yet",
-    secondary: awaitingCount > 0 ? `${awaitingCount} acceptance item${awaitingCount === 1 ? "" : "s"} pending` : "Tutor is still in pre-sandbox training",
-    toneClass: "border-slate-200/70 bg-slate-50/50",
+    secondary: awaitingCount > 0 ? `${awaitingCount} acceptance item${awaitingCount === 1 ? "" : "s"} pending` : "Specialist is still in pre-sandbox training",
+    toneClass: "border-border/70 bg-muted/20",
   };
 }
 
@@ -253,7 +288,7 @@ function getTutorAuditGroupKey(phaseKey: string): TutorAuditGroupKey {
 function getDeepDiveProgressView(entry?: TutorBattleTestDeepDiveProgress | null) {
   if (!entry || entry.attemptsCount === 0) {
     return {
-      badgeClass: "bg-slate-100 text-slate-700 border-slate-200",
+      badgeClass: "bg-muted text-muted-foreground border-border",
       badgeLabel: "Not started",
       detail: "0/3 clean passes",
     };
@@ -261,7 +296,7 @@ function getDeepDiveProgressView(entry?: TutorBattleTestDeepDiveProgress | null)
 
   if (entry.historicalState === "completed") {
     return {
-      badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      badgeClass: "bg-emerald-500/10 text-foreground border-emerald-500/25",
       badgeLabel: "Completed",
       detail: "3/3 clean passes",
     };
@@ -269,7 +304,7 @@ function getDeepDiveProgressView(entry?: TutorBattleTestDeepDiveProgress | null)
 
   if (entry.currentHealthState === "drift" || entry.criticalFlag) {
     return {
-      badgeClass: "bg-rose-100 text-rose-800 border-rose-200",
+      badgeClass: "bg-rose-500/10 text-foreground border-rose-500/25",
       badgeLabel: "Drift",
       detail: `${entry.currentStreak}/3 clean passes`,
     };
@@ -277,7 +312,7 @@ function getDeepDiveProgressView(entry?: TutorBattleTestDeepDiveProgress | null)
 
   if (entry.currentStreak === 2) {
     return {
-      badgeClass: "bg-sky-100 text-sky-800 border-sky-200",
+      badgeClass: "bg-sky-500/10 text-foreground border-sky-500/25",
       badgeLabel: "One pass away",
       detail: "2/3 clean passes",
     };
@@ -285,14 +320,14 @@ function getDeepDiveProgressView(entry?: TutorBattleTestDeepDiveProgress | null)
 
   if (entry.currentStreak === 1) {
     return {
-      badgeClass: "bg-amber-100 text-amber-900 border-amber-200",
+      badgeClass: "bg-amber-500/10 text-foreground border-amber-500/25",
       badgeLabel: "Building streak",
       detail: "1/3 clean passes",
     };
   }
 
   return {
-    badgeClass: "bg-amber-100 text-amber-900 border-amber-200",
+    badgeClass: "bg-amber-500/10 text-foreground border-amber-500/25",
     badgeLabel: "Retest needed",
     detail: "0/3 clean passes",
   };
@@ -415,6 +450,10 @@ interface ParentEnrollment {
 export default function PodDetail() {
   const { podId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const cooPodsBasePath = location.pathname.startsWith("/executive/coo/")
+    ? "/executive/coo/pods"
+    : "/coo/pods";
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [addTutorsOpen, setAddTutorsOpen] = useState(false);
@@ -490,6 +529,23 @@ export default function PodDetail() {
     enabled: isAuthenticated && !authLoading && !!podId,
     refetchInterval: 5000,
     refetchOnWindowFocus: true,
+  });
+
+  const {
+    data: specialistDevelopmentSummaries = {},
+    isLoading: specialistDevelopmentSummariesLoading,
+    isError: specialistDevelopmentSummariesError,
+  } = useQuery<Record<string, SpecialistDevelopmentCardRecord>>({
+    queryKey: ["/api/coo/pods", podId, "specialist-development-summaries"],
+    enabled: isAuthenticated && !authLoading && !!podId,
+    retry: false,
+    queryFn: async () => {
+      const response = await apiRequest(
+        "GET",
+        `/api/coo/pods/${encodeURIComponent(String(podId || ""))}/specialist-development-summaries`,
+      );
+      return response.json();
+    },
   });
 
   const {
@@ -598,13 +654,13 @@ export default function PodDetail() {
       setTutorToRemove(null);
       toast({
         title: "Success",
-        description: "Tutor removed from pod.",
+        description: "Specialist removed from Pod.",
       });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to remove tutor from pod.",
+        description: "Failed to remove Specialist from Pod.",
         variant: "destructive",
       });
     },
@@ -649,14 +705,14 @@ export default function PodDetail() {
       toast({
         title: variables.assignmentLane === "trial" ? "Trial family placed" : "Parent assigned",
         description: variables.assignmentLane === "trial"
-          ? "The family was bound to the tutor's governed Trial case."
+          ? "The family was bound to the Specialist's governed Trial case."
           : "The parent was assigned as an ordinary commercial family.",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Assignment failed",
-        description: error?.message || "Failed to assign parent to tutor.",
+        description: error?.message || "Failed to assign parent to Specialist.",
         variant: "destructive",
       });
     },
@@ -673,13 +729,13 @@ export default function PodDetail() {
       setSelectedTutorIds([]);
       toast({
         title: "Success",
-        description: "Tutors added to pod.",
+        description: "Specialists added to Pod.",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to add tutors to pod.",
+        description: error.message || "Failed to add Specialists to Pod.",
         variant: "destructive",
       });
     },
@@ -735,18 +791,18 @@ export default function PodDetail() {
 
   const getStatusColor = (status: string) => {
     return status === "active"
-      ? "bg-green-100 text-green-800 border-green-200"
-      : "bg-blue-100 text-blue-800 border-blue-200";
+      ? "bg-emerald-500/10 text-foreground border-emerald-500/25"
+      : "bg-sky-500/10 text-foreground border-sky-500/25";
   };
 
   const getCertificationColor = (status: string) => {
     switch (status) {
       case "passed":
-        return "bg-emerald-100 text-emerald-700 border border-emerald-300";
+        return "bg-emerald-500/10 text-foreground border border-emerald-500/30";
       case "failed":
-        return "bg-red-100 text-red-700 border border-red-300";
+        return "bg-destructive/10 text-destructive border border-destructive/30";
       default:
-        return "bg-amber-100 text-amber-700 border border-amber-300";
+        return "bg-amber-500/10 text-foreground border border-amber-500/30";
     }
   };
 
@@ -907,7 +963,7 @@ export default function PodDetail() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 sm:h-10 sm:w-10 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                className="h-8 w-8 sm:h-10 sm:w-10 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               >
                 <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
@@ -935,7 +991,7 @@ export default function PodDetail() {
         <div className="coo-pod-stats grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <Card className="border-primary/15 bg-background shadow-sm">
             <div className="px-4 py-4 sm:px-5 sm:py-5">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Tutors</p>
+              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Specialists</p>
               <p className="mt-2 text-3xl font-semibold tabular-nums text-foreground sm:text-4xl">
                 {podStats?.totalTutors || 0}
               </p>
@@ -996,7 +1052,7 @@ export default function PodDetail() {
                 {operatingOverview ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-lg border bg-muted/20 p-3">
-                      <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Tutor Mix</p>
+                      <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Specialist Mix</p>
                       <p className="mt-1 text-sm font-medium">
                         Live {operatingOverview.tutorModeCounts?.certified_live || 0} • Trial {operatingOverview.tutorModeCounts?.trial || 0} • Sandbox {operatingOverview.tutorModeCounts?.sandbox || 0}
                       </p>
@@ -1060,26 +1116,26 @@ export default function PodDetail() {
                       <p className="mt-1 text-lg font-semibold">{battleTestingSummary.driftIncidents}</p>
                     </div>
                     <div>
-                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">At Risk Tutors</p>
+                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">At Risk Specialists</p>
                       <p className="mt-1 text-lg font-semibold">{battleTestingSummary.watchlistTutors + battleTestingSummary.failTutors}</p>
                     </div>
                     <div>
-                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Locked Tutors</p>
+                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Locked Specialists</p>
                       <p className="mt-1 text-lg font-semibold">{battleTestingSummary.lockedTutors}</p>
                     </div>
                   </div>
 
                   {battleTestingSummary.tdOperationalFlags.length ? (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
-                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-amber-900">
+                    <div className="border border-amber-500/25 bg-amber-500/10 px-4 py-3">
+                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-foreground">
                         TD Accountability Flags
                       </p>
                       <div className="mt-2 space-y-1">
                         {battleTestingSummary.tdOperationalFlags.map((flag) => (
-                          <p key={flag.phaseKey} className="text-sm text-amber-950">
+                          <p key={flag.phaseKey} className="text-sm text-foreground">
                             <span className="font-medium">{flag.title}</span>
-                            <span className="ml-2 text-amber-900">
-                              {flag.affectedTutors} tutors drifted in the last {flag.windowDays} days.
+                            <span className="ml-2 text-foreground">
+                              {flag.affectedTutors} Specialists drifted in the last {flag.windowDays} days.
                             </span>
                           </p>
                         ))}
@@ -1121,14 +1177,14 @@ export default function PodDetail() {
             )}
           </div>
 
-          {/* Right Column - Tutors */}
+          {/* Right Column - Specialists */}
           <div>
             <Card className="p-4 sm:p-6 border">
               <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between border-b pb-3 sm:pb-4">
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                    <h2 className="font-semibold text-sm sm:text-base">Assigned Tutors</h2>
+                    <h2 className="font-semibold text-sm sm:text-base">Assigned Specialists</h2>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs sm:text-sm text-muted-foreground">
@@ -1149,7 +1205,7 @@ export default function PodDetail() {
                   </div>
                 </div>
 
-                {/* Tutors List */}
+                {/* Specialists List */}
                 {tutorsSectionExpanded ? (
                   podTutorsLoading ? (
                     <div className="space-y-2">
@@ -1158,7 +1214,7 @@ export default function PodDetail() {
                     </div>
                   ) : !podTutors || podTutors.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
-                      <p className="text-sm">No tutors assigned yet</p>
+                      <p className="text-sm">No Specialists assigned yet</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -1171,13 +1227,8 @@ export default function PodDetail() {
                             assignment,
                             tutorAudit?.mode
                           );
-                          const isWatchlistState = tutorAudit?.state === "watchlist";
-                          const transformationProgress = (assignment.module_progress || []).find(
-                            (entry: any) => entry.moduleKey === "transformation_phases"
-                          );
-                          const sessionInfrastructureProgress = (assignment.module_progress || []).find(
-                            (entry: any) => entry.moduleKey === "session_infrastructure"
-                          );
+                          const developmentSummary =
+                            specialistDevelopmentSummaries[String(assignment.tutorId)];
                           const responsibilityView = getTutorResponsibilityView(operationalMode, {
                             sandboxParentCount: assignment.sandbox_parent_count,
                             trialParentCount: assignment.trial_parent_count,
@@ -1204,29 +1255,6 @@ export default function PodDetail() {
                                     <div className="flex-1 min-w-0">
                                       <p className="font-semibold text-sm sm:text-base truncate">{assignment.tutorName}</p>
                                       <p className="text-xs sm:text-sm text-muted-foreground truncate">{assignment.tutorEmail}</p>
-                                      <div className="mt-2 flex flex-wrap gap-2">
-                                        {(assignment.certification_status && assignment.certification_status !== "pending") && (
-                                          <Badge className={`${getCertificationColor(assignment.certification_status)} border`}>
-                                            {assignment.certification_status}
-                                          </Badge>
-                                        )}
-                                        <Badge variant={getOperationalModeBadge(operationalMode)}>
-                                          {formatOperationalModeLabel(operationalMode)}
-                                        </Badge>
-                                        {isWatchlistState ? (
-                                          <Badge className="bg-amber-100 text-amber-900 border-amber-200">
-                                            Watchlist state
-                                          </Badge>
-                                        ) : null}
-                                        <Badge className={getBattleTestStateBadgeClass(tutorAudit?.state)}>
-                                          {getBattleTestStateLabel(tutorAudit?.state)}
-                                        </Badge>
-                                        <Badge variant="outline">
-                                          {tutorAudit?.alignmentPercent == null
-                                            ? "Audit N/A"
-                                            : `Audit ${Math.round(tutorAudit.alignmentPercent)}%`}
-                                        </Badge>
-                                      </div>
                                     </div>
                                   </div>
 
@@ -1236,7 +1264,7 @@ export default function PodDetail() {
                                         <Button
                                           variant="ghost"
                                           size="sm"
-                                          className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                                          className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                           onClick={() => setTutorToRemove(assignment.id)}
                                         >
                                           <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -1244,9 +1272,9 @@ export default function PodDetail() {
                                       </AlertDialogTrigger>
                                       <AlertDialogContent>
                                         <AlertDialogHeader>
-                                          <AlertDialogTitle>Remove Tutor?</AlertDialogTitle>
+                                          <AlertDialogTitle>Remove Specialist?</AlertDialogTitle>
                                           <AlertDialogDescription>
-                                            Are you sure you want to remove {assignment.tutorName} from this pod?
+                                            Are you sure you want to remove {assignment.tutorName} from this Pod?
                                           </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -1262,8 +1290,63 @@ export default function PodDetail() {
                                   </div>
                                 </div>
 
+                                <div className="border-y border-border/60 py-3">
+                                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="min-w-0">
+                                      <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                                        Development
+                                      </p>
+                                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                                        <p className="text-sm font-semibold text-foreground">
+                                          {specialistDevelopmentSummariesLoading
+                                            ? "Loading stage..."
+                                            : specialistDevelopmentSummariesError || !developmentSummary
+                                              ? "Record unavailable"
+                                              : formatDevelopmentStageLabel(developmentSummary.currentStage)}
+                                        </p>
+                                        <Badge variant="outline">
+                                          Permission: {formatOperationalModeLabel(
+                                            developmentSummary?.assignment?.operationalMode || operationalMode,
+                                          )}
+                                        </Badge>
+                                      </div>
+                                      {developmentSummary?.pathway ? (
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                          Day {developmentSummary.pathway.timeline.elapsedDays} · {developmentSummary.pathway.timeline.daysRemaining} days remaining in the current development window
+                                        </p>
+                                      ) : specialistDevelopmentSummariesError ? (
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                          Open the record to inspect the latest development evidence.
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="shrink-0"
+                                      onClick={() =>
+                                        navigate(
+                                          `${cooPodsBasePath}/${podId}/specialists/${assignment.tutorId}/development`,
+                                        )
+                                      }
+                                    >
+                                      Development Record
+                                    </Button>
+                                  </div>
+                                </div>
+
                                 <div className="flex items-center justify-between gap-3">
-                                  <p className="text-sm font-medium text-muted-foreground">Specialist Alignment</p>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-sm font-medium text-muted-foreground">Specialist Alignment</p>
+                                    <Badge className={getBattleTestStateBadgeClass(tutorAudit?.state)}>
+                                      {getBattleTestStateLabel(tutorAudit?.state)}
+                                    </Badge>
+                                    <Badge variant="outline">
+                                      {tutorAudit?.alignmentPercent == null
+                                        ? "Audit N/A"
+                                        : `Audit ${Math.round(tutorAudit.alignmentPercent)}%`}
+                                    </Badge>
+                                  </div>
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -1278,7 +1361,7 @@ export default function PodDetail() {
                                   <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
                                     <div className="rounded-xl border border-border/60 bg-muted/20 p-3 sm:p-4">
                                       <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                        Tutor Audit
+                                        Alignment Audit
                                       </p>
                                       <div className="mt-3 space-y-3">
                                         {(["transformation_phases", "session_infrastructure"] as TutorAuditGroupKey[]).map((groupKey) => {
@@ -1353,16 +1436,16 @@ export default function PodDetail() {
                                           );
                                         })}
                                       </div>
-                                      <div className="mt-3 rounded-lg border border-sky-200/70 bg-sky-50/50 px-3 py-2 text-xs text-sky-950">
+                                      <div className="mt-3 border border-sky-500/25 bg-sky-500/10 px-3 py-2 text-xs text-foreground">
                                         Certification progress is earned deep dive by deep dive. A phase only counts as complete after 3 clean passes in a row.
                                       </div>
                                       {tutorAudit?.actionRequired ? (
                                         <p className="mt-3 text-sm text-muted-foreground">{tutorAudit.actionRequired}</p>
                                       ) : null}
                                       {tutorAudit?.deepDiveProgress?.some((entry) => entry.consecutiveDriftCount > 0) ? (
-                                        <div className="mt-3 rounded-lg border border-amber-200/70 bg-amber-50/50 px-3 py-2">
-                                          <p className="text-[10px] uppercase tracking-[0.08em] text-amber-900">Drift Pressure</p>
-                                          <p className="mt-1 text-xs text-amber-950">
+                                        <div className="mt-3 border border-amber-500/25 bg-amber-500/10 px-3 py-2">
+                                          <p className="text-[10px] uppercase tracking-[0.08em] text-foreground">Drift Pressure</p>
+                                          <p className="mt-1 text-xs text-foreground">
                                             {tutorAudit.deepDiveProgress
                                               .filter((entry) => entry.consecutiveDriftCount > 0)
                                               .map((entry) => `${entry.title} ${entry.consecutiveDriftCount}/3`)
@@ -1379,10 +1462,21 @@ export default function PodDetail() {
                                           Last audit: Not yet recorded
                                         </p>
                                       )}
+                                      {Array.isArray(assignment.next_battle_tests) && assignment.next_battle_tests.length > 0 ? (
+                                        <div className="mt-3 rounded-lg border border-border/60 bg-background/80 p-3">
+                                          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Next Alignment Audits</p>
+                                          <p className="mt-1 text-sm text-foreground">
+                                            {assignment.next_battle_tests
+                                              .slice(0, 3)
+                                              .map((entry: any) => entry.title)
+                                              .join(" • ")}
+                                          </p>
+                                        </div>
+                                      ) : null}
                                     </div>
                                     <div className="rounded-xl border border-border/60 bg-muted/20 p-3 sm:p-4">
                                       <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                                        Tutor Journey
+                                        Operating Responsibility
                                       </p>
                                       <div className="mt-3 grid gap-3">
                                         <div className="rounded-lg border border-border/60 bg-background/80 p-3">
@@ -1390,60 +1484,6 @@ export default function PodDetail() {
                                           <p className="mt-1 text-sm font-medium text-foreground">
                                             {formatModeCapability(operationalMode)}
                                           </p>
-                                        </div>
-                                        <div className="grid gap-3">
-                                          <div className="rounded-lg border border-border/60 bg-background/80 p-3">
-                                            <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Transformation Deep Dives</p>
-                                            <p className="mt-1 text-sm font-medium text-foreground">
-                                              {transformationProgress
-                                                ? `${transformationProgress.completedCount}/${transformationProgress.totalCount} reached 3/3`
-                                                : "Not started"}
-                                            </p>
-                                            <p className="mt-1 text-xs text-muted-foreground">
-                                              {(() => {
-                                                const summary = summarizeModuleDeepDiveProgress(
-                                                  tutorAudit?.deepDiveProgress,
-                                                  "transformation_phases"
-                                                );
-                                                if (summary.onePassAwayCount > 0) {
-                                                  return `${summary.onePassAwayCount} one pass away`;
-                                                }
-                                                if (summary.buildingCount > 0) {
-                                                  return `${summary.buildingCount} building streak`;
-                                                }
-                                                if (summary.retestCount > 0) {
-                                                  return `${summary.retestCount} need streak rebuild`;
-                                                }
-                                                return "Module status is derived from phase streaks";
-                                              })()}
-                                            </p>
-                                          </div>
-                                          <div className="rounded-lg border border-border/60 bg-background/80 p-3">
-                                            <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Session Infrastructure Deep Dives</p>
-                                            <p className="mt-1 text-sm font-medium text-foreground">
-                                              {sessionInfrastructureProgress
-                                                ? `${sessionInfrastructureProgress.completedCount}/${sessionInfrastructureProgress.totalCount} reached 3/3`
-                                                : "Not started"}
-                                            </p>
-                                            <p className="mt-1 text-xs text-muted-foreground">
-                                              {(() => {
-                                                const summary = summarizeModuleDeepDiveProgress(
-                                                  tutorAudit?.deepDiveProgress,
-                                                  "session_infrastructure"
-                                                );
-                                                if (summary.onePassAwayCount > 0) {
-                                                  return `${summary.onePassAwayCount} one pass away`;
-                                                }
-                                                if (summary.buildingCount > 0) {
-                                                  return `${summary.buildingCount} building streak`;
-                                                }
-                                                if (summary.retestCount > 0) {
-                                                  return `${summary.retestCount} need streak rebuild`;
-                                                }
-                                                return "Module status is derived from phase streaks";
-                                              })()}
-                                            </p>
-                                          </div>
                                         </div>
                                         <div className={`rounded-lg border p-3 ${responsibilityView.toneClass}`}>
                                           <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
@@ -1459,10 +1499,10 @@ export default function PodDetail() {
                                         <div className="rounded-lg border border-border/60 bg-background/80 p-3">
                                           <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Reassignment / Acceptance Pressure</p>
                                           <p className="mt-1 text-sm font-medium text-foreground">
-                                            Awaiting tutor acceptance: {assignment.awaiting_tutor_acceptance_count || 0}
+                                            Awaiting Specialist acceptance: {assignment.awaiting_tutor_acceptance_count || 0}
                                           </p>
                                           {assignment.certification_recovery_note ? (
-                                            <p className="mt-2 text-xs text-amber-900">
+                                            <p className="mt-2 text-xs text-foreground">
                                               {assignment.certification_recovery_note}
                                             </p>
                                           ) : null}
@@ -1472,24 +1512,14 @@ export default function PodDetail() {
                                         {assignment.student_count || 0}/{maxStudentsPerTutor} students assigned.
                                       </p>
                                       <p className="mt-2 text-xs text-muted-foreground">
-                                        Certification owns mode progression. COO sees the journey here, but mode switching stays system-driven.
+                                        Development progression remains system-driven. Use the Development Record for the evidence behind the current stage.
                                       </p>
-                                      {Array.isArray(assignment.next_battle_tests) && assignment.next_battle_tests.length > 0 ? (
-                                        <div className="mt-3 rounded-lg border border-border/60 bg-background/80 p-3">
-                                          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Next Certification Reps</p>
-                                          <p className="mt-1 text-sm text-foreground">
-                                            {assignment.next_battle_tests
-                                              .slice(0, 3)
-                                              .map((entry: any) => entry.title)
-                                              .join(" • ")}
-                                          </p>
-                                        </div>
-                                      ) : null}
+
                                     </div>
                                   </div>
                                 ) : (
                                   <p className="text-sm text-muted-foreground">
-                                    {formatOperationalModeLabel(operationalMode)}. {responsibilityView.primary}. {responsibilityView.secondary}.
+                                    Expand to view alignment evidence and current operating responsibility.
                                   </p>
                                 )}
 
@@ -1544,27 +1574,27 @@ export default function PodDetail() {
                   )
                 ) : null}
 
-                    {/* Add Tutors Button */}
+                    {/* Add Specialists Button */}
                     {availableSlots > 0 && (
                       <Dialog open={addTutorsOpen} onOpenChange={setAddTutorsOpen}>
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm" className="w-full gap-2 mt-4">
                             <Plus className="w-4 h-4" />
-                            Add Tutor
+                            Add Specialist
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>Add Tutors to Pod</DialogTitle>
+                            <DialogTitle>Add Specialists to Pod</DialogTitle>
                             <DialogDescription>
-                              Select tutors to add. You can add {availableSlots} more tutor{availableSlots !== 1 ? "s" : ""}.
+                              Select Specialists to add. You can add {availableSlots} more Specialist{availableSlots !== 1 ? "s" : ""}.
                             </DialogDescription>
                           </DialogHeader>
 
                           <div className="space-y-3">
                             {availableTutors.length === 0 ? (
                               <p className="text-sm text-muted-foreground py-4 text-center">
-                                No available tutors
+                                No available Specialists
                               </p>
                             ) : (
                               <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -1581,7 +1611,7 @@ export default function PodDetail() {
                                           if (selectedTutorIds.length >= availableSlots) {
                                             toast({
                                               title: "Slot limit reached",
-                                              description: `You can only add ${availableSlots} more tutor${availableSlots !== 1 ? "s" : ""}.`,
+                                              description: `You can only add ${availableSlots} more Specialist${availableSlots !== 1 ? "s" : ""}.`,
                                               variant: "destructive",
                                             });
                                             return;
@@ -1830,7 +1860,7 @@ function TrialCertificationPanel({
       toast({
         title: finalDecision === "certified" ? "Certified Live approved" : "Trial decision recorded",
         description: finalDecision === "certified"
-          ? "The tutor was promoted only after explicit COO approval."
+          ? "The Specialist was promoted only after explicit COO approval."
           : "The Trial case was closed without live certification.",
       });
     },
@@ -1889,7 +1919,7 @@ function TrialCertificationPanel({
   return (
     <div className="space-y-4">
       {trialLoading ? (
-        <Card className="border-amber-200 bg-amber-50/30 p-4">
+        <Card className="border-amber-500/25 bg-amber-500/10 p-4">
           <Skeleton className="h-5 w-40" />
           <Skeleton className="mt-3 h-20 w-full" />
         </Card>
@@ -1903,7 +1933,7 @@ function TrialCertificationPanel({
           variant="outline"
           disabled={startCaseMutation.isPending}
           onClick={() => startCaseMutation.mutate()}
-          className="border-amber-300 text-amber-900"
+          className="border-amber-500/30 text-foreground"
         >
           {startCaseMutation.isPending ? "Opening Trial case..." : "Open Trial case"}
         </Button>
@@ -1912,7 +1942,7 @@ function TrialCertificationPanel({
       {trialCase ? (
         <div className="space-y-3">
           {trialCase.window.isExpired && !trialCase.window.extensionEndsAt ? (
-            <Card className="border-rose-200 bg-rose-50/30 p-4">
+            <Card className="border-rose-500/25 bg-rose-500/10 p-4">
               <p className="text-sm font-semibold text-foreground">Document a Trial exception</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 The 14-day clock does not replace the 9 x 2 evidence requirement. Extend only for a justified, recorded interruption; the final date can never exceed pathway day 90.
@@ -1961,7 +1991,7 @@ function TrialCertificationPanel({
             const reviewBlocked = !placement.progress.evidenceComplete || placement.feedbackState === "pending";
 
             return (
-              <Card key={placement.id} className="border-amber-200 p-4">
+              <Card key={placement.id} className="border-amber-500/25 p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold text-foreground">{placement.studentName}</p>
@@ -2043,7 +2073,7 @@ function TrialCertificationPanel({
                   {reviewMutation.isPending ? "Saving review..." : "Save outcome review"}
                 </Button>
                 {reviewBlocked ? (
-                  <p className="mt-2 text-xs text-amber-900">
+                  <p className="mt-2 text-xs text-foreground">
                     Review opens only after nine qualifying sessions, required reports, and family feedback received or declined.
                   </p>
                 ) : null}
@@ -2051,7 +2081,7 @@ function TrialCertificationPanel({
             );
           })}
 
-          <Card className="border-emerald-200 p-4">
+          <Card className="border-emerald-500/25 p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-sm font-semibold text-foreground">Final COO decision</p>
@@ -2175,7 +2205,7 @@ function TutorStudentsSection({
           </div>
         ) : !students || students.length === 0 ? (
           <p className="text-sm text-muted-foreground py-3 text-center bg-muted/30 rounded-lg">
-            No students assigned to this tutor yet
+            No students assigned to this Specialist yet
           </p>
         ) : (
           <div className="space-y-3">
@@ -2210,10 +2240,10 @@ function TutorStudentsSection({
                         <Badge
                           className={
                             student.isSandboxAssignment
-                              ? "bg-sky-100 text-sky-800 border-sky-200"
+                              ? "bg-sky-500/10 text-foreground border-sky-500/25"
                               : student.isTrialAssignment
-                                ? "bg-amber-100 text-amber-900 border-amber-200"
-                              : "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                ? "bg-amber-500/10 text-foreground border-amber-500/25"
+                              : "bg-emerald-500/10 text-foreground border-emerald-500/25"
                           }
                         >
                           {student.isSandboxAssignment
@@ -2223,7 +2253,7 @@ function TutorStudentsSection({
                               : "Commercial Family"}
                         </Badge>
                         {student.isReassignmentPreserved ? (
-                          <Badge className="bg-amber-100 text-amber-900 border-amber-200">
+                          <Badge className="bg-amber-500/10 text-foreground border-amber-500/25">
                             Reassignment State
                           </Badge>
                         ) : null}
@@ -2277,7 +2307,7 @@ function TutorStudentsSection({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-xs h-7 text-red-600 border-red-200 hover:bg-red-50"
+                      className="text-xs h-7 text-destructive border-destructive/30 hover:bg-destructive/10"
                       disabled={!student.assignedEnrollmentId || unassignStudentMutation.isPending}
                       onClick={() => {
                         if (!student.assignedEnrollmentId) return;
@@ -2307,8 +2337,8 @@ function TutorStudentsSection({
               Assign directly from the unassigned parent queue without leaving this pod.
             </p>
             {tutorAtCapacity && (
-              <p className="mt-1 text-xs text-amber-700">
-                This tutor is at vehicle capacity and cannot receive more students from quick actions.
+              <p className="mt-1 text-xs text-muted-foreground">
+                This Specialist is at student capacity and cannot receive more students from quick actions.
               </p>
             )}
           </div>
@@ -2346,7 +2376,7 @@ function TutorStudentsSection({
                   {awaitingAssignments.map((enrollment) => (
                     <Card
                       key={enrollment.id}
-                      className="overflow-hidden border-[#e8dcc2] bg-gradient-to-br from-[#fffaf0] via-white to-[#fff7e8] shadow-sm"
+                      className="overflow-hidden rounded-none border border-border/70 bg-background shadow-none"
                     >
                       {(() => {
                         const topics = Array.from(
@@ -2373,20 +2403,20 @@ function TutorStudentsSection({
 
                         return (
                           <>
-                            <div className="border-b border-[#eadfca] bg-[#fff8ea]/80 px-5 pb-5 pt-5">
+                            <div className="border-b border-border/70 bg-muted/20 px-5 pb-5 pt-5">
                               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                 <div className="space-y-3">
                                   <div>
-                                    <p className="text-2xl font-semibold tracking-tight text-slate-950">
+                                    <p className="text-2xl font-semibold tracking-tight text-foreground">
                                       {enrollment.student_full_name}
                                     </p>
-                                    <p className="mt-1 text-base text-slate-600">
+                                    <p className="mt-1 text-base text-muted-foreground">
                                       Parent: {enrollment.parent_full_name || "Unknown"}
                                     </p>
                                   </div>
 
                                   <div className="flex flex-wrap gap-2">
-                                    <Badge variant="outline" className="border-[#e7d7b3] bg-white/80 text-slate-700">
+                                    <Badge variant="outline" className="border-border/70 bg-background text-muted-foreground">
                                       <BookOpen className="mr-1 h-3.5 w-3.5" />
                                       {enrollment.student_grade || "Grade not provided"}
                                     </Badge>
@@ -2394,10 +2424,10 @@ function TutorStudentsSection({
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100">
+                                  <Badge className="bg-amber-500/10 text-foreground hover:bg-amber-500/15">
                                     Awaiting Assignment
                                   </Badge>
-                                  <Badge variant="outline" className="border-[#eadfca] bg-white/80 text-slate-600">
+                                  <Badge variant="outline" className="border-border/70 bg-muted/10 text-muted-foreground">
                                     <CalendarDays className="mr-1 h-3.5 w-3.5" />
                                     {enrollment.created_at ? new Date(enrollment.created_at).toLocaleDateString() : "Unknown"}
                                   </Badge>
@@ -2407,80 +2437,80 @@ function TutorStudentsSection({
 
                             <div className="space-y-6 p-5">
                               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                                <div className="rounded-xl border border-[#eadfca] bg-white/80 p-4">
-                                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                                <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
+                                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                                     <Mail className="h-3.5 w-3.5" />
                                     Email
                                   </div>
-                                  <p className="mt-2 break-all text-sm font-medium text-slate-900">
+                                  <p className="mt-2 break-all text-sm font-medium text-foreground">
                                     {enrollment.parent_email || "Not provided"}
                                   </p>
                                 </div>
-                                <div className="rounded-xl border border-[#eadfca] bg-white/80 p-4">
-                                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                                <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
+                                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                                     <Phone className="h-3.5 w-3.5" />
                                     Phone
                                   </div>
-                                  <p className="mt-2 text-sm font-medium text-slate-900">
+                                  <p className="mt-2 text-sm font-medium text-foreground">
                                     {enrollment.parent_phone || "Not provided"}
                                   </p>
                                 </div>
-                                <div className="rounded-xl border border-[#eadfca] bg-white/80 p-4">
-                                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                                <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
+                                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                                     <MapPin className="h-3.5 w-3.5" />
                                     Location
                                   </div>
-                                  <p className="mt-2 text-sm font-medium text-slate-900">
+                                  <p className="mt-2 text-sm font-medium text-foreground">
                                     {enrollment.parent_city || "Not provided"}
                                   </p>
                                 </div>
-                                <div className="rounded-xl border border-[#eadfca] bg-white/80 p-4">
-                                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                                <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
+                                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                                     <School className="h-3.5 w-3.5" />
                                     School
                                   </div>
-                                  <p className="mt-2 text-sm font-medium text-slate-900">
+                                  <p className="mt-2 text-sm font-medium text-foreground">
                                     {enrollment.school_name || "Not provided"}
                                   </p>
                                 </div>
                               </div>
 
                               <div className="grid gap-4 2xl:grid-cols-[1.15fr,0.85fr]">
-                                <div className="rounded-2xl border border-[#eadfca] bg-white/85 p-5">
+                                <div className="rounded-2xl border border-border/70 bg-muted/10 p-5">
                                   <div className="flex items-center gap-2">
-                                    <Target className="h-4 w-4 text-[#946c16]" />
-                                    <p className="text-sm font-semibold text-slate-900">Enrollment Focus</p>
+                                    <Target className="h-4 w-4 text-primary" />
+                                    <p className="text-sm font-semibold text-foreground">Enrollment Focus</p>
                                   </div>
 
                                   <div className="mt-4 space-y-4">
                                     <div>
-                                      <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Topics</p>
+                                      <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Topics</p>
                                       <div className="mt-2 flex flex-wrap gap-2">
                                         {topics.length > 0 ? (
                                           topics.map((topic) => (
-                                            <Badge key={topic} variant="secondary" className="bg-[#f6edd7] text-[#6a4d0b] hover:bg-[#f6edd7]">
+                                            <Badge key={topic} variant="secondary" className="bg-secondary text-secondary-foreground hover:bg-secondary">
                                               {topic}
                                             </Badge>
                                           ))
                                         ) : (
-                                          <span className="text-sm text-slate-500">No topics recorded</span>
+                                          <span className="text-sm text-muted-foreground">No topics recorded</span>
                                         )}
                                       </div>
                                     </div>
 
                                     <div className="grid gap-3 sm:grid-cols-2">
-                                      <div className="rounded-xl border border-dashed border-[#eadfca] bg-[#fffaf2] p-3">
-                                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Previous Tutoring</p>
-                                        <p className="mt-2 text-sm font-medium text-slate-900">
+                                      <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-3">
+                                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Previous Tutoring</p>
+                                        <p className="mt-2 text-sm font-medium text-foreground">
                                           {enrollment.previous_tutoring || "Not provided"}
                                         </p>
                                       </div>
-                                      <div className="rounded-xl border border-dashed border-[#eadfca] bg-[#fffaf2] p-3">
-                                        <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                                      <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-3">
+                                        <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                                           <Wifi className="h-3.5 w-3.5" />
                                           Internet Access
                                         </p>
-                                        <p className="mt-2 text-sm font-medium text-slate-900">
+                                        <p className="mt-2 text-sm font-medium text-foreground">
                                           {enrollment.internet_access || "Not provided"}
                                         </p>
                                       </div>
@@ -2488,10 +2518,10 @@ function TutorStudentsSection({
                                   </div>
                                 </div>
 
-                                <div className="rounded-2xl border border-[#eadfca] bg-white/85 p-5">
+                                <div className="rounded-2xl border border-border/70 bg-muted/10 p-5">
                                   <div className="flex items-center gap-2">
-                                    <CircleAlert className="h-4 w-4 text-[#946c16]" />
-                                    <p className="text-sm font-semibold text-slate-900">Parent Intake Signal</p>
+                                    <CircleAlert className="h-4 w-4 text-primary" />
+                                    <p className="text-sm font-semibold text-foreground">Parent Intake Signal</p>
                                   </div>
 
                                   <div className="mt-4 space-y-3">
@@ -2500,31 +2530,31 @@ function TutorStudentsSection({
                                         const symptoms = derivedTopicSymptoms[topic] || [];
                                         const recommendation = topicRecommendations[topic];
                                         return (
-                                          <div key={topic} className="rounded-xl border border-[#eadfca] bg-[#fffdf8] p-4">
-                                            <p className="text-sm font-semibold text-slate-900">{topic}</p>
+                                          <div key={topic} className="rounded-xl border border-border/70 bg-background p-4">
+                                            <p className="text-sm font-semibold text-foreground">{topic}</p>
                                             {recommendation?.phase ? (
-                                              <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+                                              <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
                                                 Suggested diagnostic start: {formatPhaseLabel(recommendation.phase)}
                                               </p>
                                             ) : null}
 
                                             <div className="mt-3">
-                                              <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Observed Signals</p>
+                                              <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Observed Signals</p>
                                               <div className="mt-2 flex flex-wrap gap-2">
                                                 {symptoms.length > 0 ? (
                                                   symptoms.map((symptom) => (
-                                                    <Badge key={`${topic}-${symptom}`} variant="outline" className="border-[#ecdcb7] bg-white text-slate-700">
+                                                    <Badge key={`${topic}-${symptom}`} variant="outline" className="border-border/70 bg-background text-muted-foreground">
                                                       {symptom}
                                                     </Badge>
                                                   ))
                                                 ) : (
-                                                  <span className="text-sm text-slate-500">No topic-specific symptom map recorded yet.</span>
+                                                  <span className="text-sm text-muted-foreground">No topic-specific symptom map recorded yet.</span>
                                                 )}
                                               </div>
                                             </div>
 
                                             {recommendation?.rationale ? (
-                                              <div className="mt-3 rounded-lg bg-[#faf4e5] p-3 text-sm text-slate-700">
+                                              <div className="mt-3 rounded-lg bg-muted/30 p-3 text-sm text-muted-foreground">
                                                 {recommendation.rationale}
                                               </div>
                                             ) : null}
@@ -2532,18 +2562,18 @@ function TutorStudentsSection({
                                         );
                                       })
                                     ) : fallbackSymptoms.length > 0 ? (
-                                      <div className="rounded-xl border border-[#eadfca] bg-[#fffdf8] p-4">
-                                        <p className="text-sm font-semibold text-slate-900">Observed Signals</p>
+                                      <div className="rounded-xl border border-border/70 bg-background p-4">
+                                        <p className="text-sm font-semibold text-foreground">Observed Signals</p>
                                         <div className="mt-3 flex flex-wrap gap-2">
                                           {fallbackSymptoms.map((symptom) => (
-                                            <Badge key={symptom} variant="outline" className="border-[#ecdcb7] bg-white text-slate-700">
+                                            <Badge key={symptom} variant="outline" className="border-border/70 bg-background text-muted-foreground">
                                               {symptom}
                                             </Badge>
                                           ))}
                                         </div>
                                       </div>
                                     ) : (
-                                      <div className="rounded-xl border border-dashed border-[#eadfca] bg-[#fffdf8] p-4 text-sm text-slate-500">
+                                      <div className="rounded-xl border border-dashed border-border/70 bg-background p-4 text-sm text-muted-foreground">
                                         No symptom mapping was captured for this enrollment.
                                       </div>
                                     )}
@@ -2551,9 +2581,9 @@ function TutorStudentsSection({
                                 </div>
                               </div>
 
-                              <div className="flex flex-col gap-3 border-t border-[#eadfca] pt-5 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="text-sm text-slate-600">
-                                  <span className="font-medium text-slate-800">Submitted:</span>{" "}
+                              <div className="flex flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="text-sm text-muted-foreground">
+                                  <span className="font-medium text-foreground">Submitted:</span>{" "}
                                   {enrollment.created_at ? new Date(enrollment.created_at).toLocaleString() : "Unknown"}
                                 </div>
 
@@ -2591,8 +2621,8 @@ function TutorStudentsSection({
             </DialogContent>
             </Dialog>
             {!canAssignParents ? (
-              <p className="mt-2 text-xs text-rose-900 break-words sm:text-right">
-                Parent assignment is blocked until this tutor enters Trial or Certified Live. Sandbox accepts synthetic accounts only.
+              <p className="mt-2 text-xs text-destructive break-words sm:text-right">
+                Parent assignment is blocked until this Specialist enters Trial or Certified Live. Sandbox accepts synthetic accounts only.
               </p>
             ) : null}
           </div>

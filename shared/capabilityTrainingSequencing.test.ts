@@ -11,8 +11,11 @@ import {
   TRANSFORMATION_DEEP_DIVE_KEYS,
   TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
   TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
+  OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY,
+  OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY,
+  EXECUTION_STANDARDS_DEEP_DIVE_KEYS,
+  SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
   SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS,
-  SESSION_INFRASTRUCTURE_CUMULATIVE_ASSESSMENT_KEYS,
 } from "./capabilityAssessmentPlan";
 
 const transformationMasteryKeys = TRANSFORMATION_DEEP_DIVE_KEYS.map(
@@ -83,65 +86,6 @@ test("active Training plan exposes all 20 Deep Dive Mastery checks across the fo
     availability.filter((entry) => entry.stage === "session_infrastructure_mastery").length,
     6,
   );
-});
-
-const sessionMasteryKeys = SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS.map(key => `${key}_mastery_v1`);
-const sessionPlan = getCapabilityTrainingAssessmentPlan({ includeSessionInfrastructureCumulative: true });
-const sessionBanks = [
-  ...sessionMasteryKeys.map(key => bank(key, "mastery")),
-  ...SESSION_INFRASTRUCTURE_CUMULATIVE_ASSESSMENT_KEYS.map((key, index) => bank(key, index === 0 ? "retrieval" : "transfer")),
-];
-const sessionPasses = sessionMasteryKeys.map((key, index) => pass(key, `2026-10-05T${index === 5 ? "12" : "10"}:00:00Z`));
-
-test("Session cumulative review plan is opt-in and preserves the Production plan", () => {
-  const productionPlan = getCapabilityTrainingAssessmentPlan();
-  assert.equal(productionPlan.length, 22);
-  assert.equal(sessionPlan.length, 25);
-  for (const key of SESSION_INFRASTRUCTURE_CUMULATIVE_ASSESSMENT_KEYS) {
-    assert.equal(productionPlan.some(entry => entry.assessmentKey === key), false);
-    assert.equal(sessionPlan.some(entry => entry.assessmentKey === key), true);
-  }
-});
-
-test("Session Retrieval requires all six current Masteries and waits from the latest pass", () => {
-  const status = (now: string, attempts: CapabilityTrainingAttempt[], banks = sessionBanks) =>
-    buildCapabilityTrainingAvailability({ now, activeBanks: banks, attempts, plan: sessionPlan })
-      .find(entry => entry.assessmentKey === SESSION_INFRASTRUCTURE_CUMULATIVE_ASSESSMENT_KEYS[0]);
-  assert.equal(status("2026-10-07T12:00:00Z", sessionPasses.slice(0, 5))?.reason, "prerequisite_incomplete");
-  assert.equal(status("2026-10-06T11:59:59Z", sessionPasses)?.reason, "spacing_interval");
-  assert.equal(status("2026-10-06T11:59:59Z", sessionPasses)?.unlockAt, "2026-10-06T12:00:00.000Z");
-  assert.equal(status("2026-10-06T12:00:00Z", sessionPasses)?.status, "available");
-  assert.equal(status("2026-10-07T12:00:00Z", sessionPasses, sessionBanks.map(entry =>
-    entry.assessmentKey === sessionMasteryKeys[5] ? { ...entry, bankVersion: 2 } : entry))?.reason, "prerequisite_incomplete");
-});
-
-test("both Session Transfers require Retrieval and its full spacing interval", () => {
-  const retrieval = pass(SESSION_INFRASTRUCTURE_CUMULATIVE_ASSESSMENT_KEYS[0], "2026-10-06T13:00:00Z", "retrieval");
-  for (const key of SESSION_INFRASTRUCTURE_CUMULATIVE_ASSESSMENT_KEYS.slice(1)) {
-    const status = (now: string, attempts: CapabilityTrainingAttempt[]) =>
-      buildCapabilityTrainingAvailability({ now, activeBanks: sessionBanks, attempts, plan: sessionPlan }).find(entry => entry.assessmentKey === key);
-    assert.equal(status("2026-10-07T13:00:00Z", sessionPasses)?.reason, "prerequisite_incomplete");
-    assert.equal(status("2026-10-07T12:59:59Z", [...sessionPasses, retrieval])?.reason, "spacing_interval");
-    assert.equal(status("2026-10-07T13:00:00Z", [...sessionPasses, retrieval])?.status, "available");
-    assert.equal(status("2026-10-07T13:00:00Z", [...sessionPasses.slice(0, 5), retrieval])?.reason, "prerequisite_incomplete");
-  }
-});
-
-test("Session cumulative Review Mode opens review without completing gates or opening real Transfer", () => {
-  const reviewBanks = sessionBanks.map(entry => SESSION_INFRASTRUCTURE_CUMULATIVE_ASSESSMENT_KEYS.some(key => key === entry.assessmentKey)
-    ? { ...entry, reviewMode: true } : entry);
-  const reviews = SESSION_INFRASTRUCTURE_CUMULATIVE_ASSESSMENT_KEYS.map((key, index) => pass(key, "2026-10-06T13:00:00Z", index === 0 ? "retrieval" : "transfer"));
-  const availability = buildCapabilityTrainingAvailability({ now: "2026-10-08T13:00:00Z", activeBanks: reviewBanks, attempts: reviews, plan: sessionPlan });
-  for (const key of SESSION_INFRASTRUCTURE_CUMULATIVE_ASSESSMENT_KEYS) {
-    assert.equal(availability.find(entry => entry.assessmentKey === key)?.status, "available");
-    assert.equal(availability.find(entry => entry.assessmentKey === key)?.reviewMode, true);
-  }
-  assert.equal(isCapabilityTransformationSandboxReady(availability), false);
-  const mixed = buildCapabilityTrainingAvailability({ now: "2026-10-08T13:00:00Z", activeBanks: reviewBanks.map(entry =>
-    entry.evidenceKind === "transfer" ? { ...entry, reviewMode: false } : entry), attempts: [...sessionPasses, ...reviews.slice(0, 1)], plan: sessionPlan });
-  for (const key of SESSION_INFRASTRUCTURE_CUMULATIVE_ASSESSMENT_KEYS.slice(1)) {
-    assert.equal(mixed.find(entry => entry.assessmentKey === key)?.reason, "prerequisite_incomplete");
-  }
 });
 
 test("Transformation Retrieval waits for all five Mastery passes and the spacing interval", () => {
@@ -318,6 +262,42 @@ test("Session Infrastructure Founder review opens all six banks without completi
   assert.equal(isCapabilityTransformationSandboxReady(assessments), false);
 });
 
+test("Execution Standards and System Intelligence Founder review stays repeatable and non-authoritative", () => {
+  const keys = [
+    ...EXECUTION_STANDARDS_DEEP_DIVE_KEYS,
+    ...SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
+  ].map((key) => `${key}_mastery_v1`);
+
+  const reviewBanks = [
+    ...activeBanks.filter((entry) => !keys.includes(entry.assessmentKey)),
+    ...keys.map((key) => ({ ...bank(key, "mastery"), reviewMode: true })),
+  ];
+  const reviewAttempts = keys.flatMap((key) =>
+    [1, 2, 3].map((attemptNumber) => ({
+      ...pass(key, "2026-10-07T09:00:00Z"),
+      attemptNumber,
+    })),
+  );
+
+  const assessments = buildCapabilityTrainingAvailability({
+    now: "2026-10-07T12:00:00Z",
+    activeBanks: reviewBanks,
+    attempts: reviewAttempts,
+  });
+
+  for (const key of keys) {
+    const gate = assessments.find((entry) => entry.assessmentKey === key);
+    assert.equal(gate?.status, "available");
+    assert.equal(gate?.reviewMode, true);
+    assert.equal(gate?.attemptCount, 3);
+  }
+
+  const osRetrieval = assessments.find(
+    (entry) => entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY,
+  );
+  assert.notEqual(osRetrieval?.status, "complete");
+});
+
 test("a Review Mode Retrieval pass cannot open real Transfer", () => {
   const assessments = buildCapabilityTrainingAvailability({
     now: "2026-10-04T12:00:00Z",
@@ -328,4 +308,94 @@ test("a Review Mode Retrieval pass cannot open real Transfer", () => {
   assert.equal(transfer?.status, "locked");
   assert.equal(transfer?.reason, "prerequisite_incomplete");
   assert.equal(isCapabilityTransformationSandboxReady(assessments), false);
+});
+
+
+test("final operating-system Retrieval waits for all 15 post-Sandbox Masteries and spacing", () => {
+  const postSandboxKeys = [
+    ...EXECUTION_STANDARDS_DEEP_DIVE_KEYS,
+    ...SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
+    ...SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS,
+  ].map((key) => `${key}_mastery_v1`);
+
+  const banks: CapabilityTrainingActiveBank[] = [
+    ...activeBanks,
+    ...postSandboxKeys
+      .filter((key) => !activeBanks.some((entry) => entry.assessmentKey === key))
+      .map((key) => bank(key, "mastery")),
+    bank(OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY, "retrieval"),
+    bank(OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY, "transfer"),
+  ];
+
+  const incomplete = postSandboxKeys
+    .slice(0, -1)
+    .map((key) => pass(key, "2026-10-05T08:00:00Z"));
+  let assessments = buildCapabilityTrainingAvailability({
+    now: "2026-10-06T10:00:00Z",
+    activeBanks: banks,
+    attempts: incomplete,
+  });
+  let retrieval = assessments.find(
+    (entry) => entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY,
+  );
+  assert.equal(retrieval?.status, "locked");
+  assert.equal(retrieval?.reason, "prerequisite_incomplete");
+
+  const complete = [
+    ...incomplete,
+    pass(postSandboxKeys.at(-1)!, "2026-10-06T08:00:00Z"),
+  ];
+  assessments = buildCapabilityTrainingAvailability({
+    now: "2026-10-07T07:59:00Z",
+    activeBanks: banks,
+    attempts: complete,
+  });
+  retrieval = assessments.find(
+    (entry) => entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY,
+  );
+  assert.equal(retrieval?.status, "locked");
+  assert.equal(retrieval?.reason, "spacing_interval");
+  assert.equal(retrieval?.unlockAt, "2026-10-07T08:00:00.000Z");
+
+  assessments = buildCapabilityTrainingAvailability({
+    now: "2026-10-07T08:00:00Z",
+    activeBanks: banks,
+    attempts: complete,
+  });
+  retrieval = assessments.find(
+    (entry) => entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY,
+  );
+  assert.equal(retrieval?.status, "available");
+});
+
+test("final operating-system Transfer requires real Retrieval evidence and Review Mode cannot satisfy it", () => {
+  const postSandboxKeys = [
+    ...EXECUTION_STANDARDS_DEEP_DIVE_KEYS,
+    ...SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
+    ...SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS,
+  ].map((key) => `${key}_mastery_v1`);
+
+  const banks: CapabilityTrainingActiveBank[] = [
+    ...activeBanks,
+    ...postSandboxKeys
+      .filter((key) => !activeBanks.some((entry) => entry.assessmentKey === key))
+      .map((key) => bank(key, "mastery")),
+    { ...bank(OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY, "retrieval"), reviewMode: true },
+    bank(OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY, "transfer"),
+  ];
+  const attempts = [
+    ...postSandboxKeys.map((key) => pass(key, "2026-10-05T08:00:00Z")),
+    pass(OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY, "2026-10-07T08:00:00Z", "retrieval"),
+  ];
+
+  const assessments = buildCapabilityTrainingAvailability({
+    now: "2026-10-07T09:00:00Z",
+    activeBanks: banks,
+    attempts,
+  });
+  const transfer = assessments.find(
+    (entry) => entry.assessmentKey === OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY,
+  );
+  assert.equal(transfer?.status, "locked");
+  assert.equal(transfer?.reason, "prerequisite_incomplete");
 });

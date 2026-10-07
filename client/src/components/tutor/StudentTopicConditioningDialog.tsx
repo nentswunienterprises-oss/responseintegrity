@@ -271,7 +271,7 @@ const PHASE_OBSERVATION_CONFIG: Record<
           { label: "Did not seek rescue", score: 20 },
           { label: "Sought reassurance only", score: 14 },
           { label: "Asked for help early", score: 6 },
-          { label: "Needed tutor to carry response", score: 0 },
+          { label: "Needed Specialist to carry response", score: 0 },
         ],
       },
     ],
@@ -1277,7 +1277,7 @@ export default function StudentTopicConditioningDialog({
             stateSource: "activated",
             lastSession: activatedAt ? formatLastUpdatedLabel(activatedAt) : "Activated",
             trend: "Stable",
-            entryDiagnosis: "Activated by tutor.",
+            entryDiagnosis: "Activated by Specialist.",
             recentLogs: [],
             timeline: [],
           });
@@ -1835,7 +1835,7 @@ export default function StudentTopicConditioningDialog({
                         </div>
 
                         <p className="text-sm text-muted-foreground">
-                          <span className="font-medium text-foreground">Tutor Meaning:</span> {row.hasObservedState ? topicIntel.tutorMeaning : "Topic is active but not yet observed in a scored drill/session."}
+                          <span className="font-medium text-foreground">Specialist Meaning:</span> {row.hasObservedState ? topicIntel.tutorMeaning : "Topic is active but not yet observed in a scored drill/session."}
                         </p>
 
                         <p className="text-sm text-foreground font-medium">
@@ -1960,7 +1960,7 @@ export default function StudentTopicConditioningDialog({
                     <p><span className="font-medium">Current Stability:</span> {hasObservedSelection ? selectedRow.stability : "Unknown"}</p>
                     <p><span className="font-medium">Trend:</span> {selectedRow.trend}</p>
                     <p><span className="font-medium">Transition Status:</span> {selectedInterpretation?.transitionStatus || "Awaiting Observation"}</p>
-                    <p><span className="font-medium">Tutor Meaning:</span> {selectedInterpretation?.tutorMeaning || "Topic is active but not yet observed."}</p>
+                    <p><span className="font-medium">Specialist Meaning:</span> {selectedInterpretation?.tutorMeaning || "Topic is active but not yet observed."}</p>
                     <p><span className="font-medium">Parent Meaning:</span> {selectedInterpretation?.parentMeaning || "Observed state will appear after first scored drill/session."}</p>
                     <p><span className="font-medium">Direction:</span> {selectedInterpretation?.direction || "Run evidence-complete diagnosis first."}</p>
                     <p><span className="font-medium">Constraint:</span> {selectedInterpretation?.rules[0] || "Do not infer phase movement without observations."}</p>

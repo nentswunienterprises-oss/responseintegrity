@@ -40,17 +40,7 @@ interface PodData {
 
 interface PodTeamMember {
   id: string;
-  assignmentId: string;
   name: string;
-  email: string;
-  phone: string;
-  role: string;
-  grade: string | null;
-  school: string | null;
-  bio: string | null;
-  profileImageUrl: string | null;
-  certificationStatus: string;
-  operationalMode?: "training" | "sandbox" | "trial" | "certified_live";
 }
 
 interface PodTeamData {
@@ -58,11 +48,6 @@ interface PodTeamData {
   territoryDirector: {
     id: string;
     name: string;
-    email: string;
-    phone: string;
-    bio: string | null;
-    profileImageUrl: string | null;
-    role: string;
   } | null;
   members: PodTeamMember[];
   memberCount: number;
@@ -141,7 +126,7 @@ function formatTutorGradeLabel(grade?: string | null) {
 function formatSessionStatus(status?: string | null) {
   const raw = String(status || "").trim().toLowerCase();
   if (raw === "pending_parent_confirmation") return "Awaiting Parent";
-  if (raw === "pending_tutor_confirmation") return "Awaiting Tutor";
+  if (raw === "pending_tutor_confirmation") return "Awaiting Specialist";
   if (raw === "confirmed") return "Confirmed";
   if (raw === "ready") return "Ready";
   if (raw === "live") return "Live";
@@ -180,7 +165,6 @@ export default function TutorPod() {
   const [communicationDialogOpen, setCommunicationDialogOpen] = useState(false);
   const [reportsDialogOpen, setReportsDialogOpen] = useState(false);
   const [teamDialogOpen, setTeamDialogOpen] = useState(false);
-  const [selectedTeamMemberId, setSelectedTeamMemberId] = useState<string>("");
   const [studentIdentitySheets, setStudentIdentitySheets] = useState<Record<string, any>>({});
   // Force refresh - identity sheet integration
 
@@ -211,6 +195,35 @@ export default function TutorPod() {
 
   const { data: podTeamData, isLoading: podTeamLoading } = useQuery<PodTeamData>({
     queryKey: ["/api/tutor/pod-team"],
+    queryFn: async () => {
+      const raw = await authorizedGetJson<any>("/api/tutor/pod-team");
+      const members = Array.isArray(raw?.members)
+        ? raw.members
+            .map((member: any) => ({
+              id: String(member?.id || ""),
+              name: String(member?.name || "").trim(),
+            }))
+            .filter((member: PodTeamMember) => member.id && member.name)
+        : [];
+
+      return {
+        pod: raw?.pod
+          ? {
+              id: String(raw.pod.id || ""),
+              podName: String(raw.pod.podName || raw.pod.pod_name || ""),
+            }
+          : null,
+        territoryDirector: raw?.territoryDirector
+          ? {
+              id: String(raw.territoryDirector.id || ""),
+              name: String(raw.territoryDirector.name || "").trim(),
+            }
+          : null,
+        members,
+        memberCount: Number(raw?.memberCount ?? members.length),
+        capacity: Number(raw?.capacity ?? 12),
+      };
+    },
     enabled: isAuthenticated && !authLoading,
   });
   const { data: tutorAlignmentSummary } = useQuery<TutorAlignmentSummaryData>({
@@ -279,23 +292,8 @@ export default function TutorPod() {
     if (!member) return false;
     const userId = String((user as any)?.id || "").trim();
     const memberId = String(member.id || "").trim();
-    if (userId && memberId && userId === memberId) return true;
-
-    const userEmail = String((user as any)?.email || "").trim().toLowerCase();
-    const memberEmail = String(member.email || "").trim().toLowerCase();
-    return !!userEmail && !!memberEmail && userEmail === memberEmail;
+    return !!userId && !!memberId && userId === memberId;
   };
-
-  useEffect(() => {
-    if (!teamDialogOpen) return;
-    if (!selectedTeamMemberId) {
-      if (podTeamData?.territoryDirector) {
-        setSelectedTeamMemberId("td");
-      } else if (sortedTeamMembers.length > 0) {
-        setSelectedTeamMemberId(sortedTeamMembers[0].id);
-      }
-    }
-  }, [teamDialogOpen, selectedTeamMemberId, sortedTeamMembers, podTeamData?.territoryDirector]);
 
   // Redirect to gateway if tutor hasn't completed onboarding (no approved application or no pod assignment)
   useEffect(() => {
@@ -454,7 +452,7 @@ export default function TutorPod() {
                   <p className="text-sm text-muted-foreground sm:text-base">
                     {hasPendingApplication
                       ? "Your application is under review. Once approved, this space becomes your operating view for student training and pod work."
-                      : "You do not have any students assigned yet. Pod assignment will unlock your live tutor operating view."}
+                      : "You do not have any students assigned yet. Pod assignment will unlock your live Specialist operating view."}
                   </p>
                 </div>
 
@@ -527,7 +525,6 @@ export default function TutorPod() {
   const selectedStudent = (students as any[]).find((s: any) => s.id === selectedStudentId) || null;
 
   const firstName = user?.name?.split(" ")[0] || "Specialist";
-  const selectedTeamMember = sortedTeamMembers.find((m) => m.id === selectedTeamMemberId) || null;
 
   return (
     <DashboardLayout>
@@ -671,7 +668,7 @@ export default function TutorPod() {
                 </div>
               ) : (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  No tutor audit has been recorded for you yet.
+                  No Specialist audit has been recorded for you yet.
                 </p>
               )}
             </div>
@@ -784,7 +781,7 @@ export default function TutorPod() {
                 <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Team Capacity</p>
                 <p className="mt-2 text-sm text-foreground">Pod Members ({podMemberCount}/{podCapacity})</p>
               </div>
-              <p className="text-sm text-muted-foreground">Use this to review the TD layer and the tutors operating in your pod.</p>
+              <p className="text-sm text-muted-foreground">Use this to review the TD layer and the Specialists operating in your Pod.</p>
               <Button
                 className="w-full justify-start text-sm"
                 variant="outline"
@@ -995,7 +992,7 @@ export default function TutorPod() {
           onOpenChange={setProposalOpen}
           studentId={selectedStudentId}
           studentName={selectedStudentName}
-          tutorName={user?.name || "Your Tutor"}
+          tutorName={user?.name || "Your Specialist"}
           identitySheetData={studentIdentitySheets[selectedStudentId]}
           parentTopics={
             (((podData?.students as any[]) ?? []).find((s: any) => s.id === selectedStudentId)?.parentInfo?.reported_topics as string[] | undefined)?.join(", ") ||
@@ -1049,82 +1046,52 @@ export default function TutorPod() {
         />
 
         <Dialog open={teamDialogOpen} onOpenChange={setTeamDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden p-0">
-            <DialogHeader className="px-6 py-4 border-b border-border/60">
-              <DialogTitle>Pod Team Profiles</DialogTitle>
+          <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Pod Team</DialogTitle>
             </DialogHeader>
-            <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] min-h-[460px]">
-              <div className="border-r border-border/60 p-4 space-y-3 overflow-y-auto">
-                {podTeamData?.territoryDirector ? (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTeamMemberId("td")}
-                    className={`w-full rounded-lg border px-3 py-2 text-left ${
-                      selectedTeamMemberId === "td" ? "border-primary bg-primary/5" : "border-border/60"
-                    }`}
-                  >
-                    <p className="text-sm font-medium text-foreground">{podTeamData.territoryDirector.name}</p>
-                    <p className="text-xs text-muted-foreground">Territory Director</p>
-                  </button>
-                ) : null}
 
+            <div className="space-y-6">
+              {podTeamData?.territoryDirector ? (
+                <section className="space-y-2">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                    Territory Director
+                  </p>
+                  <div className="border border-border/70 bg-muted/20 px-4 py-3">
+                    <p className="text-sm font-medium text-foreground">
+                      {podTeamData.territoryDirector.name}
+                    </p>
+                  </div>
+                </section>
+              ) : null}
+
+              <section className="space-y-2">
+                <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                  Specialists
+                </p>
                 {sortedTeamMembers.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No pod members found.</p>
+                  <p className="text-sm text-muted-foreground">No Pod members found.</p>
                 ) : (
-                  sortedTeamMembers.map((member) => (
-                    <button
-                      key={member.id}
-                      type="button"
-                      onClick={() => setSelectedTeamMemberId(member.id)}
-                      className={`w-full rounded-lg border px-3 py-2 text-left ${
-                        selectedTeamMemberId === member.id ? "border-primary bg-primary/5" : "border-border/60"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-foreground">{member.name}</p>
+                  <div className="divide-y divide-border/60 border border-border/70">
+                    {sortedTeamMembers.map((member) => (
+                      <div key={member.id} className="flex items-center gap-2 px-4 py-3">
+                        <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                          {member.name}
+                        </p>
                         {isCurrentTutor(member) ? (
-                          <Badge variant="outline" className="h-5 px-1.5 text-[10px] leading-none">You</Badge>
+                          <Badge variant="outline" className="h-5 px-1.5 text-[10px] leading-none">
+                            You
+                          </Badge>
                         ) : null}
                       </div>
-                      <p className="text-xs text-muted-foreground">Specialist</p>
-                    </button>
-                  ))
+                    ))}
+                  </div>
                 )}
-              </div>
+              </section>
 
-              <div className="p-6 overflow-y-auto">
-                {selectedTeamMemberId === "td" && podTeamData?.territoryDirector ? (
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-semibold">{podTeamData.territoryDirector.name}</h3>
-                    <p className="text-sm text-muted-foreground">Role: Territory Director</p>
-                    <p className="text-sm text-muted-foreground">Email: {podTeamData.territoryDirector.email || "Not provided"}</p>
-                    <p className="text-sm text-muted-foreground">Phone: {podTeamData.territoryDirector.phone || "Not provided"}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Bio: {podTeamData.territoryDirector.bio || "No bio available."}
-                    </p>
-                  </div>
-                ) : selectedTeamMember ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-semibold">{selectedTeamMember.name}</h3>
-                      {isCurrentTutor(selectedTeamMember) ? (
-                        <Badge variant="outline" className="h-5 px-1.5 text-[10px] leading-none">You</Badge>
-                      ) : null}
-                    </div>
-                    <p className="text-sm text-muted-foreground">Role: Tutor</p>
-                    <p className="text-sm text-muted-foreground">Email: {selectedTeamMember.email || "Not provided"}</p>
-                    <p className="text-sm text-muted-foreground">Phone: {selectedTeamMember.phone || "Not provided"}</p>
-                    <p className="text-sm text-muted-foreground">School: {selectedTeamMember.school || "Not provided"}</p>
-                    <p className="text-sm text-muted-foreground">Grade: {selectedTeamMember.grade ? formatTutorGradeLabel(selectedTeamMember.grade) : "Not provided"}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Certification: {selectedTeamMember.certificationStatus || "pending"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Bio: {selectedTeamMember.bio || "No bio available."}</p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Select a pod member to view profile details.</p>
-                )}
-              </div>
+              <p className="text-xs text-muted-foreground">
+                Pod team view shows names only. Contact and profile details remain private.
+              </p>
             </div>
           </DialogContent>
         </Dialog>

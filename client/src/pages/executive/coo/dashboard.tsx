@@ -42,15 +42,15 @@ import { Link } from "react-router-dom";
 function getOperatingStateBadgeClass(stateKey?: string) {
   switch (stateKey) {
     case "certified_live":
-      return "bg-emerald-100 text-emerald-800 border-emerald-200";
+      return "bg-emerald-500/10 text-foreground border-emerald-500/25";
     case "sandbox_training":
-      return "bg-sky-100 text-sky-800 border-sky-200";
+      return "bg-sky-500/10 text-foreground border-sky-500/25";
     case "trial_validation":
-      return "bg-amber-100 text-amber-900 border-amber-200";
+      return "bg-amber-500/10 text-foreground border-amber-500/25";
     case "training_plant":
-      return "bg-slate-100 text-slate-800 border-slate-200";
+      return "bg-muted text-foreground border-border";
     case "misaligned":
-      return "bg-rose-100 text-rose-800 border-rose-200";
+      return "bg-rose-500/10 text-foreground border-rose-500/25";
     default:
       return "bg-muted text-muted-foreground border-border";
   }
@@ -60,22 +60,22 @@ const OPERATING_POD_SECTIONS = [
   {
     key: "training_plant",
     title: "Training Plant Pods",
-    description: "Pods containing only tutors still in pre-sandbox conditioning states.",
+    description: "Pods containing only Specialists still in pre-sandbox development states.",
   },
   {
     key: "sandbox_training",
     title: "Sandbox Training Pods",
-    description: "Pods containing only sandbox tutors training on sandbox parents.",
+    description: "Pods containing only Sandbox Specialists working with synthetic Sandbox families.",
   },
   {
     key: "trial_validation",
     title: "Trial Validation Pods",
-    description: "Pods containing tutors delivering bounded live validation to exactly two Trial families.",
+    description: "Pods containing Specialists delivering bounded live validation to exactly two Trial families.",
   },
   {
     key: "certified_live",
     title: "Certified Live Pods",
-    description: "Pods containing only certified live tutors carrying real operating responsibility.",
+    description: "Pods containing only Certified Live Specialists carrying real operating responsibility.",
   },
   {
     key: "misaligned",
@@ -488,7 +488,7 @@ export default function COODashboard() {
                     <h3 className="font-semibold text-sm">Leads ({leads.length})</h3>
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {leads.map((lead: any) => (
-                        <div key={lead.id} className="p-3 bg-blue-50 rounded text-sm">
+                        <div key={lead.id} className="border border-border/60 bg-muted/20 p-3 text-sm">
                           <p className="font-medium">Lead #{lead.id?.slice(0, 8)}</p>
                           {lead.tracking_source && (
                             <Badge variant="secondary" className="text-xs">
@@ -510,7 +510,7 @@ export default function COODashboard() {
                     <h3 className="font-semibold text-sm">Closes ({closes.length})</h3>
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {closes.map((close: any) => (
-                        <div key={close.id} className="p-3 bg-green-50 rounded text-sm">
+                        <div key={close.id} className="border border-border/60 bg-muted/20 p-3 text-sm">
                           <p className="font-medium">Close #{close.id?.slice(0, 8)}</p>
                           <Badge className="bg-green-600 text-xs">Converted</Badge>
                           <p className="text-xs text-muted-foreground mt-2">
@@ -537,7 +537,7 @@ export default function COODashboard() {
       <div className="space-y-8">
         {/* Contribution Integrity quick launch */}
         <section>
-          <Card className="border-slate-200 bg-gradient-to-br from-[#F9FAFB] via-white to-[#FFF8F0]">
+          <Card className="rounded-none border-border/70 bg-background">
             <CardHeader>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -574,7 +574,7 @@ export default function COODashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground text-sm">Protect institutional credibility, maintain tutor standards, automate compliance actions, and maintain trust with schools. Full compliance engine for academic review.</p>
+              <p className="text-muted-foreground text-sm">Protect institutional credibility, maintain Specialist standards, automate compliance actions, and maintain trust with schools.</p>
             </CardContent>
           </Card>
         </section>}
@@ -712,7 +712,7 @@ export default function COODashboard() {
                           <Card
                             data-testid={`card-pod-${pod.id}`}
                             className={`transition-all hover:border-primary/50 hover:shadow-md ${
-                              section.key === "misaligned" ? "border-rose-200 bg-rose-50/30" : ""
+                              section.key === "misaligned" ? "border-rose-500/25 bg-rose-500/10" : ""
                             }`}
                           >
                             <CardHeader>
@@ -757,7 +757,7 @@ export default function COODashboard() {
                                 {operatingOverview && (
                                   <>
                                     <div className="flex justify-between">
-                                      <span className="font-medium">Tutor Mix:</span>
+                                      <span className="font-medium">Specialist Mix:</span>
                                       <span className="text-right text-muted-foreground">
                                         Live {operatingOverview.tutorModeCounts?.certified_live || 0} • Trial {operatingOverview.tutorModeCounts?.trial || 0} • Sandbox {operatingOverview.tutorModeCounts?.sandbox || 0} • Training {((operatingOverview.tutorModeCounts?.training || 0) + (operatingOverview.tutorModeCounts?.applicant || 0) + (operatingOverview.tutorModeCounts?.watchlist || 0) + (operatingOverview.tutorModeCounts?.suspended || 0))}
                                       </span>
@@ -769,8 +769,8 @@ export default function COODashboard() {
                                       </span>
                                     </div>
                                     {section.key === "misaligned" ? (
-                                      <p className="rounded-lg border border-rose-200 bg-white/70 px-3 py-2 text-xs text-rose-800">
-                                        This pod is mixing operating states. Split tutors into state-pure pods.
+                                      <p className="border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                                        This Pod is mixing operating states. Split Specialists into state-pure Pods.
                                       </p>
                                     ) : null}
                                   </>
@@ -845,7 +845,7 @@ export default function COODashboard() {
                           {operatingOverview && (
                             <>
                               <div className="flex justify-between">
-                                <span className="font-medium">Tutor Mix:</span>
+                                <span className="font-medium">Specialist Mix:</span>
                                 <span className="text-right text-muted-foreground">
                                   Live {operatingOverview.tutorModeCounts?.certified_live || 0} • Trial {operatingOverview.tutorModeCounts?.trial || 0} • Sandbox {operatingOverview.tutorModeCounts?.sandbox || 0} • Training {((operatingOverview.tutorModeCounts?.training || 0) + (operatingOverview.tutorModeCounts?.applicant || 0) + (operatingOverview.tutorModeCounts?.watchlist || 0) + (operatingOverview.tutorModeCounts?.suspended || 0))}
                                 </span>

@@ -199,30 +199,30 @@ export function COOAffiliateApplicationsPanel() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-end">
-        <Badge className="bg-amber-100 text-amber-900">{pendingApplications.length} Pending</Badge>
+        <Badge className="bg-amber-500/10 text-foreground">{pendingApplications.length} Pending</Badge>
       </div>
 
       {!isLoading ? (
         <div className="grid gap-4 md:grid-cols-3">
-          <Card className="border-amber-200 bg-amber-50">
+          <Card className="border-amber-500/25 bg-amber-500/10">
             <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-amber-800">Needs Review</p>
-              <p className="mt-1 text-2xl font-semibold text-amber-950">{reviewQueueApplications.length}</p>
-              <p className="text-xs text-amber-900/80">COO action required right now</p>
+              <p className="text-xs uppercase tracking-wide text-foreground">Needs Review</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{reviewQueueApplications.length}</p>
+              <p className="text-xs text-muted-foreground">COO action required right now</p>
             </CardContent>
           </Card>
-          <Card className="border-slate-200">
+          <Card className="border-border">
             <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-slate-700">Waiting On EGP</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-950">{waitingOnEgpApplications.length}</p>
-              <p className="text-xs text-slate-600">EGP still needs to upload or finish a step</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Waiting On EGP</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{waitingOnEgpApplications.length}</p>
+              <p className="text-xs text-muted-foreground">EGP still needs to upload or finish a step</p>
             </CardContent>
           </Card>
-          <Card className="border-green-200 bg-green-50">
+          <Card className="border-emerald-500/25 bg-emerald-500/10">
             <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-green-800">Complete</p>
-              <p className="mt-1 text-2xl font-semibold text-green-950">{completedApplications.length}</p>
-              <p className="text-xs text-green-900/80">Ready for the next operational stage</p>
+              <p className="text-xs uppercase tracking-wide text-foreground">Complete</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{completedApplications.length}</p>
+              <p className="text-xs text-muted-foreground">Ready for the next operational stage</p>
             </CardContent>
           </Card>
         </div>
@@ -280,7 +280,7 @@ export function COOAffiliateApplicationsPanel() {
                 <span>Waiting On EGP</span>
               </span>
               {waitingOnEgpApplications.length > 0 ? (
-                <Badge className="h-5 min-w-5 bg-amber-100 px-1.5 text-[10px] text-amber-900 border border-amber-200">
+                <Badge className="h-5 min-w-5 bg-amber-500/10 px-1.5 text-[10px] text-foreground border border-amber-500/25">
                   {waitingOnEgpApplications.length > 99 ? "99+" : waitingOnEgpApplications.length}
                 </Badge>
               ) : (
@@ -360,7 +360,7 @@ export function COOAffiliateApplicationsPanel() {
             ) : null}
 
             {(selectedApplication.documents_status?.["5"] || selectedApplication.documentsStatus?.["5"]) === "pending_review" ? (
-              <div className="space-y-4 rounded-2xl border border-[#E7D5C8] bg-[#FFF8F4] p-4">
+              <div className="space-y-4 border border-border/70 bg-muted/20 p-4">
                 <div>
                   <p className="font-semibold">Response Integrity-EGP-005 review</p>
                   <p className="text-sm text-muted-foreground">Review the certified ID copy and approve or reject the upload.</p>
@@ -370,12 +370,12 @@ export function COOAffiliateApplicationsPanel() {
                     href={selectedApplication.doc_5_submission_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex text-sm font-medium text-[#9F1D2B] underline underline-offset-2"
+                    className="inline-flex text-sm font-medium text-primary underline underline-offset-2"
                   >
                     Open certified ID copy
                   </a>
                 ) : (
-                  <p className="text-sm text-red-700">No certified ID upload URL was found for this step.</p>
+                  <p className="text-sm text-destructive">No certified ID upload URL was found for this step.</p>
                 )}
                 <div className="space-y-2">
                   <Label htmlFor="egp-doc-review-reason">Rejection reason</Label>
@@ -445,17 +445,17 @@ const tdQuestionPrompts: Array<{ key: string; label: string }> = [
   { key: "systemUnderstandingDifference", label: "Q1. What is the difference between teaching content and training response?" },
   { key: "studentFreezesBreak", label: "Q2. A student understands a topic but freezes during tests. What is actually broken?" },
   { key: "explainingBetterNotEnough", label: "Q3. Why is explaining better often not enough?" },
-  { key: "supervisingTutorAction", label: "Q4. A tutor explains too much, helps too early, and avoids struggle. What do you do?" },
-  { key: "frustrationResponse", label: "Q5. The tutor says \"I did not want the student to feel frustrated.\" How do you respond?" },
-  { key: "adjustSystemAnswer", label: "Q6. Would you allow a tutor to adjust the system to suit their style? Why or why not?" },
+  { key: "supervisingTutorAction", label: "Q4. A Specialist explains too much, helps too early, and avoids struggle. What do you do?" },
+  { key: "frustrationResponse", label: "Q5. The Specialist says \"I did not want the student to feel frustrated.\" How do you respond?" },
+  { key: "adjustSystemAnswer", label: "Q6. Would you allow a Specialist to adjust the system to suit their style? Why or why not?" },
   { key: "highToMediumCauses", label: "Q7. A student moves from High to Medium. What are 3 possible causes?" },
-  { key: "highScoresNoImprovement", label: "Q8. A tutor gets high session scores but students are not improving long-term. What could be wrong?" },
-  { key: "sharedTutorMistakeMeaning", label: "Q9. If multiple tutors show the same mistake, what does that indicate?" },
+  { key: "highScoresNoImprovement", label: "Q8. A Specialist gets high session scores but students are not improving long-term. What could be wrong?" },
+  { key: "sharedTutorMistakeMeaning", label: "Q9. If multiple Specialists show the same mistake, what does that indicate?" },
   { key: "correctOlderTutor", label: "Q10. You must correct someone older than you who is not following the system. How do you handle it?" },
-  { key: "pushbackResponse", label: "Q11. A tutor disagrees with your correction and pushes back. What do you do?" },
+  { key: "pushbackResponse", label: "Q11. A Specialist disagrees with your correction and pushes back. What do you do?" },
   { key: "unpopularEnforcementCase", label: "Q12. Describe a situation where you had to enforce something unpopular. What happened?" },
   { key: "noRescueExplanation", label: "Q13. Explain in a structured way: \"Why must a student not be rescued during difficulty?\"" },
-  { key: "moreDangerousTutor", label: "Q14. What is more dangerous: a weak tutor, or a slightly wrong tutor who seems good?" },
+  { key: "moreDangerousTutor", label: "Q14. What is more dangerous: a weak Specialist, or a slightly wrong Specialist who seems good?" },
   { key: "systemDestructionFactors", label: "Q15. What would slowly destroy a system like Response Integrity over time?" },
   { key: "trustReason", label: "Q17. Why should you be trusted to protect a system like this?" },
 ];
@@ -637,30 +637,30 @@ export function COOTdApplicationsPanel() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-end">
-        <Badge className="bg-amber-100 text-amber-900">{pendingApplications.length} Pending</Badge>
+        <Badge className="bg-amber-500/10 text-foreground">{pendingApplications.length} Pending</Badge>
       </div>
 
       {!isLoading ? (
         <div className="grid gap-4 md:grid-cols-3">
-          <Card className="border-amber-200 bg-amber-50">
+          <Card className="border-amber-500/25 bg-amber-500/10">
             <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-amber-800">Needs Review</p>
-              <p className="mt-1 text-2xl font-semibold text-amber-950">{tdReviewQueueApplications.length}</p>
-              <p className="text-xs text-amber-900/80">COO action required right now</p>
+              <p className="text-xs uppercase tracking-wide text-foreground">Needs Review</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{tdReviewQueueApplications.length}</p>
+              <p className="text-xs text-muted-foreground">COO action required right now</p>
             </CardContent>
           </Card>
-          <Card className="border-slate-200">
+          <Card className="border-border">
             <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-slate-700">Waiting On TD</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-950">{waitingOnTdApplications.length}</p>
-              <p className="text-xs text-slate-600">Approved but still moving through onboarding</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Waiting On TD</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{waitingOnTdApplications.length}</p>
+              <p className="text-xs text-muted-foreground">Approved but still moving through onboarding</p>
             </CardContent>
           </Card>
-          <Card className="border-green-200 bg-green-50">
+          <Card className="border-emerald-500/25 bg-emerald-500/10">
             <CardContent className="p-4">
-              <p className="text-xs uppercase tracking-wide text-green-800">Completed</p>
-              <p className="mt-1 text-2xl font-semibold text-green-950">{completedApplications.length}</p>
-              <p className="text-xs text-green-900/80">All seven TD onboarding steps completed</p>
+              <p className="text-xs uppercase tracking-wide text-foreground">Completed</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{completedApplications.length}</p>
+              <p className="text-xs text-muted-foreground">All seven TD onboarding steps completed</p>
             </CardContent>
           </Card>
         </div>
@@ -696,7 +696,7 @@ export function COOTdApplicationsPanel() {
                 <span>Waiting On TD</span>
               </span>
               {waitingOnTdApplications.length > 0 ? (
-                <Badge className="h-5 min-w-5 bg-amber-100 px-1.5 text-[10px] text-amber-900 border border-amber-200">
+                <Badge className="h-5 min-w-5 bg-amber-500/10 px-1.5 text-[10px] text-foreground border border-amber-500/25">
                   {waitingOnTdApplications.length > 99 ? "99+" : waitingOnTdApplications.length}
                 </Badge>
               ) : (
@@ -777,7 +777,7 @@ export function COOTdApplicationsPanel() {
             ) : null}
 
             {(selectedApplication.documents_status?.["7"] || selectedApplication.documentsStatus?.["7"]) === "pending_review" ? (
-              <div className="space-y-4 rounded-2xl border border-[#E7D5C8] bg-[#FFF8F4] p-4">
+              <div className="space-y-4 border border-border/70 bg-muted/20 p-4">
                 <div>
                   <p className="font-semibold">Response Integrity-TDI-007 review</p>
                   <p className="text-sm text-muted-foreground">Review the certified identification copy and approve or reject the upload.</p>
@@ -787,12 +787,12 @@ export function COOTdApplicationsPanel() {
                     href={selectedApplication.doc_7_submission_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex text-sm font-medium text-[#9F1D2B] underline underline-offset-2"
+                    className="inline-flex text-sm font-medium text-primary underline underline-offset-2"
                   >
                     Open certified identification copy
                   </a>
                 ) : (
-                  <p className="text-sm text-red-700">No identification upload URL was found for this step.</p>
+                  <p className="text-sm text-destructive">No identification upload URL was found for this step.</p>
                 )}
                 <div className="space-y-2">
                   <Label htmlFor="td-doc-review-reason">Rejection reason</Label>
@@ -935,9 +935,9 @@ function AffiliateApplicationDetails({ application }: { application: any }) {
         <h3 className="border-b pb-2 text-lg font-semibold">Application Answers</h3>
         <div className="space-y-4">
           {questions.map(([label, value]) => (
-            <div key={label} className="rounded-xl border border-[#E7D5C8] bg-[#FFF8F4] p-4">
-              <p className="text-sm font-semibold text-[#1A1A1A]">{label}</p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[#5A5A5A]">{value || "Not provided"}</p>
+            <div key={label} className="border border-border/70 bg-muted/20 p-4">
+              <p className="text-sm font-semibold text-foreground">{label}</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{value || "Not provided"}</p>
             </div>
           ))}
         </div>
@@ -965,7 +965,7 @@ function AffiliateApplicationDetails({ application }: { application: any }) {
           label="Certified ID copy"
           value={
             application.doc_5_submission_url ? (
-              <a href={application.doc_5_submission_url} target="_blank" rel="noreferrer" className="text-[#9F1D2B] underline underline-offset-2">
+              <a href={application.doc_5_submission_url} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">
                 Open uploaded file
               </a>
             ) : "Not uploaded"
@@ -1013,23 +1013,23 @@ function TdApplicationDetails({ application }: { application: any }) {
             const acceptance = acceptanceMap[String(document.step)];
             const documentFileUrl = document.step === 7 ? (application.doc_7_submission_url || application.doc7SubmissionUrl) : null;
             return (
-              <div key={document.step} className="rounded-xl border border-[#E7D5C8] bg-[#FFF8F4] p-4">
+              <div key={document.step} className="border border-border/70 bg-muted/20 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-[#1A1A1A]">{document.code}</p>
-                    <p className="mt-1 text-sm text-[#5A5A5A]">{document.title}</p>
+                    <p className="text-sm font-semibold text-foreground">{document.code}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{document.title}</p>
                   </div>
                   <Badge variant={status === "approved" ? "default" : "secondary"}>
                     {formatTdStepStatus(status)}
                   </Badge>
                 </div>
-                <div className="mt-3 space-y-1 text-xs text-[#6B5B52]">
+                <div className="mt-3 space-y-1 text-xs text-muted-foreground">
                   <p>Step {document.step} of 7</p>
                   <p>Accepted at: {formatTdDateTime(acceptance?.accepted_at || acceptance?.acceptedAt)}</p>
                   <p>Accepted by: {acceptance?.typed_full_name || acceptance?.typedFullName || "Not yet accepted"}</p>
                   {documentFileUrl ? (
                     <p>
-                      File: <a href={String(documentFileUrl)} target="_blank" rel="noreferrer" className="text-[#9F1D2B] underline underline-offset-2">Open upload</a>
+                      File: <a href={String(documentFileUrl)} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">Open upload</a>
                     </p>
                   ) : null}
                 </div>
@@ -1097,9 +1097,9 @@ function TdApplicationDetails({ application }: { application: any }) {
         <h3 className="border-b pb-2 text-lg font-semibold">Application Answers</h3>
         <div className="space-y-4">
           {tdQuestionPrompts.map(({ key, label }) => (
-            <div key={key} className="rounded-xl border border-[#E7D5C8] bg-[#FFF8F4] p-4">
-              <p className="text-sm font-semibold text-[#1A1A1A]">{label}</p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[#5A5A5A]">{responses[key] || "Not provided"}</p>
+            <div key={key} className="border border-border/70 bg-muted/20 p-4">
+              <p className="text-sm font-semibold text-foreground">{label}</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{responses[key] || "Not provided"}</p>
             </div>
           ))}
         </div>
@@ -1141,12 +1141,12 @@ function CompletedEgpApplicationCard({
   };
 
   return (
-    <Card className="border border-emerald-200 bg-emerald-50/40">
+    <Card className="border border-emerald-500/25 bg-emerald-500/10">
       <CardHeader className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <CardTitle className="flex items-center gap-2 text-xl">
-              <ShieldCheck className="h-5 w-5 text-emerald-700" />
+              <ShieldCheck className="h-5 w-5 text-foreground" />
               <span>{application.full_name || application.fullName}</span>
             </CardTitle>
             <CardDescription className="mt-1">
@@ -1154,7 +1154,7 @@ function CompletedEgpApplicationCard({
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge className="bg-emerald-100 text-emerald-900 border border-emerald-200">Onboarding Complete</Badge>
+            <Badge className="bg-emerald-500/10 text-foreground border border-emerald-500/25">Onboarding Complete</Badge>
             <Badge variant="outline">
               Completed {completedAt ? format(new Date(completedAt), "PPP") : "Not available"}
             </Badge>
@@ -1163,20 +1163,20 @@ function CompletedEgpApplicationCard({
 
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
           {[1, 2, 3, 4, 5].map((step) => (
-            <div key={step} className="rounded-xl border border-emerald-200 bg-white p-3">
-              <p className="text-[11px] uppercase tracking-wide text-emerald-800">{egpStepMeta[step].code}</p>
-              <p className="mt-1 text-sm font-semibold text-emerald-900">{getEgpProgressLabel(step, String(statuses[String(step)] || "not_started"))}</p>
+            <div key={step} className="rounded-xl border border-emerald-500/25 bg-background p-3">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{egpStepMeta[step].code}</p>
+              <p className="mt-1 text-sm font-semibold text-foreground">{getEgpProgressLabel(step, String(statuses[String(step)] || "not_started"))}</p>
               <p className="mt-1 text-xs text-muted-foreground">{egpStepMeta[step].shortTitle}</p>
             </div>
           ))}
         </div>
 
-        <details className="rounded-xl border border-emerald-200 bg-white p-4">
+        <details className="rounded-xl border border-emerald-500/25 bg-background p-4">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-emerald-700" />
+              <ShieldCheck className="h-4 w-4 text-foreground" />
               <div>
-                <p className="font-medium text-emerald-950">Evidence</p>
+                <p className="font-medium text-foreground">Evidence</p>
                 <p className="text-sm text-muted-foreground">Accepted agreements, timestamps, and uploaded proof.</p>
               </div>
             </div>
@@ -1191,7 +1191,7 @@ function CompletedEgpApplicationCard({
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-medium">{egpStepMeta[step].code}</p>
-                      <Badge className="bg-green-100 text-green-800 border-green-200">Accepted</Badge>
+                      <Badge className="bg-emerald-500/10 text-foreground border-emerald-500/25">Accepted</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">{egpStepMeta[step].shortTitle}</p>
                     <p className="text-xs text-muted-foreground">
@@ -1215,7 +1215,7 @@ function CompletedEgpApplicationCard({
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-medium">Response Integrity-EGP-005</p>
-                  <Badge className="bg-green-100 text-green-800 border-green-200">Approved</Badge>
+                  <Badge className="bg-emerald-500/10 text-foreground border-emerald-500/25">Approved</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">Certified ID Copy</p>
                 {application.doc_5_submission_uploaded_at ? (

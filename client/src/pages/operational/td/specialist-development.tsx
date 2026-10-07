@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -25,7 +25,9 @@ type CapabilityAssessment = {
     | "transformation_transfer"
     | "execution_standards_mastery"
     | "system_intelligence_mastery"
-    | "session_infrastructure_mastery";
+    | "session_infrastructure_mastery"
+    | "operating_system_retrieval"
+    | "operating_system_transfer";
   bankVersion: number | null;
   attemptCount: number;
   maxAttempts: number | null;
@@ -97,6 +99,7 @@ type DevelopmentRecord = {
       executionStandards: { complete: number; total: number };
       systemIntelligence: { complete: number; total: number };
       sessionInfrastructure: { complete: number; total: number };
+      operatingSystem: { complete: number; total: number };
     };
   };
   sandbox: {
@@ -280,16 +283,31 @@ function AssessmentSection({
 
 export default function SpecialistDevelopmentRecordPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { podId, tutorId } = useParams<{ podId: string; tutorId: string }>();
+  const isCooView =
+    location.pathname.startsWith("/executive/coo/") ||
+    location.pathname.startsWith("/coo/");
+  const isLegacyCooView = location.pathname.startsWith("/coo/");
+  const recordApiBase = isCooView ? "/api/coo" : "/api/td";
+  const backToPodPath = isCooView
+    ? podId
+      ? `${isLegacyCooView ? "/coo/pods" : "/executive/coo/pods"}/${podId}`
+      : isLegacyCooView
+        ? "/coo/pods"
+        : "/executive/coo/pods"
+    : podId
+      ? `/operational/td/my-pods/${podId}`
+      : "/operational/td/my-pods";
 
   const recordQuery = useQuery<DevelopmentRecord>({
-    queryKey: ["/api/td/tutors", tutorId, "development-record"],
+    queryKey: [recordApiBase, "tutors", tutorId, "development-record"],
     enabled: Boolean(tutorId),
     retry: false,
     queryFn: async () => {
       const response = await apiRequest(
         "GET",
-        `/api/td/tutors/${encodeURIComponent(String(tutorId || ""))}/development-record`,
+        `${recordApiBase}/tutors/${encodeURIComponent(String(tutorId || ""))}/development-record`,
       );
       return response.json();
     },
@@ -312,13 +330,7 @@ export default function SpecialistDevelopmentRecordPage() {
           <Button
             variant="ghost"
             className="-ml-3"
-            onClick={() =>
-              navigate(
-                podId
-                  ? `/operational/td/my-pods/${podId}`
-                  : "/operational/td/my-pods",
-              )
-            }
+            onClick={() => navigate(backToPodPath)}
           >
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Pod
           </Button>
@@ -355,6 +367,11 @@ export default function SpecialistDevelopmentRecordPage() {
   const sessionInfrastructure = assessments.filter(
     (entry) => entry.stage === "session_infrastructure_mastery",
   );
+  const operatingSystem = assessments.filter(
+    (entry) =>
+      entry.stage === "operating_system_retrieval" ||
+      entry.stage === "operating_system_transfer",
+  );
 
   return (
     <div className="min-h-screen bg-background px-4 py-8">
@@ -363,13 +380,7 @@ export default function SpecialistDevelopmentRecordPage() {
           <Button
             variant="ghost"
             className="-ml-3 mb-3"
-            onClick={() =>
-              navigate(
-                podId
-                  ? `/operational/td/my-pods/${podId}`
-                  : "/operational/td/my-pods",
-              )
-            }
+            onClick={() => navigate(backToPodPath)}
           >
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Pod
           </Button>
@@ -509,13 +520,14 @@ export default function SpecialistDevelopmentRecordPage() {
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-6">
             {[
               ["Transformation", record.training.summary.transformation],
-              ["Retention + Application", record.training.summary.cumulative],
+              ["Transformation Retention + Application", record.training.summary.cumulative],
               ["Execution Standards", record.training.summary.executionStandards],
               ["System Intelligence", record.training.summary.systemIntelligence],
               ["Session Infrastructure", record.training.summary.sessionInfrastructure],
+              ["Operating System", record.training.summary.operatingSystem],
             ].map(([label, raw]) => {
               const summary = raw as { complete: number; total: number };
               return (
@@ -559,6 +571,11 @@ export default function SpecialistDevelopmentRecordPage() {
             title="Session Infrastructure"
             detail="The session system, logging, drill authority, Handover and tools."
             assessments={sessionInfrastructure}
+          />
+          <AssessmentSection
+            title="Operating System Retention + Application"
+            detail="Final cumulative evidence across Execution Standards, System Intelligence and Session Infrastructure after spacing and mixed-situation application."
+            assessments={operatingSystem}
           />
         </section>
 
@@ -655,7 +672,7 @@ export default function SpecialistDevelopmentRecordPage() {
             </CardContent>
           </Card>
 
-          {record.assignment.operationalMode === "sandbox" ? (
+          {!isCooView && record.assignment.operationalMode === "sandbox" ? (
             <SandboxReadinessAssessmentCard
               tutorId={record.specialist.id}
               tutorName={record.specialist.name}

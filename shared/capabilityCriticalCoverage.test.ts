@@ -31,6 +31,6 @@ test("all mastery checks require every critical boundary in their Deep Dive", ()
 
 test("all cumulative retrieval and transfer checks require one critical boundary per covered Deep Dive", () => {
   const cumulative = CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter((entry) => entry.evidenceKind !== "mastery");
-  assert.equal(cumulative.length, 5);
+  assert.equal(cumulative.length, 7);
   assert.ok(cumulative.every((entry) => entry.criticalCoverageMode === "one_per_deep_dive"));
 });

@@ -682,7 +682,7 @@ function buildTutorAgreementBody(document: OnboardingDocumentDefinition, formDat
 
           <TutorAgreementSection title="Operating Standards">
             <p>The Contractor agrees to the following:</p>
-            <TutorAgreementList items={["All sessions must follow the phase-appropriate Response Integrity-OS requirements without tutor improvisation"]} />
+            <TutorAgreementList items={["All sessions must follow the phase-appropriate Response Integrity-OS requirements without Specialist improvisation"]} />
             <p>The following are not permitted:</p>
             <TutorAgreementList items={[
               "Explaining instead of training",
