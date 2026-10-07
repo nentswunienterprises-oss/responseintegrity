@@ -322,6 +322,8 @@ export function buildCapabilityTrainingAvailability(input: {
         entry.assessmentKey === TRANSFORMATION_TRANSFER_ASSESSMENT_KEY ||
         entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY ||
         entry.assessmentKey === OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY ||
+        stage === "execution_standards_mastery" ||
+        stage === "system_intelligence_mastery" ||
         stage === "session_infrastructure_mastery");
 
     if (founderReviewMode) {
