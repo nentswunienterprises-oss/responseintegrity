@@ -392,6 +392,19 @@ async function loadSpecialistDevelopmentRecordPayload(tutorId: string) {
             assessments,
             "session_infrastructure_mastery",
           ),
+          operatingSystem: {
+            complete: assessments.filter(
+              (assessment) =>
+                (assessment.stage === "operating_system_retrieval" ||
+                  assessment.stage === "operating_system_transfer") &&
+                assessment.status === "complete",
+            ).length,
+            total: assessments.filter(
+              (assessment) =>
+                assessment.stage === "operating_system_retrieval" ||
+                assessment.stage === "operating_system_transfer",
+            ).length,
+          },
         },
       },
       sandbox: {

@@ -26,6 +26,8 @@ const TRANSFORMATION_CUMULATIVE_FORM_SIZE = 25;
 const TRANSFORMATION_CUMULATIVE_MINIMUM_POOL_SIZE = 25;
 const FUTURE_CUMULATIVE_FORM_SIZE = 20;
 const FUTURE_CUMULATIVE_MINIMUM_POOL_SIZE = 40;
+const OPERATING_SYSTEM_CUMULATIVE_FORM_SIZE = 30;
+const OPERATING_SYSTEM_CUMULATIVE_MINIMUM_POOL_SIZE = 60;
 const CUMULATIVE_PASS_THRESHOLD_PERCENT = 96;
 
 const masteryEntry = (
@@ -68,6 +70,64 @@ export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] 
     criticalCoverageMode: "one_per_deep_dive",
     purpose:
       "Re-test the Transformation Phases after a spacing interval so recognition and operating boundaries must be retrieved rather than immediately repeated.",
+  },
+  {
+    assessmentKey: "operating_system_retrieval_v1",
+    title: "Operating System Delayed Retrieval",
+    evidenceKind: "retrieval",
+    coveredDeepDiveKeys: [
+      "how_to_model",
+      "how_to_intervene",
+      "how_to_use_boss_battles",
+      "what_not_to_do",
+      "emotional_discipline_under_discomfort",
+      "how_to_diagnose",
+      "how_to_interpret_prompts",
+      "how_baselines_are_established",
+      "how_the_system_resolves_uncertainty",
+      "intro_session_structure",
+      "logging_system",
+      "session_flow_control",
+      "drill_library",
+      "handover_verification",
+      "tools_required",
+    ],
+    formSize: OPERATING_SYSTEM_CUMULATIVE_FORM_SIZE,
+    minimumItemPoolSize: OPERATING_SYSTEM_CUMULATIVE_MINIMUM_POOL_SIZE,
+    passThresholdPercent: CUMULATIVE_PASS_THRESHOLD_PERCENT,
+    minimumDelayHours: 24,
+    criticalCoverageMode: "one_per_deep_dive",
+    purpose:
+      "Re-test the post-Sandbox operating system after spacing so the Specialist must retrieve execution, system-intelligence and session-infrastructure rules without relying on immediate Deep Dive context.",
+  },
+  {
+    assessmentKey: "operating_system_transfer_v1",
+    title: "Operating System Interleaved Transfer",
+    evidenceKind: "transfer",
+    coveredDeepDiveKeys: [
+      "how_to_model",
+      "how_to_intervene",
+      "how_to_use_boss_battles",
+      "what_not_to_do",
+      "emotional_discipline_under_discomfort",
+      "how_to_diagnose",
+      "how_to_interpret_prompts",
+      "how_baselines_are_established",
+      "how_the_system_resolves_uncertainty",
+      "intro_session_structure",
+      "logging_system",
+      "session_flow_control",
+      "drill_library",
+      "handover_verification",
+      "tools_required",
+    ],
+    formSize: OPERATING_SYSTEM_CUMULATIVE_FORM_SIZE,
+    minimumItemPoolSize: OPERATING_SYSTEM_CUMULATIVE_MINIMUM_POOL_SIZE,
+    passThresholdPercent: CUMULATIVE_PASS_THRESHOLD_PERCENT,
+    minimumDelayHours: 0,
+    criticalCoverageMode: "one_per_deep_dive",
+    purpose:
+      "Mix execution, diagnosis, evidence, continuity and delivery scenarios so the Specialist must preserve the RI operating chain across module boundaries without being told which Deep Dive or rule governs the case.",
   },
   {
     assessmentKey: "session_infrastructure_retrieval_v1",
@@ -183,13 +243,19 @@ export const TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY =
   "transformation_phases_retrieval_v1";
 export const TRANSFORMATION_TRANSFER_ASSESSMENT_KEY =
   "transformation_state_transfer_v1";
+export const OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY =
+  "operating_system_retrieval_v1";
+export const OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY =
+  "operating_system_transfer_v1";
 
 export const CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1 =
   CAPABILITY_MVP_ASSESSMENT_PLAN_V1.filter(
     (entry) =>
       entry.evidenceKind === "mastery" ||
       entry.assessmentKey === TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY ||
-      entry.assessmentKey === TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
+      entry.assessmentKey === TRANSFORMATION_TRANSFER_ASSESSMENT_KEY ||
+      entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY ||
+      entry.assessmentKey === OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY,
   );
 
 export function getCapabilityMvpAssessmentPlanEntry(assessmentKey: string) {
