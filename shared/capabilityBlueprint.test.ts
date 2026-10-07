@@ -31,20 +31,6 @@ const expectedKeys = [
   "tools_required",
 ].sort();
 
-const originalFullEvidenceKeys = new Set([
-  "topic_conditioning",
-  "clarity",
-  "structured_execution",
-  "controlled_discomfort",
-  "time_pressure_stability",
-  "intro_session_structure",
-  "session_flow_control",
-  "drill_library",
-  "logging_system",
-  "handover_verification",
-  "tools_required",
-]);
-
 const blueprintKeys = CAPABILITY_DEEP_DIVE_BLUEPRINTS.map((deepDive) => deepDive.key).sort();
 
 function deepDive(key: string) {
@@ -91,22 +77,17 @@ test("every Deep Dive has a capability, competencies, critical boundaries, and M
   }
 });
 
-test("required evidence contains 42 capability cells", () => {
+test("required evidence contains 60 capability cells", () => {
   const cells = getRequiredCapabilityEvidenceCells();
-  assert.equal(cells.length, 42);
-  assert.equal(new Set(cells.map((cell) => cell.code)).size, 42);
+  assert.equal(cells.length, 60);
+  assert.equal(new Set(cells.map((cell) => cell.code)).size, 60);
 
   for (const entry of CAPABILITY_DEEP_DIVE_BLUEPRINTS) {
     const coverage = cells
       .filter((cell) => cell.deepDiveKey === entry.key)
       .map((cell) => cell.evidenceKind)
       .sort();
-    assert.deepEqual(
-      coverage,
-      originalFullEvidenceKeys.has(entry.key)
-        ? ["mastery", "retrieval", "transfer"]
-        : ["mastery"],
-    );
+    assert.deepEqual(coverage, ["mastery", "retrieval", "transfer"]);
   }
 });
 
