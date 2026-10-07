@@ -56,7 +56,7 @@ test("synthetic banks can validate without publishing answer-bearing assessment 
 test("synthetic coverage records five evidence cells without requiring public private-bank content", () => {
   const summary = summarizeCapabilityBankCoverage(coverage);
   assert.equal(summary.coveredEvidenceCells.length, 5);
-  assert.equal(summary.missingEvidenceCells.length, 37);
+  assert.equal(summary.missingEvidenceCells.length, 55);
   assert.deepEqual(summary.coveredEvidenceCells, [
     "deep_dive.clarity.mastery",
     "deep_dive.clarity.retrieval",
