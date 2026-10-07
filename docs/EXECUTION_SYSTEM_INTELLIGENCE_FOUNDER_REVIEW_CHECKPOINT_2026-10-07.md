@@ -1,7 +1,7 @@
 # Execution Standards + System Intelligence Founder Review Checkpoint
 
 **Opened:** 7 October 2026  
-**Status:** FOUNDER REVIEW PREPARED — PRODUCTION UNCHANGED
+**Status:** FOUNDER REVIEW ACTIVE IN PROOF — PRODUCTION UNCHANGED
 
 This checkpoint governs the nine current post-Sandbox Mastery banks that remain outside Production under their own Founder acceptance gate.
 
@@ -67,6 +67,25 @@ System Intelligence:
 9. How the System Resolves Uncertainty
 
 Founder acceptance must be recorded against the exact version and content hash above. Corrections after a review attempt must rotate immutably to a new bank version rather than editing reviewed private content in place.
+
+
+## Proof Review Mode activation
+
+After the review-support regression checks passed, the exact nine current configs were activated in Response Integrity Capability Proof with `review_mode=true`.
+
+Activation was guarded transactionally by:
+- exact assessment key + bank version match for all nine configs;
+- all nine configs active and previously outside Review Mode;
+- zero attempts on the exact current versions;
+- zero question confirmations on the exact current versions.
+
+Post-activation read-back confirms:
+- all nine configs remain active;
+- all nine configs have Review Mode on;
+- each bank remains a 15-question form at a 100% threshold;
+- Production/The Hub was not changed.
+
+The Founder can now review the nine banks without Review Mode evidence becoming real Capability authority.
 
 ## Closure boundary
 
