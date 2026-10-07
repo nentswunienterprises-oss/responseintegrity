@@ -39,7 +39,9 @@ type CapabilityAvailability = {
     | "transformation_transfer"
     | "execution_standards_mastery"
     | "system_intelligence_mastery"
-    | "session_infrastructure_mastery";
+    | "session_infrastructure_mastery"
+    | "operating_system_retrieval"
+    | "operating_system_transfer";
 };
 
 type PodData = {
@@ -62,14 +64,14 @@ function statePresentation(assessment: CapabilityAvailability) {
     if (assessment.evidenceKind === "retrieval") {
       return {
         label: "Retention evidenced",
-        detail: "You retrieved the Transformation system after the required spacing interval.",
+        detail: "You retrieved the required RI operating system after the spacing interval.",
         Icon: ShieldCheck,
       };
     }
     if (assessment.evidenceKind === "transfer") {
       return {
         label: "Transfer evidenced",
-        detail: "You applied RI correctly across mixed Transformation situations.",
+        detail: "You applied RI correctly across mixed operating situations.",
         Icon: ShieldCheck,
       };
     }
@@ -97,7 +99,7 @@ function statePresentation(assessment: CapabilityAvailability) {
     return {
       label: "Authoring not complete",
       detail:
-        "This gate is part of the approved Training architecture, but its private bank is not active yet.",
+        "This gate is part of the Training architecture, but its private bank is not active yet.",
       Icon: LockKeyhole,
     };
   }
@@ -128,9 +130,13 @@ function statePresentation(assessment: CapabilityAvailability) {
       detail:
         assessment.stage === "session_infrastructure_mastery"
           ? "Session Infrastructure opens after Transformation Mastery, Retention and Transfer unlock Sandbox."
-          : assessment.evidenceKind === "retrieval"
-            ? "Master all five Transformation Deep Dives first."
-            : "Pass the Transformation Retention Check first.",
+          : assessment.stage === "operating_system_retrieval"
+            ? "Complete all Execution Standards, System Intelligence and Session Infrastructure Masteries first."
+            : assessment.stage === "operating_system_transfer"
+              ? "Pass the Operating System Retention Check first."
+              : assessment.evidenceKind === "retrieval"
+                ? "Master all five Transformation Deep Dives first."
+                : "Pass the Transformation Retention Check first.",
       Icon: LockKeyhole,
     };
   }
@@ -172,9 +178,13 @@ function CapabilityCard({
             <p className="text-xs uppercase tracking-wide text-muted-foreground">
               {assessment.evidenceKind === "mastery"
                 ? `Deep Dive ${index + 1}`
-                : assessment.evidenceKind === "retrieval"
-                  ? "Transformation Retention"
-                  : "Transformation Application"}
+                : assessment.stage === "operating_system_retrieval"
+                  ? "Operating System Retention"
+                  : assessment.stage === "operating_system_transfer"
+                    ? "Operating System Application"
+                    : assessment.evidenceKind === "retrieval"
+                      ? "Transformation Retention"
+                      : "Transformation Application"}
             </p>
             <CardTitle className="mt-1 text-lg">{deepDive}</CardTitle>
           </div>
@@ -282,10 +292,18 @@ export default function SpecialistCapabilityPlan() {
   const sessionInfrastructure = assessments.filter(
     (entry) => entry.stage === "session_infrastructure_mastery",
   );
+  const operatingSystemGates = assessments.filter(
+    (entry) =>
+      entry.stage === "operating_system_retrieval" ||
+      entry.stage === "operating_system_transfer",
+  );
   const transformationMastered = transformationMastery.filter(
     (entry) => entry.status === "complete",
   ).length;
   const cumulativeComplete = transformationGates.filter(
+    (entry) => entry.status === "complete",
+  ).length;
+  const operatingSystemComplete = operatingSystemGates.filter(
     (entry) => entry.status === "complete",
   ).length;
 
@@ -309,8 +327,9 @@ export default function SpecialistCapabilityPlan() {
           <p className="mt-2 max-w-3xl text-muted-foreground">
             Build operating understanding across all four Response Conditioning
             modules. The Transformation Mastery, Retention and Application gate
-            opens Sandbox; the remaining Deep Dive Masteries keep Training explicit
-            rather than leaving execution or system reasoning assumed.
+            opens Sandbox. Training then continues through Execution Standards,
+            System Intelligence and Session Infrastructure before a final Operating
+            System Retention and Application gate closes Capability Training.
           </p>
         </div>
 
@@ -332,7 +351,7 @@ export default function SpecialistCapabilityPlan() {
           </Alert>
         ) : null}
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-4">
           <Card>
             <CardContent className="p-5">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -360,6 +379,16 @@ export default function SpecialistCapabilityPlan() {
               </p>
               <p className="mt-2 text-2xl font-semibold">
                 {sandboxReady ? "Unlocked" : "Locked"}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Final OS Retention + Application
+              </p>
+              <p className="mt-2 text-3xl font-semibold">
+                {operatingSystemComplete}/2
               </p>
             </CardContent>
           </Card>
@@ -446,6 +475,26 @@ export default function SpecialistCapabilityPlan() {
             </p>
           </div>
           {sessionInfrastructure.map((assessment, index) => (
+            <CapabilityCard
+              key={assessment.assessmentKey}
+              assessment={assessment}
+              index={index}
+              navigate={navigate}
+            />
+          ))}
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold">6. Prove the full operating system</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              After all 15 post-Sandbox Deep Dives are mastered, Retention tests
+              whether the operating system can be recovered after spacing. Application
+              then mixes execution, diagnosis, evidence, continuity and delivery so
+              the governing rule must be identified from the situation itself.
+            </p>
+          </div>
+          {operatingSystemGates.map((assessment, index) => (
             <CapabilityCard
               key={assessment.assessmentKey}
               assessment={assessment}
