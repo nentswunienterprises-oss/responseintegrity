@@ -97,3 +97,30 @@ This branch does not:
 - delete or rewrite historical bank versions.
 
 New cumulative banks must be separately authored, imported to Proof in Review Mode, structurally validated, compared against active Mastery for content reuse, and receive Founder acceptance before they can become lifecycle authority.
+
+
+## Private replacement package checkpoint
+
+The replacement authoring package now exists outside the repository and has been validated as one private package before any lifecycle promotion.
+
+Package:
+- Operating System Delayed Retrieval v1: 60 private items, 30-question live form, 96% threshold.
+- Operating System Interleaved Transfer v1: 60 private items, 30-question live form, 96% threshold.
+- Each bank contains 48 single-choice items, 4 multi-select items and 8 sequence items.
+- Each 30-question form covers all 15 post-Sandbox Deep Dives with two planned competency slots per Deep Dive.
+
+Pre-import validation:
+- private package validator: zero errors;
+- deterministic generation: 1,000 seeded forms per bank with zero generation failures;
+- all 60 pool items were reachable in both banks;
+- Retrieval versus active Mastery: zero exact prompt, option-set, accepted-answer or explanation reuse across all 60 items;
+- Transfer versus active Mastery: zero exact prompt, option-set, accepted-answer or explanation reuse across all 60 items;
+- Retrieval versus Transfer: zero exact reuse across those same four content dimensions.
+
+Authority status:
+- no Operating System cumulative v1 configuration or item rows currently exist in Capability Proof;
+- no Specialist attempt or evidence has been created;
+- Production has not been mutated;
+- Review Mode activation remains pending a clean atomic private-package import.
+
+A partial transport attempt was rejected and fully cleaned before activation. The database was returned to a no-bank state rather than leaving an incomplete bank staged or visible.
