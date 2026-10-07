@@ -262,6 +262,42 @@ test("Session Infrastructure Founder review opens all six banks without completi
   assert.equal(isCapabilityTransformationSandboxReady(assessments), false);
 });
 
+test("Execution Standards and System Intelligence Founder review stays repeatable and non-authoritative", () => {
+  const keys = [
+    ...EXECUTION_STANDARDS_DEEP_DIVE_KEYS,
+    ...SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
+  ].map((key) => `${key}_mastery_v1`);
+
+  const reviewBanks = [
+    ...activeBanks.filter((entry) => !keys.includes(entry.assessmentKey)),
+    ...keys.map((key) => ({ ...bank(key, "mastery"), reviewMode: true })),
+  ];
+  const reviewAttempts = keys.flatMap((key) =>
+    [1, 2, 3].map((attemptNumber) => ({
+      ...pass(key, "2026-10-07T09:00:00Z"),
+      attemptNumber,
+    })),
+  );
+
+  const assessments = buildCapabilityTrainingAvailability({
+    now: "2026-10-07T12:00:00Z",
+    activeBanks: reviewBanks,
+    attempts: reviewAttempts,
+  });
+
+  for (const key of keys) {
+    const gate = assessments.find((entry) => entry.assessmentKey === key);
+    assert.equal(gate?.status, "available");
+    assert.equal(gate?.reviewMode, true);
+    assert.equal(gate?.attemptCount, 3);
+  }
+
+  const osRetrieval = assessments.find(
+    (entry) => entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY,
+  );
+  assert.notEqual(osRetrieval?.status, "complete");
+});
+
 test("a Review Mode Retrieval pass cannot open real Transfer", () => {
   const assessments = buildCapabilityTrainingAvailability({
     now: "2026-10-04T12:00:00Z",
