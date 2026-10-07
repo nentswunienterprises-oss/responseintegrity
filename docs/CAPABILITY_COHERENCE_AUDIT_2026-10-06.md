@@ -1,6 +1,6 @@
 # Capability Coherence Audit — 6 October 2026
 
-Status: REVIEW ARCHITECTURE ONLY. No Production mutation. No new cumulative bank is authoritative.
+Status: PROOF REVIEW ACTIVE. No Production mutation. Founder acceptance is pending, so the new cumulative banks are not lifecycle authority.
 
 ## Scope
 
@@ -91,12 +91,12 @@ Proposed final cumulative form:
 
 This branch does not:
 - change the approved Transformation -> Sandbox authority;
-- activate either new final cumulative bank;
 - mutate Production;
 - promote any current Session Infrastructure cumulative v2 bank;
-- delete or rewrite historical bank versions.
+- delete or rewrite historical bank versions;
+- allow Review Mode evidence to satisfy real prerequisites or enter the Capability ledger.
 
-New cumulative banks must be separately authored, imported to Proof in Review Mode, structurally validated, compared against active Mastery for content reuse, and receive Founder acceptance before they can become lifecycle authority.
+The two replacement cumulative banks are now active only in Capability Proof with Review Mode on. They remain non-authoritative until Founder acceptance and a separate real-evidence promotion decision.
 
 
 ## Private replacement package checkpoint
@@ -117,10 +117,16 @@ Pre-import validation:
 - Transfer versus active Mastery: zero exact prompt, option-set, accepted-answer or explanation reuse across all 60 items;
 - Retrieval versus Transfer: zero exact reuse across those same four content dimensions.
 
-Authority status:
-- no Operating System cumulative v1 configuration or item rows currently exist in Capability Proof;
-- no Specialist attempt or evidence has been created;
-- Production has not been mutated;
-- Review Mode activation remains pending a clean atomic private-package import.
+Proof Review activation:
+- Operating System Delayed Retrieval v1 is active in Capability Proof with Review Mode on: 60 active private items, 30-question form, 96% threshold and 30 competency slots.
+- Operating System Interleaved Transfer v1 is active in Capability Proof with Review Mode on: 60 active private items, 30-question form, 96% threshold and 30 competency slots.
+- Each bank persists exactly 48 single-choice, 4 multi-select and 8 sequence items.
+- Each bank covers all 15 post-Sandbox Deep Dives with exactly four pool items per Deep Dive.
+- Persisted Retrieval versus active Mastery remains 0/60 exact matches for prompts, option sets, accepted-answer text and explanations.
+- Persisted Transfer versus active Mastery remains 0/60 exact matches for prompts, option sets, accepted-answer text and explanations.
+- Zero real Specialist assessment attempts exist for either new assessment key at activation.
+- Review Mode evidence is excluded from prerequisite completion and the Capability ledger by the existing Capability authority boundary.
+- Production has not been mutated.
+- The encrypted transport package was verified end-to-end before decryption and the temporary staging table was removed after activation.
 
-A partial transport attempt was rejected and fully cleaned before activation. The database was returned to a no-bank state rather than leaving an incomplete bank staged or visible.
+Founder acceptance remains the next authority gate. No real-evidence promotion has occurred.
