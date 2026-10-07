@@ -25,7 +25,9 @@ type CapabilityAssessment = {
     | "transformation_transfer"
     | "execution_standards_mastery"
     | "system_intelligence_mastery"
-    | "session_infrastructure_mastery";
+    | "session_infrastructure_mastery"
+    | "operating_system_retrieval"
+    | "operating_system_transfer";
   bankVersion: number | null;
   attemptCount: number;
   maxAttempts: number | null;
@@ -97,6 +99,7 @@ type DevelopmentRecord = {
       executionStandards: { complete: number; total: number };
       systemIntelligence: { complete: number; total: number };
       sessionInfrastructure: { complete: number; total: number };
+      operatingSystem: { complete: number; total: number };
     };
   };
   sandbox: {
@@ -364,6 +367,11 @@ export default function SpecialistDevelopmentRecordPage() {
   const sessionInfrastructure = assessments.filter(
     (entry) => entry.stage === "session_infrastructure_mastery",
   );
+  const operatingSystem = assessments.filter(
+    (entry) =>
+      entry.stage === "operating_system_retrieval" ||
+      entry.stage === "operating_system_transfer",
+  );
 
   return (
     <div className="min-h-screen bg-background px-4 py-8">
@@ -512,13 +520,14 @@ export default function SpecialistDevelopmentRecordPage() {
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-6">
             {[
               ["Transformation", record.training.summary.transformation],
-              ["Retention + Application", record.training.summary.cumulative],
+              ["Transformation Retention + Application", record.training.summary.cumulative],
               ["Execution Standards", record.training.summary.executionStandards],
               ["System Intelligence", record.training.summary.systemIntelligence],
               ["Session Infrastructure", record.training.summary.sessionInfrastructure],
+              ["Operating System", record.training.summary.operatingSystem],
             ].map(([label, raw]) => {
               const summary = raw as { complete: number; total: number };
               return (
@@ -562,6 +571,11 @@ export default function SpecialistDevelopmentRecordPage() {
             title="Session Infrastructure"
             detail="The session system, logging, drill authority, Handover and tools."
             assessments={sessionInfrastructure}
+          />
+          <AssessmentSection
+            title="Operating System Retention + Application"
+            detail="Final cumulative evidence across Execution Standards, System Intelligence and Session Infrastructure after spacing and mixed-situation application."
+            assessments={operatingSystem}
           />
         </section>
 
