@@ -54,7 +54,7 @@ function deepDive(key: string) {
 }
 
 test("capability blueprint covers the exact 20 Specialist Deep Dives", () => {
-  assert.equal(CAPABILITY_BLUEPRINT_VERSION, 3);
+  assert.equal(CAPABILITY_BLUEPRINT_VERSION, 4);
   assert.equal(CAPABILITY_DEEP_DIVE_BLUEPRINTS.length, 20);
   assert.deepEqual(blueprintKeys, expectedKeys);
   assert.equal(new Set(blueprintKeys).size, 20);
