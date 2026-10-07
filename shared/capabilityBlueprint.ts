@@ -50,7 +50,7 @@ export interface CapabilityModuleBlueprint {
   deepDiveKeys: CapabilityDeepDiveKey[];
 }
 
-export const CAPABILITY_BLUEPRINT_VERSION = 3;
+export const CAPABILITY_BLUEPRINT_VERSION = 4;
 
 export const CAPABILITY_CROSS_CUTTING_COMPETENCIES = [
   "evidence.observation_vs_inference",
