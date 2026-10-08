@@ -155,7 +155,9 @@ export async function getSpecialistCapabilityTrainingState(input: {
     now: input.now || new Date(),
     activeBanks,
     attempts,
-    plan: getCapabilityTrainingAssessmentPlan({ includeSessionInfrastructureCumulative: isProofCapabilityReviewEnvironment() }),
+    plan: getCapabilityTrainingAssessmentPlan({
+      includeCurriculumV2Review: isProofCapabilityReviewEnvironment(),
+    }),
   });
 
   return {
@@ -178,7 +180,9 @@ export async function assertCapabilityAssessmentAvailable(input: {
   tutorId: string;
   assessmentKey: string;
 }) {
-  const isPlannedAssessment = getCapabilityTrainingAssessmentPlan({ includeSessionInfrastructureCumulative: isProofCapabilityReviewEnvironment() }).some(
+  const isPlannedAssessment = getCapabilityTrainingAssessmentPlan({
+    includeCurriculumV2Review: isProofCapabilityReviewEnvironment(),
+  }).some(
     (entry) => entry.assessmentKey === input.assessmentKey,
   );
   if (!isPlannedAssessment) {
