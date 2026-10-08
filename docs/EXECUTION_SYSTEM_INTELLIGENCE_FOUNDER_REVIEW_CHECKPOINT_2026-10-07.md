@@ -1,7 +1,7 @@
 # Execution Standards + System Intelligence Founder Review Checkpoint
 
 **Opened:** 7 October 2026  
-**Status:** FOUNDER REVIEW CLOSED — PROOF RELEASED FROM REVIEW MODE — PRODUCTION PROMOTION BLOCKED ONLY ON MISSING PROOF DB URL SECRET
+**Status:** FOUNDER REVIEW CLOSED — PROOF REVIEW MODE EXIT COMPLETE — NINE BANKS PROMOTED TO THE HUB WITH VERIFIED PARITY — NON-REVIEW LIFECYCLE PROOF BLOCKED ONLY AT VERCEL DEPLOYMENT PROTECTION
 
 This checkpoint governs the nine current post-Sandbox Mastery banks that remain outside Production under their own Founder acceptance gate.
 
@@ -307,6 +307,86 @@ After that secret exists, rerun the plan. A successful plan must verify the eigh
 ### Non-review lifecycle proof — NOT STARTED
 
 The real `15 post-Sandbox Masteries → 24h spacing → OS Delayed Retrieval → OS Interleaved Transfer` proof remains intentionally unopened until Production private-bank promotion and parity verification are complete. No timestamps, evidence, prerequisites, or spacing gates will be manufactured to accelerate this proof.
+
+
+## Production promotion and lifecycle-proof continuation — 8 October 2026
+
+### Canonical release fingerprint correction
+
+The single hash values originally recorded during the nine-bank Founder review were not accompanied by a documented hashing algorithm. They remain historical review references and are not used as Production release guards.
+
+Before Production promotion, a canonical reproducible fingerprint was therefore established from the exact approved live Proof rows. No private assessment item was edited after Founder approval; the intervening release operation changed only Review Mode and review evidence state.
+
+Canonical item formula:
+
+`md5(jsonb_agg(to_jsonb(item) - 'created_at' - 'bank_version' order by item_key)::text)`
+
+Canonical config formula:
+
+`md5((to_jsonb(config) - array['created_at','retired_at','active','review_mode'])::text)`
+
+The promotion runner pins both canonical item and config fingerprints and fails closed on any mismatch.
+
+### Protected plan — PASS
+
+Read-only workflow run `37782074495` verified:
+
+- Proof database URL and Production database URL resolve to the intended project refs;
+- all nine exact approved Proof banks are active, Review Mode off, and clean of review attempts/confirmations;
+- all nine canonical item fingerprints match their pinned release values;
+- all nine canonical config fingerprints match their pinned release values;
+- The Hub contained none of the nine target banks before promotion.
+
+No Production mutation occurred in the plan.
+
+### Production apply — PASS
+
+The first apply attempt (`37782259491`) exposed a JSONB parameter-serialization defect before any commit. The Production transaction rolled back; direct read-back confirmed the first target config was still absent.
+
+The runner was corrected to serialize all JSONB config/item parameters explicitly. Apply run `37782433963` then completed successfully and atomically.
+
+Final read-back confirms for every one of the nine approved banks:
+
+- exact approved bank version present in The Hub;
+- config active;
+- Review Mode off;
+- 45 items present;
+- 45 items active;
+- canonical item fingerprint identical between Proof and Production;
+- canonical config fingerprint identical between Proof and Production.
+
+No users, assignments, attempts, confirmations, fixtures, or other operational data were copied from Proof to Production.
+
+The promotion workflow was immediately returned to read-only `plan` mode after the successful apply so ordinary branch changes cannot repeat a Production write.
+
+### Real post-Sandbox lifecycle state
+
+The dedicated Proof Specialist fixture currently has genuine current-version passes for:
+
+- all five Transformation Masteries;
+- Transformation Delayed Retrieval v10;
+- Transformation Interleaved Transfer v11;
+- all six Session Infrastructure Masteries.
+
+The nine newly Founder-approved Execution Standards + System Intelligence Masteries have zero current-version attempts and zero passes at this point. OS Retrieval v1 and OS Transfer v1 also have zero attempts.
+
+Therefore the next truthful proof step is exactly the nine missing post-Sandbox Masteries. Their last completion time will become the authority timestamp for the 24-hour OS Retrieval spacing gate.
+
+### Post-Sandbox live-proof runner
+
+A dedicated runner and workflow were added:
+
+- `scripts/postSandboxCapabilityLiveProof.mjs`
+- `.github/workflows/post-sandbox-capability-live-proof.yml`
+- immutable Proof app deployment: `dpl_4yLnEMf4nVY7B3SjBkASWjKZXBLE`
+- app commit: `892c92337a5c62a63e9a240e10772e80e12d4203`
+- deployment state at selection: READY
+
+The runner first verifies Proof/The Hub parity read-only for all 15 post-Sandbox Masteries plus OS Retrieval/Transfer, then uses the normal authenticated Capability APIs. It retains existing six Session Infrastructure passes and submits only missing gates. It never backdates timestamps or bypasses the spacing rule.
+
+Initial run `37783136720` passed database setup but received HTTP 401 from Vercel Deployment Protection at `/api/proof-environment`. The protected GitHub environment showed `VERCEL_AUTOMATION_BYPASS_SECRET` empty. The run stopped before application login, before form retrieval, and before any Capability attempt or confirmation was submitted. No proof evidence was mutated.
+
+**Current sole lifecycle-proof dependency:** add a valid Vercel Automation Bypass secret to the GitHub `production-db` environment as `VERCEL_AUTOMATION_BYPASS_SECRET`, then rerun `37783136720`. The next successful run should complete the nine missing Masteries and then stop truthfully at the 24-hour OS Retrieval spacing gate.
 
 ## Closure boundary
 
