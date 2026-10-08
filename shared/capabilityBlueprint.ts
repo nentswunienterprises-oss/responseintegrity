@@ -18,6 +18,7 @@ export type CapabilityDeepDiveKey =
   | "what_not_to_do"
   | "emotional_discipline_under_discomfort"
   | "how_to_diagnose"
+  | "why_training_continues_beyond_clarity"
   | "how_to_interpret_prompts"
   | "how_baselines_are_established"
   | "how_the_system_resolves_uncertainty"
@@ -50,7 +51,7 @@ export interface CapabilityModuleBlueprint {
   deepDiveKeys: CapabilityDeepDiveKey[];
 }
 
-export const CAPABILITY_BLUEPRINT_VERSION = 4;
+export const CAPABILITY_BLUEPRINT_VERSION = 5;
 
 export const CAPABILITY_CROSS_CUTTING_COMPETENCIES = [
   "evidence.observation_vs_inference",
@@ -101,6 +102,7 @@ export const CAPABILITY_MODULE_BLUEPRINTS: CapabilityModuleBlueprint[] = [
     title: "System Intelligence",
     deepDiveKeys: [
       "how_to_diagnose",
+      "why_training_continues_beyond_clarity",
       "how_to_interpret_prompts",
       "how_baselines_are_established",
       "how_the_system_resolves_uncertainty",
@@ -843,7 +845,52 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
     ],
     requiredEvidenceKinds: [...FULL_CAPABILITY_EVIDENCE],
     transferPartners: ["drill_library", "logging_system", "session_flow_control", "time_pressure_stability"],
+  },,
+] = [
+  {
+    key: "why_training_continues_beyond_clarity",
+    title: "Why Training Continues Beyond Clarity",
+    moduleKey: "system_intelligence",
+    operatingCapability:
+      "Explain why Response Integrity continues beyond academic understanding by distinguishing Diagnosis from Training and reasoning about how independence, difficulty, and urgency expose different response layers.",
+    competencyKeys: [
+      "training_purpose.diagnosis_vs_training",
+      "training_purpose.layer_progression",
+      "training_purpose.structured_execution",
+      "training_purpose.controlled_discomfort",
+      "training_purpose.time_pressure_stability",
+      "training_purpose.load_ownership",
+      "training_purpose.repetition",
+      "training_purpose.specialist_reasoning",
+      "system.authority",
+    ],
+    criticalBoundaries: [
+      {
+        key: "training_purpose.no_stop_at_clarity",
+        description:
+          "Academic understanding cannot be treated as proof that independent execution, difficulty stability, and urgency stability are already reliable.",
+      },
+      {
+        key: "training_purpose.no_reteach_intact_layer",
+        description:
+          "An intact earlier layer should not be repeatedly retaught in place of training the later load under which the response actually breaks.",
+      },
+      {
+        key: "training_purpose.no_diagnosis_as_training",
+        description:
+          "Diagnostic evidence collection cannot substitute for the repeated exposure required to change and stabilize the response under the identified load.",
+      },
+    ],
+    requiredEvidenceKinds: [...POST_SANDBOX_CAPABILITY_EVIDENCE],
+    transferPartners: [
+      "how_to_diagnose",
+      "structured_execution",
+      "controlled_discomfort",
+      "time_pressure_stability",
+      "how_the_system_resolves_uncertainty",
+    ],
   },
+
 ];
 
 export const CAPABILITY_DEEP_DIVE_BY_KEY = new Map(
