@@ -225,6 +225,37 @@ Any subsequent content mutation requires an immutable new bank version and a new
 
 Any subsequent content mutation requires an immutable new bank version and a new Founder review.
 
+
+### How the System Resolves Uncertainty — APPROVED
+
+- Assessment: `how_the_system_resolves_uncertainty_mastery_v1`
+- Bank version: `v14`
+- Reviewed content hash: `db97b29f4a9a3af8033c42c503aef545`
+- Founder status: **APPROVED**
+- Approval date: **8 October 2026**
+- Review scope: complete current v14 Mastery bank
+- Release effect: approval is recorded against this exact version/hash only; the full nine-bank Founder review gate is now closed.
+
+Any subsequent content mutation requires an immutable new bank version and a new Founder review.
+
+## Founder review gate status
+
+**CLOSED — 9 of 9 approved.**
+
+Approved current banks:
+
+1. How to Model v8
+2. How to Intervene v9
+3. How to Use Boss Battles v10
+4. What Not To Do v10
+5. Emotional Discipline Under Discomfort v10
+6. How to Diagnose v19
+7. How to Interpret Prompts v15
+8. How Baselines Are Established v15
+9. How the System Resolves Uncertainty v14
+
+This checkpoint records Founder content approval only. Review Mode cleanup, Proof attempt/confirmation cleanup, Production promotion, Proof↔Production fingerprint verification, and the non-review 15-Mastery → 24h → OS Retrieval → OS Transfer lifecycle proof remain separate release actions.
+
 ## Closure boundary
 
 Founder acceptance of these nine exact Mastery banks will authorize the next release step, but does not by itself prove the final operating-system lifecycle.
