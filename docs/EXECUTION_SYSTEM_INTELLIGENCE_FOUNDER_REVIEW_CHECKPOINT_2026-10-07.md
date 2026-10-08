@@ -102,6 +102,19 @@ The Founder can now review the nine banks without Review Mode evidence becoming 
 
 Any subsequent content mutation requires an immutable new bank version and a new Founder review.
 
+
+### How to Intervene — APPROVED
+
+- Assessment: `how_to_intervene_mastery_v1`
+- Bank version: `v9`
+- Reviewed content hash: `b2e4fbcf3f6589137f5c2f2d24cd76cf`
+- Founder status: **APPROVED**
+- Approval date: **8 October 2026**
+- Review scope: complete current v9 Mastery bank
+- Release effect: approval is recorded against this exact version/hash only; the bank remains in Proof Review Mode until the full nine-bank Founder gate closes.
+
+Any subsequent content mutation requires an immutable new bank version and a new Founder review.
+
 ## Closure boundary
 
 Founder acceptance of these nine exact Mastery banks will authorize the next release step, but does not by itself prove the final operating-system lifecycle.
