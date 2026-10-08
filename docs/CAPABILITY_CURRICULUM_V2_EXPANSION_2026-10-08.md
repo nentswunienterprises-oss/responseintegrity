@@ -222,3 +222,38 @@ It does **not** yet approve:
 - migration rules for already-qualified Specialists.
 
 Those remain separate authored artifacts and require their own review.
+
+
+## Founder lesson approval — 8 October 2026
+
+The authored Deep Dive lesson **Why Training Continues Beyond Clarity** is Founder-approved in its exact reviewed form.
+
+Approved artifact:
+
+- lesson path: `client/src/pages/responseconditioningsystem/system-intelligence/why-training-continues-beyond-clarity.tsx`
+- lesson commit: `370d9d80486faca70787e6f0e582e6191058519b`
+- review route commit: `eb4990e5a51d8cc15ec0f6cab13d4b985122dfc3`
+- lesson key: `system-intelligence-why-training-continues-beyond-clarity-v2-founder-review`
+- Founder status: **APPROVED**
+- approval date: **8 October 2026**
+
+The approval covers the lesson's complete reviewed teaching sequence, examples, formative interactions, explanatory framing, and closing Specialist reasoning standard.
+
+The lesson remains intentionally non-authoritative in the active curriculum while Curriculum v1 completes:
+
+- no Mastery assessment is attached;
+- `completion={null}`;
+- no Capability blueprint entry has been activated;
+- no curriculum index or sequencing gate has been changed;
+- no Specialist completion evidence can be created from this review artifact.
+
+Any later mutation to the approved lesson requires an explicit revised review artifact before Curriculum v2 activation.
+
+Still not approved by this lesson approval:
+
+- the 45-item Mastery bank;
+- its 15-question live form;
+- Curriculum v2 blueprint/sequencing implementation;
+- OS Retrieval v2;
+- OS Transfer v2;
+- the currentness/migration policy for Specialists qualified under Curriculum v1.
