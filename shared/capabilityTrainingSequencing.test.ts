@@ -404,6 +404,27 @@ test("final operating-system Transfer requires real Retrieval evidence and Revie
 });
 
 
+test("Curriculum v2 preserves the approved System Intelligence Deep Dive order", () => {
+  const v2 = getCapabilityTrainingAssessmentPlan({ curriculumVersion: "v2" });
+  const systemIntelligence = v2
+    .filter(
+      (entry) =>
+        entry.evidenceKind === "mastery" &&
+        entry.coveredDeepDiveKeys.some((key) =>
+          CURRICULUM_V2_SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS.includes(key),
+        ),
+    )
+    .map((entry) => entry.coveredDeepDiveKeys[0]);
+
+  assert.deepEqual(systemIntelligence, [
+    "how_to_diagnose",
+    "why_training_continues_beyond_clarity",
+    "how_to_interpret_prompts",
+    "how_baselines_are_established",
+    "how_the_system_resolves_uncertainty",
+  ]);
+});
+
 test("Curriculum v2 plan adds one System Intelligence Mastery and replaces only the final cumulative gates", () => {
   const v1 = getCapabilityTrainingAssessmentPlan();
   const v2 = getCapabilityTrainingAssessmentPlan({ curriculumVersion: "v2" });
