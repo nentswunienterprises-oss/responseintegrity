@@ -1,6 +1,7 @@
 import type { CapabilityEvidenceKind } from "./capabilityEngine";
 import {
   CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1,
+  CAPABILITY_CURRICULUM_V2_REVIEW_ASSESSMENT_PLAN,
   EXECUTION_STANDARDS_DEEP_DIVE_KEYS,
   SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS,
   SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
@@ -81,6 +82,9 @@ const systemIntelligenceMasteryKeys = SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS.map(
 const sessionInfrastructureMasteryKeys = SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS.map(
   (deepDiveKey) => `${deepDiveKey}_mastery_v1`,
 );
+const CURRICULUM_V2_REVIEW_SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS = [
+  "why_training_continues_beyond_clarity",
+];
 function timestamp(value: string | Date) {
   const time = value instanceof Date ? value.getTime() : new Date(value).getTime();
   if (!Number.isFinite(time)) {
@@ -112,8 +116,10 @@ function stageFor(entry: CapabilityAssessmentPlanEntry): CapabilityTrainingAvail
   }
   if (
     entry.evidenceKind === "mastery" &&
-    entry.coveredDeepDiveKeys.some((key) =>
-      SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS.includes(key),
+    entry.coveredDeepDiveKeys.some(
+      (key) =>
+        SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS.includes(key) ||
+        CURRICULUM_V2_REVIEW_SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS.includes(key),
     )
   ) {
     return "system_intelligence_mastery";
@@ -129,9 +135,17 @@ function stageFor(entry: CapabilityAssessmentPlanEntry): CapabilityTrainingAvail
   return "transformation_mastery";
 }
 
-export function getCapabilityTrainingAssessmentPlan() {
+export function getCapabilityTrainingAssessmentPlan(options?: {
+  includeCurriculumV2Review?: boolean;
+}) {
+  const sourcePlan = options?.includeCurriculumV2Review
+    ? [
+        ...CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1,
+        ...CAPABILITY_CURRICULUM_V2_REVIEW_ASSESSMENT_PLAN,
+      ]
+    : CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1;
   const byKey = new Map(
-    CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1.map((entry) => [
+    sourcePlan.map((entry) => [
       entry.assessmentKey,
       entry,
     ] as const),
@@ -142,6 +156,9 @@ export function getCapabilityTrainingAssessmentPlan() {
     TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
     ...executionStandardsMasteryKeys,
     ...systemIntelligenceMasteryKeys,
+    ...(options?.includeCurriculumV2Review
+      ? ["why_training_continues_beyond_clarity_mastery_v1"]
+      : []),
     ...sessionInfrastructureMasteryKeys,
     OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY,
     OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY,
