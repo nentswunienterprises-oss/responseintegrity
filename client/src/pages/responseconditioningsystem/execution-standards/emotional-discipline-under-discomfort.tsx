@@ -25,66 +25,79 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
         <DeepDiveLessonRunner
-          lessonKey="emotional-discipline-under-discomfort-v2"
+          lessonKey="emotional-discipline-under-discomfort-v3"
           title="Emotional Discipline Under Discomfort"
           completion={<DeepDiveCapabilityCheck assessmentKey="emotional_discipline_under_discomfort_mastery_v1" />}
         >
           <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
-            <h2 className="text-2xl font-bold">Emotional discipline protects the condition</h2>
+            <h2 className="text-2xl font-bold">Emotional discipline protects development</h2>
             <p className="text-muted-foreground">
-              A Specialist will see hesitation, frustration, silence, rescue-seeking, panic, slow work, and weak responses. The job is not to make those moments disappear.
+              A Specialist will see hesitation, frustration, silence, rescue-seeking, panic, slow work, and weak responses. These moments can be uncomfortable to watch, but they are often where the student's real response becomes visible.
             </p>
             <p className="font-semibold">
-              The job is to remain stable enough to preserve the exact support, difficulty, and timing condition RI-OS assigned.
+              The Specialist stays steady so care does not become takeover. Preserving the assigned support, difficulty, and timing protects the part of the response the student still needs to learn to produce for themselves.
             </p>
           </Card>
 
           <Card className="p-6 space-y-4">
-            <h2 className="text-2xl font-bold">The active support rule comes first</h2>
+            <h2 className="text-2xl font-bold">The support rule protects what the student must own</h2>
             <p className="text-muted-foreground">
-              Emotional discipline does not mean "never help." It means never letting your own discomfort decide how much help to give.
+              Emotional discipline does not mean "never help." Each support level exists for a developmental reason. The Specialist gives enough support for the active job, but does not do the student's part for them.
             </p>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>Modeled: demonstrate because the set explicitly requires modelling.</li>
-              <li>Minimal: use only the small support the set permits.</li>
-              <li>First-step only: stop at the opening step and return execution to the student.</li>
-              <li>None: do not rescue, prompt the method, confirm a step, or coach through the live response.</li>
+              <li>Modeled: demonstrate because the student first needs to see the response clearly.</li>
+              <li>Minimal: give only the small support needed to orient the student while they still carry the method and execution.</li>
+              <li>First-step only: open the path, then return the thinking and execution to the student.</li>
+              <li>None: let the student retrieve and execute independently so the system can see what now survives without help.</li>
             </ul>
           </Card>
 
           <DeepDiveTeachingInteraction
-            prompt="During a no-support TPS rep, the student freezes and says, 'I don't know what to do.' Which responses preserve the condition?"
+            prompt="During a no-support TPS rep, the student freezes and says, 'I don't know what to do.' Which responses protect the student's independent response?"
             options={[
               {
                 key: "a",
                 label: "Ask a first-step question because neutral wording does not count as support.",
-                feedback: "The question supplies help inside a no-support condition. The Specialist's discomfort does not make that help allowed.",
+                feedback: "The question supplies part of the response. In a no-support rep, that would replace some of the independent retrieval the student is meant to produce.",
               },
               {
                 key: "b",
                 label: "Do not add first-step or confirmation support; preserve the no-support timed condition.",
-                feedback: "The Specialist must not rescue the response away from the condition being observed.",
+                feedback: "Yes. The student needs the full opportunity to retrieve the response under urgency without the Specialist carrying part of it.",
               },
               {
                 key: "c",
                 label: "Pause the timer, settle the student, then restart the same problem.",
-                feedback: "Pausing and restarting changes the timed condition and can turn real student evidence into a second chance the drill did not allow.",
+                feedback: "Pausing and restarting changes the timed condition and removes the chance to see what the student can currently produce under uninterrupted urgency.",
               },
               {
                 key: "d",
                 label: "Treat the freeze as evidence of the response under urgency and record it after the execution boundary.",
-                feedback: "The valid timed condition is allowed to reveal whether the trained response survives urgency.",
+                feedback: "Yes. A freeze can show exactly where the trained response is not yet stable, which tells the system what development is still needed.",
               },
               {
                 key: "e",
                 label: "Give reassurance that confirms the student's current direction without naming the next step.",
-                feedback: "Confirmation can still steer the response and therefore changes the no-support condition.",
+                feedback: "Confirmation can still steer the next move. That would make the response partly Specialist-supported rather than fully the student's.",
               },
             ]}
             kind="multi_select"
             correctOptionKeys={["b","d"]}
-            truth="Emotional discipline means preserving the assigned no-support timed condition even when the student's struggle creates an urge to rescue."
+            truth="Emotional discipline keeps the Specialist from taking over the part of the response the student must learn to produce independently."
           />
+
+          <Card className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold">Care is not the same as rescue</h2>
+            <p className="text-muted-foreground">
+              A calm Specialist can acknowledge difficulty, remain respectful, and stay emotionally present without adding support the active condition does not permit.
+            </p>
+            <p className="font-semibold">
+              The purpose is not to make a student suffer through a rule. It is to avoid replacing the student's own thinking and execution at the exact moment RI is trying to develop or observe it.
+            </p>
+            <p className="text-muted-foreground">
+              If there is a genuine safety problem, technical interruption, or invalid condition, respond to that problem through the correct protocol. Emotional discipline only prevents ordinary discomfort or the Specialist's own unease from silently becoming extra academic support.
+            </p>
+          </Card>
 
           <Card className="p-6 space-y-4">
             <h2 className="text-2xl font-bold">Silence is not automatically a problem</h2>
@@ -100,25 +113,25 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
           </Card>
 
           <Card className="p-6 space-y-4">
-            <h2 className="text-2xl font-bold">Do not rescue the evidence</h2>
+            <h2 className="text-2xl font-bold">Do not rescue away the learning signal</h2>
             <p className="text-muted-foreground">
-              The most dangerous moment is often when a valid weak response is already visible and the Specialist wants to repair it before the rep ends.
+              A valid weak response is useful. It shows what the student can and cannot yet produce under the current condition, which is what allows the next exposure or correction to be targeted properly.
             </p>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>Do not soften a challenging problem because the student looks uncomfortable.</li>
-              <li>Do not add encouragement that becomes pacing or method guidance.</li>
+              <li>Do not soften a valid challenging problem simply because the student looks uncomfortable.</li>
+              <li>Do not add encouragement that becomes pacing, correctness confirmation, or method guidance.</li>
               <li>Do not turn a no-support rep into a guided rep because the student asks for help.</li>
-              <li>Do not restart a timed attempt because the student panicked, timed out, guessed, or worked slowly.</li>
+              <li>Do not restart a valid timed attempt merely to replace a panic, timeout, guess, or slow response with a better-looking result.</li>
             </ul>
           </Card>
 
           <Card className="p-6 space-y-4">
-            <h2 className="text-2xl font-bold">Correction happens at the correct boundary</h2>
+            <h2 className="text-2xl font-bold">Correction is delayed, not denied</h2>
             <p className="text-muted-foreground">
-              Preserving a live evidence condition does not mean abandoning learning. It means separating evidence from correction.
+              Preserving a live evidence condition does not mean withholding learning. It means letting the student finish the response that is being observed before teaching changes it.
             </p>
             <p className="font-semibold">
-              Let the opportunity reveal the response first. Freeze the execution boundary. Record the evidence. Then correct or prepare the next assigned exposure where the protocol permits it.
+              Let the opportunity reveal the current response. Freeze and record the evidence. Then correct or prepare the next assigned exposure where the protocol permits it.
             </p>
           </Card>
 
@@ -128,40 +141,40 @@ export default function ResponseConditioningEmotionalDisciplineUnderDiscomfort()
               {
                 key: "a",
                 label: "How upset the student looks.",
-                feedback: "Visible frustration does not change the support rule for the active set.",
+                feedback: "Visible frustration matters as part of the student's experience, but it does not tell us that the student now needs the Specialist to carry more of the method.",
               },
               {
                 key: "b",
                 label: "The Controlled Entry support rule: minimal support only, without carrying the method or execution.",
-                feedback: "Yes. The set, not the emotional intensity of the moment, determines what support is allowed.",
+                feedback: "Yes. Minimal support gives the student enough orientation to re-enter while preserving the thinking and execution they still need to build themselves.",
               },
               {
                 key: "c",
                 label: "Whether the Specialist thinks a successful finish would build confidence.",
-                feedback: "A preferred emotional outcome cannot replace condition integrity.",
+                feedback: "A more positive ending can feel helpful, but adding support would make the Specialist responsible for part of the response the student is meant to produce.",
               },
               {
                 key: "d",
                 label: "The allowed support remains minimal even if the student's visible frustration increases.",
-                feedback: "Yes. Emotional intensity does not expand the registered support condition.",
+                feedback: "Yes. The support level stays calibrated to the developmental job of Controlled Entry rather than expanding with the intensity of the moment.",
               },
               {
                 key: "e",
                 label: "Whether the full method would help the student end the rep feeling successful.",
-                feedback: "A preferred emotional outcome cannot replace the active support rule.",
+                feedback: "A full explanation may create immediate relief, but it would also remove the student's opportunity to carry the method with only minimal support.",
               },
             ]}
             correctOptionKeys={["b","d"]}
-            truth="The Specialist regulates themselves so the registered condition remains intact."
+            truth="The support boundary protects the portion of the response the student is expected to own."
           />
 
           <Card className="p-6 space-y-4 border-primary/30 bg-primary/5">
             <h2 className="text-2xl font-bold">Before you intervene</h2>
             <p className="font-semibold">
-              Before intervening, ask: "Does the active set allow this support, or am I reacting to the student's discomfort?"
+              Ask: "What is the student supposed to still do for themselves here, and would my intervention take over that work?"
             </p>
             <p className="text-muted-foreground">
-              If the set does not allow the move, do not make it. Preserve the response and let RI-OS interpret the evidence.
+              Use exactly the support the active condition permits because that boundary protects student ownership. If the issue is genuinely about safety, validity, or an interruption rather than ordinary discomfort, handle that issue through the correct protocol.
             </p>
           </Card>
         </DeepDiveLessonRunner>
