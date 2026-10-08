@@ -19,8 +19,8 @@ jobs:
     env:
       RI_PROOF_DATABASE_URL: ${{ secrets.RI_PROOF_DATABASE_URL }}
       RI_PRODUCTION_DATABASE_URL: ${{ secrets.RI_PRODUCTION_DATABASE_URL }}
-      CURRICULUM_V2_PROMOTION_MODE: stage
-      CURRICULUM_V2_PROMOTION_CONFIRM: THE_HUB_STAGE_V2
+      CURRICULUM_V2_PROMOTION_MODE: plan
+      CURRICULUM_V2_PROMOTION_CONFIRM: ""
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -37,5 +37,5 @@ jobs:
           printf '%s\n' "$RI_PRODUCTION_DB_CA_CERT" > "$CA_PATH"
           chmod 600 "$CA_PATH"
           echo "NODE_EXTRA_CA_CERTS=$CA_PATH" >> "$GITHUB_ENV"
-      - name: Stage approved Curriculum v2 private banks
+      - name: Plan Curriculum v2 private-bank promotion
         run: node scripts/promoteCurriculumV2Banks.mjs
