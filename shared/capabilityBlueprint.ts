@@ -845,9 +845,8 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
     ],
     requiredEvidenceKinds: [...FULL_CAPABILITY_EVIDENCE],
     transferPartners: ["drill_library", "logging_system", "session_flow_control", "time_pressure_stability"],
-  },,
-] = [
-  {
+  },
+{
     key: "why_training_continues_beyond_clarity",
     title: "Why Training Continues Beyond Clarity",
     moduleKey: "system_intelligence",
