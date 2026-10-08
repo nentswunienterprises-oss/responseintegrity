@@ -224,9 +224,22 @@ export const OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY_V2 =
   "operating_system_transfer_v2";
 
 const CURRICULUM_V2_POST_SANDBOX_DEEP_DIVE_KEYS: CapabilityDeepDiveKey[] = [
-  ...EXECUTION_STANDARDS_DEEP_DIVE_KEYS,
-  ...CURRICULUM_V2_SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
-  ...SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS,
+  "how_to_model",
+  "how_to_intervene",
+  "how_to_use_boss_battles",
+  "what_not_to_do",
+  "emotional_discipline_under_discomfort",
+  "how_to_diagnose",
+  "why_training_continues_beyond_clarity",
+  "how_to_interpret_prompts",
+  "how_baselines_are_established",
+  "how_the_system_resolves_uncertainty",
+  "intro_session_structure",
+  "logging_system",
+  "session_flow_control",
+  "drill_library",
+  "handover_verification",
+  "tools_required",
 ];
 
 export const CAPABILITY_CURRICULUM_V2_REVIEW_ASSESSMENT_PLAN: CapabilityAssessmentPlanEntry[] = [
