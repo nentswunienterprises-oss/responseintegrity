@@ -67,9 +67,11 @@ const transferV2 = byKey.get("operating_system_transfer_v2");
 assert.ok(newMastery);
 assert.ok(retrievalV2);
 assert.ok(transferV2);
-assert.equal(newMastery.status, "unavailable");
-assert.equal(retrievalV2.status, "unavailable");
-assert.equal(transferV2.status, "unavailable");
+assert.equal(newMastery.status, "available");
+assert.equal(retrievalV2.status, "locked");
+assert.equal(retrievalV2.reason, "prerequisite_incomplete");
+assert.equal(transferV2.status, "locked");
+assert.equal(transferV2.reason, "prerequisite_incomplete");
 assert.equal(byKey.has("operating_system_retrieval_v1"), false);
 assert.equal(byKey.has("operating_system_transfer_v1"), false);
 
@@ -77,9 +79,11 @@ console.log("CURRICULUM_V2_RELEASE_PREVIEW_PASS=" + JSON.stringify({
   appSha: EXPECTED_SHA,
   masteryCount: masteries.length,
   systemIntelligenceMasteryCount: systemIntelligence.length,
-  newMasteryStatusBeforeBankActivation: newMastery.status,
-  retrievalV2StatusBeforeBankActivation: retrievalV2.status,
-  transferV2StatusBeforeBankActivation: transferV2.status,
+  newMasteryStatusAfterBankActivation: newMastery.status,
+  retrievalV2StatusAfterBankActivation: retrievalV2.status,
+  retrievalV2Reason: retrievalV2.reason,
+  transferV2StatusAfterBankActivation: transferV2.status,
+  transferV2Reason: transferV2.reason,
   v1CumulativeAbsentFromLivePlan:
     !byKey.has("operating_system_retrieval_v1") &&
     !byKey.has("operating_system_transfer_v1"),
