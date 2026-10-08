@@ -142,7 +142,7 @@ Any subsequent content mutation requires an immutable new bank version and a new
 Any subsequent content mutation requires an immutable new bank version and a new Founder review.
 
 
-### Emotional Discipline Under Discomfort — v9 NOT APPROVED; v10 READY FOR FOUNDER RE-REVIEW
+### Emotional Discipline Under Discomfort — v10 APPROVED
 
 - v9 assessment: `emotional_discipline_under_discomfort_mastery_v1`
 - v9 bank version: `9`
@@ -171,7 +171,7 @@ Any subsequent content mutation requires an immutable new bank version and a new
 - Active in Proof: yes
 - Attempts at activation: 0
 - Confirmations at activation: 0
-- Founder approval: **OPEN**
+- Founder approval: **APPROVED on 8 October 2026**
 - v9 -> v10 content delta:
   - prompts changed: 3
   - option sets changed: 17
@@ -184,7 +184,7 @@ Any subsequent content mutation requires an immutable new bank version and a new
   - question kinds changed: 0
 - Structural audit after authoring: 45/45 items present; no non-sequence item below five options; no missing correct keys; no correct options carrying wrong-answer feedback; no wrong options missing feedback; no boundary without a critical-fail key.
 
-Any further correction after a v10 review attempt must rotate immutably to a new bank version.
+Founder approval is locked to this exact v10 bank. Any further correction requires an immutable new bank version and a new Founder review.
 
 ## Closure boundary
 
