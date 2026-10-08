@@ -20,6 +20,7 @@ const expectedKeys = [
   "what_not_to_do",
   "emotional_discipline_under_discomfort",
   "how_to_diagnose",
+  "why_training_continues_beyond_clarity",
   "how_to_interpret_prompts",
   "how_baselines_are_established",
   "how_the_system_resolves_uncertainty",
@@ -39,15 +40,15 @@ function deepDive(key: string) {
   return value;
 }
 
-test("capability blueprint covers the exact 20 Specialist Deep Dives", () => {
-  assert.equal(CAPABILITY_BLUEPRINT_VERSION, 4);
-  assert.equal(CAPABILITY_DEEP_DIVE_BLUEPRINTS.length, 20);
+test("capability blueprint covers the exact 21 Curriculum v2 Specialist Deep Dives", () => {
+  assert.equal(CAPABILITY_BLUEPRINT_VERSION, 5);
+  assert.equal(CAPABILITY_DEEP_DIVE_BLUEPRINTS.length, 21);
   assert.deepEqual(blueprintKeys, expectedKeys);
-  assert.equal(new Set(blueprintKeys).size, 20);
+  assert.equal(new Set(blueprintKeys).size, 21);
   assert.equal(blueprintKeys.includes("evidence_integrity" as any), false);
 });
 
-test("module blueprint preserves the live 5 + 5 + 4 + 6 Deep Dive split", () => {
+test("module blueprint preserves the live 5 + 5 + 5 + 6 Deep Dive split", () => {
   const transformation = CAPABILITY_MODULE_BLUEPRINTS.find((module) => module.key === "transformation_phases");
   const execution = CAPABILITY_MODULE_BLUEPRINTS.find((module) => module.key === "execution_standards");
   const intelligence = CAPABILITY_MODULE_BLUEPRINTS.find((module) => module.key === "system_intelligence");
@@ -59,7 +60,7 @@ test("module blueprint preserves the live 5 + 5 + 4 + 6 Deep Dive split", () => 
   assert.ok(infrastructure);
   assert.equal(transformation.deepDiveKeys.length, 5);
   assert.equal(execution.deepDiveKeys.length, 5);
-  assert.equal(intelligence.deepDiveKeys.length, 4);
+  assert.equal(intelligence.deepDiveKeys.length, 5);
   assert.equal(infrastructure.deepDiveKeys.length, 6);
   assert.deepEqual(
     CAPABILITY_MODULE_BLUEPRINTS.flatMap((module) => module.deepDiveKeys).sort(),
@@ -77,10 +78,10 @@ test("every Deep Dive has a capability, competencies, critical boundaries, and M
   }
 });
 
-test("required evidence contains 60 capability cells", () => {
+test("required evidence contains 63 Curriculum v2 capability cells", () => {
   const cells = getRequiredCapabilityEvidenceCells();
-  assert.equal(cells.length, 60);
-  assert.equal(new Set(cells.map((cell) => cell.code)).size, 60);
+  assert.equal(cells.length, 63);
+  assert.equal(new Set(cells.map((cell) => cell.code)).size, 63);
 
   for (const entry of CAPABILITY_DEEP_DIVE_BLUEPRINTS) {
     const coverage = cells
@@ -128,11 +129,14 @@ test("critical boundary identities are unique and stable across the blueprint", 
 
 test("System Intelligence explicitly covers Diagnosis, prompts, baselines, and uncertainty", () => {
   const diagnosis = deepDive("how_to_diagnose");
+  const trainingPurpose = deepDive("why_training_continues_beyond_clarity");
   const prompts = deepDive("how_to_interpret_prompts");
   const baselines = deepDive("how_baselines_are_established");
   const uncertainty = deepDive("how_the_system_resolves_uncertainty");
 
   assert.ok(diagnosis.competencyKeys.includes("diagnosis.constraint_stripping"));
+  assert.ok(trainingPurpose.competencyKeys.includes("training_purpose.diagnosis_vs_training"));
+  assert.ok(trainingPurpose.competencyKeys.includes("training_purpose.layer_progression"));
   assert.ok(prompts.competencyKeys.includes("prompts.evidence_question"));
   assert.ok(baselines.competencyKeys.includes("baselines.timer_contract_derivation"));
   assert.ok(uncertainty.competencyKeys.includes("uncertainty.not_observed"));
