@@ -28,6 +28,8 @@ const FUTURE_CUMULATIVE_FORM_SIZE = 20;
 const FUTURE_CUMULATIVE_MINIMUM_POOL_SIZE = 40;
 const OPERATING_SYSTEM_CUMULATIVE_FORM_SIZE = 30;
 const OPERATING_SYSTEM_CUMULATIVE_MINIMUM_POOL_SIZE = 60;
+const CURRICULUM_V2_OPERATING_SYSTEM_CUMULATIVE_FORM_SIZE = 32;
+const CURRICULUM_V2_OPERATING_SYSTEM_CUMULATIVE_MINIMUM_POOL_SIZE = 64;
 const CUMULATIVE_PASS_THRESHOLD_PERCENT = 96;
 
 const masteryEntry = (
@@ -46,12 +48,12 @@ const masteryEntry = (
   purpose: "Verify immediate operating understanding after the Specialist has worked through the Deep Dive.",
 });
 
-const MASTERY_ENTRIES = CAPABILITY_DEEP_DIVE_BLUEPRINTS.map((deepDive) =>
-  masteryEntry(deepDive.key, deepDive.title),
-);
+const V1_MASTERY_ENTRIES = CAPABILITY_DEEP_DIVE_BLUEPRINTS
+  .filter((deepDive) => deepDive.key !== "why_training_continues_beyond_clarity")
+  .map((deepDive) => masteryEntry(deepDive.key, deepDive.title));
 
 export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] = [
-  ...MASTERY_ENTRIES,
+  ...V1_MASTERY_ENTRIES,
   {
     assessmentKey: "transformation_phases_retrieval_v1",
     title: "Transformation Phases Delayed Retrieval",
@@ -207,6 +209,81 @@ export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] 
 ];
 
 
+
+export const CURRICULUM_V2_SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS: CapabilityDeepDiveKey[] = [
+  "how_to_diagnose",
+  "why_training_continues_beyond_clarity",
+  "how_to_interpret_prompts",
+  "how_baselines_are_established",
+  "how_the_system_resolves_uncertainty",
+];
+
+export const OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY_V2 =
+  "operating_system_retrieval_v2";
+export const OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY_V2 =
+  "operating_system_transfer_v2";
+
+const CURRICULUM_V2_POST_SANDBOX_DEEP_DIVE_KEYS: CapabilityDeepDiveKey[] = [
+  "how_to_model",
+  "how_to_intervene",
+  "how_to_use_boss_battles",
+  "what_not_to_do",
+  "emotional_discipline_under_discomfort",
+  "how_to_diagnose",
+  "why_training_continues_beyond_clarity",
+  "how_to_interpret_prompts",
+  "how_baselines_are_established",
+  "how_the_system_resolves_uncertainty",
+  "intro_session_structure",
+  "logging_system",
+  "session_flow_control",
+  "drill_library",
+  "handover_verification",
+  "tools_required",
+];
+
+export const CAPABILITY_CURRICULUM_V2_ASSESSMENT_PLAN: CapabilityAssessmentPlanEntry[] = [
+  {
+    assessmentKey: "why_training_continues_beyond_clarity_mastery_v1",
+    title: "Why Training Continues Beyond Clarity Mastery Check",
+    evidenceKind: "mastery",
+    coveredDeepDiveKeys: ["why_training_continues_beyond_clarity"],
+    formSize: MASTERY_FORM_SIZE,
+    minimumItemPoolSize: MASTERY_MINIMUM_POOL_SIZE,
+    passThresholdPercent: MASTERY_PASS_THRESHOLD_PERCENT,
+    minimumDelayHours: 0,
+    criticalCoverageMode: "all_boundaries",
+    purpose:
+      "Verify immediate operating understanding of why RI trains beyond Clarity.",
+  },
+  {
+    assessmentKey: OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY_V2,
+    title: "Operating System Delayed Retrieval v2",
+    evidenceKind: "retrieval",
+    coveredDeepDiveKeys: CURRICULUM_V2_POST_SANDBOX_DEEP_DIVE_KEYS,
+    formSize: CURRICULUM_V2_OPERATING_SYSTEM_CUMULATIVE_FORM_SIZE,
+    minimumItemPoolSize: CURRICULUM_V2_OPERATING_SYSTEM_CUMULATIVE_MINIMUM_POOL_SIZE,
+    passThresholdPercent: CUMULATIVE_PASS_THRESHOLD_PERCENT,
+    minimumDelayHours: 24,
+    criticalCoverageMode: "one_per_deep_dive",
+    purpose:
+      "Re-test all 16 post-Sandbox Deep Dives after spacing, including why Training continues beyond Clarity.",
+  },
+  {
+    assessmentKey: OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY_V2,
+    title: "Operating System Interleaved Transfer v2",
+    evidenceKind: "transfer",
+    coveredDeepDiveKeys: CURRICULUM_V2_POST_SANDBOX_DEEP_DIVE_KEYS,
+    formSize: CURRICULUM_V2_OPERATING_SYSTEM_CUMULATIVE_FORM_SIZE,
+    minimumItemPoolSize: CURRICULUM_V2_OPERATING_SYSTEM_CUMULATIVE_MINIMUM_POOL_SIZE,
+    passThresholdPercent: CUMULATIVE_PASS_THRESHOLD_PERCENT,
+    minimumDelayHours: 0,
+    criticalCoverageMode: "one_per_deep_dive",
+    purpose:
+      "Interleave all 16 post-Sandbox Deep Dives so the Specialist must preserve RI operating reasoning across execution, training purpose, evidence, continuity, and delivery.",
+  },
+];
+
 export const TRANSFORMATION_DEEP_DIVE_KEYS: CapabilityDeepDiveKey[] = [
   "topic_conditioning",
   "clarity",
@@ -258,18 +335,41 @@ export const CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1 =
       entry.assessmentKey === OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY,
   );
 
+export const CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V2: CapabilityAssessmentPlanEntry[] = [
+  ...CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1.filter(
+    (entry) =>
+      entry.assessmentKey !== OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY &&
+      entry.assessmentKey !== OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY,
+  ),
+  ...CAPABILITY_CURRICULUM_V2_ASSESSMENT_PLAN,
+];
+
 export function getCapabilityMvpAssessmentPlanEntry(assessmentKey: string) {
-  return CAPABILITY_MVP_ASSESSMENT_PLAN_V1.find((entry) => entry.assessmentKey === assessmentKey) || null;
+  return (
+    CAPABILITY_MVP_ASSESSMENT_PLAN_V1.find((entry) => entry.assessmentKey === assessmentKey) ||
+    CAPABILITY_CURRICULUM_V2_ASSESSMENT_PLAN.find(
+      (entry) => entry.assessmentKey === assessmentKey,
+    ) ||
+    null
+  );
 }
 
-export function getCapabilityMvpPlannedEvidenceCells() {
+function plannedEvidenceCells(plan: CapabilityAssessmentPlanEntry[]) {
   return Array.from(
     new Set(
-      CAPABILITY_MVP_ASSESSMENT_PLAN_V1.flatMap((entry) =>
+      plan.flatMap((entry) =>
         entry.coveredDeepDiveKeys.map(
           (deepDiveKey) => `deep_dive.${deepDiveKey}.${entry.evidenceKind}`,
         ),
       ),
     ),
   ).sort();
+}
+
+export function getCapabilityMvpPlannedEvidenceCells() {
+  return plannedEvidenceCells(CAPABILITY_MVP_ASSESSMENT_PLAN_V1);
+}
+
+export function getCapabilityV2PlannedEvidenceCells() {
+  return plannedEvidenceCells(CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V2);
 }
