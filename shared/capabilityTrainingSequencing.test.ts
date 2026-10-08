@@ -16,6 +16,9 @@ import {
   EXECUTION_STANDARDS_DEEP_DIVE_KEYS,
   SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
   SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS,
+  CURRICULUM_V2_SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
+  OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY_V2,
+  OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY_V2,
 } from "./capabilityAssessmentPlan";
 
 const transformationMasteryKeys = TRANSFORMATION_DEEP_DIVE_KEYS.map(
@@ -398,4 +401,169 @@ test("final operating-system Transfer requires real Retrieval evidence and Revie
   );
   assert.equal(transfer?.status, "locked");
   assert.equal(transfer?.reason, "prerequisite_incomplete");
+});
+
+
+test("Curriculum v2 plan adds one System Intelligence Mastery and replaces only the final cumulative gates", () => {
+  const v1 = getCapabilityTrainingAssessmentPlan();
+  const v2 = getCapabilityTrainingAssessmentPlan({ curriculumVersion: "v2" });
+
+  assert.equal(v1.filter((entry) => entry.evidenceKind === "mastery").length, 20);
+  assert.equal(v2.filter((entry) => entry.evidenceKind === "mastery").length, 21);
+
+  const v2SystemIntelligence = v2.filter(
+    (entry) => entry.evidenceKind === "mastery" &&
+      entry.coveredDeepDiveKeys.some((key) =>
+        CURRICULUM_V2_SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS.includes(key),
+      ),
+  );
+  assert.equal(v2SystemIntelligence.length, 5);
+
+  assert.equal(
+    v2.some((entry) => entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY),
+    false,
+  );
+  assert.equal(
+    v2.some((entry) => entry.assessmentKey === OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY),
+    false,
+  );
+
+  const retrieval = v2.find(
+    (entry) => entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY_V2,
+  );
+  const transfer = v2.find(
+    (entry) => entry.assessmentKey === OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY_V2,
+  );
+
+  assert.equal(retrieval?.coveredDeepDiveKeys.length, 16);
+  assert.equal(retrieval?.formSize, 32);
+  assert.equal(retrieval?.minimumItemPoolSize, 64);
+  assert.equal(retrieval?.minimumDelayHours, 24);
+  assert.equal(transfer?.coveredDeepDiveKeys.length, 16);
+  assert.equal(transfer?.formSize, 32);
+  assert.equal(transfer?.minimumItemPoolSize, 64);
+});
+
+test("Curriculum v2 Retrieval requires all 16 post-Sandbox Masteries and starts spacing from the latest pass", () => {
+  const plan = getCapabilityTrainingAssessmentPlan({ curriculumVersion: "v2" });
+  const masteryKeys = plan
+    .filter(
+      (entry) =>
+        entry.evidenceKind === "mastery" &&
+        !entry.coveredDeepDiveKeys.some((key) => TRANSFORMATION_DEEP_DIVE_KEYS.includes(key)),
+    )
+    .map((entry) => entry.assessmentKey);
+
+  assert.equal(masteryKeys.length, 16);
+
+  const banks: CapabilityTrainingActiveBank[] = [
+    ...masteryKeys.map((key) => bank(key, "mastery")),
+    bank(OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY_V2, "retrieval"),
+    bank(OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY_V2, "transfer"),
+  ];
+
+  const incomplete = masteryKeys
+    .slice(0, -1)
+    .map((key) => pass(key, "2026-10-08T10:00:00Z"));
+
+  let assessments = buildCapabilityTrainingAvailability({
+    now: "2026-10-09T12:00:00Z",
+    activeBanks: banks,
+    attempts: incomplete,
+    plan,
+  });
+
+  let retrieval = assessments.find(
+    (entry) => entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY_V2,
+  );
+  assert.equal(retrieval?.status, "locked");
+  assert.equal(retrieval?.reason, "prerequisite_incomplete");
+
+  const complete = [
+    ...incomplete,
+    pass(masteryKeys.at(-1)!, "2026-10-08T15:00:00Z"),
+  ];
+
+  assessments = buildCapabilityTrainingAvailability({
+    now: "2026-10-09T14:59:00Z",
+    activeBanks: banks,
+    attempts: complete,
+    plan,
+  });
+  retrieval = assessments.find(
+    (entry) => entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY_V2,
+  );
+  assert.equal(retrieval?.status, "locked");
+  assert.equal(retrieval?.reason, "spacing_interval");
+  assert.equal(retrieval?.unlockAt, "2026-10-09T15:00:00.000Z");
+
+  assessments = buildCapabilityTrainingAvailability({
+    now: "2026-10-09T15:00:00Z",
+    activeBanks: banks,
+    attempts: complete,
+    plan,
+  });
+  retrieval = assessments.find(
+    (entry) => entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY_V2,
+  );
+  assert.equal(retrieval?.status, "available");
+});
+
+test("Curriculum v2 Transfer requires real v2 Retrieval evidence and Review Mode cannot satisfy it", () => {
+  const plan = getCapabilityTrainingAssessmentPlan({ curriculumVersion: "v2" });
+  const masteryKeys = plan
+    .filter(
+      (entry) =>
+        entry.evidenceKind === "mastery" &&
+        !entry.coveredDeepDiveKeys.some((key) => TRANSFORMATION_DEEP_DIVE_KEYS.includes(key)),
+    )
+    .map((entry) => entry.assessmentKey);
+
+  const banks: CapabilityTrainingActiveBank[] = [
+    ...masteryKeys.map((key) => bank(key, "mastery")),
+    { ...bank(OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY_V2, "retrieval"), reviewMode: true },
+    bank(OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY_V2, "transfer"),
+  ];
+  const attempts = [
+    ...masteryKeys.map((key) => pass(key, "2026-10-08T08:00:00Z")),
+    pass(OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY_V2, "2026-10-09T09:00:00Z", "retrieval"),
+  ];
+
+  const assessments = buildCapabilityTrainingAvailability({
+    now: "2026-10-09T10:00:00Z",
+    activeBanks: banks,
+    attempts,
+    plan,
+  });
+  const transfer = assessments.find(
+    (entry) => entry.assessmentKey === OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY_V2,
+  );
+  assert.equal(transfer?.status, "locked");
+  assert.equal(transfer?.reason, "prerequisite_incomplete");
+});
+
+test("Curriculum v1 final gate does not silently require the new v2 Mastery", () => {
+  const postSandboxV1Keys = [
+    ...EXECUTION_STANDARDS_DEEP_DIVE_KEYS,
+    ...SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
+    ...SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS,
+  ].map((key) => `${key}_mastery_v1`);
+
+  const banks: CapabilityTrainingActiveBank[] = [
+    ...postSandboxV1Keys.map((key) => bank(key, "mastery")),
+    bank(OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY, "retrieval"),
+  ];
+  const attempts = postSandboxV1Keys.map((key) =>
+    pass(key, "2026-10-07T08:00:00Z"),
+  );
+
+  const assessments = buildCapabilityTrainingAvailability({
+    now: "2026-10-08T08:00:00Z",
+    activeBanks: banks,
+    attempts,
+  });
+  const retrieval = assessments.find(
+    (entry) => entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY,
+  );
+  assert.equal(retrieval?.status, "available");
 });
