@@ -155,6 +155,7 @@ export async function getSpecialistCapabilityTrainingState(input: {
     now: input.now || new Date(),
     activeBanks,
     attempts,
+    plan: getCapabilityTrainingAssessmentPlan({ curriculumVersion: "v2" }),
   });
 
   return {
@@ -177,7 +178,9 @@ export async function assertCapabilityAssessmentAvailable(input: {
   tutorId: string;
   assessmentKey: string;
 }) {
-  const isPlannedAssessment = getCapabilityTrainingAssessmentPlan().some(
+  const isPlannedAssessment = getCapabilityTrainingAssessmentPlan({
+    curriculumVersion: "v2",
+  }).some(
     (entry) => entry.assessmentKey === input.assessmentKey,
   );
   if (!isPlannedAssessment) {
