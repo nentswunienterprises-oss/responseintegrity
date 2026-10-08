@@ -274,3 +274,90 @@ Therefore:
 - no Specialist loses a qualification because none had yet completed the full qualifying pathway under v1.
 
 This removes the previously listed upgrade-policy workstream from the Curriculum v2 scope.
+
+
+## Mastery bank Founder review opening — 8 October 2026
+
+The first private Mastery bank for **Why Training Continues Beyond Clarity** is now prepared for Founder Review Mode.
+
+Assessment authority:
+
+- assessment key: `why_training_continues_beyond_clarity_mastery_v1`
+- bank version: `1`
+- evidence kind: `mastery`
+- private pool: **45 items**
+- live form size: **15 questions**
+- pass threshold: **100%**
+- max attempts: **3**
+- retry cooldown: **0 hours**
+- Proof state: **active**
+- Review Mode: **on**
+- Production state: **absent**
+- Founder status: **OPEN — NOT YET APPROVED**
+
+Private-bank structure:
+
+- 36 single-choice items;
+- 8 multi-select items;
+- 1 sequence item;
+- 32/36 single-choice items use two independently defensible accepted answers (88.9%);
+- exactly five options on every non-sequence item;
+- zero missing single-choice wrong-option feedback;
+- zero correct single-choice options carrying wrong-answer feedback;
+- zero missing multi-select option feedback;
+- nine competency pools, five private items per competency;
+- all three Curriculum v2 critical boundaries represented;
+- every critical-boundary item carries a critical-fail path.
+
+Canonical Proof fingerprints at review opening:
+
+- item fingerprint: `7ad2d45ee308514ebff87818c906ff2f`
+- config fingerprint: `bdb34aeb0e29613bc3362c8777f6fd3c`
+
+The 45 private questions and answer authority are stored only in the private Capability bank. They are not committed to Git.
+
+### Curriculum v1 isolation
+
+The Curriculum v2 review blueprint and assessment are registered through separate review-only structures.
+
+They do **not** alter:
+
+- the Curriculum v1 15 post-Sandbox Mastery requirement;
+- `operating_system_retrieval_v1`;
+- `operating_system_transfer_v1`;
+- the current v1 spacing authority;
+- the v1 qualification proof.
+
+At review opening:
+
+- v2 bank attempts: **0**;
+- v2 question confirmations: **0**;
+- dedicated Proof fixture OS Retrieval/Transfer attempts: **0**;
+- The Hub contains **0** configs for this v2 Mastery.
+
+### Runtime smoke proof
+
+The isolated runtime uses immutable Preview application commit:
+
+`3cdcb1bc6aabfdcba043f8ae04110955fb94d480`
+
+Review wiring commits:
+
+- blueprint registration: `69d93cd8e1380bdd6a16581504d1b155597ccbc0`
+- Proof-only review assessment plan: `7886ed78240f9d2f534d1207c05b76e92e089676`
+- isolated review sequencing: `31e20ffe3e16812b763e9b8fa76502a5a272ffad`
+- Proof-only server availability: `3cdcb1bc6aabfdcba043f8ae04110955fb94d480`
+- review smoke correction: `ff82af803b7bd9f1b343fa99899fec5fb2fe769e`
+
+Workflow run `37808375308` passed and confirmed:
+
+- assessment appears as `system_intelligence_mastery`;
+- bank version is v1;
+- status is `available`;
+- Review Mode is true in the Capability plan;
+- a 15-question form is served;
+- repeated form retrieval is deterministic;
+- no `correctOptionKeys`, critical-fail authority, critical-boundary authority, explanations, or option-feedback authority leak in the public question payload;
+- the smoke submitted **0 attempts**.
+
+This opens Founder review of the Mastery bank only. The bank must remain in Proof Review Mode and absent from Production until explicit Founder approval.
