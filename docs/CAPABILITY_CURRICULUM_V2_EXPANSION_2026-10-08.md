@@ -394,3 +394,126 @@ To preserve Curriculum v1 authority and prevent accidental pre-v2 evidence, the 
 The bank must not be edited in place. Any content change requires a new immutable bank version and fresh Founder review.
 
 This approval does **not** activate Curriculum v2. Curriculum v2 sequencing and cumulative OS Retrieval/Transfer authority remain separate implementation and review work.
+
+
+## Curriculum v2 cumulative architecture approval and review opening — 8 October 2026
+
+Founder approved the cumulative-bank architecture for Curriculum v2.
+
+### Locked cumulative shape
+
+Curriculum v2 expands the post-Sandbox cumulative stage from 15 to 16 Deep Dives.
+
+The v2 cumulative banks are:
+
+- `operating_system_retrieval_v2`
+- `operating_system_transfer_v2`
+
+Each bank is defined as:
+
+- **64 private items**
+- **32-question live form**
+- **16 Deep Dives**
+- exactly **4 private items per Deep Dive**
+- exactly **2 live questions per Deep Dive on every form**
+- pass threshold: **96%**
+- max attempts: **3**
+- retry cooldown: **0 hours**
+
+This preserves the v1 cumulative coverage density instead of adding the sixteenth Deep Dive to the old 30-question form and diluting per-Deep-Dive representation.
+
+### v1 preservation
+
+The 60 approved items from each v1 cumulative bank were copied forward without content edits.
+
+Read-back verified:
+
+- Retrieval v2 inherited-item parity: **60/60 exact**
+- Transfer v2 inherited-item parity: **60/60 exact**
+
+The original v1 fingerprints remain unchanged:
+
+- `operating_system_retrieval_v1` item fingerprint: `725f35af260e00733267dbc5d78a96c5`
+- `operating_system_transfer_v1` item fingerprint: `28f607934b05ec6c1c8d1c12c2bf016f`
+
+Curriculum v1 therefore remains a frozen proof baseline.
+
+### New Deep Dive cumulative coverage
+
+Each v2 bank adds four private items for:
+
+`why_training_continues_beyond_clarity`
+
+The new four-item pool is split across:
+
+- `training_purpose.diagnosis_vs_training`
+- `training_purpose.layer_progression`
+
+The 32-slot blueprint allocates exactly one live question from each of those two competencies.
+
+This guarantees two live questions from the new Deep Dive on every cumulative form.
+
+### Bank structure at review opening
+
+Both v2 banks read back as:
+
+- total items: **64**
+- active items inside the bank: **64**
+- single-choice: **51**
+- multi-select: **4**
+- sequence: **9**
+- silent alternate-valid single-choice items: **41/51 = 80.39%**
+- non-sequence items with wrong option count: **0**
+- missing wrong-option feedback: **0**
+- correct single-choice answers carrying wrong-answer feedback: **0**
+- blueprint rows: **32**
+- blueprint slot total: **32**
+- every one of the 16 Deep Dives: **4 private items**
+- every one of the 16 Deep Dives: at least one critical-boundary item
+
+Canonical Proof fingerprints at review opening:
+
+- Retrieval v2 item fingerprint: `f1f84b0df96c9063ccfb64ba5ec9e90b`
+- Retrieval v2 config fingerprint: `f3517a50b988021e2d2fa6ec6b9b28db`
+- Transfer v2 item fingerprint: `ae7e03517c19e9f17e945d4913f55c56`
+- Transfer v2 config fingerprint: `0896808ecee6543f480b8f31d2e7c883`
+
+### Sequencing authority
+
+Curriculum v2 is now defined in code as a separate future qualification plan:
+
+- **21 total Masteries** across the full pathway;
+- **16 post-Sandbox Masteries**;
+- latest of those 16 genuine Mastery passes starts the **24-hour Retrieval v2 spacing interval**;
+- Retrieval v2 requires all 16;
+- Transfer v2 requires a genuine non-review Retrieval v2 pass;
+- Review Mode evidence cannot satisfy real prerequisites.
+
+Curriculum v1 remains the default selected plan in the server. The v2 plan is defined but is not yet activated as live qualification authority.
+
+Relevant commits:
+
+- v2 plan definition: `beb6c65ffc2433165b08b43d8e0ccf64222b5016`
+- initialization-order correction: `29d4b20f412dd741f69f05c92ace18f08debdd30`
+- v2 sequencing implementation: `799c9601aac518b2ba53257f93a0e8a262427a18`
+- v2 sequencing and v1-isolation tests: `a8c2259bec8e61ac97510b17f9433739e39c76d0`
+
+Capability Engine CI passed on `a8c2259bec8e61ac97510b17f9433739e39c76d0`.
+
+### Review state
+
+Both cumulative v2 configs are now:
+
+- `active=true`
+- `review_mode=true`
+- attempts: **0**
+
+They are available only for Founder Review in Proof once the corresponding Preview runtime is ready.
+
+Production/The Hub contains **no** config for:
+
+- `why_training_continues_beyond_clarity_mastery_v1`
+- `operating_system_retrieval_v2`
+- `operating_system_transfer_v2`
+
+The exact cumulative question banks remain **OPEN / NOT YET FOUNDER-APPROVED**. Approval of the architecture does not approve the newly authored Retrieval v2 or Transfer v2 item content.
