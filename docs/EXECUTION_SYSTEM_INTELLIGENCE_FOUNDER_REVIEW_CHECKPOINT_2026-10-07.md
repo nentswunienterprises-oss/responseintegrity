@@ -96,7 +96,7 @@ The Founder can now review the nine banks without Review Mode evidence becoming 
 - Bank version: `v8`
 - Reviewed content hash: `4cc42d3af4661ff76110155a673e9c1e`
 - Founder status: **APPROVED**
-- Approval date: **7 October 2026**
+- Approval date: **8 October 2026**
 - Review scope: complete current v8 Mastery bank
 - Release effect: approval is recorded against this exact version/hash only; the bank remains in Proof Review Mode until the full nine-bank Founder gate closes.
 
