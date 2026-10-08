@@ -1,5 +1,7 @@
 name: Execution and System Intelligence Bank Promotion
 
+# Proof DB secret configured; rerun plan after Founder authorization.
+
 on:
   push:
     branches:
