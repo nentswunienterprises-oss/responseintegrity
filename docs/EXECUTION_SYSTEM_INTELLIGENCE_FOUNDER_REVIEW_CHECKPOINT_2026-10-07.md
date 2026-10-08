@@ -388,6 +388,64 @@ Initial run `37783136720` passed database setup but received HTTP 401 from Verce
 
 **Current sole lifecycle-proof dependency:** add a valid Vercel Automation Bypass secret to the GitHub `production-db` environment as `VERCEL_AUTOMATION_BYPASS_SECRET`, then rerun `37783136720`. The next successful run should complete the nine missing Masteries and then stop truthfully at the 24-hour OS Retrieval spacing gate.
 
+
+## Non-review post-Sandbox Mastery proof — PASS / SPACING GATE ACTIVE
+
+Workflow run `37783136720`, attempt 2, completed successfully on 8 October 2026 using immutable Proof deployment commit `892c92337a5c62a63e9a240e10772e80e12d4203`.
+
+The Vercel Automation Bypass secret was present and the runner reached the normal authenticated Capability API.
+
+### Real evidence created
+
+The runner retained the six already-genuine Session Infrastructure Mastery passes and submitted only the nine previously missing Execution Standards + System Intelligence Masteries.
+
+All nine new assessments:
+
+- used their exact Founder-approved current bank versions;
+- were served through non-review Capability APIs;
+- returned 15 questions;
+- exposed no private correct-answer or critical-fail metadata in the client form;
+- received 15/15 correct confirmations;
+- passed with no critical fail;
+- rejected completed-attempt replay with HTTP 409;
+- rejected Review Mode reset semantics (`reviewMode=false`, `reset=false`).
+
+The nine current-version passes completed between 17:14:12 and 17:15:14 SAST. The final pass was:
+
+- `how_the_system_resolves_uncertainty_mastery_v1` v14
+- completed at `2026-10-08T15:15:14.746691Z` / **17:15:14 SAST**
+
+### 15-Mastery gate — COMPLETE
+
+The Proof Specialist now has genuine current-version passes for all 15 post-Sandbox Masteries:
+
+- 5 Execution Standards;
+- 4 System Intelligence;
+- 6 Session Infrastructure.
+
+No Review Mode evidence is being counted.
+
+### OS Retrieval spacing authority
+
+`operating_system_retrieval_v1` v1 is correctly:
+
+- status: `locked`
+- reason: `spacing_interval`
+- unlockAt: `2026-10-09T15:15:14.746Z`
+- South Africa time: **9 October 2026 at 17:15:14 SAST**
+
+The spacing authority is the latest genuine post-Sandbox Mastery pass. No timestamp was backdated or manufactured.
+
+`operating_system_transfer_v1` v1 remains not attempted.
+
+Artifact:
+
+- workflow run: `37783136720`
+- artifact id: `11559363660`
+- artifact name: `post-sandbox-capability-live-proof`
+
+**Lifecycle status:** `15 Masteries COMPLETE → 24h spacing ACTIVE → OS Retrieval PENDING → OS Transfer PENDING`.
+
 ## Closure boundary
 
 Founder acceptance of these nine exact Mastery banks will authorize the next release step, but does not by itself prove the final operating-system lifecycle.
