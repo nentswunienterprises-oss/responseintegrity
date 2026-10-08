@@ -407,7 +407,6 @@ test("final operating-system Transfer requires real Retrieval evidence and Revie
 test("Curriculum v2 preserves the approved System Intelligence Deep Dive order", () => {
   const v2 = getCapabilityTrainingAssessmentPlan({ curriculumVersion: "v2" });
   const systemIntelligence = v2
-    .filter((entry) => entry.stage === undefined ? entry.evidenceKind === "mastery" : true)
     .filter(
       (entry) =>
         entry.evidenceKind === "mastery" &&
