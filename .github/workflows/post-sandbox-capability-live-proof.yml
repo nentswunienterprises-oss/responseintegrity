@@ -1,0 +1,49 @@
+name: Post-Sandbox Capability Non-review Live Proof
+
+on:
+  push:
+    branches:
+      - fix/preview-training-session-authority
+    paths:
+      - ".github/workflows/post-sandbox-capability-live-proof.yml"
+      - "scripts/postSandboxCapabilityLiveProof.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  post-sandbox-capability-live-proof:
+    runs-on: ubuntu-latest
+    environment: production-db
+    timeout-minutes: 30
+    env:
+      RI_PROOF_DATABASE_URL: ${{ secrets.RI_PROOF_DATABASE_URL }}
+      RI_PRODUCTION_DATABASE_URL: ${{ secrets.RI_PRODUCTION_DATABASE_URL }}
+      RI_PROOF_SPECIALIST_EMAIL: ${{ secrets.RI_PROOF_SPECIALIST_EMAIL }}
+      RI_PROOF_SPECIALIST_PASSWORD: ${{ secrets.RI_PROOF_SPECIALIST_PASSWORD }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Configure verified Supabase CA trust
+        env:
+          RI_PRODUCTION_DB_CA_CERT: ${{ secrets.RI_PRODUCTION_DB_CA_CERT }}
+        run: |
+          test -n "$RI_PRODUCTION_DB_CA_CERT"
+          CA_PATH="$RUNNER_TEMP/supabase-post-sandbox-proof-ca.crt"
+          printf '%s\n' "$RI_PRODUCTION_DB_CA_CERT" > "$CA_PATH"
+          chmod 600 "$CA_PATH"
+          echo "NODE_EXTRA_CA_CERTS=$CA_PATH" >> "$GITHUB_ENV"
+      - name: Advance real post-Sandbox Capability lifecycle
+        run: node scripts/postSandboxCapabilityLiveProof.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: post-sandbox-capability-live-proof
+          path: artifacts/post-sandbox-capability-live-proof.json
+          if-no-files-found: error
