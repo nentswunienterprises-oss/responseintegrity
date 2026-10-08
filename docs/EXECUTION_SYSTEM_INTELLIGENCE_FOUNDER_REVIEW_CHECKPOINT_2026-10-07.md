@@ -1,7 +1,7 @@
 # Execution Standards + System Intelligence Founder Review Checkpoint
 
 **Opened:** 7 October 2026  
-**Status:** FOUNDER REVIEW ACTIVE IN PROOF — PRODUCTION UNCHANGED
+**Status:** FOUNDER REVIEW CLOSED — PROOF RELEASED FROM REVIEW MODE — PRODUCTION PROMOTION BLOCKED ONLY ON MISSING PROOF DB URL SECRET
 
 This checkpoint governs the nine current post-Sandbox Mastery banks that remain outside Production under their own Founder acceptance gate.
 
@@ -255,6 +255,58 @@ Approved current banks:
 9. How the System Resolves Uncertainty v14
 
 This checkpoint records Founder content approval only. Review Mode cleanup, Proof attempt/confirmation cleanup, Production promotion, Proof↔Production fingerprint verification, and the non-review 15-Mastery → 24h → OS Retrieval → OS Transfer lifecycle proof remain separate release actions.
+
+
+## Founder-authorized release transition — 8 October 2026
+
+After all nine banks received explicit Founder approval, the Founder authorized the release transition.
+
+### Proof Review Mode exit — COMPLETE
+
+The exact approved versions were guarded as the nine active Review Mode configs, then the review-only evidence attached to those exact versions was cleared and Review Mode was disabled.
+
+Post-transition read-back confirmed:
+
+- 9/9 approved configs remain active in Response Integrity Capability Proof;
+- Review Mode is off for all nine;
+- review attempts on the exact approved versions: 0;
+- question confirmations on the exact approved versions: 0;
+- no operational/user data was copied or altered;
+- Emotional Discipline v9 remains retired as immutable rejected-review history; v10 is the approved current bank.
+
+This is now the clean non-review Proof source state for promotion and lifecycle proof.
+
+### Protected Production promotion mechanism — PREPARED
+
+A guarded promotion runner was added on the review branch:
+
+- script: `scripts/promoteApprovedExecutionSystemIntelligenceBanks.mjs`
+- workflow: `.github/workflows/execution-system-intelligence-bank-promotion.yml`
+- script commit: `1756d8b9ed710ca8f8de194f5e84ce27bcfc4c56`
+- workflow commit: `317b7ffd6bbfd4e525dbc8a8821350279de8e3ce`
+
+The runner is designed to keep all 405 private questions and answer keys inside the protected GitHub runner. It reads Proof in a read-only transaction, validates the exact approved versions, item counts, non-review state, zero review evidence, and pinned Founder hashes, then uses parameterized inserts to stage only private static bank/config rows in The Hub. It does not copy users, attempts, assignments, fixtures, or other operational data. All nine banks must match Proof hashes before activation, and final Proof/The Hub parity is read back before success is reported.
+
+The initial workflow is deliberately `plan` only and cannot mutate The Hub.
+
+### Promotion plan run — SAFE BLOCK
+
+Workflow run `37779019550` reached the protected `production-db` environment successfully. The existing Production database URL and CA certificate secrets were available. Every tested Proof database URL secret name was empty:
+
+- `RI_PROOF_DATABASE_URL`
+- `RI_PROOF_DB_URL`
+- `PROOF_DATABASE_URL`
+- `SUPABASE_PROOF_DATABASE_URL`
+
+The plan therefore failed closed with `A Proof database URL secret is required` before either database connection was opened. The Hub was not mutated.
+
+**Sole current promotion dependency:** add `RI_PROOF_DATABASE_URL` to the GitHub `production-db` environment, containing the direct Postgres connection URL for Response Integrity Capability Proof (`jftlxeacphvbnhbsbpxc`). The runner validates the project ref and uses verified TLS trust; a browser/service-role key is not a substitute for this database URL.
+
+After that secret exists, rerun the plan. A successful plan must verify the eight already-pinned Founder hashes and surface the exact Emotional Discipline v10 content hash without exposing private bank content. Pin that final v10 hash, switch the protected workflow to `apply`, promote the nine banks, and require matching Proof/The Hub read-back hashes before closing Production promotion.
+
+### Non-review lifecycle proof — NOT STARTED
+
+The real `15 post-Sandbox Masteries → 24h spacing → OS Delayed Retrieval → OS Interleaved Transfer` proof remains intentionally unopened until Production private-bank promotion and parity verification are complete. No timestamps, evidence, prerequisites, or spacing gates will be manufactured to accelerate this proof.
 
 ## Closure boundary
 
