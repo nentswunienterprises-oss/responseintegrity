@@ -212,6 +212,19 @@ Any subsequent content mutation requires an immutable new bank version and a new
 
 Any subsequent content mutation requires an immutable new bank version and a new Founder review.
 
+
+### How Baselines Are Established — APPROVED
+
+- Assessment: `how_baselines_are_established_mastery_v1`
+- Bank version: `v15`
+- Reviewed content hash: `aa9d2c8d8bc3e80dba490fb2a73d2661`
+- Founder status: **APPROVED**
+- Approval date: **8 October 2026**
+- Review scope: complete current v15 Mastery bank
+- Release effect: approval is recorded against this exact version/hash only; the bank remains in Proof Review Mode until the full nine-bank Founder gate closes.
+
+Any subsequent content mutation requires an immutable new bank version and a new Founder review.
+
 ## Closure boundary
 
 Founder acceptance of these nine exact Mastery banks will authorize the next release step, but does not by itself prove the final operating-system lifecycle.
