@@ -15,6 +15,7 @@ const proofUrl = [
 ].find((value) => String(value || "").trim());
 
 const productionUrl = String(process.env.RI_PRODUCTION_DATABASE_URL || "").trim();
+const asJson = (value) => JSON.stringify(value);
 
 assert.ok(["plan", "apply"].includes(mode), "BANK_PROMOTION_MODE must be plan or apply");
 if (mode === "apply") {
@@ -137,7 +138,7 @@ async function insertConfig(config) {
        assessment_key, bank_version, title, assessment_deep_dive_key, evidence_kind,
        pass_threshold_percent, form_size, max_attempts, retry_cooldown_hours,
        competency_blueprint, active, created_at, retired_at, review_mode
-     ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,false,$11,null,false)`,
+     ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,false,$11,null,false)`,
     [
       config.assessment_key,
       config.bank_version,
@@ -148,7 +149,7 @@ async function insertConfig(config) {
       config.form_size,
       config.max_attempts,
       config.retry_cooldown_hours,
-      config.competency_blueprint,
+      asJson(config.competency_blueprint),
       config.created_at,
     ],
   );
@@ -159,7 +160,7 @@ async function insertItems(items) {
     assessment_key, bank_version, item_key, competency_key, deep_dive_key,
     prompt, question_kind, options, correct_option_keys, critical_fail_option_keys,
     critical_boundary_keys, explanation, active, created_at, option_feedback
-  ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`;
+  ) values ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb,$11::jsonb,$12,$13,$14,$15::jsonb)`;
   for (const item of items) {
     await production.query(sql, [
       item.assessment_key,
@@ -169,14 +170,14 @@ async function insertItems(items) {
       item.deep_dive_key,
       item.prompt,
       item.question_kind,
-      item.options,
-      item.correct_option_keys,
-      item.critical_fail_option_keys,
-      item.critical_boundary_keys,
+      asJson(item.options),
+      asJson(item.correct_option_keys),
+      asJson(item.critical_fail_option_keys),
+      asJson(item.critical_boundary_keys),
       item.explanation,
       item.active,
       item.created_at,
-      item.option_feedback,
+      asJson(item.option_feedback),
     ]);
   }
 }
