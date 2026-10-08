@@ -141,6 +141,51 @@ Any subsequent content mutation requires an immutable new bank version and a new
 
 Any subsequent content mutation requires an immutable new bank version and a new Founder review.
 
+
+### Emotional Discipline Under Discomfort — v9 NOT APPROVED; v10 READY FOR FOUNDER RE-REVIEW
+
+- v9 assessment: `emotional_discipline_under_discomfort_mastery_v1`
+- v9 bank version: `9`
+- v9 reviewed content hash: `04e541168c9b2154655addf0312a4ab4`
+- Founder review result on 8 October 2026: **NOT APPROVED**
+- Reason: doctrine and operating boundaries were valid, but the Deep Dive and Mastery bank over-emphasized set/system obedience without sufficiently explaining the developmental reason for the support, difficulty, timing, and evidence boundaries.
+- v9 evidence state at retirement: 1 Founder Review Mode attempt, 0 confirmations.
+- v9 was retired immutably; no reviewed v9 content was edited in place.
+
+#### v10 reframing boundary
+
+- Deep Dive lesson key advanced from `emotional-discipline-under-discomfort-v2` to `emotional-discipline-under-discomfort-v3`.
+- New framing: care remains; takeover does not.
+- Support boundaries are explained as protecting the part of the response the student still needs to learn to produce themselves.
+- Ordinary discomfort is distinguished from genuine safety, validity, or technical problems, which still require the appropriate response or escalation.
+- Correction is framed as delayed, not denied.
+- Boss Battle and TPS difficulty/timing are explained by the developmental capability they are designed to build and observe, not as rules to obey for their own sake.
+
+#### v10 bank status
+
+- Bank version: `10`
+- Items: 45
+- Form size: 15
+- Pass threshold: 100%
+- Review Mode: on
+- Active in Proof: yes
+- Attempts at activation: 0
+- Confirmations at activation: 0
+- Founder approval: **OPEN**
+- v9 -> v10 content delta:
+  - prompts changed: 3
+  - option sets changed: 17
+  - explanations changed: 28
+  - option-feedback maps changed: 21
+  - correct-answer keys changed: 0
+  - critical-fail keys changed: 0
+  - critical-boundary keys changed: 0
+  - competency mappings changed: 0
+  - question kinds changed: 0
+- Structural audit after authoring: 45/45 items present; no non-sequence item below five options; no missing correct keys; no correct options carrying wrong-answer feedback; no wrong options missing feedback; no boundary without a critical-fail key.
+
+Any further correction after a v10 review attempt must rotate immutably to a new bank version.
+
 ## Closure boundary
 
 Founder acceptance of these nine exact Mastery banks will authorize the next release step, but does not by itself prove the final operating-system lifecycle.
