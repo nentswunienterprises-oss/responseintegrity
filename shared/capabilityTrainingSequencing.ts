@@ -180,10 +180,14 @@ export function getCapabilityTrainingAssessmentPlan(options?: {
     TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
     TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
     ...executionStandardsMasteryKeys,
-    ...systemIntelligenceMasteryKeys,
-    ...(includeV2ReviewArtifacts
-      ? ["why_training_continues_beyond_clarity_mastery_v1"]
-      : []),
+    ...(includeCurriculumV2
+      ? curriculumV2SystemIntelligenceMasteryKeys
+      : [
+          ...systemIntelligenceMasteryKeys,
+          ...(options?.includeCurriculumV2Review
+            ? ["why_training_continues_beyond_clarity_mastery_v1"]
+            : []),
+        ]),
     ...sessionInfrastructureMasteryKeys,
     ...(includeCurriculumV2
       ? [
