@@ -17,6 +17,9 @@ const proofUrl = [
 const productionUrl = String(process.env.RI_PRODUCTION_DATABASE_URL || "").trim();
 
 assert.ok(["plan", "apply"].includes(mode), "BANK_PROMOTION_MODE must be plan or apply");
+if (mode === "apply") {
+  assert.equal(String(process.env.BANK_PROMOTION_CONFIRM || "").trim(), "THE_HUB", "Apply requires BANK_PROMOTION_CONFIRM=THE_HUB");
+}
 assert.ok(proofUrl, "A Proof database URL secret is required");
 assert.ok(productionUrl, "RI_PRODUCTION_DATABASE_URL is required");
 assert.ok(proofUrl.includes(PROOF_REF), "Proof database URL does not identify the Proof project");
