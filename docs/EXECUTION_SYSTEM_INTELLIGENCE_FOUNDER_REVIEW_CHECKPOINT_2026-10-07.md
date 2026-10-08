@@ -199,6 +199,19 @@ Founder approval is locked to this exact v10 bank. Any further correction requir
 
 Any subsequent content mutation requires an immutable new bank version and a new Founder review.
 
+
+### How to Interpret Prompts — APPROVED
+
+- Assessment: `how_to_interpret_prompts_mastery_v1`
+- Bank version: `v15`
+- Reviewed content hash: `4bc15f2353d19a302798a45ac0c5d5ee`
+- Founder status: **APPROVED**
+- Approval date: **8 October 2026**
+- Review scope: complete current v15 Mastery bank
+- Release effect: approval is recorded against this exact version/hash only; the bank remains in Proof Review Mode until the full nine-bank Founder gate closes.
+
+Any subsequent content mutation requires an immutable new bank version and a new Founder review.
+
 ## Closure boundary
 
 Founder acceptance of these nine exact Mastery banks will authorize the next release step, but does not by itself prove the final operating-system lifecycle.
