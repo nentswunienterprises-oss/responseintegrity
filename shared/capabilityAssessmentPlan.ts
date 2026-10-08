@@ -207,6 +207,23 @@ export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] 
 ];
 
 
+
+export const CAPABILITY_CURRICULUM_V2_REVIEW_ASSESSMENT_PLAN: CapabilityAssessmentPlanEntry[] = [
+  {
+    assessmentKey: "why_training_continues_beyond_clarity_mastery_v1",
+    title: "Why Training Continues Beyond Clarity Mastery Check",
+    evidenceKind: "mastery",
+    coveredDeepDiveKeys: ["why_training_continues_beyond_clarity"],
+    formSize: MASTERY_FORM_SIZE,
+    minimumItemPoolSize: MASTERY_MINIMUM_POOL_SIZE,
+    passThresholdPercent: MASTERY_PASS_THRESHOLD_PERCENT,
+    minimumDelayHours: 0,
+    criticalCoverageMode: "all_boundaries",
+    purpose:
+      "Review immediate Specialist understanding of why RI trains beyond Clarity without changing active Curriculum v1 qualification authority.",
+  },
+];
+
 export const TRANSFORMATION_DEEP_DIVE_KEYS: CapabilityDeepDiveKey[] = [
   "topic_conditioning",
   "clarity",
@@ -259,7 +276,13 @@ export const CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1 =
   );
 
 export function getCapabilityMvpAssessmentPlanEntry(assessmentKey: string) {
-  return CAPABILITY_MVP_ASSESSMENT_PLAN_V1.find((entry) => entry.assessmentKey === assessmentKey) || null;
+  return (
+    CAPABILITY_MVP_ASSESSMENT_PLAN_V1.find((entry) => entry.assessmentKey === assessmentKey) ||
+    CAPABILITY_CURRICULUM_V2_REVIEW_ASSESSMENT_PLAN.find(
+      (entry) => entry.assessmentKey === assessmentKey,
+    ) ||
+    null
+  );
 }
 
 export function getCapabilityMvpPlannedEvidenceCells() {
