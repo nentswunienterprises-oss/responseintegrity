@@ -15,12 +15,13 @@ permissions:
   contents: read
 
 jobs:
-  promotion-plan:
+  promotion-apply:
     runs-on: ubuntu-latest
     environment: production-db
     timeout-minutes: 20
     env:
-      BANK_PROMOTION_MODE: plan
+      BANK_PROMOTION_MODE: apply
+      BANK_PROMOTION_CONFIRM: THE_HUB
       RI_PROOF_DATABASE_URL: ${{ secrets.RI_PROOF_DATABASE_URL }}
       RI_PROOF_DB_URL: ${{ secrets.RI_PROOF_DB_URL }}
       PROOF_DATABASE_URL: ${{ secrets.PROOF_DATABASE_URL }}
@@ -42,5 +43,5 @@ jobs:
           printf '%s\n' "$RI_PRODUCTION_DB_CA_CERT" > "$CA_PATH"
           chmod 600 "$CA_PATH"
           echo "NODE_EXTRA_CA_CERTS=$CA_PATH" >> "$GITHUB_ENV"
-      - name: Plan approved private-bank promotion
+      - name: Apply approved private-bank promotion
         run: node scripts/promoteApprovedExecutionSystemIntelligenceBanks.mjs
