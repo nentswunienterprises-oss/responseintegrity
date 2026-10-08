@@ -28,6 +28,8 @@ const FUTURE_CUMULATIVE_FORM_SIZE = 20;
 const FUTURE_CUMULATIVE_MINIMUM_POOL_SIZE = 40;
 const OPERATING_SYSTEM_CUMULATIVE_FORM_SIZE = 30;
 const OPERATING_SYSTEM_CUMULATIVE_MINIMUM_POOL_SIZE = 60;
+const CURRICULUM_V2_OPERATING_SYSTEM_CUMULATIVE_FORM_SIZE = 32;
+const CURRICULUM_V2_OPERATING_SYSTEM_CUMULATIVE_MINIMUM_POOL_SIZE = 64;
 const CUMULATIVE_PASS_THRESHOLD_PERCENT = 96;
 
 const masteryEntry = (
@@ -208,6 +210,25 @@ export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] 
 
 
 
+export const CURRICULUM_V2_SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS: CapabilityDeepDiveKey[] = [
+  "how_to_diagnose",
+  "why_training_continues_beyond_clarity",
+  "how_to_interpret_prompts",
+  "how_baselines_are_established",
+  "how_the_system_resolves_uncertainty",
+];
+
+export const OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY_V2 =
+  "operating_system_retrieval_v2";
+export const OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY_V2 =
+  "operating_system_transfer_v2";
+
+const CURRICULUM_V2_POST_SANDBOX_DEEP_DIVE_KEYS: CapabilityDeepDiveKey[] = [
+  ...EXECUTION_STANDARDS_DEEP_DIVE_KEYS,
+  ...CURRICULUM_V2_SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
+  ...SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS,
+];
+
 export const CAPABILITY_CURRICULUM_V2_REVIEW_ASSESSMENT_PLAN: CapabilityAssessmentPlanEntry[] = [
   {
     assessmentKey: "why_training_continues_beyond_clarity_mastery_v1",
@@ -220,7 +241,33 @@ export const CAPABILITY_CURRICULUM_V2_REVIEW_ASSESSMENT_PLAN: CapabilityAssessme
     minimumDelayHours: 0,
     criticalCoverageMode: "all_boundaries",
     purpose:
-      "Review immediate Specialist understanding of why RI trains beyond Clarity without changing active Curriculum v1 qualification authority.",
+      "Verify immediate operating understanding of why RI trains beyond Clarity.",
+  },
+  {
+    assessmentKey: OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY_V2,
+    title: "Operating System Delayed Retrieval v2",
+    evidenceKind: "retrieval",
+    coveredDeepDiveKeys: CURRICULUM_V2_POST_SANDBOX_DEEP_DIVE_KEYS,
+    formSize: CURRICULUM_V2_OPERATING_SYSTEM_CUMULATIVE_FORM_SIZE,
+    minimumItemPoolSize: CURRICULUM_V2_OPERATING_SYSTEM_CUMULATIVE_MINIMUM_POOL_SIZE,
+    passThresholdPercent: CUMULATIVE_PASS_THRESHOLD_PERCENT,
+    minimumDelayHours: 24,
+    criticalCoverageMode: "one_per_deep_dive",
+    purpose:
+      "Re-test all 16 post-Sandbox Deep Dives after spacing, including why Training continues beyond Clarity.",
+  },
+  {
+    assessmentKey: OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY_V2,
+    title: "Operating System Interleaved Transfer v2",
+    evidenceKind: "transfer",
+    coveredDeepDiveKeys: CURRICULUM_V2_POST_SANDBOX_DEEP_DIVE_KEYS,
+    formSize: CURRICULUM_V2_OPERATING_SYSTEM_CUMULATIVE_FORM_SIZE,
+    minimumItemPoolSize: CURRICULUM_V2_OPERATING_SYSTEM_CUMULATIVE_MINIMUM_POOL_SIZE,
+    passThresholdPercent: CUMULATIVE_PASS_THRESHOLD_PERCENT,
+    minimumDelayHours: 0,
+    criticalCoverageMode: "one_per_deep_dive",
+    purpose:
+      "Interleave all 16 post-Sandbox Deep Dives so the Specialist must preserve RI operating reasoning across execution, training purpose, evidence, continuity, and delivery.",
   },
 ];
 
@@ -274,6 +321,15 @@ export const CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1 =
       entry.assessmentKey === OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY ||
       entry.assessmentKey === OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY,
   );
+
+export const CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V2: CapabilityAssessmentPlanEntry[] = [
+  ...CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1.filter(
+    (entry) =>
+      entry.assessmentKey !== OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY &&
+      entry.assessmentKey !== OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY,
+  ),
+  ...CAPABILITY_CURRICULUM_V2_REVIEW_ASSESSMENT_PLAN,
+];
 
 export function getCapabilityMvpAssessmentPlanEntry(assessmentKey: string) {
   return (
