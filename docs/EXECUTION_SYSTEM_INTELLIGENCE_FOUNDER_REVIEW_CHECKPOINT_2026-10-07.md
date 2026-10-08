@@ -186,6 +186,19 @@ Any subsequent content mutation requires an immutable new bank version and a new
 
 Founder approval is locked to this exact v10 bank. Any further correction requires an immutable new bank version and a new Founder review.
 
+
+### How to Diagnose — APPROVED
+
+- Assessment: `how_to_diagnose_mastery_v1`
+- Bank version: `v19`
+- Reviewed content hash: `f13f6e478baaaf8b78f8ef55b0a24cfa`
+- Founder status: **APPROVED**
+- Approval date: **8 October 2026**
+- Review scope: complete current v19 Mastery bank
+- Release effect: approval is recorded against this exact version/hash only; the bank remains in Proof Review Mode until the full nine-bank Founder gate closes.
+
+Any subsequent content mutation requires an immutable new bank version and a new Founder review.
+
 ## Closure boundary
 
 Founder acceptance of these nine exact Mastery banks will authorize the next release step, but does not by itself prove the final operating-system lifecycle.
