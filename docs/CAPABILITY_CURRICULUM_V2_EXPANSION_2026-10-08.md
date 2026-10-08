@@ -183,9 +183,11 @@ That expansion requires:
 5. a new cumulative OS Retrieval bank covering all 16 post-Sandbox Deep Dives;
 6. a new cumulative OS Transfer bank covering all 16 post-Sandbox Deep Dives;
 7. explicit Curriculum v2 sequencing and qualification authority;
-8. a migration/currentness policy for Specialists who already qualified under Curriculum v1.
+8. explicit Curriculum v2 qualification authority.
 
-Existing valid v1 evidence must remain historically valid. New knowledge creates a new curriculum version; it does not rewrite old evidence.
+There is no already-qualified Specialist population to migrate from Curriculum v1. No Specialist completed the full qualifying pathway before this Deep Dive was added.
+
+Curriculum v2 therefore becomes the first curriculum version under which Specialists can complete the full qualification sequence. No upgrade, migration, grandfathering, or currentness policy is required for a pre-existing qualified cohort.
 
 ## Authoring standard
 
@@ -219,8 +221,6 @@ It does **not** yet approve:
 - final lesson sequence;
 - Mastery questions/options/feedback;
 - cumulative v2 Retrieval/Transfer banks;
-- migration rules for already-qualified Specialists.
-
 Those remain separate authored artifacts and require their own review.
 
 
@@ -256,4 +256,21 @@ Still not approved by this lesson approval:
 - Curriculum v2 blueprint/sequencing implementation;
 - OS Retrieval v2;
 - OS Transfer v2;
-- the currentness/migration policy for Specialists qualified under Curriculum v1.
+
+
+
+## Qualification transition clarification — 8 October 2026
+
+Founder clarification:
+
+There is no upgrade policy to design for already-qualified Specialists because no Specialist completed the full qualifying pathway before this Curriculum v2 addition.
+
+Therefore:
+
+- Curriculum v1 remains the frozen proof baseline being closed through its current lifecycle evidence;
+- Curriculum v2 may become the first qualification curriculum used for actual Specialist completion;
+- no previously qualified Specialist evidence needs migration;
+- no grandfathering/currentness bridge is required;
+- no Specialist loses a qualification because none had yet completed the full qualifying pathway under v1.
+
+This removes the previously listed upgrade-policy workstream from the Curriculum v2 scope.
