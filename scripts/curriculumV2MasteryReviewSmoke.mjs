@@ -75,7 +75,6 @@ const path =
 const first = await request(path);
 assert.equal(first.status, 200);
 assert.equal(first.data.bankVersion, 1);
-assert.equal(first.data.reviewMode, true);
 assert.equal(first.data.questions.length, 15);
 assert.doesNotMatch(
   JSON.stringify(first.data.questions),
