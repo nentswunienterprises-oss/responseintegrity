@@ -62,6 +62,7 @@ import ResponseConditioningHowToUseBossBattles from "@/pages/responseconditionin
 import ResponseConditioningWhatNotToDo from "@/pages/responseconditioningsystem/execution-standards/what-not-to-do";
 import ResponseConditioningEmotionalDisciplineUnderDiscomfort from "@/pages/responseconditioningsystem/execution-standards/emotional-discipline-under-discomfort";
 import ResponseConditioningHowToDiagnose from "@/pages/responseconditioningsystem/system-intelligence/how-to-diagnose";
+import ResponseConditioningWhyTrainingContinuesBeyondClarity from "@/pages/responseconditioningsystem/system-intelligence/why-training-continues-beyond-clarity";
 import ResponseConditioningHowToInterpretPrompts from "@/pages/responseconditioningsystem/system-intelligence/how-to-interpret-prompts";
 import ResponseConditioningHowBaselinesAreEstablished from "@/pages/responseconditioningsystem/system-intelligence/how-baselines-are-established";
 import ResponseConditioningHowSystemResolvesUncertainty from "@/pages/responseconditioningsystem/system-intelligence/how-the-system-resolves-uncertainty";
@@ -372,6 +373,10 @@ function Router() {
       <Route
         path="/responseconditioningsystem/system-intelligence/how-to-diagnose"
         element={withDeepDiveDeterrent(<ResponseConditioningHowToDiagnose />)}
+      />
+      <Route
+        path="/responseconditioningsystem/review/curriculum-v2/why-training-continues-beyond-clarity"
+        element={withDeepDiveDeterrent(<ResponseConditioningWhyTrainingContinuesBeyondClarity />)}
       />
       <Route
         path="/responseconditioningsystem/system-intelligence/how-to-interpret-prompts"
