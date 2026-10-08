@@ -23,19 +23,15 @@ assert.ok(proofUrl.includes(PROOF_REF), "Proof database URL does not identify th
 assert.ok(productionUrl.includes(PROD_REF), "Production database URL does not identify The Hub");
 
 const approvedBanks = [
-  { assessmentKey: "how_to_model_mastery_v1", version: 8, expectedHash: "4cc42d3af4661ff76110155a673e9c1e" },
-  { assessmentKey: "how_to_intervene_mastery_v1", version: 9, expectedHash: "b2e4fbcf3f6589137f5c2f2d24cd76cf" },
-  { assessmentKey: "how_to_use_boss_battles_mastery_v1", version: 10, expectedHash: "af93fe94fbd559c736fbb226bf53b148" },
-  { assessmentKey: "what_not_to_do_mastery_v1", version: 10, expectedHash: "0a98ca8c5dd75197c39f09338b9f4e6c" },
-  {
-    assessmentKey: "emotional_discipline_under_discomfort_mastery_v1",
-    version: 10,
-    expectedHash: String(process.env.EXPECTED_EMOTIONAL_V10_HASH || "").trim() || null,
-  },
-  { assessmentKey: "how_to_diagnose_mastery_v1", version: 19, expectedHash: "f13f6e478baaaf8b78f8ef55b0a24cfa" },
-  { assessmentKey: "how_to_interpret_prompts_mastery_v1", version: 15, expectedHash: "4bc15f2353d19a302798a45ac0c5d5ee" },
-  { assessmentKey: "how_baselines_are_established_mastery_v1", version: 15, expectedHash: "aa9d2c8d8bc3e80dba490fb2a73d2661" },
-  { assessmentKey: "how_the_system_resolves_uncertainty_mastery_v1", version: 14, expectedHash: "db97b29f4a9a3af8033c42c503aef545" },
+  { assessmentKey: "how_to_model_mastery_v1", version: 8, expectedHash: "a2aaa51823c3b8ce7b1035560fb62a90", expectedConfigHash: "2becb3ad969f1a326a59038fbfc5118b" },
+  { assessmentKey: "how_to_intervene_mastery_v1", version: 9, expectedHash: "f55c2d2b00ea22614c86ba805a6e38b8", expectedConfigHash: "8dfacfb6b722506e673c05200fd13186" },
+  { assessmentKey: "how_to_use_boss_battles_mastery_v1", version: 10, expectedHash: "561855180abd454229edb74b7fc5ce54", expectedConfigHash: "5bdd4ff297b1d7f09106f1204760a5bd" },
+  { assessmentKey: "what_not_to_do_mastery_v1", version: 10, expectedHash: "da89e641d7d1e94f3a1d9d5d5e106c88", expectedConfigHash: "86ff187dd614b141bce02a4a3bdeb174" },
+  { assessmentKey: "emotional_discipline_under_discomfort_mastery_v1", version: 10, expectedHash: "bc98158d8ffd13d3542ef8e83680ba19", expectedConfigHash: "e3d6c5c4e3f5542232085dbcd929f62a" },
+  { assessmentKey: "how_to_diagnose_mastery_v1", version: 19, expectedHash: "b29ff3f49822f0f98797bd0eb0c882d0", expectedConfigHash: "63f3b4c0fa9805c82eb4b34aa6e86918" },
+  { assessmentKey: "how_to_interpret_prompts_mastery_v1", version: 15, expectedHash: "106e6e26789a65c983622ca4647468d6", expectedConfigHash: "53918f4c94053ebce1d68402e246569b" },
+  { assessmentKey: "how_baselines_are_established_mastery_v1", version: 15, expectedHash: "cd392108cb0fd2612d881a5743bc0052", expectedConfigHash: "9443f015d3d43e32370fafa8a4a72786" },
+  { assessmentKey: "how_the_system_resolves_uncertainty_mastery_v1", version: 14, expectedHash: "f1ed5cf8c6a1bcc21c6a204490ed5bb0", expectedConfigHash: "54f92300126467063f681ff18f9877f4" },
 ];
 
 const ssl = { rejectUnauthorized: true };
@@ -48,6 +44,12 @@ const bankHashSql = `
     count(*) filter (where active)::int as active_item_count,
     md5(jsonb_agg(to_jsonb(i) - 'created_at' - 'bank_version' order by item_key)::text) as content_hash
   from private.specialist_capability_assessment_items i
+  where assessment_key = $1 and bank_version = $2
+`;
+
+const configHashSql = `
+  select md5((to_jsonb(c) - array['created_at','retired_at','active','review_mode']::text[])::text) as config_hash
+  from private.specialist_capability_assessment_configs c
   where assessment_key = $1 and bank_version = $2
 `;
 
@@ -96,11 +98,14 @@ async function loadProofBank(bank) {
   assert.equal(Number(evidence.attempts), 0, `Review attempts remain on approved Proof bank ${bank.assessmentKey}`);
   assert.equal(Number(evidence.confirmations), 0, `Review confirmations remain on approved Proof bank ${bank.assessmentKey}`);
 
-  if (bank.expectedHash) {
-    assert.equal(hash.content_hash, bank.expectedHash, `Founder-approved hash mismatch for ${bank.assessmentKey}`);
-  }
+  const configHashResult = await proof.query(configHashSql, [bank.assessmentKey, bank.version]);
+  assert.equal(configHashResult.rowCount, 1, `Proof config fingerprint missing for ${bank.assessmentKey}`);
+  const configHash = configHashResult.rows[0].config_hash;
 
-  return { config, items: itemResult.rows, hash: hash.content_hash };
+  assert.equal(hash.content_hash, bank.expectedHash, `Canonical approved item hash mismatch for ${bank.assessmentKey}`);
+  assert.equal(configHash, bank.expectedConfigHash, `Canonical approved config hash mismatch for ${bank.assessmentKey}`);
+
+  return { config, items: itemResult.rows, hash: hash.content_hash, configHash };
 }
 
 async function productionState(bank) {
@@ -111,6 +116,7 @@ async function productionState(bank) {
     [bank.assessmentKey, bank.version],
   );
   const hash = await production.query(bankHashSql, [bank.assessmentKey, bank.version]);
+  const configHash = await production.query(configHashSql, [bank.assessmentKey, bank.version]);
   return {
     exists: cfg.rowCount === 1,
     active: cfg.rowCount === 1 ? cfg.rows[0].active : false,
@@ -118,6 +124,7 @@ async function productionState(bank) {
     itemCount: Number(hash.rows[0].item_count),
     activeItemCount: Number(hash.rows[0].active_item_count),
     hash: hash.rows[0].content_hash,
+    configHash: configHash.rowCount === 1 ? configHash.rows[0].config_hash : null,
   };
 }
 
@@ -188,6 +195,8 @@ try {
       version: entry.bank.version,
       proofHash: entry.hash,
       expectedHash: entry.bank.expectedHash,
+      expectedConfigHash: entry.bank.expectedConfigHash,
+      proofConfigHash: entry.configHash,
       production: await productionState(entry.bank),
     });
   }
@@ -207,7 +216,8 @@ try {
   }
 
   for (const entry of proofBanks) {
-    assert.ok(entry.bank.expectedHash, `Pinned expected hash missing for ${entry.bank.assessmentKey}`);
+    assert.ok(entry.bank.expectedHash, `Pinned expected item hash missing for ${entry.bank.assessmentKey}`);
+    assert.ok(entry.bank.expectedConfigHash, `Pinned expected config hash missing for ${entry.bank.assessmentKey}`);
   }
 
   await production.query("begin");
@@ -218,6 +228,7 @@ try {
         assert.equal(existing.itemCount, 45, `Existing Production item count mismatch for ${entry.bank.assessmentKey}`);
         assert.equal(existing.activeItemCount, 45, `Existing Production active item count mismatch for ${entry.bank.assessmentKey}`);
         assert.equal(existing.hash, entry.hash, `Existing Production content differs for ${entry.bank.assessmentKey}`);
+        assert.equal(existing.configHash, entry.configHash, `Existing Production config differs for ${entry.bank.assessmentKey}`);
         continue;
       }
 
@@ -228,6 +239,7 @@ try {
       assert.equal(staged.itemCount, 45, `Staged Production item count mismatch for ${entry.bank.assessmentKey}`);
       assert.equal(staged.activeItemCount, 45, `Staged Production active item count mismatch for ${entry.bank.assessmentKey}`);
       assert.equal(staged.hash, entry.hash, `Staged Production hash mismatch for ${entry.bank.assessmentKey}`);
+      assert.equal(staged.configHash, entry.configHash, `Staged Production config hash mismatch for ${entry.bank.assessmentKey}`);
       assert.equal(staged.active, false, `New Production bank activated before all banks were verified: ${entry.bank.assessmentKey}`);
       assert.equal(staged.reviewMode, false, `Production Review Mode unexpectedly enabled for ${entry.bank.assessmentKey}`);
     }
@@ -259,7 +271,8 @@ try {
       assert.equal(finalState.reviewMode, false, `Production Review Mode is on: ${entry.bank.assessmentKey}`);
       assert.equal(finalState.itemCount, 45, `Production item count mismatch: ${entry.bank.assessmentKey}`);
       assert.equal(finalState.activeItemCount, 45, `Production active item count mismatch: ${entry.bank.assessmentKey}`);
-      assert.equal(finalState.hash, entry.hash, `Proof/Production hash mismatch: ${entry.bank.assessmentKey}`);
+      assert.equal(finalState.hash, entry.hash, `Proof/Production item hash mismatch: ${entry.bank.assessmentKey}`);
+      assert.equal(finalState.configHash, entry.configHash, `Proof/Production config hash mismatch: ${entry.bank.assessmentKey}`);
     }
 
     await production.query("commit");
@@ -274,6 +287,7 @@ try {
       assessmentKey: entry.bank.assessmentKey,
       version: entry.bank.version,
       proofHash: entry.hash,
+      proofConfigHash: entry.configHash,
       production: await productionState(entry.bank),
     });
   }
