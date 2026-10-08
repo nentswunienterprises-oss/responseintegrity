@@ -517,3 +517,29 @@ Production/The Hub contains **no** config for:
 - `operating_system_transfer_v2`
 
 The exact cumulative question banks remain **OPEN / NOT YET FOUNDER-APPROVED**. Approval of the architecture does not approve the newly authored Retrieval v2 or Transfer v2 item content.
+
+
+## Curriculum v2 cumulative runtime smoke — PASS
+
+Workflow run `37813732300` verified the exact Proof review runtime on immutable Preview commit:
+
+`a8c2259bec8e61ac97510b17f9433739e39c76d0`
+
+The runtime smoke confirmed:
+
+- `operating_system_retrieval_v2` v1 is available in Review Mode;
+- `operating_system_transfer_v2` v1 is available in Review Mode;
+- both expose a 32-question form;
+- both forms are deterministic on repeated retrieval;
+- neither public form exposes `correctOptionKeys`, critical-fail authority, critical-boundary authority, explanations, or option-feedback authority;
+- the approved `why_training_continues_beyond_clarity_mastery_v1` remains inactive;
+- Curriculum v1 Retrieval/Transfer remain the non-review lifecycle authority;
+- the smoke submitted **0 attempts**.
+
+Post-smoke database verification found:
+
+- 0 v1 cumulative attempts for the dedicated Proof Specialist;
+- 0 v2 cumulative attempts for the dedicated Proof Specialist;
+- 0 Curriculum v2 configs in Production/The Hub.
+
+The exact Retrieval v2 and Transfer v2 banks remain **OPEN for Founder content review**. Runtime readiness does not constitute Founder approval of their newly authored item content.
