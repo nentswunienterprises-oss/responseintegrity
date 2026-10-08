@@ -293,7 +293,7 @@ Assessment authority:
 - Proof state: **active**
 - Review Mode: **on**
 - Production state: **absent**
-- Founder status: **OPEN — NOT YET APPROVED**
+- Founder status: **APPROVED — LOCKED**
 
 Private-bank structure:
 
@@ -361,3 +361,36 @@ Workflow run `37808375308` passed and confirmed:
 - the smoke submitted **0 attempts**.
 
 This opens Founder review of the Mastery bank only. The bank must remain in Proof Review Mode and absent from Production until explicit Founder approval.
+
+
+## Mastery bank Founder approval — 8 October 2026
+
+Founder approved the exact reviewed bank:
+
+- assessment key: `why_training_continues_beyond_clarity_mastery_v1`
+- bank version: `1`
+- item fingerprint: `7ad2d45ee308514ebff87818c906ff2f`
+- config fingerprint: `bdb34aeb0e29613bc3362c8777f6fd3c`
+- Founder status: **APPROVED**
+- approval date: **8 October 2026**
+
+Approval covers the exact 45-item private bank, scoring authority, option sets, Truths, option-specific feedback, competency coverage, critical boundaries, and deterministic 15-question form contract.
+
+At approval there were:
+
+- 0 assessment attempts;
+- 0 question confirmations.
+
+No review evidence required deletion.
+
+To preserve Curriculum v1 authority and prevent accidental pre-v2 evidence, the approved v1 bank is now:
+
+- `active=false`;
+- `review_mode=false`;
+- 45/45 private items retained and active inside the immutable bank version;
+- absent from The Hub / Production;
+- excluded from Curriculum v1 qualification authority.
+
+The bank must not be edited in place. Any content change requires a new immutable bank version and fresh Founder review.
+
+This approval does **not** activate Curriculum v2. Curriculum v2 sequencing and cumulative OS Retrieval/Transfer authority remain separate implementation and review work.
