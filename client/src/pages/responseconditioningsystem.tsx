@@ -83,6 +83,11 @@ const modules = [
         capabilityKey: "how_to_diagnose",
       },
       {
+        label: "Why training continues beyond Clarity",
+        href: "/responseconditioningsystem/system-intelligence/why-training-continues-beyond-clarity",
+        capabilityKey: "why_training_continues_beyond_clarity",
+      },
+      {
         label: "How to interpret prompts",
         href: "/responseconditioningsystem/system-intelligence/how-to-interpret-prompts",
         capabilityKey: "how_to_interpret_prompts",
@@ -195,7 +200,7 @@ export default function ResponseConditioningSystem() {
   const completedCapabilityChecks = masteryAssessments.filter(
     (assessment) => assessment.status === "complete",
   ).length;
-  const totalCapabilityChecks = masteryAssessments.length || 20;
+  const totalCapabilityChecks = masteryAssessments.length || 21;
   const capabilityProgressPercent =
     totalCapabilityChecks > 0
       ? Math.round((completedCapabilityChecks / totalCapabilityChecks) * 100)
@@ -289,13 +294,12 @@ export default function ResponseConditioningSystem() {
           >
             <div className="p-6 space-y-5">
               <div className="space-y-2">
-                <Badge>Transformation Gate</Badge>
+                <Badge>Capability Gates</Badge>
                 <h2 className="text-xl font-bold">Retention + Application</h2>
                 <p className="text-sm text-muted-foreground max-w-3xl">
-                  After the five Transformation Masteries, Retention checks whether the
-                  system can still be retrieved without the immediate Deep Dive context.
-                  Application then checks whether the right RI response can be selected
-                  across mixed situations.
+                  Retention checks whether the operating system can still be retrieved
+                  after its required spacing interval. Application then checks whether
+                  the right RI response can be selected across mixed situations.
                 </p>
               </div>
 
