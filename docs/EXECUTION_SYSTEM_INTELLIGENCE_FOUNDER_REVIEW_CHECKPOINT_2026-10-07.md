@@ -128,6 +128,19 @@ Any subsequent content mutation requires an immutable new bank version and a new
 
 Any subsequent content mutation requires an immutable new bank version and a new Founder review.
 
+
+### What Not To Do — APPROVED
+
+- Assessment: `what_not_to_do_mastery_v1`
+- Bank version: `v10`
+- Reviewed content hash: `0a98ca8c5dd75197c39f09338b9f4e6c`
+- Founder status: **APPROVED**
+- Approval date: **8 October 2026**
+- Review scope: complete corrected current v10 Mastery bank
+- Release effect: approval is recorded against this exact version/hash only; the bank remains in Proof Review Mode until the full nine-bank Founder gate closes.
+
+Any subsequent content mutation requires an immutable new bank version and a new Founder review.
+
 ## Closure boundary
 
 Founder acceptance of these nine exact Mastery banks will authorize the next release step, but does not by itself prove the final operating-system lifecycle.
