@@ -127,8 +127,12 @@ function statePresentation(assessment: CapabilityAvailability) {
     return {
       label: "Not yet open",
       detail:
-        assessment.stage === "session_infrastructure_mastery"
-          ? "Session Infrastructure opens after Transformation Mastery, Retention and Transfer unlock Sandbox."
+        [
+          "execution_standards_mastery",
+          "system_intelligence_mastery",
+          "session_infrastructure_mastery",
+        ].includes(assessment.stage)
+          ? "This Mastery opens after Transformation Mastery, Retention and Application unlock Sandbox."
           : assessment.stage === "operating_system_retrieval"
             ? "Complete all Execution Standards, System Intelligence and Session Infrastructure Masteries first."
             : assessment.stage === "operating_system_transfer"
