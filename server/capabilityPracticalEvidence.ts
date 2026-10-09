@@ -1,5 +1,6 @@
 import { pool } from "./db";
 import { getSandboxCapabilityReadiness } from "./sandboxEnvironment";
+import { assertCompletedExecuteChallenge, getExecuteChallengeForTd } from "./practicalExecuteChallenge";
 import {
   CAPABILITY_PRACTICAL_PROOFS,
   deriveCapabilityPracticalReview,
@@ -133,6 +134,7 @@ export async function submitPracticalCapabilityEvidence(input: {
   artifactType: CapabilityPracticalArtifactType;
   declaration: Record<string, unknown>;
   noRealStudentDataConfirmed: boolean;
+  executeChallengeId?: string | null;
 }) {
   await assertPracticalEntry(input.tutorAssignmentId, input.tutorId);
 
@@ -165,6 +167,17 @@ export async function submitPracticalCapabilityEvidence(input: {
   }
 
   const attemptNumber = Number(latest?.attempt_number || 0) + 1;
+  const executeChallengeId = definition.key === "execute"
+    ? await assertCompletedExecuteChallenge({
+        tutorAssignmentId: input.tutorAssignmentId,
+        tutorId: input.tutorId,
+        attemptNumber,
+        challengeId: String(input.executeChallengeId || ""),
+      })
+    : null;
+  if (definition.key !== "execute" && input.executeChallengeId) {
+    throw httpError(400, "Only Execute may carry an Execute challenge reference.");
+  }
   const artifactUrl = normalizeArtifactUrl(input.artifactUrl);
   const declaration = validateDeclaration(definition, input.declaration);
   const rubricSnapshot = snapshotCapabilityPracticalRubric(definition.reviewRubric);
@@ -183,8 +196,9 @@ export async function submitPracticalCapabilityEvidence(input: {
          competency_links,
          rubric_version,
          rubric_snapshot,
-         no_real_student_data_confirmed
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11::jsonb, true)
+         no_real_student_data_confirmed,
+         execute_challenge_id
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11::jsonb, true, $12)
        RETURNING id, submitted_at`,
       [
         input.tutorAssignmentId,
@@ -198,6 +212,7 @@ export async function submitPracticalCapabilityEvidence(input: {
         JSON.stringify(definition.competencyLinks),
         rubricSnapshot.version,
         JSON.stringify(rubricSnapshot),
+        executeChallengeId,
       ],
     );
 
@@ -231,6 +246,7 @@ export async function getSpecialistPracticalEvidence(input: {
             e.rubric_version,
             e.attempt_number,
             e.artifact_type,
+            e.execute_challenge_id,
             e.submitted_at,
             r.outcome,
             r.feedback,
@@ -255,6 +271,7 @@ export async function getSpecialistPracticalEvidence(input: {
     rubricVersion: row.rubric_version === null ? null : Number(row.rubric_version),
     attemptNumber: Number(row.attempt_number),
     artifactType: row.artifact_type,
+    executeChallengeId: row.execute_challenge_id || null,
     status: row.outcome || "submitted",
     feedback: row.feedback || null,
     reasonCode: row.reason_code || null,
@@ -304,6 +321,7 @@ export async function getPracticalReviewQueue(input: {
             e.artifact_url,
             e.artifact_type,
             e.declaration,
+            e.execute_challenge_id,
             e.submitted_at,
             p.pod_name,
             u.first_name,
@@ -319,7 +337,7 @@ export async function getPracticalReviewQueue(input: {
     params,
   );
 
-  return result.rows.map((row) => {
+  return Promise.all(result.rows.map(async (row) => {
     const reviewRubric = parseFrozenRubric(row.rubric_snapshot);
     const rubricVersion = Number(row.rubric_version || 0);
     if (rubricVersion !== reviewRubric.version) {
@@ -340,9 +358,12 @@ export async function getPracticalReviewQueue(input: {
       artifactUrl: row.artifact_url,
       artifactType: row.artifact_type,
       declaration: row.declaration,
+      executeChallenge: row.proof_key === "execute" && row.execute_challenge_id
+        ? await getExecuteChallengeForTd(String(row.execute_challenge_id),String(row.tutor_assignment_id),String(row.tutor_id))
+        : null,
       submittedAt: row.submitted_at,
     };
-  });
+  }));
 }
 
 async function assertReviewerCanAccessEvidence(input: {
@@ -357,6 +378,9 @@ async function assertReviewerCanAccessEvidence(input: {
             e.proof_version,
             e.rubric_version,
             e.rubric_snapshot,
+            e.execute_challenge_id,
+            e.tutor_assignment_id,
+            e.tutor_id,
             p.td_id,
             r.id AS review_id
        FROM specialist_capability_practical_evidence e
@@ -402,6 +426,23 @@ export async function reviewPracticalCapabilityEvidence(input: {
     derived = deriveCapabilityPracticalReview(access.rubric, input.criterionJudgments);
   } catch (error) {
     throw httpError(400, error instanceof Error ? error.message : "Invalid practical rubric review.");
+  }
+
+  if (access.row.proof_key === "execute") {
+    if (!access.row.execute_challenge_id) {
+      throw httpError(409, "Execute v2 cannot be reviewed without its completed server-assigned challenge.");
+    }
+    const challenge=await getExecuteChallengeForTd(
+      String(access.row.execute_challenge_id),
+      String(access.row.tutor_assignment_id),
+      String(access.row.tutor_id),
+    );
+    const criticalFlags = new Set(["assisted_recorded_as_independent","unobservable_work_claimed_as_observed"]);
+    const anyCritical = challenge.history.some((turn) =>
+      (turn.riskFlags || []).some((flag) => criticalFlags.has(flag)));
+    if (anyCritical && derived.outcome !== "integrity_review") {
+      throw httpError(409, "Execute contains an objective integrity contradiction. Record the relevant integrity-critical Fail, with observed evidence; approval or ordinary repeat is not allowed.");
+    }
   }
 
   const feedback = String(input.feedback || "").trim() || null;
