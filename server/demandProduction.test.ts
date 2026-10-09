@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createDemandDatabase } from './testing/demandDatabase';
@@ -100,4 +102,79 @@ test('metrics require payment plus accepted/unlocked service and keep free Pilot
   assert.equal(metrics({...paid,enrollments:[{...base.enrollments[0],status:'proposal_sent'}]}).verifiedConversions,0);
   assert.equal(metrics({...paid,payments:undefined}).verifiedConversions,null);
   assert.equal(metrics({...paid,leads:[...base.leads,{...base.leads[0],id:'duplicate'}]}).captured,1);
+});
+
+
+test('Specialist assignment surfaces require current enrollment authority', () => {
+  const routesSource = readFileSync(resolve(process.cwd(), 'server/routes.ts'), 'utf8');
+  const cardSource = readFileSync(
+    resolve(process.cwd(), 'client/src/components/tutor/StudentCard.tsx'),
+    'utf8',
+  );
+
+  const podStart = routesSource.indexOf('"/api/tutor/pod"');
+  const podEnd = routesSource.indexOf('"/api/tutor/pod-team"', podStart);
+  const podSource = routesSource.slice(podStart, podEnd);
+  assert.match(
+    podSource,
+    /operationalMode === "training"[\s\S]*students: \[\]/,
+  );
+  assert.match(
+    podSource,
+    /certificationMode === "training"[\s\S]*students: \[\]/,
+  );
+  assert.doesNotMatch(
+    podSource,
+    /canonicalStudents\.length === 0 && students\.length > 0/,
+  );
+
+  const studentListStart = routesSource.indexOf('"/api/tutor/students"');
+  const studentListEnd = routesSource.indexOf('// Get tutor\'s sessions', studentListStart);
+  const studentListSource = routesSource.slice(studentListStart, studentListEnd);
+  assert.match(
+    studentListSource,
+    /certificationMode === "training"[\s\S]*return res\.json\(\[\]\)/,
+  );
+  assert.match(studentListSource, /authoritativeStudents/);
+
+  const decisionStart = routesSource.indexOf(
+    '"/api/tutor/students/:studentId/workflow/assignment-decision"',
+  );
+  const decisionEnd = routesSource.indexOf(
+    '"/api/tutor/students/:studentId/workflow/intro-completed"',
+    decisionStart,
+  );
+  const decisionSource = routesSource.slice(decisionStart, decisionEnd);
+  assert.match(
+    decisionSource,
+    /certificationMode === "training"[\s\S]*Student assignments are not available while Specialist Training is active/,
+  );
+  assert.match(
+    decisionSource,
+    /\.eq\("assigned_tutor_id", dbUser\.id\)/,
+  );
+  assert.match(
+    decisionSource,
+    /\.eq\("status", "awaiting_tutor_acceptance"\)/,
+  );
+  assert.match(
+    decisionSource,
+    /certificationMode === "sandbox" && !enrollmentIsSandbox/,
+  );
+  assert.doesNotMatch(decisionSource, /endsWith\("@gmail\.com"\)/);
+
+  const enrollmentUpdateIndex = decisionSource.indexOf(
+    '.eq("status", "awaiting_tutor_acceptance")',
+  );
+  const studentMutationIndex = decisionSource.indexOf(
+    'storage.updateStudent(studentId',
+  );
+  assert.ok(enrollmentUpdateIndex >= 0);
+  assert.ok(studentMutationIndex > enrollmentUpdateIndex);
+
+  assert.match(cardSource, /hasAuthoritativePendingAssignment/);
+  assert.match(
+    cardSource,
+    /parentEnrollmentTutorId === cardTutorId/,
+  );
 });
