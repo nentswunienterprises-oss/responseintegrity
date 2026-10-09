@@ -97,9 +97,8 @@ function statePresentation(assessment: CapabilityAvailability) {
 
   if (assessment.status === "unavailable") {
     return {
-      label: "Authoring not complete",
-      detail:
-        "This gate is part of the Training architecture, but its private bank is not active yet.",
+      label: "Not available yet",
+      detail: "This check is not available yet.",
       Icon: LockKeyhole,
     };
   }
@@ -142,8 +141,8 @@ function statePresentation(assessment: CapabilityAvailability) {
   }
 
   return {
-    label: "Review required",
-    detail: "The current attempt allowance has been reached.",
+    label: "No attempts remaining",
+    detail: "No further attempt is currently available.",
     Icon: LockKeyhole,
   };
 }
@@ -199,14 +198,16 @@ function CapabilityCard({
           </p>
         </div>
 
-        {assessment.bankVersion !== null && assessment.maxAttempts !== null ? (
+        {assessment.maxAttempts !== null ? (
           <p className="text-xs text-muted-foreground">
-            Private bank v{assessment.bankVersion} · Attempts used:{" "}
-            {assessment.attemptCount}/{assessment.maxAttempts}
-            {" · "}
+            {assessment.formSize} questions ·{" "}
+            {Math.max(0, assessment.maxAttempts - assessment.attemptCount)} attempts remaining
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
             {assessment.formSize} questions
           </p>
-        ) : null}
+        )}
 
         {assessment.status === "available" ? (
           <Button
@@ -336,9 +337,8 @@ export default function SpecialistCapabilityPlan() {
         <Alert>
           <CheckCircle2 className="h-4 w-4" />
           <AlertDescription>
-            A Mastery Check is a clean pass: 15/15 with no critical boundary
-            failure. You have up to three total attempts. Retries prefer unseen
-            questions from the approved 45-item bank.
+            A Mastery Check contains 15 questions. A clean pass requires all 15
+            correct. You have up to three attempts.
           </AlertDescription>
         </Alert>
 
@@ -398,8 +398,8 @@ export default function SpecialistCapabilityPlan() {
           <div>
             <h2 className="text-xl font-semibold">1. Master the Transformation system</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Each Deep Dive has a 45-item private bank. Each attempt draws a
-              balanced 15-question form.
+              Each Deep Dive ends with a 15-question Mastery Check. You have up
+              to three attempts to demonstrate a clean pass.
             </p>
           </div>
           {transformationMastery.map((assessment, index) => (
