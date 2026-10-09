@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { AlertCircle, ArrowLeft, CheckCircle2, ExternalLink, RefreshCcw, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import type { ExecuteResponse } from "@shared/practicalExecuteChallenge";
 import { apiRequest } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ type ReviewQueueItem = {
   artifactUrl: string;
   artifactType: "screen_voice" | "screen_video" | "video";
   declaration: Record<string, string>;
+  executeChallenge: {challengeId:string;completed:boolean;version:number;history:Array<{number:number;situation:{kind:string;studentBehavior:string;evidenceQuestion:string};response:ExecuteResponse;riskFlags?:string[]}>} | null;
   submittedAt: string;
 };
 
@@ -91,7 +93,7 @@ export default function CapabilityPracticalReview() {
   const queryClient = useQueryClient();
   const { user, isLoading: authLoading } = useAuth();
   const role = String(user?.role || "").toLowerCase();
-  const authorized = new Set(["td", "coo", "hr"]).has(role);
+  const authorized = role === "td";
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
   const [criterionDrafts, setCriterionDrafts] = useState<Record<string, CriterionDraft>>({});
   const [feedback, setFeedback] = useState("");
@@ -164,6 +166,7 @@ export default function CapabilityPracticalReview() {
       if (!allJudged) throw new Error("Judge every rubric criterion before submitting the review.");
       if (!notesValid) throw new Error("Every Partial or Fail judgment needs at least 20 characters of observed evidence.");
       if (!derivedPreview) throw new Error("The rubric result could not be derived from the current judgments.");
+      if (selected.proofKey==="execute" && (!selected.executeChallenge?.completed || selected.executeChallenge.history.length!==3)) throw new Error("A complete three-turn Execute trace is required.");
       if (derivedPreview.outcome !== "approved" && feedback.trim().length < 20) {
         throw new Error("Repeat required and integrity review outcomes need at least 20 characters of actionable reviewer feedback.");
       }
@@ -194,7 +197,7 @@ export default function CapabilityPracticalReview() {
     return (
       <div className="min-h-screen bg-background px-4 py-12">
         <div className="mx-auto max-w-xl space-y-5">
-          <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>This capability review surface is restricted to authorised training/operations reviewers.</AlertDescription></Alert>
+          <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>Only the assigned TD may review Specialist Practicals.</AlertDescription></Alert>
           <Button variant="outline" onClick={() => navigate("/")}><ArrowLeft className="mr-2 h-4 w-4" />Return</Button>
         </div>
       </div>
@@ -206,10 +209,10 @@ export default function CapabilityPracticalReview() {
       <div className="mx-auto max-w-6xl space-y-7">
         <div>
           <Button variant="ghost" className="-ml-3 mb-3" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" />Back</Button>
-          <p className="text-sm font-medium text-muted-foreground">Capability Engine - Human Verification</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight">Practical evidence queue</h1>
+          <p className="text-sm font-medium text-muted-foreground">Specialist Development</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight">Practicals review queue</h1>
           <p className="mt-2 max-w-3xl text-muted-foreground">
-            Judge observable execution against the frozen rubric. The system derives the review outcome from your criterion evidence.
+            Compare the permanent, system-assigned Execute transcript with the recording. Judge observable execution against the frozen rubric; the system derives the outcome.
           </p>
         </div>
 
@@ -279,6 +282,33 @@ export default function CapabilityPracticalReview() {
                       </div>
                     ))}
                   </div>
+
+                  {selected.proofKey === "execute" ? (
+                    <div className="space-y-3 border-t pt-5">
+                      <h2 className="font-semibold">System-assigned responsive Execute record</h2>
+                      <p className="text-sm text-muted-foreground">
+                        These turns were revealed sequentially. Confirm that the recording and the saved Specialist interventions, observations and decisions agree. The Specialist cannot rewrite previously saved turns.
+                      </p>
+                      {!selected.executeChallenge?.completed || selected.executeChallenge.history.length !== 3 ? (
+                        <Alert variant="destructive"><AlertCircle className="h-4 w-4"/><AlertDescription>Execute's required three-turn trace is missing. This submission cannot pass.</AlertDescription></Alert>
+                      ) : selected.executeChallenge.history.map(turn => (
+                        <div key={turn.number} className="space-y-2 rounded-md border p-4 text-sm">
+                          <p className="font-semibold">Turn {turn.number}: {turn.situation.kind.replaceAll("_", " ")}</p>
+                          <p><span className="font-medium">Simulated student:</span> {turn.situation.studentBehavior}</p>
+                          <p><span className="font-medium">Specialist said:</span> {turn.response.studentFacingResponse}</p>
+                          <p><span className="font-medium">Intervention:</span> {turn.response.intervention.replaceAll("_", " ")}</p>
+                          <p><span className="font-medium">Observed:</span> {turn.response.observedBehavior}</p>
+                          <p><span className="font-medium">Evidence:</span> {turn.response.evidenceStatus} / {turn.response.independenceClaim}</p>
+                          <p><span className="font-medium">Next action:</span> {turn.response.nextAction.replaceAll("_"," ")} — {turn.response.decisionReason}</p>
+                          {(turn.riskFlags || []).length > 0 ? (
+                            <Alert variant="destructive"><ShieldAlert className="h-4 w-4"/><AlertDescription>
+                              Verify in the recording: {(turn.riskFlags || []).join(", ").replaceAll("_"," ")}. Objective integrity contradictions cannot be cleared by averaging good criteria.
+                            </AlertDescription></Alert>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
 
                   <div className="space-y-4 border-t pt-5">
                     <div>
