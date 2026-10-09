@@ -81,6 +81,8 @@ export default function ResponsiveExecuteChallenge({assignmentId,enabled,onCompl
     <Button disabled={start.isPending} onClick={()=>start.mutate()}>{start.isPending?"Assigning...":"Begin system-assigned Execute challenge"}</Button>}
    {q.data?.started&&q.data.brief&&<>
     <div className="rounded-md border p-3 space-y-1">
+     <p className="text-sm font-semibold">Challenge reference: {q.data.challengeId?.slice(0,8).toUpperCase()}</p>
+     <p className="text-xs text-muted-foreground">Show this assigned reference at the beginning of your recording so the TD can match the video to this exact attempt.</p>
      <div className="flex items-center justify-between"><strong className="text-sm">{q.data.brief.phase}</strong><Badge variant="outline">{q.data.turnCount} of {q.data.brief.totalTurns} saved</Badge></div>
      <p className="text-sm">{q.data.brief.context}</p>
      <p className="text-sm text-muted-foreground">{q.data.brief.operatingBoundary}</p>
