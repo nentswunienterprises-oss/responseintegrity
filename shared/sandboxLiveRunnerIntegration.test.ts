@@ -569,7 +569,15 @@ test("emergency Pod respects mixed student ID column types", () => {
 test("Sandbox Program Progress counts completed stateful sessions and carries visible Specialist state", () => {
   assert.match(
     studentCardSource,
-    /const countedProgramProgress =[\s\S]*student\.sessionProgress[\s\S]*const sessionProgress = quotaSnapshot[\s\S]*countedProgramProgress/,
+    /const countedProgramProgress =[\s\S]*student\.sessionProgress/,
+  );
+  assert.match(
+    studentCardSource,
+    /const sessionProgress = isSandboxStudent[\s\S]*countedProgramProgress/,
+  );
+  assert.match(
+    studentCardSource,
+    /const sessionsRemaining = isSandboxStudent[\s\S]*progressTotal/,
   );
   assert.match(serverRoutesSource, /specialist_sandbox_session_evaluations/);
   assert.match(serverRoutesSource, /sandbox-session:/);
