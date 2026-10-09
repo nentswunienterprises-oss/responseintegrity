@@ -214,13 +214,15 @@ const EXECUTE_RUBRIC: CapabilityPracticalReviewRubric = {
       clearAnchor: "Support never exceeds the active condition and responsibility returns to the student at the correct point.",
       partialAnchor: "One cue or instruction is close to the boundary and would need tightening before live responsibility.",
       failAnchor: "Material support is supplied where the active condition prohibits it or the Specialist carries execution for the student.",
-      criticalOnFail: false,
+      criticalOnFail: true,
       competencyLinks: [
         { deepDiveKey: "clarity", competencyKey: "clarity.light_apply_support" },
         { deepDiveKey: "structured_execution", competencyKey: "structured_execution.independent_execution" },
         { deepDiveKey: "controlled_discomfort", competencyKey: "controlled_discomfort.no_rescue_boundary" },
       ],
-      criticalBoundaryLinks: [],
+      criticalBoundaryLinks: [
+        { deepDiveKey: "controlled_discomfort", boundaryKey: "controlled_discomfort.no_full_rescue" },
+      ],
       sandboxMockCriteria: ["phase_constraints_preserved", "student_response_managed"],
     },
     {
