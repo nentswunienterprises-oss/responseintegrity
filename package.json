@@ -30,7 +30,8 @@
     "db:authority:verify": "tsx scripts/productionMigrationAuthority.ts verify",
     "db:authority:plan": "tsx scripts/productionMigrationAuthority.ts plan",
     "db:authority:apply": "tsx scripts/productionMigrationAuthority.ts apply",
-    "test:db-authority": "node --import tsx --test scripts/productionMigrationAuthority.test.ts"
+    "test:db-authority": "node --import tsx --test scripts/productionMigrationAuthority.test.ts",
+    "test:practicals": "node --import tsx --test shared/practicalExecuteChallenge.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
