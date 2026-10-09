@@ -99,11 +99,11 @@ function humanizeEvidenceKind(kind: CapabilityForm["evidenceKind"]) {
 function friendlyLoadError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
   if (message.startsWith("404:")) {
-    return "This capability check is not available in the active private assessment bank yet.";
+    return "This Capability Check is not available yet.";
   }
   if (message.startsWith("409:")) {
     if (message.includes("preceding Specialist Training evidence")) {
-      return "This Capability Check is still locked behind the preceding Training evidence.";
+      return "Complete the earlier Training step before taking this Capability Check.";
     }
     if (message.includes("spacing interval")) {
       return "The Retention Check is still inside its required spacing interval.";
@@ -112,7 +112,7 @@ function friendlyLoadError(error: unknown) {
       return "No further attempts are currently available for this Capability Check.";
     }
     if (message.includes("already complete")) {
-      return "This Capability evidence is already complete.";
+      return "This Capability Check is already complete.";
     }
     return "The next attempt is not available yet.";
   }
@@ -218,11 +218,6 @@ export default function SpecialistCapabilityAssessment() {
   const [experienceFeedbackSubmitted, setExperienceFeedbackSubmitted] = useState(false);
   const [answerFeedbackOpen, setAnswerFeedbackOpen] = useState(false);
   const [answerFeedbackStage, setAnswerFeedbackStage] = useState<"feedback" | "truth">("feedback");
-  const [reviewSessionKey] = useState(() =>
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-  );
 
   const { data: podData, isLoading: podLoading, error: podError } = useQuery<PodData>({
     queryKey: ["/api/tutor/pod"],
@@ -231,40 +226,15 @@ export default function SpecialistCapabilityAssessment() {
 
   const tutorAssignmentId = String(podData?.assignment?.id || "");
 
-  const reviewResetQuery = useQuery<{
-    reviewMode: boolean;
-    reset: boolean;
-    bankVersion: number | null;
-  }>({
-    queryKey: [
-      "capability-review-reset",
-      assessmentKey,
-      tutorAssignmentId,
-      reviewSessionKey,
-    ],
-    enabled: Boolean(assessmentKey && tutorAssignmentId),
-    retry: false,
-    queryFn: async () => {
-      const res = await apiRequest(
-        "POST",
-        `/api/tutor/capability-assessments/${encodeURIComponent(assessmentKey)}/review-reset`,
-        { tutorAssignmentId },
-      );
-      return res.json();
-    },
-  });
-
   const formQuery = useQuery<CapabilityForm>({
     queryKey: [
       "capability-assessment-form",
       assessmentKey,
       tutorAssignmentId,
-      reviewSessionKey,
     ],
     enabled: Boolean(
       assessmentKey &&
         tutorAssignmentId &&
-        reviewResetQuery.isSuccess &&
         !result &&
         !pendingResult,
     ),
@@ -720,7 +690,7 @@ export default function SpecialistCapabilityAssessment() {
     );
   }
 
-  if (reviewResetQuery.isLoading || formQuery.isLoading) {
+  if (formQuery.isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
         Preparing capability check...
@@ -728,14 +698,14 @@ export default function SpecialistCapabilityAssessment() {
     );
   }
 
-  if (reviewResetQuery.error || formQuery.error || !form || !currentQuestion) {
+  if (formQuery.error || !form || !currentQuestion) {
     return (
       <div className="min-h-screen bg-background px-4 py-12">
         <div className="mx-auto max-w-xl space-y-6">
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {friendlyLoadError(reviewResetQuery.error || formQuery.error)}
+              {friendlyLoadError(formQuery.error)}
             </AlertDescription>
           </Alert>
           <p className="text-sm text-muted-foreground">

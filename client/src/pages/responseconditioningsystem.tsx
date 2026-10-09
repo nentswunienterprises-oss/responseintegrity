@@ -158,7 +158,6 @@ type MasteryAvailability = {
     | null;
   unlockAt: string | null;
   formSize: number;
-  reviewMode?: boolean;
 };
 
 type PodData = {
@@ -310,12 +309,11 @@ export default function ResponseConditioningSystem() {
                   const gateScope = isOperatingSystem ? "Operating System" : "Transformation";
                   const title = `${gateScope} ${isRetrieval ? "Retention" : "Application"}`;
 
-                  const detail = assessment.reviewMode
-                    ? "Review Mode is open in Proof. This review run does not create lifecycle evidence."
-                    : assessment.status === "complete"
+                  const detail =
+                    assessment.status === "complete"
                       ? isRetrieval
-                        ? "Retention is evidenced for the active bank."
-                        : "Application is evidenced for the active bank."
+                        ? "Retention is complete."
+                        : "Application is complete."
                       : assessment.status === "available"
                         ? isRetrieval
                           ? "The Retention Check is ready."
@@ -328,7 +326,7 @@ export default function ResponseConditioningSystem() {
                             ? isRetrieval
                               ? `Complete all ${assessment.coveredDeepDiveKeys.length} ${isOperatingSystem ? "post-Sandbox" : "Transformation"} Masteries first.`
                               : `Pass ${gateScope} Retention first.`
-                            : "This gate is currently locked.";
+                            : "This check is currently locked.";
 
                   return (
                     <div
@@ -336,14 +334,9 @@ export default function ResponseConditioningSystem() {
                       className="border border-border/70 p-5 space-y-4"
                     >
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                            {isRetrieval ? "Retention" : "Application"}
-                          </p>
-                          {assessment.reviewMode ? (
-                            <Badge variant="outline">Review Mode</Badge>
-                          ) : null}
-                        </div>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                          {isRetrieval ? "Retention" : "Application"}
+                        </p>
                         <h3 className="font-semibold">{title}</h3>
                         <p className="text-sm text-muted-foreground">{detail}</p>
                         <p className="text-xs text-muted-foreground">
@@ -356,13 +349,9 @@ export default function ResponseConditioningSystem() {
                           <Link
                             to={`/operational/specialist/capability/${assessment.assessmentKey}`}
                           >
-                            {assessment.reviewMode
-                              ? isRetrieval
-                                ? "Review Retention"
-                                : "Review Application"
-                              : isRetrieval
-                                ? "Take Retention Check"
-                                : "Take Application Check"}
+                            {isRetrieval
+                              ? "Take Retention Check"
+                              : "Take Application Check"}
                           </Link>
                         </Button>
                       ) : null}
