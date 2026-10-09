@@ -137,7 +137,7 @@ test("Sandbox diagnosis keeps the evidence-native runner and projects private si
   );
   assert.match(
     sandboxRediagnosisSource,
-    /studentBehavior: selected\.studentBehavior/,
+    /studentBehavior:\s*projectSandboxLiveBehavior\(\{[\s\S]*behavior: selected\.studentBehavior/,
   );
   assert.doesNotMatch(
     sandboxRediagnosisSource.slice(
