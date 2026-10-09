@@ -77,6 +77,9 @@ async function projection(challenge: any, includeReviewFlags = false) {
     version: EXECUTE_CHALLENGE_VERSION,
     attemptNumber: Number(challenge.attempt_number),
     brief: executeCaseBrief(),
+    ...(includeReviewFlags?{privateBankLineage:(challenge.plan as ExecutePlan).privateBank
+      ? {bankKey:(challenge.plan as ExecutePlan).privateBank!.bankKey,
+         bankVersion:(challenge.plan as ExecutePlan).privateBank!.bankVersion}:null}:{}),
     currentTurn: complete ? null : currentTurn,
     completed: complete,
     turnCount: turns.length,
@@ -114,8 +117,26 @@ export async function startExecuteChallenge(input: { tutorAssignmentId: string; 
   const already = await loadChallenge(input.tutorAssignmentId,input.tutorId,eligibility.attemptNumber);
   if (already) return projection(already);
 
-  // The case and future outcomes are selected by server entropy, never the Specialist.
-  const plan = createExecutePlan(randomBytes(32).toString("hex"));
+  // Draw only simulated public-facing behaviours from the active PRIVATE Sandbox
+  // matrix. Canonical answer keys, intervention truth and future outcomes stay hidden.
+  const privateBank = await pool.query(
+    `SELECT b.bank_key,b.bank_version,
+            array_agg(DISTINCT o.definition->>'studentBehavior'
+              ORDER BY o.definition->>'studentBehavior') AS behaviors
+       FROM private.specialist_sandbox_environment_banks b
+       JOIN private.specialist_sandbox_rep_outcomes o
+         ON o.bank_key=b.bank_key AND o.bank_version=b.bank_version
+      WHERE b.active=true AND o.active=true AND o.phase='Controlled Discomfort'
+        AND NULLIF(o.definition->>'studentBehavior','') IS NOT NULL
+      GROUP BY b.bank_key,b.bank_version
+      ORDER BY b.bank_version DESC LIMIT 1`,
+  );
+  const source=privateBank.rows[0];
+  if(!source)throw fail(409,"The approved private Sandbox outcome bank is unavailable for Practicals.");
+  const plan=createExecutePlan(randomBytes(32).toString("hex"),{
+    bankKey:String(source.bank_key),bankVersion:Number(source.bank_version),
+    behaviors:source.behaviors||[],
+  });
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
