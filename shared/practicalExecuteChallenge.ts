@@ -178,6 +178,8 @@ export function executeRiskFlags(
     flags.push("no_rescue_condition_broken");
   if (response.intervention === "timer_changed")
     flags.push("unauthorised_condition_change");
+  if (response.evidenceStatus !== "observed" && response.independenceClaim === "independent")
+    flags.push("independence_claim_without_clean_observation");
   if (event.kind === "observability_interruption" && response.evidenceStatus === "observed")
     flags.push("unobservable_work_claimed_as_observed");
   return flags;
