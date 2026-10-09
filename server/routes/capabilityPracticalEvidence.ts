@@ -5,6 +5,8 @@ import {
   buildPublicPracticalDefinitions,
   getPracticalReviewQueue,
   getSpecialistPracticalEvidence,
+  getPracticalEntryStatus,
+  getPracticalCompletionStatus,
   reviewPracticalCapabilityEvidence,
   submitPracticalCapabilityEvidence,
 } from "../capabilityPracticalEvidence";
@@ -48,7 +50,7 @@ function requireReviewer(req: Request, res: Response) {
     return null;
   }
   const role = String(user.role || "").toLowerCase();
-  if (!new Set(["td", "coo", "hr"]).has(role)) {
+  if (role !== "td") {
     res.status(403).json({ message: "Capability practical review access is restricted." });
     return null;
   }
@@ -77,12 +79,13 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
           return res.status(400).json({ message: "tutorAssignmentId is required." });
         }
 
-        const evidence = await getSpecialistPracticalEvidence({
+        const [entry, completion, evidence] = await Promise.all([getPracticalEntryStatus(tutorAssignmentId, String(user.id)), getPracticalCompletionStatus(tutorAssignmentId, String(user.id)), getSpecialistPracticalEvidence({
           tutorAssignmentId,
           tutorId: String(user.id),
-        });
+        })]);
 
         return res.json({
+          entry, completion,
           proofs: buildPublicPracticalDefinitions(),
           evidence,
         });
