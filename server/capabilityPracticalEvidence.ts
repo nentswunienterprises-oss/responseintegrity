@@ -541,7 +541,7 @@ export async function getPracticalCompletionStatus(tutorAssignmentId: string, tu
        FROM public.specialist_capability_practical_evidence e
        LEFT JOIN public.specialist_capability_practical_reviews r ON r.evidence_id=e.id
        WHERE e.tutor_assignment_id=$1 AND e.tutor_id=$2
-       ORDER BY e.proof_key, e.attempt_number DESC`,
+       ORDER BY e.proof_key, e.proof_version DESC, e.attempt_number DESC`,
     [tutorAssignmentId, tutorId],
   );
   const proofs = CAPABILITY_PRACTICAL_PROOFS.map((proof) => {
@@ -582,7 +582,7 @@ export async function recordPracticalTdCompletion(input: { tutorAssignmentId: st
        FROM public.specialist_capability_practical_evidence e
        LEFT JOIN public.specialist_capability_practical_reviews r ON r.evidence_id=e.id
        WHERE e.tutor_assignment_id=$1 AND e.tutor_id=$2
-       ORDER BY e.proof_key,e.attempt_number DESC`,
+       ORDER BY e.proof_key,e.proof_version DESC,e.attempt_number DESC`,
       [input.tutorAssignmentId,input.tutorId],
     );
     const evidenceIds: Record<string,string> = {};
