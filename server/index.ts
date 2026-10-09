@@ -7,6 +7,7 @@ import { registerCapabilityEngineRoutes } from "./routes/capabilityEngine";
 import { registerSandboxSimulationRoutes } from "./routes/sandboxSimulation";
 import { registerSandboxEnvironmentRoutes } from "./routes/sandboxEnvironment";
 import { registerSpecialistDevelopmentRoutes } from "./routes/specialistDevelopment";
+import { registerCapabilityPracticalEvidenceRoutes } from "./routes/capabilityPracticalEvidence";
 import { setupAuth } from "./supabaseAuth";
 import cors from 'cors';
 
@@ -108,6 +109,7 @@ app.use((req, res, next) => {
   registerSandboxSimulationRoutes(app);
   registerSandboxEnvironmentRoutes(app);
   registerSpecialistDevelopmentRoutes(app);
+  registerCapabilityPracticalEvidenceRoutes(app);
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
