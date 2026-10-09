@@ -12172,18 +12172,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .map((enrollment: any) => String(enrollment?.id || "").trim())
               .filter(Boolean),
           );
-          const authoritativeStudentIds = new Set(
-            (authoritativeEnrollments || [])
-              .map((enrollment: any) => String(enrollment?.assigned_student_id || "").trim())
-              .filter(Boolean),
-          );
           const students = (await storage.getStudentsByTutor(tutorId)).filter((student: any) => {
             const parentEnrollmentId = String(
               student?.parentEnrollmentId || student?.parent_enrollment_id || "",
             ).trim();
-            return (
-              (parentEnrollmentId && authoritativeEnrollmentIds.has(parentEnrollmentId)) ||
-              authoritativeStudentIds.has(String(student?.id || "").trim())
+            return Boolean(
+              parentEnrollmentId && authoritativeEnrollmentIds.has(parentEnrollmentId),
             );
           });
           const studentIds = students.map((student: any) => student.id).filter(Boolean);
@@ -12844,11 +12838,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .map((enrollment: any) => String(enrollment?.id || "").trim())
             .filter(Boolean),
         );
-        const assignedStudentIds = new Set(
-          (assignedEnrollments || [])
-            .map((enrollment: any) => String(enrollment?.assigned_student_id || "").trim())
-            .filter(Boolean),
-        );
         const students = await hydrateStudentsWithSessionProgress(
           tutorId,
           await storage.getStudentsByTutor(tutorId),
@@ -12857,11 +12846,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const enrollmentId = String(
             student?.parentEnrollmentId || student?.parent_enrollment_id || "",
           ).trim();
-          const studentId = String(student?.id || "").trim();
-          return (
-            (enrollmentId && enrollmentIds.has(enrollmentId)) ||
-            (studentId && assignedStudentIds.has(studentId))
-          );
+          return Boolean(enrollmentId && enrollmentIds.has(enrollmentId));
         });
 
         return res.json(authoritativeStudents);
@@ -18326,13 +18311,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ).trim().toLowerCase();
         const authoritativeEnrollmentId = requestedEnrollmentId || explicitEnrollmentId;
         const enrollmentColumns =
-          "id, user_id, status, current_step, proposal_id, assigned_tutor_id, assigned_student_id, parent_email, student_full_name, is_sandbox_account, assignment_lane";
+          "id, user_id, status, current_step, proposal_id, assigned_tutor_id, parent_email, student_full_name, is_sandbox_account, assignment_lane";
 
         const loadAuthoritativeEnrollmentById = async (id: string) => {
           if (isEmergencyDbMode()) {
             const result = await pool.query(
               `SELECT id, user_id, status, current_step, proposal_id, assigned_tutor_id,
-                      assigned_student_id, parent_email, student_full_name, is_sandbox_account, assignment_lane
+                      parent_email, student_full_name, is_sandbox_account, assignment_lane
                  FROM public.parent_enrollments
                 WHERE id = $1
                   AND assigned_tutor_id = $2
@@ -18350,32 +18335,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .maybeSingle();
           if (error) throw error;
           return data || null;
-        };
-
-        const loadAuthoritativeEnrollmentByStudent = async () => {
-          if (isEmergencyDbMode()) {
-            const result = await pool.query(
-              `SELECT id, user_id, status, current_step, proposal_id, assigned_tutor_id,
-                      assigned_student_id, parent_email, student_full_name, is_sandbox_account, assignment_lane
-                 FROM public.parent_enrollments
-                WHERE assigned_tutor_id = $1
-                  AND assigned_student_id::text = $2::text
-                ORDER BY updated_at DESC
-                LIMIT 1`,
-              [dbUser.id, studentId],
-            );
-            return result.rows[0] || null;
-          }
-
-          const { data, error } = await supabase
-            .from("parent_enrollments")
-            .select(enrollmentColumns)
-            .eq("assigned_tutor_id", dbUser.id)
-            .eq("assigned_student_id", studentId)
-            .order("updated_at", { ascending: false })
-            .limit(1);
-          if (error) throw error;
-          return (data || [])[0] || null;
         };
 
         const loadAuthoritativeEnrollmentByContext = async () => {
@@ -18396,7 +18355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             const result = await pool.query(
               `SELECT id, user_id, status, current_step, proposal_id, assigned_tutor_id,
-                      assigned_student_id, parent_email, student_full_name, is_sandbox_account, assignment_lane
+                      parent_email, student_full_name, is_sandbox_account, assignment_lane
                  FROM public.parent_enrollments
                 WHERE ${conditions.join(" AND ")}
                 ORDER BY updated_at DESC
@@ -18422,11 +18381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         let parentEnrollment = authoritativeEnrollmentId
           ? await loadAuthoritativeEnrollmentById(authoritativeEnrollmentId)
-          : await loadAuthoritativeEnrollmentByStudent();
-
-        if (!parentEnrollment && !authoritativeEnrollmentId) {
-          parentEnrollment = await loadAuthoritativeEnrollmentByContext();
-        }
+          : await loadAuthoritativeEnrollmentByContext();
 
         if (!parentEnrollment) {
           return res.status(409).json({
@@ -18655,7 +18610,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   SET status = 'awaiting_assignment',
                       current_step = 'awaiting_assignment',
                       assigned_tutor_id = NULL,
-                      assigned_student_id = NULL,
                       proposal_id = NULL,
                       updated_at = NOW()
                 WHERE id = $1
@@ -18695,7 +18649,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               status: "awaiting_assignment",
               current_step: "awaiting_assignment",
               assigned_tutor_id: null,
-              assigned_student_id: null,
               proposal_id: null,
               updated_at: new Date().toISOString(),
             })
