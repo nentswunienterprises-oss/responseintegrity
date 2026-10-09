@@ -94,7 +94,7 @@ test("Sandbox mode uses the existing live-runner route rather than a separate ru
   );
   assert.match(
     liveRunnerSource,
-    /<SpecialistSandboxSimulation[\s\S]*studentIdOverride=\{String\(studentId\)\}[\s\S]*tutorAssignmentIdOverride=\{runtimeMode\.assignmentId\}[\s\S]*operationalModeOverride=\{operationalMode\}[\s\S]*embedded/,
+    /<SpecialistSandboxSimulation[\s\S]*studentIdOverride=\{String\(studentId\)\}[\s\S]*tutorAssignmentIdOverride=\{sandboxAssignmentId\}[\s\S]*operationalModeOverride=\{operationalMode\}[\s\S]*embedded/,
   );
   assert.match(sandboxRouteSource, /app\.get\("\/api\/tutor\/runtime-mode"/);
   assert.match(sandboxRouteSource, /Cache-Control", "no-store, max-age=0"/);
