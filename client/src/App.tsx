@@ -121,6 +121,7 @@ import TutorBlueprint from "@/pages/operational/tutor/blueprint";
 import ResponseIntegrityOS from "@/pages/operational/tutor/response-integrity-os";
 import SpecialistCapabilityAssessment from "@/pages/operational/tutor/capability-assessment";
 import SpecialistSandboxSimulation from "@/pages/operational/tutor/sandbox-simulation";
+import SpecialistPracticals from "@/pages/operational/tutor/practicals";
 import OperationalTDDashboard from "@/pages/operational/td/dashboard";
 import TdGateway from "@/pages/operational/td/gateway";
 import TdLanding from "@/pages/operational/td/landing";
@@ -619,6 +620,7 @@ function Router() {
 
       {/* ==================== LEGACY ROUTES (Backwards Compatibility) ==================== */}
       {/* Legacy Tutor Routes */}
+      <Route path="/specialist/practicals" element={<TutorGatewayGuard>{withSpecialistTheme(<SpecialistPracticals />)}</TutorGatewayGuard>} />
       <Route path="/specialist/pod" element={<TutorGatewayGuard><TutorPod /></TutorGatewayGuard>} />
       <Route path="/specialist/growth" element={<TutorGatewayGuard><TutorGrowth /></TutorGatewayGuard>} />
       <Route path="/specialist/academics" element={<TutorGatewayGuard><TutorAcademics /></TutorGatewayGuard>} />
