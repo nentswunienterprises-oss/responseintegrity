@@ -1,0 +1,43 @@
+name: Practicals Acceptance CI
+on:
+  pull_request:
+    paths:
+      - 'shared/practicalExecuteChallenge*'
+      - 'shared/capabilityPracticalEvidence.ts'
+      - 'server/practicalExecuteChallenge.ts'
+      - 'server/capabilityPracticalEvidence.ts'
+      - 'server/routes/capabilityPracticalEvidence.ts'
+      - 'client/src/components/practicals/**'
+      - 'client/src/pages/operational/tutor/practicals.tsx'
+      - 'client/src/pages/operational/td/practicals-review.tsx'
+      - 'migrations/20261009_practicals_evidence_stage_v1.sql'
+      - 'config/production-migration-authority.json'
+      - '.github/workflows/practicals-acceptance-ci.yml'
+      - 'package.json'
+  push:
+    branches: [main]
+    paths:
+      - 'shared/practicalExecuteChallenge*'
+      - 'server/practicalExecuteChallenge.ts'
+      - 'server/capabilityPracticalEvidence.ts'
+      - 'client/src/components/practicals/**'
+      - 'migrations/20261009_practicals_evidence_stage_v1.sql'
+      - 'package.json'
+permissions:
+  contents: read
+jobs:
+  practicals-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Versioned adaptive Execute contract and security boundaries
+        run: npm run test:practicals
+      - name: Vercel API bundle
+        run: npm run build:vercel-api
+      - name: Frontend bundle
+        run: npm run build:frontend
