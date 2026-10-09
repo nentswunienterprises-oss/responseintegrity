@@ -509,8 +509,18 @@ export async function getPracticalCompletionStatus(tutorAssignmentId: string, tu
       status: current?.outcome || (current ? "submitted" : "not_submitted") };
   });
   const allApproved = proofs.every((p) => p.status === "approved");
-  return { entry, proofs, allApproved, readyForTDCompletionReview: entry.ready && allApproved,
-    readyForTrial: false as const }; // No Trial authority without an explicit, durable TD completion decision.
+  const decisionRows = await pool.query(
+    `SELECT id, decision, proof_evidence_ids, evidence_note, decided_at, td_user_id
+       FROM public.specialist_practical_completion_decisions
+       WHERE tutor_assignment_id=$1 AND tutor_id=$2
+       ORDER BY decided_at DESC,id DESC LIMIT 1`,
+    [tutorAssignmentId,tutorId],
+  );
+  const tdDecision = decisionRows.rows[0] || null;
+  const complete = entry.ready && allApproved && tdDecision?.decision === "approved"
+    && proofs.every(p => tdDecision.proof_evidence_ids?.[p.key] === p.evidenceId);
+  return { entry, proofs, allApproved, tdDecision, complete, readyForTDCompletionReview: entry.ready && allApproved,
+    readyForTrial: complete };
 }
 
 
