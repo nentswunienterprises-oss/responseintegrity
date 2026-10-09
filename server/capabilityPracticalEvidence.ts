@@ -1,4 +1,5 @@
 import { pool } from "./db";
+import { getSandboxCapabilityReadiness } from "./sandboxEnvironment";
 import {
   CAPABILITY_PRACTICAL_PROOFS,
   deriveCapabilityPracticalReview,
@@ -25,6 +26,9 @@ function normalizeArtifactUrl(value: string) {
     throw httpError(400, "A valid HTTPS recording link is required.");
   }
 
+  if (parsed.username || parsed.password || [...parsed.searchParams.keys()].some((key) => /token|secret|password|api.?key|auth/i.test(key))) {
+    throw httpError(400, "Recording links must not contain credentials or access tokens.");
+  }
   if (parsed.protocol !== "https:") {
     throw httpError(400, "Practical evidence recording links must use HTTPS.");
   }
@@ -73,6 +77,7 @@ export function buildPublicPracticalDefinitions() {
     version: proof.version,
     title: proof.title,
     purpose: proof.purpose,
+    reviewRubric: { version: proof.reviewRubric.version, criteria: proof.reviewRubric.criteria.map(({ key, label, observableStandard, clearAnchor, partialAnchor, failAnchor }) => ({ key, label, observableStandard, clearAnchor, partialAnchor, failAnchor })) },
     requiredArtifactTypes: proof.requiredArtifactTypes,
     mustShow: proof.mustShow,
     declarationPrompts: proof.declarationPrompts,
@@ -82,7 +87,7 @@ export function buildPublicPracticalDefinitions() {
 
 async function assertTutorAssignmentOwnership(tutorAssignmentId: string, tutorId: string) {
   const result = await pool.query(
-    `SELECT ta.id, ta.pod_id, p.td_id
+    `SELECT ta.id, ta.pod_id, ta.operational_mode, p.td_id
        FROM tutor_assignments ta
        LEFT JOIN pods p ON p.id = ta.pod_id
       WHERE ta.id = $1
@@ -129,7 +134,7 @@ export async function submitPracticalCapabilityEvidence(input: {
   declaration: Record<string, unknown>;
   noRealStudentDataConfirmed: boolean;
 }) {
-  await assertTutorAssignmentOwnership(input.tutorAssignmentId, input.tutorId);
+  await assertPracticalEntry(input.tutorAssignmentId, input.tutorId);
 
   const definition = getCapabilityPracticalProofDefinition(input.proofKey);
   if (!definition) throw httpError(404, "Unknown practical capability proof.");
@@ -268,7 +273,7 @@ export async function getSpecialistPracticalEvidence(input: {
 
 function assertReviewerRole(role: string) {
   const normalized = String(role || "").toLowerCase();
-  if (!new Set(["td", "coo", "hr"]).has(normalized)) {
+  if (!new Set(["td"]).has(normalized)) {
     throw httpError(403, "Capability practical review access is restricted.");
   }
   return normalized;
@@ -460,4 +465,50 @@ export async function reviewPracticalCapabilityEvidence(input: {
     }
     throw error;
   }
+}
+
+
+export async function getPracticalEntryStatus(tutorAssignmentId: string, tutorId: string) {
+  const assignment = await assertTutorAssignmentOwnership(tutorAssignmentId, tutorId);
+  const result = await pool.query(
+    `SELECT id, decision, checklist FROM public.tutor_sandbox_mock_assessments
+      WHERE tutor_assignment_id=$1 AND tutor_id=$2
+        AND checklist->>'assessment_owner'='td'
+        AND checklist->>'next_stage'='practicals'
+      ORDER BY assessed_at DESC, id DESC LIMIT 1`,
+    [tutorAssignmentId, tutorId],
+  );
+  const signoff = result.rows[0] || null;
+  const readiness = await getSandboxCapabilityReadiness({ tutorAssignmentId, tutorId });
+  const blockers: string[] = [];
+  if (assignment.operational_mode !== "sandbox") blockers.push("The Specialist is not in Sandbox.");
+  if (signoff?.decision !== "passed") blockers.push("Assigned TD Practicals-readiness approval is missing.");
+  if (signoff?.checklist?.capability_snapshot?.practicalsReady !== true) blockers.push("TD sign-off lacks positive Sandbox capability evidence.");
+  if (!readiness.practicalsReady) blockers.push("Current Sandbox capability evidence is not ready.");
+  return { ready: blockers.length === 0, blockers, signoffId: signoff?.id || null };
+}
+
+async function assertPracticalEntry(tutorAssignmentId: string, tutorId: string) {
+  const gate = await getPracticalEntryStatus(tutorAssignmentId, tutorId);
+  if (!gate.ready) throw httpError(403, gate.blockers.join(" "));
+}
+
+export async function getPracticalCompletionStatus(tutorAssignmentId: string, tutorId: string) {
+  const entry = await getPracticalEntryStatus(tutorAssignmentId, tutorId);
+  const rows = await pool.query(
+    `SELECT DISTINCT ON (e.proof_key) e.id, e.proof_key, e.proof_version, e.attempt_number, r.outcome
+       FROM public.specialist_capability_practical_evidence e
+       LEFT JOIN public.specialist_capability_practical_reviews r ON r.evidence_id=e.id
+       WHERE e.tutor_assignment_id=$1 AND e.tutor_id=$2
+       ORDER BY e.proof_key, e.attempt_number DESC`,
+    [tutorAssignmentId, tutorId],
+  );
+  const proofs = CAPABILITY_PRACTICAL_PROOFS.map((proof) => {
+    const current = rows.rows.find((r) => r.proof_key === proof.key && Number(r.proof_version) === proof.version);
+    return { key: proof.key, version: proof.version, evidenceId: current?.id || null,
+      status: current?.outcome || (current ? "submitted" : "not_submitted") };
+  });
+  const allApproved = proofs.every((p) => p.status === "approved");
+  return { entry, proofs, allApproved, readyForTDCompletionReview: entry.ready && allApproved,
+    readyForTrial: false as const }; // No Trial authority without an explicit, durable TD completion decision.
 }
