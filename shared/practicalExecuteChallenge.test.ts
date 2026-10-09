@@ -42,6 +42,21 @@ test("Later student response depends on the Specialist's actual saved interventi
  assert.match(rescue.studentBehavior,/step|structure|hint/i);
 });
 
+test("approved private Sandbox bank varies unseen student responses while preserving actual intervention branch",()=>{
+ const bank={bankKey:"sandbox_stateful_environment",bankVersion:1,
+  behaviors:Array.from({length:24},(_,i)=>`Fictional student response ${i}: retains an observable variation in their attempt and reasoning.`)};
+ const plan=createExecutePlan("abcdef0123456789abcdef0123456789",bank);
+ assert.equal(plan.privateBank?.bankVersion,1);
+ assert.notEqual(plan.privateBank?.withSupport,plan.privateBank?.withoutSupport);
+ const first=nextExecuteTurn(plan,[])!;
+ const unsupported=nextExecuteTurn(plan,[trace(1,first,validResponse)])!;
+ const supported=nextExecuteTurn(plan,[trace(1,first,{...validResponse,intervention:"method_or_step_prompt",independenceClaim:"assisted"})])!;
+ assert.notEqual(unsupported.studentBehavior,supported.studentBehavior);
+ assert.ok(unsupported.studentBehavior.includes(plan.privateBank!.withoutSupport));
+ assert.ok(supported.studentBehavior.includes(plan.privateBank!.withSupport));
+ assert.throws(()=>createExecutePlan("abcdef0123456789abcdef0123456789",{...bank,behaviors:bank.behaviors.slice(0,1)}),/sufficiently varied/);
+});
+
 test("Third turn always introduces unpredictable observability failure and future turns remain withheld",()=>{
  const p=createExecutePlan("ffffffff00000000ffffffff00000000");
  const first=nextExecuteTurn(p,[])!;
