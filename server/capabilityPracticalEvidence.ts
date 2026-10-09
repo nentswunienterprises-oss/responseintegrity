@@ -512,3 +512,52 @@ export async function getPracticalCompletionStatus(tutorAssignmentId: string, tu
   return { entry, proofs, allApproved, readyForTDCompletionReview: entry.ready && allApproved,
     readyForTrial: false as const }; // No Trial authority without an explicit, durable TD completion decision.
 }
+
+
+export async function recordPracticalTdCompletion(input: { tutorAssignmentId: string; tutorId: string; reviewerId: string; decision: "approved" | "remediation_required"; evidenceNote: string }) {
+  if (input.evidenceNote.trim().length < 30) throw httpError(400, "Give at least 30 characters of observed evidence.");
+  // Lock assignment against concurrent gate decisions. Only an assigned TD may decide.
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const assignment = await client.query(
+      `SELECT p.td_id FROM public.tutor_assignments ta JOIN public.pods p ON p.id=ta.pod_id
+       WHERE ta.id=$1 AND ta.tutor_id=$2 FOR UPDATE OF ta`,
+      [input.tutorAssignmentId, input.tutorId],
+    );
+    if (String(assignment.rows[0]?.td_id || "") !== input.reviewerId) throw httpError(403, "Only this Specialist's assigned TD may decide Practicals.");
+    const latest = await client.query(
+      `SELECT DISTINCT ON(e.proof_key) e.id,e.proof_key,e.proof_version,r.outcome
+       FROM public.specialist_capability_practical_evidence e
+       LEFT JOIN public.specialist_capability_practical_reviews r ON r.evidence_id=e.id
+       WHERE e.tutor_assignment_id=$1 AND e.tutor_id=$2
+       ORDER BY e.proof_key,e.attempt_number DESC`,
+      [input.tutorAssignmentId,input.tutorId],
+    );
+    const evidenceIds: Record<string,string> = {};
+    for (const proof of CAPABILITY_PRACTICAL_PROOFS) {
+      const row=latest.rows.find(x=>x.proof_key===proof.key && Number(x.proof_version)===proof.version);
+      if (row?.outcome==="approved") evidenceIds[proof.key]=String(row.id);
+      else if (input.decision==="approved") throw httpError(409,`Practical ${proof.key} is not approved at the current version.`);
+    }
+    const previous=await client.query(
+      `SELECT decision,proof_evidence_ids FROM public.specialist_practical_completion_decisions
+       WHERE tutor_assignment_id=$1 AND tutor_id=$2 ORDER BY decided_at DESC,id DESC LIMIT 1`,
+      [input.tutorAssignmentId,input.tutorId],
+    );
+    if (previous.rows[0]?.decision === "approved") throw httpError(409,"Practicals were already approved; a separate governed revocation is required.");
+    if (input.decision==="approved") {
+      const current=await getPracticalEntryStatus(input.tutorAssignmentId,input.tutorId);
+      if (!current.ready) throw httpError(409,current.blockers.join(" "));
+    }
+    const result=await client.query(
+      `INSERT INTO public.specialist_practical_completion_decisions
+       (tutor_assignment_id,tutor_id,td_user_id,decision,proof_evidence_ids,evidence_note)
+       VALUES ($1,$2,$3,$4,$5::jsonb,$6) RETURNING id,decided_at`,
+      [input.tutorAssignmentId,input.tutorId,input.reviewerId,input.decision,JSON.stringify(evidenceIds),input.evidenceNote.trim()],
+    );
+    await client.query("COMMIT");
+    return { decisionId:result.rows[0].id, decidedAt:result.rows[0].decided_at, decision:input.decision, evidenceIds, operationalModeUnchanged:true };
+  } catch(error) { await client.query("ROLLBACK"); throw error; }
+  finally { client.release(); }
+}
