@@ -37,6 +37,7 @@ export type ExecutePlan = {
   initialVariant: number;
   branchVariant: number;
   observabilityVariant: number;
+  privateBank?: {bankKey:string;bankVersion:number; withoutSupport:string; withSupport:string};
 };
 export type ExecuteTranscriptTurn = {
   number: number;
@@ -71,13 +72,25 @@ function bucket(seed: string, offset: number, size: number) {
   return Number.parseInt(hex, 16) % size;
 }
 
-export function createExecutePlan(seed: string): ExecutePlan {
+export function createExecutePlan(seed: string, bank?: {
+ bankKey:string;bankVersion:number;behaviors:string[];
+}): ExecutePlan {
   if (!/^[0-9a-f]{32,128}$/i.test(seed)) throw new Error("Execute challenge requires server entropy.");
+  if(bank && (!bank.bankKey || !Number.isInteger(bank.bankVersion) || bank.bankVersion < 1 ||
+    bank.behaviors.length < 6 || bank.behaviors.some(x=>typeof x!=="string" || x.trim().length < 20))) {
+    throw new Error("Execute challenge needs an approved, sufficiently varied private Sandbox outcome bank.");
+  }
+  const first=bank ? bucket(seed,8,bank.behaviors.length) : 0;
+  const second=bank ? (first+1+bucket(seed,16,bank.behaviors.length-1))%bank.behaviors.length : 0;
   return {
     version: 1, seed, caseKey: "controlled_discomfort_no_rescue",
     initialVariant: bucket(seed, 0, INITIAL_BEHAVIORS.length),
     branchVariant: bucket(seed, 8, 2),
     observabilityVariant: bucket(seed, 16, INTERRUPTIONS.length),
+    ...(bank? { privateBank: {
+      bankKey:bank.bankKey,bankVersion:bank.bankVersion,
+      withoutSupport:bank.behaviors[first],withSupport:bank.behaviors[second],
+    }} : {}),
   };
 }
 
@@ -110,7 +123,11 @@ export function nextExecuteTurn(
     const materialSupport = ["first_step_confirmation", "method_or_step_prompt", "full_rescue_or_teaching"].includes(intervention);
     return {
       number: 2, kind: "difficulty",
-      studentBehavior: (materialSupport ? BRANCH_AFTER_SUPPORT : BRANCH_NO_SUPPORT)[plan.branchVariant],
+      studentBehavior: plan.privateBank
+        ? `${materialSupport
+          ? "After a step or method cue, the simulated student responds under the assisted condition:"
+          : "Without a step or method cue, the simulated student responds under the unchanged condition:"} ${materialSupport ? plan.privateBank.withSupport : plan.privateBank.withoutSupport}`
+        : (materialSupport ? BRANCH_AFTER_SUPPORT : BRANCH_NO_SUPPORT)[plan.branchVariant],
       evidenceQuestion: "What is directly observable? Has any assistance changed the independence claim?",
     };
   }
