@@ -7,6 +7,7 @@ import {
   getSpecialistPracticalEvidence,
   getPracticalEntryStatus,
   getPracticalCompletionStatus,
+  recordPracticalTdCompletion,
   reviewPracticalCapabilityEvidence,
   submitPracticalCapabilityEvidence,
 } from "../capabilityPracticalEvidence";
@@ -164,4 +165,24 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
       }
     },
   );
+  app.post("/api/td/tutors/:tutorId/practicals-completion", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = requireReviewer(req,res);
+      if (!user) return;
+      const body = z.object({
+        tutorAssignmentId:z.string().trim().min(1),
+        decision:z.enum(["approved","remediation_required"]),
+        evidenceNote:z.string().trim().min(30).max(4000),
+      }).strict().parse(req.body);
+      const result=await recordPracticalTdCompletion({
+        tutorAssignmentId:body.tutorAssignmentId,
+        tutorId:String(req.params.tutorId || ""),
+        reviewerId:String(user.id),
+        decision:body.decision,
+        evidenceNote:body.evidenceNote,
+      });
+      return res.status(201).json(result);
+    } catch(error) { return respondError(res,error,"Failed to record Practicals completion."); }
+  });
+
 }
