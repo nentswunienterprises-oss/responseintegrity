@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { isAuthenticated } from "../supabaseAuth";
+import { pool } from "../db";
 import {
   buildPublicPracticalDefinitions,
   getPracticalReviewQueue,
@@ -183,6 +184,22 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
       });
       return res.status(201).json(result);
     } catch(error) { return respondError(res,error,"Failed to record Practicals completion."); }
+  });
+
+  app.get("/api/td/tutors/:tutorId/practicals", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const td=requireReviewer(req,res); if(!td)return;
+      const tutorId=String(req.params.tutorId||"");
+      const match=await pool.query(
+        `SELECT ta.id FROM public.tutor_assignments ta JOIN public.pods p ON p.id=ta.pod_id
+         WHERE ta.tutor_id=$1 AND p.td_id=$2 ORDER BY ta.created_at DESC LIMIT 1`,
+        [tutorId,String(td.id)],
+      );
+      if(!match.rows.length)return res.status(403).json({message:"Specialist is not assigned to your Pod."});
+      const tutorAssignmentId=String(match.rows[0].id);
+      const status=await getPracticalCompletionStatus(tutorAssignmentId,tutorId);
+      return res.json({tutorAssignmentId,...status});
+    } catch(error){return respondError(res,error,"Failed to load Practicals status.");}
   });
 
 }
