@@ -97,6 +97,7 @@ export default function CapabilityPracticalReview() {
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
   const [criterionDrafts, setCriterionDrafts] = useState<Record<string, CriterionDraft>>({});
   const [feedback, setFeedback] = useState("");
+  const [traceMatched,setTraceMatched]=useState(false);
 
   const queueQuery = useQuery<{ queue: ReviewQueueItem[] }>({
     queryKey: ["capability-practical-review-queue"],
@@ -116,12 +117,14 @@ export default function CapabilityPracticalReview() {
   const clearDecision = () => {
     setCriterionDrafts({});
     setFeedback("");
+    setTraceMatched(false);
   };
 
   const openEvidence = (item: ReviewQueueItem) => {
     setSelectedEvidenceId(item.evidenceId);
     setCriterionDrafts(emptyCriterionDrafts(item.reviewRubric));
     setFeedback("");
+    setTraceMatched(false);
   };
 
   const criterionJudgments = useMemo<CapabilityPracticalCriterionReviewInput[]>(() => {
@@ -166,6 +169,7 @@ export default function CapabilityPracticalReview() {
       if (!allJudged) throw new Error("Judge every rubric criterion before submitting the review.");
       if (!notesValid) throw new Error("Every Partial or Fail judgment needs at least 20 characters of observed evidence.");
       if (!derivedPreview) throw new Error("The rubric result could not be derived from the current judgments.");
+      if (selected.proofKey==="execute" && !traceMatched) throw new Error("Verify the server trace, challenge reference and demonstration recording before review.");
       if (selected.proofKey==="execute" && (!selected.executeChallenge?.completed || selected.executeChallenge.history.length!==3)) throw new Error("A complete three-turn Execute trace is required.");
       if (derivedPreview.outcome !== "approved" && feedback.trim().length < 20) {
         throw new Error("Repeat required and integrity review outcomes need at least 20 characters of actionable reviewer feedback.");
@@ -178,6 +182,7 @@ export default function CapabilityPracticalReview() {
           rubricVersion: selected.rubricVersion,
           criterionJudgments,
           feedback: feedback.trim() || null,
+          executeTraceVideoVerified:selected.proofKey==="execute" && traceMatched,
         },
       );
       return response.json();
@@ -409,6 +414,10 @@ export default function CapabilityPracticalReview() {
                       </Alert>
                     )}
 
+                    {selected.proofKey==="execute"?<label className="flex items-start gap-2 rounded-md border p-3 text-sm">
+                      <input type="checkbox" checked={traceMatched} onChange={event=>setTraceMatched(event.target.checked)}/>
+                      <span>I inspected all three saved turns and confirmed that this exact challenge reference and the Specialist's actual actions match the demonstration recording.</span>
+                    </label>:null}
                     <label className="block space-y-2">
                       <span className="text-sm font-medium">
                         Reviewer summary {remediationSummaryRequired ? "(required for this outcome)" : "(optional for Approved)"}
@@ -433,7 +442,7 @@ export default function CapabilityPracticalReview() {
                     )}
 
                     <Button
-                      disabled={reviewMutation.isPending || !derivedPreview || !feedbackValid}
+                      disabled={reviewMutation.isPending || !derivedPreview || !feedbackValid || (selected.proofKey==="execute" && !traceMatched)}
                       onClick={() => reviewMutation.mutate()}
                     >
                       {reviewMutation.isPending ? "Recording rubric..." : "Record immutable rubric review"}
