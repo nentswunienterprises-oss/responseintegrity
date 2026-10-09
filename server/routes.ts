@@ -11821,7 +11821,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const latestApp = tutorApplications[0] || null;
             return res.json({
               assignment,
-              students,
+              students: (await getTutorOperationalMode(tutorId)) === "training" ? [] : students,
               sessions,
               profile: null,
               province: null,
@@ -11833,8 +11833,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           // Fetch assignment
           const assignment = await storage.getTutorAssignment(tutorId);
-          // Fetch students
-          const students = await storage.getStudentsByTutor(tutorId);
+          const operationalMode = await getTutorOperationalMode(tutorId);
+          // Training has no student assignment surface.
+          const students =
+            operationalMode === "training"
+              ? []
+              : await storage.getStudentsByTutor(tutorId);
           const sessions = await getTutorSessionFeed(tutorId);
           // Fetch academic profile (verification status)
           const profile = await storage.getAcademicProfile(tutorId);
@@ -12145,7 +12149,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (isEmergencyDbMode()) {
           const assignment = await storage.getTutorAssignment(tutorId);
           const operationalMode = await getTutorOperationalMode(tutorId);
-          const students = await storage.getStudentsByTutor(tutorId);
+          if (!assignment) return res.json({ assignment: null, students: [] });
+          if (operationalMode === "training") {
+            return res.json({
+              assignment: { ...assignment, operationalMode },
+              students: [],
+            });
+          }
+
+          const { data: authoritativeEnrollments, error: authoritativeEnrollmentError } =
+            await loadTutorAssignedEnrollments(tutorId, {
+              sandboxOnly: operationalMode === "sandbox",
+              ordered: true,
+            });
+          if (authoritativeEnrollmentError) {
+            console.error("Error loading authoritative enrollments for emergency pod:", authoritativeEnrollmentError);
+            return res.status(500).json({ message: "Failed to load assigned students" });
+          }
+
+          const authoritativeEnrollmentIds = new Set(
+            (authoritativeEnrollments || [])
+              .map((enrollment: any) => String(enrollment?.id || "").trim())
+              .filter(Boolean),
+          );
+          const authoritativeStudentIds = new Set(
+            (authoritativeEnrollments || [])
+              .map((enrollment: any) => String(enrollment?.assigned_student_id || "").trim())
+              .filter(Boolean),
+          );
+          const students = (await storage.getStudentsByTutor(tutorId)).filter((student: any) => {
+            const parentEnrollmentId = String(
+              student?.parentEnrollmentId || student?.parent_enrollment_id || "",
+            ).trim();
+            return (
+              (parentEnrollmentId && authoritativeEnrollmentIds.has(parentEnrollmentId)) ||
+              authoritativeStudentIds.has(String(student?.id || "").trim())
+            );
+          });
           const studentIds = students.map((student: any) => student.id).filter(Boolean);
           const progressByStudent = new Map<string, number>();
           const sandboxStateByStudent = new Map<
@@ -12214,7 +12254,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           if (!assignment) return res.json({ assignment: null, students: [] });
 
-          const enrollments = (await loadTutorAssignedEnrollments(tutorId, { ordered: true })).data || [];
+          const enrollments = authoritativeEnrollments || [];
           const enrollmentByStudentId = new Map<string, any>();
           const enrollmentByName = new Map<string, any>();
           enrollments.forEach((enrollment: any) => {
@@ -12257,6 +12297,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const certificationMode = await getTutorCertificationMode(tutorId);
+        if (certificationMode === "training") {
+          return res.json({
+            assignment: { ...assignment, operationalMode: certificationMode },
+            students: [],
+          });
+        }
+
         let { data: assignedEnrollments, error: assignedEnrollmentsError } =
           await loadTutorAssignedEnrollments(tutorId, {
             sandboxOnly: certificationMode === "sandbox",
@@ -12354,48 +12401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return arr.findIndex((candidate) => String(candidate.student.id || "") === studentId) === index;
           });
 
-        if (certificationMode !== "sandbox" && canonicalStudents.length === 0 && students.length > 0) {
-          const unmatchedEnrollments = [...(assignedEnrollments || [])];
-          canonicalStudents = students.map((student: any) => {
-            const explicitEnrollmentId = String(
-              (student as any)?.parentEnrollmentId || (student as any)?.parent_enrollment_id || ""
-            ).trim();
-            const studentParentId = String((student as any)?.parentId || (student as any)?.parent_id || "").trim();
-            const studentParentContact = String((student as any)?.parentContact || (student as any)?.parent_contact || "").trim().toLowerCase();
-            const studentName = String(student?.name || "").trim().toLowerCase();
 
-            let matchedEnrollment =
-              (explicitEnrollmentId
-                ? unmatchedEnrollments.find((enrollment: any) => String(enrollment?.id || "").trim() === explicitEnrollmentId)
-                : null) ||
-              unmatchedEnrollments.find((enrollment: any) => {
-                const enrollmentUserId = String(enrollment?.user_id || "").trim();
-                const enrollmentParentEmail = String(enrollment?.parent_email || "").trim().toLowerCase();
-                const enrollmentStudentName = String(enrollment?.student_full_name || "").trim().toLowerCase();
-
-                if (studentParentId && enrollmentUserId && studentParentId === enrollmentUserId) {
-                  return !studentName || !enrollmentStudentName || studentName === enrollmentStudentName;
-                }
-
-                if (studentParentContact && enrollmentParentEmail && studentParentContact === enrollmentParentEmail) {
-                  return !studentName || !enrollmentStudentName || studentName === enrollmentStudentName;
-                }
-
-                return false;
-              }) ||
-              unmatchedEnrollments[0] ||
-              null;
-
-            if (matchedEnrollment) {
-              unmatchedEnrollments.splice(unmatchedEnrollments.indexOf(matchedEnrollment), 1);
-            }
-
-            return {
-              student,
-              enrollment: matchedEnrollment,
-            };
-          });
-        }
 
         // Fetch parent enrollment info for each canonical student
         const studentsWithParentInfo = await Promise.all(
@@ -12810,7 +12816,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  // Get tutor's students
+  // Get tutor's students from current enrollment authority
   app.get(
     "/api/tutor/students",
     isAuthenticated,
@@ -12818,8 +12824,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const tutorId = (req as any).dbUser.id;
-        const students = await hydrateStudentsWithSessionProgress(tutorId, await storage.getStudentsByTutor(tutorId));
-        res.json(students);
+        const certificationMode = await getTutorCertificationMode(tutorId);
+        if (certificationMode === "training") {
+          return res.json([]);
+        }
+
+        const { data: assignedEnrollments, error: assignedEnrollmentsError } =
+          await loadTutorAssignedEnrollments(tutorId, {
+            sandboxOnly: certificationMode === "sandbox",
+            ordered: true,
+          });
+        if (assignedEnrollmentsError) {
+          console.error("Error loading authoritative tutor students:", assignedEnrollmentsError);
+          return res.status(500).json({ message: "Failed to fetch students" });
+        }
+
+        const enrollmentIds = new Set(
+          (assignedEnrollments || [])
+            .map((enrollment: any) => String(enrollment?.id || "").trim())
+            .filter(Boolean),
+        );
+        const assignedStudentIds = new Set(
+          (assignedEnrollments || [])
+            .map((enrollment: any) => String(enrollment?.assigned_student_id || "").trim())
+            .filter(Boolean),
+        );
+        const students = await hydrateStudentsWithSessionProgress(
+          tutorId,
+          await storage.getStudentsByTutor(tutorId),
+        );
+        const authoritativeStudents = students.filter((student: any) => {
+          const enrollmentId = String(
+            student?.parentEnrollmentId || student?.parent_enrollment_id || "",
+          ).trim();
+          const studentId = String(student?.id || "").trim();
+          return (
+            (enrollmentId && enrollmentIds.has(enrollmentId)) ||
+            (studentId && assignedStudentIds.has(studentId))
+          );
+        });
+
+        return res.json(authoritativeStudents);
       } catch (error) {
         console.error("Error fetching students:", error);
         res.status(500).json({ message: "Failed to fetch students" });
@@ -18233,7 +18278,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     async (req: Request, res: Response) => {
       try {
         const { studentId } = req.params;
-        const { decision, enrollmentId } = req.body as { decision?: "accept" | "decline"; enrollmentId?: string | null };
+        const { decision, enrollmentId } = req.body as {
+          decision?: "accept" | "decline";
+          enrollmentId?: string | null;
+        };
         const dbUser = (req as any).dbUser;
 
         if (decision !== "accept" && decision !== "decline") {
@@ -18244,164 +18292,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!student) {
           return res.status(404).json({ message: "Student not found" });
         }
+        if (String(student.tutorId || "") !== String(dbUser.id || "")) {
+          return res.status(403).json({ message: "Unauthorized: Student does not belong to this specialist" });
+        }
 
-        if (student.tutorId !== dbUser.id) {
-          return res.status(403).json({ message: "Unauthorized: Student does not belong to this tutor" });
+        const certificationMode = await getTutorCertificationMode(dbUser.id);
+        if (certificationMode === "training") {
+          return res.status(409).json({
+            message: "Student assignments are not available while Specialist Training is active.",
+          });
+        }
+
+        const requestedEnrollmentId = String(enrollmentId || "").trim();
+        const explicitEnrollmentId = String(
+          (student as any)?.parentEnrollmentId || (student as any)?.parent_enrollment_id || "",
+        ).trim();
+        if (
+          requestedEnrollmentId &&
+          explicitEnrollmentId &&
+          requestedEnrollmentId !== explicitEnrollmentId
+        ) {
+          return res.status(409).json({
+            message: "This student is not linked to the requested parent assignment. Refresh the Pod.",
+          });
+        }
+
+        const normalizedStudentName = String(student?.name || req.body.studentName || "").trim();
+        const normalizedParentId = String(
+          (student as any)?.parentId || (student as any)?.parent_id || "",
+        ).trim();
+        const normalizedParentEmail = String(
+          (student as any)?.parentContact || (student as any)?.parent_contact || "",
+        ).trim().toLowerCase();
+        const authoritativeEnrollmentId = requestedEnrollmentId || explicitEnrollmentId;
+        const enrollmentColumns =
+          "id, user_id, status, current_step, proposal_id, assigned_tutor_id, assigned_student_id, parent_email, student_full_name, is_sandbox_account, assignment_lane";
+
+        const loadAuthoritativeEnrollmentById = async (id: string) => {
+          if (isEmergencyDbMode()) {
+            const result = await pool.query(
+              `SELECT id, user_id, status, current_step, proposal_id, assigned_tutor_id,
+                      assigned_student_id, parent_email, student_full_name, is_sandbox_account, assignment_lane
+                 FROM public.parent_enrollments
+                WHERE id = $1
+                  AND assigned_tutor_id = $2
+                LIMIT 1`,
+              [id, dbUser.id],
+            );
+            return result.rows[0] || null;
+          }
+
+          const { data, error } = await supabase
+            .from("parent_enrollments")
+            .select(enrollmentColumns)
+            .eq("id", id)
+            .eq("assigned_tutor_id", dbUser.id)
+            .maybeSingle();
+          if (error) throw error;
+          return data || null;
+        };
+
+        const loadAuthoritativeEnrollmentByStudent = async () => {
+          if (isEmergencyDbMode()) {
+            const result = await pool.query(
+              `SELECT id, user_id, status, current_step, proposal_id, assigned_tutor_id,
+                      assigned_student_id, parent_email, student_full_name, is_sandbox_account, assignment_lane
+                 FROM public.parent_enrollments
+                WHERE assigned_tutor_id = $1
+                  AND assigned_student_id::text = $2::text
+                ORDER BY updated_at DESC
+                LIMIT 1`,
+              [dbUser.id, studentId],
+            );
+            return result.rows[0] || null;
+          }
+
+          const { data, error } = await supabase
+            .from("parent_enrollments")
+            .select(enrollmentColumns)
+            .eq("assigned_tutor_id", dbUser.id)
+            .eq("assigned_student_id", studentId)
+            .order("updated_at", { ascending: false })
+            .limit(1);
+          if (error) throw error;
+          return (data || [])[0] || null;
+        };
+
+        const loadAuthoritativeEnrollmentByContext = async () => {
+          if (isEmergencyDbMode()) {
+            const values: unknown[] = [dbUser.id];
+            const conditions = ["assigned_tutor_id = $1"];
+            if (normalizedParentId) {
+              values.push(normalizedParentId);
+              conditions.push(`user_id::text = $${values.length}::text`);
+            }
+            if (normalizedStudentName) {
+              values.push(normalizedStudentName);
+              conditions.push(`lower(student_full_name) = lower($${values.length})`);
+            }
+            if (normalizedParentEmail) {
+              values.push(normalizedParentEmail);
+              conditions.push(`lower(parent_email) = lower($${values.length})`);
+            }
+            const result = await pool.query(
+              `SELECT id, user_id, status, current_step, proposal_id, assigned_tutor_id,
+                      assigned_student_id, parent_email, student_full_name, is_sandbox_account, assignment_lane
+                 FROM public.parent_enrollments
+                WHERE ${conditions.join(" AND ")}
+                ORDER BY updated_at DESC
+                LIMIT 1`,
+              values,
+            );
+            return result.rows[0] || null;
+          }
+
+          let query = supabase
+            .from("parent_enrollments")
+            .select(enrollmentColumns)
+            .eq("assigned_tutor_id", dbUser.id)
+            .order("updated_at", { ascending: false })
+            .limit(1);
+          if (normalizedParentId) query = query.eq("user_id", normalizedParentId);
+          if (normalizedStudentName) query = query.eq("student_full_name", normalizedStudentName);
+          if (normalizedParentEmail) query = query.eq("parent_email", normalizedParentEmail);
+          const { data, error } = await query;
+          if (error) throw error;
+          return (data || [])[0] || null;
+        };
+
+        let parentEnrollment = authoritativeEnrollmentId
+          ? await loadAuthoritativeEnrollmentById(authoritativeEnrollmentId)
+          : await loadAuthoritativeEnrollmentByStudent();
+
+        if (!parentEnrollment && !authoritativeEnrollmentId) {
+          parentEnrollment = await loadAuthoritativeEnrollmentByContext();
+        }
+
+        if (!parentEnrollment) {
+          return res.status(409).json({
+            message: "This student is not currently assigned to this Specialist. Refresh the Pod.",
+          });
+        }
+
+        const enrollmentIsSandbox =
+          Boolean(parentEnrollment.is_sandbox_account) ||
+          String(parentEnrollment.assignment_lane || "").trim().toLowerCase() === "sandbox";
+
+        if (certificationMode === "sandbox" && !enrollmentIsSandbox) {
+          return res.status(409).json({
+            message: "Sandbox can only use synthetic Sandbox students.",
+          });
+        }
+        if (certificationMode !== "sandbox" && enrollmentIsSandbox) {
+          return res.status(409).json({
+            message: "This Sandbox student is not available in the current Specialist mode.",
+          });
+        }
+
+        if (String(parentEnrollment.status || "").trim().toLowerCase() !== "awaiting_tutor_acceptance") {
+          return res.status(409).json({
+            message: "This assignment is no longer pending Specialist acceptance.",
+          });
         }
 
         const existingProfile = (student.personalProfile as any) || {};
         const workflow = existingProfile.workflow || {};
 
         if (decision === "accept") {
-          // Resolve the exact parent enrollment for this student assignment before accepting.
-          let parentEnrollment: any = null;
-          const requestedEnrollmentId = String(enrollmentId || "").trim();
-          const explicitEnrollmentId = String(
-            (student as any)?.parentEnrollmentId || (student as any)?.parent_enrollment_id || ""
-          ).trim();
-          const normalizedStudentName = String(student?.name || req.body.studentName || "").trim();
-          const normalizedParentId = String((student as any)?.parentId || (student as any)?.parent_id || "").trim();
-          const normalizedParentEmail = String((student as any)?.parentContact || (student as any)?.parent_contact || "").trim().toLowerCase();
-
-          if (requestedEnrollmentId) {
-            const { data } = await supabase
-              .from("parent_enrollments")
-              .select("id, user_id, status, current_step, proposal_id, assigned_tutor_id, parent_email, student_full_name, is_sandbox_account")
-              .eq("id", requestedEnrollmentId)
-              .maybeSingle();
-            const matchesStudentContext =
-              !!data &&
-              (
-                Boolean((data as any).is_sandbox_account) ||
-                String(data.assigned_tutor_id || "").trim() === String(dbUser.id || "").trim() ||
-                String(data.user_id || "").trim() === normalizedParentId ||
-                String(data.parent_email || "").trim().toLowerCase() === normalizedParentEmail ||
-                String(data.student_full_name || "").trim().toLowerCase() === normalizedStudentName.toLowerCase()
-              );
-            parentEnrollment = matchesStudentContext ? data : null;
-          }
-
-          if (!parentEnrollment && explicitEnrollmentId) {
-            const { data } = await supabase
-              .from("parent_enrollments")
-              .select("id, user_id, status, current_step, proposal_id, assigned_tutor_id")
-              .eq("id", explicitEnrollmentId)
-              .maybeSingle();
-            parentEnrollment =
-              data && (
-                String(data.assigned_tutor_id || "").trim() === String(dbUser.id || "").trim() ||
-                !String(data.assigned_tutor_id || "").trim()
-              )
-                ? data
-                : null;
-          }
-
-          if (!parentEnrollment && explicitEnrollmentId) {
-            const { data } = await supabase
-              .from("parent_enrollments")
-              .select("id, user_id, status, current_step, proposal_id, parent_email, student_full_name")
-              .eq("assigned_tutor_id", dbUser.id)
-              .eq("id", explicitEnrollmentId)
-              .maybeSingle();
-            parentEnrollment = data;
-          }
-
-          if (!parentEnrollment) {
-            let compositeLookup = supabase
-              .from("parent_enrollments")
-              .select("id, user_id, status, current_step, proposal_id, parent_email, student_full_name")
-              .eq("assigned_tutor_id", dbUser.id)
-              .order("updated_at", { ascending: false })
-              .limit(10);
-
-            if (normalizedParentId) {
-              compositeLookup = compositeLookup.eq("user_id", normalizedParentId);
-            }
-
-            const { data } = await compositeLookup;
-            const candidateEnrollments = data || [];
-
-            parentEnrollment =
-              candidateEnrollments.find((entry: any) => {
-                const entryStudentName = String(entry?.student_full_name || "").trim().toLowerCase();
-                const entryParentEmail = String(entry?.parent_email || "").trim().toLowerCase();
-                const sameStudent = normalizedStudentName
-                  ? entryStudentName === normalizedStudentName.toLowerCase()
-                  : true;
-                const sameEmail = normalizedParentEmail
-                  ? entryParentEmail === normalizedParentEmail
-                  : true;
-                return sameStudent && sameEmail;
-              }) ||
-              candidateEnrollments.find((entry: any) => {
-                const entryStudentName = String(entry?.student_full_name || "").trim().toLowerCase();
-                return normalizedStudentName
-                  ? entryStudentName === normalizedStudentName.toLowerCase()
-                  : false;
-              }) ||
-              null;
-          }
-
-          if (!parentEnrollment && normalizedParentEmail) {
-            const { data } = await supabase
-                .from("parent_enrollments")
-                .select("id, user_id, status, current_step, proposal_id, parent_email, student_full_name")
-                .eq("assigned_tutor_id", dbUser.id)
-                .eq("parent_email", normalizedParentEmail)
-                .order("updated_at", { ascending: false })
-                .limit(10);
-            parentEnrollment =
-              (data || []).find((entry: any) => {
-                const entryStudentName = String(entry?.student_full_name || "").trim().toLowerCase();
-                return normalizedStudentName
-                  ? entryStudentName === normalizedStudentName.toLowerCase()
-                  : true;
-              }) || null;
-          }
-
-          if (!parentEnrollment && normalizedStudentName) {
-            const { data } = await supabase
-              .from("parent_enrollments")
-              .select("id, user_id, status, current_step, proposal_id, assigned_student_id")
-              .eq("assigned_tutor_id", dbUser.id)
-              .eq("student_full_name", normalizedStudentName)
-              .order("updated_at", { ascending: false })
-              .limit(10);
-            parentEnrollment = (data || [])[0] || null;
-          }
-
-          const sandboxContextLikely =
-            normalizedParentEmail.startsWith("sandbox-parent-") ||
-            normalizedParentEmail.endsWith("@gmail.com") ||
-            normalizedStudentName.startsWith("sandbox ");
-
-          if (!parentEnrollment) {
-            if (!sandboxContextLikely) {
-              return res.status(409).json({
-                message: "Could not resolve the parent enrollment for this assignment. Refresh the pod and try again.",
-              });
-            }
-
-            parentEnrollment = {
-              id: requestedEnrollmentId || explicitEnrollmentId || null,
-              user_id: normalizedParentId || null,
-              status: "awaiting_tutor_acceptance",
-              current_step: "awaiting_tutor_acceptance",
-              assigned_student_id: studentId,
-              assigned_tutor_id: dbUser.id,
-            };
-          }
-
-          if (parentEnrollment && String(parentEnrollment.status || "").trim() === "awaiting_assignment") {
-            return res.status(409).json({
-              message: "This assignment is no longer pending tutor acceptance.",
-            });
-          }
-
           const resumedStatus =
-            extractReassignmentResumeStatus(parentEnrollment?.current_step) ||
-            null;
-
+            extractReassignmentResumeStatus(parentEnrollment.current_step) || null;
+          const nextEnrollmentStatus = resumedStatus || "assigned";
+          const nextCurrentStep =
+            resumedStatus && resumedStatus !== "assigned"
+              ? "handover_not_scheduled"
+              : nextEnrollmentStatus;
           const updatedProfile = {
             ...existingProfile,
             workflow: {
@@ -18419,105 +18483,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
             },
           };
 
-          const updated = await storage.updateStudent(studentId, {
-            personalProfile: updatedProfile,
-          } as any);
-
-          if (sandboxContextLikely && parentEnrollment?.id) {
-            if (isEmergencyDbMode()) {
-              await pool.query(
-                `UPDATE public.students
-                    SET parent_enrollment_id = $2,
-                        parent_id = $3,
-                        parent_contact = $4,
-                        tutor_id = $5,
-                        updated_at = NOW()
-                  WHERE id = $1`,
-                [
-                  studentId,
-                  parentEnrollment.id,
-                  normalizedParentId || null,
-                  normalizedParentEmail || null,
-                  dbUser.id,
-                ],
+          let updated: any = null;
+          if (isEmergencyDbMode()) {
+            const client = await pool.connect();
+            try {
+              await client.query("BEGIN");
+              const lockedEnrollment = await client.query(
+                `SELECT id, user_id, status, current_step, assigned_tutor_id, parent_email
+                   FROM public.parent_enrollments
+                  WHERE id = $1
+                    AND assigned_tutor_id = $2
+                    AND status = 'awaiting_tutor_acceptance'
+                  FOR UPDATE`,
+                [parentEnrollment.id, dbUser.id],
               );
-            } else {
-              await supabase
-                .from("students")
-                .update({
-                  parent_enrollment_id: parentEnrollment.id,
-                  parent_id: normalizedParentId || null,
-                  parent_contact: normalizedParentEmail || null,
-                  tutor_id: dbUser.id,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("id", studentId);
-            }
-          }
+              if (!lockedEnrollment.rows[0]) {
+                await client.query("ROLLBACK");
+                return res.status(409).json({
+                  message: "This assignment is no longer pending Specialist acceptance.",
+                });
+              }
 
-          if (parentEnrollment && parentEnrollment.id) {
-            const nextEnrollmentStatus = resumedStatus || "assigned";
-            const nextCurrentStep =
-              resumedStatus && resumedStatus !== "assigned"
-                ? "handover_not_scheduled"
-                : nextEnrollmentStatus;
-
-            if (isEmergencyDbMode()) {
-              const enrollmentUpdate = await pool.query(
+              const enrollmentUpdate = await client.query(
                 `UPDATE public.parent_enrollments
-                    SET assigned_tutor_id = $2,
-                        status = $3,
+                    SET status = $3,
                         current_step = $4,
                         updated_at = NOW()
                   WHERE id = $1
                     AND assigned_tutor_id = $2
-                  RETURNING id, user_id, status, current_step, assigned_tutor_id`,
+                    AND status = 'awaiting_tutor_acceptance'
+                  RETURNING id, user_id, status, current_step, assigned_tutor_id, parent_email`,
                 [parentEnrollment.id, dbUser.id, nextEnrollmentStatus, nextCurrentStep],
               );
-
               if (!enrollmentUpdate.rows[0]) {
+                await client.query("ROLLBACK");
                 return res.status(409).json({
-                  message: "Assignment acceptance was saved, but the parent enrollment could not be advanced for this specialist.",
+                  message: "This assignment changed before acceptance completed. Refresh the Pod.",
                 });
               }
 
+              const studentUpdate = await client.query(
+                `UPDATE public.students
+                    SET personal_profile = $3::jsonb,
+                        parent_enrollment_id = $4,
+                        parent_id = $5,
+                        parent_contact = $6,
+                        updated_at = NOW()
+                  WHERE id = $1
+                    AND tutor_id = $2
+                  RETURNING id`,
+                [
+                  studentId,
+                  dbUser.id,
+                  JSON.stringify(updatedProfile),
+                  parentEnrollment.id,
+                  parentEnrollment.user_id || null,
+                  parentEnrollment.parent_email || normalizedParentEmail || null,
+                ],
+              );
+              if (!studentUpdate.rows[0]) {
+                await client.query("ROLLBACK");
+                return res.status(409).json({
+                  message: "Student ownership changed before acceptance completed. Refresh the Pod.",
+                });
+              }
+
+              await client.query("COMMIT");
               parentEnrollment = {
                 ...parentEnrollment,
                 ...enrollmentUpdate.rows[0],
               };
-            } else {
-              const { error: enrollmentUpdateError } = await supabase
-                .from("parent_enrollments")
-                .update({
-                  assigned_tutor_id: dbUser.id,
-                  status: nextEnrollmentStatus,
-                  current_step: nextCurrentStep,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("id", parentEnrollment.id);
-
-              if (enrollmentUpdateError) {
-                console.error("Failed to update accepted enrollment:", parentEnrollment.id, enrollmentUpdateError);
-                return res.status(500).json({
-                  message: "Assignment acceptance saved on the student, but the enrollment state could not be advanced.",
-                });
+            } catch (error) {
+              try {
+                await client.query("ROLLBACK");
+              } catch {
+                // Ignore rollback failure and return the original error.
               }
+              throw error;
+            } finally {
+              client.release();
+            }
+            updated = await storage.getStudent(studentId);
+          } else {
+            const { data: enrollmentUpdate, error: enrollmentUpdateError } = await supabase
+              .from("parent_enrollments")
+              .update({
+                status: nextEnrollmentStatus,
+                current_step: nextCurrentStep,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", parentEnrollment.id)
+              .eq("assigned_tutor_id", dbUser.id)
+              .eq("status", "awaiting_tutor_acceptance")
+              .select(enrollmentColumns)
+              .maybeSingle();
+
+            if (enrollmentUpdateError) {
+              console.error("Failed to update accepted enrollment:", parentEnrollment.id, enrollmentUpdateError);
+              return res.status(500).json({ message: "Failed to accept assignment" });
+            }
+            if (!enrollmentUpdate) {
+              return res.status(409).json({
+                message: "This assignment changed before acceptance completed. Refresh the Pod.",
+              });
             }
 
-            await safeSendPush(
-              parentEnrollment.user_id,
-              {
-                title: "Tutor accepted",
-                body:
-                  resumedStatus && resumedStatus !== "assigned"
-                    ? "Your new tutor accepted the reassignment. Book a continuity check so Response Integrity can resume from the student's existing training state."
-                    : "Your tutor accepted the assignment. Response Integrity onboarding can now move forward.",
-                url: "/client/parent/gateway",
-                tag: `parent-tutor-accepted-${parentEnrollment.id}`,
-              },
-              "parent tutor accepted assignment",
-            );
+            updated = await storage.updateStudent(studentId, {
+              personalProfile: updatedProfile,
+              parentEnrollmentId: parentEnrollment.id,
+              parentId: parentEnrollment.user_id || null,
+              parentContact: parentEnrollment.parent_email || normalizedParentEmail || null,
+              tutorId: dbUser.id,
+            } as any);
+
+            if (!updated) {
+              await supabase
+                .from("parent_enrollments")
+                .update({
+                  status: parentEnrollment.status,
+                  current_step: parentEnrollment.current_step,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", parentEnrollment.id)
+                .eq("assigned_tutor_id", dbUser.id);
+              return res.status(500).json({ message: "Failed to complete assignment acceptance" });
+            }
+            parentEnrollment = enrollmentUpdate;
           }
+
+          await safeSendPush(
+            parentEnrollment.user_id,
+            {
+              title: "Tutor accepted",
+              body:
+                resumedStatus && resumedStatus !== "assigned"
+                  ? "Your new tutor accepted the reassignment. Book a continuity check so Response Integrity can resume from the student's existing training state."
+                  : "Your tutor accepted the assignment. Response Integrity onboarding can now move forward.",
+              url: "/client/parent/gateway",
+              tag: `parent-tutor-accepted-${parentEnrollment.id}`,
+            },
+            "parent tutor accepted assignment",
+          );
 
           return res.json({
             success: true,
@@ -18535,41 +18641,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .maybeSingle();
 
         if (existingIntroSession || workflow.introCompletedAt || student.identitySheetCompletedAt) {
-          return res.status(400).json({ message: "Assignment can only be declined before the intro workflow begins" });
+          return res.status(400).json({
+            message: "Assignment can only be declined before the intro workflow begins",
+          });
         }
 
-        const { data: enrollmentByStudent } = await supabase
-          .from("parent_enrollments")
-          .select("id")
-          .eq("assigned_tutor_id", dbUser.id)
-          .eq("assigned_student_id", studentId)
-          .maybeSingle();
+        if (isEmergencyDbMode()) {
+          const client = await pool.connect();
+          try {
+            await client.query("BEGIN");
+            const enrollmentUpdate = await client.query(
+              `UPDATE public.parent_enrollments
+                  SET status = 'awaiting_assignment',
+                      current_step = 'awaiting_assignment',
+                      assigned_tutor_id = NULL,
+                      assigned_student_id = NULL,
+                      proposal_id = NULL,
+                      updated_at = NOW()
+                WHERE id = $1
+                  AND assigned_tutor_id = $2
+                  AND status = 'awaiting_tutor_acceptance'
+                RETURNING id`,
+              [parentEnrollment.id, dbUser.id],
+            );
+            if (!enrollmentUpdate.rows[0]) {
+              await client.query("ROLLBACK");
+              return res.status(409).json({
+                message: "This assignment changed before the decline completed. Refresh the Pod.",
+              });
+            }
 
-        if (enrollmentByStudent?.id) {
-          const { error: enrollmentUpdateError } = await supabase
+            await client.query(
+              `DELETE FROM public.students
+                WHERE id = $1
+                  AND tutor_id = $2`,
+              [studentId, dbUser.id],
+            );
+            await client.query("COMMIT");
+          } catch (error) {
+            try {
+              await client.query("ROLLBACK");
+            } catch {
+              // Ignore rollback failure and return the original error.
+            }
+            throw error;
+          } finally {
+            client.release();
+          }
+        } else {
+          const { data: enrollmentUpdate, error: enrollmentUpdateError } = await supabase
             .from("parent_enrollments")
             .update({
               status: "awaiting_assignment",
+              current_step: "awaiting_assignment",
               assigned_tutor_id: null,
               assigned_student_id: null,
               proposal_id: null,
               updated_at: new Date().toISOString(),
             })
-            .eq("id", enrollmentByStudent.id);
+            .eq("id", parentEnrollment.id)
+            .eq("assigned_tutor_id", dbUser.id)
+            .eq("status", "awaiting_tutor_acceptance")
+            .select("id")
+            .maybeSingle();
 
           if (enrollmentUpdateError) {
             return res.status(500).json({ message: "Failed to re-open parent assignment" });
           }
-        }
+          if (!enrollmentUpdate) {
+            return res.status(409).json({
+              message: "This assignment changed before the decline completed. Refresh the Pod.",
+            });
+          }
 
-        const { error: deleteStudentError } = await supabase
-          .from("students")
-          .delete()
-          .eq("id", studentId)
-          .eq("tutor_id", dbUser.id);
-
-        if (deleteStudentError) {
-          return res.status(500).json({ message: "Failed to decline assignment" });
+          const { error: deleteStudentError } = await supabase
+            .from("students")
+            .delete()
+            .eq("id", studentId)
+            .eq("tutor_id", dbUser.id);
+          if (deleteStudentError) {
+            return res.status(500).json({ message: "Failed to decline assignment" });
+          }
         }
 
         return res.json({

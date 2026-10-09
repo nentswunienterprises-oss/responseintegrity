@@ -733,6 +733,17 @@ export function StudentCard({
   const handoverVerificationActive = Boolean(
     effectiveWorkflow?.handoverVerificationRequired && !effectiveWorkflow?.handoverCompleted
   );
+  const parentEnrollmentTutorId = String(
+    student?.parentInfo?.assigned_tutor_id || student?.parentInfo?.assignedTutorId || "",
+  ).trim();
+  const cardTutorId = String(student?.tutor_id || student?.tutorId || "").trim();
+  const hasAuthoritativePendingAssignment = Boolean(
+    student?.parentInfo?.id &&
+      parentEnrollmentTutorId &&
+      parentEnrollmentTutorId === cardTutorId &&
+      String(student?.parentInfo?.status || "").trim().toLowerCase() ===
+        "awaiting_tutor_acceptance",
+  );
   const workflowLabel = getWorkflowLabel(effectiveWorkflow);
   const sandboxCardTheme = isSandboxStudent ? getSandboxCardTheme(student) : null;
 
@@ -929,7 +940,9 @@ export function StudentCard({
         )}
 
 
-        {effectiveWorkflow && !effectiveWorkflow.assignmentAccepted && (
+        {effectiveWorkflow &&
+          !effectiveWorkflow.assignmentAccepted &&
+          hasAuthoritativePendingAssignment && (
           <div className="pt-4 border-t border-border/60 space-y-2">
             <p className="text-xs text-muted-foreground text-center">
               New parent assignment received. Accept or decline this assignment before intro booking can begin.
