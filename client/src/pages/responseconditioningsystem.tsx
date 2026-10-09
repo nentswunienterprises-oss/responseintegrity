@@ -306,9 +306,9 @@ export default function ResponseConditioningSystem() {
               <div className="grid gap-4 md:grid-cols-2">
                 {cumulativeAssessments.map((assessment) => {
                   const isRetrieval = assessment.evidenceKind === "retrieval";
-                  const title = isRetrieval
-                    ? "Transformation Retention"
-                    : "Transformation Application";
+                  const isOperatingSystem = assessment.assessmentKey.startsWith("operating_system_");
+                  const gateScope = isOperatingSystem ? "Operating System" : "Transformation";
+                  const title = `${gateScope} ${isRetrieval ? "Retention" : "Application"}`;
 
                   const detail = assessment.reviewMode
                     ? "Review Mode is open in Proof. This review run does not create lifecycle evidence."
@@ -326,8 +326,8 @@ export default function ResponseConditioningSystem() {
                             : "The delayed Retrieval interval is still running."
                           : assessment.reason === "prerequisite_incomplete"
                             ? isRetrieval
-                              ? "Complete all five Transformation Masteries first."
-                              : "Pass Transformation Retention first."
+                              ? `Complete all ${assessment.coveredDeepDiveKeys.length} ${isOperatingSystem ? "post-Sandbox" : "Transformation"} Masteries first.`
+                              : `Pass ${gateScope} Retention first.`
                             : "This gate is currently locked.";
 
                   return (
