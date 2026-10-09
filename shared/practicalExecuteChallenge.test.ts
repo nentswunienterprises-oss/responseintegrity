@@ -82,6 +82,8 @@ test("Objective contradictions are exposed to TD instead of deleted or converted
  const last=nextExecuteTurn(p,[trace(1,first,validResponse),trace(2,t2,validResponse)])!;
  assert.deepEqual(executeRiskFlags(last,validResponse),["unobservable_work_claimed_as_observed"]);
  assert.deepEqual(executeRiskFlags(last,{...validResponse,evidenceStatus:"not_observed"}),[]);
+ assert.deepEqual(executeRiskFlags(last,{...validResponse,evidenceStatus:"confounded",independenceClaim:"independent"}),["independence_claim_without_clean_observation"]);
+ assert.deepEqual(executeRiskFlags(first,{...validResponse,intervention:"full_rescue_or_teaching",independenceClaim:"assisted"}),["no_rescue_condition_broken"]);
 });
 
 test("All responses need explicit observable evidence and meaningful next-action rationale",()=>{
@@ -107,6 +109,9 @@ test("Boundaries: server chooses case, stores private plan, enforces three-turn 
  assert.match(migration,/trg_validate_practical_execute_link/);
  assert.match(practicals,/assertCompletedExecuteChallenge/);
  assert.match(practicals,/anyCritical && derived.outcome !== "integrity_review"/);
+ assert.match(practicals,/executeTraceVideoVerified !== true/);
+ assert.match(practicals,/no_rescue_condition_broken/);
+ assert.match(path,/controlled_discomfort.no_rescue/);
  assert.match(routes,/execute-challenge\/start/);
  assert.match(routes,/execute-challenge\/:challengeId\/turn/);
 });
