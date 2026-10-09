@@ -172,3 +172,7 @@ DROP TRIGGER IF EXISTS trg_execute_truth_immutable ON private.specialist_practic
 CREATE TRIGGER trg_execute_truth_immutable
   BEFORE UPDATE OR DELETE ON private.specialist_practical_execute_challenge_truth
   FOR EACH ROW EXECUTE FUNCTION private.reject_practical_execute_mutation();
+
+-- An Execute v2 TD decision must retain the reviewer's affirmative video/trace concordance declaration.
+ALTER TABLE public.specialist_capability_practical_reviews
+  ADD COLUMN IF NOT EXISTS execute_trace_video_verified boolean NOT NULL DEFAULT false;
