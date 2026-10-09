@@ -10,7 +10,13 @@ type MasteryAvailability = {
   title: string;
   coveredDeepDiveKeys: string[];
   status: "unavailable" | "locked" | "available" | "complete";
-  reason: "bank_unavailable" | "attempt_limit" | "retry_cooldown" | null;
+  reason:
+    | "bank_unavailable"
+    | "attempt_limit"
+    | "retry_cooldown"
+    | "prerequisite_incomplete"
+    | "spacing_interval"
+    | null;
   unlockAt: string | null;
   attemptCount: number;
   maxAttempts: number | null;
@@ -133,6 +139,14 @@ export function DeepDiveCapabilityCheck({
             Begin Mastery
           </Link>
         </Button>
+      ) : null}
+
+      {assessment.status === "locked" &&
+      assessment.reason === "prerequisite_incomplete" ? (
+        <p className="text-xs text-muted-foreground">
+          Complete Transformation Mastery, Retention and Application first. This
+          Mastery opens in Sandbox.
+        </p>
       ) : null}
 
       {assessment.status === "locked" && assessment.unlockAt ? (
