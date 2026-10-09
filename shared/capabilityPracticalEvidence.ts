@@ -1,4 +1,8 @@
-import { SANDBOX_MOCK_CRITERIA, type SandboxMockCriterionKey } from "./sandboxReadiness";
+const SANDBOX_MOCK_CRITERIA = [
+ {key:"system_direction_followed"}, {key:"phase_constraints_preserved"}, {key:"evidence_captured"},
+ {key:"student_response_managed"}, {key:"system_result_respected"}
+] as const;
+type SandboxMockCriterionKey = (typeof SANDBOX_MOCK_CRITERIA)[number]["key"];
 import { getCapabilityDeepDiveBlueprint } from "./capabilityBlueprint";
 
 export type CapabilityPracticalProofKey = "prepare" | "execute" | "evidence";
