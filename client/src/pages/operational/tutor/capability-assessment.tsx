@@ -103,7 +103,7 @@ function friendlyLoadError(error: unknown) {
   }
   if (message.startsWith("409:")) {
     if (message.includes("preceding Specialist Training evidence")) {
-      return "This Capability Check is still locked behind the preceding Training evidence.";
+      return "Complete the earlier Training step before taking this Capability Check.";
     }
     if (message.includes("spacing interval")) {
       return "The Retention Check is still inside its required spacing interval.";
@@ -112,7 +112,7 @@ function friendlyLoadError(error: unknown) {
       return "No further attempts are currently available for this Capability Check.";
     }
     if (message.includes("already complete")) {
-      return "This Capability evidence is already complete.";
+      return "This Capability Check is already complete.";
     }
     return "The next attempt is not available yet.";
   }
