@@ -198,16 +198,12 @@ function CapabilityCard({
           </p>
         </div>
 
-        {assessment.maxAttempts !== null ? (
-          <p className="text-xs text-muted-foreground">
-            {assessment.formSize} questions ·{" "}
-            {Math.max(0, assessment.maxAttempts - assessment.attemptCount)} attempts remaining
-          </p>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            {assessment.formSize} questions
-          </p>
-        )}
+        <p className="text-xs text-muted-foreground">
+          {assessment.formSize} questions
+          {assessment.maxAttempts !== null && assessment.status !== "complete"
+            ? ` · ${Math.max(0, assessment.maxAttempts - assessment.attemptCount)} attempts remaining`
+            : ""}
+        </p>
 
         {assessment.status === "available" ? (
           <Button
