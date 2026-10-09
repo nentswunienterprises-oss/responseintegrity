@@ -525,6 +525,16 @@ export default function TutorPod() {
   const selectedStudent = (students as any[]).find((s: any) => s.id === selectedStudentId) || null;
 
   const firstName = user?.name?.split(" ")[0] || "Specialist";
+  const specialistOperationalMode = String(
+    trialCaseData?.mode ||
+      tutorAlignmentSummary?.operationalMode ||
+      (assignment as any).operationalMode ||
+      "training",
+  ).toLowerCase();
+  const showCapabilityTraining = ["training", "sandbox"].includes(
+    specialistOperationalMode,
+  );
+  const sandboxTrainingActive = specialistOperationalMode === "sandbox";
 
   return (
     <DashboardLayout>
@@ -561,23 +571,29 @@ export default function TutorPod() {
           trialCase={trialCaseData?.case || null}
         />
 
-        {(trialCaseData?.mode || tutorAlignmentSummary?.operationalMode || (assignment as any).operationalMode || "training") === "training" ? (
+        {showCapabilityTraining ? (
           <Card className="ri-focus-card border-primary/15 bg-background shadow-sm">
             <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
               <div className="max-w-2xl">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                  Training · Capability Engine
+                  {sandboxTrainingActive
+                    ? "Sandbox · Training Continues"
+                    : "Specialist Training"}
                 </p>
                 <h2 className="mt-1 text-xl font-semibold tracking-[-0.01em]">
-                  Deep Dive Capability Checks
+                  {sandboxTrainingActive
+                    ? "Continue Capability Training"
+                    : "Deep Dives & Mastery Checks"}
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Capability Checks sit inside the Deep Dives. Open the Response Conditioning System, work through the live Deep Dive, then take its check at the end.
+                  {sandboxTrainingActive
+                    ? "Sandbox practice now runs alongside your remaining Deep Dives. Continue through Execution Standards, System Intelligence and Session Infrastructure, then complete the final Retention and Application checks."
+                    : "Work through each Deep Dive and complete its Mastery Check. Transformation Mastery, Retention and Application unlock Sandbox."}
                 </p>
               </div>
               <Button asChild className="shrink-0">
                 <Link to="/responseconditioningsystem">
-                  Open Deep Dives
+                  {sandboxTrainingActive ? "Continue Deep Dives" : "Open Deep Dives"}
                 </Link>
               </Button>
             </div>

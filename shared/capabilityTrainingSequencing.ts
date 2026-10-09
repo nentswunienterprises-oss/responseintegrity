@@ -292,9 +292,11 @@ export function buildCapabilityTrainingAvailability(input: {
     }
     if (
       entry.evidenceKind === "mastery" &&
-      entry.coveredDeepDiveKeys.some((key) =>
-        SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS.includes(key),
-      )
+      [
+        "execution_standards_mastery",
+        "system_intelligence_mastery",
+        "session_infrastructure_mastery",
+      ].includes(stageFor(entry))
     ) {
       return isCurrentComplete(TRANSFORMATION_TRANSFER_ASSESSMENT_KEY);
     }
