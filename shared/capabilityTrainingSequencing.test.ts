@@ -229,6 +229,61 @@ test("Session Infrastructure stays locked until Transformation Transfer is evide
   assert.equal(intro?.reason, "prerequisite_incomplete");
 });
 
+test("Execution Standards and System Intelligence open only after Sandbox readiness", () => {
+  const probeBanks: CapabilityTrainingActiveBank[] = [
+    ...activeBanks,
+    bank("how_to_model_mastery_v1", "mastery"),
+    bank("how_to_diagnose_mastery_v1", "mastery"),
+  ];
+  const masteryPasses = transformationMasteryKeys.map((key) =>
+    pass(key, "2026-09-27T08:00:00Z"),
+  );
+  const retrievalPass = pass(
+    TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
+    "2026-09-28T09:00:00Z",
+    "retrieval",
+  );
+
+  let assessments = buildCapabilityTrainingAvailability({
+    now: "2026-09-28T09:30:00Z",
+    activeBanks: probeBanks,
+    attempts: [...masteryPasses, retrievalPass],
+  });
+
+  for (const key of [
+    "how_to_model_mastery_v1",
+    "how_to_diagnose_mastery_v1",
+  ]) {
+    const gate = assessments.find((entry) => entry.assessmentKey === key);
+    assert.equal(gate?.status, "locked");
+    assert.equal(gate?.reason, "prerequisite_incomplete");
+  }
+
+  assessments = buildCapabilityTrainingAvailability({
+    now: "2026-09-28T10:01:00Z",
+    activeBanks: probeBanks,
+    attempts: [
+      ...masteryPasses,
+      retrievalPass,
+      pass(
+        TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
+        "2026-09-28T10:00:00Z",
+        "transfer",
+      ),
+    ],
+  });
+
+  for (const key of [
+    "how_to_model_mastery_v1",
+    "how_to_diagnose_mastery_v1",
+  ]) {
+    assert.equal(
+      assessments.find((entry) => entry.assessmentKey === key)?.status,
+      "available",
+    );
+  }
+});
+
 test("three failed attempts exhaust the configured allowance", () => {
   const key = transformationMasteryKeys[0];
   const attempts: CapabilityTrainingAttempt[] = [1, 2, 3].map((attemptNumber) => ({
