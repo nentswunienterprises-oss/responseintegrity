@@ -189,7 +189,7 @@ const PREPARE_RUBRIC: CapabilityPracticalReviewRubric = {
 };
 
 const EXECUTE_RUBRIC: CapabilityPracticalReviewRubric = {
-  version: 1,
+  version: 2,
   outcomeRuleVersion: 1,
   criteria: [
     {
@@ -289,6 +289,40 @@ const EXECUTE_RUBRIC: CapabilityPracticalReviewRubric = {
       criticalBoundaryLinks: [
         { deepDiveKey: "logging_system", boundaryKey: "logging.record_actual_behavior" },
         { deepDiveKey: "logging_system", boundaryKey: "logging.claims_cannot_override_system" },
+      ],
+      sandboxMockCriteria: ["evidence_captured", "system_result_respected"],
+    },
+    {
+      key: "adaptive_turn_integrity",
+      label: "Responds to the system-revealed unexpected student turn without rewriting history",
+      observableStandard: "Makes sequential decisions during all three server-assigned turns, using what was just observed; later actions cannot retroactively replace earlier conditions or responses.",
+      clearAnchor: "Every turn demonstrates appropriate contingent action and the transcript and recording agree on chronology, support and evidence.",
+      partialAnchor: "The chronology is intact but one response or decision is not clearly justified by the revealed student behaviour.",
+      failAnchor: "The Specialist invents, alters, conceals or retroactively changes a prior turn to make the delivery or its evidence appear stronger.",
+      criticalOnFail: true,
+      competencyLinks: [
+        { deepDiveKey: "logging_system", competencyKey: "evidence.rep_lineage" },
+        { deepDiveKey: "session_flow_control", competencyKey: "session_flow.condition_integrity" },
+      ],
+      criticalBoundaryLinks: [
+        { deepDiveKey: "logging_system", boundaryKey: "logging.record_actual_behavior" },
+      ],
+      sandboxMockCriteria: ["student_response_managed", "evidence_captured"],
+    },
+    {
+      key: "observability_interruptions",
+      label: "Responds truthfully when the simulated student's work becomes unobservable",
+      observableStandard: "During the assigned final interruption, names what cannot be seen or heard, records the missing or confounded evidence and preserves system authority over the next decision.",
+      clearAnchor: "The Specialist explicitly refuses to score hidden work as observed, records the limitation, and chooses a justified pause or authorised evidence recovery.",
+      partialAnchor: "The observability problem is acknowledged but the resulting evidence claim or next action is imprecise.",
+      failAnchor: "Unseen work or inaudible reasoning is claimed as observed, manufactured or used to advance the student.",
+      criticalOnFail: true,
+      competencyLinks: [
+        { deepDiveKey: "tools_required", competencyKey: "tools.observability_gate" },
+        { deepDiveKey: "logging_system", competencyKey: "logging.evidence_status" },
+      ],
+      criticalBoundaryLinks: [
+        { deepDiveKey: "tools_required", boundaryKey: "tools.no_unobservable_evidence" },
       ],
       sandboxMockCriteria: ["evidence_captured", "system_result_respected"],
     },
@@ -432,20 +466,23 @@ export const CAPABILITY_PRACTICAL_PROOFS: CapabilityPracticalProofDefinition[] =
   },
   {
     key: "execute",
-    version: 1,
+    version: 2,
     title: "Practical 2 - Execute",
-    purpose: "Show how you conduct yourself while running a defined RI session condition, including communication, support boundaries and response to difficulty.",
+    purpose: "Demonstrate correct RI response to a system-assigned, unpredictable three-turn simulated student challenge; preserve the permanent event record and explain the session conduct in the linked recording.",
     requiredArtifactTypes: ["screen_video", "video"],
     mustShow: [
+      "Begin the server-assigned Execute challenge. The next simulated student response is revealed only after the previous response is saved.",
       "Open the simulated session professionally and establish the task condition clearly.",
       "Give the student only the instructions permitted by the active set.",
       "Preserve support boundaries when the simulated student hesitates or struggles.",
       "Do not rescue the student into stronger-looking evidence.",
+      "Complete all three unexpected simulated student turns without rewriting earlier decisions or observations.",
+      "When work becomes unobservable, record the limitation instead of inferring stronger performance.",
       "Show how you would close the set and preserve the actual result.",
       "Explain when you would stop, record a deviation or escalate rather than improvise protocol.",
     ],
     declarationPrompts: [
-      { key: "conditionPreserved", prompt: "Which condition did you have to preserve during the demonstration?", minLength: 30 },
+      { key: "conditionPreserved", prompt: "Which condition did you have to preserve across the system-assigned Execute challenge?", minLength: 30 },
       { key: "difficultyResponse", prompt: "How did you respond when difficulty appeared without contaminating the evidence?", minLength: 40 },
       { key: "closingDecision", prompt: "What did you preserve at the end of the demonstration and what remains for the system to decide?", minLength: 40 },
     ],
