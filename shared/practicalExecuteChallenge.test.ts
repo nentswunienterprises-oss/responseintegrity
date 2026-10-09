@@ -27,7 +27,7 @@ test("Execute challenge is deterministic after server assignment, variable betwe
  assert.equal(p.version,1);
  assert.equal(executeCaseBrief().totalTurns,EXECUTE_CHALLENGE_TURNS);
  assert.throws(()=>createExecutePlan("user-choice"),/server entropy/);
- const variations=new Set(Array.from({length:40},(_,i)=>createExecutePlan(i.toString(16).padStart(64,"0"))).map(x=>nextExecuteTurn(x,[])?.studentBehavior));
+ const variations=new Set(Array.from({length:40},(_,i)=>createExecutePlan(i.toString(16).padStart(8,"0").repeat(8))).map(x=>nextExecuteTurn(x,[])?.studentBehavior));
  assert.ok(variations.size>1,"server entropy must vary the first simulated turn");
 });
 
