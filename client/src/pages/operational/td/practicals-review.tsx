@@ -30,7 +30,7 @@ type ReviewQueueItem = {
   artifactUrl: string;
   artifactType: "screen_voice" | "screen_video" | "video";
   declaration: Record<string, string>;
-  executeChallenge: {challengeId:string;completed:boolean;version:number;history:Array<{number:number;recordedAt?:string|null;situation:{kind:string;studentBehavior:string;evidenceQuestion:string};response:ExecuteResponse;riskFlags?:string[]}>} | null;
+  executeChallenge: {challengeId:string;completed:boolean;version:number;privateBankLineage?:{bankKey:string;bankVersion:number}|null;history:Array<{number:number;recordedAt?:string|null;situation:{kind:string;studentBehavior:string;evidenceQuestion:string};response:ExecuteResponse;riskFlags?:string[]}>} | null;
   submittedAt: string;
 };
 
@@ -287,6 +287,7 @@ export default function CapabilityPracticalReview() {
                     <div className="space-y-3 border-t pt-5">
                       <h2 className="font-semibold">System-assigned responsive Execute record</h2>
                       <p className="text-sm font-medium">Recording reference must show: {selected.executeChallenge?.challengeId?.slice(0,8).toUpperCase()}</p>
+                      {selected.executeChallenge?.privateBankLineage?<p className="text-xs text-muted-foreground">Source: controlled Sandbox environment, bank v{selected.executeChallenge.privateBankLineage.bankVersion}. Only visible student behaviour is included in this review; answer truth remains private.</p>:null}
                       <p className="text-sm text-muted-foreground">
                         These turns were revealed sequentially. Confirm that the recording and the saved Specialist interventions, observations and decisions agree. The Specialist cannot rewrite previously saved turns.
                       </p>
