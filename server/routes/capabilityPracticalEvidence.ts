@@ -32,6 +32,7 @@ const practicalReviewSchema = z.object({
     evidenceNote: z.string().trim().max(2000).optional().nullable(),
   })).min(1),
   feedback: z.string().trim().max(4000).optional().nullable(),
+  executeTraceVideoVerified: z.boolean().optional(),
 }).strict();
 
 function requireSpecialist(req: Request, res: Response) {
@@ -202,6 +203,7 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
           rubricVersion: payload.rubricVersion,
           criterionJudgments: payload.criterionJudgments,
           feedback: payload.feedback,
+          executeTraceVideoVerified: payload.executeTraceVideoVerified===true,
         });
 
         return res.status(201).json(result);
