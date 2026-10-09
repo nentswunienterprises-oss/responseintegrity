@@ -415,6 +415,7 @@ export async function reviewPracticalCapabilityEvidence(input: {
   rubricVersion: number;
   criterionJudgments: CapabilityPracticalCriterionReviewInput[];
   feedback?: string | null;
+  executeTraceVideoVerified?: boolean;
 }) {
   const access = await assertReviewerCanAccessEvidence(input);
   if (input.rubricVersion !== access.rubric.version) {
@@ -429,6 +430,9 @@ export async function reviewPracticalCapabilityEvidence(input: {
   }
 
   if (access.row.proof_key === "execute") {
+    if (input.executeTraceVideoVerified !== true) {
+      throw httpError(400, "The assigned TD must affirm that the challenge reference, three persisted turns and demonstration recording agree.");
+    }
     if (!access.row.execute_challenge_id) {
       throw httpError(409, "Execute v2 cannot be reviewed without its completed server-assigned challenge.");
     }
@@ -466,8 +470,9 @@ export async function reviewPracticalCapabilityEvidence(input: {
          critical_fail_criterion_keys,
          outcome,
          reason_code,
-         feedback
-       ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11::jsonb, $12, $13, $14)
+         feedback,
+         execute_trace_video_verified
+       ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11::jsonb, $12, $13, $14, $15)
        RETURNING id, reviewed_at`,
       [
         input.evidenceId,
@@ -484,6 +489,7 @@ export async function reviewPracticalCapabilityEvidence(input: {
         derived.outcome,
         derived.reasonCode,
         feedback,
+        access.row.proof_key==="execute" && input.executeTraceVideoVerified===true,
       ],
     );
 
