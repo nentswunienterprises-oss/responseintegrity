@@ -126,7 +126,7 @@ export async function startExecuteChallenge(input: { tutorAssignmentId: string; 
        FROM private.specialist_sandbox_environment_banks b
        JOIN private.specialist_sandbox_rep_outcomes o
          ON o.bank_key=b.bank_key AND o.bank_version=b.bank_version
-      WHERE b.active=true AND o.active=true AND o.phase='Controlled Discomfort'
+      WHERE b.active=true AND o.active=true AND o.phase='Controlled Discomfort' AND o.set_id='controlled_discomfort.no_rescue'
         AND NULLIF(o.definition->>'studentBehavior','') IS NOT NULL
       GROUP BY b.bank_key,b.bank_version
       ORDER BY b.bank_version DESC LIMIT 1`,
