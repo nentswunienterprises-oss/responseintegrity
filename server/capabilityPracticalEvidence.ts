@@ -441,7 +441,7 @@ export async function reviewPracticalCapabilityEvidence(input: {
       String(access.row.tutor_assignment_id),
       String(access.row.tutor_id),
     );
-    const criticalFlags = new Set(["assisted_recorded_as_independent","unobservable_work_claimed_as_observed"]);
+    const criticalFlags = new Set(["assisted_recorded_as_independent","unobservable_work_claimed_as_observed","no_rescue_condition_broken","unauthorised_condition_change","independence_claim_without_clean_observation"]);
     const anyCritical = challenge.history.some((turn) =>
       (turn.riskFlags || []).some((flag) => criticalFlags.has(flag)));
     if (anyCritical && derived.outcome !== "integrity_review") {
