@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { isAuthenticated } from "../supabaseAuth";
 import { pool } from "../db";
+import { getExecuteChallengeStatus,startExecuteChallenge,recordExecuteTurn } from "../practicalExecuteChallenge";
 import {
   buildPublicPracticalDefinitions,
   getPracticalReviewQueue,
@@ -20,6 +21,7 @@ const practicalSubmissionSchema = z.object({
   artifactType: z.enum(["screen_voice", "screen_video", "video"]),
   declaration: z.record(z.string(), z.unknown()),
   noRealStudentDataConfirmed: z.literal(true),
+  executeChallengeId: z.string().uuid().optional(),
 });
 
 const practicalReviewSchema = z.object({
@@ -115,6 +117,7 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
           artifactType: payload.artifactType,
           declaration: payload.declaration,
           noRealStudentDataConfirmed: payload.noRealStudentDataConfirmed,
+          executeChallengeId: payload.executeChallengeId || null,
         });
 
         return res.status(201).json(result);
@@ -123,6 +126,47 @@ export function registerCapabilityPracticalEvidenceRoutes(app: Express) {
       }
     },
   );
+
+
+  // A Specialist cannot choose the case, response sequence, or a new attempt to cherry-pick an easier outcome.
+  app.get("/api/tutor/capability-practicals/execute-challenge",isAuthenticated,async (req,res)=>{
+    try {
+      const user=requireSpecialist(req,res); if(!user)return;
+      const tutorAssignmentId=z.string().trim().min(1).parse(req.query.tutorAssignmentId);
+      return res.json(await getExecuteChallengeStatus({tutorAssignmentId,tutorId:String(user.id)}));
+    } catch(error){return respondError(res,error,"Failed to load Execute challenge.");}
+  });
+  app.post("/api/tutor/capability-practicals/execute-challenge/start",isAuthenticated,async (req,res)=>{
+    try {
+      const user=requireSpecialist(req,res); if(!user)return;
+      const body=z.object({tutorAssignmentId:z.string().trim().min(1)}).strict().parse(req.body);
+      return res.status(201).json(await startExecuteChallenge({tutorAssignmentId:body.tutorAssignmentId,tutorId:String(user.id)}));
+    } catch(error){return respondError(res,error,"Failed to start Execute challenge.");}
+  });
+  app.post("/api/tutor/capability-practicals/execute-challenge/:challengeId/turn",isAuthenticated,async (req,res)=>{
+    try {
+      const user=requireSpecialist(req,res); if(!user)return;
+      const responseSchema=z.object({
+        intervention:z.enum(["none","neutral_clarification","first_step_confirmation","method_or_step_prompt","full_rescue_or_teaching","timer_changed"]),
+        studentFacingResponse:z.string().trim().min(30).max(2000),
+        observedBehavior:z.string().trim().min(30).max(2000),
+        evidenceStatus:z.enum(["observed","not_observed","confounded"]),
+        independenceClaim:z.enum(["independent","assisted","not_established"]),
+        nextAction:z.enum(["continue","pause_for_evidence","escalate"]),
+        decisionReason:z.string().trim().min(30).max(2000),
+      }).strict();
+      const body=z.object({
+        tutorAssignmentId:z.string().trim().min(1),
+        turnNumber:z.number().int().min(1).max(3),
+        response:responseSchema,
+      }).strict().parse(req.body);
+      const challengeId=z.string().uuid().parse(req.params.challengeId);
+      return res.status(201).json(await recordExecuteTurn({
+        tutorAssignmentId:body.tutorAssignmentId,tutorId:String(user.id),challengeId,
+        turnNumber:body.turnNumber,response:body.response,
+      }));
+    } catch(error){return respondError(res,error,"Failed to record Execute turn.");}
+  });
 
   app.get(
     "/api/capability-review/practicals/pending",
