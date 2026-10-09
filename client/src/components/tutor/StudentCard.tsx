@@ -289,27 +289,22 @@ export function StudentCard({
     String(student?.parentContact || student?.parent_contact || "").toLowerCase().includes("sandbox") ||
     String(operationalMode || "").toLowerCase() === "sandbox";
   const quotaSnapshot = student.parentInfo?.monthlyQuota || student.monthlyQuota || null;
-  const progressLabel = quotaSnapshot ? "Current Package" : "Program Progress";
-  const progressTotal = Math.max(
-    1,
-    Number(
-      quotaSnapshot?.session_quota ??
-        student.parentInfo?.package_sessions ??
-        8,
-    ),
-  );
+  const progressLabel = "Program Progress";
+  const progressTotal = Math.max(1, Number(quotaSnapshot?.session_quota ?? 8));
   const countedProgramProgress = (() => {
     const completedSessions = Math.max(0, Number(student.sessionProgress || 0));
     return completedSessions > 0 ? (((completedSessions - 1) % progressTotal) + 1) : 0;
   })();
-  const sessionProgress = quotaSnapshot
-    ? Math.max(0, Number(quotaSnapshot.sessions_used ?? 0))
-    : countedProgramProgress;
-  const sessionsRemaining = quotaSnapshot
-    ? Math.max(0, Number(quotaSnapshot.sessions_remaining ?? progressTotal))
-    : sessionProgress === 0
-      ? progressTotal
-      : Math.max(0, progressTotal - sessionProgress);
+  const sessionProgress = isSandboxStudent
+    ? countedProgramProgress
+    : quotaSnapshot
+      ? Math.max(0, Number(quotaSnapshot.sessions_used ?? 0))
+      : countedProgramProgress;
+  const sessionsRemaining = isSandboxStudent
+    ? (sessionProgress === 0 ? progressTotal : Math.max(0, progressTotal - sessionProgress))
+    : quotaSnapshot
+      ? Math.max(0, Number(quotaSnapshot.sessions_remaining ?? progressTotal))
+      : (sessionProgress === 0 ? progressTotal : Math.max(0, progressTotal - sessionProgress));
   const initials = student.name
     .split(" ")
     .map((n) => n[0])
@@ -738,6 +733,17 @@ export function StudentCard({
   const handoverVerificationActive = Boolean(
     effectiveWorkflow?.handoverVerificationRequired && !effectiveWorkflow?.handoverCompleted
   );
+  const parentEnrollmentTutorId = String(
+    student?.parentInfo?.assigned_tutor_id || student?.parentInfo?.assignedTutorId || "",
+  ).trim();
+  const cardTutorId = String(student?.tutor_id || student?.tutorId || "").trim();
+  const hasAuthoritativePendingAssignment = Boolean(
+    student?.parentInfo?.id &&
+      parentEnrollmentTutorId &&
+      parentEnrollmentTutorId === cardTutorId &&
+      String(student?.parentInfo?.status || "").trim().toLowerCase() ===
+        "awaiting_tutor_acceptance",
+  );
   const workflowLabel = getWorkflowLabel(effectiveWorkflow);
   const sandboxCardTheme = isSandboxStudent ? getSandboxCardTheme(student) : null;
 
@@ -863,7 +869,7 @@ export function StudentCard({
         {workflow?.proposalAccepted && (
           <div className="space-y-3">
             <div className="ri-student-info-card rounded-xl border border-primary/20 bg-muted/20 px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{progressLabel}</p>
+              <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Program Progress</p>
               <p className="mt-2 text-2xl font-semibold text-foreground tabular-nums">{sessionProgress} of {progressTotal}</p>
             </div>
             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -873,9 +879,7 @@ export function StudentCard({
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              {quotaSnapshot
-                ? `${sessionsRemaining} package session${sessionsRemaining === 1 ? "" : "s"} remaining`
-                : `${sessionsRemaining} session${sessionsRemaining === 1 ? "" : "s"} remaining`}
+              {sessionsRemaining} sessions remaining
             </p>
             {/* --- END TOPIC SUMMARY ROW --- */}
           </div>
@@ -936,7 +940,9 @@ export function StudentCard({
         )}
 
 
-        {effectiveWorkflow && !effectiveWorkflow.assignmentAccepted && (
+        {effectiveWorkflow &&
+          !effectiveWorkflow.assignmentAccepted &&
+          hasAuthoritativePendingAssignment && (
           <div className="pt-4 border-t border-border/60 space-y-2">
             <p className="text-xs text-muted-foreground text-center">
               New parent assignment received. Accept or decline this assignment before intro booking can begin.

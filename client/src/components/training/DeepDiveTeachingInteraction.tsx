@@ -158,7 +158,7 @@ export function DeepDiveTeachingInteraction({
     String(count);
 
   const multiSelectSummary = correct
-    ? `You got all ${countWord(answerKeys.length)} right.`
+    ? ""
     : [
         selectedCorrectPositions.length === 0
           ? "None of your selections are right."
@@ -313,7 +313,9 @@ export function DeepDiveTeachingInteraction({
             ) : null}
             <div>
               <p className="font-medium">{correct ? "Yes" : "Not quite"}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{multiSelectSummary}</p>
+              {multiSelectSummary ? (
+                <p className="mt-1 text-sm text-muted-foreground">{multiSelectSummary}</p>
+              ) : null}
             </div>
           </div>
 

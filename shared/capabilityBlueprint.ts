@@ -51,7 +51,7 @@ export interface CapabilityModuleBlueprint {
   deepDiveKeys: CapabilityDeepDiveKey[];
 }
 
-export const CAPABILITY_BLUEPRINT_VERSION = 4;
+export const CAPABILITY_BLUEPRINT_VERSION = 5;
 
 export const CAPABILITY_CROSS_CUTTING_COMPETENCIES = [
   "evidence.observation_vs_inference",
@@ -102,6 +102,7 @@ export const CAPABILITY_MODULE_BLUEPRINTS: CapabilityModuleBlueprint[] = [
     title: "System Intelligence",
     deepDiveKeys: [
       "how_to_diagnose",
+      "why_training_continues_beyond_clarity",
       "how_to_interpret_prompts",
       "how_baselines_are_established",
       "how_the_system_resolves_uncertainty",
@@ -845,10 +846,7 @@ export const CAPABILITY_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
     requiredEvidenceKinds: [...FULL_CAPABILITY_EVIDENCE],
     transferPartners: ["drill_library", "logging_system", "session_flow_control", "time_pressure_stability"],
   },
-];
-
-export const CAPABILITY_CURRICULUM_V2_REVIEW_DEEP_DIVE_BLUEPRINTS: CapabilityDeepDiveBlueprint[] = [
-  {
+{
     key: "why_training_continues_beyond_clarity",
     title: "Why Training Continues Beyond Clarity",
     moduleKey: "system_intelligence",
@@ -891,13 +889,11 @@ export const CAPABILITY_CURRICULUM_V2_REVIEW_DEEP_DIVE_BLUEPRINTS: CapabilityDee
       "how_the_system_resolves_uncertainty",
     ],
   },
+
 ];
 
 export const CAPABILITY_DEEP_DIVE_BY_KEY = new Map(
-  [
-    ...CAPABILITY_DEEP_DIVE_BLUEPRINTS,
-    ...CAPABILITY_CURRICULUM_V2_REVIEW_DEEP_DIVE_BLUEPRINTS,
-  ].map((deepDive) => [deepDive.key, deepDive] as const),
+  CAPABILITY_DEEP_DIVE_BLUEPRINTS.map((deepDive) => [deepDive.key, deepDive] as const),
 );
 
 export function getCapabilityDeepDiveBlueprint(key: string) {

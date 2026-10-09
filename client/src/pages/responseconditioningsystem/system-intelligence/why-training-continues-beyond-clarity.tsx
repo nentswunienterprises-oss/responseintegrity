@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { DeepDiveCapabilityCheck } from "@/components/training/DeepDiveCapabilityCheck";
 import { DeepDiveLessonRunner } from "@/components/training/DeepDiveLessonRunner";
 import { DeepDiveTeachingInteraction } from "@/components/training/DeepDiveTeachingInteraction";
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,7 @@ export default function ResponseConditioningWhyTrainingContinuesBeyondClarity() 
           </Button>
           <div>
             <p className="text-sm uppercase tracking-wide text-muted-foreground font-medium">
-              Curriculum v2 Founder Review
+              Response Integrity-OS Deep Dive
             </p>
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight mt-1">
               Why Training Continues Beyond Clarity
@@ -59,9 +60,9 @@ export default function ResponseConditioningWhyTrainingContinuesBeyondClarity() 
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
         <DeepDiveLessonRunner
-          lessonKey="system-intelligence-why-training-continues-beyond-clarity-v2-founder-review"
+          lessonKey="system-intelligence-why-training-continues-beyond-clarity-v1"
           title="Why Training Continues Beyond Clarity"
-          completion={null}
+          completion={<DeepDiveCapabilityCheck assessmentKey="why_training_continues_beyond_clarity_mastery_v1" />}
         >
           <Card className="p-6 space-y-5 border-primary/30 bg-primary/5">
             <h2 className="text-2xl font-bold">Knowing the maths is not the end of the problem</h2>

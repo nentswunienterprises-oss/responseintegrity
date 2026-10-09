@@ -7,7 +7,7 @@ import {
   type CapabilityTrainingAttempt,
   type CapabilityTrainingAvailability,
 } from "@shared/capabilityTrainingSequencing";
-import { assertCapabilityTutorAssignmentOwnership, isProofCapabilityReviewEnvironment } from "./capabilityEngine";
+import { assertCapabilityTutorAssignmentOwnership } from "./capabilityEngine";
 
 function httpError(status: number, message: string, data?: Record<string, unknown>) {
   const error = new Error(message) as Error & {
@@ -155,9 +155,7 @@ export async function getSpecialistCapabilityTrainingState(input: {
     now: input.now || new Date(),
     activeBanks,
     attempts,
-    plan: getCapabilityTrainingAssessmentPlan({
-      includeCurriculumV2Review: isProofCapabilityReviewEnvironment(),
-    }),
+    plan: getCapabilityTrainingAssessmentPlan({ curriculumVersion: "v2" }),
   });
 
   return {
@@ -181,7 +179,7 @@ export async function assertCapabilityAssessmentAvailable(input: {
   assessmentKey: string;
 }) {
   const isPlannedAssessment = getCapabilityTrainingAssessmentPlan({
-    includeCurriculumV2Review: isProofCapabilityReviewEnvironment(),
+    curriculumVersion: "v2",
   }).some(
     (entry) => entry.assessmentKey === input.assessmentKey,
   );

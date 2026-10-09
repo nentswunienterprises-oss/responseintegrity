@@ -83,6 +83,11 @@ const modules = [
         capabilityKey: "how_to_diagnose",
       },
       {
+        label: "Why training continues beyond Clarity",
+        href: "/responseconditioningsystem/system-intelligence/why-training-continues-beyond-clarity",
+        capabilityKey: "why_training_continues_beyond_clarity",
+      },
+      {
         label: "How to interpret prompts",
         href: "/responseconditioningsystem/system-intelligence/how-to-interpret-prompts",
         capabilityKey: "how_to_interpret_prompts",
@@ -153,7 +158,6 @@ type MasteryAvailability = {
     | null;
   unlockAt: string | null;
   formSize: number;
-  reviewMode?: boolean;
 };
 
 type PodData = {
@@ -195,7 +199,7 @@ export default function ResponseConditioningSystem() {
   const completedCapabilityChecks = masteryAssessments.filter(
     (assessment) => assessment.status === "complete",
   ).length;
-  const totalCapabilityChecks = masteryAssessments.length || 20;
+  const totalCapabilityChecks = masteryAssessments.length || 21;
   const capabilityProgressPercent =
     totalCapabilityChecks > 0
       ? Math.round((completedCapabilityChecks / totalCapabilityChecks) * 100)
@@ -292,42 +296,37 @@ export default function ResponseConditioningSystem() {
                 <Badge>Capability Gates</Badge>
                 <h2 className="text-xl font-bold">Retention + Application</h2>
                 <p className="text-sm text-muted-foreground max-w-3xl">
-                  Retention checks whether operating rules can still be recalled after
-                  a spacing interval. Application checks which response fits across mixed
-                  situations. Each check follows its required module evidence.
+                  Retention checks whether the operating system can still be retrieved
+                  after its required spacing interval. Application then checks whether
+                  the right RI response can be selected across mixed situations.
                 </p>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 {cumulativeAssessments.map((assessment) => {
                   const isRetrieval = assessment.evidenceKind === "retrieval";
-                  const title = !assessment.assessmentKey.startsWith("transformation_") ? assessment.title : isRetrieval
-                    ? "Transformation Retention"
-                    : "Transformation Application";
+                  const isOperatingSystem = assessment.assessmentKey.startsWith("operating_system_");
+                  const gateScope = isOperatingSystem ? "Operating System" : "Transformation";
+                  const title = `${gateScope} ${isRetrieval ? "Retention" : "Application"}`;
 
-                  const detail = assessment.reviewMode
-                    ? "Review Mode is open in Proof. This review run does not create lifecycle evidence."
-                    : assessment.status === "complete"
+                  const detail =
+                    assessment.status === "complete"
                       ? isRetrieval
-                        ? "Retention is evidenced for the active bank."
-                        : "Application is evidenced for the active bank."
+                        ? "Retention is complete."
+                        : "Application is complete."
                       : assessment.status === "available"
                         ? isRetrieval
                           ? "The Retention Check is ready."
                           : "The Application Check is ready."
                         : assessment.reason === "spacing_interval"
                           ? assessment.unlockAt
-                            ? `${isRetrieval ? "Retention" : "Application"} opens ${new Date(assessment.unlockAt).toLocaleString()}.`
+                            ? `Retention opens ${new Date(assessment.unlockAt).toLocaleString()}.`
                             : "The delayed Retrieval interval is still running."
                           : assessment.reason === "prerequisite_incomplete"
-                            ? !assessment.assessmentKey.startsWith("transformation_")
-                              ? isRetrieval
-                                ? "Complete all six Session Infrastructure Masteries first."
-                                : "Complete all six Session Infrastructure Masteries and pass Session Infrastructure Delayed Retrieval first."
-                              : isRetrieval
-                              ? "Complete all five Transformation Masteries first."
-                              : "Pass Transformation Retention first."
-                            : "This gate is currently locked.";
+                            ? isRetrieval
+                              ? `Complete all ${assessment.coveredDeepDiveKeys.length} ${isOperatingSystem ? "post-Sandbox" : "Transformation"} Masteries first.`
+                              : `Pass ${gateScope} Retention first.`
+                            : "This check is currently locked.";
 
                   return (
                     <div
@@ -335,14 +334,9 @@ export default function ResponseConditioningSystem() {
                       className="border border-border/70 p-5 space-y-4"
                     >
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                            {isRetrieval ? "Retention" : "Application"}
-                          </p>
-                          {assessment.reviewMode ? (
-                            <Badge variant="outline">Review Mode</Badge>
-                          ) : null}
-                        </div>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                          {isRetrieval ? "Retention" : "Application"}
+                        </p>
                         <h3 className="font-semibold">{title}</h3>
                         <p className="text-sm text-muted-foreground">{detail}</p>
                         <p className="text-xs text-muted-foreground">
@@ -355,13 +349,9 @@ export default function ResponseConditioningSystem() {
                           <Link
                             to={`/operational/specialist/capability/${assessment.assessmentKey}`}
                           >
-                            {assessment.reviewMode
-                              ? isRetrieval
-                                ? "Review Retention"
-                                : "Review Application"
-                              : isRetrieval
-                                ? "Take Retention Check"
-                                : "Take Application Check"}
+                            {isRetrieval
+                              ? "Take Retention Check"
+                              : "Take Application Check"}
                           </Link>
                         </Button>
                       ) : null}

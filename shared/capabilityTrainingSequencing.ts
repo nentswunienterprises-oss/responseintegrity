@@ -2,7 +2,7 @@ import type { CapabilityEvidenceKind } from "./capabilityEngine";
 import {
   CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1,
   CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V2,
-  CAPABILITY_CURRICULUM_V2_REVIEW_ASSESSMENT_PLAN,
+  CAPABILITY_CURRICULUM_V2_ASSESSMENT_PLAN,
   EXECUTION_STANDARDS_DEEP_DIVE_KEYS,
   SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS,
   SYSTEM_INTELLIGENCE_DEEP_DIVE_KEYS,
@@ -161,7 +161,7 @@ export function getCapabilityTrainingAssessmentPlan(options?: {
     : options?.includeCurriculumV2Review
       ? [
           ...CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1,
-          ...CAPABILITY_CURRICULUM_V2_REVIEW_ASSESSMENT_PLAN,
+          ...CAPABILITY_CURRICULUM_V2_ASSESSMENT_PLAN,
         ]
       : CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V1;
 
@@ -180,10 +180,14 @@ export function getCapabilityTrainingAssessmentPlan(options?: {
     TRANSFORMATION_RETRIEVAL_ASSESSMENT_KEY,
     TRANSFORMATION_TRANSFER_ASSESSMENT_KEY,
     ...executionStandardsMasteryKeys,
-    ...systemIntelligenceMasteryKeys,
-    ...(includeV2ReviewArtifacts
-      ? ["why_training_continues_beyond_clarity_mastery_v1"]
-      : []),
+    ...(includeCurriculumV2
+      ? curriculumV2SystemIntelligenceMasteryKeys
+      : [
+          ...systemIntelligenceMasteryKeys,
+          ...(options?.includeCurriculumV2Review
+            ? ["why_training_continues_beyond_clarity_mastery_v1"]
+            : []),
+        ]),
     ...sessionInfrastructureMasteryKeys,
     ...(includeCurriculumV2
       ? [
@@ -288,9 +292,11 @@ export function buildCapabilityTrainingAvailability(input: {
     }
     if (
       entry.evidenceKind === "mastery" &&
-      entry.coveredDeepDiveKeys.some((key) =>
-        SESSION_INFRASTRUCTURE_DEEP_DIVE_KEYS.includes(key),
-      )
+      [
+        "execution_standards_mastery",
+        "system_intelligence_mastery",
+        "session_infrastructure_mastery",
+      ].includes(stageFor(entry))
     ) {
       return isCurrentComplete(TRANSFORMATION_TRANSFER_ASSESSMENT_KEY);
     }

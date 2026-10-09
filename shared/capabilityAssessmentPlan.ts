@@ -48,12 +48,12 @@ const masteryEntry = (
   purpose: "Verify immediate operating understanding after the Specialist has worked through the Deep Dive.",
 });
 
-const MASTERY_ENTRIES = CAPABILITY_DEEP_DIVE_BLUEPRINTS.map((deepDive) =>
-  masteryEntry(deepDive.key, deepDive.title),
-);
+const V1_MASTERY_ENTRIES = CAPABILITY_DEEP_DIVE_BLUEPRINTS
+  .filter((deepDive) => deepDive.key !== "why_training_continues_beyond_clarity")
+  .map((deepDive) => masteryEntry(deepDive.key, deepDive.title));
 
 export const CAPABILITY_MVP_ASSESSMENT_PLAN_V1: CapabilityAssessmentPlanEntry[] = [
-  ...MASTERY_ENTRIES,
+  ...V1_MASTERY_ENTRIES,
   {
     assessmentKey: "transformation_phases_retrieval_v1",
     title: "Transformation Phases Delayed Retrieval",
@@ -242,7 +242,7 @@ const CURRICULUM_V2_POST_SANDBOX_DEEP_DIVE_KEYS: CapabilityDeepDiveKey[] = [
   "tools_required",
 ];
 
-export const CAPABILITY_CURRICULUM_V2_REVIEW_ASSESSMENT_PLAN: CapabilityAssessmentPlanEntry[] = [
+export const CAPABILITY_CURRICULUM_V2_ASSESSMENT_PLAN: CapabilityAssessmentPlanEntry[] = [
   {
     assessmentKey: "why_training_continues_beyond_clarity_mastery_v1",
     title: "Why Training Continues Beyond Clarity Mastery Check",
@@ -341,27 +341,35 @@ export const CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V2: CapabilityAssessment
       entry.assessmentKey !== OPERATING_SYSTEM_RETRIEVAL_ASSESSMENT_KEY &&
       entry.assessmentKey !== OPERATING_SYSTEM_TRANSFER_ASSESSMENT_KEY,
   ),
-  ...CAPABILITY_CURRICULUM_V2_REVIEW_ASSESSMENT_PLAN,
+  ...CAPABILITY_CURRICULUM_V2_ASSESSMENT_PLAN,
 ];
 
 export function getCapabilityMvpAssessmentPlanEntry(assessmentKey: string) {
   return (
     CAPABILITY_MVP_ASSESSMENT_PLAN_V1.find((entry) => entry.assessmentKey === assessmentKey) ||
-    CAPABILITY_CURRICULUM_V2_REVIEW_ASSESSMENT_PLAN.find(
+    CAPABILITY_CURRICULUM_V2_ASSESSMENT_PLAN.find(
       (entry) => entry.assessmentKey === assessmentKey,
     ) ||
     null
   );
 }
 
-export function getCapabilityMvpPlannedEvidenceCells() {
+function plannedEvidenceCells(plan: CapabilityAssessmentPlanEntry[]) {
   return Array.from(
     new Set(
-      CAPABILITY_MVP_ASSESSMENT_PLAN_V1.flatMap((entry) =>
+      plan.flatMap((entry) =>
         entry.coveredDeepDiveKeys.map(
           (deepDiveKey) => `deep_dive.${deepDiveKey}.${entry.evidenceKind}`,
         ),
       ),
     ),
   ).sort();
+}
+
+export function getCapabilityMvpPlannedEvidenceCells() {
+  return plannedEvidenceCells(CAPABILITY_MVP_ASSESSMENT_PLAN_V1);
+}
+
+export function getCapabilityV2PlannedEvidenceCells() {
+  return plannedEvidenceCells(CAPABILITY_ACTIVE_TRAINING_ASSESSMENT_PLAN_V2);
 }

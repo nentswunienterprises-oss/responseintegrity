@@ -10,9 +10,14 @@ type MasteryAvailability = {
   title: string;
   coveredDeepDiveKeys: string[];
   status: "unavailable" | "locked" | "available" | "complete";
-  reason: "bank_unavailable" | "attempt_limit" | "retry_cooldown" | null;
+  reason:
+    | "bank_unavailable"
+    | "attempt_limit"
+    | "retry_cooldown"
+    | "prerequisite_incomplete"
+    | "spacing_interval"
+    | null;
   unlockAt: string | null;
-  bankVersion: number | null;
   attemptCount: number;
   maxAttempts: number | null;
 };
@@ -119,12 +124,12 @@ export function DeepDiveCapabilityCheck({
       <CapabilityState assessment={assessment} />
 
       <p className="text-sm text-muted-foreground">
-        Demonstrate operating understanding and scenario judgment from the active private assessment bank.
+        Show that you can apply this Deep Dive before moving on.
       </p>
 
-      {assessment.maxAttempts !== null ? (
+      {assessment.maxAttempts !== null && assessment.status !== "complete" ? (
         <p className="text-xs text-muted-foreground">
-          Bank v{assessment.bankVersion} · attempts {assessment.attemptCount}/{assessment.maxAttempts}
+          Attempts remaining: {Math.max(0, assessment.maxAttempts - assessment.attemptCount)} of {assessment.maxAttempts}
         </p>
       ) : null}
 
@@ -136,6 +141,14 @@ export function DeepDiveCapabilityCheck({
         </Button>
       ) : null}
 
+      {assessment.status === "locked" &&
+      assessment.reason === "prerequisite_incomplete" ? (
+        <p className="text-xs text-muted-foreground">
+          Complete Transformation Mastery, Retention and Application first. This
+          Mastery opens in Sandbox.
+        </p>
+      ) : null}
+
       {assessment.status === "locked" && assessment.unlockAt ? (
         <p className="text-xs text-muted-foreground">
           Retry opens {new Date(assessment.unlockAt).toLocaleString()}.
@@ -144,7 +157,7 @@ export function DeepDiveCapabilityCheck({
 
       {assessment.status === "unavailable" ? (
         <p className="text-xs text-muted-foreground">
-          The approved private bank for this Deep Dive is not active yet.
+          This Mastery Check is not available yet.
         </p>
       ) : null}
     </Card>

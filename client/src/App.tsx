@@ -375,7 +375,7 @@ function Router() {
         element={withDeepDiveDeterrent(<ResponseConditioningHowToDiagnose />)}
       />
       <Route
-        path="/responseconditioningsystem/review/curriculum-v2/why-training-continues-beyond-clarity"
+        path="/responseconditioningsystem/system-intelligence/why-training-continues-beyond-clarity"
         element={withDeepDiveDeterrent(<ResponseConditioningWhyTrainingContinuesBeyondClarity />)}
       />
       <Route
