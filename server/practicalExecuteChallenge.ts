@@ -84,6 +84,7 @@ async function projection(challenge: any, includeReviewFlags = false) {
       number:turn.number,
       situation:turn.situation,
       response:turn.response,
+      recordedAt:turn.recordedAt || null,
       ...(includeReviewFlags ? { riskFlags:turn.riskFlags } : {}),
     })),
     startedAt:challenge.started_at,
