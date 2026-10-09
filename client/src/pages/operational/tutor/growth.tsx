@@ -43,8 +43,6 @@ export default function TutorGrowth() {
     sessionsSummary: "",
     wins: "",
     challenges: "",
-    emotions: "",
-    skillImprovement: "",
     helpNeeded: "",
     nextWeekGoals: "",
   });
@@ -140,8 +138,6 @@ export default function TutorGrowth() {
         sessionsSummary: "",
         wins: "",
         challenges: "",
-        emotions: "",
-        skillImprovement: "",
         helpNeeded: "",
         nextWeekGoals: "",
       });
@@ -383,38 +379,6 @@ export default function TutorGrowth() {
                     value={checkInData.challenges}
                     onChange={(e) =>
                       setCheckInData({ ...checkInData, challenges: e.target.value })
-                    }
-                    className="min-h-24 resize-none"
-                  />
-                </div>
-
-                {/* Emotions & Thoughts */}
-                <div className="space-y-2">
-                  <Label htmlFor="emotions" className="font-semibold">
-                    Emotions felt and thoughts
-                  </Label>
-                  <Textarea
-                    id="emotions"
-                    placeholder="How are you feeling? What's on your mind?"
-                    value={checkInData.emotions}
-                    onChange={(e) =>
-                      setCheckInData({ ...checkInData, emotions: e.target.value })
-                    }
-                    className="min-h-24 resize-none"
-                  />
-                </div>
-
-                {/* Skill Improvement */}
-                <div className="space-y-2">
-                  <Label htmlFor="skill-improvement" className="font-semibold">
-                    Working on improving about student transformation skills
-                  </Label>
-                  <Textarea
-                    id="skill-improvement"
-                    placeholder="What aspect of your tutoring/transformation skills are you working on?"
-                    value={checkInData.skillImprovement}
-                    onChange={(e) =>
-                      setCheckInData({ ...checkInData, skillImprovement: e.target.value })
                     }
                     className="min-h-24 resize-none"
                   />
