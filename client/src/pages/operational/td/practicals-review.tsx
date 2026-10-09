@@ -30,7 +30,7 @@ type ReviewQueueItem = {
   artifactUrl: string;
   artifactType: "screen_voice" | "screen_video" | "video";
   declaration: Record<string, string>;
-  executeChallenge: {challengeId:string;completed:boolean;version:number;history:Array<{number:number;situation:{kind:string;studentBehavior:string;evidenceQuestion:string};response:ExecuteResponse;riskFlags?:string[]}>} | null;
+  executeChallenge: {challengeId:string;completed:boolean;version:number;history:Array<{number:number;recordedAt?:string|null;situation:{kind:string;studentBehavior:string;evidenceQuestion:string};response:ExecuteResponse;riskFlags?:string[]}>} | null;
   submittedAt: string;
 };
 
@@ -286,6 +286,7 @@ export default function CapabilityPracticalReview() {
                   {selected.proofKey === "execute" ? (
                     <div className="space-y-3 border-t pt-5">
                       <h2 className="font-semibold">System-assigned responsive Execute record</h2>
+                      <p className="text-sm font-medium">Recording reference must show: {selected.executeChallenge?.challengeId?.slice(0,8).toUpperCase()}</p>
                       <p className="text-sm text-muted-foreground">
                         These turns were revealed sequentially. Confirm that the recording and the saved Specialist interventions, observations and decisions agree. The Specialist cannot rewrite previously saved turns.
                       </p>
@@ -294,6 +295,7 @@ export default function CapabilityPracticalReview() {
                       ) : selected.executeChallenge.history.map(turn => (
                         <div key={turn.number} className="space-y-2 rounded-md border p-4 text-sm">
                           <p className="font-semibold">Turn {turn.number}: {turn.situation.kind.replaceAll("_", " ")}</p>
+                          {turn.recordedAt?<p className="text-xs text-muted-foreground">Recorded at {new Date(turn.recordedAt).toLocaleString("en-ZA")}</p>:null}
                           <p><span className="font-medium">Simulated student:</span> {turn.situation.studentBehavior}</p>
                           <p><span className="font-medium">Specialist said:</span> {turn.response.studentFacingResponse}</p>
                           <p><span className="font-medium">Intervention:</span> {turn.response.intervention.replaceAll("_", " ")}</p>
