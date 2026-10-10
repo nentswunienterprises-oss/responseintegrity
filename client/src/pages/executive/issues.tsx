@@ -20,6 +20,7 @@ interface IssueItem {
   impact: IssueImpact;
   helpRequested: string | null;
   status: IssueStatus;
+  canManage: boolean;
   resolutionNote: string | null;
   reporterName: string | null;
   reporterEmail: string | null;
@@ -71,8 +72,8 @@ export default function IssueInbox() {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Issue Inbox</h1>
         <p className="text-sm text-muted-foreground">
-          Reports are routed to the responsible team. Your role only shows issues within its remit.
-          Technical reports are not personnel disputes.
+          Reports are routed to the responsible team. The COO can view all categories for oversight.
+          Only the responsible team can update or resolve an issue.
         </p>
       </header>
 
@@ -117,7 +118,13 @@ export default function IssueInbox() {
               </p>
               {issue.resolutionNote && <p className="text-sm"><strong>Review note:</strong> {issue.resolutionNote}</p>}
 
-              {issue.status !== "resolved" && (
+              {issue.status !== "resolved" && !issue.canManage && (
+                <p className="text-xs text-muted-foreground">
+                  Visibility only. {teamLabels[issue.ownerTeam]} handles this issue.
+                </p>
+              )}
+
+              {issue.status !== "resolved" && issue.canManage && (
                 <div className="flex flex-wrap gap-2 pt-1">
                   {issue.status === "open" && (
                     <Button
