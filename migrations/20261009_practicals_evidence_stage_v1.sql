@@ -191,7 +191,7 @@ CREATE TRIGGER trg_practical_completion_immutable
   FOR EACH ROW EXECUTE FUNCTION private.reject_practical_execute_mutation();
 
 CREATE OR REPLACE FUNCTION private.guard_practical_execute_challenge_transition()
-RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $ BEGIN
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$ BEGIN
   IF TG_OP = 'DELETE' THEN
     RAISE EXCEPTION 'Execute challenges cannot be deleted or reset';
   END IF;
@@ -210,7 +210,7 @@ RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $ BEGIN
     RAISE EXCEPTION 'Execute challenge must advance one recorded turn, never reset';
   END IF;
   RETURN NEW;
-END; $;
+END; $$;
 REVOKE ALL ON FUNCTION private.guard_practical_execute_challenge_transition() FROM PUBLIC, anon, authenticated;
 DROP TRIGGER IF EXISTS trg_practical_execute_challenge_guard ON public.specialist_practical_execute_challenges;
 CREATE TRIGGER trg_practical_execute_challenge_guard
