@@ -96,9 +96,9 @@ test("legacy high-stability checkpoint is a public High label with explicit conf
     "Transfer evidence must be confirmed",
   );
   assert.match(studentCardSource, /displayTopicStability\(topic\.stability\)/);
-  assert.match(studentCardSource, /topicStabilityConfirmationLabel\(topic\.stability, topic\.phase\)/);
+  assert.match(studentCardSource, /topicStabilityConfirmationLabel\(topic\.stability, topic\.phase, topic\.progressionAuthority\)/);
   assert.match(topicMapSource, /displayTopicStability\(row\.stability\)/);
-  assert.match(topicMapSource, /topicStabilityConfirmationLabel\(row\.stability, row\.phase\)/);
+  assert.match(topicMapSource, /topicStabilityConfirmationLabel\(row\.stability, row\.phase, row\.progressionAuthority\)/);
   // The next-action and phase gates still consume original, evidence-bearing state.
   assert.match(topicMapSource, /getNextActionData\(selectedRow\.phase, selectedRow\.stability\)/);
 });
