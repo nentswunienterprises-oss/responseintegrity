@@ -19,7 +19,7 @@ test("The Hub Trial window starts on first completed session and lasts 35 days",
       "CREATE ROLE service_role NOLOGIN;",
       "CREATE TABLE public.users(id varchar PRIMARY KEY);",
       "CREATE TABLE public.tutor_trial_cases(id varchar PRIMARY KEY, tutor_id varchar NOT NULL, status varchar NOT NULL DEFAULT 'active', updated_at timestamptz NOT NULL DEFAULT now());",
-      "CREATE TABLE public.tutor_trial_placements(id varchar PRIMARY KEY, case_id varchar NOT NULL, student_id varchar NOT NULL, status varchar NOT NULL DEFAULT 'active', started_at timestamptz NOT NULL DEFAULT now());",
+      "CREATE TABLE public.tutor_trial_placements(id varchar PRIMARY KEY, case_id varchar NOT NULL, student_id varchar NOT NULL, status varchar NOT NULL DEFAULT 'active', started_at timestamptz NOT NULL DEFAULT now(), required_session_count integer NOT NULL DEFAULT 9);",
       "CREATE TABLE public.scheduled_sessions(id uuid PRIMARY KEY, tutor_id varchar, student_id uuid, scheduled_time timestamp without time zone, status varchar);",
     ].join("\n"));
     const sql = readFileSync("migrations/20261010_trial_35_day_first_session.sql", "utf8");
@@ -61,6 +61,13 @@ test("The Hub Trial window starts on first completed session and lasts 35 days",
       return id;
     };
 
+    await assert.rejects(
+      db.query(
+        "INSERT INTO public.tutor_trial_placements(id,case_id,student_id,started_at,required_session_count) VALUES($1,$2,$3,$4,8)",
+        [randomUUID(),caseId,familyA,"2026-08-01T00:00:00.000Z"],
+      ),
+      /tutor_trial_nine_sessions_per_family_contract/,
+    );
     await db.query(
       "INSERT INTO public.tutor_trial_placements(id,case_id,student_id,started_at) VALUES($1,$2,$3,$4)",
       [randomUUID(),caseId,familyA,"2026-08-01T00:00:00.000Z"],
