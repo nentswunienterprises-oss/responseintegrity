@@ -1,4 +1,4 @@
-import { supabase } from "./storage";
+import { pool } from "./db";
 import type { SandboxReadinessDecision } from "@shared/sandboxReadiness";
 
 function isMissingSandboxMockTable(error: any) {
@@ -37,7 +37,7 @@ function mapTdReadinessAssessment(row: any): SandboxTdReadinessAssessment {
     decision: row.decision as SandboxReadinessDecision,
     evidenceNote: String(row.evidence_note || ""),
     assessedByUserId: String(row.assessed_by_user_id),
-    assessedAt: String(row.assessed_at),
+    assessedAt: row.assessed_at instanceof Date ? row.assessed_at.toISOString() : String(row.assessed_at),
     capabilitySnapshot,
   };
 }
@@ -45,29 +45,28 @@ function mapTdReadinessAssessment(row: any): SandboxTdReadinessAssessment {
 export async function getLatestSandboxReadinessAssessment(
   tutorAssignmentId: string,
 ) {
-  const { data, error } = await supabase
-    .from("tutor_sandbox_mock_assessments")
-    .select("*")
-    .eq("tutor_assignment_id", tutorAssignmentId)
-    .order("assessed_at", { ascending: false })
-    .limit(20);
-
-  if (error) {
+  try {
+    // TD readiness evidence is server-only. Do not read it through the
+    // publishable-key Supabase client, which has no table privileges.
+    const result = await pool.query(
+      `SELECT id, tutor_id, tutor_assignment_id, decision, checklist,
+              evidence_note, assessed_by_user_id, assessed_at
+         FROM public.tutor_sandbox_mock_assessments
+        WHERE tutor_assignment_id = $1
+          AND checklist->>'assessment_version' = '2'
+          AND checklist->>'assessment_owner' = 'td'
+        ORDER BY assessed_at DESC, id DESC
+        LIMIT 1`,
+      [tutorAssignmentId],
+    );
+    return result.rows[0] ? mapTdReadinessAssessment(result.rows[0]) : null;
+  } catch (error) {
     if (isMissingSandboxMockTable(error)) return null;
-    throw new Error(`Failed to load Sandbox readiness assessments: ${error.message}`);
+    throw new Error(
+      `Failed to load Sandbox readiness assessments: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
-
-  const row = (data || []).find((candidate: any) => {
-    const checklist =
-      candidate?.checklist && typeof candidate.checklist === "object"
-        ? candidate.checklist
-        : {};
-    return checklist.assessment_version === 2 && checklist.assessment_owner === "td";
-  });
-
-  return row ? mapTdReadinessAssessment(row) : null;
 }
-
 export async function recordSandboxReadinessAssessment(input: {
   tutorId: string;
   tutorAssignmentId: string;
@@ -90,22 +89,30 @@ export async function recordSandboxReadinessAssessment(input: {
     );
   }
 
-  const { error } = await supabase.from("tutor_sandbox_mock_assessments").insert({
-    tutor_id: input.tutorId,
-    tutor_assignment_id: input.tutorAssignmentId,
-    decision: input.decision,
-    checklist: {
-      assessment_version: 2,
-      assessment_owner: "td",
-      next_stage: "practicals",
-      capability_snapshot: input.capabilitySnapshot,
-    },
-    evidence_note: evidenceNote,
-    assessed_by_user_id: input.assessedByUserId,
-  });
-
-  if (error) {
-    throw new Error(`Failed to record Sandbox readiness assessment: ${error.message}`);
+  const checklist = {
+    assessment_version: 2,
+    assessment_owner: "td",
+    next_stage: "practicals",
+    capability_snapshot: input.capabilitySnapshot,
+  };
+  try {
+    await pool.query(
+      `INSERT INTO public.tutor_sandbox_mock_assessments
+          (tutor_id, tutor_assignment_id, decision, checklist, evidence_note, assessed_by_user_id)
+        VALUES ($1, $2, $3, $4::jsonb, $5, $6)`,
+      [
+        input.tutorId,
+        input.tutorAssignmentId,
+        input.decision,
+        JSON.stringify(checklist),
+        evidenceNote,
+        input.assessedByUserId,
+      ],
+    );
+  } catch (error) {
+    throw new Error(
+      `Failed to record Sandbox readiness assessment: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   return getLatestSandboxReadinessAssessment(input.tutorAssignmentId);
