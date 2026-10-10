@@ -742,11 +742,9 @@ export default function SpecialistCapabilityAssessment() {
             <p>
               Attempt {form.attemptNumber} of {form.maxAttempts}
             </p>
-            <p>
-              {form.evidenceKind === "mastery"
-                ? "Clean pass: 15/15"
-                : "Pass: 24/25+"}
-            </p>
+            {form.evidenceKind !== "mastery" ? (
+              <p>Pass: 24/25+</p>
+            ) : null}
           </div>
         </div>
 
