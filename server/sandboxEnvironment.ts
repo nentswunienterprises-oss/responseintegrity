@@ -1037,7 +1037,7 @@ async function previousCompletedSessionBoundary(
   if (currentCount > 0) return null;
 
   const result = await pool.query(
-    `SELECT current.id, current.session_number, current.phase, current.specialist_authority,
+    `SELECT current.id, current.session_number, current.phase, current.topic_key, current.specialist_authority,
             current.authority_aligned, current.state_track_aligned, current.completed_at,
             previous.specialist_authority AS previous_specialist_authority
        FROM specialist_sandbox_session_evaluations current
@@ -1051,6 +1051,8 @@ async function previousCompletedSessionBoundary(
   );
   const row = result.rows[0];
   if (!row) return null;
+  // Never render the completed session of another topic as the selected one.
+  if (row.topic_key && row.topic_key !== sandboxTopicKey(topic)) return null;
 
   const specialistAuthority =
     typeof row.specialist_authority === "string"
@@ -1420,7 +1422,7 @@ export async function prepareSandboxEnvironment(input: {
   const sandboxStudent = await assertSandboxAccess(input);
   const bank = await loadActiveEnvironmentBank(input.bankKey);
   if (!bank) throw httpError(404, "No active stateful Sandbox environment bank is available.");
-  const bundle = await ensureTrajectory({
+  const initialBundle = await ensureTrajectory({
     tutorAssignmentId: input.tutorAssignmentId,
     tutorId: input.tutorId,
     studentId: input.studentId,
@@ -1431,6 +1433,14 @@ export async function prepareSandboxEnvironment(input: {
     tutorId: input.tutorId,
     studentId: input.studentId,
     allowCompleted: true,
+  });
+  const bundle = await selectSandboxTopicTrajectory({
+    tutorAssignmentId: input.tutorAssignmentId,
+    tutorId: input.tutorId,
+    studentId: input.studentId,
+    bank,
+    bundle: initialBundle,
+    topic: input.topic,
   });
 
   const readiness = await readinessFor({
@@ -1709,6 +1719,10 @@ export async function submitSandboxEnvironmentRep(input: {
   if (bundle.trajectory.id !== input.trajectoryId) {
     throw httpError(409, "Sandbox trajectory changed. Reload the current rep.");
   }
+  if (!sandboxTopicKey(input.topic) ||
+      sandboxTopicKey(input.topic) !== sandboxTopicKey(bundle.trajectory.active_topic_key)) {
+    throw httpError(409, "Selected topic changed after the Sandbox rep was prepared. Return to the Pod and reload the intended topic.");
+  }
 
   const planned = await planNextRep({
     bundle,
@@ -1767,8 +1781,8 @@ export async function submitSandboxEnvironmentRep(input: {
        selection_seed_digest, specialist_submission, condition_kept,
        total_observations, matching_observations, matching_evidence_statuses,
        observation_exact, evidence_exact,
-       student_state_authoritative, evidence_scope
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19,false,'sandbox')
+       student_state_authoritative, evidence_scope, topic_key
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19,false,'sandbox',$20)
      RETURNING id, completed_at`,
     [
       bundle.trajectory.id,
@@ -1797,6 +1811,7 @@ export async function submitSandboxEnvironmentRep(input: {
       comparison.matchingEvidenceStatuses,
       comparison.observationExact,
       comparison.evidenceExact,
+      sandboxTopicKey(bundle.trajectory.active_topic_key),
     ],
   );
   const eventId = String(inserted.rows[0]?.id || "");
@@ -1891,8 +1906,8 @@ export async function submitSandboxEnvironmentRep(input: {
     const priorSessionCountResult = await pool.query(
       `SELECT COUNT(*)::int AS count
          FROM specialist_sandbox_session_evaluations
-        WHERE trajectory_id = $1`,
-      [bundle.trajectory.id],
+        WHERE trajectory_id = $1 AND topic_key = $2`,
+      [bundle.trajectory.id, sandboxTopicKey(bundle.trajectory.active_topic_key)],
     );
     const priorCompletedSessions = Number(priorSessionCountResult.rows[0]?.count || 0);
     const evaluation = evaluateSandboxCompletedSession({
@@ -1919,8 +1934,8 @@ export async function submitSandboxEnvironmentRep(input: {
          trajectory_id, tutor_assignment_id, tutor_id, student_id, session_number,
          phase, specialist_authority, authority_aligned, state_track_aligned,
          state_change_observed, student_breakdown_recovery_observed,
-         student_state_authoritative, evidence_scope
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,false,'sandbox')
+         student_state_authoritative, evidence_scope, topic_key
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,false,'sandbox',$12)
        RETURNING id`,
       [
         bundle.trajectory.id,
@@ -1934,6 +1949,7 @@ export async function submitSandboxEnvironmentRep(input: {
         evaluation.systemOutcomeMatched,
         stateChangeObserved,
         breakdownRecoveryObserved,
+        sandboxTopicKey(bundle.trajectory.active_topic_key),
       ],
     );
     const sessionId = String(sessionInsert.rows[0]?.id || "");
