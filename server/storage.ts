@@ -1824,55 +1824,7 @@ export class SupabaseStorage implements IStorage {
 
   // Tutor Applications
   async createTutorApplication(application: any): Promise<TutorApplication> {
-    const normalizedIdType =
-      String(application?.idType ?? application?.id_type ?? "")
-        .trim()
-        .toLowerCase();
-    const dbApplication = {
-      user_id: application.userId,
-      production_link_code: application.productionLinkCode || null,
-      tracking_source: application.trackingSource || null,
-      tracking_campaign: application.trackingCampaign || null,
-      full_name: application.fullName,
-      age: application.age,
-      phone: application.phone,
-      email: application.email,
-      city: application.city,
-      completed_matric: application.completedMatric,
-      matric_year: application.matricYear,
-      math_level: application.mathLevel,
-      math_result: application.mathResult,
-      other_subjects: application.otherSubjects,
-      current_situation: application.currentSituation,
-      current_situation_other: application.currentSituationOther,
-      interest_reason: application.interestReason,
-      helped_before: application.helpedBefore,
-      help_explanation: application.helpExplanation,
-      student_dont_get: application.studentDontGet,
-      pressure_story: application.pressureStory,
-      pressure_response: application.pressureResponse,
-      panic_cause: application.panicCause,
-      discipline_reason: application.disciplineReason,
-      repeat_mistake_response: application.repeatMistakeResponse,
-      tt_meaning: application.ttMeaning,
-      structure_preference: application.structurePreference,
-      hours_per_week: application.hoursPerWeek,
-      available_afternoon: application.availableAfternoon,
-      final_reason: application.finalReason,
-      commitment: application.commitment,
-      status: application.status,
-      ...(normalizedIdType === "sa_id" || normalizedIdType === "passport"
-        ? { id_type: normalizedIdType }
-        : {}),
-    };
-    const { data, error } = await supabase
-      .from("tutor_applications")
-      .insert(dbApplication)
-      .select()
-      .single();
-    if (error) throw new Error(`Failed to create tutor application: ${error.message}`);
-    if (!data) throw new Error("Failed to create tutor application: No data returned");
-    return data;
+    return this.createTutorApplicationEmergency(application);
   }
 
   async createTutorApplicationEmergency(application: any): Promise<TutorApplication> {
@@ -1940,158 +1892,83 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getTutorApplicationsByUser(userId: string): Promise<TutorApplication[]> {
-    if (isEmergencyDbMode()) {
-      const result = await pool.query(
-        `SELECT * FROM public.tutor_applications
-          WHERE user_id = $1
-          ORDER BY created_at DESC`,
-        [userId],
-      );
-      return hydrateTutorApplicationsWithOnboardingStateEmergency(
-        result.rows.map((application: any) => transformSnakeToCamel(application) as TutorApplication),
-      );
-    }
-    const { data } = await supabase
-      .from("tutor_applications")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-    return hydrateTutorApplicationsWithOnboardingState(
-      (data ?? []).map(transformSnakeToCamel) as TutorApplication[]
+    const result = await pool.query(
+      `SELECT * FROM public.tutor_applications
+        WHERE user_id = $1
+        ORDER BY created_at DESC`,
+      [userId],
+    );
+    return hydrateTutorApplicationsWithOnboardingStateEmergency(
+      result.rows.map((application: any) => transformSnakeToCamel(application) as TutorApplication),
     );
   }
 
   async getTutorApplications(): Promise<TutorApplication[]> {
-    if (isEmergencyDbMode()) {
-      const result = await pool.query(
-        `SELECT * FROM public.tutor_applications
-          ORDER BY created_at DESC`,
-      );
-      return hydrateTutorApplicationsWithOnboardingStateEmergency(
-        result.rows.map((application: any) => transformSnakeToCamel(application) as TutorApplication),
-      );
-    }
-    const { data, error } = await supabase
-      .from("tutor_applications")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) {
-      console.error("Error fetching tutor applications:", error);
-      throw new Error(`Failed to fetch tutor applications: ${error.message}`);
-    }
-    return hydrateTutorApplicationsWithOnboardingState(
-      (data ?? []).map(transformSnakeToCamel) as TutorApplication[]
+    const result = await pool.query(
+      `SELECT * FROM public.tutor_applications ORDER BY created_at DESC`,
+    );
+    return hydrateTutorApplicationsWithOnboardingStateEmergency(
+      result.rows.map((application: any) => transformSnakeToCamel(application) as TutorApplication),
     );
   }
 
   async getTutorApplicationsByStatus(status: "pending" | "approved" | "rejected"): Promise<TutorApplication[]> {
-    if (isEmergencyDbMode()) {
-      const result = await pool.query(
-        `SELECT * FROM public.tutor_applications
-          WHERE status = $1
-          ORDER BY created_at DESC`,
-        [status],
-      );
-      return hydrateTutorApplicationsWithOnboardingStateEmergency(
-        result.rows.map((application: any) => transformSnakeToCamel(application) as TutorApplication),
-      );
-    }
-    const { data, error } = await supabase
-      .from("tutor_applications")
-      .select("*")
-      .eq("status", status)
-      .order("created_at", { ascending: false });
-    if (error) {
-      console.error(`Error fetching tutor applications by status ${status}:`, error);
-      throw new Error(`Failed to fetch tutor applications: ${error.message}`);
-    }
-    return hydrateTutorApplicationsWithOnboardingState(
-      (data ?? []).map(transformSnakeToCamel) as TutorApplication[]
+    const result = await pool.query(
+      `SELECT * FROM public.tutor_applications
+        WHERE status = $1
+        ORDER BY created_at DESC`,
+      [status],
+    );
+    return hydrateTutorApplicationsWithOnboardingStateEmergency(
+      result.rows.map((application: any) => transformSnakeToCamel(application) as TutorApplication),
     );
   }
 
   async approveTutorApplication(id: string, reviewedBy: string): Promise<TutorApplication | undefined> {
-    if (isEmergencyDbMode()) {
-      const result = await pool.query(
-        `UPDATE public.tutor_applications
-            SET status = 'approved',
-                reviewed_by = $2,
-                reviewed_at = now(),
-                document_submission_step = 1,
-                documents_status = $3::jsonb,
-                updated_at = now()
-          WHERE id = $1
-          RETURNING *`,
-        [
-          id,
-          reviewedBy,
-          JSON.stringify(INITIAL_TUTOR_DOCUMENT_STATUSES),
-        ],
-      );
-      return result.rows[0]
-        ? (transformSnakeToCamel(result.rows[0]) as TutorApplication)
-        : undefined;
-    }
-    const { data, error } = await supabase
-      .from("tutor_applications")
-      .update({
-        status: "approved",
-        reviewed_by: reviewedBy,
-        reviewed_at: new Date(),
-        document_submission_step: 1,
-        documents_status: INITIAL_TUTOR_DOCUMENT_STATUSES,
-        updated_at: new Date(),
-      })
-      .eq("id", id)
-      .select()
-      .single();
-    if (error) {
-      console.error("Error approving tutor application:", error);
-      return undefined;
-    }
-    return data ? (transformSnakeToCamel(data) as TutorApplication) : undefined;
+    const result = await pool.query(
+      `UPDATE public.tutor_applications
+          SET status = 'approved',
+              reviewed_by = $2,
+              reviewed_at = now(),
+              document_submission_step = 1,
+              documents_status = $3::jsonb,
+              updated_at = now()
+        WHERE id = $1
+        RETURNING *`,
+      [id, reviewedBy, JSON.stringify(INITIAL_TUTOR_DOCUMENT_STATUSES)],
+    );
+    return result.rows[0]
+      ? (transformSnakeToCamel(result.rows[0]) as TutorApplication)
+      : undefined;
   }
 
   async rejectTutorApplication(id: string, reviewedBy: string, reason: string): Promise<TutorApplication | undefined> {
-    if (isEmergencyDbMode()) {
-      const result = await pool.query(
-        `UPDATE public.tutor_applications
-            SET status = 'rejected',
-                reviewed_by = $2,
-                reviewed_at = now(),
-                rejection_reason = $3,
-                updated_at = now()
-          WHERE id = $1
-          RETURNING *`,
-        [id, reviewedBy, reason],
-      );
-      return result.rows[0]
-        ? (transformSnakeToCamel(result.rows[0]) as TutorApplication)
-        : undefined;
-    }
-    const { data } = await supabase
-      .from("tutor_applications")
-      .update({
-        status: "rejected",
-        reviewed_by: reviewedBy,
-        reviewed_at: new Date(),
-        rejection_reason: reason,
-        updated_at: new Date(),
-      })
-      .eq("id", id)
-      .select()
-      .single();
-    return data ?? undefined;
+    const result = await pool.query(
+      `UPDATE public.tutor_applications
+          SET status = 'rejected',
+              reviewed_by = $2,
+              reviewed_at = now(),
+              rejection_reason = $3,
+              updated_at = now()
+        WHERE id = $1
+        RETURNING *`,
+      [id, reviewedBy, reason],
+    );
+    return result.rows[0]
+      ? (transformSnakeToCamel(result.rows[0]) as TutorApplication)
+      : undefined;
   }
 
   async getApprovedTutors(): Promise<User[]> {
-    const { data: eligibleApplications } = await supabase
-      .from("tutor_applications")
-      .select("user_id, full_name, email, phone, city, documents_status")
-      .eq("status", "approved")
-      .not("user_id", "is", null);
+    const applicationsResult = await pool.query(
+      `SELECT user_id, full_name, email, phone, city, documents_status
+         FROM public.tutor_applications
+        WHERE status = 'approved'
+          AND user_id IS NOT NULL`,
+    );
+    const eligibleApplications = applicationsResult.rows;
 
-    if (!eligibleApplications || eligibleApplications.length === 0) {
+    if (eligibleApplications.length === 0) {
       return [];
     }
 
@@ -2152,19 +2029,15 @@ export class SupabaseStorage implements IStorage {
     documentUrl: string
   ): Promise<TutorApplication | undefined> {
     const fields = getSequentialTutorDocumentFields(docStep);
-    const { data: existing, error: existingError } = await supabase
-      .from("tutor_applications")
-      .select("documents_status, document_submission_step")
-      .eq("id", applicationId)
-      .single();
+    const existingResult = await pool.query(
+      `SELECT * FROM public.tutor_applications WHERE id = $1 LIMIT 1`,
+      [applicationId],
+    );
+    const existing = existingResult.rows[0];
+    if (!existing) return undefined;
 
-    if (existingError) {
-      console.error("Error fetching sequential document status:", existingError);
-      return undefined;
-    }
-
-    const documentsStatus = normalizeTutorDocumentStatuses(existing?.documents_status);
-    const submissionStepRaw = Number(existing?.document_submission_step);
+    const documentsStatus = normalizeTutorDocumentStatuses(existing.documents_status);
+    const submissionStepRaw = Number(existing.document_submission_step);
     let expectedStep = 0;
     for (let step = 1; step <= 6; step++) {
       if (String(documentsStatus[step.toString()] || "not_started") !== "approved") {
@@ -2216,29 +2089,30 @@ export class SupabaseStorage implements IStorage {
       [fields.verifiedAt]: null,
       [fields.rejectionReason]: null,
     };
-    if (fields.completedTemplateUrl) {
-      updateData[fields.completedTemplateUrl] = null;
-    }
-    if (fields.completedTemplateUploadedAt) {
-      updateData[fields.completedTemplateUploadedAt] = null;
-    }
-    if (fields.completedTemplateUploadedBy) {
-      updateData[fields.completedTemplateUploadedBy] = null;
-    }
+    if (fields.completedTemplateUrl) updateData[fields.completedTemplateUrl] = null;
+    if (fields.completedTemplateUploadedAt) updateData[fields.completedTemplateUploadedAt] = null;
+    if (fields.completedTemplateUploadedBy) updateData[fields.completedTemplateUploadedBy] = null;
 
-    const { data, error } = await supabase
-      .from("tutor_applications")
-      .update(updateData)
-      .eq("id", applicationId)
-      .select()
-      .single();
+    const entries = Object.entries(updateData);
+    const values = entries.map(([, value]) => value);
+    values.push(applicationId);
+    const assignments = entries
+      .map(([key], index) => {
+        if (!/^[a-z0-9_]+$/i.test(key)) throw new Error("Invalid tutor application column");
+        return `"${key}" = $${index + 1}`;
+      })
+      .join(", ");
 
-    if (error) {
-      console.error("Error updating sequential onboarding document:", error);
-      return undefined;
-    }
-
-    return data ? (transformSnakeToCamel(data) as TutorApplication) : undefined;
+    const result = await pool.query(
+      `UPDATE public.tutor_applications
+          SET ${assignments}
+        WHERE id = $${values.length}
+        RETURNING *`,
+      values,
+    );
+    return result.rows[0]
+      ? (transformSnakeToCamel(result.rows[0]) as TutorApplication)
+      : undefined;
   }
 
   async createTutorOnboardingAcceptance(
