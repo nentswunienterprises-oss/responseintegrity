@@ -295,7 +295,10 @@ export function evaluateTrialCertificationGate({
 
   placements.forEach((placement, index) => {
     const label = `Family ${index + 1}`;
-    if (placement.progress.qualifyingSessionCount < placement.progress.requiredSessionCount) {
+    if (placement.progress.requiredSessionCount !== TRIAL_REQUIRED_SESSIONS_PER_FAMILY) {
+      blockers.push(`${label} has a non-authoritative session requirement; exactly nine are mandatory.`);
+    }
+    if (placement.progress.qualifyingSessionCount < TRIAL_REQUIRED_SESSIONS_PER_FAMILY) {
       blockers.push(
         `${label} has ${placement.progress.qualifyingSessionCount}/${placement.progress.requiredSessionCount} qualifying sessions.`,
       );
