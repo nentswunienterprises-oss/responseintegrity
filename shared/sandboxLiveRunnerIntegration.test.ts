@@ -99,8 +99,12 @@ test("legacy high-stability checkpoint is a public High label with explicit conf
   assert.match(studentCardSource, /topicStabilityConfirmationLabel\(topic\.stability, topic\.phase, topic\.progressionAuthority\)/);
   assert.match(topicMapSource, /displayTopicStability\(row\.stability\)/);
   assert.match(topicMapSource, /topicStabilityConfirmationLabel\(row\.stability, row\.phase, row\.progressionAuthority\)/);
-  // The next-action and phase gates still consume original, evidence-bearing state.
-  assert.match(topicMapSource, /getNextActionData\(selectedRow\.phase, selectedRow\.stability\)/);
+  // The next-action engine reads the separate eligibility field through a
+  // compatibility adapter, never from a new fabricated stability level.
+  assert.match(topicMapSource, /function nextActionStabilityFor\(/);
+  assert.match(topicMapSource, /row\.progressionAuthority === "exit_confirmation_eligible"/);
+  assert.match(topicMapSource, /getNextActionData\(selectedRow\.phase, nextActionStabilityFor\(selectedRow\)\)/);
+  assert.match(topicMapSource, /entry\.seeded\?\.progressionAuthority/);
 });
 
 test("Sandbox mode uses the existing live-runner route rather than a separate runner flow", () => {
