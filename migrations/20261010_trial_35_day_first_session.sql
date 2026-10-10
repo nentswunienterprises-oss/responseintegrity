@@ -43,6 +43,8 @@ ALTER TABLE public.tutor_trial_cases
     )
   );
 
+-- Introductory/diagnostic and other non-training appointments are not
+-- qualifying Trial delivery and must never start the Trial clock.
 -- A Trial clock begins when the first real scheduled session is marked
 -- completed for a current Trial placement. Placing family 2 never starts it.
 -- "scheduled_time" is UTC stored in an existing timestamp-without-time-zone
@@ -53,6 +55,7 @@ RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$
 DECLARE
   first_delivered_at timestamptz; BEGIN
   IF NEW.status IS DISTINCT FROM 'completed'
+     OR NEW.type IS DISTINCT FROM 'training'
      OR NEW.scheduled_time IS NULL
      OR NEW.student_id IS NULL
      OR NEW.tutor_id IS NULL THEN
@@ -89,7 +92,7 @@ REVOKE ALL ON FUNCTION public.capture_tutor_trial_first_session_v2() FROM PUBLIC
 
 DROP TRIGGER IF EXISTS trg_capture_tutor_trial_first_session_v2 ON public.scheduled_sessions;
 CREATE TRIGGER trg_capture_tutor_trial_first_session_v2
-AFTER INSERT OR UPDATE OF status, scheduled_time, student_id, tutor_id
+AFTER INSERT OR UPDATE OF status, type, scheduled_time, student_id, tutor_id
 ON public.scheduled_sessions
 FOR EACH ROW EXECUTE FUNCTION public.capture_tutor_trial_first_session_v2();
 
