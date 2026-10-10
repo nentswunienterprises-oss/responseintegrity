@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "./storage";
+import { pool } from "./db";
 import {
   TRIAL_REQUIRED_SESSIONS_PER_FAMILY,
   deriveTrialWindow,
@@ -59,17 +60,23 @@ async function loadTrialPlacementOverview(
     .eq("id", placement.enrollment_id)
     .maybeSingle();
 
-  const { data: sessions, error: sessionsError } = await supabase
-    .from("scheduled_sessions")
-    .select("id, status, scheduled_time, updated_at")
-    .eq("tutor_id", placement.tutor_id)
-    .eq("student_id", placement.student_id)
-    .eq("status", "completed")
-    .gte("scheduled_time", placement.started_at)
-    .order("scheduled_time", { ascending: true });
-
-  if (sessionsError) {
-    throw new Error(`Failed to load Trial sessions: ${sessionsError.message}`);
+  let sessions: any[] = [];
+  try {
+    const sessionsResult = await pool.query(
+      `SELECT id, status, scheduled_time, updated_at
+         FROM public.scheduled_sessions
+        WHERE tutor_id = $1
+          AND student_id = $2
+          AND status = 'completed'
+          AND scheduled_time >= $3
+        ORDER BY scheduled_time ASC`,
+      [placement.tutor_id, placement.student_id, placement.started_at],
+    );
+    sessions = sessionsResult.rows;
+  } catch (sessionsError) {
+    throw new Error(
+      `Failed to load Trial sessions: ${sessionsError instanceof Error ? sessionsError.message : String(sessionsError)}`,
+    );
   }
 
   const sessionIds = (sessions || []).map((session: any) => String(session.id));
@@ -259,28 +266,36 @@ async function loadTrialCaseOverview(caseRow: any): Promise<TrialCaseOverview> {
 }
 
 export async function getOpenTrialCaseForTutor(tutorId: string): Promise<TrialCaseOverview | null> {
-  const { data, error } = await supabase
-    .from("tutor_trial_cases")
-    .select("*")
-    .eq("tutor_id", tutorId)
-    .in("status", OPEN_TRIAL_CASE_STATUSES)
-    .order("started_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) throw new Error(`Failed to load tutor Trial case: ${error.message}`);
-  return data ? loadTrialCaseOverview(data) : null;
+  try {
+    const result = await pool.query(
+      `SELECT *
+         FROM public.tutor_trial_cases
+        WHERE tutor_id = $1
+          AND status = ANY($2::text[])
+        ORDER BY started_at DESC
+        LIMIT 1`,
+      [tutorId, OPEN_TRIAL_CASE_STATUSES],
+    );
+    return result.rows[0] ? loadTrialCaseOverview(result.rows[0]) : null;
+  } catch (error) {
+    throw new Error(
+      `Failed to load tutor Trial case: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 export async function getTrialCaseById(caseId: string): Promise<TrialCaseOverview | null> {
-  const { data, error } = await supabase
-    .from("tutor_trial_cases")
-    .select("*")
-    .eq("id", caseId)
-    .maybeSingle();
-
-  if (error) throw new Error(`Failed to load Trial case: ${error.message}`);
-  return data ? loadTrialCaseOverview(data) : null;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM public.tutor_trial_cases WHERE id = $1 LIMIT 1`,
+      [caseId],
+    );
+    return result.rows[0] ? loadTrialCaseOverview(result.rows[0]) : null;
+  } catch (error) {
+    throw new Error(
+      `Failed to load Trial case: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 export async function createTrialCase(input: {
@@ -305,26 +320,26 @@ export async function createTrialCase(input: {
   const existing = await getOpenTrialCaseForTutor(input.tutorId);
   if (existing) return existing;
 
-  const { data, error } = await supabase
-    .from("tutor_trial_cases")
-    .insert({
-      id: uuidv4(),
-      tutor_id: input.tutorId,
-      tutor_assignment_id: input.tutorAssignmentId,
-      status: "active",
-      risk_state: "clear",
-      created_by_user_id: input.createdByUserId || null,
-      updated_at: new Date().toISOString(),
-    })
-    .select("*")
-    .single();
-
-  if (error) {
-    if (String(error.message || "").toLowerCase().includes("uq_tutor_trial_cases_open_tutor")) {
+  let data: any;
+  try {
+    const result = await pool.query(
+      `INSERT INTO public.tutor_trial_cases
+        (id, tutor_id, tutor_assignment_id, status, risk_state, created_by_user_id, updated_at)
+       VALUES ($1, $2, $3, 'active', 'clear', $4, $5)
+       RETURNING *`,
+      [uuidv4(), input.tutorId, input.tutorAssignmentId, input.createdByUserId || null, new Date().toISOString()],
+    );
+    data = result.rows[0];
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (
+      (error as { code?: string })?.code === "23505" ||
+      message.toLowerCase().includes("uq_tutor_trial_cases_open_tutor")
+    ) {
       const concurrentlyCreated = await getOpenTrialCaseForTutor(input.tutorId);
       if (concurrentlyCreated) return concurrentlyCreated;
     }
-    throw new Error(`Failed to create tutor Trial case: ${error.message}`);
+    throw new Error(`Failed to create tutor Trial case: ${message}`);
   }
 
   return loadTrialCaseOverview(data);
@@ -367,18 +382,30 @@ export async function extendTrialCase(input: {
   if (!reason) throw new Error("A documented Trial extension reason is required.");
 
   const nowIso = new Date().toISOString();
-  const { error } = await supabase
-    .from("tutor_trial_cases")
-    .update({
-      extension_ends_at: new Date(extensionTime).toISOString(),
-      extension_reason: reason,
-      extension_approved_at: nowIso,
-      extension_approved_by_user_id: input.approvedByUserId,
-      updated_at: nowIso,
-    })
-    .eq("id", input.caseId)
-    .in("status", OPEN_TRIAL_CASE_STATUSES);
-  if (error) throw new Error(`Failed to extend Trial case: ${error.message}`);
+  try {
+    await pool.query(
+      `UPDATE public.tutor_trial_cases
+          SET extension_ends_at = $2,
+              extension_reason = $3,
+              extension_approved_at = $4,
+              extension_approved_by_user_id = $5,
+              updated_at = $4
+        WHERE id = $1
+          AND status = ANY($6::text[])`,
+      [
+        input.caseId,
+        new Date(extensionTime).toISOString(),
+        reason,
+        nowIso,
+        input.approvedByUserId,
+        OPEN_TRIAL_CASE_STATUSES,
+      ],
+    );
+  } catch (error) {
+    throw new Error(
+      `Failed to extend Trial case: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 
   return getTrialCaseById(input.caseId);
 }
@@ -498,11 +525,15 @@ export async function recordTrialReview(input: {
 
   const refreshed = await getTrialCaseById(placement.case_id);
   if (refreshed?.gate.reviewable && refreshed.persistedStatus !== "reviewable") {
-    await supabase
-      .from("tutor_trial_cases")
-      .update({ status: "reviewable", reviewable_at: nowIso, updated_at: nowIso })
-      .eq("id", placement.case_id)
-      .in("status", ["active", "remediation_required"]);
+    await pool.query(
+      `UPDATE public.tutor_trial_cases
+          SET status = 'reviewable',
+              reviewable_at = $2,
+              updated_at = $2
+        WHERE id = $1
+          AND status = ANY($3::text[])`,
+      [placement.case_id, nowIso, ["active", "remediation_required"]],
+    );
     return getTrialCaseById(placement.case_id);
   }
   return refreshed;
