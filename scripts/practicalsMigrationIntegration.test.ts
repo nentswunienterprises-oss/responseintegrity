@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { Client } from "pg";
+import { evaluatePracticalEntryGate } from "../shared/practicalEntryGate";
+import { derivePracticalCompletionGate } from "../shared/practicalCompletionGate";
 
 const databaseUrl=process.env.PRACTICALS_CI_DATABASE_URL;
 
@@ -102,10 +104,72 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       VALUES($1,$2,'td','approved',true) RETURNING id`,[evidence.rows[0].id,reviewerId]);
     await assert.rejects(db.query(`UPDATE public.specialist_capability_practical_reviews
       SET outcome='repeat_required' WHERE id=$1`,[review.rows[0].id]),/immutable/);
+    // A completed qualification requires all THREE independently approved
+    // current-version proofs. These are explicit synthetic CI fixtures only.
+    const proofIds:Record<string,string>={execute:String(evidence.rows[0].id)};
+    for(const key of ["prepare","evidence"] as const){
+      const result=await db.query(`INSERT INTO public.specialist_capability_practical_evidence
+        (tutor_assignment_id,tutor_id,proof_key,proof_version,attempt_number,
+         artifact_url,artifact_type,declaration,competency_links,no_real_student_data_confirmed)
+        VALUES($1,$2,$3,1,1,'https://example.org/synthetic-fixture','screen_voice',
+          '{}'::jsonb,'[]'::jsonb,true) RETURNING id`,
+        [assignmentId,tutorId,key]);
+      proofIds[key]=String(result.rows[0].id);
+      await db.query(`INSERT INTO public.specialist_capability_practical_reviews
+        (evidence_id,reviewer_id,reviewer_role,outcome)
+        VALUES($1,$2,'td','approved')`,[proofIds[key],reviewerId]);
+    }
+
+    const approvedSnapshot={
+      practicalsReady:true, policyStatus:"approved", policyVersion:2,
+      bankKey:"sandbox-ci-only", bankVersion:3,
+    };
+    await db.query(`INSERT INTO public.tutor_sandbox_mock_assessments
+      (tutor_id,tutor_assignment_id,decision,checklist,evidence_note,assessed_by_user_id)
+      VALUES($1,$2,'passed',$3::jsonb,$4,$5)`,[
+        tutorId,assignmentId,JSON.stringify({
+          assessment_version:2,assessment_owner:"td",next_stage:"practicals",
+          capability_snapshot:approvedSnapshot,
+        }),
+        "A synthetic, isolated PostgreSQL fixture demonstrating TD signoff storage.",
+        reviewerId,
+      ]);
+    assert.equal(evaluatePracticalEntryGate({
+      operationalMode:"sandbox",assignedTdId:reviewerId,
+      latestAssignedTdSignoff:{decision:"passed",capabilitySnapshot:approvedSnapshot},
+      currentReadiness:approvedSnapshot,
+    }).ready,true);
+
+    const proofRows=await db.query(`SELECT e.id,e.proof_key,e.proof_version,r.outcome
+       FROM public.specialist_capability_practical_evidence e
+       JOIN public.specialist_capability_practical_reviews r ON r.evidence_id=e.id
+       WHERE e.tutor_assignment_id=$1 ORDER BY e.proof_key`,[assignmentId]);
+    assert.equal(proofRows.rowCount,3);
+    const gateProofs=proofRows.rows.map(row=>({
+       key:String(row.proof_key),version:Number(row.proof_version),
+       evidenceId:String(row.id),status:String(row.outcome),
+    }));
+    const candidateDecision={decision:"approved",proof_evidence_ids:proofIds};
+    assert.equal(derivePracticalCompletionGate({
+      entryReady:true,
+      proofs:gateProofs,
+      tdDecision:candidateDecision,
+    }).readyForTrial,true);
+    assert.equal(derivePracticalCompletionGate({
+      entryReady:true,
+      proofs:gateProofs.slice(0,1),
+      tdDecision:candidateDecision,
+    }).readyForTrial,false);
+    assert.equal(derivePracticalCompletionGate({
+      entryReady:false,
+      proofs:gateProofs,
+      tdDecision:candidateDecision,
+    }).readyForTrial,false);
+
     const decision=await db.query(`INSERT INTO public.specialist_practical_completion_decisions
       (tutor_assignment_id,tutor_id,td_user_id,decision,proof_evidence_ids,evidence_note)
       VALUES ($1,$2,$3,'approved',$4::jsonb,$5) RETURNING id`,
-      [assignmentId,tutorId,reviewerId,JSON.stringify({execute:evidence.rows[0].id}),"Controlled database-only CI fixture, not a qualification." ]);
+      [assignmentId,tutorId,reviewerId,JSON.stringify(proofIds),"Controlled isolated three-proof fixture; not a real Specialist qualification." ]);
     await assert.rejects(db.query(`DELETE FROM public.specialist_practical_completion_decisions
       WHERE id=$1`,[decision.rows[0].id]),/immutable/);
     const {rows:counts}=await db.query(`SELECT
@@ -113,7 +177,7 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
       (SELECT count(*)::int FROM public.specialist_capability_practical_evidence) AS evidence,
       (SELECT count(*)::int FROM public.specialist_capability_practical_reviews) AS reviews,
       (SELECT count(*)::int FROM public.specialist_practical_completion_decisions) AS decisions`);
-    assert.deepEqual(counts[0],{turns:3,evidence:1,reviews:1,decisions:1});
+    assert.deepEqual(counts[0],{turns:3,evidence:3,reviews:3,decisions:1});
   }finally{
     await db.end();
   }

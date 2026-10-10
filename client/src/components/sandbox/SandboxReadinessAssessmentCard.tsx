@@ -22,6 +22,9 @@ type CapabilityLayer = {
 
 type CapabilityReadiness = {
   policyAvailable: boolean;
+  bankKey?: string | null;
+  bankVersion?: number | null;
+  policyVersion?: number | null;
   policyStatus?: "candidate" | "approved";
   evidenceReady: boolean;
   practicalsReady: boolean;
@@ -176,6 +179,11 @@ export function SandboxReadinessAssessmentCard({
             The TD reviews that evidence, records remediation where needed, and
             approves Practicals readiness only when the system is ready.
           </p>
+          {readiness?.bankKey && readiness?.bankVersion && readiness?.policyVersion ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Evidence lineage: Sandbox bank v{readiness.bankVersion}, capability policy v{readiness.policyVersion} ({readiness.policyStatus || "unapproved"}). TD sign-off applies only to these exact versions.
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge variant={readiness?.practicalsReady ? "default" : "outline"}>
