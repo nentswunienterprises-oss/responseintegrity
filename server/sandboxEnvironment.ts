@@ -42,6 +42,7 @@ import {
 } from "@shared/sandboxEnvironment";
 import { trainingRawObservationRequiresPrerequisiteSentinel } from "@shared/trainingEvidenceEvaluator";
 import type { TopicPhase, TopicStability } from "@shared/topicConditioningEngine";
+import { normalizeCapabilityProgressionState, type ProgressionAuthority } from "@shared/capabilityProgressionAuthority";
 import { buildResponseSnapshotV1, type ResponseSnapshotV1 } from "@shared/responseSnapshot";
 
 export const DEFAULT_SANDBOX_ENVIRONMENT_BANK_KEY = "sandbox_stateful_environment";
@@ -81,6 +82,7 @@ type SandboxTrajectoryRow = {
   bank_version: number;
   specialist_phase: TopicPhase;
   specialist_stability: TopicStability;
+  specialist_progression_authority: ProgressionAuthority;
   specialist_route: "normal_training" | "targeted_rediagnosis";
   specialist_targeted_rediagnosis_phase: TopicPhase | null;
   session_number: number;
@@ -93,6 +95,7 @@ type SandboxTruthRow = {
   trajectory_id: string;
   canonical_phase: TopicPhase;
   canonical_stability: TopicStability;
+  canonical_progression_authority: ProgressionAuthority;
   canonical_route: "normal_training" | "targeted_rediagnosis";
   canonical_targeted_rediagnosis_phase: TopicPhase | null;
   trajectory_seed: string;
@@ -408,12 +411,14 @@ async function persistSandboxStudentTopicState(input: {
   topic: string;
   phase: TopicPhase;
   stability: TopicStability;
+  progressionAuthority: ProgressionAuthority;
   sessionEvaluationId: string;
   observedAt: string;
   reason: string;
 }) {
   const topic = String(input.topic || "").trim();
   if (!topic) return;
+  const separated = normalizeCapabilityProgressionState({phase: input.phase, stability: input.stability, progression: input.progressionAuthority});
 
   const result = await pool.query(
     `SELECT concept_mastery
@@ -446,7 +451,8 @@ async function persistSandboxStudentTopicState(input: {
     history.push({
       date: input.observedAt,
       phase: input.phase,
-      stability: input.stability,
+      stability: separated.stability,
+      progressionAuthority: separated.progression,
       nextAction: input.reason,
       observationNotes: `Stateful Sandbox Training. ${input.reason}`,
       structuredObservation: {
@@ -462,7 +468,8 @@ async function persistSandboxStudentTopicState(input: {
     ...existingTopic,
     topic,
     phase: input.phase,
-    stability: input.stability,
+    stability: separated.stability,
+    progressionAuthority: separated.progression,
     lastUpdated: input.observedAt,
     nextAction: input.reason,
     observationNotes: `Stateful Sandbox Training. ${input.reason}`,
@@ -472,7 +479,8 @@ async function persistSandboxStudentTopicState(input: {
   };
   topicConditioning.topic = topic;
   topicConditioning.entry_phase = input.phase;
-  topicConditioning.stability = input.stability;
+  topicConditioning.stability = separated.stability;
+  topicConditioning.progressionAuthority = separated.progression;
   topicConditioning.lastUpdatedAt = input.observedAt;
   topicConditioning.topics = topics;
   existing.topicConditioning = topicConditioning;
@@ -633,6 +641,7 @@ async function ensureTrajectory(input: {
     SELECT t.*,
            truth.canonical_phase,
            truth.canonical_stability,
+           truth.canonical_progression_authority,
            truth.canonical_route,
            truth.canonical_targeted_rediagnosis_phase,
            truth.trajectory_seed,
@@ -666,6 +675,7 @@ async function ensureTrajectory(input: {
       trajectory_id: String(row.id),
       canonical_phase: String(row.canonical_phase) as TopicPhase,
       canonical_stability: String(row.canonical_stability) as TopicStability,
+      canonical_progression_authority: String(row.canonical_progression_authority) as ProgressionAuthority,
       canonical_route: String(row.canonical_route) as SandboxTruthRow["canonical_route"],
       canonical_targeted_rediagnosis_phase:
         row.canonical_targeted_rediagnosis_phase
@@ -720,6 +730,7 @@ async function ensureTrajectory(input: {
          bank_version,
          specialist_phase,
          specialist_stability,
+         specialist_progression_authority,
          specialist_route,
          session_number,
          completed_rep_count,
@@ -727,7 +738,7 @@ async function ensureTrajectory(input: {
          status,
          student_state_authoritative,
          evidence_scope
-       ) VALUES ($1,$2,$3,$4,$5,'Clarity','Low','normal_training',1,0,false,'active',false,'sandbox')
+       ) VALUES ($1,$2,$3,$4,$5,'Clarity','Low','building','normal_training',1,0,false,'active',false,'sandbox')
        RETURNING *`,
       selectParams,
     );
@@ -746,12 +757,13 @@ async function ensureTrajectory(input: {
          trajectory_id,
          canonical_phase,
          canonical_stability,
+         canonical_progression_authority,
          canonical_route,
          trajectory_seed,
          continuity_tags,
          recent_outcome_keys,
          prior_tracks_diverged
-       ) VALUES ($1,'Clarity','Low','normal_training',$2,'[]'::jsonb,'[]'::jsonb,false)`,
+       ) VALUES ($1,'Clarity','Low','building','normal_training',$2,'[]'::jsonb,'[]'::jsonb,false)`,
       [trajectory.id, trajectorySeed],
     );
     await client.query("COMMIT");
@@ -761,6 +773,7 @@ async function ensureTrajectory(input: {
         trajectory_id: trajectory.id,
         canonical_phase: "Clarity",
         canonical_stability: "Low",
+        canonical_progression_authority: "building",
         canonical_route: "normal_training",
         canonical_targeted_rediagnosis_phase: null,
         trajectory_seed: trajectorySeed,
@@ -1674,6 +1687,8 @@ export async function submitSandboxEnvironmentRep(input: {
       phase: planned.phase,
       canonicalPreviousStability: bundle.truth.canonical_stability,
       specialistPreviousStability: bundle.trajectory.specialist_stability,
+      canonicalPreviousProgressionAuthority: bundle.truth.canonical_progression_authority,
+      specialistPreviousProgressionAuthority: bundle.trajectory.specialist_progression_authority,
       turns,
       priorCompletedSessions,
       priorTracksDiverged: bundle.truth.prior_tracks_diverged,
@@ -1747,6 +1762,7 @@ export async function submitSandboxEnvironmentRep(input: {
         `UPDATE specialist_sandbox_trajectories
             SET specialist_phase = $2,
                 specialist_stability = $3,
+                specialist_progression_authority = $7,
                 specialist_route = $4,
                 specialist_targeted_rediagnosis_phase = $5,
                 divergence_active = $6,
@@ -1756,16 +1772,18 @@ export async function submitSandboxEnvironmentRep(input: {
         [
           bundle.trajectory.id,
           evaluation.specialistRoute.nextPhase,
-          evaluation.specialistRoute.nextStability,
+          evaluation.specialistRoute.nextCapabilityStability,
           evaluation.specialistRoute.route,
           evaluation.specialistRoute.targetPhase,
           !evaluation.systemOutcomeMatched,
+          evaluation.specialistRoute.nextProgressionAuthority,
         ],
       ),
       pool.query(
         `UPDATE private.specialist_sandbox_trajectory_truth
             SET canonical_phase = $2,
                 canonical_stability = $3,
+                canonical_progression_authority = $7,
                 canonical_route = $4,
                 canonical_targeted_rediagnosis_phase = $5,
                 prior_tracks_diverged = $6,
@@ -1774,10 +1792,11 @@ export async function submitSandboxEnvironmentRep(input: {
         [
           bundle.trajectory.id,
           evaluation.canonicalRoute.nextPhase,
-          evaluation.canonicalRoute.nextStability,
+          evaluation.canonicalRoute.nextCapabilityStability,
           evaluation.canonicalRoute.route,
           evaluation.canonicalRoute.targetPhase,
           !evaluation.systemOutcomeMatched,
+          evaluation.canonicalRoute.nextProgressionAuthority,
         ],
       ),
     ]);
@@ -1786,7 +1805,8 @@ export async function submitSandboxEnvironmentRep(input: {
       studentId: bundle.trajectory.student_id,
       topic: String(input.topic || "Sandbox practice"),
       phase: evaluation.specialistRoute.nextPhase,
-      stability: evaluation.specialistRoute.nextStability,
+      stability: evaluation.specialistRoute.nextCapabilityStability,
+      progressionAuthority: evaluation.specialistRoute.nextProgressionAuthority,
       sessionEvaluationId: sessionId,
       observedAt: String(inserted.rows[0]?.completed_at || new Date().toISOString()),
       reason: evaluation.specialistRoute.reason,
