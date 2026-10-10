@@ -119,14 +119,14 @@ test("Boundaries: server chooses case, stores private plan, enforces three-turn 
 
 test("Practicals migration preserves SQL grammar, append-only proof and server-only permissions",()=>{
  const sql=readFileSync("migrations/20261009_practicals_evidence_stage_v1.sql","utf8");
- assert.equal((sql.match(/AS \\$\\$ BEGIN/g)||[]).length,3,"three trigger functions need full opening delimiters");
- assert.equal((sql.match(/END; \\$\\$;/g)||[]).length,3,"three trigger functions need full closing delimiters");
- assert.doesNotMatch(sql,/AS \\$ BEGIN|END; \\$;/,"single-dollar PL/pgSQL quote would be invalid SQL");
+ assert.equal((sql.match(/AS \$\$ BEGIN/g)||[]).length,3,"three trigger functions need full opening delimiters");
+ assert.equal((sql.match(/END; \$\$;/g)||[]).length,3,"three trigger functions need full closing delimiters");
+ assert.doesNotMatch(sql,/AS \$ BEGIN|END; \$;/,"single-dollar PL/pgSQL quote would be invalid SQL");
  assert.doesNotMatch(sql,/ON DELETE CASCADE/i,"qualification proof must not disappear when ownership changes");
- assert.match(sql,/GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\\.tutor_sandbox_mock_assessments TO service_role/);
+ assert.match(sql,/GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.tutor_sandbox_mock_assessments TO service_role/);
  assert.match(sql,/CREATE TRIGGER trg_practical_submission_immutable/);
  assert.match(sql,/CREATE TRIGGER trg_practical_review_immutable/);
  assert.match(sql,/CREATE TRIGGER trg_practical_completion_immutable/);
  assert.match(sql,/CREATE TRIGGER trg_practical_execute_challenge_guard/);
- assert.match(sql,/REVOKE ALL ON public\\.specialist_practical_execute_challenges FROM PUBLIC,anon,authenticated/);
+ assert.match(sql,/REVOKE ALL ON public\.specialist_practical_execute_challenges FROM PUBLIC,anon,authenticated/);
 });
