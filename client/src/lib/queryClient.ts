@@ -84,7 +84,9 @@ export async function apiRequest(
     headers.Authorization = `Bearer ${session.access_token}`;
   }
   if (method === 'POST') {
-    console.log('[apiRequest][POST] url:', fullUrl, 'data:', data);
+    // Internal issue descriptions may contain confidential personnel details.
+    const isSensitiveReport = url === "/api/issues" || url === "/api/disputes/log";
+    console.log('[apiRequest][POST] url:', fullUrl, 'data:', isSensitiveReport ? '[redacted]' : data);
   }
   console.log("[apiRequest] method:", method, "url:", fullUrl, "credentials: include");
   const res = await fetch(fullUrl, {
