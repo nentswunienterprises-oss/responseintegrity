@@ -300,7 +300,7 @@ export function evaluateTrialCertificationGate({
     }
     if (placement.progress.qualifyingSessionCount < TRIAL_REQUIRED_SESSIONS_PER_FAMILY) {
       blockers.push(
-        `${label} has ${placement.progress.qualifyingSessionCount}/${placement.progress.requiredSessionCount} qualifying sessions.`,
+        `${label} has ${placement.progress.qualifyingSessionCount}/${TRIAL_REQUIRED_SESSIONS_PER_FAMILY} qualifying sessions.`,
       );
     }
     if (!placement.progress.reportsComplete) {
