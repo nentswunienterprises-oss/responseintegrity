@@ -187,11 +187,11 @@ export function resolveTrainingTabAvailability(options: {
     return {
       code: "NO_SESSIONS_BOOKED",
       blocked: false,
-      title: "No sessions booked",
+      title: "No current lessons booked",
       message:
         packageBacked && remaining !== null
-          ? `The family has ${remaining} package session${remaining === 1 ? "" : "s"} remaining, but no current training sessions are booked.`
-          : "There are no current training sessions booked for this student.",
+          ? `The family has ${remaining} package session${remaining === 1 ? "" : "s"} remaining, but no current training lessons are booked. Previously completed lessons remain in history.`
+          : "There are no current training lessons booked for this student. Previously completed lessons remain in history.",
     };
   }
 
