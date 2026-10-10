@@ -136,7 +136,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_practical_execute_link
   WHERE execute_challenge_id IS NOT NULL;
 
 CREATE OR REPLACE FUNCTION private.validate_execute_evidence_link()
-RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $ BEGIN
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$ BEGIN
   IF NEW.proof_key = 'execute' AND NEW.proof_version >= 2 THEN
     IF NOT EXISTS (
       SELECT 1 FROM public.specialist_practical_execute_challenges c
@@ -162,7 +162,7 @@ CREATE TRIGGER trg_validate_practical_execute_link
   FOR EACH ROW EXECUTE FUNCTION private.validate_execute_evidence_link();
 
 CREATE OR REPLACE FUNCTION private.reject_practical_execute_mutation()
-RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $ BEGIN RAISE EXCEPTION 'Practicals scenario truth and executed turns are immutable'; END; $;
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog AS $$ BEGIN RAISE EXCEPTION 'Practicals scenario truth and executed turns are immutable'; END; $$;
 REVOKE ALL ON FUNCTION private.reject_practical_execute_mutation() FROM PUBLIC,anon,authenticated;
 DROP TRIGGER IF EXISTS trg_execute_turn_immutable ON public.specialist_practical_execute_turns;
 CREATE TRIGGER trg_execute_turn_immutable
