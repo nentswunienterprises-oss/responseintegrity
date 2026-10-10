@@ -58,7 +58,7 @@ describe("topicConditioningEngine", () => {
 
     assert.equal(
       nextMoveRecommendation("Time Pressure Stability", "High Maintenance"),
-      "Maintain and transfer to new topics",
+      "Maintain timed stability and verify transfer through separate evidence",
     );
     const high = getNextActionData("Clarity", "High");
     assert.match(high.rules.join(" "), /independently establish the progression checkpoint/);
