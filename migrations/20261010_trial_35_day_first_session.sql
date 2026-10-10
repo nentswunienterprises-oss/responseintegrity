@@ -12,6 +12,12 @@ ALTER TABLE public.tutor_trial_cases
   ADD COLUMN IF NOT EXISTS extension_approved_at timestamptz,
   ADD COLUMN IF NOT EXISTS extension_approved_by_user_id varchar REFERENCES public.users(id);
 
+-- Two distinct families must each supply nine qualifying sessions. A stale
+-- or manually weakened placement count cannot reduce certification requirements.
+ALTER TABLE public.tutor_trial_placements
+  ADD CONSTRAINT tutor_trial_nine_sessions_per_family_contract
+  CHECK (required_session_count = 9);
+
 -- Window chronology must remain internally consistent; an ordinary window
 -- always lasts exactly 35 calendar days, including after a correction to
 -- the first completed session's authoritative scheduled timestamp.
