@@ -82,8 +82,8 @@ test("Managed Practicals migration executes on PostgreSQL and enforces immutable
         VALUES ($1,$2,$3::jsonb,$4::jsonb,'[]'::jsonb)`,
         [challengeId,n,JSON.stringify(event),JSON.stringify(response)]);
       await db.query(`UPDATE public.specialist_practical_execute_challenges
-        SET active_turn=$2,status=$3,
-        completed_at=CASE WHEN $3='complete' THEN now() ELSE NULL END WHERE id=$1`,
+        SET active_turn=$2,status=$3::varchar,
+        completed_at=CASE WHEN $3::varchar='complete' THEN now() ELSE NULL END WHERE id=$1`,
         [challengeId,n+1,n===3?"complete":"active"]);
     }
     await assert.rejects(db.query(`UPDATE public.specialist_practical_execute_turns
