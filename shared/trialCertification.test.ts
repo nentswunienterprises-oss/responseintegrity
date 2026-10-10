@@ -59,12 +59,12 @@ test("an incomplete or duplicate drill record cannot increase trial progress", (
   assert.equal(progress.evidenceComplete, false);
 });
 
-test("Trial session evidence outside the 14-day qualification window does not count", () => {
+test("Trial session evidence after the 35-day first-session window cannot count", () => {
   const progress = deriveTrialPlacementProgress({
     placementStartedAt: "2026-08-01T00:00:00.000Z",
-    qualificationEndsAt: "2026-08-15T00:00:00.000Z",
+    qualificationEndsAt: "2026-09-05T00:00:00.000Z",
     sessions: buildSessions(9).map((session, index) =>
-      index === 8 ? { ...session, scheduledAt: "2026-08-16T10:00:00.000Z" } : session,
+      index === 8 ? { ...session, scheduledAt: "2026-09-06T10:00:00.000Z" } : session,
     ),
     reports: buildReports(),
   });
@@ -73,23 +73,23 @@ test("Trial session evidence outside the 14-day qualification window does not co
   assert.equal(progress.evidenceComplete, false);
 });
 
-test("the Trial window is fourteen days and starts only after both families are ready", () => {
-  assert.equal(deriveTrialWindow({}).state, "awaiting_families");
+test("the Trial window is 35 days and starts only on first completed Trial session", () => {
+  assert.equal(deriveTrialWindow({}).state, "awaiting_first_session");
 
   const window = deriveTrialWindow({
     windowStartedAt: "2026-08-01T00:00:00.000Z",
     now: "2026-08-10T00:00:00.000Z",
   });
 
-  assert.equal(window.standardEndsAt, "2026-08-15T00:00:00.000Z");
+  assert.equal(window.standardEndsAt, "2026-09-05T00:00:00.000Z");
   assert.equal(window.state, "active");
-  assert.equal(window.daysRemaining, 5);
+  assert.equal(window.daysRemaining, 26);
 });
 
-test("an incomplete Trial requires a documented extension after day fourteen", () => {
+test("an incomplete Trial requires a documented COO extension after day 35", () => {
   const window = deriveTrialWindow({
     windowStartedAt: "2026-08-01T00:00:00.000Z",
-    now: "2026-08-16T00:00:00.000Z",
+    now: "2026-09-06T00:00:00.000Z",
   });
   const second = eligiblePlacement("placement-2", "family-2");
   second.progress = deriveTrialPlacementProgress({
@@ -105,7 +105,7 @@ test("an incomplete Trial requires a documented extension after day fourteen", (
   });
 
   assert.equal(result.reviewable, false);
-  assert.match(result.blockers.join(" "), /14-day Trial window/);
+  assert.match(result.blockers.join(" "), /35-day Trial window/);
 });
 
 function eligiblePlacement(id: string, familyKey: string): TrialPlacementGateInput {
@@ -174,4 +174,35 @@ test("missing outcome review, pending feedback, or unresolved risk blocks the ga
   assert.match(result.blockers.join(" "), /feedback/);
   assert.match(result.blockers.join(" "), /positive COO outcome review/);
   assert.match(result.blockers.join(" "), /remediation/);
+});
+
+test("an unlogged completion cannot consume one of the nine qualifying Trial slots", () => {
+  const progress = deriveTrialPlacementProgress({
+    placementStartedAt: "2026-08-01T00:00:00.000Z",
+    qualificationEndsAt: "2026-09-05T00:00:00.000Z",
+    sessions: buildSessions(10, { missingLogAt: 1 }).map((session, index) =>
+      index === 9 ? { ...session, scheduledAt: "2026-08-20T10:00:00.000Z" } : session,
+    ),
+    reports: buildReports(),
+  });
+  assert.equal(progress.completedSessionCount, 10);
+  assert.equal(progress.loggedSessionCount, 9);
+  assert.equal(progress.qualifyingSessionCount, 9);
+  assert.equal(progress.missingLogCount, 1);
+  assert.equal(progress.evidenceComplete, true);
+});
+
+test("the 35-day expiry is independent of when the second family was assigned", () => {
+  const window = deriveTrialWindow({
+    windowStartedAt: "2026-08-01T10:00:00.000Z",
+    now: "2026-09-05T09:59:59.000Z",
+  });
+  assert.equal(window.standardEndsAt, "2026-09-05T10:00:00.000Z");
+  assert.equal(window.isExpired, false);
+  const expired = deriveTrialWindow({
+    windowStartedAt: "2026-08-01T10:00:00.000Z",
+    now: "2026-09-05T10:00:00.000Z",
+  });
+  assert.equal(expired.state, "extension_required");
+  assert.equal(expired.isExpired, true);
 });
