@@ -1911,7 +1911,7 @@ export default function StudentTopicConditioningDialog({
                             <Badge variant="outline" className="border-primary/20 text-muted-foreground">
                               {topicStabilityConfirmationLabel(row.stability, row.phase)}
                             </Badge>
-                          )}
+                          ) : null}
                         </div>
                           </>
                         )}
