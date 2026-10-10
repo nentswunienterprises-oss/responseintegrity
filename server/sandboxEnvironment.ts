@@ -1694,9 +1694,12 @@ export async function submitSandboxEnvironmentRep(input: {
       priorTracksDiverged: bundle.truth.prior_tracks_diverged,
     });
 
+    // Repeatability eligibility is a real longitudinal state change even
+    // when the student's capability stability remains High.
     const stateChangeObserved =
       evaluation.canonicalNext.phase !== bundle.truth.canonical_phase ||
-      evaluation.canonicalNext.stability !== bundle.truth.canonical_stability;
+      evaluation.canonicalNext.stability !== bundle.truth.canonical_stability ||
+      evaluation.canonicalNext.progressionAuthority !== bundle.truth.canonical_progression_authority;
     const breakdownRecoveryObserved = sessionHasBreakdownRecovery(turns);
 
     const sessionInsert = await pool.query(
